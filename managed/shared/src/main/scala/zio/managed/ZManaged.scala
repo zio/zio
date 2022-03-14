@@ -1483,6 +1483,13 @@ object ZManaged extends ZManagedPlatformSpecific {
       ZManaged.environment.flatMap(f)
   }
 
+  final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](scoped: ZIO[zio.Scope with R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+      ZManaged.acquireReleaseExitWith(zio.Scope.make)((scope, exit) => scope.close(exit)).mapZIO { scope =>
+        scoped.provideSomeEnvironment[R](_.union[zio.Scope](ZEnvironment(scope)))
+      }
+  }
+
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
@@ -3298,10 +3305,8 @@ object ZManaged extends ZManagedPlatformSpecific {
       }
     }
 
-  def scoped[R, E, A](scoped: ZIO[zio.Scope with R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
-    ZManaged.acquireReleaseExitWith(zio.Scope.make)((scope, exit) => scope.close(exit)).mapZIO { scope =>
-      scoped.provideSomeEnvironment[R](_.union[zio.Scope](ZEnvironment(scope)))
-    }
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
 
   /**
    * Accesses the specified service in the environment of the effect.
