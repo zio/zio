@@ -22,6 +22,13 @@ import zio.stream._
 
 import java.io.{IOException, InputStream}
 
+/**
+ * The `Managed` library provides the `ZManaged` data type for backward
+ * compatibility after the introduction of scopes. For the best experience,
+ * import `zio.managed._` to get access to extension methods on ZIO data types
+ * that convert to and from `ZManaged` values. This will give you the smoothest
+ * possible experience until you are able to upgrade to using scopes directly.
+ */
 package object managed extends ZManagedCompatPlatformSpecific {
 
   type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
@@ -32,9 +39,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
 
   val Managed: ZManaged.type = ZManaged
 
-  implicit final class ZManagedZRefCompanionSyntax(private val self: ZRef.type) extends AnyVal {
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref[A]] =
-      ZManaged.fromZIO(Ref.make(a))
+  implicit final class ZManagedPromiseCompanionSyntax(private val self: Promise.type) extends AnyVal {
+    def makeManaged[E, A](implicit trace: ZTraceElement): ZManaged[Any, Nothing, Promise[E, A]] =
+      ZManaged.fromZIO(Promise.make[E, A])
   }
 
   implicit final class ZManagedRefCompanionSyntax(private val self: Ref.type) extends AnyVal {
@@ -42,49 +49,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
       ZManaged.fromZIO(Ref.make(a))
   }
 
-  implicit final class ZManagedZRefSynchronizedCompanionSyntax(private val self: ZRef.Synchronized.type)
-      extends AnyVal {
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref.Synchronized[A]] =
-      ZManaged.fromZIO(Ref.Synchronized.make(a))
-  }
-
   implicit final class ZManagedRefSynchronizedCompanionSyntax(private val self: Ref.Synchronized.type) extends AnyVal {
     def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref.Synchronized[A]] =
       ZManaged.fromZIO(Ref.Synchronized.make(a))
-  }
-
-  implicit final class ZManagedPromiseCompanionSyntax(private val self: Promise.type) extends AnyVal {
-    def makeManaged[E, A](implicit trace: ZTraceElement): ZManaged[Any, Nothing, Promise[E, A]] =
-      ZManaged.fromZIO(Promise.make[E, A])
-  }
-
-  implicit final class ZManagedTSemaphoreSyntax(private val self: TSemaphore) extends AnyVal {
-
-    /**
-     * Returns a managed effect that describes acquiring a permit as the
-     * `acquire` action and releasing it as the `release` action.
-     */
-    def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-      ZManaged.scoped(self.withPermitScoped)
-
-    /**
-     * Returns a managed effect that describes acquiring the specified number of
-     * permits as the `acquire` action and releasing them as the `release`
-     * action.
-     */
-    def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-      ZManaged.scoped(self.withPermitsScoped(n))
-  }
-
-  implicit final class ZTHubSyntax[RA, RB, EA, EB, A, B](private val self: ZTHub[RA, RB, EA, EB, A, B]) extends AnyVal {
-
-    /**
-     * Subscribes to receive messages from the hub. The resulting subscription
-     * can be evaluated multiple times within the scope of the managed to take a
-     * message from the hub each time.
-     */
-    final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
-      ZManaged.scoped(self.subscribeScoped)
   }
 
   implicit final class ZManagedZFiberRefSyntax[+EA, +EB, -A, +B](private val self: ZFiberRef[EA, EB, A, B]) {
@@ -159,6 +126,47 @@ package object managed extends ZManagedCompatPlatformSpecific {
       ZManaged.fromReservationZIO(reservation).use(use)
   }
 
+  implicit final class ZManagedZRefCompanionSyntax(private val self: ZRef.type) extends AnyVal {
+    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref[A]] =
+      ZManaged.fromZIO(Ref.make(a))
+  }
+
+  implicit final class ZManagedZRefSynchronizedCompanionSyntax(private val self: ZRef.Synchronized.type)
+      extends AnyVal {
+    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref.Synchronized[A]] =
+      ZManaged.fromZIO(Ref.Synchronized.make(a))
+  }
+
+  implicit final class ZManagedTHubSyntax[RA, RB, EA, EB, A, B](private val self: ZTHub[RA, RB, EA, EB, A, B])
+      extends AnyVal {
+
+    /**
+     * Subscribes to receive messages from the hub. The resulting subscription
+     * can be evaluated multiple times within the scope of the managed to take a
+     * message from the hub each time.
+     */
+    final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
+      ZManaged.scoped(self.subscribeScoped)
+  }
+
+  implicit final class ZManagedTSemaphoreSyntax(private val self: TSemaphore) extends AnyVal {
+
+    /**
+     * Returns a managed effect that describes acquiring a permit as the
+     * `acquire` action and releasing it as the `release` action.
+     */
+    def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+      ZManaged.scoped(self.withPermitScoped)
+
+    /**
+     * Returns a managed effect that describes acquiring the specified number of
+     * permits as the `acquire` action and releasing them as the `release`
+     * action.
+     */
+    def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+      ZManaged.scoped(self.withPermitsScoped(n))
+  }
+
   implicit final class ZManagedZChannelSyntax[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ) extends AnyVal {
@@ -189,6 +197,23 @@ package object managed extends ZManagedCompatPlatformSpecific {
       trace: ZTraceElement
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.unwrapScoped[Env](channel.scoped)
+  }
+
+  implicit final class ZManagedZSinkCompanionSyntax(private val self: ZSink.type) extends AnyVal {
+
+    @deprecated("use unwrapManaged", "2.0.0")
+    def managed[R, E, In, A, L <: In, Z](resource: => ZManaged[R, E, A])(
+      fn: A => ZSink[R, E, In, L, Z]
+    )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
+      unwrapManaged(resource.map(fn))
+
+    /**
+     * Creates a sink produced from a managed effect.
+     */
+    def unwrapManaged[R, E, In, L, Z](managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]])(implicit
+      trace: ZTraceElement
+    ): ZSink[R, E, In, L, Z] =
+      ZSink.unwrapScoped[R](managed.scoped)
   }
 
   implicit final class ZManagedZStreamSyntax[R, E, A](private val self: ZStream[R, E, A]) extends AnyVal {
@@ -569,22 +594,5 @@ package object managed extends ZManagedCompatPlatformSpecific {
       trace: ZTraceElement
     ): ZStream[R, E, A] =
       ZStream.unwrapScoped[R](fa.scoped)
-  }
-
-  implicit final class ZManagedZSinkCompanionSyntax(private val self: ZSink.type) extends AnyVal {
-
-    @deprecated("use unwrapManaged", "2.0.0")
-    def managed[R, E, In, A, L <: In, Z](resource: => ZManaged[R, E, A])(
-      fn: A => ZSink[R, E, In, L, Z]
-    )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
-      unwrapManaged(resource.map(fn))
-
-    /**
-     * Creates a sink produced from a managed effect.
-     */
-    def unwrapManaged[R, E, In, L, Z](managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]])(implicit
-      trace: ZTraceElement
-    ): ZSink[R, E, In, L, Z] =
-      ZSink.unwrapScoped[R](managed.scoped)
   }
 }
