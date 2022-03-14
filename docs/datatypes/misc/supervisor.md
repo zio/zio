@@ -28,14 +28,14 @@ In the following example we are creating a new supervisor from an initial set of
 
 ```scala mdoc:invisible
 import java.util.concurrent.atomic.AtomicReference
-import zio.{ Fiber, UIO }
+import zio.{ Fiber, ZIO }
 import scala.collection.immutable.SortedSet
 def fibers: Seq[Fiber.Runtime[Any, Any]] = ???
 ```
 
 ```scala mdoc
 def fiberListSupervisor = for { 
-  ref <- UIO(new AtomicReference(SortedSet.from(fibers)))
+  ref <- ZIO.succeed(new AtomicReference(SortedSet.from(fibers)))
   s <- Supervisor.fibersIn(ref)
 } yield (s)
 ```

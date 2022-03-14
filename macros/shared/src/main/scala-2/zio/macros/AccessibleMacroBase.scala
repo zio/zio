@@ -208,9 +208,9 @@ private[macros] abstract class AccessibleMacroBase(val c: whitebox.Context) {
           q"_root_.zio.stream.ZSink.environmentWithSink[$serviceName[..$serviceTypeArgs]][$serviceName[..$serviceTypeArgs] with $r, $e, $a, $l, $b](_.get[$serviceName[..$serviceTypeArgs]].$name)"
         case (_: Capability.ThrowingMethod, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
-          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](s => ZIO(s.$name[..$typeArgs](...$argNames)))"
+          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](s => ZIO.attempt(s.$name[..$typeArgs](...$argNames)))"
         case (_: Capability.ThrowingMethod, _) =>
-          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](s => ZIO(s.$name))"
+          q"_root_.zio.ZIO.serviceWithZIO[$serviceName[..$serviceTypeArgs]](s => ZIO.attempt(s.$name))"
         case (_, argLists) if argLists.flatten.nonEmpty || argLists.size == 1 =>
           val argNames = argLists.map(_.map(_.name))
           q"_root_.zio.ZIO.serviceWith[$serviceName[..$serviceTypeArgs]](_.$name[..$typeArgs](...$argNames))"

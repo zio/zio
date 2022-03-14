@@ -403,7 +403,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.unwrap(
               ZIO.suspendSucceed {
                 val outputChunk            = ChunkBuilder.make[Out](in.size)
-                val emit: Out => UIO[Unit] = (o: Out) => UIO(outputChunk += o).unit
+                val emit: Out => UIO[Unit] = (o: Out) => ZIO.succeed(outputChunk += o).unit
                 ZIO
                   .foldLeft[Env, Err, State, In](in)(s)((s1, a) => f(s1, a).flatMap(sa => emit(sa._2) as sa._1))
                   .fold(

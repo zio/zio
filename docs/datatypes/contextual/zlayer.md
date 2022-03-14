@@ -160,7 +160,7 @@ trait UserRepository {
 }
 
 case class UserRepositoryLive(xa: Transactor) extends UserRepository {
-  override def save(user: User): Task[Unit] = Task(???)
+  override def save(user: User): Task[Unit] = ZIO.attempt(???)
 }
 ```
 
@@ -495,7 +495,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig & Console] =
-    UIO(AppConfig(5))
+    ZIO.succeed(AppConfig(5))
       .debug("Application config initialized")
       .toLayer ++ Console.live
 
@@ -542,7 +542,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig & Console] =
-    UIO(AppConfig(5))
+    ZIO.succeed(AppConfig(5))
       .debug("Application config initialized")
       .toLayer ++ Console.live
 
@@ -1080,7 +1080,7 @@ trait C
 case class BLive(a: A) extends B
 case class CLive(a: A) extends C
 
-val a: ZLayer[Any, Nothing, A] = UIO(new A {}).debug("initialized").toLayer
+val a: ZLayer[Any, Nothing, A] = ZIO.succeed(new A {}).debug("initialized").toLayer
 val b: ZLayer[A,   Nothing, B] = (BLive.apply _).toLayer[B]
 val c: ZLayer[A,   Nothing, C] = (CLive.apply _).toLayer[C]
 ```
@@ -1308,7 +1308,7 @@ case class AppConfig(host: String, port: Int)
 
 val config: ZLayer[Any, Throwable, AppConfig] =
   ZLayer.fromZIO(
-    ZIO(???) // reading config from a file
+    ZIO.attempt(???) // reading config from a file
   )
 
 val res: ZLayer[Any, Throwable, AppConfig] =
@@ -1334,7 +1334,7 @@ object MainApp extends ZIOAppDefault {
   val zio: ZIO[AppConfig, Nothing, Unit] = 
     for {
       config <- ZIO.service[AppConfig]
-      _      <- UIO(println(s"Applicaiton started with config: $config"))
+      _      <- ZIO.succeed(println(s"Applicaiton started with config: $config"))
     } yield ()
 
   // Create a ZLayer that produces an AppConfig and can be used to satisfy the AppConfig 
@@ -1370,7 +1370,7 @@ object A {
 }
 
 case class ALive() extends A {
-  override def letsGoA(v: Int): UIO[String] = UIO(s"done: v = $v ")
+  override def letsGoA(v: Int): UIO[String] = ZIO.succeed(s"done: v = $v ")
 }
 
 object ALive {
@@ -1474,7 +1474,7 @@ class InmemeoryCache() extends Cache {
 
 object InmemoryCache {
   val layer: ZLayer[Any, Throwable, Cache] =
-    ZIO(new InmemeoryCache)
+    ZIO.attempt(new InmemeoryCache)
       .debug("initialized")
       .toLayer
 }
@@ -1489,7 +1489,7 @@ class PersistentCache() extends Cache {
 
 object PersistentCache {
   val layer: ZLayer[Any, Throwable, Cache] =
-    ZIO(new PersistentCache)
+    ZIO.attempt(new PersistentCache)
       .debug("initialized")
       .toLayer
 }

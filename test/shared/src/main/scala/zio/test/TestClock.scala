@@ -384,10 +384,8 @@ object TestClock extends Serializable {
         clockState            <- ZIO.succeedNow(Ref.unsafeMake(data))
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
-        test <-
-          ZIO.acquireRelease(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) { test =>
-            test.warningDone *> test.suspendedWarningDone
-          }
+        test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)
+        _                     <- ZIO.addFinalizer(_ => test.warningDone *> test.suspendedWarningDone)
       } yield test
     }
 

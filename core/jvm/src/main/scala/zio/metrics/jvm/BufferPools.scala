@@ -30,17 +30,17 @@ trait BufferPools extends JvmMetrics {
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.foreachParDiscard(bufferPoolMXBeans) { bufferPoolMXBean =>
       for {
-        name <- Task(bufferPoolMXBean.getName)
-        _    <- Task(bufferPoolMXBean.getMemoryUsed) @@ bufferPoolUsedBytes(name)
-        _    <- Task(bufferPoolMXBean.getTotalCapacity) @@ bufferPoolCapacityBytes(name)
-        _    <- Task(bufferPoolMXBean.getCount) @@ bufferPoolUsedBuffers(name)
+        name <- ZIO.attempt(bufferPoolMXBean.getName)
+        _    <- ZIO.attempt(bufferPoolMXBean.getMemoryUsed) @@ bufferPoolUsedBytes(name)
+        _    <- ZIO.attempt(bufferPoolMXBean.getTotalCapacity) @@ bufferPoolCapacityBytes(name)
+        _    <- ZIO.attempt(bufferPoolMXBean.getCount) @@ bufferPoolUsedBuffers(name)
       } yield ()
     }
 
   @silent("JavaConverters")
   def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, BufferPools] =
     for {
-      bufferPoolMXBeans <- Task(
+      bufferPoolMXBeans <- ZIO.attempt(
                              ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
                            )
       _ <- reportBufferPoolMetrics(bufferPoolMXBeans)

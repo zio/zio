@@ -104,7 +104,7 @@ object ZTestLogger {
           else ()
         }
         val logOutput: UIO[Chunk[LogEntry]] =
-          UIO(_logOutput.get)
+          ZIO.succeed(_logOutput.get)
       }
     }
 }

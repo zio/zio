@@ -898,7 +898,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ): ZIO[Env with Scope, OutErr, OutDone] =
     ZIO
       .acquireReleaseExit[Env, OutErr, ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](
-        UIO(
+        ZIO.succeed(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
             null,
@@ -961,7 +961,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def toPull(implicit trace: ZTraceElement): ZIO[Env with Scope, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
     ZIO
       .acquireReleaseExit[Env, Nothing, ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](
-        UIO(
+        ZIO.succeed(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
             null,

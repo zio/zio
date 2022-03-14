@@ -94,16 +94,16 @@ abstract class BaseTestTask(
     try {
       spec match {
         case NewSpecWrapper(zioSpec) =>
-          Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRun {
+          Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec, loggers)
               .provideLayer(sbtTestLayer(loggers))
-              .onError(e => UIO(println(e.prettyPrint)))
+              .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
               .provideLayer(sbtTestLayer(loggers))
-              .onError(e => UIO(println(e.prettyPrint)))
+              .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
       }
       Array()

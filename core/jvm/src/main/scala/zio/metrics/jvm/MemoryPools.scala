@@ -54,20 +54,20 @@ trait MemoryPools extends JvmMetrics {
     trace: ZTraceElement
   ): ZIO[Any, Nothing, Unit] =
     for {
-      _ <- UIO(usage.getUsed) @@ memoryBytesUsed(area)
-      _ <- UIO(usage.getCommitted) @@ memoryBytesCommitted(area)
-      _ <- UIO(usage.getMax) @@ memoryBytesMax(area)
-      _ <- UIO(usage.getInit) @@ memoryBytesInit(area)
+      _ <- ZIO.succeed(usage.getUsed) @@ memoryBytesUsed(area)
+      _ <- ZIO.succeed(usage.getCommitted) @@ memoryBytesCommitted(area)
+      _ <- ZIO.succeed(usage.getMax) @@ memoryBytesMax(area)
+      _ <- ZIO.succeed(usage.getInit) @@ memoryBytesInit(area)
     } yield ()
 
   private def reportPoolUsage(usage: MemoryUsage, pool: String)(implicit
     trace: ZTraceElement
   ): ZIO[Any, Nothing, Unit] =
     for {
-      _ <- UIO(usage.getUsed) @@ poolBytesUsed(pool)
-      _ <- UIO(usage.getCommitted) @@ poolBytesCommitted(pool)
-      _ <- UIO(usage.getMax) @@ poolBytesMax(pool)
-      _ <- UIO(usage.getInit) @@ poolBytesInit(pool)
+      _ <- ZIO.succeed(usage.getUsed) @@ poolBytesUsed(pool)
+      _ <- ZIO.succeed(usage.getCommitted) @@ poolBytesCommitted(pool)
+      _ <- ZIO.succeed(usage.getMax) @@ poolBytesMax(pool)
+      _ <- ZIO.succeed(usage.getInit) @@ poolBytesInit(pool)
     } yield ()
 
   private def reportMemoryMetrics(
@@ -75,14 +75,14 @@ trait MemoryPools extends JvmMetrics {
     poolMXBeans: List[MemoryPoolMXBean]
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
-      heapUsage    <- Task(memoryMXBean.getHeapMemoryUsage)
-      nonHeapUsage <- Task(memoryMXBean.getNonHeapMemoryUsage)
+      heapUsage    <- ZIO.attempt(memoryMXBean.getHeapMemoryUsage)
+      nonHeapUsage <- ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage)
       _            <- reportMemoryUsage(heapUsage, Heap)
       _            <- reportMemoryUsage(nonHeapUsage, NonHeap)
       _ <- ZIO.foreachParDiscard(poolMXBeans) { pool =>
              for {
-               name  <- Task(pool.getName)
-               usage <- Task(pool.getUsage)
+               name  <- ZIO.attempt(pool.getName)
+               usage <- ZIO.attempt(pool.getUsage)
                _     <- reportPoolUsage(usage, name)
              } yield ()
            }
@@ -91,8 +91,8 @@ trait MemoryPools extends JvmMetrics {
   @silent("JavaConverters")
   def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, MemoryPools] =
     for {
-      memoryMXBean <- Task(ManagementFactory.getMemoryMXBean)
-      poolMXBeans  <- Task(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
+      memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)
+      poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
       _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
              .repeat(collectionSchedule)
              .interruptible

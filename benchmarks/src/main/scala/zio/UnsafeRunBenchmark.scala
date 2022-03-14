@@ -50,11 +50,11 @@ class UnsafeRunBenchmark {
   @Setup(Level.Trial)
   def setup(): Unit = {
     def makeLeftZio(n: Int): UIO[Int] =
-      if (n <= 1) UIO(0)
+      if (n <= 1) ZIO.succeed(0)
       else makeLeftZio(n - 1).flatMap(m => ZIO.succeed(n + m))
 
     def makeRightZio(n: Int, acc: Int = 0): UIO[Int] =
-      if (n <= 1) UIO(acc)
+      if (n <= 1) ZIO.succeed(acc)
       else ZIO.succeed(n).flatMap(n => makeRightZio(n - 1, acc + n))
 
     def makeLeftCio(n: Int): cats.effect.IO[Int] =

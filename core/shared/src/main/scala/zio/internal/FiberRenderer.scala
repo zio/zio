@@ -24,7 +24,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object FiberRenderer {
   def prettyPrint(dump: Fiber.Dump)(implicit trace: ZTraceElement): UIO[String] =
-    UIO(unsafePrettyPrint(dump, System.currentTimeMillis()))
+    ZIO.succeed(unsafePrettyPrint(dump, System.currentTimeMillis()))
 
   private def unsafePrettyPrint(dump: Fiber.Dump, now: Long): String = {
     val millis  = (now - dump.fiberId.startTimeSeconds * 1000).toLong

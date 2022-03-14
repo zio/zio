@@ -34,12 +34,17 @@ package object zio
 
   type Canceler[-R] = URIO[R, Any]
 
-  type IO[+E, +A]  = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
-  type Task[+A]    = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
-  type RIO[-R, +A] = ZIO[R, Throwable, A]   // Succeed with an `A`, may fail with `Throwable`, requires an `R`.
-  type UIO[+A]     = ZIO[Any, Nothing, A]   // Succeed with an `A`, cannot fail              , no requirements.
-  type URIO[-R, +A] =
-    ZIO[R, Nothing, A] // Succeed with an `A`, cannot fail              , requires an `R`.            , requires an `R`
+  type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
+  type Task[+A]     = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
+  type RIO[-R, +A]  = ZIO[R, Throwable, A]   // Succeed with an `A`, may fail with `Throwable`, requires an `R`.
+  type UIO[+A]      = ZIO[Any, Nothing, A]   // Succeed with an `A`, cannot fail              , no requirements.
+  type URIO[-R, +A] = ZIO[R, Nothing, A]     // Succeed with an `A`, cannot fail              , requires an `R`.
+
+  val IO: ZIO.type   = ZIO
+  val Task: ZIO.type = ZIO
+  val RIO: ZIO.type  = ZIO
+  val UIO: ZIO.type  = ZIO
+  val URIO: ZIO.type = ZIO
 
   type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
   type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]

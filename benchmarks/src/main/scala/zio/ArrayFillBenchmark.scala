@@ -21,7 +21,7 @@ class ArrayFillBenchmark {
 
     def arrayFill(array: Array[Int])(i: Int): UIO[Unit] =
       if (i >= array.length) UIO.unit
-      else UIO(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
+      else ZIO.succeed(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
 
     unsafeRun(
       for {

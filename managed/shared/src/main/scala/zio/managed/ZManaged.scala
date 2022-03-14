@@ -1858,7 +1858,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def acquireReleaseAttemptWith[A](acquire: => A)(release: A => Any)(implicit
     trace: ZTraceElement
   ): ZManaged[Any, Throwable, A] =
-    acquireReleaseWith(Task(acquire))(a => Task(release(a)).orDie)
+    acquireReleaseWith(ZIO.attempt(acquire))(a => ZIO.attempt(release(a)).orDie)
 
   /**
    * Lifts a `ZIO[R, E, A]` into `ZManaged[R, E, A]` with a release action that
@@ -2506,7 +2506,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   def fromAutoCloseable[R, E, A <: AutoCloseable](fa: => ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZManaged[R, E, A] =
-    acquireReleaseWith(fa)(a => UIO(a.close()))
+    acquireReleaseWith(fa)(a => ZIO.succeed(a.close()))
 
   /**
    * Lifts a ZIO[R, E, A] into ZManaged[R, E, A] with no release action. The
@@ -3766,7 +3766,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   private[zio] def succeedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged(IO.succeedNow((Finalizer.noop, r)))
+    ZManaged(ZIO.succeedNow((Finalizer.noop, r)))
 
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZManaged[R, E, A]) extends AnyVal {
 

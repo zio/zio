@@ -20,7 +20,7 @@ object RuntimeSpec extends ZIOBaseSpec {
 
   def buz =
     for {
-      _ <- UIO.async[Int](k => k(ZIO.succeed(42)))
+      _ <- UIO.async[Any, Nothing, Int](k => k(ZIO.succeed(42)))
       a <- bar
     } yield a
 

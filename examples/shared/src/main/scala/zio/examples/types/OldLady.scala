@@ -14,7 +14,7 @@ object OldLady {
       for {
         spiderGuts <- Spider.contentsOfStomach
       } yield new OldLady {
-        val contentsOfStomach: UIO[List[String]] = UIO("a Spider" :: spiderGuts)
+        val contentsOfStomach: UIO[List[String]] = ZIO.succeed("a Spider" :: spiderGuts)
       }
     }
 }
@@ -31,7 +31,7 @@ object Spider {
       for {
         _ <- ZIO.service[Fly]
       } yield new Spider {
-        val contentsOfStomach: UIO[List[String]] = UIO(List("a Fly"))
+        val contentsOfStomach: UIO[List[String]] = ZIO.succeed(List("a Fly"))
       }
     }
 }

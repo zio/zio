@@ -61,7 +61,7 @@ import zio._
 object IntegrationExample {
   val runtime = Runtime.default
 
-  runtime.unsafeRun(Task(println("Hello World!")))
+  runtime.unsafeRun(ZIO.attempt(println("Hello World!")))
 }
 ```
 

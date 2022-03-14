@@ -122,7 +122,7 @@ object Supervisor {
   def fibersIn(
     ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
   )(implicit trace: ZTraceElement): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
-    UIO {
+    ZIO.succeed {
 
       new Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] {
         def value(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =

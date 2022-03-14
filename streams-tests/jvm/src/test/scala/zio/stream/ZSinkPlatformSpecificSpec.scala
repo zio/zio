@@ -16,12 +16,13 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
       test("writes to an existing file") {
         val data = (0 to 100).mkString
 
-        Task(Files.createTempFile("stream", "fromFile"))
-          .acquireReleaseWith(path => Task(Files.delete(path)).orDie) { path =>
+        ZIO
+          .attempt(Files.createTempFile("stream", "fromFile"))
+          .acquireReleaseWith(path => ZIO.attempt(Files.delete(path)).orDie) { path =>
             for {
-              bytes  <- Task(data.getBytes(UTF_8))
+              bytes  <- ZIO.attempt(data.getBytes(UTF_8))
               length <- ZStream.fromIterable(bytes).run(ZSink.fromPath(path))
-              str    <- Task(new String(Files.readAllBytes(path)))
+              str    <- ZIO.attempt(new String(Files.readAllBytes(path)))
             } yield {
               assertTrue(data == str) &&
               assertTrue(bytes.length.toLong == length)
@@ -34,10 +35,10 @@ object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
         val data = (0 to 100).mkString
 
         for {
-          bytes  <- Task(data.getBytes("UTF-8"))
+          bytes  <- ZIO.attempt(data.getBytes("UTF-8"))
           os      = new ByteArrayOutputStream(data.length)
           length <- ZStream.fromIterable(bytes).run(ZSink.fromOutputStream(os))
-          str    <- Task(os.toString("UTF-8"))
+          str    <- ZIO.attempt(os.toString("UTF-8"))
         } yield assert(data)(equalTo(str)) && assert(bytes.length.toLong)(equalTo(length))
       }
     ),

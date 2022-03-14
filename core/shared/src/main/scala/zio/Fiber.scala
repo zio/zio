@@ -365,8 +365,8 @@ sealed abstract class Fiber[+E, +A] { self =>
     UIO.suspendSucceed {
       val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-      def failure(cause: Cause[E]): UIO[p.type] = UIO(p.failure(cause.squashTraceWith(f)))
-      def success(value: A): UIO[p.type]        = UIO(p.success(value))
+      def failure(cause: Cause[E]): UIO[p.type] = ZIO.succeed(p.failure(cause.squashTraceWith(f)))
+      def success(value: A): UIO[p.type]        = ZIO.succeed(p.success(value))
 
       val completeFuture =
         self.await.flatMap(_.foldZIO[Any, Nothing, p.type](failure, success))
@@ -712,12 +712,12 @@ object Fiber extends FiberPlatformSpecific {
         UIO.foreachDiscard(fibers)(_.inheritRefs)
       def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, Collection[A]]] =
         UIO
-          .foreach[Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))
+          .foreach[Any, Nothing, Fiber[E, A], Exit[E, A], Iterable](fibers)(_.interruptAs(fiberId))
           .map(_.foldRight[Exit[E, List[A]]](Exit.succeed(Nil))(_.zipWith(_)(_ :: _, _ && _)))
           .map(_.map(bf.fromSpecific(fibers)))
       def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, Collection[A]]]] =
         UIO
-          .foreach[Fiber[E, A], Option[Exit[E, A]], Iterable](fibers)(_.poll)
+          .foreach[Any, Nothing, Fiber[E, A], Option[Exit[E, A]], Iterable](fibers)(_.poll)
           .map(_.foldRight[Option[Exit[E, List[A]]]](Some(Exit.succeed(Nil))) {
             case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
             case _                    => None
@@ -741,7 +741,7 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[E, A] {
       final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]                      = IO.succeedNow(exit)
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]]   = IO.succeedNow(Chunk.empty)
-      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = ZIO.succeed(ref.initial)
       final def id: FiberId                                                                = FiberId.None
       final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]]   = IO.succeedNow(exit)
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                      = IO.unit
@@ -818,7 +818,7 @@ object Fiber extends FiberPlatformSpecific {
 
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
 
-      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = ZIO.succeed(ref.initial)
 
       final def id: FiberId = FiberId.None
 
@@ -912,7 +912,7 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[Nothing, Nothing] {
       final def await(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]]                    = ZIO.never
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]]             = ZIO.succeedNow(Chunk.empty)
-      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]           = UIO(ref.initial)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A]           = ZIO.succeed(ref.initial)
       final def id: FiberId                                                                          = FiberId.None
       final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]] = ZIO.never
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                                = ZIO.unit
@@ -923,7 +923,8 @@ object Fiber extends FiberPlatformSpecific {
    * Returns a chunk containing all root fibers. Due to concurrency, the
    * returned chunk is only weakly consistent.
    */
-  def roots(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = UIO(Chunk.fromIterator(_roots.iterator))
+  def roots(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+    ZIO.succeed(Chunk.fromIterator(_roots.iterator))
 
   /**
    * Returns a fiber that has already succeeded with the specified value.

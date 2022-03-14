@@ -26,16 +26,16 @@ trait GarbageCollector extends JvmMetrics {
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.foreachParDiscard(garbageCollectors) { gc =>
       for {
-        name <- Task(gc.getName)
-        _    <- Task(gc.getCollectionCount) @@ gcCollectionSecondsCount(name)
-        _    <- Task(gc.getCollectionTime) @@ gcCollectionSecondsSum(name)
+        name <- ZIO.attempt(gc.getName)
+        _    <- ZIO.attempt(gc.getCollectionCount) @@ gcCollectionSecondsCount(name)
+        _    <- ZIO.attempt(gc.getCollectionTime) @@ gcCollectionSecondsSum(name)
       } yield ()
     }
 
   @silent("JavaConverters")
   def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, GarbageCollector] =
     for {
-      classLoadingMXBean <- Task(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
+      classLoadingMXBean <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible

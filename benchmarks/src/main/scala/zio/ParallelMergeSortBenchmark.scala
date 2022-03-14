@@ -72,8 +72,8 @@ class ParallelMergeSortBenchmark {
 
   private def mergeSort(is: Iterable[Int]): UIO[Iterable[Int]] =
     for {
-      array <- UIO(is.toArray)
-      buf   <- UIO(new Array[Int](array.length / 2))
+      array <- ZIO.succeed(is.toArray)
+      buf   <- ZIO.succeed(new Array[Int](array.length / 2))
       _     <- mergeSortInPlace(array, buf, 0, array.length)
     } yield array
 
@@ -82,7 +82,7 @@ class ParallelMergeSortBenchmark {
     if (len < 2) IO.unit
     else if (len == 2) {
       if (is(start) <= is(start + 1)) IO.unit
-      else UIO(swap(is, start, start + 1))
+      else ZIO.succeed(swap(is, start, start + 1))
     } else {
       val middle    = start + len / 2
       val leftSort  = mergeSortInPlace(is, buf, start, middle)
@@ -96,30 +96,31 @@ class ParallelMergeSortBenchmark {
     }
   }
 
-  private def mergeInPlace(is: Array[Int], buf: Array[Int], start: Int, middle: Int, end: Int): UIO[Unit] = UIO {
-    var i  = start / 2
-    val ie = i + middle - start
-    var j  = middle
-    var k  = start
-    JSystem.arraycopy(is, start, buf, i, middle - start)
+  private def mergeInPlace(is: Array[Int], buf: Array[Int], start: Int, middle: Int, end: Int): UIO[Unit] =
+    ZIO.succeed {
+      var i  = start / 2
+      val ie = i + middle - start
+      var j  = middle
+      var k  = start
+      JSystem.arraycopy(is, start, buf, i, middle - start)
 
-    while (i < ie && j < end) {
-      val (a, b) = (buf(i), is(j))
-      if (a < b) {
-        is(k) = a
-        i += 1
-      } else {
-        is(k) = b
-        j += 1
+      while (i < ie && j < end) {
+        val (a, b) = (buf(i), is(j))
+        if (a < b) {
+          is(k) = a
+          i += 1
+        } else {
+          is(k) = b
+          j += 1
+        }
+
+        k += 1
       }
 
-      k += 1
+      if (i < ie) {
+        JSystem.arraycopy(buf, i, is, k, ie - i)
+      }
     }
-
-    if (i < ie) {
-      JSystem.arraycopy(buf, i, is, k, ie - i)
-    }
-  }
 
   private def swap(is: Array[Int], i: Int, j: Int): Unit = {
     val tmp = is(i)

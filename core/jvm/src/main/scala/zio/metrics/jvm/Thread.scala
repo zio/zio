@@ -50,7 +50,7 @@ trait Thread extends JvmMetrics {
     threadMXBean: ThreadMXBean
   )(implicit trace: ZTraceElement): Task[Map[java.lang.Thread.State, Long]] =
     for {
-      allThreads <- Task(threadMXBean.getThreadInfo(threadMXBean.getAllThreadIds, 0))
+      allThreads <- ZIO.attempt(threadMXBean.getThreadInfo(threadMXBean.getAllThreadIds, 0))
       initial     = java.lang.Thread.State.values().map(_ -> 0L).toMap
       result = allThreads.foldLeft(initial) { (result, thread) =>
                  if (thread != null) {
@@ -63,25 +63,25 @@ trait Thread extends JvmMetrics {
     threadMXBean: ThreadMXBean
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
-      _ <- Task(threadMXBean.getThreadCount) @@ threadsCurrent
-      _ <- Task(threadMXBean.getDaemonThreadCount) @@ threadsDaemon
-      _ <- Task(threadMXBean.getPeakThreadCount) @@ threadsPeak
-      _ <- Task(threadMXBean.getTotalStartedThreadCount) @@ threadsStartedTotal
-      _ <- Task(
+      _ <- ZIO.attempt(threadMXBean.getThreadCount) @@ threadsCurrent
+      _ <- ZIO.attempt(threadMXBean.getDaemonThreadCount) @@ threadsDaemon
+      _ <- ZIO.attempt(threadMXBean.getPeakThreadCount) @@ threadsPeak
+      _ <- ZIO.attempt(threadMXBean.getTotalStartedThreadCount) @@ threadsStartedTotal
+      _ <- ZIO.attempt(
              Option(threadMXBean.findDeadlockedThreads()).map(_.length).getOrElse(0)
            ) @@ threadsDeadlocked
-      _ <- Task(
+      _ <- ZIO.attempt(
              Option(threadMXBean.findMonitorDeadlockedThreads()).map(_.length).getOrElse(0)
            ) @@ threadsDeadlockedMonitor
       threadStateCounts <- getThreadStateCounts(threadMXBean)
       _ <- ZIO.foreachDiscard(threadStateCounts) { case (state, count) =>
-             UIO(count) @@ threadsState(state)
+             ZIO.succeed(count) @@ threadsState(state)
            }
     } yield ()
 
   override def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Thread] =
     for {
-      threadMXBean <- Task(ManagementFactory.getThreadMXBean)
+      threadMXBean <- ZIO.attempt(ManagementFactory.getThreadMXBean)
       _ <-
         reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkScoped
     } yield this

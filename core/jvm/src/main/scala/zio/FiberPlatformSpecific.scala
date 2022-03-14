@@ -43,12 +43,12 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+      final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = ZIO.succeed(ref.initial)
 
       def id: FiberId = FiberId.None
 
       final def interruptAs(id: Fiber.Id)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
-        UIO(cs.toCompletableFuture.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
+        ZIO.succeed(cs.toCompletableFuture.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
 
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = IO.unit
     }
@@ -80,12 +80,12 @@ private[zio] trait FiberPlatformSpecific {
           }
         }
 
-      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = UIO(ref.initial)
+      def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] = ZIO.succeed(ref.initial)
 
       def id: FiberId = FiberId.None
 
       def interruptAs(id: Fiber.Id)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
-        UIO(ftr.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
+        ZIO.succeed(ftr.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
 
       def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.unit
     }

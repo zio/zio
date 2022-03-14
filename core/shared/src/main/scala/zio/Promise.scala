@@ -48,7 +48,7 @@ final class Promise[E, A] private (
    * until the result is available.
    */
   def await(implicit trace: ZTraceElement): IO[E, A] =
-    IO.asyncInterrupt[E, A](
+    ZIO.asyncInterrupt[Any, E, A](
       k => {
         var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
         var retry  = true
