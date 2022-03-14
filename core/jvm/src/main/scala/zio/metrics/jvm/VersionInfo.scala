@@ -1,6 +1,6 @@
 package zio.metrics.jvm
 
-import zio.metrics.ZIOMetric
+import zio.metrics._
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 

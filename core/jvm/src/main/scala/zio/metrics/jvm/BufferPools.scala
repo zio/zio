@@ -3,7 +3,7 @@ package zio.metrics.jvm
 import com.github.ghik.silencer.silent
 
 import zio._
-import zio.metrics.ZIOMetric
+import zio.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}

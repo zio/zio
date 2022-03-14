@@ -1,7 +1,7 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
+import zio.metrics.{ZIOMetric, MetricLabel}
 import scala.concurrent.ExecutionContext
 
 trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
@@ -90,6 +90,39 @@ object ZIOAspect {
         annotations.foldLeft(zio) { case (zio, (key, value)) =>
           ZIO.logAnnotate(key, value)(zio)
         }
+    }
+
+  def countDefects(
+    name: String,
+    tags: Set[MetricLabel] = Set.empty
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      val metric = ZIOMetric.counter(name).tagged(tags)
+
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapDefect(_ => metric.update(1.0))
+    }
+
+  def countFailures(
+    name: String,
+    tags: Set[MetricLabel] = Set.empty
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      val metric = ZIOMetric.counter(name).tagged(tags)
+
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapError(_ => metric.update(1.0))
+    }
+
+  def countSuccesses(
+    name: String,
+    tags: Set[MetricLabel] = Set.empty
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      val metric = ZIOMetric.counter(name).tagged(tags)
+
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tap(_ => metric.update(1.0))
     }
 
   /**

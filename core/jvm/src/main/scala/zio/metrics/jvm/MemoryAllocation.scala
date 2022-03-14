@@ -2,12 +2,12 @@ package zio.metrics.jvm
 
 import com.github.ghik.silencer.silent
 
-import com.sun.management.GarbageCollectionNotificationInfo
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.metrics.ZIOMetric
+import zio.metrics._
 import zio.metrics.ZIOMetric.Counter
 
+import com.sun.management.GarbageCollectionNotificationInfo
 import java.lang.management.ManagementFactory
 import javax.management.openmbean.CompositeData
 import javax.management.{Notification, NotificationEmitter, NotificationListener}

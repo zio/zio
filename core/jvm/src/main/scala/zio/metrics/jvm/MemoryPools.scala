@@ -2,9 +2,9 @@ package zio.metrics.jvm
 
 import com.github.ghik.silencer.silent
 
-import zio.metrics.ZIOMetric
-import zio.metrics.ZIOMetric.Gauge
 import zio._
+import zio.metrics._
+import zio.metrics.ZIOMetric.Gauge
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, MemoryUsage}

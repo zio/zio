@@ -65,6 +65,14 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
 
   /**
    * Returns a new metric that is powered by this one, but which accepts updates
+   * of any type, and translates them to updates with the specified constant
+   * update value.
+   */
+  final def contraconst(in: => In): ZIOMetric[Type, Any, Out] =
+    contramap[Any](_ => in)
+
+  /**
+   * Returns a new metric that is powered by this one, but which accepts updates
    * of the specified new type, which must be transformable to the input type of
    * this metric.
    */
@@ -141,6 +149,60 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
     }.map(_ => ())
 
   /**
+   * Returns a ZIOAspect that will update this metric with the success value of
+   * the effects that it is applied to.
+   */
+  def trackSuccess: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] {
+      def apply[R, E, A1 <: In](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+        zio.tap(update(_))
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the throwable defects
+   * of the effects that it is applied to. To call this method, the input type
+   * of the metric must be `Throwable`.
+   */
+  def trackDefect(implicit ev: Throwable <:< In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
+      def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(defect => unsafeUpdate(ev(defect)))))
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the duration that the
+   * effect takes to execute. To call this method, the input type of the metric
+   * must be `Duration`.
+   */
+  def trackDuration(implicit ev: Duration <:< In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        ZIO.suspendSucceed {
+          val startTime = java.lang.System.nanoTime()
+
+          zio.map { a =>
+            val endTime = java.lang.System.nanoTime()
+
+            val duration = Duration.fromNanos(endTime - startTime)
+
+            unsafeUpdate(ev(duration))
+
+            a
+          }
+        }
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the failure value of
+   * the effects that it is applied to.
+   */
+  def trackError: ZIOAspect[Nothing, Any, Nothing, In, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, In, Nothing, Any] {
+      def apply[R, E <: In, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapError(update(_))
+    }
+
+  /**
    * Updates the metric with the specified update message. For example, if the
    * metric were a counter, the update would increment the method by the
    * provided amount.
@@ -159,6 +221,9 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * Retrieves a snapshot of the value of the metric at this moment in time.
    */
   def value(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
+
+  def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): ZIOMetric[Type, In2, Out] =
+    contramap[In2](in2 => ev((in2, java.time.Instant.now())))
 
   private[zio] def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
     hook(extraTags).update(transformation.contramapper(in))
@@ -251,6 +316,15 @@ object ZIOMetric {
    * A summary metric.
    */
   def summary(
+    name: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[Double] =
+    summaryInstant(name, maxAge, maxSize, error, quantiles).withNow[Double]
+
+  def summaryInstant(
     name: String,
     maxAge: Duration,
     maxSize: Int,
