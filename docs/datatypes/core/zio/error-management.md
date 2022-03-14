@@ -1934,6 +1934,18 @@ val r2: ZIO[Any, String, Int] = flattenedParseInt("")
 val r3: ZIO[Any, String, Int] = flattenedParseInt("123")
 ```
 
+### Merging Error Channel into The Success Channel
+
+With `ZIO#merge` we can merge the error channel into the success channel:
+
+```scala mdoc:compile-only
+val merged : ZIO[Any, Nothing, String] = 
+  ZIO.fail("Oh uh!") // ZIO[Any, String, Nothing]
+    .merge           // ZIO[Any, Nothing, String]
+```
+
+If the error and success channels were of different types, it would choose the supertype of both.
+
 ## Best Practices
 
 ### Model Domain Errors Using Algebraic Data Types
