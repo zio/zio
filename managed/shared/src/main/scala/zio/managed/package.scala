@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+// import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream._
 
 package object managed {
@@ -278,5 +278,22 @@ package object managed {
       queue: => ZQueue[R1, Nothing, Nothing, Any, Take[E1, A], Any]
     )(implicit trace: ZTraceElement): ZManaged[R1, E1, Unit] =
       ZManaged.scoped[R1](self.runIntoQueueScoped(queue))
+  }
+
+  implicit final class ZSinkCompanionSyntax(private val self: ZSink.type) extends AnyVal {
+
+    @deprecated("use unwrapManaged", "2.0.0")
+    def managed[R, E, In, A, L <: In, Z](resource: => ZManaged[R, E, A])(
+      fn: A => ZSink[R, E, In, L, Z]
+    )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
+      unwrapManaged(resource.map(fn))
+
+    /**
+     * Creates a sink produced from a managed effect.
+     */
+    def unwrapManaged[R, E, In, L, Z](managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]])(implicit
+      trace: ZTraceElement
+    ): ZSink[R, E, In, L, Z] =
+      ZSink.unwrapScoped[R](managed.scoped)
   }
 }

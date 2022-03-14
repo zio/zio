@@ -1622,12 +1622,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       )
     }
 
-  @deprecated("use unwrapScoped", "2.0.0")
-  def managed[R, E, In, A, L <: In, Z](resource: => ZIO[Scope with R, E, A])(
-    fn: A => ZSink[R, E, In, L, Z]
-  )(implicit trace: ZTraceElement): ZSink[R, E, In, In, Z] =
-    ZSink.unwrapScoped[R](resource.map(fn))
-
   def never(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Nothing] =
     ZSink.fromZIO(ZIO.never)
 
