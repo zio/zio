@@ -24,7 +24,7 @@ import scala.concurrent.Future
 
 private[managed] trait ZManagedCompatPlatformSpecific {
 
-  implicit final class ZManagedZStreamCompanionPlatformSpecificSyntax(private val self: ZStream.type) extends AnyVal {
+  implicit final class ZManagedZStreamCompanionPlatformSpecificSyntax(private val self: ZStream.type) {
 
     /**
      * Creates a stream from an asynchronous callback that can be called

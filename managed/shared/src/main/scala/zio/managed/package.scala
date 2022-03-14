@@ -50,6 +50,18 @@ package object managed extends ZManagedCompatPlatformSpecific {
       ZManaged.scoped(self.withPermitsScoped(n))
   }
 
+  implicit final class ZTHubSyntax[RA, RB, EA, EB, A, B](private val self: ZTHub[RA, RB, EA, EB, A, B]) extends AnyVal {
+
+      /**
+   * Subscribes to receive messages from the hub. The resulting subscription can
+   * be evaluated multiple times within the scope of the managed to take a
+   * message from the hub
+   * each time.
+   */
+  final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZTDequeue[RB, EB, B]] =
+    ZManaged.scoped(self.subscribeScoped)
+  }
+
   implicit final class ZManagedZFiberRefSyntax[+EA, +EB, -A, +B](private val self: ZFiberRef[EA, EB, A, B]) {
 
     /**
