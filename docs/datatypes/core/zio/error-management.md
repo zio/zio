@@ -1499,7 +1499,15 @@ There are some situations when we need to collect all potential errors in a comp
 
 ### `ZIO#validate`
 
-It is similar to the `ZIO#zip` operator, it sequentially zips two ZIO effects together, if both effects fail, it will combine their causes with `Cause.Then`. If any of the effecful operations doesn't fail, it results like the `zip` operator. Otherwise, when it reaches the first error it won't stop, instead, it will continue the zip operation until reach the final effect while combining:
+It is similar to the `ZIO#zip` operator, it sequentially zips two ZIO effects together, if both effects fail, it combines their causes with `Cause.Then`:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def validate[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B]): ZIO[R1, E1, (A, B)]
+}
+```
+
+If any of the effecful operations doesn't fail, it results like the `zip` operator. Otherwise, when it reaches the first error it won't stop, instead, it will continue the zip operation until reach the final effect while combining:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1568,6 +1576,10 @@ object ZIO {
   def validate[R, E, A, B](in: Collection[A])(
     f: A => ZIO[R, E, B]
   ): ZIO[R, ::[E], Collection[B]]
+  
+  def validate[R, E, A, B](in: NonEmptyChunk[A])(
+    f: A => ZIO[R, E, B]
+  ): ZIO[R, ::[E], NonEmptyChunk[B]]
 }
 ```
 
