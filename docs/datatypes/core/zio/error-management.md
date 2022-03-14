@@ -1444,9 +1444,9 @@ object MainApp extends ZIOAppDefault {
 
 ## Error Accumulation
 
-In ZIO when we are working with sequential combinators such as `ZIO#zip` and `ZIO.foreach`, they will stop when reaching the first error and return immediately. So their policy on error management is to fail fast.
+Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach the first error and return immediately. So their policy on error management is to fail fast.
 
-In the following example, we can see that the `ZIO#zip` operator will fail as soon as it reaches the first failure. In the stack trace, we can see only the first error in the stack traces.
+In the following example, we can see that the `ZIO#zip` operator will fail as soon as it reaches the first failure. As a result, we only see the first error in the stack trace.
 
 ```scala mdoc:compile-only
 import zio._
@@ -1471,7 +1471,7 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:12)"
 ```
 
-The `ZIO.foreach` also has the same behavior, it takes a collection and also an effectful operation and then tries to apply the transformation on all the elements of the collection. This operator will fail, as soon as encounters the first error:
+There is also the `ZIO.foreach` operator that takes a collection and an effectful operation, then tries to apply the transformation to all elements of the collection. This operator also has the same error management behavior. It fails when it encounters the first error:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1564,6 +1564,8 @@ object MainApp extends ZIOAppDefault {
 // Exception in thread "zio-fiber-2" java.lang.String: Oh error!
 //  	at <empty>.MainApp.run(MainApp.scala:13)"
 ```
+
+In addition, it has a `ZIO#validateWith` variant, which is useful for providing combiner function (`f: (A, B) => C`) to combine pair values.
 
 ### `ZIO.validate`
 
