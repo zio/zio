@@ -21,7 +21,7 @@ import zio.stream._
 
 import java.io.{IOException, InputStream}
 
-package object managed {
+package object managed extends ZManagedCompatPlatformSpecific {
 
   type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
   type TaskManaged[+A]   = ZManaged[Any, Throwable, A] //Manage an `A`, may fail with `Throwable`, no requirements
