@@ -106,29 +106,31 @@ object ZPool {
   private def makeWith[R, R1, E, A](get: => ZIO[R, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(implicit
     trace: ZTraceElement
   ): ZIO[R with R1 with Scope, Nothing, ZPool[E, A]] =
-    for {
-      get      <- ZIO.succeed(get)
-      range    <- ZIO.succeed(range)
-      strategy <- ZIO.succeed(strategy)
-      env      <- ZIO.environment[R]
-      down     <- Ref.make(false)
-      state    <- Ref.make(State(0, 0))
-      items    <- Queue.bounded[Attempted[E, A]](range.end)
-      inv      <- Ref.make(Set.empty[A])
-      initial  <- strategy.initial
-      pool = DefaultPool(
-               get.provideSomeEnvironment[Scope](env.union[Scope](_)),
-               range,
-               down,
-               state,
-               items,
-               inv,
-               strategy.track(initial)
-             )
-      fiber  <- pool.initialize.forkDaemon
-      shrink <- strategy.run(initial, pool.excess, pool.shrink).forkDaemon
-      _      <- ZIO.addFinalizer(_ => fiber.interrupt *> shrink.interrupt *> pool.shutdown)
-    } yield pool
+    ZIO.uninterruptibleMask { restore =>
+      for {
+        get      <- ZIO.succeed(get)
+        range    <- ZIO.succeed(range)
+        strategy <- ZIO.succeed(strategy)
+        env      <- ZIO.environment[R]
+        down     <- Ref.make(false)
+        state    <- Ref.make(State(0, 0))
+        items    <- Queue.bounded[Attempted[E, A]](range.end)
+        inv      <- Ref.make(Set.empty[A])
+        initial  <- strategy.initial
+        pool = DefaultPool(
+                 get.provideSomeEnvironment[Scope](env.union[Scope](_)),
+                 range,
+                 down,
+                 state,
+                 items,
+                 inv,
+                 strategy.track(initial)
+               )
+        fiber  <- restore(pool.initialize).forkDaemon
+        shrink <- restore(strategy.run(initial, pool.excess, pool.shrink)).forkDaemon
+        _      <- ZIO.addFinalizer(_ => fiber.interrupt *> shrink.interrupt *> pool.shutdown)
+      } yield pool
+    }
 
   private case class Attempted[+E, +A](result: Exit[E, A], finalizer: UIO[Any]) {
     def isFailure: Boolean = result.isFailure
