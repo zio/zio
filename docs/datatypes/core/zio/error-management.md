@@ -1522,15 +1522,13 @@ object MainApp extends ZIOAppDefault {
 // 3
 // 5
 // Then(Fail(Oh uh!,ZTrace(None,Chunk())),Fail(Oh error!,ZTrace(None,Chunk())))
-timestamp=2022-03-14T08:53:42.389942626Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
+// timestamp=2022-03-14T08:53:42.389942626Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
 // 	at <empty>.MainApp.run(MainApp.scala:13)
 // 	Suppressed: java.lang.String: Oh error!
 //		at <empty>.MainApp.run(MainApp.scala:13)"
 ```
 
-### `ZIO#validatePar`
-
-Similar to the `ZIO#validate` operator zips two effects but in parallel. As this operator doesn't fail fast, unlike the `ZIO#zipPar` if it reaches a failure, it won't interrupt another running effect. If both effects fail, it will combine their causes with `Cause.Both`:
+The `ZIO#validatePar` operator is similar to the `ZIO#validate` operator zips two effects but in parallel. As this operator doesn't fail fast, unlike the `ZIO#zipPar` if it reaches a failure, it won't interrupt another running effect. If both effects fail, it will combine their causes with `Cause.Both`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1559,7 +1557,7 @@ object MainApp extends ZIOAppDefault {
 //  	at <empty>.MainApp.run(MainApp.scala:13)"
 ```
 
-### `ZIO.validate`/`ZIO.validatePar`
+### `ZIO.validate`
 
 This operator is very similar to the `ZIO.foreach` operator. It transforms all elements of a collection using the provided effectful operation, but it collects all errors in the error channel, as well as the success values in the success channel.
 
@@ -1621,7 +1619,7 @@ Two more notes:
 1. The `ZIO.validate` operator is sequential, so we can use the `ZIO.validatePar` version to do the computation in parallel.
 2. The `ZIO.validateDiscard` and `ZIO.validateParDiscard` operators are mostly similar to their non-discard versions, except they discard the successes. So the type of the success channel will be `Unit`.
 
-### `ZIO.validateFirst`/`ZIO.validateFirstPar`
+### `ZIO.validateFirst`
 
 Like the `ZIO.validate` in the success scenario, it will collect all errors in the error channel except in the success scenario it will return only the first success:
 
