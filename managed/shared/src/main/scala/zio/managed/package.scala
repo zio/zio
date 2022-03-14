@@ -88,6 +88,38 @@ package object managed {
       ZManaged.fromReservationZIO(reservation).use(use)
   }
 
+  implicit final class ZManagedZChannelSyntax[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+    private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+  ) extends AnyVal {
+
+    def runManaged(implicit
+      ev1: Any <:< InElem,
+      ev2: OutElem <:< Nothing,
+      trace: ZTraceElement
+    ): ZManaged[Env, OutErr, OutDone] =
+      ZManaged.scoped[Env](self.runScoped)
+  }
+
+  implicit final class ZManagedZChannelCompanionSyntax(private val self: ZChannel.type) extends AnyVal {
+
+    def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZManaged[Env, OutErr, A])(
+      use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+    )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      ZChannel.scoped[Env](m.scoped)(use)
+
+    def managedOut[R, E, A](
+      m: => ZManaged[R, E, A]
+    )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
+      ZChannel.scopedOut[R](m.scoped)
+
+    def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+      channel: => ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+    )(implicit
+      trace: ZTraceElement
+    ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      ZChannel.unwrapScoped[Env](channel.scoped)
+  }
+
   implicit final class ZManagedZStreamSyntax[R, E, A](private val self: ZStream[R, E, A]) extends AnyVal {
 
     /**
@@ -280,7 +312,7 @@ package object managed {
       ZManaged.scoped[R1](self.runIntoQueueScoped(queue))
   }
 
-  implicit final class ZSinkCompanionSyntax(private val self: ZSink.type) extends AnyVal {
+  implicit final class ZManagedZSinkCompanionSyntax(private val self: ZSink.type) extends AnyVal {
 
     @deprecated("use unwrapManaged", "2.0.0")
     def managed[R, E, In, A, L <: In, Z](resource: => ZManaged[R, E, A])(
