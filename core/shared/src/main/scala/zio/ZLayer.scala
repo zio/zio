@@ -546,7 +546,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ???
+    ZLayer.scoped[R](ZIO.acquireRelease(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -558,7 +558,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   )(release: ZEnvironment[A] => URIO[R, Any])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ???
+    scopedEnvironment[R](ZIO.acquireRelease(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -614,7 +614,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromFunctionEnvironmentZIO[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZLayer[A, E, B] =
-    ???
+    ZLayer.fromZIOEnvironment(ZIO.environment[A].flatMap(f))
 
   /**
    * Constructs a layer from the environment using the specified effectful
@@ -1261,7 +1261,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
-    ???
+    ZLayer {
+      for {
+        a <- ZIO.service[A]
+        b <- f(a)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1269,10 +1274,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
     f: (A0, A1) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        b  <- f(a0, a1)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1287,10 +1296,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        b  <- f(a0, a1, a2)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1308,10 +1322,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3) => ZIO[R, E, B]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        b  <- f(a0, a1, a2, a3)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1330,10 +1350,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        b  <- f(a0, a1, a2, a3, a4)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1353,10 +1380,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        b  <- f(a0, a1, a2, a3, a4, a5)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1375,10 +1410,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B: Tag
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1400,10 +1444,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        a7 <- ZIO.service[A7]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1426,10 +1480,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        a7 <- ZIO.service[A7]
+        a8 <- ZIO.service[A8]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1453,10 +1518,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
+    ZLayer {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        a7 <- ZIO.service[A7]
+        a8 <- ZIO.service[A8]
+        a9 <- ZIO.service[A9]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1483,10 +1560,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1514,10 +1604,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1546,10 +1650,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1579,10 +1698,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1613,10 +1748,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1648,10 +1800,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1684,10 +1854,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1721,10 +1910,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1759,10 +1968,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1798,10 +2028,32 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        a19 <- ZIO.service[A19]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1838,10 +2090,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        a19 <- ZIO.service[A19]
+        a20 <- ZIO.service[A20]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services.
@@ -1902,10 +2177,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        a19 <- ZIO.service[A19]
+        a20 <- ZIO.service[A20]
+        a21 <- ZIO.service[A21]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21)
+      } yield b
+    }
 
   /**
    * Constructs a layer that purely depends on the specified service, which must
@@ -2568,7 +2867,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, ZEnvironment[B]])(implicit
     trace: ZTraceElement
   ): ZLayer[R with A, E, B] =
-    ???
+    ZLayer.fromZIOEnvironment {
+      for {
+        a <- ZIO.service[A]
+        b <- f(a)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2578,10 +2882,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
     f: (A0, A1) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        b  <- f(a0, a1)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2591,10 +2899,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use toLayer", "2.0.0")
   def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
     f: (A0, A1, A2) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        b  <- f(a0, a1, a2)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2612,10 +2925,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        b  <- f(a0, a1, a2, a3)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2636,10 +2955,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4) => ZIO[R, E, ZEnvironment[B]]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        b  <- f(a0, a1, a2, a3, a4)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2661,10 +2987,18 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, ZEnvironment[B]]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        b  <- f(a0, a1, a2, a3, a4, a5)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2685,10 +3019,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     B
   ](
     f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
-    val layer = ???
-    layer
-  }
+  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2712,10 +3055,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, ZEnvironment[B]]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        a7 <- ZIO.service[A7]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2740,10 +3093,21 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, ZEnvironment[B]]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        a7 <- ZIO.service[A7]
+        a8 <- ZIO.service[A8]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2769,10 +3133,22 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, ZEnvironment[B]]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
-    val layer = ???
-    layer
-  }
+  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0 <- ZIO.service[A0]
+        a1 <- ZIO.service[A1]
+        a2 <- ZIO.service[A2]
+        a3 <- ZIO.service[A3]
+        a4 <- ZIO.service[A4]
+        a5 <- ZIO.service[A5]
+        a6 <- ZIO.service[A6]
+        a7 <- ZIO.service[A7]
+        a8 <- ZIO.service[A8]
+        a9 <- ZIO.service[A9]
+        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2801,10 +3177,23 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2834,10 +3223,24 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2868,10 +3271,25 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2903,10 +3321,26 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2939,10 +3373,27 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -2976,10 +3427,28 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -3014,10 +3483,29 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -3053,10 +3541,30 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -3113,10 +3621,31 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -3175,10 +3704,32 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        a19 <- ZIO.service[A19]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -3239,10 +3790,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        a19 <- ZIO.service[A19]
+        a20 <- ZIO.service[A20]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20)
+      } yield b
+    }
 
   /**
    * Constructs a layer that effectfully depends on the specified services,
@@ -3305,10 +3879,34 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
     E,
     B
-  ] = {
-    val layer = ???
-    layer
-  }
+  ] =
+    ZLayer.fromZIOEnvironment {
+      for {
+        a0  <- ZIO.service[A0]
+        a1  <- ZIO.service[A1]
+        a2  <- ZIO.service[A2]
+        a3  <- ZIO.service[A3]
+        a4  <- ZIO.service[A4]
+        a5  <- ZIO.service[A5]
+        a6  <- ZIO.service[A6]
+        a7  <- ZIO.service[A7]
+        a8  <- ZIO.service[A8]
+        a9  <- ZIO.service[A9]
+        a10 <- ZIO.service[A10]
+        a11 <- ZIO.service[A11]
+        a12 <- ZIO.service[A12]
+        a13 <- ZIO.service[A13]
+        a14 <- ZIO.service[A14]
+        a15 <- ZIO.service[A15]
+        a16 <- ZIO.service[A16]
+        a17 <- ZIO.service[A17]
+        a18 <- ZIO.service[A18]
+        a19 <- ZIO.service[A19]
+        a20 <- ZIO.service[A20]
+        a21 <- ZIO.service[A21]
+        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21)
+      } yield b
+    }
 
   /**
    * Constructs a layer from the specified effect.
@@ -3364,6 +3962,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def scoped[R]: ScopedPartiallyApplied[R] =
     new ScopedPartiallyApplied[R]
+
+  /**
+   * Constructs a layer from the specified scoped effect, which must return one
+   * or more services.
+   */
+  def scopedEnvironment[R]: ScopedEnvironmentPartiallyApplied[R] =
+    new ScopedEnvironmentPartiallyApplied[R]
 
   /**
    * Constructs a layer that accesses and returns the specified service from the
@@ -3675,9 +4280,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
   implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    Scoped[R, E, A](zio.map(ZEnvironment(_)))
+      trace: ZTraceElement
+    ): ZLayer[R, E, A] =
+      scopedEnvironment[R](zio.map(ZEnvironment(_)))
+  }
+
+  implicit final class ScopedEnvironmentPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](zio: ZIO[Scope with R, E, ZEnvironment[A]])(implicit
+      trace: ZTraceElement
+    ): ZLayer[R, E, A] =
+      Scoped[R, E, A](zio)
   }
 
   implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
