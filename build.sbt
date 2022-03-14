@@ -227,7 +227,7 @@ lazy val coreTestsJS = coreTests.js
 
 lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("managed"))
-  .dependsOn(core)
+  .dependsOn(core, streams)
   .settings(stdSettings("zio-managed"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.managed"))
@@ -294,7 +294,7 @@ lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
-  .dependsOn(core, managed)
+  .dependsOn(core)
   .settings(stdSettings("zio-streams"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.stream"))
