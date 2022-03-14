@@ -65,14 +65,6 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
 
   /**
    * Returns a new metric that is powered by this one, but which accepts updates
-   * of any type, and translates them to updates with the specified constant
-   * update value.
-   */
-  final def contraconst(in: => In): ZIOMetric[Type, Any, Out] =
-    contramap[Any](_ => in)
-
-  /**
-   * Returns a new metric that is powered by this one, but which accepts updates
    * of the specified new type, which must be transformable to the input type of
    * this metric.
    */
@@ -85,6 +77,14 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
       def hook(extraTags: Set[MetricLabel]): MetricHook[keyType.In, keyType.Out] =
         self.hook(extraTags)
     }
+
+  /**
+   * Returns a new metric that is powered by this one, but which accepts updates
+   * of any type, and translates them to updates with the specified constant
+   * update value.
+   */
+  final def fromConst(in: => In): ZIOMetric[Type, Any, Out] =
+    contramap[Any](_ => in)
 
   /**
    * Returns a new metric that is powered by this one, but which outputs a new
