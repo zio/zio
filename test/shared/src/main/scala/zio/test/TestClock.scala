@@ -385,9 +385,10 @@ object TestClock extends Serializable {
         warningState          <- Ref.Synchronized.make(WarningData.start).toManaged
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start).toManaged
         test <-
-          Managed.acquireReleaseWith(UIO(Test(clockState, live, annotations, warningState, suspendedWarningState))) {
-            test =>
-              test.warningDone *> test.suspendedWarningDone
+          Managed.acquireReleaseWith(
+            ZIO.succeed(Test(clockState, live, annotations, warningState, suspendedWarningState))
+          ) { test =>
+            test.warningDone *> test.suspendedWarningDone
           }
       } yield test
     }

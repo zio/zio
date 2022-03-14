@@ -514,7 +514,7 @@ object ZQueue {
           .unit
       }.uninterruptible
 
-    def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = UIO(shutdownFlag.get)
+    def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
     def take(implicit trace: ZTraceElement): UIO[A] =
       UIO.suspendSucceedWith { (_, fiberId) =>

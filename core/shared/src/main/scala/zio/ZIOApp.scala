@@ -65,7 +65,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A helper function to exit the application with the specified exit code.
    */
   final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
-    UIO {
+    ZIO.succeed {
       if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)
         catch { case _: SecurityException => }

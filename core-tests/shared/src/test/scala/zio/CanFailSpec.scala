@@ -10,8 +10,8 @@ object CanFailSpec extends ZIOBaseSpec {
       val result = typeCheck {
         """
             import zio._
-            val io =  IO(1 / 0)
-            val uio = UIO(0)
+            val io =  ZIO.attempt(1 / 0)
+            val uio = ZIO.succeed(0)
             io.orElse(uio)
             """
       }
@@ -21,8 +21,8 @@ object CanFailSpec extends ZIOBaseSpec {
       val result = typeCheck {
         """
             import zio._
-            val io =  IO(1 / 0)
-            val uio = UIO(0)
+            val io =  ZIO.attempt(1 / 0)
+            val uio = ZIO.succeed(0)
             uio.orElse(io)
             """
       }

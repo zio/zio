@@ -655,7 +655,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * is preallocated and must fit in memory.
    */
   def collectAllN[In](n: => Int)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Chunk[In]] =
-    fromZIO(UIO(ChunkBuilder.make[In](n)))
+    fromZIO(ZIO.succeed(ChunkBuilder.make[In](n)))
       .flatMap(cb => foldUntil[In, ChunkBuilder[In]](cb, n.toLong)(_ += _))
       .map(_.result())
 

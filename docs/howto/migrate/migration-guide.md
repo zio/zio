@@ -1783,7 +1783,7 @@ ZIO.fromFiber(Fiber.succeed("Ok!"))
 ZIO.from(Fiber.succeed("Ok!"))
 
 ZManaged.fromZIO(ZIO.fromEither(Right("Ok!"))) 
-ZManaged.from(ZIO(Right("Ok!")))
+ZManaged.from(ZIO.attempt(Right("Ok!")))
 
 ZStream.fromIterable(List(1,2,3)) 
 ZStream.from(List(1,1,3))

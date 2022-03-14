@@ -58,14 +58,14 @@ object AutoWireSpec extends ZIOBaseSpec {
             )
           } @@ TestAspect.exceptScala3,
           test("reports missing top-level layers") {
-            val program: URIO[String with Int, String] = UIO("test")
+            val program: URIO[String with Int, String] = ZIO.succeed("test")
             val _                                      = program
 
             val checked = typeCheck("program.provide(ZLayer.succeed(3))")
             assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
           } @@ TestAspect.exceptScala3,
           test("reports multiple missing top-level layers") {
-            val program: URIO[String with Int, String] = UIO("test")
+            val program: URIO[String with Int, String] = ZIO.succeed("test")
             val _                                      = program
 
             val checked = typeCheck("program.provide()")
@@ -341,7 +341,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
     object OldLady {
       def live: URLayer[Fly, OldLady] = ZLayer.succeed(new OldLady {
-        override def willDie: UIO[Boolean] = UIO(false)
+        override def willDie: UIO[Boolean] = ZIO.succeed(false)
       })
     }
 

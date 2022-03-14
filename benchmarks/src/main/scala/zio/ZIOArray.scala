@@ -11,14 +11,14 @@ object ZIOArray {
     def innerLoop(i: Int, j: Int): UIO[Unit] =
       if (j >= array.length) UIO.unit
       else
-        UIO((array(i), array(j))).flatMap { case (ia, ja) =>
+        ZIO.succeed((array(i), array(j))).flatMap { case (ia, ja) =>
           val maybeSwap = if (lessThanEqual0(ia, ja)) UIO.unit else swapIJ(i, ia, j, ja)
 
           maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }
 
     def swapIJ(i: Int, ia: A, j: Int, ja: A): UIO[Unit] =
-      UIO { array.update(i, ja); array.update(j, ia) }
+      ZIO.succeed { array.update(i, ja); array.update(j, ia) }
 
     outerLoop(0)
   }

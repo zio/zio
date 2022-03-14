@@ -1170,8 +1170,8 @@ object MainWebApp extends ZIOAppDefault {
       ZIO.ifZIO(
         req.body.via(ZPipeline.utf8Decode).runHead.map(_.contains("ping"))
       )(
-        onTrue = ZIO(HttpResponse.ok("pong")),
-        onFalse = ZIO(HttpResponse.error("bad request"))
+        onTrue = ZIO.attempt(HttpResponse.ok("pong")),
+        onFalse = ZIO.attempt(HttpResponse.error("bad request"))
       )
     }
 

@@ -32,7 +32,7 @@ trait FunctionToLayerSyntax {
      * }}}
      */
     def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): URLayer[Any, A1] =
-      UIO(self()).toLayer
+      ZIO.succeed(self()).toLayer
   }
 
   implicit final class Function1ToLayerOps[A: Tag, B: Tag](

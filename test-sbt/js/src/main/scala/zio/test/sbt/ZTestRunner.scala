@@ -27,7 +27,7 @@ import zio.test.{
   ZIOSpecAbstract,
   sbt
 }
-import zio.{Chunk, Clock, Exit, Layer, Random, Runtime, System, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Chunk, Clock, Exit, Layer, Random, Runtime, System, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -128,7 +128,7 @@ sealed class ZTestTask(
               _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
             } yield ()
           logic
-            .onError(e => UIO(println(e.prettyPrint)))
+            .onError(e => ZIO.succeed(println(e.prettyPrint)))
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

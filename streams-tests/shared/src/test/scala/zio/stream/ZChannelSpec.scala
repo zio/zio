@@ -387,8 +387,8 @@ object ZChannelSpec extends ZIOBaseSpec {
           }
         },
         test("merge with different types") {
-          val left  = ZChannel.write(1) *> ZChannel.fromZIO(Task("Whatever").refineToOrDie[RuntimeException])
-          val right = ZChannel.write(2) *> ZChannel.fromZIO(Task(true).refineToOrDie[IllegalStateException])
+          val left  = ZChannel.write(1) *> ZChannel.fromZIO(ZIO.attempt("Whatever").refineToOrDie[RuntimeException])
+          val right = ZChannel.write(2) *> ZChannel.fromZIO(ZIO.attempt(true).refineToOrDie[IllegalStateException])
 
           val merged = left.mergeWith(right)(
             ex => ZChannel.MergeDecision.await(ex2 => ZIO.done(ex <*> ex2)),
