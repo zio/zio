@@ -342,7 +342,7 @@ object ZLayerSpec extends ZIOBaseSpec {
             ZLayer {
               for {
                 ref <-
-                  Ref.make[Vector[String]](Vector()).tap(ref => ZIO.addFinalizer(_ => ref.get.flatMap(testRef.set)))
+                  ZIO.acquireRelease(Ref.make[Vector[String]](Vector()))(_.get.flatMap(testRef.set))
                 _ <- ZIO.unit
               } yield ref
             }

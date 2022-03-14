@@ -14,14 +14,11 @@ object ScopedSpec extends ZIOBaseSpec {
 
     val live: Layer[Nothing, Counter] =
       ZLayer.scoped {
-        Ref
-          .make(1)
-          .tap(ref => ZIO.addFinalizer(_ => ZIO.debug("releasing") *> ref.set(-10)))
-          .map { ref =>
-            new Counter {
-              val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
-            }
+        ZIO.acquireRelease(Ref.make(1))(_.set(-10)).map { ref =>
+          new Counter {
+            val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
           }
+        }
       }
 
     val incrementAndGet: URIO[Counter, Int] =

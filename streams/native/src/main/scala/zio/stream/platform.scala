@@ -52,7 +52,7 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.unwrapScoped[R](for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
       eitherStream <- ZIO.succeed {
                         register { k =>
@@ -97,7 +97,7 @@ trait ZStreamPlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     scoped[R] {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+        output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
@@ -128,7 +128,7 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     new ZStream(ZChannel.unwrapScoped[R](for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {

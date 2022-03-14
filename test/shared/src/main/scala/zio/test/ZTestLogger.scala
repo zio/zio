@@ -40,8 +40,9 @@ object ZTestLogger {
       for {
         runtimeConfig <- ZIO.runtimeConfig
         testLogger    <- ZTestLogger.make
-        _             <- ZIO.setRuntimeConfig(runtimeConfig.copy(logger = testLogger))
-        _             <- ZIO.addFinalizer(_ => ZIO.setRuntimeConfig(runtimeConfig))
+        acquire        = ZIO.setRuntimeConfig(runtimeConfig.copy(logger = testLogger))
+        release        = ZIO.setRuntimeConfig(runtimeConfig)
+        _             <- ZIO.acquireRelease(acquire)(_ => release)
       } yield ()
     }
 

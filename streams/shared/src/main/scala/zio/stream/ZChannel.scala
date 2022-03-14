@@ -714,10 +714,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.scoped[Env1] {
       ZIO.withChildren { getChildren =>
         for {
-          _ <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
-          queue <- Queue
-                     .bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n)
-                     .tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+          _           <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
+          queue       <- ZIO.acquireRelease(Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n))(_.shutdown)
           errorSignal <- Promise.make[OutErr1, Nothing]
           permits     <- Semaphore.make(n.toLong)
           pull        <- self.toPull
@@ -1504,14 +1502,12 @@ object ZChannel {
           bufferSize    <- ZIO.succeed(bufferSize)
           mergeStrategy <- ZIO.succeed(mergeStrategy)
           _             <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
-          queue <- Queue
-                     .bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize)
-                     .tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-          cancelers   <- Queue.unbounded[Promise[Nothing, Unit]].tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
-          lastDone    <- Ref.make[Option[OutDone]](None)
-          errorSignal <- Promise.make[Nothing, Unit]
-          permits     <- Semaphore.make(n.toLong)
-          pull        <- channels.toPull
+          queue         <- ZIO.acquireRelease(Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize))(_.shutdown)
+          cancelers     <- ZIO.acquireRelease(Queue.unbounded[Promise[Nothing, Unit]])(_.shutdown)
+          lastDone      <- Ref.make[Option[OutDone]](None)
+          errorSignal   <- Promise.make[Nothing, Unit]
+          permits       <- Semaphore.make(n.toLong)
+          pull          <- channels.toPull
           evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
                            pull.flatMap {
                              case Left(done) =>

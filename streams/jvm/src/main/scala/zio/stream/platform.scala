@@ -61,7 +61,7 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.unwrapScoped[R](for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
       eitherStream <- ZIO.succeed {
                         register { k =>
@@ -106,7 +106,7 @@ trait ZStreamPlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     scoped[R] {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+        output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
@@ -137,7 +137,7 @@ trait ZStreamPlatformSpecificConstructors {
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     new ZStream(ZChannel.unwrapScoped[R](for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
@@ -356,7 +356,7 @@ trait ZStreamPlatformSpecificConstructors {
     reader: => ZIO[R, IOException, Reader],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
-    fromReaderScoped[R](reader.tap(r => ZIO.addFinalizer(_ => ZIO.succeed(r.close()))), chunkSize)
+    fromReaderScoped[R](ZIO.acquireRelease(reader)(reader => ZIO.succeed(reader.close())), chunkSize)
 
   /**
    * Creates a stream from a callback that writes to `java.io.OutputStream`.

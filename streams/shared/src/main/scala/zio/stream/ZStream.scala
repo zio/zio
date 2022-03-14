@@ -402,7 +402,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def bufferChunksDropping(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue =
-      Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      ZIO.acquireRelease(Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity))(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.channel))
   }
 
@@ -415,7 +415,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def bufferChunksSliding(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue =
-      Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      ZIO.acquireRelease(Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity))(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.channel))
   }
 
@@ -431,7 +431,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def bufferDropping(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue =
-      Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      ZIO.acquireRelease(Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity))(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.rechunk(1).channel))
   }
 
@@ -447,7 +447,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def bufferSliding(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue =
-      Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      ZIO.acquireRelease(Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity))(_.shutdown)
     new ZStream(bufferSignal[R, E, A](queue, self.rechunk(1).channel))
   }
 
@@ -1066,9 +1066,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     done: Exit[Option[E], Nothing] => UIO[Any] = (_: Any) => UIO.unit
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, UIO[(UniqueKey, Dequeue[Exit[Option[E], A]])]] =
     for {
-      queuesRef <- Ref
-                     .make[Map[UniqueKey, Queue[Exit[Option[E], A]]]](Map())
-                     .tap(map => ZIO.addFinalizer(exit => map.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown))))
+      queuesRef <- ZIO.acquireReleaseExit(Ref.make[Map[UniqueKey, Queue[Exit[Option[E], A]]]](Map()))((map, exit) =>
+                     map.get.flatMap(qs => ZIO.foreach(qs.values)(_.shutdown))
+                   )
       add <- {
         val offer = (a: A) =>
           for {
@@ -2486,8 +2486,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def onExecutor(executor: => Executor)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.descriptor).flatMap { descriptor =>
-      ZStream
-        .scoped(ZIO.uninterruptible(ZIO.shift(executor) *> ZIO.addFinalizer(_ => ZIO.shift(descriptor.executor)))) *>
+      ZStream.scoped(ZIO.acquireRelease(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))) *>
         self <*
         ZStream.fromZIO {
           if (descriptor.isLocked) ZIO.shift(descriptor.executor)
@@ -3669,7 +3668,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     capacity: => Int
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, ZHub[Nothing, Any, Any, Nothing, Nothing, Take[E, A]]] =
     for {
-      hub <- Hub.bounded[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      hub <- ZIO.acquireRelease(Hub.bounded[Take[E, A]](capacity))(_.shutdown)
       _   <- self.runIntoHubScoped(hub).fork
     } yield hub
 
@@ -3741,7 +3740,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     capacity: => Int = 2
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.bounded[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      queue <- ZIO.acquireRelease(Queue.bounded[Take[E, A]](capacity))(_.shutdown)
       _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
@@ -3754,7 +3753,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     capacity: => Int = 2
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.dropping[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      queue <- ZIO.acquireRelease(Queue.dropping[Take[E, A]](capacity))(_.shutdown)
       _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
@@ -3766,7 +3765,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     capacity: => Int = 2
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
-      queue <- Queue.bounded[Exit[Option[E], A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      queue <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](capacity))(_.shutdown)
       _     <- self.runIntoQueueElementsScoped(queue).fork
     } yield queue
 
@@ -3778,7 +3777,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     capacity: => Int = 2
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.sliding[Take[E, A]](capacity).tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      queue <- ZIO.acquireRelease(Queue.sliding[Take[E, A]](capacity))(_.shutdown)
       _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
@@ -3788,7 +3787,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def toQueueUnbounded(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
-      queue <- Queue.unbounded[Take[E, A]].tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+      queue <- ZIO.acquireRelease(Queue.unbounded[Take[E, A]])(_.shutdown)
       _     <- self.runIntoQueueScoped(queue).fork
     } yield queue
 
@@ -3864,9 +3863,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
       ZStream.scoped(
-        ZIO.uninterruptible(
-          ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.addFinalizer(_ => ZIO.setRuntimeConfig(currentRuntimeConfig))
-        )
+        ZIO.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(_ => ZIO.setRuntimeConfig(currentRuntimeConfig))
       ) *>
         self <*
         ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
@@ -4689,7 +4686,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => ZIO[R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    fromInputStreamScoped[R](is.tap(is => ZIO.addFinalizer(_ => ZIO.succeed(is.close()))), chunkSize)
+    fromInputStreamScoped[R](ZIO.acquireRelease(is)(is => ZIO.succeed(is.close())), chunkSize)
 
   /**
    * Creates a stream from a scoped `java.io.InputStream` value.
@@ -5679,9 +5676,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.unwrapScoped[R] {
         for {
           decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]]
-          out <- Queue
-                   .bounded[Exit[Option[E], (K, Dequeue[Exit[Option[E], V]])]](buffer)
-                   .tap(queue => ZIO.addFinalizer(_ => queue.shutdown))
+          out <-
+            ZIO.acquireRelease(Queue.bounded[Exit[Option[E], (K, Dequeue[Exit[Option[E], V]])]](buffer))(_.shutdown)
           ref <- Ref.make[Map[K, UniqueKey]](Map())
           add <- stream
                    .mapZIO(key)
