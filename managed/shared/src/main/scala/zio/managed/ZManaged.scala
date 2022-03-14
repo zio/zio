@@ -1178,7 +1178,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Constructs a layer from this managed resource.
    */
   def toLayer[A1 >: A: Tag](implicit trace: ZTraceElement): ZLayer[R, E, A1] =
-    ???
+    ZLayer.scoped[R][E, A1](self.scoped)
 
   /**
    * Constructs a layer from this managed resource, which must return one or
@@ -1188,7 +1188,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ev: A <:< ZEnvironment[B],
     trace: ZTraceElement
   ): ZLayer[R, E, B] =
-    ???
+    ZLayer.scopedEnvironment[R](self.map(ev).scoped)
 
   /**
    * Constructs a layer from this managed resource, which must return one or
