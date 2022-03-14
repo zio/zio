@@ -18,22 +18,56 @@ package zio
 
 import scala.collection.immutable.LongMap
 
+/**
+ * A `Scope` is the foundation of safe, composable resource management in ZIO. A
+ * scope has two fundamental operators, `addFinalizer`, which adds a finalizer
+ * to the scope, and `close`, which closes a scope and runs all finalizers that
+ * have been added to the scope.
+ */
 trait Scope extends Serializable { self =>
+
+  /**
+   * Adds a finalizer to this scope. The finalizer is guaranteed to be run when
+   * the scope is closed.
+   */
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
+
+  /**
+   * Closes a scope with the specified exit value, running all finalizers that
+   * have been added to the scope.
+   */
   def close(exit: Exit[Any, Any]): UIO[Unit]
+
+  /**
+   * Extends the scope of a `ZIO` workflow that needs a scope into this scope by
+   * providing it to the workflow but not closing the scope when the workflow
+   * completes execution. This allows extending a scoped value into a larger
+   * scope.
+   */
   final def extend[R]: Scope.ExtendPartiallyApplied[R] =
     new Scope.ExtendPartiallyApplied[R](self)
+
+  /**
+   * Uses the scope by providing it to a `ZIO` workflow that needs a scope,
+   * guaranteeing that the scope is closed with the result of that workflow as
+   * soon as the workflow completes execution, whether by success, failure, or
+   * interruption.
+   */
   final def use[R]: Scope.UsePartiallyApplied[R] =
     new Scope.UsePartiallyApplied[R](self)
 }
 
 object Scope {
 
-  type Finalizer = Exit[Any, Any] => UIO[Any]
+  private type Finalizer = Exit[Any, Any] => UIO[Any]
 
   def addFinalizer(finalizer: Exit[Any, Any] => UIO[Any]): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizer(finalizer))
 
+  /**
+   * The global scope which is never closed. Finalizers added to this scope will
+   * be immediately discarded and closing this scope has no effect.
+   */
   val global: Scope =
     new Scope {
       def addFinalizer(finalizer: Finalizer): UIO[Unit] =
@@ -42,12 +76,25 @@ object Scope {
         ZIO.unit
     }
 
+  /**
+   * Makes a scope. Finalizers added to this scope will be run sequentially in
+   * the reverse of the order in which they were added when this scope is
+   * closed.
+   */
   def make: UIO[Scope] =
     makeWith(ExecutionStrategy.Sequential)
 
+  /**
+   * Makes a scope. Finalizers added to this scope will be run in parallel when
+   * this scope is closed.
+   */
   def parallel: UIO[Scope] =
     makeWith(ExecutionStrategy.Parallel)
 
+  /**
+   * Makes a scope. Finalizers added to this scope will be run according to the
+   * specified `ExecutionStrategy`.
+   */
   def makeWith(executionStrategy: ExecutionStrategy): UIO[Scope] =
     ReleaseMap.make.map { releaseMap =>
       new Scope { self =>

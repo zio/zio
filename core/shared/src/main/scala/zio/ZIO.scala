@@ -2749,22 +2749,47 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
     environmentWithZIO
 
+  /**
+   * Constructs a scoped resource from an `acquire` and `release` workflow. If
+   * `acquire` successfully completes execution then `release` will be added to
+   * the finalizers associated with the scope of this workflow and is guaranteed
+   * to be run when the scope is closed.
+   * 
+   * The `acquire` and `release` workflows will be run uninterruptibly.
+   */
   def acquireRelease[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
+  /**
+   * A more powerful variant of `acquireRelease` that allows the `release`
+   * workflow to depend on the `Exit` value specified when the scope is closed.
+   */
   def acquireReleaseExit[R, E, A](acquire: ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizer(exit => release(a, exit))))
 
+  /**
+   * A variant of `acquireRelease` that allows the `acquire` workflow to be
+   * interruptible. Since the `acquire` workflow could be interrupted after
+   * partially acquiring resources, the `release` workflow is not allowed to
+   * access the resource produced by `acquire` and must independently determine
+   * what finalization, if any, needs to be performed (e.g. by examining in
+   * memory state).
+   */
   def acquireReleaseInterruptible[R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
     acquire.ensuring(ZIO.addFinalizer(_ => release))
 
-  def allocateFinalizeExitInterruptible[R, E, A](acquire: ZIO[R, E, A])(
+  /**
+   * A more powerful variant of `acquireReleaseInterruptible` that allows the
+   * `release` workflow to depend on the `Exit` value specified when the scope
+   * is closed.
+   */
+  def acquireReleaseExitInterruptible[R, E, A](acquire: ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R, Nothing, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
     acquire.ensuring(ZIO.addFinalizer(exit => release(exit)))
@@ -2850,6 +2875,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       })
     )
 
+  /**
+   * Adds a finalizer to the scope of this workflow. The finalizer is guaranteed
+   * to be run when the scope is closed.
+   */
   def addFinalizer[R](
     finalizer: Exit[Any, Any] => URIO[R, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
@@ -5100,6 +5129,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def scope(implicit trace: ZTraceElement): UIO[ZScope] =
     descriptorWith(descriptor => ZIO.succeedNow(descriptor.scope))
 
+  /**
+   * Scopes all resources uses in this workflow to the lifetime of the workflow,
+   * ensuring that their finalizers are run as soon as this workflow completes
+   * execution, whether by success, failure, or interruption.
+   * 
+   * {{{
+   * ZIO.scoped {
+   *   openFile(name).flatMap(useFile)
+   * }
+   * }}}
+   */
   def scoped[R]: ScopedPartiallyApplied[R] =
     new ScopedPartiallyApplied[R]
 
