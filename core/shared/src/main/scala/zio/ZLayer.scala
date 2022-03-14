@@ -3319,14 +3319,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     fromZIOEnvironment(zio.map(ZEnvironment(_)))
 
   /**
-   * Constructs a layer from the specified effect.
-   */
-  def fromZIOScoped[R, E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    Scoped[R, E, A](zio.map(ZEnvironment(_)))
-
-  /**
    * Constructs a layer from the specified effect, which must return one or more
    * services.
    */
@@ -3366,6 +3358,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def environment[A](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.fromZIOEnvironment(ZIO.environment[A])
+
+  /**
+   * Constructs a layer from the specified scoped effect.
+   */
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
 
   /**
    * Constructs a layer that accesses and returns the specified service from the
@@ -3674,6 +3672,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
       g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
+
+  implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZLayer[R, E, A] =
+    Scoped[R, E, A](zio.map(ZEnvironment(_)))
+  }
 
   implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 

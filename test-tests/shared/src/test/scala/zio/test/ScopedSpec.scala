@@ -13,7 +13,7 @@ object ScopedSpec extends ZIOBaseSpec {
   object Counter {
 
     val live: Layer[Nothing, Counter] =
-      ZLayer.fromZIOScoped {
+      ZLayer.scoped {
         Ref
           .make(1)
           .tap(ref => ZIO.addFinalizer(_ => ZIO.debug("releasing") *> ref.set(-10)))

@@ -377,7 +377,7 @@ object TestClock extends Serializable {
   )(implicit
     trace: ZTraceElement
   ): ZLayer[Annotations with Live, Nothing, TestClock] =
-    ZLayer.fromZIOScoped {
+    ZLayer.scoped {
       for {
         live                  <- ZIO.service[Live]
         annotations           <- ZIO.service[Annotations]

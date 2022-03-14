@@ -36,7 +36,7 @@ object ZTestLogger {
    * provided to with the `RuntimeConfig` updated to add the `ZTestLogger`.
    */
   val default: ZLayer[Any, Nothing, Any] =
-    ZLayer.fromZIOScoped {
+    ZLayer.scoped {
       for {
         runtimeConfig <- ZIO.runtimeConfig
         testLogger    <- ZTestLogger.make
