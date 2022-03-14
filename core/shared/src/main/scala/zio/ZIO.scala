@@ -3641,6 +3641,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       loop
     }
 
+  def extendScope[R, E, A](f: ZIO.ScopeExtender => ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R with Scope, E, A] =
+    ZIO.serviceWithZIO[Scope](scope => f(ScopeExtender(scope)))
+
   /**
    * Returns an effect that models failure with the specified error. The moral
    * equivalent of `throw` for pure code.
@@ -5725,6 +5730,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     def apply(flag: zio.InterruptStatus): InterruptStatusRestore =
       if (flag eq zio.InterruptStatus.Interruptible) restoreInterruptible else restoreUninterruptible
+  }
+
+  final class ScopeExtender private (private val scope: Scope) {
+    def apply[R, E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+      scope.use[R, E, A](zio)
+  }
+
+  object ScopeExtender {
+    def apply(scope: Scope): ScopeExtender =
+      new ScopeExtender(scope)
   }
 
   final class IfZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
