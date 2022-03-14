@@ -2754,7 +2754,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `acquire` successfully completes execution then `release` will be added to
    * the finalizers associated with the scope of this workflow and is guaranteed
    * to be run when the scope is closed.
-   * 
+   *
    * The `acquire` and `release` workflows will be run uninterruptibly.
    */
   def acquireRelease[R, E, A](acquire: ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any])(implicit
@@ -5133,7 +5133,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Scopes all resources uses in this workflow to the lifetime of the workflow,
    * ensuring that their finalizers are run as soon as this workflow completes
    * execution, whether by success, failure, or interruption.
-   * 
+   *
    * {{{
    * ZIO.scoped {
    *   openFile(name).flatMap(useFile)
