@@ -149,21 +149,19 @@ While using acquire release is a nice and simple way of managing resources, but 
 
 Using acquire releases is simple and straightforward, but in the case of multiple resources, it isn't a good player. This is where we need another abstraction to cover these issues.
 
-### ZManaged 
+### Scope 
 
-`ZManage` is a composable data type for resource management, which wraps the acquisition and release action of a resource. We can think of `ZManage` as a handle with build-in acquisition and release logic.
+`Scope` is a composable data type for resource management, which wraps the acquisition and release action of a resource. We can think of `Scope` as a handle with build-in acquisition and release logic.
 
-To create a managed resource, we need to provide `acquire` and `release` action of that resource to the `make` constructor:
+To create a scoped resource, we need to provide `acquire` and `release` action of that resource to the `acquireRelease` constructor:
 
 ```scala mdoc:silent
-val managed = ZIO.acquireRelease(acquire)(release)
+val scoped = ZIO.acquireRelease(acquire)(release)
 ```
 
-We can use managed resources by calling `use` on that. A managed resource is meant to be used only inside of the `use` block. So that resource is not available outside of the `use` block. 
+We can use scoped resources by calling `scoped` on that. A scoped resource is meant to be used only inside of the `scoped` block. So that resource is not available outside of the `scoped` block. 
 
-The `ZManaged` is a separate world like `ZIO`; In this world, we have a lot of combinators to combine `ZManaged` and create another `ZManaged`. At the end of the day, when our composed `ZManaged` prepared, we can run any effect on this resource and convert that into a `ZIO` world.
-
-Let's try to rewrite a `transfer` example with `ZManaged`:
+Let's try to rewrite a `transfer` example with `Scope`:
 
 ```scala mdoc:silent:nest
 def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
@@ -177,18 +175,5 @@ def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
       copy(in, out)
     }
   }
-}
-```
-
-Also, we can get rid of this ceremony and treat the `Managed` like a `ZIO` effect:
-
-```scala mdoc:silent:nest
-def transfer(from: String, to: String): ZIO[Any, Throwable, Unit] = {
-  val resource: ZIO[Scope, Throwable, Unit] = for {
-    from <- ZIO.acquireRelease(is(from))(close)
-    to   <- ZIO.acquireRelease(os(to))(close)
-    _    <- copy(from, to)
-  } yield ()
-  ZIO.scoped(resource)
 }
 ```
