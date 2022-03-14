@@ -45,16 +45,6 @@ package object managed extends ZManagedCompatPlatformSpecific {
       ZManaged.fromZIO(Promise.make[E, A])
   }
 
-  implicit final class ZManagedRefCompanionSyntax(private val self: Ref.type) extends AnyVal {
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref[A]] =
-      ZManaged.fromZIO(Ref.make(a))
-  }
-
-  implicit final class ZManagedRefSynchronizedCompanionSyntax(private val self: Ref.Synchronized.type) extends AnyVal {
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref.Synchronized[A]] =
-      ZManaged.fromZIO(Ref.Synchronized.make(a))
-  }
-
   implicit final class ZManagedZFiberRefSyntax[+EA, +EB, -A, +B](private val self: ZFiberRef[EA, EB, A, B]) {
 
     /**
