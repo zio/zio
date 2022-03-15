@@ -83,7 +83,14 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           fiber     <- effect.fork
           _         <- fiber.interrupt
         } yield assertCompletes
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      test("withPermitsManaged releases same number of permits") {
+        for {
+          semaphore <- TSemaphore.make(2L).commit
+          _         <- semaphore.withPermitsManaged(2).useNow
+          permits   <- semaphore.permits.get.commit
+        } yield assertTrue(permits == 2)
+      }
     )
   )
 
