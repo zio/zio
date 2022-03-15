@@ -20,7 +20,7 @@ trait JvmMetrics { self =>
    */
   lazy val live: ZLayer[Clock with System, Throwable, Feature] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    collectMetrics.toLayerScoped(featureTag, trace)
+    ZLayer.scoped(collectMetrics)(featureTag, trace)
   }
 
   /** A ZIO application that periodically updates the JVM metrics */

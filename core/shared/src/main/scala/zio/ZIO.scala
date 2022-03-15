@@ -6709,9 +6709,4 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         }
       }
     }
-
-  implicit class ToLayerSyntax[R, E, A](private val self: ZIO[Scope with R, E, A]) extends AnyVal {
-    def toLayerScoped(implicit tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, A] =
-      ZLayer.scoped[R](self)
-  }
 }

@@ -54,7 +54,7 @@ There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
 - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `Scope`.
 - `ZLayer.identity` to express the requirement for a dependency
-- `ZIO#toLayer` or `ZIO#toLayerScoped` to construct a layer from an effect
+- `ZIO#toLayer` to construct a layer from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`) or to create a combination of services (suffixed by `Environment`).
 
@@ -120,14 +120,7 @@ val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
   }
 ```
 
-2. Also, every scoped `ZIO` effect can be converted to `ZLayer` by calling the `ZIO#toLayerScoped`:
-
-```scala mdoc:compile-only
-val scopedFile: ZLayer[Any, Throwable, BufferedSource] =
-  ZIO.fromAutoCloseable(ZIO.attempt(scala.io.Source.fromFile("file.txt"))).toLayerScoped
-```
-
-3. We can create a `ZLayer` directly from `acquire` and `release` actions of a scoped resource:
+2. We can create a `ZLayer` directly from `acquire` and `release` actions of a scoped resource:
 
 ```scala mdoc:compile-only
 import zio._
@@ -175,7 +168,7 @@ def scoped: ZIO[Console with Scope, Throwable, UserRepository] =
   } yield new UserRepositoryLive(xa)
 ```
 
-We can convert that to `ZLayer` with `ZLayer.scoped` or `ZIO#toLayerScoped`:
+We can convert that to `ZLayer` with `ZLayer.scoped`:
 
 ```scala mdoc:nest
 val usersLayer : ZLayer[Console, Throwable, UserRepository] =
