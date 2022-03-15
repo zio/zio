@@ -41,19 +41,6 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
 
 trait TestConstructorLowPriority2 extends TestConstructorLowPriority3 {
 
-  implicit def TestResultZManagedConstructor[R, E, A <: TestResult]
-    : TestConstructor.WithOut[R, ZIO[Scope with R, E, A], ZSpec[R, E]] =
-    new TestConstructor[R, ZIO[Scope with R, E, A]] {
-      type Out = ZSpec[R, E]
-      def apply(label: String)(
-        assertion: => ZIO[Scope with R, E, A]
-      )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        test(label)(ZIO.scoped[R](assertion))
-    }
-}
-
-trait TestConstructorLowPriority3 extends TestConstructorLowPriority4 {
-
   implicit def TestResultZSTMConstructor[R, E, A <: TestResult]
     : TestConstructor.WithOut[R, ZSTM[R, E, A], ZSpec[R, E]] =
     new TestConstructor[R, ZSTM[R, E, A]] {
@@ -65,7 +52,7 @@ trait TestConstructorLowPriority3 extends TestConstructorLowPriority4 {
     }
 }
 
-trait TestConstructorLowPriority4 extends TestConstructorLowPriority5 {
+trait TestConstructorLowPriority3 extends TestConstructorLowPriority4 {
 
   implicit def AssertConstructor[A <: Assert]: TestConstructor.WithOut[Any, A, ZSpec[Any, Nothing]] =
     new TestConstructor[Any, A] {
@@ -77,7 +64,7 @@ trait TestConstructorLowPriority4 extends TestConstructorLowPriority5 {
     }
 }
 
-trait TestConstructorLowPriority5 extends TestConstructorLowPriority6 {
+trait TestConstructorLowPriority4 extends TestConstructorLowPriority5 {
 
   implicit def AssertZIOConstructor[R, E, A <: Assert]: TestConstructor.WithOut[R, ZIO[R, E, A], ZSpec[R, E]] =
     new TestConstructor[R, ZIO[R, E, A]] {
@@ -94,20 +81,7 @@ trait TestConstructorLowPriority5 extends TestConstructorLowPriority6 {
     }
 }
 
-trait TestConstructorLowPriority6 extends TestConstructorLowPriority7 {
-
-  implicit def AssertZManagedConstructor[R, E, A <: Assert]
-    : TestConstructor.WithOut[R, ZIO[Scope with R, E, A], ZSpec[R, E]] =
-    new TestConstructor[R, ZIO[Scope with R, E, A]] {
-      type Out = ZSpec[R, E]
-      def apply(label: String)(
-        assertion: => ZIO[Scope with R, E, A]
-      )(implicit trace: ZTraceElement): ZSpec[R, E] =
-        test(label)(ZIO.scoped[R](assertion))
-    }
-}
-
-trait TestConstructorLowPriority7 {
+trait TestConstructorLowPriority5 {
 
   implicit def AssertZSTMConstructor[R, E, A <: Assert]: TestConstructor.WithOut[R, ZSTM[R, E, A], ZSpec[R, E]] =
     new TestConstructor[R, ZSTM[R, E, A]] {

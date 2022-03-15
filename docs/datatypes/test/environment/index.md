@@ -20,13 +20,14 @@ Fortunately, ZIO abstracted most of it in its runtime under `Environment` type. 
 If we are using ZIO Test and extending `ZIOSpecDefault` a `TestEnvironment` containing all of them will be automatically provided to each of our tests. Otherwise, the easiest way to use the test implementations in ZIO Test is by providing the `TestEnvironment` to our program:
 
 ```scala mdoc:invisible:nest
+import zio.Scope
 import zio.test._
 val myProgram: ZSpec[TestEnvironment, Nothing] =
   test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-myProgram.provide(testEnvironment)
+myProgram.provide(Scope.layer >>> testEnvironment)
 ```
 
 Then all environmental effects, such as printing to the console or generating random numbers, will be implemented by the `TestEnvironment` and will be fully testable. When we do need to access the "live" environment, for example to print debugging information to the console, we just use the `live` combinator along with the effect as our normally would. 
@@ -39,7 +40,7 @@ val myProgram: ZSpec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-myProgram.provideCustom(TestConsole.make(TestConsole.Data()))
+myProgram.provideCustom(Scope.layer >>> TestConsole.make(TestConsole.Data()))
 ```
 
 Finally, we can create a `Test` object that implements the test interface directly using the `makeTest` method. This can be useful when we want to access some testing functionality without using the environment type:

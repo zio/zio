@@ -49,7 +49,7 @@ object ReportingTestUtils {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
              .provideLayer(
-               Scope.layer >+> (TestLogger.fromConsole ++ TestClock.default)
+               ZLayer.scoped(TestLogger.fromConsole ++ TestClock.default +!+ ZLayer.environment[Scope])
              )
       output <- TestConsole.output
     } yield output.mkString
@@ -59,7 +59,7 @@ object ReportingTestUtils {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
                    .provideLayer(
-                     Scope.layer >+> (TestLogger.fromConsole ++ TestClock.default)
+                     ZLayer.scoped(TestLogger.fromConsole ++ TestClock.default +!+ ZLayer.environment[Scope])
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary

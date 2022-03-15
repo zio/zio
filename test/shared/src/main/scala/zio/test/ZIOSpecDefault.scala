@@ -12,5 +12,5 @@ abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
     zio.ZEnv.live >>> TestEnvironment.live
   }
 
-  def spec: ZSpec[TestEnvironment, Any]
+  def spec: ZSpec[TestEnvironment with Scope, Any]
 }

@@ -43,7 +43,7 @@ object ScopedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(5))
         }
       )
-    ).provideLayerShared(Scope.layer >>> Counter.live) @@ sequential,
+    ).provideLayerShared(ZLayer.scoped(Counter.live)) @@ sequential,
     suite("scoped per test")(
       suite("first suite")(
         test("first test") {
@@ -61,6 +61,6 @@ object ScopedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       )
-    ).provideLayer(Scope.layer >>> Counter.live)
+    ).provideLayer(ZLayer.scoped[Any](Counter.live))
   )
 }

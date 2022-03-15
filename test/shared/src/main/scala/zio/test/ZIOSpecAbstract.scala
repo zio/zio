@@ -25,7 +25,7 @@ import zio.test.render._
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
-  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any]
+  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
   type Failure
 
@@ -41,7 +41,8 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     implicit val trace = Tracer.newTrace
 
     runSpec.provideSomeLayer[ZEnv with ZIOAppArgs with Scope](
-      ZLayer.environment[ZEnv with ZIOAppArgs with Scope] +!+ (TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
+      ZLayer
+        .environment[ZEnv with ZIOAppArgs with Scope] +!+ (TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
     )
   }
 
@@ -52,7 +53,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
         self.layer +!+ that.layer
       override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any, Any] =
         self.runSpec.zipPar(that.runSpec)
-      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
+      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.spec + that.spec
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
@@ -101,7 +102,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     }
 
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
+    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock with Scope, Any],
     testArgs: TestArgs,
     sendSummary: URIO[Summary, Unit]
   )(implicit
@@ -116,7 +117,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any](
-            ZLayer.succeedEnvironment(environment) +!+ (Scope.layer >>> testEnvironment)
+            ZLayer.succeedEnvironment(environment) +!+ ZLayer.scoped(testEnvironment)
           ),
           runtimeConfig
         )

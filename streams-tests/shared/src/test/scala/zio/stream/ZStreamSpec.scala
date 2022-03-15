@@ -4556,16 +4556,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             lazy val _                                    = expected
             assertCompletes
           },
-          // test("IteratorScoped") {
-          //   trait R
-          //   trait A
-          //   trait IteratorLike[Element] extends Iterator[Element]
-          //   lazy val iteratorScoped: ZIO[R with Scope, Throwable, IteratorLike[A]] = ???
-          //   lazy val actual                                                   = ZStream.from(iteratorScoped)
-          //   lazy val expected: ZStream[R, Throwable, A]                       = actual
-          //   lazy val _                                                        = expected
-          //   assertCompletes
-          // },
           test("IteratorZIO") {
             trait R
             trait A
@@ -4585,16 +4575,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             lazy val _                                    = expected
             assertCompletes
           },
-          // test("JavaIteratorScoped") {
-          //   trait R
-          //   trait A
-          //   trait IteratorLike[Element] extends java.util.Iterator[Element]
-          //   lazy val javaIteratorSCoped: ZIO[R with Scope, Throwable, IteratorLike[A]] = ???
-          //   lazy val actual                                                       = ZStream.from(javaIteratorScoped)
-          //   lazy val expected: ZStream[R, Throwable, A]                           = actual
-          //   lazy val _                                                            = expected
-          //   assertCompletes
-          // },
           test("JavaIteratorZIO") {
             trait R
             trait A

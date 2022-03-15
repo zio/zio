@@ -37,7 +37,7 @@ object TestExecutor {
     ): UIO[ExecutedSpec[E]] =
       ZIO.scoped {
         spec.annotated
-          .provideLayer(ZTestLogger.default >>> environment +!+ Scope.layer)
+          .provideLayer(ZLayer.scoped(ZTestLogger.default >>> environment ++ ZLayer.environment[Scope]))
           .foreachExec(defExec)(
             e =>
               e.failureOrCause.fold(

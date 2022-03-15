@@ -76,11 +76,6 @@ object Scope {
         ZIO.unit
     }
 
-  val layer: ZLayer[Any, Nothing, Scope] =
-    ZLayer.Scoped[Any, Nothing, Scope](
-      ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)).map(ZEnvironment(_))
-    )
-
   /**
    * Makes a scope. Finalizers added to this scope will be run sequentially in
    * the reverse of the order in which they were added when this scope is
@@ -88,13 +83,6 @@ object Scope {
    */
   def make: UIO[Scope] =
     makeWith(ExecutionStrategy.Sequential)
-
-  /**
-   * Makes a scope. Finalizers added to this scope will be run in parallel when
-   * this scope is closed.
-   */
-  def parallel: UIO[Scope] =
-    makeWith(ExecutionStrategy.Parallel)
 
   /**
    * Makes a scope. Finalizers added to this scope will be run according to the
@@ -110,6 +98,13 @@ object Scope {
           releaseMap.releaseAll(exit, executionStrategy).unit
       }
     }
+
+  /**
+   * Makes a scope. Finalizers added to this scope will be run in parallel when
+   * this scope is closed.
+   */
+  def parallel: UIO[Scope] =
+    makeWith(ExecutionStrategy.Parallel)
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
     final def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =

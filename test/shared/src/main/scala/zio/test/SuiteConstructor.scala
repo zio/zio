@@ -68,22 +68,7 @@ trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
     }
 }
 
-trait SuiteConstructorLowPriority4 extends SuiteConstructorLowPriority5 {
-
-  implicit def ZManagedConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
-    : SuiteConstructor.WithOut[ZIO[Scope with R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =
-    new SuiteConstructor[ZIO[Scope with R, E, Collection[Spec[R1, E1, T]]]] {
-      type OutEnvironment = R with R1
-      type OutError       = E2
-      type OutSuccess     = T
-      def apply(specs: ZIO[Scope with R, E, Collection[Spec[R1, E1, T]]])(implicit
-        trace: ZTraceElement
-      ): Spec[R with R1, E2, T] =
-        Spec.scoped[R with R1](specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))))
-    }
-}
-
-trait SuiteConstructorLowPriority5 {
+trait SuiteConstructorLowPriority4 {
 
   implicit def ZSTMConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
     : SuiteConstructor.WithOut[ZSTM[R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =

@@ -3958,6 +3958,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     ZLayer.fromZIOEnvironment(ZIO.environment[A])
 
   /**
+   * Scopes all resources used in this layer to the lifetime of the layer,
+   * ensuring that the resources are released as soon as the workflow that the
+   * layer is provided to completes execution, whether by success, failure, or
+   * interruption.
+   */
+  def scoped[RIn]: ScopedPartiallyApplied[RIn] =
+    new ScopedPartiallyApplied[RIn]
+
+  /**
    * Constructs a layer that accesses and returns the specified service from the
    * environment.
    */
@@ -3994,6 +4003,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     Suspend(() => self)
   }
 
+  final class ScopedPartiallyApplied[RIn](private val dummy: Boolean = true) {
+    def apply[E, ROut](layer: ZLayer[Scope with RIn, E, ROut])(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] = {
+      val scope = ZLayer.Scoped[Any, Nothing, Scope](
+        ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)).map(ZEnvironment(_))
+      )
+      ZLayer.environment[RIn] ++ scope >>> layer
+    }
+  }
+
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
@@ -4027,8 +4045,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
     /**
      * Checks the memo map to see if a layer exists. If it is, immediately
-     * returns it. Otherwise, obtains the layer, stores it in the memo map, and
-     * adds a finalizer to the `Scope`.
+     * returns it.'' Otherwise, obtains the layer, stores it in the memo map,
+     * and adds a finalizer to the `Scope`.
      */
     def getOrElseMemoize[E, A, B](scope: Scope)(layer: ZLayer[A, E, B]): ZIO[A, E, ZEnvironment[B]]
   }

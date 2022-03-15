@@ -366,7 +366,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer3 = ZLayer.succeed("baz")
         val layer4 = ZLayer(ZIO.acquireRelease(sleep)(_ => sleep))
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.scoped(ZIO.unit.provideLayer(env).exit))(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideLayer(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)

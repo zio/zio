@@ -144,7 +144,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomLayerShared(Scope.layer >>> specLayer),
+                   ).provideCustomLayerShared(ZLayer.scoped(specLayer)),
                    suite("suite2")(
                      test("test1") {
                        assertM(update)(equalTo(1))
@@ -152,7 +152,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertM(update)(equalTo(2))
                      }
-                   ).provideCustomLayerShared(Scope.layer >>> specLayer)
+                   ).provideCustomLayerShared(ZLayer.scoped(specLayer))
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(Scope.layer >>> ZLayer(ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
+          ).provideCustomLayerShared(ZLayer.scoped(ZLayer(ZIO.acquireRelease(Ref.make(0))(_.set(-1)))))
         assertM(succeeded(spec))(isTrue)
       }
     ),

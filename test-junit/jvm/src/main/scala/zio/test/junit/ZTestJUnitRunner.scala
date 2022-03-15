@@ -87,7 +87,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     unsafeRun(
       scoped
         .provide(
-          ZEnv.live >+> Scope.layer >+> TestEnvironment.live,
+          ZLayer.scoped(ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
           emptyArgsLayer,
           spec.layer
         )
@@ -102,7 +102,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           ZIOAppArgs(Chunk.empty)
         )
 
-      val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs, Any] =
+      val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
         .runSpec(
@@ -111,7 +111,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           ZIO.unit
         )
         .provide(
-          ZEnv.live >+> Scope.layer >+> TestEnvironment.live,
+          ZLayer.scoped(ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
           emptyArgsLayer,
           spec.layer,
           TestLogger.fromConsole

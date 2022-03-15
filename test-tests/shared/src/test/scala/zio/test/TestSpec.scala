@@ -9,7 +9,7 @@ import zio.test.TestUtils.execute
 
 object TestSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("TestSpec")(
+  def spec = suite("TestSpec")(
     test("assertM works correctly") {
       assertM(nanoTime)(equalTo(0L))
     },
@@ -48,13 +48,13 @@ object TestSpec extends ZIOBaseSpec {
         _       <- promise.await
       } yield assertCompletes
     } @@ timeout(10.seconds),
-    // test("scoped effects can be tested") {
-    //   for {
-    //     ref   <- Ref.make(false)
-    //     _     <- ZIO.acquireRelease(ref.set(true))(_ => ref.set(false))
-    //     value <- ref.get
-    //   } yield assert(value)(isTrue)
-    // },
+    test("scoped effects can be tested") {
+      for {
+        ref   <- Ref.make(false)
+        _     <- ZIO.acquireRelease(ref.set(true))(_ => ref.set(false))
+        value <- ref.get
+      } yield assert(value)(isTrue)
+    },
     test("transactional effects can be tested") {
       for {
         message <- STM.succeed("Hello from an STM transaction!")

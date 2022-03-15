@@ -69,7 +69,7 @@ abstract class BaseTestTask(
       Error,
       spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock with Scope
     ] =
-      Scope.layer >+> (layer +!+ argslayer +!+ filledTestlayer)
+      ZLayer.scoped(layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 
     val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 

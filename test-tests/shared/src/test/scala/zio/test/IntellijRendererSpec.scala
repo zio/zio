@@ -12,34 +12,34 @@ object IntellijRendererSpec extends ZIOBaseSpec {
   def spec =
     suite("IntelliJ Renderer")(
       test("correctly reports a successful test") {
-        assertM(ZIO.scoped(runLog(test1)))(equalTo(test1Expected.mkString))
+        assertM(runLog(test1))(equalTo(test1Expected.mkString))
       },
       test("correctly reports a failed test") {
-        assertM(ZIO.scoped(runLog(test3)))(equalTo(test3Expected.mkString))
+        assertM(runLog(test3))(equalTo(test3Expected.mkString))
       },
       test("correctly reports successful test suite") {
-        assertM(ZIO.scoped(runLog(suite1)))(equalTo(suite1Expected.mkString))
+        assertM(runLog(suite1))(equalTo(suite1Expected.mkString))
       },
       test("correctly reports failed test suite") {
-        assertM(ZIO.scoped(runLog(suite2)))(equalTo(suite2Expected.mkString))
+        assertM(runLog(suite2))(equalTo(suite2Expected.mkString))
       },
       test("correctly reports multiple test suites") {
-        assertM(ZIO.scoped(runLog(suite3)))(equalTo(suite3Expected.mkString))
+        assertM(runLog(suite3))(equalTo(suite3Expected.mkString))
       },
       test("correctly reports empty test suite") {
-        assertM(ZIO.scoped(runLog(suite4)))(equalTo(suite4Expected.mkString))
+        assertM(runLog(suite4))(equalTo(suite4Expected.mkString))
       },
       test("correctly reports failure of simple assertion") {
-        assertM(ZIO.scoped(runLog(test5)))(equalTo(test5Expected.mkString))
+        assertM(runLog(test5))(equalTo(test5Expected.mkString))
       },
       test("correctly reports multiple nested failures") {
-        assertM(ZIO.scoped(runLog(test6)))(equalTo(test6Expected.mkString))
+        assertM(runLog(test6))(equalTo(test6Expected.mkString))
       },
       test("correctly reports labeled failures") {
-        assertM(ZIO.scoped(runLog(test7)))(equalTo(test7Expected.mkString))
+        assertM(runLog(test7))(equalTo(test7Expected.mkString))
       },
       test("correctly reports negated failures") {
-        ZIO.scoped(runLog(test8).map(str => assertTrue(str == test8Expected.mkString)))
+        runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
       }
     ) @@ silent
 
