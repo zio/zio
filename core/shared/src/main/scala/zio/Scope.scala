@@ -77,6 +77,15 @@ object Scope {
     }
 
   /**
+   * A layer that constructs a scope and closes it when the workflow the layer
+   * is provided to completes execution, whether by success, failure, or
+   * interruption. This can be used to close a scope when providing a layer to a
+   * workflow.
+   */
+  def default: ZLayer[Any, Nothing, Scope] =
+    ZLayer.scope
+
+  /**
    * Makes a scope. Finalizers added to this scope will be run sequentially in
    * the reverse of the order in which they were added when this scope is
    * closed.

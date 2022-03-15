@@ -382,7 +382,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
   private final case class Fresh[RIn, E, ROut](self: ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
 
-  private[zio] final case class Scoped[-RIn, +E, +ROut](self: ZIO[RIn with Scope, E, ZEnvironment[ROut]])
+  private final case class Scoped[-RIn, +E, +ROut](self: ZIO[RIn with Scope, E, ZEnvironment[ROut]])
       extends ZLayer[RIn, E, ROut]
 
   private final case class Suspend[-RIn, +E, +ROut](self: () => ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
@@ -3956,6 +3956,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def environment[A](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
     ZLayer.fromZIOEnvironment(ZIO.environment[A])
+
+  /**
+   * A layer that constructs a scope and closes it when the workflow the layer
+   * is provided to completes execution, whether by success, failure, or
+   * interruption. This can be used to close a scope when providing a layer to a
+   * workflow.
+   */
+  val scope: ZLayer[Any, Nothing, Scope] =
+    ZLayer.Scoped[Any, Nothing, Scope](
+      ZIO
+        .acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit))(ZTraceElement.empty)
+        .map(ZEnvironment(_))(ZTraceElement.empty)
+    )
 
   /**
    * Scopes all resources used in this layer to the lifetime of the layer,

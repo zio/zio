@@ -1488,8 +1488,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
-    Scope.make.flatMap { scope =>
-      layer.build(scope).flatMap(r => self.provideEnvironment(r)).onExit(scope.close)
+    ZIO.acquireReleaseExitWith(Scope.make)((scope: Scope, exit: Exit[Any, Any]) => scope.close(exit)) { scope =>
+      layer.build(scope).flatMap(r => self.provideEnvironment(r))
     }
 
   /**
@@ -5710,7 +5710,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZIO[R0, E1, A] =
-      self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] +!+ layer)
+      self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {

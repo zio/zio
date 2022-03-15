@@ -88,13 +88,13 @@ object ZPoolSpec extends ZIOBaseSpec {
             promise <- Promise.make[Nothing, Unit]
             count   <- Ref.make(0)
             get      = ZIO.acquireRelease(count.updateAndGet(_ + 1))(_ => count.update(_ - 1))
-            pool <- ZPool.make(get, 10 to 15, 60.seconds)
-            _   <- ZIO.scoped(pool.get.flatMap(_ => promise.await)).fork.repeatN(14)
-            _   <- count.get.repeatUntil(_ == 15)
-            _   <- promise.succeed(())
-            max <- count.get
-            _   <- TestClock.adjust(60.seconds)
-            min <- count.get
+            pool    <- ZPool.make(get, 10 to 15, 60.seconds)
+            _       <- ZIO.scoped(pool.get.flatMap(_ => promise.await)).fork.repeatN(14)
+            _       <- count.get.repeatUntil(_ == 15)
+            _       <- promise.succeed(())
+            max     <- count.get
+            _       <- TestClock.adjust(60.seconds)
+            min     <- count.get
           } yield assertTrue(min == 10 && max == 15)
         } +
         test("shutdown robustness") {

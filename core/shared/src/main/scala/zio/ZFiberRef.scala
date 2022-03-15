@@ -100,8 +100,8 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
 
   /**
    * Returns a scoped effect that sets the value associated with the curent
-   * fiber to the specified value as its `acquire` action and restores it to its
-   * original value as its `release` action.
+   * fiber to the specified value and restores it to its original value when the
+   * scope is closed.
    */
   def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit]
 
