@@ -84,7 +84,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def summary(key: MetricKey.Summary): MetricHook.Summary = {
     import key.keyType.{maxSize, maxAge, error, quantiles}
 
-    val values = new AtomicReferenceArray[(java.time.Instant, Double)](maxSize)
+    val values = new AtomicReferenceArray[(Double, java.time.Instant)](maxSize)
     val head   = new AtomicInteger(0)
     val count  = new LongAdder
     val sum    = new DoubleAdder
@@ -111,7 +111,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       for (idx <- 0 until maxSize) {
         val item = values.get(idx)
         if (item != null) {
-          val (t, v) = item
+          val (v, t) = item
           val age    = Duration.fromInterval(t, now)
           if (!age.isNegative && age.compareTo(maxAge) <= 0) {
             builder += v
@@ -124,19 +124,19 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
     // Assuming that the instant of observed values is continuously increasing
     // While Observing we cut off the first sample if we have already maxSize samples
-    def observe(value: Double, t: java.time.Instant): Unit = {
+    def observe(tuple: (Double, java.time.Instant)): Unit = {
       if (maxSize > 0) {
         val target = head.incrementAndGet() % maxSize
-        values.set(target, (t, value))
+        values.set(target, tuple)
       }
 
       count.increment()
-      sum.add(value)
+      sum.add(tuple._1)
       ()
     }
 
     MetricHook(
-      t => observe(t._1, t._2),
+      observe(_),
       () =>
         MetricState.Summary(
           error,
