@@ -48,8 +48,7 @@ final case class MetricKey[+Type] private (
    * Returns a new `MetricKey` with the specified tags appended.
    */
   def tagged(extraTags: Set[MetricLabel]): MetricKey[Type] =
-    if (tags.isEmpty) self
-    else copy(tags = tags ++ extraTags)
+    if (extraTags.isEmpty) self else copy(tags = tags ++ extraTags)
 }
 object MetricKey {
   type Untyped = MetricKey[Any]

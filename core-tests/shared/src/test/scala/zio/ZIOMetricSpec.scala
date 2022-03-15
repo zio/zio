@@ -92,33 +92,6 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed("!") @@ c
           state <- base.tagged(MetricLabel("dyn", "!")).value
         } yield assertTrue(state == MetricState.Counter(2.0))
-      },
-      test("count + taggedWith referential transparency") {
-        val c1 = ZIOMetric
-          .counter("c11")
-          .tagged(MetricLabel("static", "0"))
-          .contramap[String](_ => 1.0)
-        val c2 =
-          c1.taggedWith[String] {
-            case s: String => Set(MetricLabel("dyn", s))
-            case _         => Set.empty
-          }
-
-        val r1 = ZIOMetric.fromMetricKey(MetricKey.counter("c11").tagged(Set(MetricLabel("static", "0"))))
-        val r2 = ZIOMetric.fromMetricKey(
-          MetricKey.counter("c11").tagged(Set(MetricLabel("static", "0"), MetricLabel("dyn", "!")))
-        )
-
-        for {
-          _  <- ZIO.succeed("!") @@ c2
-          _  <- ZIO.succeed("hello") @@ c1
-          _  <- ZIO.succeed("!") @@ c1
-          r1 <- r1.value
-          r2 <- r2.value
-        } yield assertTrue(
-          r1 == MetricState.Counter(2.0),
-          r2 == MetricState.Counter(1.0)
-        )
       }
     ),
     suite("Gauge")(

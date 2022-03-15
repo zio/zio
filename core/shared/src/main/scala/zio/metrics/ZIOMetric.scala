@@ -282,8 +282,11 @@ object ZIOMetric {
       final def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): key.keyType.Out =
         hook(extraTags).get()
 
-      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] =
-        metricState.get(key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]])
+      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
+        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+
+        metricState.get(fullKey)
+      }
     }
 
   /**
