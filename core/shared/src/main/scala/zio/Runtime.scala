@@ -508,7 +508,7 @@ object Runtime {
     val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
       Scope.make.flatMap { scope =>
-        layer.build.provideService(scope).flatMap { acquire =>
+        scope.extend(layer.build).flatMap { acquire =>
           val finalizer = () =>
             runtime.unsafeRun {
               scope.close(Exit.unit).uninterruptible.unit

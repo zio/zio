@@ -222,7 +222,7 @@ object ZPool {
               (
                 for {
                   scope     <- Scope.make
-                  exit      <- restore(creator.provideService(scope)).exit
+                  exit      <- restore(scope.extend(creator)).exit
                   attempted <- ZIO.succeed(Attempted(exit, scope.close(Exit.succeed(()))))
                   _         <- items.offer(attempted)
                   _         <- track(attempted.result)
@@ -263,7 +263,7 @@ object ZPool {
       ZIO.uninterruptibleMask { restore =>
         for {
           scope     <- Scope.make
-          exit      <- restore(creator.provideService(scope)).exit
+          exit      <- restore(scope.extend(creator)).exit
           attempted <- ZIO.succeed(Attempted(exit, scope.close(Exit.succeed(()))))
           _         <- items.offer(attempted)
           _         <- track(attempted.result)
