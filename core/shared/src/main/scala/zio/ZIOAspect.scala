@@ -92,39 +92,6 @@ object ZIOAspect {
         }
     }
 
-  def countDefects(
-    name: String,
-    tags: Set[MetricLabel] = Set.empty
-  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      val metric = ZIOMetric.counter(name).tagged(tags)
-
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.tapDefect(_ => metric.update(1.0))
-    }
-
-  def countFailures(
-    name: String,
-    tags: Set[MetricLabel] = Set.empty
-  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      val metric = ZIOMetric.counter(name).tagged(tags)
-
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.tapError(_ => metric.update(1.0))
-    }
-
-  def countSuccesses(
-    name: String,
-    tags: Set[MetricLabel] = Set.empty
-  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      val metric = ZIOMetric.counter(name).tagged(tags)
-
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.tap(_ => metric.update(1.0))
-    }
-
   /**
    * An aspect that prints the results of effects to the console for debugging
    * purposes.

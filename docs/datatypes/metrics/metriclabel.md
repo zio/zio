@@ -17,12 +17,13 @@ For example, we can append following labels (dimensions) to our metric aspects:
 
 ```scala
 import zio._
-val counter = ZIOMetric.count("http_requests",
-  MetricLabel("env", "production")
-  MetricLabel("method", "GET"),
-  MetricLabel("endpoint", "/api/users"),
-  MetricLabel("zone", "ap-northeast"),
-)
+val counter = ZIOMetric.counter("http_requests")
+  .tagged(
+    MetricLabel("env", "production")
+    MetricLabel("method", "GET"),
+    MetricLabel("endpoint", "/api/users"),
+    MetricLabel("zone", "ap-northeast"),
+  )
 ```
 
 By labeling metrics, we can query in a more granular way in monitoring dashboards, such as

@@ -17,44 +17,24 @@ ZIO supports 5 types of Metrics:
 
 All ZIO Metrics are defined in the form of ZIO Aspects that can be applied to effects without changing the signature of the effect it is applied to:
 
-```scala mdoc:silent:nest
-import zio._
-import zio.metrics._
-import java.lang.Runtime._
-
-def memoryUsage: UIO[Double] = 
-  ZIO.succeed(getRuntime.totalMemory() - getRuntime.freeMemory()).map(_ / (1024.0 * 1024.0))
-
-val myApp: ZIO[Random, Nothing, Unit] = for {
-  _ <- (Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
-  _ <- memoryUsage @@ ZIOMetric.setGauge("memory_usage")
-} yield ()
+```scala
+TODO
 ```
 
 After adding metrics into our application, whenever we want we can capture snapshot of all metrics recorded by our application:
 
-```scala mdoc:silent:nest
-for {
-  _      <- myApp 
-  states <- ZIO.succeed(MetricClient.unsafeStates)
-  _      <- Console.printLine(s"Current state of application metrics: $states")
-} yield ()
+```scala
+TODO
 ```
 
 Also, a _metric service_ can implement the `MetricListener` interface:
 
 ```scala
-trait MetricListener { self =>
-  def unsafeGaugeChanged(key: MetricKey.Gauge, value: Double, delta: Double): Unit
-  def unsafeCounterChanged(key: MetricKey.Counter, absValue: Double, delta: Double): Unit
-  def unsafeHistogramChanged(key: MetricKey.Histogram, value: MetricState): Unit
-  def unsafeSummaryChanged(key: MetricKey.Summary, value: MetricState): Unit
-  def unsafeSetChanged(key: MetricKey.SetCount, value: MetricState): Unit
-}
+TODO
 ```
 
 And then we can install that to our application which will be notified every time a metric is updated:
 
 ```scala
-MetricClient.unsafeInstallListener(StatsDListener)
+TODO
 ```

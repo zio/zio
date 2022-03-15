@@ -24,21 +24,7 @@ The mental model for histogram is inspired from [Prometheus](https://prometheus.
 
 ## API
 
-To define a histogram aspect, the API requires that the boundaries for the histogram are specified when creating the aspect.
-
-**`observeHistogram`** — Create a histogram that can be applied to effects producing `Double` values. The values will be counted as outlined above. 
-
-```scala
-def observeHistogram(name: String, boundaries: Chunk[Double], tags: MetricLabel*): Histogram[Double]
-```
-
-**`observeHistogramWith`** — Create a histogram that can be applied to effects producing values `v` of `A`. The values `f(v)` will be counted as outlined above. 
-
-```scala
-def observeHistogramWith[A](name: String, boundaries: Chunk[Double], tags: MetricLabel*)(
-  f: A => Double
-): Histogram[A]
-```
+TODO
 
 ## Use Cases
 
@@ -58,14 +44,12 @@ Some examples of histogram use cases:
 
 Create a histogram with 12 buckets: `0..100` in steps of `10` and `Double.MaxValue`. It can be applied to effects yielding a `Double`:
 
-```scala mdoc:silent:nest
-import zio._
-val histogram =
-  ZIOMetric.observeHistogram("histogram", ZIOMetric.Histogram.Boundaries.linear(0, 10, 11))
+```scala
+TODO
 ```
 
 Now we can apply the histogram to effects producing `Double`:
 
-```scala mdoc:silent:nest
-Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
+```scala
+TODO
 ```

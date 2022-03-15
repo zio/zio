@@ -292,7 +292,13 @@ object ZIOMetric {
   /**
    * A counter, which can be incremented.
    */
-  def counter(name: String): Counter[Double] =
+  def counter(name: String): Counter[Long] =
+    counterDouble(name).contramap[Long](_.toDouble)
+
+  /**
+   * A counter, which can be incremented.
+   */
+  def counterDouble(name: String): Counter[Double] =
     fromMetricKey(MetricKey.counter(name))
 
   /**

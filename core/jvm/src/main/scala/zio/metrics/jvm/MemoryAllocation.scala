@@ -24,7 +24,7 @@ trait MemoryAllocation extends JvmMetrics {
    * not continuously.
    */
   private def countAllocations(pool: String): Counter[Long] =
-    ZIOMetric.counter("jvm_memory_pool_allocated_bytes_total").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
+    ZIOMetric.counter("jvm_memory_pool_allocated_bytes_total").tagged(MetricLabel("pool", pool))
 
   private class Listener(runtime: Runtime[Any]) extends NotificationListener {
     private val lastMemoryUsage: mutable.Map[String, Long] = mutable.HashMap.empty
