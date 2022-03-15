@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
-import zio.{Chunk, Exit, Runtime, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Chunk, Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -89,9 +89,11 @@ sealed class ZTestTask(
     spec match {
       case NewSpecWrapper(zioSpec) =>
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
-          zioSpec.run
-            .provide(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live)
-            .onError(e => ZIO.succeed(println(e.prettyPrint)))
+          ZIO.scoped {
+            zioSpec.run
+              .provideLayer(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live ++ ZLayer.environment[Scope])
+              .onError(e => ZIO.succeed(println(e.prettyPrint)))
+          }
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
