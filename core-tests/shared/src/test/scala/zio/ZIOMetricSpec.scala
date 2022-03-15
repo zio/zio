@@ -120,7 +120,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(10.0) @@ g
           _     <- ZIO.succeed(5.0) @@ g
           state <- g.value
-        } yield assertTrue(state == MetricState.Gauge(15.0))
+        } yield assertTrue(state == MetricState.Gauge(5.0))
       },
       test("direct adjust") {
         val g = ZIOMetric.gauge("g4").tagged(labels1)
@@ -129,7 +129,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
           _     <- g.update(10.0)
           _     <- g.update(5.0)
           state <- g.value
-        } yield assertTrue(state == MetricState.Gauge(15.0))
+        } yield assertTrue(state == MetricState.Gauge(5.0))
       },
       test("setGauge") {
         val g5 = ZIOMetric.gauge("g5").tagged(labels1)
@@ -219,7 +219,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         val boundaries = Histogram.Boundaries.linear(0, 1.0, 10)
 
         val base = ZIOMetric
-          .histogram("h5", boundaries)
+          .histogram("h6", boundaries)
           .tagged(labels1)
           .contramap[String](_.length.toDouble)
 
