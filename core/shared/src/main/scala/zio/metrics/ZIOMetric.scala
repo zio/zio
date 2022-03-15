@@ -327,12 +327,12 @@ object ZIOMetric {
     error: Double,
     quantiles: Chunk[Double]
   ): Summary[(Double, java.time.Instant)] =
-    fromMetricKey(MetricKey(name, Set.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles)))
+    fromMetricKey(MetricKey.summary(name, maxAge, maxSize, error, quantiles))
 
   /**
    * A string histogram metric, which keeps track of the counts of different
    * strings.
    */
   def setCount(name: String, setTag: String): SetCount[String] =
-    fromMetricKey(MetricKey(name, Set.empty, MetricKeyType.SetCount(setTag)))
+    fromMetricKey(MetricKey.setCount(name, setTag))
 }

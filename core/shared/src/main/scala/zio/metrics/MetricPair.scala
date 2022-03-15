@@ -23,7 +23,7 @@ final case class MetricPair[Type <: MetricKeyType { type Out = Out0 }, Out0](
 object MetricPair {
   private type Lossy[Out0] = MetricPair[MetricKeyType { type Out = Out0 }, Out0]
 
-  type Untyped = Lossy[_]
+  type Untyped = Lossy[Any]
 
   private[zio] def unsafeMake[Type <: MetricKeyType](
     metricKey: MetricKey[Type],
@@ -35,7 +35,7 @@ object MetricPair {
     val metricKey2   = metricKey.asInstanceOf[MetricKey[Type0]]
     val metricState2 = metricState.asInstanceOf[MetricState[Out0]]
 
-    MetricPair(metricKey2, metricState2)
+    MetricPair(metricKey2, metricState2).asInstanceOf[Untyped]
   }
 
 }
