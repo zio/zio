@@ -24,7 +24,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R with Scope, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
+  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
   def environment: ZLayer[Scope, Nothing, R]
 }
 
@@ -32,12 +32,12 @@ object TestExecutor {
   def default[R <: Annotations, E](
     env: ZLayer[Scope, Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R with Scope, E], defExec: ExecutionStrategy)(implicit
+    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
     ): UIO[ExecutedSpec[E]] =
       ZIO.scoped {
-        spec.annotated
-          .provideLayer(ZLayer.scoped(ZTestLogger.default >>> environment ++ ZLayer.environment[Scope]))
+        (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated
+          .provideLayer(environment)
           .foreachExec(defExec)(
             e =>
               e.failureOrCause.fold(

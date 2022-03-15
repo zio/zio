@@ -18,10 +18,9 @@ object ZHubConcurrencyTests {
   )
   @State
   class ManyToManyTest {
-    val scope: Scope        = runtime.unsafeRun(Scope.make)
     val hub: Hub[Int]       = runtime.unsafeRun(Hub.bounded(2))
-    val left: Dequeue[Int]  = runtime.unsafeRun(hub.subscribe.provideService(scope))
-    val right: Dequeue[Int] = runtime.unsafeRun(hub.subscribe.provideService(scope))
+    val left: Dequeue[Int]  = runtime.unsafeRun(Scope.global.extend(hub.subscribe))
+    val right: Dequeue[Int] = runtime.unsafeRun(Scope.global.extend(hub.subscribe))
     var p1                  = 0
     var p2                  = 0
     var p3                  = 0

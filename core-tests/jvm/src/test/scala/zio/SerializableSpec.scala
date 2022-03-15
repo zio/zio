@@ -41,8 +41,7 @@ object SerializableSpec extends ZIOBaseSpec {
     test("Hub is serializable") {
       for {
         hub                     <- Hub.bounded[Int](100)
-        scope                   <- Scope.make
-        queue                   <- hub.subscribe.provideService(scope)
+        queue                   <- hub.subscribe
         _                       <- hub.publish(10)
         tuple                   <- serializeAndBack((hub, queue))
         (returnHub, returnQueue) = tuple

@@ -104,7 +104,7 @@ class TReentrantLockBenchmark {
   def zioLockRead(): Unit = {
     val io = for {
       lock <- zioLock
-      _    <- ZIO.scoped(lock.readLock.flatMap(_ => doWorkM()))
+      _    <- ZIO.scoped(lock.readLock *> doWorkM())
     } yield ()
 
     unsafeRun(io)

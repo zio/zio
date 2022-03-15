@@ -84,7 +84,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           ref    <- makeRef
           layer1  = makeLayer1(ref)
           env     = (layer1 ++ layer1).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -92,7 +92,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val m1     = new Service1 {}
         val layer1 = ZLayer.succeed(m1)
         val env    = layer1 ++ (layer1 ++ layer1)
-        ZIO.scoped(env.build.flatMap(m => ZIO.attempt(assert(m.get)(equalTo(m1)))))
+        env.build.flatMap(m => ZIO.attempt(assert(m.get)(equalTo(m1))))
       } @@ nonFlaky,
       test("sharing with >>>") {
         val expected = Vector(acquire1, release1)
@@ -100,7 +100,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           ref    <- makeRef
           layer1  = makeLayer1(ref)
           env     = (layer1 >>> layer1).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -111,7 +111,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -124,7 +124,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 ++ layer2).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
           assert(actual.slice(2, 4))(hasSameElements(Vector(release1, release2)))
@@ -136,7 +136,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 >>> layer2).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -149,7 +149,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = (layer1 >>> layer2 >>> layer3).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual)(equalTo(expected))
       } @@ nonFlaky,
@@ -160,7 +160,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1.map(identity) >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -176,7 +176,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer3 = makeLayer3(ref)
           env =
             ((layer1.mapError(identity) >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -191,7 +191,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1.orDie >>> layer2) ++ (layer1 >>> layer3)).build
-          _      <- ZIO.scoped(env.unit)
+          _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual(0))(equalTo(acquire1)) &&
           assert(actual.slice(1, 3))(hasSameElements(Vector(acquire2, acquire3))) &&
@@ -204,7 +204,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 ++ layer2).build
-          fiber  <- ZIO.scoped(env.unit).fork
+          fiber  <- ZIO.scoped(env).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -216,7 +216,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 >>> layer2).build
-          fiber  <- ZIO.scoped(env.unit).fork
+          fiber  <- ZIO.scoped(env).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -229,7 +229,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2  = makeLayer2(ref)
           layer3  = makeLayer3(ref)
           env     = ((layer1 >>> layer2) ++ (layer1 >>> layer3)).build
-          fiber  <- ZIO.scoped(env.unit).fork
+          fiber  <- ZIO.scoped(env).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -243,7 +243,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer2 =
             ZLayer(ZIO.acquireRelease(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
           env = (layer1 ++ layer2).build
-          _  <- ZIO.scoped(env.unit).forkDaemon
+          _  <- ZIO.scoped(env).forkDaemon
           _  <- promise.await
         } yield assertCompletes
       },
@@ -277,7 +277,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = ((layer1 >>> ZLayer.fail("fail")) orElse layer2).build
-          fiber  <- ZIO.scoped(env.unit).fork
+          fiber  <- ZIO.scoped(env).fork
           _      <- fiber.interrupt
           actual <- ref.get
         } yield (assert(actual)(contains(acquire1)) ==> assert(actual)(contains(release1))) &&
@@ -366,7 +366,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer3 = ZLayer.succeed("baz")
         val layer4 = ZLayer(ZIO.acquireRelease(sleep)(_ => sleep))
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideLayer(env).exit)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomLayer(ZLayer.scoped(env)).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)

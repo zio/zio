@@ -11,6 +11,15 @@ object FiberSpec extends ZIOBaseSpec {
 
   def spec =
     suite("FiberSpec")(
+      suite("Create a new Fiber and")(test("scope it") {
+        for {
+          ref   <- Ref.make(false)
+          fiber <- withLatch(release => (release *> IO.unit).acquireRelease(ref.set(true))(IO.never).fork)
+          _     <- ZIO.scoped(fiber.scoped)
+          _     <- fiber.await
+          value <- ref.get
+        } yield assert(value)(isTrue)
+      }),
       suite("`inheritLocals` works for Fiber created using:")(
         test("`map`") {
           for {

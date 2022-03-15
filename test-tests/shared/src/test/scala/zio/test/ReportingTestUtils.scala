@@ -44,13 +44,11 @@ object ReportingTestUtils {
 
   def runLog(
     spec: ZSpec[TestEnvironment, String]
-  )(implicit trace: ZTraceElement): ZIO[TestEnvironment, Nothing, String] =
+  )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer(
-               ZLayer.scoped(TestLogger.fromConsole ++ TestClock.default +!+ ZLayer.environment[Scope])
-             )
+             .provideLayer(TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
