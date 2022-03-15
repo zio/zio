@@ -864,6 +864,43 @@ def parseInt(input: String): ZIO[Any, Option[String], Int] =
 val result = parseInt("  ").orElseOptional(ZIO.succeed(0)).debug
 ```
 
+5. **`ZIO.firstSuccessOf`/`ZIO#firstSuccessOf`**— These two operators make it easy for a user to run an effect, and in case it fails, it will run a series of ZIO effects until one succeeds:
+
+```scala
+object ZIO {
+  def firstSuccessOf[R, R1 <: R, E, A](
+    zio: => ZIO[R, E, A],
+    rest: => Iterable[ZIO[R1, E, A]]
+  ): ZIO[R1, E, A] =
+}
+
+trait ZIO[-R, +E, +A] {
+  final def firstSuccessOf[R1 <: R, E1 >: E, A1 >: A](
+    rest: => Iterable[ZIO[R1, E1, A1]]
+  ): ZIO[R1, E1, A1]
+}
+```
+
+In the following example, we are trying to get the config from the master node, and if it fails, we will try successively to retrieve the config from the next available node:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Config
+
+def remoteConfig(name: String): ZIO[Any, Throwable, Config] =
+  ZIO.attempt(???)
+
+val masterConfig: ZIO[Any, Throwable, Config] =
+  remoteConfig("master")
+
+val nodeConfigs: Seq[ZIO[Any, Throwable, Config]] =
+  List("node1", "node2", "node3", "node4").map(remoteConfig)
+
+val config: ZIO[Any, Throwable, Config] =
+  ZIO.firstSuccessOf(masterConfig, nodeConfigs)
+```
+
 ### 3. Folding
 
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
@@ -1959,10 +1996,10 @@ trait ZIO[-R, +E, +A] {
 
 Assume we have the following example:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 
-val myApp: ZIO[Any, List[String], List[Int]] =
+val evens: ZIO[Any, List[String], List[Int]] =
   ZIO.validate(List(1, 2, 3, 4, 5)) { n =>
     if (n % 2 == 0)
       ZIO.succeed(n)
@@ -1976,9 +2013,9 @@ We want to reverse the order of errors. In order to do that instead of using `ZI
 ```scala mdoc:compile-only
 import zio._
 
-val r1: ZIO[Any, List[String], List[Int]] = myApp.mapError(_.reverse)
-val r2: ZIO[Any, List[String], List[Int]] = myApp.flip.map(_.reverse).flip
-val r3: ZIO[Any, List[String], List[Int]] = myApp.flipWith(_.map(_.reverse))
+val r1: ZIO[Any, List[String], List[Int]] = evens.mapError(_.reverse)
+val r2: ZIO[Any, List[String], List[Int]] = evens.flip.map(_.reverse).flip
+val r3: ZIO[Any, List[String], List[Int]] = evens.flipWith(_.map(_.reverse))
 ```
 
 ## Best Practices
