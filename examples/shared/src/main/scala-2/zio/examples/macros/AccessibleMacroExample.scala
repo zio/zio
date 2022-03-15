@@ -67,7 +67,7 @@ object UpdatedAccessibleMacroExample {
   }
 
   object CompanionService {
-    def someExistingMethod(string: String): UIO[Int] = UIO(string.length)
+    def someExistingMethod(string: String): UIO[Int] = ZIO.succeed(string.length)
   }
 
   object CompanionSanityCheck {
@@ -162,8 +162,8 @@ object AccessibleMacroExample {
       v9  <- AccessibleMacroExample.function(6)
       v10 <- AccessibleMacroExample.stream(7).runCollect.orDieWith(_ => new Exception)
       v11 <- ZStream(0).run(AccessibleMacroExample.sink(8))
-      v12 <- AccessibleMacroExample.withEx().catchAll(_ => UIO("test"))
-      v13 <- AccessibleMacroExample.withEx1("").catchAll(_ => UIO("test"))
+      v12 <- AccessibleMacroExample.withEx().catchAll(_ => ZIO.succeed("test"))
+      v13 <- AccessibleMacroExample.withEx1("").catchAll(_ => ZIO.succeed("test"))
     } yield (v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13)
 
   // sanity check

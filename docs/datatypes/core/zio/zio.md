@@ -349,7 +349,7 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.async[AuthError, User] { callback =>
+  IO.async[Any, AuthError, User] { callback =>
     legacy.login(
       user => callback(IO.succeed(user)),
       err  => callback(IO.fail(err))
@@ -958,7 +958,7 @@ object Main extends ZIOAppDefault {
   def run = myAcquireRelease
 
   def closeStream(is: FileInputStream) =
-    UIO(is.close())
+    ZIO.succeed(is.close())
 
   // helper method to work around in Java 8
   def readAll(fis: FileInputStream, len: Long): Array[Byte] = {
@@ -973,9 +973,9 @@ object Main extends ZIOAppDefault {
 
   // myAcquireRelease is just a value. Won't execute anything here until interpreted
   val myAcquireRelease: Task[Unit] = for {
-    file   <- Task(new File("/tmp/hello"))
+    file   <- ZIO.attempt(new File("/tmp/hello"))
     len    = file.length
-    string <- Task(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))
+    string <- ZIO.attempt(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))
   } yield string
 }
 ```
@@ -1027,7 +1027,7 @@ The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `Z
 
 ```scala mdoc:silent:nest
 val myApp: ZIO[Any, Throwable, String] =
-  ZIO("Hello!") @@ ZIOAspect.debug
+  ZIO.attempt("Hello!") @@ ZIOAspect.debug
 ```
 
 As we see, the `debug` aspect doesn't change the return type of our effect, but it adds a new debugging aspect to our effect.

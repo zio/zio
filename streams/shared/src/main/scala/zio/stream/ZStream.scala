@@ -137,7 +137,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
     sink: => ZSink[R1, E1, A1, A1, B]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
-    aggregateAsyncWithin(sink, Schedule.forever)
+    aggregateAsyncWithin(sink, Schedule.recurs(0))
 
   /**
    * Like `aggregateAsyncWithinEither`, but only returns the `Right` results.
@@ -730,7 +730,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZChannel.unwrap {
         ZIO.suspendSucceed {
           val outputChunk           = ChunkBuilder.make[A1](chunk.size)
-          val emit: A1 => UIO[Unit] = (a: A1) => UIO(outputChunk += a).unit
+          val emit: A1 => UIO[Unit] = (a: A1) => ZIO.succeed(outputChunk += a).unit
           f(chunk, emit).map { continue =>
             ZChannel.write(outputChunk.result()) *> ZChannel.succeedNow(continue)
           }.catchAll { failure =>
@@ -3451,7 +3451,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         new ZStream(
           ZChannel.unwrap(
             for {
-              queue <- UIO(SingleThreadedRingBuffer[A](n))
+              queue <- ZIO.succeed(SingleThreadedRingBuffer[A](n))
             } yield {
               lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A], Unit] = ZChannel.readWith(
                 (in: Chunk[A]) => {
@@ -4834,16 +4834,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
       ZStream.repeatZIOChunkOption {
         for {
-          bufArray  <- UIO(Array.ofDim[Byte](chunkSize))
+          bufArray  <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
           bytesRead <- ZIO.attemptBlockingIO(is.read(bufArray)).asSomeError
           bytes <- if (bytesRead < 0)
                      ZIO.fail(None)
                    else if (bytesRead == 0)
-                     UIO(Chunk.empty)
+                     ZIO.succeed(Chunk.empty)
                    else if (bytesRead < chunkSize)
-                     UIO(Chunk.fromArray(bufArray).take(bytesRead))
+                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
                    else
-                     UIO(Chunk.fromArray(bufArray))
+                     ZIO.succeed(Chunk.fromArray(bufArray))
         } yield bytes
       }
     }
@@ -4905,10 +4905,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       else {
         object StreamEnd extends Throwable
 
-        ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any] <*> UIO(ChunkBuilder.make[A](maxChunkSize))).flatMap {
-          case (it, rt, builder) =>
+        ZStream
+          .fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO.succeed(ChunkBuilder.make[A](maxChunkSize)))
+          .flatMap { case (it, rt, builder) =>
             ZStream.repeatZIOChunkOption {
-              Task {
+              ZIO.attempt {
                 builder.clear()
                 var count = 0
 
@@ -4932,7 +4933,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 case e         => Some(e)
               }
             }
-        }
+          }
       }
     }
 
@@ -4941,9 +4942,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
-    ZStream.fromZIO(Task(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
+    ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
       ZStream.repeatZIOOption {
-        Task {
+        ZIO.attempt {
           val hasNext: Boolean =
             try it.hasNext
             catch {
@@ -4993,10 +4994,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZStream[Any, Nothing, A] =
     ZStream.unwrap {
-      UIO(ChunkBuilder.make[A]()).map { builder =>
+      ZIO.succeed(ChunkBuilder.make[A]()).map { builder =>
         def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
           ZChannel.unwrap {
-            UIO {
+            ZIO.succeed {
               if (maxChunkSize == 1) {
                 if (iterator.hasNext) {
                   ZChannel.write(Chunk.single(iterator.next())) *> loop(iterator)
@@ -6197,8 +6198,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   type Pull[-R, +E, +A] = ZIO[R, Option[E], Chunk[A]]
 
   private[zio] object Pull {
-    def emit[A](a: A)(implicit trace: ZTraceElement): IO[Nothing, Chunk[A]]         = UIO(Chunk.single(a))
-    def emit[A](as: Chunk[A])(implicit trace: ZTraceElement): IO[Nothing, Chunk[A]] = UIO(as)
+    def emit[A](a: A)(implicit trace: ZTraceElement): IO[Nothing, Chunk[A]]         = ZIO.succeed(Chunk.single(a))
+    def emit[A](as: Chunk[A])(implicit trace: ZTraceElement): IO[Nothing, Chunk[A]] = ZIO.succeed(as)
     def fromDequeue[E, A](d: Dequeue[stream.Take[E, A]])(implicit trace: ZTraceElement): IO[Option[E], Chunk[A]] =
       d.take.flatMap(_.done)
     def fail[E](e: E)(implicit trace: ZTraceElement): IO[Option[E], Nothing] = IO.fail(Some(e))
@@ -6206,7 +6207,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       IO.failCause(c).mapError(Some(_))
     @deprecated("use failCause", "2.0.0")
     def halt[E](c: Cause[E])(implicit trace: ZTraceElement): IO[Option[E], Nothing] = failCause(c)
-    def empty[A](implicit trace: ZTraceElement): IO[Nothing, Chunk[A]]   = UIO(Chunk.empty)
+    def empty[A](implicit trace: ZTraceElement): IO[Nothing, Chunk[A]]   = ZIO.succeed(Chunk.empty)
     def end(implicit trace: ZTraceElement): IO[Option[Nothing], Nothing] = IO.fail(None)
   }
 

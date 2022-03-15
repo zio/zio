@@ -623,8 +623,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.tapBoth(
-      error => UIO(println(s"<FAIL> $error")),
-      value => UIO(println(value))
+      error => ZIO.succeed(println(s"<FAIL> $error")),
+      value => ZIO.succeed(println(value))
     )
 
   /**
@@ -633,8 +633,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(prefix: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.tapBoth(
-      error => UIO(println(s"<FAIL> $prefix: $error")),
-      value => UIO(println(s"$prefix: $value"))
+      error => ZIO.succeed(println(s"<FAIL> $prefix: $error")),
+      value => ZIO.succeed(println(s"$prefix: $value"))
     )
 
   /**
@@ -753,6 +753,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def filterOrDieMessage(p: A => Boolean)(message: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
     self.filterOrElse(p)(ZIO.dieMessage(message))
+
+  /**
+   * Dies with `t` if the predicate fails.
+   */
+  final def filterOrDieWith(p: A => Boolean)(t: A => Throwable)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    self.filterOrElseWith(p)(a => ZIO.die(t(a)))
 
   /**
    * Supplies `zio` if the predicate fails.
@@ -2545,8 +2551,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Sequentially zips the this result with the specified result. Combines both
    * `Cause[E1]` when both effects fail.
    */
-  final def validate[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, (A, B)] =
-    validateWith(that)((_, _))
+  final def validate[R1 <: R, E1 >: E, B](
+    that: => ZIO[R1, E1, B]
+  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): ZIO[R1, E1, zippable.Out] =
+    validateWith(that)(zippable.zip(_, _))
 
   /**
    * Returns an effect that executes both this effect and the specified effect,
@@ -4032,7 +4040,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreachParN_[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(f)
+    foreachParDiscard(as)(f).withParallelism(n)
 
   /**
    * Applies the function `f` to each element of the `Iterable[A]` and runs
@@ -5207,7 +5215,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Returns an effect that models success with the specified value.
    */
-  def succeed[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
+  def succeed[A](a: => A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] =
     new ZIO.Succeed(() => a, trace)
 
   /**
@@ -5215,7 +5223,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified value.
    */
   def succeedBlocking[A](a: => A)(implicit trace: ZTraceElement): UIO[A] =
-    blocking(ZIO.succeedNow(a))
+    blocking(ZIO.succeed(a))
 
   /**
    * The same as [[ZIO.succeed]], but also provides access to the underlying
@@ -5590,6 +5598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def yieldNow(implicit trace: ZTraceElement): UIO[Unit] =
     new ZIO.Yield(trace)
 
+  @deprecated("use attempt or succeed", "2.0.0")
   def apply[A](a: => A)(implicit trace: ZTraceElement): Task[A] = attempt(a)
 
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
@@ -5619,7 +5628,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       trace: ZTraceElement
     ): ZIO[R1, E1, B] =
       // TODO: Dotty doesn't infer this properly: io.bracket[R1, E1](a => UIO(a.close()))(use)
-      acquireReleaseWith(io)(a => UIO(a.close()))(use)
+      acquireReleaseWith(io)(a => ZIO.succeed(a.close()))(use)
 
     /**
      * Like `bracket`, safely wraps a use and release of a resource. This

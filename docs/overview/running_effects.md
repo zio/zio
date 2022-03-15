@@ -45,7 +45,7 @@ val runtime = Runtime.default
 Once you have a runtime, you can use it to execute effects:
 
 ```scala mdoc:silent
-runtime.unsafeRun(ZIO(println("Hello World!")))
+runtime.unsafeRun(ZIO.attempt(println("Hello World!")))
 ```
 
 In addition to the `unsafeRun` method, there are other methods that allow executing effects asynchronously or into `Future` values.

@@ -515,7 +515,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
 
       def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
-        val message = "Interrupted by thread \"" + fiberId.threadName + "\""
+        val message = "Interrupted by thread \"" + interrupt.fiberId.threadName + "\""
 
         Unified(interrupt.trace.fiberId, classOf[InterruptedException].getName(), message, interrupt.trace.toJava)
       }

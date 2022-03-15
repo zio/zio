@@ -222,7 +222,7 @@ Also, there is another constructor called **`ZStream.fromIterator`** that create
 ```scala mdoc:silent:nest
 import scala.io.Source
 val lines: ZStream[Any, Throwable, String] = 
-  ZStream.fromIteratorZIO(Task(Source.fromFile("file.txt").getLines()))
+  ZStream.fromIteratorZIO(ZIO.attempt(Source.fromFile("file.txt").getLines()))
 ```
 
 Using this method is not good for resourceful effects like above, so it's better to rewrite that using `ZStream.fromIteratorManaged` function.
@@ -233,7 +233,7 @@ Using this method is not good for resourceful effects like above, so it's better
 val lines: ZStream[Any, Throwable, String] = 
   ZStream.fromIteratorManaged(
     ZManaged.fromAutoCloseable(
-      Task(scala.io.Source.fromFile("file.txt"))
+      ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     ).map(_.getLines())
   )
 ```
@@ -332,8 +332,8 @@ Here is another interesting example of using `repeatZIOOption`; In this example,
 ```scala mdoc:silent:nest
 def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
   ZStream.repeatZIOOption {
-    ZIO(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
-      if (hasNext) ZIO(it.next()).mapError(Some(_))
+    ZIO.attempt(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
+      if (hasNext) ZIO.attempt(it.next()).mapError(Some(_))
       else ZIO.fail(None)
     }
   }
@@ -994,7 +994,7 @@ val s2 = ZStream(1, 2, 3).zipAllWith(
 // Output: (1, a), (2, b), (3, c), (0, d), (0, e)
 ```
 
-Sometimes we want to zip stream, but we do not want to zip two elements one by one. For example, we may have two streams with two different speeds, we do not want to wait for the slower one when zipping elements, assume need to zip elements with the latest element of the slower stream. The `ZStream#zipWithLates` do this for us. It zips two streams so that when a value is emitted by either of the two streams; it is combined with the latest value from the other stream to produce a result:
+Sometimes we want to zip streams, but do not want to zip two elements one by one. For example, we may have two streams producing elements at different speeds, and do not want to wait for the slower one when zipping elements. When we need to zip elements with the latest element of the slower stream, `ZStream#zipWithLatest` will do this for us. It zips two streams so that when a value is emitted by either of the two streams, it is combined with the latest value from the other stream to produce a result:
 
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3)
@@ -1275,7 +1275,7 @@ If we need to do the `flatMap` concurrently, we can use `ZStream#flatMapPar`, an
 
 ### Merging
 
-Sometimes we need to interleave the emission of two streams and create another stream. In these cases, we can't use the `ZStream.concat` operation because the `concat` operation waits for the first stream to finish and then consumes the second stream. So we need a non-deterministic way of picking elements from different sources. ZIO Stream's `merge` operations, do this for use. Let's discuss some variant of this operation:
+Sometimes we need to interleave the emission of two streams and create another stream. In these cases, we can't use the `ZStream.concat` operation because the `concat` operation waits for the first stream to finish and then consumes the second stream. So we need a non-deterministic way of picking elements from different sources. ZIO Stream's `merge` operations does this for us. Let's discuss some variants of this operation:
 
 #### merge
 

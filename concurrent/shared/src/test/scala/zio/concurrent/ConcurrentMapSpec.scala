@@ -78,14 +78,14 @@ object ConcurrentMapSpec extends ZIOSpecDefault {
         },
         test("fromIterable") {
           for {
-            data  <- UIO(Chunk(1 -> "a", 2 -> "b", 3 -> "c"))
+            data  <- ZIO.succeed(Chunk(1 -> "a", 2 -> "b", 3 -> "c"))
             map   <- ConcurrentMap.fromIterable(data)
             items <- map.toChunk
           } yield assert(items)(equalTo(data))
         },
         test("make") {
           for {
-            data  <- UIO(Chunk(1 -> "a", 2 -> "b", 3 -> "c"))
+            data  <- ZIO.succeed(Chunk(1 -> "a", 2 -> "b", 3 -> "c"))
             map   <- ConcurrentMap.make(data: _*)
             items <- map.toChunk
           } yield assert(items)(equalTo(data))

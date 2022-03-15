@@ -117,7 +117,7 @@ object StackTracesSpec extends ZIOBaseSpec {
   private val matchPrettyPrintCause: ZIO[Any, String, Nothing] => ZIO[Any, Throwable, String] = {
     case fail: IO[String, Nothing] =>
       fail.catchAllCause { cause =>
-        ZIO.succeed(show(cause)) *> ZIO(cause.prettyPrint)
+        ZIO.succeed(show(cause)) *> ZIO.attempt(cause.prettyPrint)
       }
   }
 }

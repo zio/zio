@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
  * However, the companion object has lots of other pipeline constructors based
  * on the methods of stream.
  */
-class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
+class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
   self =>
 
   final def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
@@ -173,21 +173,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def drop[In](n: => Int)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
-      def loop(r: Int): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      def loop(r: Int): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
         ZChannel
-          .readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+          .readWith(
             (in: Chunk[In]) => {
               val dropped  = in.drop(r)
               val leftover = (r - in.length).max(0)
               val more     = in.isEmpty || leftover > 0
 
               if (more) loop(leftover)
-              else
-                ZChannel
-                  .write(dropped)
-                  .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](ZChannel.identity)
+              else ZChannel.write(dropped) *> ZChannel.identity
             },
-            (e: Nothing) => ZChannel.fail(e),
+            (e: ZNothing) => ZChannel.fail(e),
             (_: Any) => ZChannel.unit
           )
 
@@ -215,12 +212,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def dropWhile[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
 
-    def dropWhile(f: In => Boolean): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+    def dropWhile(f: In => Boolean): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      ZChannel.readWith(
         in => {
           val out = in.dropWhile(f)
           if (out.isEmpty) dropWhile(f)
-          else ZChannel.write(out).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](ZChannel.identity)
+          else ZChannel.write(out) *> ZChannel.identity
         },
         err => ZChannel.fail(err),
         out => ZChannel.succeedNow(out)
@@ -255,13 +252,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             (os :+ agg, Some((k2, NonEmptyChunk(a))))
       }
 
-    def chunkAdjacent(buffer: Option[Out]): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[Out], Any] =
-      ZChannel.readWithCause[Any, Nothing, Chunk[In], Any, Nothing, Chunk[Out], Any](
+    def chunkAdjacent(buffer: Option[Out]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[Out], Any] =
+      ZChannel.readWithCause(
         in = chunk => {
           val (outputs, newBuffer) = go(chunk, buffer)
-          ZChannel
-            .write(outputs)
-            .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[Out], Any](chunkAdjacent(newBuffer))
+          ZChannel.write(outputs) *> chunkAdjacent(newBuffer)
         },
         halt = ZChannel.failCause(_),
         done = _ =>
@@ -291,21 +286,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
     def pull(
       push: Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]
-    ): ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.readWith[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](
+    ): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.readWith(
         in =>
           ZChannel
             .fromZIO(push(Some(in)))
-            .flatMap(out => ZChannel.write(out))
-            .zipRight[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](pull(push)),
+            .flatMap(out => ZChannel.write(out)) *> pull(push),
         err => ZChannel.fail(err),
         _ => ZChannel.fromZIO(push(None)).flatMap(out => ZChannel.write(out))
       )
 
-    val channel: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.unwrapManaged[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] {
-        push.map(pull)
-      }
+    val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+      ZChannel.unwrapManaged(push.map(pull))
 
     new ZPipeline(channel)
   }
@@ -352,18 +344,16 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             (done: Any) => ZChannel.succeed(upstreamDone.set(true)) *> ZChannel.succeedNow(done)
           )
 
-        lazy val transducer: ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Unit] =
+        lazy val transducer: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Unit] =
           sink.channel.doneCollect.flatMap { case (leftover, z) =>
             ZChannel
               .succeed((upstreamDone.get, concatAndGet(leftover)))
-              .flatMap[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Unit] { case (done, newLeftovers) =>
+              .flatMap { case (done, newLeftovers) =>
                 val nextChannel =
                   if (done && newLeftovers.isEmpty) ZChannel.unit
                   else transducer
 
-                ZChannel
-                  .write(Chunk.single(z))
-                  .zipRight[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Unit](nextChannel)
+                ZChannel.write(Chunk.single(z)) *> nextChannel
               }
           }
 
@@ -407,13 +397,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     s: => State
   )(f: (State, In) => ZIO[Env, Err, (State, Out)])(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
-      def accumulator(s: State): ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-        ZChannel.readWith[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](
+      def accumulator(s: State): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+        ZChannel.readWith(
           (in: Chunk[In]) =>
-            ZChannel.unwrap[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](
+            ZChannel.unwrap(
               ZIO.suspendSucceed {
                 val outputChunk            = ChunkBuilder.make[Out](in.size)
-                val emit: Out => UIO[Unit] = (o: Out) => UIO(outputChunk += o).unit
+                val emit: Out => UIO[Unit] = (o: Out) => ZIO.succeed(outputChunk += o).unit
                 ZIO
                   .foldLeft[Env, Err, State, In](in)(s)((s1, a) => f(s1, a).flatMap(sa => emit(sa._2) as sa._1))
                   .fold(
@@ -424,10 +414,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                       else
                         ZChannel.fail(failure)
                     },
-                    out =>
-                      ZChannel
-                        .write(outputChunk.result())
-                        .zipRight[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](accumulator(out))
+                    out => ZChannel.write(outputChunk.result()) *> accumulator(out)
                   )
               }
             ),
@@ -468,9 +455,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Emits the provided chunk before emitting any other value.
    */
   def prepend[In](values: => Chunk[In])(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(
-      ZChannel.write(values).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](ZChannel.identity)
-    )
+    new ZPipeline(ZChannel.write(values) *> ZChannel.identity)
 
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
@@ -480,13 +465,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     def process(
       rechunker: ZStream.Rechunker[In],
       target: Int
-    ): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-      ZChannel.readWithCause[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+    ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      ZChannel.readWithCause(
         (chunk: Chunk[In]) =>
           if (chunk.size == target && rechunker.isEmpty) {
-            ZChannel
-              .write(chunk)
-              .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](process(rechunker, target))
+            ZChannel.write(chunk) *> process(rechunker, target)
           } else if (chunk.size > 0) {
             var chunks: List[Chunk[In]] = Nil
             var result: Chunk[In]       = null
@@ -504,20 +487,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               }
             }
 
-            ZChannel
-              .writeAll(chunks.reverse: _*)
-              .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](process(rechunker, target))
+            ZChannel.writeAll(chunks.reverse: _*) *> process(rechunker, target)
           } else process(rechunker, target),
-        (cause: Cause[Nothing]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
+        (cause: Cause[ZNothing]) => rechunker.emitIfNotEmpty() *> ZChannel.failCause(cause),
         (_: Any) => rechunker.emitIfNotEmpty()
       )
 
     val target = n
-    new ZPipeline(
-      ZChannel.suspend[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
-        process(new ZStream.Rechunker(target), target)
-      )
-    )
+    new ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
   }
 
   /**
@@ -534,11 +511,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(f: (Out, In) => ZIO[Env, Err, Out])(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
       new ZPipeline(
-        ZChannel
-          .write(Chunk.single(s))
-          .zipRight[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](
-            mapAccumZIO[Env, Err, In, Out, Out](s)((s, a) => f(s, a).map(s => (s, s))).channel
-          )
+        ZChannel.write(Chunk.single(s)) *>
+          mapAccumZIO[Env, Err, In, Out, Out](s)((s, a) => f(s, a).map(s => (s, s))).channel
       )
     }
 
@@ -559,8 +533,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       def next(
         leftover: Option[Chunk[In]],
         delimiterIndex: Int
-      ): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-        ZChannel.readWithCause[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+      ): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+        ZChannel.readWithCause(
           inputChunk => {
             var buffer = null.asInstanceOf[collection.mutable.ArrayBuffer[Chunk[In]]]
             inputChunk.foldLeft((leftover getOrElse Chunk.empty, delimiterIndex)) {
@@ -575,14 +549,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 } else (concatenated, if (a == delimiter(0)) 1 else 0)
             } match {
               case (carry, delimiterCursor) =>
-                ZChannel
-                  .writeChunk(
-                    if (buffer eq null) Chunk.empty
-                    else Chunk.fromArray(buffer.toArray)
-                  )
-                  .zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
-                    next(if (carry.nonEmpty) Some(carry) else None, delimiterCursor)
-                  )
+                ZChannel.writeChunk(if (buffer eq null) Chunk.empty else Chunk.fromArray(buffer.toArray)) *> next(
+                  if (carry.nonEmpty) Some(carry) else None,
+                  delimiterCursor
+                )
             }
           },
           halt =>
@@ -607,8 +577,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     def next(
       leftover: Option[String],
       wasSplitCRLF: Boolean
-    ): ZChannel[Any, Nothing, Chunk[String], Any, Nothing, Chunk[String], Any] =
-      ZChannel.readWithCause[Any, Nothing, Chunk[String], Any, Nothing, Chunk[String], Any](
+    ): ZChannel[Any, ZNothing, Chunk[String], Any, Nothing, Chunk[String], Any] =
+      ZChannel.readWithCause(
         incomingChunk => {
           val buffer = collection.mutable.ArrayBuffer.empty[String]
           var inCRLF = wasSplitCRLF
@@ -650,11 +620,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             }
           }
 
-          ZChannel
-            .write(Chunk.fromArray(buffer.toArray))
-            .zipRight[Any, Nothing, Chunk[String], Any, Nothing, Chunk[String], Any](
-              next(if (carry.nonEmpty) Some(carry) else None, inCRLF)
-            )
+          ZChannel.write(Chunk.fromArray(buffer.toArray)) *>
+            next(if (carry.nonEmpty) Some(carry) else None, inCRLF)
         },
         halt =>
           leftover match {
@@ -675,7 +642,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Lazily constructs a pipeline.
    */
   def suspend[Env, Err, In, Out](pipeline: => ZPipeline[Env, Err, In, Out]): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(ZChannel.suspend[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any](pipeline.channel))
+    new ZPipeline(ZChannel.suspend(pipeline.channel))
 
   /**
    * Creates a pipeline that takes n elements.
@@ -683,16 +650,16 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def take[In](n: => Long)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
 
-      def loop(n: Long): ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      def loop(n: Long): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
         ZChannel
-          .readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+          .readWith(
             (chunk: Chunk[In]) => {
               val taken    = chunk.take(n.min(Int.MaxValue).toInt)
               val leftover = (n - taken.length).max(0)
               val more     = leftover > 0
 
               if (more)
-                ZChannel.write(taken).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](loop(leftover))
+                ZChannel.write(taken) *> loop(leftover)
               else ZChannel.write(taken)
             },
             ZChannel.fail(_),
@@ -712,15 +679,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * evaluates to true.
    */
   def takeUntil[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
-    lazy val loop: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel
-        .readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+        .readWith(
           (chunk: Chunk[In]) => {
             val taken = chunk.takeWhile(!f(_))
             val last  = chunk.drop(taken.length).take(1)
 
-            if (last.isEmpty)
-              ZChannel.write(taken).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](loop)
+            if (last.isEmpty) ZChannel.write(taken) *> loop
             else ZChannel.write(taken ++ last)
           },
           ZChannel.fail(_),
@@ -735,14 +701,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * evaluates to true.
    */
   def takeWhile[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
-    lazy val loop: ZChannel[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel
-        .readWith[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](
+        .readWith(
           (chunk: Chunk[In]) => {
             val taken = chunk.takeWhile(f)
             val more  = taken.length == chunk.length
 
-            if (more) ZChannel.write(taken).zipRight[Any, Nothing, Chunk[In], Any, Nothing, Chunk[In], Any](loop)
+            if (more) ZChannel.write(taken) *> loop
             else ZChannel.write(taken)
           },
           ZChannel.fail(_),
@@ -895,8 +861,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           new String(bytes.toArray, charset)
         )
 
-      def transform(charset: Charset): ZChannel[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
-        ZChannel.readWith[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
+      def transform(charset: Charset): ZChannel[Any, ZNothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
+        ZChannel.readWith(
           received => {
             if (received.isEmpty)
               transform(charset)
@@ -919,24 +885,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, String] =
     ZPipeline.suspend {
 
-      type DecodingChannel = ZChannel[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any]
+      type DecodingChannel = ZChannel[Any, ZNothing, Chunk[Byte], Any, Nothing, Chunk[String], Any]
 
       def passThrough(
         decodingPipeline: ZPipeline[Any, Nothing, Byte, String]
       ): DecodingChannel =
-        ZChannel.readWith[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
-          received =>
-            decodingPipeline(
-              ZStream.fromChunk(received)
-            ).channel.zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
-              passThrough(decodingPipeline)
-            ),
+        ZChannel.readWith(
+          received => decodingPipeline(ZStream.fromChunk(received)).channel *> passThrough(decodingPipeline),
           error = ZChannel.fail(_),
           done = _ => ZChannel.unit
         )
 
       def lookingForBom(buffer: Chunk[Byte], bomSize: Int): DecodingChannel =
-        ZChannel.readWith[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
+        ZChannel.readWith(
           received => {
             val data = buffer ++ received
 
@@ -944,11 +905,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               val (bom, rest)                        = data.splitAt(bomSize)
               val (dataWithoutBom, decodingPipeline) = processBom(bom)
 
-              decodingPipeline(
-                ZStream.fromChunk(dataWithoutBom ++ rest)
-              ).channel.zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
-                passThrough(decodingPipeline)
-              )
+              decodingPipeline(ZStream.fromChunk(dataWithoutBom ++ rest)).channel *> passThrough(decodingPipeline)
             } else {
               lookingForBom(data, bomSize)
             }
@@ -958,11 +915,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             if (buffer.isEmpty) ZChannel.unit
             else {
               val (dataWithoutBom, decodingPipeline) = processBom(buffer)
-              decodingPipeline(
-                ZStream.fromChunk(dataWithoutBom)
-              ).channel.zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
-                passThrough(decodingPipeline)
-              )
+              decodingPipeline(ZStream.fromChunk(dataWithoutBom)).channel *> passThrough(decodingPipeline)
             }
         )
 
@@ -1027,14 +980,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     }
 
-    def readThenTransduce(buffer: Chunk[Byte]): ZChannel[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
-      ZChannel.readWith[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
+    def readThenTransduce(buffer: Chunk[Byte]): ZChannel[Any, ZNothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
+      ZChannel.readWith(
         received => {
           val (string, buffered) = process(buffer, received)
 
-          ZChannel
-            .write(string)
-            .zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](readThenTransduce(buffered))
+          ZChannel.write(string) *> readThenTransduce(buffered)
         },
         error = ZChannel.fail(_),
         done = _ =>
@@ -1086,16 +1037,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         buffer: Chunk[Byte],
         charset: Charset,
         fixedLength: Int
-      ): ZChannel[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
-        ZChannel.readWith[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
+      ): ZChannel[Any, ZNothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
+        ZChannel.readWith(
           received => {
             val (string, buffered) = process(buffer, received, charset, fixedLength)
 
-            ZChannel
-              .write(string)
-              .zipRight[Any, Nothing, Chunk[Byte], Any, Nothing, Chunk[String], Any](
-                readThenTransduce(buffered, charset, fixedLength)
-              )
+            ZChannel.write(string) *> readThenTransduce(buffered, charset, fixedLength)
           },
           error = ZChannel.fail(_),
           done = _ =>
@@ -1113,8 +1060,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     bom: => Chunk[Byte] = Chunk.empty
   )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, String, Byte] =
     ZPipeline.suspend {
-      def transform: ZChannel[Any, Nothing, Chunk[String], Any, Nothing, Chunk[Byte], Any] =
-        ZChannel.readWith[Any, Nothing, Chunk[String], Any, Nothing, Chunk[Byte], Any](
+      def transform: ZChannel[Any, ZNothing, Chunk[String], Any, Nothing, Chunk[Byte], Any] =
+        ZChannel.readWith(
           received =>
             if (received.isEmpty)
               transform
@@ -1126,14 +1073,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
                 acc ++ Chunk.fromArray(bytes)
               }
 
-              ZChannel.write(bytes).zipRight[Any, Nothing, Chunk[String], Any, Nothing, Chunk[Byte], Any](transform)
+              ZChannel.write(bytes) *> transform
             },
           error = ZChannel.fail(_),
           done = _ => ZChannel.unit
         )
 
-      new ZPipeline(
-        ZChannel.write(bom).zipRight[Any, Nothing, Chunk[String], Any, Nothing, Chunk[Byte], Any](transform)
-      )
+      new ZPipeline(ZChannel.write(bom) *> transform)
     }
 }

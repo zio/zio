@@ -88,7 +88,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val m1     = new Service1 {}
         val layer1 = ZLayer.succeed(m1)
         val env    = layer1 ++ (layer1 ++ layer1)
-        env.build.use(m => ZIO(assert(m.get)(equalTo(m1))))
+        env.build.use(m => ZIO.attempt(assert(m.get)(equalTo(m1))))
       } @@ nonFlaky,
       test("sharing with >>>") {
         val expected = Vector(acquire1, release1)

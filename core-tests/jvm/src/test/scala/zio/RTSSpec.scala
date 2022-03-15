@@ -16,7 +16,8 @@ object RTSSpec extends ZIOBaseSpec {
 
       def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Clock, Nothing, Boolean] =
         ZIO.blocking {
-          UIO(Thread.currentThread())
+          ZIO
+            .succeed(Thread.currentThread())
             .flatMap(thread => ref.modify(set => (set.contains(thread), set + thread))) <* ZIO
             .sleep(1.millis)
         }
@@ -45,7 +46,7 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           release <- Promise.make[Nothing, Int]
           latch   <- Promise.make[Nothing, Unit]
-          async = IO.asyncInterrupt[Nothing, Unit] { _ =>
+          async = IO.asyncInterrupt[Any, Nothing, Unit] { _ =>
                     latch.unsafeDone(IO.unit); Left(release.succeed(42).unit)
                   }
           fiber  <- async.fork
@@ -100,7 +101,7 @@ object RTSSpec extends ZIOBaseSpec {
 
       (0 until 1000).foreach { _ =>
         rts.unsafeRun {
-          IO.async[Nothing, Int] { k =>
+          IO.async[Any, Nothing, Int] { k =>
             val c: Callable[Unit] = () => k(IO.succeed(1))
             val _                 = e.submit(c)
           }
@@ -111,12 +112,12 @@ object RTSSpec extends ZIOBaseSpec {
     } @@ zioTag(regression),
     test("second callback call is ignored") {
       for {
-        _ <- IO.async[Throwable, Int] { k =>
+        _ <- IO.async[Any, Throwable, Int] { k =>
                k(IO.succeed(42))
                Thread.sleep(500)
                k(IO.succeed(42))
              }
-        res <- IO.async[Throwable, String] { k =>
+        res <- IO.async[Any, Throwable, String] { k =>
                  Thread.sleep(1000)
                  k(IO.succeed("ok"))
                }

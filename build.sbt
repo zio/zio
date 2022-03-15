@@ -88,8 +88,8 @@ lazy val root = project
   )
   .aggregate(
     benchmarks,
-    concurrentJVM,
     concurrentJS,
+    concurrentJVM,
     concurrentNative,
     coreJS,
     coreJVM,
@@ -372,7 +372,19 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(dottySettings)
+
+lazy val testTestsJS = testTests.js
+  .settings(dottySettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -559,7 +571,7 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(core)
   .settings(stdSettings("zio-concurrent"))
   .settings(crossProjectSettings)
-  .settings(buildInfoSettings("zio.stream"))
+  .settings(buildInfoSettings("zio.concurrent"))
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(testRunner % Test)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -798,9 +810,10 @@ lazy val docs = project.module
       "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
     ),
-    resolvers += "Confluent" at "https://packages.confluent.io/maven"
+    resolvers += "Confluent" at "https://packages.confluent.io/maven",
+    fork := true
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)

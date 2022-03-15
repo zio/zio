@@ -72,7 +72,7 @@ private[zio] final class FiberContext[E, A](
 
   final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
     evalOnZIO(
-      UIO {
+      ZIO.succeed {
         val chunkBuilder = ChunkBuilder.make[Fiber.Runtime[_, _]](_children.size)
 
         val iterator = _children.iterator()
@@ -83,7 +83,7 @@ private[zio] final class FiberContext[E, A](
 
         chunkBuilder.result()
       },
-      UIO(Chunk.empty)
+      ZIO.succeed(Chunk.empty)
     )
 
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
@@ -92,7 +92,7 @@ private[zio] final class FiberContext[E, A](
     }
 
   final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
-    UIO(unsafeGetRef(ref))
+    ZIO.succeed(unsafeGetRef(ref))
 
   final def id: FiberId.Runtime = fiberId
 
@@ -553,9 +553,9 @@ private[zio] final class FiberContext[E, A](
 
   final def scope: ZScope = ZScope.unsafeMake(self)
 
-  final def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = UIO(state.get.status)
+  final def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = ZIO.succeed(state.get.status)
 
-  final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = UIO(unsafeCaptureTrace(Nil))
+  final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] = ZIO.succeed(unsafeCaptureTrace(Nil))
 
   private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: ZTraceElement): Boolean =
     unsafeEvalOn(ZIO.succeed(_children.add(child)))
