@@ -17,6 +17,7 @@ import zio.{
   Layer,
   Random,
   Runtime,
+  Scope,
   System,
   UIO,
   ULayer,
@@ -57,17 +58,18 @@ abstract class BaseTestTask(
         ZIOAppArgs(Chunk.empty)
       )
 
-    val filledTestlayer: Layer[Nothing, TestEnvironment] =
-      zio.ZEnv.live >>> TestEnvironment.live
+    val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment] =
+      (zio.ZEnv.live ++ ZLayer.environment[Scope]) >>> TestEnvironment.live
 
-    val layer: Layer[Error, spec.Environment] =
+    val layer: ZLayer[Scope, Error, spec.Environment] =
       (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
 
-    val fullLayer: Layer[
+    val fullLayer: ZLayer[
+      Any,
       Error,
-      spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock
+      spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock with Scope
     ] =
-      layer +!+ argslayer +!+ filledTestlayer
+      Scope.layer >+> (layer +!+ argslayer +!+ filledTestlayer)
 
     val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
 

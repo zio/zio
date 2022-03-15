@@ -36,7 +36,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def layer: ZLayer[ZIOAppArgs, Any, Environment]
+  def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -125,7 +125,7 @@ object ZIOApp {
     type Environment = app.Environment
     override final def hook: RuntimeConfigAspect =
       app.hook
-    final def layer: ZLayer[ZIOAppArgs, Any, Environment] =
+    final def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
       app.layer
     override final def run: ZIO[Environment with ZEnv with ZIOAppArgs with Scope, Any, Any] =
       app.run
@@ -139,7 +139,7 @@ object ZIOApp {
    */
   def apply[R](
     run0: ZIO[R with ZEnv with ZIOAppArgs with Scope, Any, Any],
-    layer0: ZLayer[ZIOAppArgs, Any, R],
+    layer0: ZLayer[ZIOAppArgs with Scope, Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: EnvironmentTag[R]): ZIOApp =
     new ZIOApp {

@@ -376,8 +376,8 @@ object TestClock extends Serializable {
     data: Data
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[Annotations with Live, Nothing, TestClock] =
-    ZLayer.scoped {
+  ): ZLayer[Annotations with Live with Scope, Nothing, TestClock] =
+    ZLayer {
       for {
         live                  <- ZIO.service[Live]
         annotations           <- ZIO.service[Annotations]
@@ -392,7 +392,7 @@ object TestClock extends Serializable {
   val any: ZLayer[TestClock, Nothing, TestClock] =
     ZLayer.environment[TestClock](Tracer.newTrace)
 
-  val default: ZLayer[Live with Annotations, Nothing, TestClock] =
+  val default: ZLayer[Live with Annotations with Scope, Nothing, TestClock] =
     live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
 
   /**

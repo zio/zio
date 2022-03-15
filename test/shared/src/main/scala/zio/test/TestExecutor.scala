@@ -24,18 +24,20 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
-  def environment: Layer[Nothing, R]
+  def run(spec: ZSpec[R with Scope, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]]
+  def environment: ZLayer[Scope, Nothing, R]
 }
 
 object TestExecutor {
   def default[R <: Annotations, E](
-    env: Layer[Nothing, R]
+    env: ZLayer[Scope, Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[ExecutedSpec[E]] =
+    def run(spec: ZSpec[R with Scope, E], defExec: ExecutionStrategy)(implicit
+      trace: ZTraceElement
+    ): UIO[ExecutedSpec[E]] =
       ZIO.scoped {
         spec.annotated
-          .provideLayer(ZTestLogger.default >>> environment)
+          .provideLayer(ZTestLogger.default >>> environment +!+ Scope.layer)
           .foreachExec(defExec)(
             e =>
               e.failureOrCause.fold(
@@ -48,7 +50,7 @@ object TestExecutor {
           )
           .flatMap { spec =>
             ZIO.scoped {
-              spec.foldScoped[Any, Nothing, ExecutedSpec[E]](defExec) {
+              spec.foldScoped[Scope, Nothing, ExecutedSpec[E]](defExec) {
                 case Spec.ExecCase(_, spec) =>
                   ZIO.succeedNow(spec)
                 case Spec.LabeledCase(label, spec) =>

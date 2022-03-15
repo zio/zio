@@ -87,7 +87,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     unsafeRun(
       scoped
         .provide(
-          ZEnv.live >>> TestEnvironment.live,
+          ZEnv.live >+> Scope.layer >+> TestEnvironment.live,
           emptyArgsLayer,
           spec.layer
         )
@@ -111,7 +111,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           ZIO.unit
         )
         .provide(
-          ZEnv.live >>> TestEnvironment.live,
+          ZEnv.live >+> Scope.layer >+> TestEnvironment.live,
           emptyArgsLayer,
           spec.layer,
           TestLogger.fromConsole

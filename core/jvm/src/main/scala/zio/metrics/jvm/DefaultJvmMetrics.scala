@@ -27,7 +27,7 @@ trait DefaultJvmMetrics extends MultipleJvmMetrics {
    * client's default exporters
    */
   lazy val live: ZLayer[
-    Clock with System,
+    Clock with System with Scope,
     Throwable,
     BufferPools with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard with Thread with VersionInfo
   ] =
