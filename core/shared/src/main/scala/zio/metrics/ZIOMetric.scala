@@ -145,21 +145,18 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
     }.map(_ => ())
 
   /**
-   * Returns a ZIOAspect that will update this metric with the success value of
-   * the effects that it is applied to.
+   * Returns a ZIOAspect that will update this metric with the specified
+   * constant value every time the aspect is applied to an effect, regardless of
+   * whether that effect fails or succeeds.
    */
-  final def trackSuccess: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] =
-    trackSuccessWith(identity(_))
+  final def trackAll(in: => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.map { a =>
+          unsafeUpdate(in)
 
-  /**
-   * Returns a ZIOAspect that will update this metric with the result of
-   * applying the specified function to the success value of the effects that
-   * the aspect is applied to.
-   */
-  final def trackSuccessWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] {
-      def apply[R, E, A1 <: In2](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-        zio.tap(in2 => update(f(in2)))
+          a
+        }
     }
 
   /**
@@ -231,6 +228,24 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
 
       def apply[R, E <: In2, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.tapError(updater)
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the success value of
+   * the effects that it is applied to.
+   */
+  final def trackSuccess: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] =
+    trackSuccessWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the success value of the effects that
+   * the aspect is applied to.
+   */
+  final def trackSuccessWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] {
+      def apply[R, E, A1 <: In2](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+        zio.tap(in2 => update(f(in2)))
     }
 
   /**
