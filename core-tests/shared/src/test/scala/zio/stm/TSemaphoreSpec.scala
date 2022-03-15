@@ -89,7 +89,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           semaphore <- TSemaphore.make(2L).commit
           _         <- semaphore.withPermitsManaged(2).useNow
           permits   <- semaphore.permits.get.commit
-        } yield assertTrue(permits == 2)
+        } yield assertTrue(permits == 2L)
       }
     )
   )
