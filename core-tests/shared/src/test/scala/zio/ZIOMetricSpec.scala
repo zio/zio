@@ -11,7 +11,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
   def spec = suite("ZIOMetric")(
     suite("Counter")(
       test("custom increment as aspect") {
-        val c = ZIOMetric.counter("c1").tagged(labels1).contramap[Unit](_ => 1.0)
+        val c = ZIOMetric.counter("c1").tagged(labels1).fromConst(1L)
 
         for {
           _     <- ZIO.unit @@ c
@@ -32,8 +32,8 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         val c = ZIOMetric.counter("c3").tagged(labels1)
 
         for {
-          _     <- ZIO.succeed(10.0) @@ c
-          _     <- ZIO.succeed(5.0) @@ c
+          _     <- ZIO.succeed(10L) @@ c
+          _     <- ZIO.succeed(5L) @@ c
           state <- c.value
         } yield assertTrue(state == MetricState.Counter(15.0))
       },
@@ -48,8 +48,8 @@ object ZIOMetricSpec extends ZIOBaseSpec {
       },
       test("countValue") {
         for {
-          _     <- ZIO.succeed(10.0) @@ ZIOMetric.counter("c6").tagged(labels1)
-          _     <- ZIO.succeed(5.0) @@ ZIOMetric.counter("c6").tagged(labels1)
+          _     <- ZIO.succeed(10L) @@ ZIOMetric.counter("c6").tagged(labels1)
+          _     <- ZIO.succeed(5L) @@ ZIOMetric.counter("c6").tagged(labels1)
           state <- ZIOMetric.counter("c6").tagged(labels1).value
         } yield assertTrue(
           state == MetricState.Counter(15.0),
@@ -57,7 +57,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         )
       },
       test("countValueWith") {
-        val c = ZIOMetric.counter("c7").tagged(labels1).contramap[String](_.length.toDouble)
+        val c = ZIOMetric.counter("c7").tagged(labels1).contramap[String](_.length.toLong)
         for {
           _     <- ZIO.succeed("hello") @@ c
           _     <- ZIO.succeed("!") @@ c
@@ -68,7 +68,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         )
       },
       test("countErrors") {
-        val c = ZIOMetric.counter("c8").contramap[Unit](_ => 1.0)
+        val c = ZIOMetric.counter("c8").contramap[Unit](_ => 1)
 
         for {
           _     <- (ZIO.unit @@ c *> ZIO.fail("error") @@ c).ignore
@@ -82,7 +82,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         val base = ZIOMetric
           .counter("c10")
           .tagged(MetricLabel("static", "0"))
-          .contramap[String](_ => 1.0)
+          .contramap[String](_ => 1)
 
         val c = base.taggedWith[String](string => Set(MetricLabel("dyn", string)))
 

@@ -305,16 +305,22 @@ object ZIOMetric {
     }
 
   /**
-   * A counter, which can be incremented.
+   * A counter, which can be incremented by longs.
    */
   def counter(name: String): Counter[Long] =
     counterDouble(name).contramap[Long](_.toDouble)
 
   /**
-   * A counter, which can be incremented.
+   * A counter, which can be incremented by doubles.
    */
   def counterDouble(name: String): Counter[Double] =
     fromMetricKey(MetricKey.counter(name))
+
+  /**
+   * A counter, which can be incremented by integers.
+   */
+  def counterInt(name: String): Counter[Int] =
+    counterDouble(name).contramap[Int](_.toInt)
 
   /**
    * A gauge, which can be set to a value.
