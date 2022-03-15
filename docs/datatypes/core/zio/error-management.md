@@ -1934,7 +1934,7 @@ val r2: ZIO[Any, String, Int] = flattenedParseInt("")
 val r3: ZIO[Any, String, Int] = flattenedParseInt("123")
 ```
 
-### Merging Error Channel into The Success Channel
+### Merging the Error Channel into the Success Channel
 
 With `ZIO#merge` we can merge the error channel into the success channel:
 
@@ -1945,6 +1945,41 @@ val merged : ZIO[Any, Nothing, String] =
 ```
 
 If the error and success channels were of different types, it would choose the supertype of both.
+
+### Flipping the Error and Success Channels
+
+Sometimes, we would like to apply some methods on the error channel which are specific for the success channel, or we want to apply some methods on the success channel which are specific for the error channel. Therefore, we can flip the error and success channel and before flipping back, we can perform the right operator on flipped channels:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def flip: ZIO[R, A, E]
+  def flipWith[R1, A1, E1](f: ZIO[R, A, E] => ZIO[R1, A1, E1]): ZIO[R1, E1, A1]
+}
+```
+
+Assume we have the following example:
+
+```scala mdoc:compile-only
+import zio._
+
+val myApp: ZIO[Any, List[String], List[Int]] =
+  ZIO.validate(List(1, 2, 3, 4, 5)) { n =>
+    if (n % 2 == 0)
+      ZIO.succeed(n)
+    else
+      ZIO.fail(s"$n is not even")
+  }
+```
+
+We want to reverse the order of errors. In order to do that instead of using `ZIO#mapError`, we can map the error channel by using flip operators:
+
+```scala mdoc:compile-only
+import zio._
+
+val r1: ZIO[Any, List[String], List[Int]] = myApp.mapError(_.reverse)
+val r2: ZIO[Any, List[String], List[Int]] = myApp.flip.map(_.reverse).flip
+val r3: ZIO[Any, List[String], List[Int]] = myApp.flipWith(_.map(_.reverse))
+```
 
 ## Best Practices
 
