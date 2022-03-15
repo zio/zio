@@ -27,7 +27,7 @@ val myProgram: ZSpec[TestEnvironment, Nothing] =
 ```
 
 ```scala mdoc:compile-only
-myProgram.provide(Scope.layer >>> testEnvironment)
+myProgram.provide(testEnvironment, Scope.default)
 ```
 
 Then all environmental effects, such as printing to the console or generating random numbers, will be implemented by the `TestEnvironment` and will be fully testable. When we do need to access the "live" environment, for example to print debugging information to the console, we just use the `live` combinator along with the effect as our normally would. 
@@ -40,7 +40,7 @@ val myProgram: ZSpec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
-myProgram.provideCustom(Scope.layer >>> TestConsole.make(TestConsole.Data()))
+myProgram.provideCustom(TestConsole.make(TestConsole.Data()))
 ```
 
 Finally, we can create a `Test` object that implements the test interface directly using the `makeTest` method. This can be useful when we want to access some testing functionality without using the environment type:

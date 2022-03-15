@@ -84,7 +84,7 @@ object JvmMetricsExample extends ZIOAppDefault {
   def run =
     myApp
       .schedule(Schedule.fixed(10.seconds))
-      .provideCustom(Scope.layer >>> Thread.live)
+      .provideCustom(Thread.live, Scope.default)
 }
 ```
 
