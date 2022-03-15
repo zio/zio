@@ -153,9 +153,17 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * the effects that it is applied to.
    */
   def trackSuccess: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] {
-      def apply[R, E, A1 <: In](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
-        zio.tap(update(_))
+    trackSuccessWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the success value of the effects that
+   * the aspect is applied to.
+   */
+  def trackSuccessWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] {
+      def apply[R, E, A1 <: In2](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+        zio.tap(in2 => update(f(in2)))
     }
 
   /**
@@ -164,9 +172,18 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * of the metric must be `Throwable`.
    */
   def trackDefect(implicit ev: Throwable <:< In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
+    trackDefectWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the defect throwables of the effects
+   * that the aspect is applied to.
+   */
+  def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
+      val updater: Throwable => Unit = defect => unsafeUpdate(f(defect))
       def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(defect => unsafeUpdate(ev(defect)))))
+        zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(updater)))
     }
 
   /**
@@ -175,6 +192,14 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * must be `Duration`.
    */
   def trackDuration(implicit ev: Duration <:< In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    trackDurationWith(ev)
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the duration that the
+   * effect takes to execute. To call this method, you must supply a function
+   * that can convert the Duration to the input type of this metric.
+   */
+  def trackDurationWith(f: Duration => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         ZIO.suspendSucceed {
@@ -185,7 +210,7 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
 
             val duration = Duration.fromNanos(endTime - startTime)
 
-            unsafeUpdate(ev(duration))
+            unsafeUpdate(f(duration))
 
             a
           }
@@ -197,9 +222,19 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * the effects that it is applied to.
    */
   def trackError: ZIOAspect[Nothing, Any, Nothing, In, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, In, Nothing, Any] {
-      def apply[R, E <: In, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        zio.tapError(update(_))
+    trackErrorWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the error value of the effects that the
+   * aspect is applied to.
+   */
+  def trackErrorWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, In2, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, In2, Nothing, Any] {
+      val updater: In2 => UIO[Unit] = error => update(f(error))
+
+      def apply[R, E <: In2, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapError(updater)
     }
 
   /**
@@ -221,6 +256,12 @@ trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, An
    * Retrieves a snapshot of the value of the metric at this moment in time.
    */
   def value(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
+
+  /**
+   * Retrieves a snapshot of the value of the primitive metric that underlies
+   * this metric, and which is determined by the `keyType` field.
+   */
+  def valuePrimitive(implicit trace: ZTraceElement): UIO[keyType.Out] = ZIO.succeed(unsafeValuePrimitive(Set.empty))
 
   def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): ZIOMetric[Type, In2, Out] =
     contramap[In2](in2 => ev((in2, java.time.Instant.now())))
@@ -245,28 +286,16 @@ object ZIOMetric {
   type Summary[-In]   = ZIOMetric[MetricKeyType.Summary, In, MetricState.Summary]
   type SetCount[-In]  = ZIOMetric[MetricKeyType.SetCount, In, MetricState.SetCount]
 
-  implicit class CounterSyntax[In](counter: Counter[In]) {
-    def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
+  implicit class CounterSyntax[In](counter: ZIOMetric[MetricKeyType.Counter, In, Any]) {
+    def increment: UIO[Unit] = counter.updatePrimitive(1.0)
 
-    def increment(value: In): UIO[Unit] = counter.update(value)
+    def incrementBy(value: Double): UIO[Unit] = counter.updatePrimitive(value)
 
-    def count: UIO[Double] = counter.value.map(_.count)
+    def count: UIO[Double] = counter.valuePrimitive.map(_.count)
   }
 
-  implicit class GaugeSyntax[In](gauge: Gauge[In]) {
-    def set(value: In): UIO[Unit] = gauge.update(value)
-  }
-
-  implicit class HistogramSyntax[In](histogram: Histogram[In]) {
-    def observe(value: In): UIO[Unit] = histogram.update(value)
-  }
-
-  implicit class SummarySyntax[In](summary: Summary[In]) {
-    def observe(value: In): UIO[Unit] = summary.update(value)
-  }
-
-  implicit class SetCountSyntax[In](setCount: Summary[In]) {
-    def observe(value: In): UIO[Unit] = setCount.update(value)
+  implicit class GaugeSyntax[In](gauge: ZIOMetric[MetricKeyType.Gauge, In, Any]) {
+    def set(value: Double): UIO[Unit] = gauge.updatePrimitive(value)
   }
 
   def fromMetricKey[Type <: MetricKeyType](
