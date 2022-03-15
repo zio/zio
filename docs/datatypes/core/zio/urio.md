@@ -19,9 +19,9 @@ import zio.ZIO
 type URIO[-R, +A] = ZIO[R, Nothing, A]
 ```
 
-So the `URIO` just equal to `ZIO` which requires `R` and cannot fail because in the Scala the `Nothing` type has no inhabitant, we can't create an instance of type `Nothing`. It succeeds with `A`.
+So `URIO` is equal to a `ZIO` that requires `R` and cannot fail (because in Scala the `Nothing` type has no inhabitant, so we can't create an instance of type `Nothing`). It succeeds with `A`.
 
-In following example, the type of `printLine` is `URIO[Console, Unit]` which means, it requires `Console` service as an environment, and it succeeds with `Unit` value:
+In the following example, the type of `printLine` is `URIO[Console, Unit]`, which means that it requires `Console` service as an environment, and it succeeds with `Unit` value:
 
 ```scala mdoc:invisible:reset
 import zio._
@@ -41,4 +41,4 @@ def printLine(line: => String): ZIO[Console, IOException, Unit] =
 >
 > Lot of the time, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the proper specialized type alias.
 >
-> So there is no need to convert type aliases to the `ZIO` data type, whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
+> So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.

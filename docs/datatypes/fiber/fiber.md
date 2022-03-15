@@ -156,7 +156,7 @@ def fib(n: Int): UIO[Int] =
 ## Error Model
 The `IO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
 
-An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case bas been exposed as part of the `Either` success case.  
+An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case has been exposed as part of the `Either` success case.  
 
 ```scala mdoc:silent
 val error: Task[String] = IO.fail(new RuntimeException("Some Error"))

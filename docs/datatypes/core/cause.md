@@ -12,17 +12,17 @@ title: "Cause"
 
 1. `Fail[+E](value: E)` contains the cause of expected failure of type `E`.
 
-2. `Die(value: Throwable)` contains the cause of a defect or in other words, an unexpected failure of type `Throwable`. If we have a bug in our code and something throws an unexpected exception, that information would be described inside a Die.
+2. `Die(value: Throwable)` contains the cause of a defect or in other words, an unexpected failure of type `Throwable`. If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`.
 
 3. `Interrupt(fiberId)` contains information of the fiber id that causes fiber interruption.
 
-4. `Traced(cause, trace)` store stack traces and execution traces.
+4. `Traced(cause, trace)` stores stack traces and execution traces.
 
 5. `Meta(cause, data)`
 
-6. `Both(left, right)` & `Then(left, right)` store composition of two parallel and sequential causes. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
-  + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`.
-  + If we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`.
+6. `Both(left, right)` & `Then(left, right)` store a composition of two parallel and sequential causes, respectively. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
+    + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, then their causes are encoded with `Then`.
+    + If we run two parallel fibers with `zipPar` and both of them fail, then their causes are encoded with `Both`.
 
 Let's try to create some of these causes:
 
@@ -40,5 +40,5 @@ for {
 ```
 
 ## Lossless Error Model
-ZIO is very aggressive about preserving the full information related to a failure. ZIO capture all type of errors into the `Cause` data type. So its error model is lossless. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
+ZIO is very strict about preserving the full information related to a failure. ZIO captures all types of errors into the `Cause` data type. So its error model is lossless. It doesn't throw away any information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
 

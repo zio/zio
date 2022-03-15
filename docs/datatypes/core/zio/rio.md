@@ -18,7 +18,7 @@ import zio.ZIO
 type RIO[-R, +A]  = ZIO[R, Throwable, A]
 ```
 
-So the `RIO` just equal to `ZIO` which its error channel is `Throwable`.
+So `RIO` is equal to a `ZIO` that requires `R`, and whose error channel is `Throwable`. It succeeds with `A`.
 
 
 > **Note:** _Principle of The Least Power_
@@ -27,4 +27,4 @@ So the `RIO` just equal to `ZIO` which its error channel is `Throwable`.
 >
 > Lot of the time, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the proper specialized type alias.
 >
-> So there is no need to convert type aliases to the `ZIO` data type, whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
+> So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.

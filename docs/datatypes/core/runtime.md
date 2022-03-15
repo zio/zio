@@ -14,9 +14,9 @@ To run an effect, we need a `Runtime`, which is capable of executing effects. Ru
 
 Whenever we write a ZIO program, we create a ZIO effect from ZIO constructors plus using its combinators. We are building a blueprint. ZIO effect is just a data structure that describes the execution of a concurrent program. So we end up with a tree data structure that contains lots of different data structures combined together to describe what the ZIO effect should do. This data structure doesn't do anything, it is just a description of a concurrent program.
 
-So the most thing we should keep in mind when we are working with a functional effect system like ZIO is that when we are writing code, printing a string onto the console, reading a file, querying a database, and so forth; We are just writing a workflow or blueprint of an application. We are just building a data structure.
+So the most important thing we should keep in mind when we are working with a functional effect system like ZIO is that when we are writing code, printing a string onto the console, reading a file, querying a database, and so forth; We are just writing a workflow or blueprint of an application. We are just building a data structure.
 
-So how ZIO run these workflows? This is where ZIO Runtime System comes into play. Whenever we run an `unsaferun` function, the Runtime System is responsible to step through all the instructions described by the ZIO effect and execute them.
+So how can ZIO run these workflows? This is where ZIO Runtime System comes into play. Whenever we run an `unsaferun` function, the Runtime System is responsible to step through all the instructions described by the ZIO effect and execute them.
 
 To simplify everything, we can think of a Runtime System like a black box that takes both the ZIO effect (`ZIO[R, E, A]`) and its environment (`R`), it will run this effect and then will return its result as an `Either[E, A]` value.
 
@@ -233,7 +233,7 @@ val runtime = Runtime.default.mapRuntimeConfig(
 
 ### Benchmarking
 
-To do benchmark operation, we need a `Runtime` with settings suitable for that. It would be better to disable tracing and auto-yielding. ZIO has a built-in `RuntimeConfig` proper for benchmark operations, called `RuntimeConfig.benchmark` which we can map the default `RuntimeConfig` to the benchmark version:
+To do benchmark operations, we need a `Runtime` with settings suitable for that, in particular with tracing and auto-yielding disabled. ZIO has a built-in `RuntimeConfig` proper for benchmark operations, called `RuntimeConfig.benchmark`, so we can map the default `RuntimeConfig` to the benchmark version:
 
 ```scala mdoc:silent:nest
 val benchmarkRuntime = Runtime.default.mapRuntimeConfig(_ => RuntimeConfig.benchmark)
@@ -255,7 +255,7 @@ It has the following constructors:
 | `RuntimeConfigAspect.setExecutor`         | `executor: Executor`          | `RuntimeConfigAspect` |
 
 
-The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of a type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
+The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
 
 ```scala mdoc:invisible
 val myAppLogic = ZIO.succeed(???)

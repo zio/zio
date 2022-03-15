@@ -111,7 +111,7 @@ The error type of the resulting effect is `Option[Nothing]`, which provides no i
 val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 ```
 
-We can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`)
+We can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`):
 
 ```scala mdoc:invisible
 trait Team
@@ -225,7 +225,7 @@ for {
 A `Fiber` can be converted into a ZIO effect using `ZIO.fromFiber`:
 
 ```scala mdoc:silent
-val io: IO[Nothing, String] = ZIO.fromFiber(Fiber.succeed("Hello From Fiber!"))
+val io: IO[Nothing, String] = ZIO.fromFiber(Fiber.succeed("Hello from Fiber!"))
 ```
 
 ### From Side-Effects
@@ -441,7 +441,7 @@ for {
 } yield ()
 ```
 
-When we interrupt this loop after one second, it will not interrupted. It will only stop when the entire JVM stops. So the `attemptBlocking` doesn't translate the ZIO interruption into thread interruption (`Thread.interrupt`).
+When we interrupt this loop after one second, it will still not stop. It will only stop when the entire JVM stops. So the `attemptBlocking` doesn't translate the ZIO interruption into thread interruption (`Thread.interrupt`).
 
 Instead, we should use `attemptBlockingInterrupt` to create interruptible blocking effects:
 
@@ -499,7 +499,7 @@ final case class BlockingService() {
 }
 ```
 
-So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `attemptBlockingCancelable`. This method takes a `cancel` effect which responsible to signal the blocking code to close itself when ZIO interruption occurs:
+So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `attemptBlockingCancelable`. This method takes a `cancel` effect which is responsible to signal the blocking code to close itself when ZIO interruption occurs:
 
 ```scala mdoc:silent:nest
 val myApp =
@@ -518,7 +518,7 @@ val myApp =
   } yield ()
 ```
 
-Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never interrupted until we close that using `ServerSocket#close` method:
+Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close that using `ServerSocket#close` method:
 
 ```scala mdoc:silent:nest
 import java.net.{Socket, ServerSocket}
@@ -552,7 +552,7 @@ val mappedError: IO[Exception, String] =
 ### mapAttempt
 `mapAttempt` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects.
 
-Converting literal "Five" String to Int by calling `toInt` is a side effecting because it will throws `NumberFormatException` exception:
+Converting literal "Five" String to Int by calling `toInt` is side-effecting because it throws a `NumberFormatException` exception:
 
 ```scala mdoc:silent
 val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
@@ -627,12 +627,12 @@ The following table summarizes some of the sequential operations and their corre
 
 | **Description**              | **Sequential**    | **Parallel**         |
 | ---------------------------: | :---------------: | :------------------: |
-| Zips two effects into one    | `ZIO#zip`         | `ZIO#zipPar`         |
-| Zips two effects into one    | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
-| Collects from many effects   | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
+| Zip two effects into one    | `ZIO#zip`         | `ZIO#zipPar`         |
+| Zip two effects into one    | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
+| Collect from many effects   | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
 | Effectfully loop over values | `ZIO.foreach`     | `ZIO.foreachPar`     |
-| Reduces many values          | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
-| Merges many values           | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
+| Reduce many values          | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
+| Merge many values           | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
 
 For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation.
 
@@ -669,7 +669,7 @@ If an effect times out, then instead of continuing to execute in the background,
 | `ZIO#either`  | `ZIO[R, E, A]`            | `URIO[R, Either[E, A]]` |
 | `ZIO.absolve` | `ZIO[R, E, Either[E, A]]` | `ZIO[R, E, A]`          |
 
-We can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces a `ZIO[R, Nothing, Either[E, A]]`.
+We can surface failures with `ZIO#either`, which takes a `ZIO[R, E, A]` and produces a `ZIO[R, Nothing, Either[E, A]]`.
 
 ```scala mdoc:silent:nest
 val zeither: UIO[Either[String, Int]] = 
@@ -758,7 +758,7 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
 | `foldCauseZIO` | `failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`              | `ZIO[R1, E2, B]` |
 | `foldTraceZIO` | `failure: ((E, Option[ZTrace])) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
 
-Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
+Scala's `Option` and `Either` data types have `fold`, which lets us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
 
 The first fold method, `fold`, lets us non-effectfully handle both failure and success by supplying a non-effectful handler for each case:
 
@@ -842,10 +842,10 @@ ZIO's resource management features work across synchronous, asynchronous, concur
 
 ### Finalizing
 
-Scala has a `try` / `finally` construct which helps us to make sure we don't leak resources because no matter what happens in the try, the `finally` block will be executed. So we can open files in the try block, and then we can close them in the `finally` block, and that gives us the guarantee that we will not leak resources.
+Scala has a `try` / `finally` construct which helps us to make sure we don't leak resources because no matter what happens in the `try`, the `finally` block will be executed. So we can open files in the `try` block, and then we can close them in the `finally` block, and that gives us the guarantee that we will not leak resources.
 
 #### Asynchronous Try / Finally
-The problem with the `try` / `finally` construct is that it only applies to synchronous code, meaning it doesn't work for asynchronous code. ZIO gives us a method called `ensuring` that works with either synchronous or asynchronous actions. So we have a functional try/finally but across the async region of our code, also our finalizer could have async regions.
+The problem with the `try` / `finally` construct is that it only applies to synchronous code, meaning it doesn't work for asynchronous code. ZIO gives us a method called `ensuring` that works with either synchronous or asynchronous actions. So we have a functional `try` / `finally` even for asynchronous regions of our code.
 
 Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing:
 
@@ -863,7 +863,7 @@ Like `try` / `finally`, finalizers can be nested, and the failure of any inner f
 
 Unlike `try` / `finally`, `ensuring` works across all types of effects, including asynchronous and concurrent effects.
 
-Here is another example of ensuring that our clean-up action called before our effect is done:
+Here is another example of ensuring that our clean-up action is called before our effect is done:
 
 ```scala mdoc:silent
 import zio.Task
@@ -875,7 +875,8 @@ val cleanupAction: UIO[Unit] = UIO.succeed(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
-> _**Note:**
+> _**Note:**_
+> 
 > Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#acquireReleaseWith` in the acquire release section.
 
 #### Unstoppable Finalizers
@@ -892,7 +893,7 @@ try {
 } finally f3
 ```
 
-Also in ZIO like `try` / `finally`, the finalizers are unstoppable. This means if we have a buggy finalizer, and it is going to leak some resources that unfortunately happens, we will leak the minimum amount of resources because all other finalizers will be run in the correct order.
+Also in ZIO like `try` / `finally`, the finalizers are unstoppable. This means if we have a buggy finalizer that is going to leak some resources, we will leak the minimum amount of resources because all other finalizers will still be run in the correct order.
 
 ```scala
 val io = ???
@@ -917,7 +918,7 @@ ZIO encapsulates this common pattern with `ZIO#acquireRelease`, which allows us 
  
 The release action is guaranteed to be executed by the runtime system, even if the utilize action throws an exception or the executing fiber is interrupted.
 
-Acquire release is a built-in primitive that let us safely acquire and release resources. It is used for a similar purpose as `try/catch/finally`, only acquire release work with synchronous and asynchronous actions, work seamlessly with fiber interruption, and is built on a different error model that ensures no errors are ever swallowed.
+Acquire release is a built-in primitive that let us safely acquire and release resources. It is used for a similar purpose as `try` / `catch` / `finally`, only acquire release work with synchronous and asynchronous actions, work seamlessly with fiber interruption, and is built on a different error model that ensures no errors are ever swallowed.
 
 Acquire release consist of an *acquire* action, a *utilize* action (which uses the acquired resource), and a *release* action.
 
@@ -960,16 +961,8 @@ object Main extends ZIOAppDefault {
   def closeStream(is: FileInputStream) =
     ZIO.succeed(is.close())
 
-  // helper method to work around in Java 8
-  def readAll(fis: FileInputStream, len: Long): Array[Byte] = {
-    val content: Array[Byte] = Array.ofDim(len.toInt)
-    fis.read(content)
-    content
-  }
-
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.attempt(println(new String(readAll(is, len), StandardCharsets.UTF_8))) // Java 8
-  //Task.attempt(println(new String(is.readAllBytes(), StandardCharsets.UTF_8))) // Java 11+
+    Task.attempt(println(new String(is.readAllBytes(), StandardCharsets.UTF_8)))
 
   // myAcquireRelease is just a value. Won't execute anything here until interpreted
   val myAcquireRelease: Task[Unit] = for {
@@ -1015,9 +1008,9 @@ IO.fail("e1")
 There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs.
 
 A cross-cutting concern is more about _how_ we do something than _what_ we are doing. For example, when we are downloading a bunch of files, creating a socket to download each one is the core concern because it is a question of _what_ rather than the _how_, but the following concerns are cross-cutting ones:
-- Downloading files _sequentially_ or in _parallel_
-_ _Retrying_ and _timing out_ the download process
-_ _Logging_ and _monitoring_ the download process
+ - Downloading files _sequentially_ or in _parallel_
+ - _Retrying_ and _timing out_ the download process
+ - _Logging_ and _monitoring_ the download process
 
 So they don't affect the return type of our workflows, but they add some new aspects or change their behavior.
 
