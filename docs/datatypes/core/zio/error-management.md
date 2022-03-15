@@ -881,6 +881,8 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
+These methods use `orElse` to reduce the non-empty iterable of effects into a single effect.
+
 In the following example, we are trying to get the config from the master node, and if it fails, we will try successively to retrieve the config from the next available node:
 
 ```scala mdoc:compile-only
