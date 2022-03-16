@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.internal.FiberScope
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -661,7 +662,7 @@ object ZFiberRef {
       }
   }
 
-  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope]] =
+  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[FiberScope]] =
     ZFiberRef.unsafeMake(None, _ => None, (a, _) => a)
 
   private[zio] val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =

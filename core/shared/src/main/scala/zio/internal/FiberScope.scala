@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package zio
+package zio.internal
 
-import zio.internal.{FiberContext, Platform, Sync}
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.ref.WeakReference
 
 /**
- * A `ZScope` represents the scope of a fiber lifetime. The scope of a fiber can
- * be retrieved using [[ZIO.scope]], and when forking fibers, you can specify a
- * custom scope to fork them on by using the [[ZIO#forkIn]].
+ * A `FiberScope` represents the scope of a fiber lifetime.
  */
-sealed trait ZScope {
+private[zio] sealed trait FiberScope {
   def fiberId: FiberId
 
   /**
@@ -37,14 +35,15 @@ sealed trait ZScope {
     trace: ZTraceElement
   ): Boolean
 }
-object ZScope {
+
+private[zio] object FiberScope {
 
   /**
    * The global scope. Anything forked onto the global scope is not supervised,
    * and will only terminate on its own accord (never from interruption of a
    * parent fiber, because there is no parent fiber).
    */
-  object global extends ZScope {
+  object global extends FiberScope {
     def fiberId: FiberId = FiberId.None
 
     private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
@@ -60,7 +59,7 @@ object ZScope {
     }
   }
 
-  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends ZScope {
+  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends FiberScope {
     private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
       trace: ZTraceElement
     ): Boolean = {
@@ -70,5 +69,6 @@ object ZScope {
     }
   }
 
-  private[zio] def unsafeMake(fiber: FiberContext[_, _]): ZScope = new Local(fiber.fiberId, new WeakReference(fiber))
+  private[zio] def unsafeMake(fiber: FiberContext[_, _]): FiberScope =
+    new Local(fiber.fiberId, new WeakReference(fiber))
 }

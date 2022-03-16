@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, Platform, StackBool, StackTraceBuilder}
+import zio.internal.{FiberContext, FiberScope, Platform, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -387,7 +387,7 @@ trait Runtime[+R] {
       children
     )
 
-    ZScope.global.unsafeAdd(runtimeConfig, context)
+    FiberScope.global.unsafeAdd(runtimeConfig, context)
 
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)

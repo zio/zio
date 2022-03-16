@@ -527,11 +527,6 @@ object Fiber extends FiberPlatformSpecific {
     override def id: FiberId.Runtime
 
     /**
-     * The scope of the fiber.
-     */
-    def scope: ZScope
-
-    /**
      * The status of the fiber.
      */
     def status(implicit trace: ZTraceElement): UIO[Fiber.Status]
@@ -567,7 +562,6 @@ object Fiber extends FiberPlatformSpecific {
     def interruptStatus: InterruptStatus
     def executor: Executor
     def isLocked: Boolean
-    def scope: ZScope
   }
 
   object Descriptor {
@@ -590,8 +584,7 @@ object Fiber extends FiberPlatformSpecific {
       interrupters0: Set[FiberId],
       interruptStatus0: InterruptStatus,
       executor0: Executor,
-      locked0: Boolean,
-      scope0: ZScope
+      locked0: Boolean
     ): Descriptor =
       new Descriptor {
         def id: FiberId                      = id0
@@ -600,7 +593,6 @@ object Fiber extends FiberPlatformSpecific {
         def interruptStatus: InterruptStatus = interruptStatus0
         def executor: Executor               = executor0
         def isLocked: Boolean                = locked0
-        def scope: ZScope                    = scope0
       }
   }
 

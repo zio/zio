@@ -72,6 +72,6 @@ object FiberState extends Serializable {
     var currentEnvironment: Any                        = startEnv
     var currentExecutor: zio.Executor                  = startExec
     var currentSupervisor: Supervisor[Any]             = supervisor0
-    var currentForkScopeOverride: Option[ZScope]       = None
+    var currentForkScopeOverride: Option[FiberScope]   = None
   }
 }
