@@ -633,54 +633,33 @@ object Fiber extends FiberPlatformSpecific {
   @deprecated("use FiberId", "2.0.0")
   val Id = FiberId
 
-  sealed abstract class Status extends Serializable with Product { self =>
-    import Status._
+  sealed trait Status {
+    def isInterrupting: Boolean
 
-    def isInterrupting: Boolean = {
-      import scala.annotation.tailrec
-
-      @tailrec
-      def loop(status0: Fiber.Status): Boolean =
-        status0 match {
-          case Status.Running(b)                      => b
-          case Status.Finishing(b)                    => b
-          case Status.Suspended(previous, _, _, _, _) => loop(previous)
-          case _                                      => false
-        }
-
-      loop(self)
-    }
-
-    final def isDone: Boolean = self match {
-      case Done => true
-      case _    => false
-    }
-
-    final def toFinishing: Status = self match {
-      case Done                            => Done
-      case Finishing(interrupting)         => Finishing(interrupting)
-      case Running(interrupting)           => Running(interrupting)
-      case Suspended(previous, _, _, _, _) => previous.toFinishing
-    }
-
-    final def withInterrupting(b: Boolean): Status = self match {
-      case Done                         => Done
-      case Finishing(_)                 => Finishing(b)
-      case Running(_)                   => Running(b)
-      case v @ Suspended(_, _, _, _, _) => v.copy(previous = v.previous.withInterrupting(b))
-    }
+    def withInterrupting(newInterrupting: Boolean): Status
   }
   object Status {
-    case object Done                                  extends Status
-    final case class Finishing(interrupting: Boolean) extends Status
-    final case class Running(interrupting: Boolean)   extends Status
+    case object Done extends Status {
+      def isInterrupting: Boolean = false
+
+      def withInterrupting(newInterrupting: Boolean): Status = this
+    }
+    final case class Running(interrupting: Boolean) extends Status {
+      def isInterrupting: Boolean = interrupting
+
+      def withInterrupting(newInterrupting: Boolean): Status = copy(interrupting = newInterrupting)
+    }
     final case class Suspended(
-      previous: Status,
+      interrupting: Boolean,
       interruptible: Boolean,
-      epoch: Long,
+      asyncs: Long,
       blockingOn: FiberId,
       asyncTrace: ZTraceElement
-    ) extends Status
+    ) extends Status {
+      def isInterrupting: Boolean = interrupting
+
+      def withInterrupting(newInterrupting: Boolean): Status = copy(interrupting = newInterrupting)
+    }
   }
 
   /**

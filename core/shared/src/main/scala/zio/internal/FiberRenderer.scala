@@ -17,7 +17,7 @@
 package zio.internal
 
 import zio.Fiber.Dump
-import zio.Fiber.Status.{Done, Finishing, Running, Suspended}
+import zio.Fiber.Status.{Done, Running, Suspended}
 import zio.{Fiber, FiberId, UIO, ZIO, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -53,9 +53,8 @@ private[zio] object FiberRenderer {
 
   private def renderStatus(status: Fiber.Status): String =
     status match {
-      case Done         => "Done"
-      case Finishing(b) => "Finishing(" + (if (b) "interrupting" else "") + ")"
-      case Running(b)   => "Running(" + (if (b) "interrupting" else "") + ")"
+      case Done       => "Done"
+      case Running(b) => "Running(" + (if (b) "interrupting" else "") + ")"
       case Suspended(_, interruptible, epoch, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
         val ep = s"$epoch asyncs"
