@@ -147,9 +147,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     )
   }
 
-  def setCount(key: MetricKey.SetCount): MetricHook.SetCount = {
-    import key.keyType.setTag
-
+  def frequency(key: MetricKey.Frequency): MetricHook.Frequency = {
     var count  = 0L
     val values = new java.util.HashMap[String, Long]()
 
@@ -171,6 +169,6 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       builder.result()
     }
 
-    MetricHook(update, () => MetricState.SetCount(setTag, snapshot()))
+    MetricHook(update, () => MetricState.Frequency(snapshot()))
   }
 }

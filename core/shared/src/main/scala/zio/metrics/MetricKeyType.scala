@@ -22,14 +22,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 sealed trait MetricKeyType {
   type In
   type Out
-
-  def fold[Z](
-    isCounter: (In => Double, Out => MetricState.Counter) => Z,
-    isGauge: (In => Double, Out => MetricState.Gauge) => Z,
-    isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-    isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
-    isSetCount: (In => String, Out => MetricState.SetCount) => Z
-  ): Z
 }
 object MetricKeyType {
   type Counter = Counter.type
@@ -37,28 +29,18 @@ object MetricKeyType {
   case object Counter extends MetricKeyType {
     type In  = Double
     type Out = MetricState.Counter
+  }
 
-    def fold[Z](
-      isCounter: (In => Double, Out => MetricState.Counter) => Z,
-      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
-      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
-      isSetCount: (In => String, Out => MetricState.SetCount) => Z
-    ): Z = isCounter(identity(_), identity(_))
+  type Frequency = Frequency.type
+  case object Frequency extends MetricKeyType {
+    type In  = String
+    type Out = MetricState.Frequency
   }
 
   type Gauge = Gauge.type
   case object Gauge extends MetricKeyType {
     type In  = Double
     type Out = MetricState.Gauge
-
-    def fold[Z](
-      isCounter: (In => Double, Out => MetricState.Counter) => Z,
-      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
-      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
-      isSetCount: (In => String, Out => MetricState.SetCount) => Z
-    ): Z = isGauge(identity(_), identity(_))
   }
 
   final case class Histogram(
@@ -66,14 +48,6 @@ object MetricKeyType {
   ) extends MetricKeyType {
     type In  = Double
     type Out = MetricState.Histogram
-
-    def fold[Z](
-      isCounter: (In => Double, Out => MetricState.Counter) => Z,
-      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
-      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
-      isSetCount: (In => String, Out => MetricState.SetCount) => Z
-    ): Z = isHistogram(identity(_), identity(_))
   }
 
   object Histogram {
@@ -107,26 +81,5 @@ object MetricKeyType {
   ) extends MetricKeyType {
     type In  = (Double, java.time.Instant)
     type Out = MetricState.Summary
-
-    def fold[Z](
-      isCounter: (In => Double, Out => MetricState.Counter) => Z,
-      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
-      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
-      isSetCount: (In => String, Out => MetricState.SetCount) => Z
-    ): Z = isSummary(identity(_), identity(_))
-  }
-
-  final case class SetCount(setTag: String) extends MetricKeyType {
-    type In  = String
-    type Out = MetricState.SetCount
-
-    def fold[Z](
-      isCounter: (In => Double, Out => MetricState.Counter) => Z,
-      isGauge: (In => Double, Out => MetricState.Gauge) => Z,
-      isHistogram: (In => Double, Out => MetricState.Histogram) => Z,
-      isSummary: (In => (Double, java.time.Instant), Out => MetricState.Summary) => Z,
-      isSetCount: (In => String, Out => MetricState.SetCount) => Z
-    ): Z = isSetCount(identity(_), identity(_))
   }
 }

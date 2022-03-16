@@ -31,6 +31,10 @@ object MetricState {
 
   final case class Counter(count: Double) extends MetricState[MetricKeyType.Counter]
 
+  final case class Frequency(
+    occurrences: Chunk[(String, Long)]
+  ) extends MetricState[MetricKeyType.Frequency]
+
   final case class Gauge(value: Double) extends MetricState[MetricKeyType.Gauge]
 
   final case class Histogram(
@@ -45,9 +49,4 @@ object MetricState {
     count: Long,
     sum: Double
   ) extends MetricState[MetricKeyType.Summary]
-
-  final case class SetCount(
-    setTag: String,
-    occurrences: Chunk[(String, Long)]
-  ) extends MetricState[MetricKeyType.SetCount]
 }

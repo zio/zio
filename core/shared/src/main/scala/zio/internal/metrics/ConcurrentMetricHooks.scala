@@ -11,6 +11,6 @@ trait ConcurrentMetricHooks {
 
   def summary(key: MetricKey.Summary): MetricHook.Summary
 
-  def setCount(key: MetricKey.SetCount): MetricHook.SetCount
+  def frequency(key: MetricKey.Frequency): MetricHook.Frequency
 }
 object ConcurrentMetricHooks extends ConcurrentMetricHooksPlatformSpecific

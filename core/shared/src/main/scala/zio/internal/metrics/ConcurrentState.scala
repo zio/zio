@@ -56,10 +56,10 @@ private[zio] class ConcurrentState {
     if (hook0 == null) {
       (key.keyType match {
         case MetricKeyType.Counter             => getCounter(key.asInstanceOf[MetricKey.Counter])
+        case MetricKeyType.Frequency           => getSetCount(key.asInstanceOf[MetricKey.Frequency])
         case MetricKeyType.Gauge               => getGauge(key.asInstanceOf[MetricKey.Gauge])
         case MetricKeyType.Histogram(_)        => getHistogram(key.asInstanceOf[MetricKey.Histogram])
         case MetricKeyType.Summary(_, _, _, _) => getSummary(key.asInstanceOf[MetricKey.Summary])
-        case MetricKeyType.SetCount(_)         => getSetCount(key.asInstanceOf[MetricKey.SetCount])
       }).asInstanceOf[Result]
     } else hook0.asInstanceOf[Result]
   }
@@ -111,14 +111,14 @@ private[zio] class ConcurrentState {
     value.asInstanceOf[MetricHook.Summary]
   }
 
-  private def getSetCount(key: MetricKey.SetCount): MetricHook.SetCount = {
+  private def getSetCount(key: MetricKey.Frequency): MetricHook.Frequency = {
     var value = map.get(key)
     if (value eq null) {
-      val updater  = listener.unsafeUpdate(key)
-      val setCount = ConcurrentMetricHooks.setCount(key).onUpdate(updater)
-      map.putIfAbsent(key, setCount)
+      val updater   = listener.unsafeUpdate(key)
+      val frequency = ConcurrentMetricHooks.frequency(key).onUpdate(updater)
+      map.putIfAbsent(key, frequency)
       value = map.get(key)
     }
-    value.asInstanceOf[MetricHook.SetCount]
+    value.asInstanceOf[MetricHook.Frequency]
   }
 }

@@ -18,9 +18,6 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 
-import java.util.concurrent.atomic._
-import java.util.concurrent.ConcurrentHashMap
-
 class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     val adder = new DoubleAdder
@@ -147,9 +144,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     )
   }
 
-  def setCount(key: MetricKey.SetCount): MetricHook.SetCount = {
-    import key.keyType.setTag
-
+  def frequency(key: MetricKey.Frequency): MetricHook.Frequency = {
     val count  = new LongAdder
     val values = new ConcurrentHashMap[String, LongAdder]
 
@@ -175,6 +170,6 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       builder.result()
     }
 
-    MetricHook(update, () => MetricState.SetCount(setTag, snapshot()))
+    MetricHook(update, () => MetricState.Frequency(snapshot()))
   }
 }

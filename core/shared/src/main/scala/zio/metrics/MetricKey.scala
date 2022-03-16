@@ -57,24 +57,31 @@ object MetricKey {
   type Gauge     = MetricKey[MetricKeyType.Gauge]
   type Histogram = MetricKey[MetricKeyType.Histogram]
   type Summary   = MetricKey[MetricKeyType.Summary]
-  type SetCount  = MetricKey[MetricKeyType.SetCount]
+  type Frequency = MetricKey[MetricKeyType.Frequency]
 
   import MetricKeyType.Histogram.Boundaries
 
   /**
-   * Creates a metric key for a counter, with the specified name & parameters.
+   * Creates a metric key for a counter, with the specified name.
    */
   def counter(name: String): Counter =
     MetricKey(name, Set.empty, MetricKeyType.Counter)
 
   /**
-   * Creates a metric key for a gauge, with the specified name & parameters.
+   * Creates a metric key for a categorical frequency table, with the specified
+   * name.
+   */
+  def frequency(name: String): Frequency =
+    MetricKey(name, Set.empty, MetricKeyType.Frequency)
+
+  /**
+   * Creates a metric key for a gauge, with the specified name.
    */
   def gauge(name: String): Gauge =
     MetricKey(name, Set.empty, MetricKeyType.Gauge)
 
   /**
-   * Creates a metric key for a histogram, with the specified name & parameters.
+   * Creates a metric key for a histogram, with the specified name.
    */
   def histogram(
     name: String,
@@ -83,7 +90,7 @@ object MetricKey {
     MetricKey(name, Set.empty, MetricKeyType.Histogram(boundaries))
 
   /**
-   * Creates a metric key for a summary, with the specified name & parameters.
+   * Creates a metric key for a summary, with the specified name.
    */
   def summary(
     name: String,
@@ -93,10 +100,4 @@ object MetricKey {
     quantiles: Chunk[Double]
   ): Summary =
     MetricKey(name, Set.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
-
-  /**
-   * Creates a metric key for a set count, with the specified name & parameters.
-   */
-  def setCount(name: String, setTag: String): SetCount =
-    MetricKey(name, Set.empty, MetricKeyType.SetCount(setTag))
 }

@@ -297,10 +297,10 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         } yield assertTrue(r0.count == 0L, r1.count == 1L, r2.count == 1L)
       }
     ),
-    suite("SetCount")(
+    suite("Frequency")(
       test("custom observe as aspect") {
         val sc = ZIOMetric
-          .setCount("sc1", "tag")
+          .frequency("sc1")
           .tagged(labels1)
 
         for {
@@ -314,7 +314,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
       },
       test("direct observe") {
         val sc = ZIOMetric
-          .setCount("sc2", "tag")
+          .frequency("sc2")
           .tagged(labels1)
 
         for {
@@ -328,7 +328,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
       },
       test("occurrences") {
         val sc = ZIOMetric
-          .setCount("sc3", "tag")
+          .frequency("sc3")
           .tagged(labels1)
 
         for {
@@ -342,7 +342,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
       },
       test("occurrencesWith") {
         val sc = ZIOMetric
-          .setCount("sc4", "tag")
+          .frequency("sc4")
           .tagged(labels1)
           .contramap[Int](_.toString)
 
@@ -355,7 +355,7 @@ object ZIOMetricSpec extends ZIOBaseSpec {
       },
       test("occurrences + taggedWith") {
         val sc0 = ZIOMetric
-          .setCount("sc6", "tag")
+          .frequency("sc6")
           .tagged(labels1)
 
         val sc = sc0.taggedWith[String](s => Set(MetricLabel("dyn", s)))

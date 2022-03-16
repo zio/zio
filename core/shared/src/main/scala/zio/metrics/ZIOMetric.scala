@@ -21,6 +21,8 @@ import zio.metrics.MetricKey
 import zio.metrics.MetricKeyType.Histogram
 
 import zio.internal.metrics._
+import java.util.concurrent.TimeUnit
+import java.time.temporal.ChronoUnit
 
 /**
  * A `ZIOMetric[In, Out]` represents a concurrent metric, which accepts updates
@@ -42,7 +44,7 @@ import zio.internal.metrics._
  * The companion object contains constructors for these primitive metrics. All
  * metrics are derived from these primitive metrics.
  */
-trait ZIOMetric[+Type <: MetricKeyType, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
+trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
 
   /**
    * The type of the underlying primitive metric. For example, this could be
@@ -273,7 +275,27 @@ object ZIOMetric {
   type Gauge[-In]     = ZIOMetric[MetricKeyType.Gauge, In, MetricState.Gauge]
   type Histogram[-In] = ZIOMetric[MetricKeyType.Histogram, In, MetricState.Histogram]
   type Summary[-In]   = ZIOMetric[MetricKeyType.Summary, In, MetricState.Summary]
-  type SetCount[-In]  = ZIOMetric[MetricKeyType.SetCount, In, MetricState.SetCount]
+  type Frequency[-In] = ZIOMetric[MetricKeyType.Frequency, In, MetricState.Frequency]
+
+  implicit class InvariantSyntax[Type, In, Out](self: ZIOMetric[Type, In, Out]) {
+    final def zip[Type2, In2, Out2](that: ZIOMetric[Type2, In2, Out2])(implicit
+      z1: Zippable[Type, Type2],
+      uz: Unzippable[In, In2],
+      z2: Zippable[Out, Out2]
+    ): ZIOMetric[z1.Out, uz.In, z2.Out] =
+      new ZIOMetric[z1.Out, uz.In, z2.Out] {
+        val keyType = z1.zip(self.keyType, that.keyType)
+
+        def unsafeUpdate(in: uz.In, extraTags: Set[MetricLabel] = Set.empty): Unit = {
+          val (l, r) = uz.unzip(in)
+          self.unsafeUpdate(l, extraTags)
+          that.unsafeUpdate(r, extraTags)
+        }
+
+        def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): z2.Out =
+          z2.zip(self.unsafeValue(extraTags), that.unsafeValue(extraTags))
+      }
+  }
 
   implicit class CounterSyntax[In](counter: ZIOMetric[MetricKeyType.Counter, In, Any]) {
     def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
@@ -323,6 +345,13 @@ object ZIOMetric {
     counterDouble(name).contramap[Int](_.toInt)
 
   /**
+   * A string histogram metric, which keeps track of the counts of different
+   * strings.
+   */
+  def frequency(name: String): Frequency[String] =
+    fromMetricKey(MetricKey.frequency(name))
+
+  /**
    * A gauge, which can be set to a value.
    */
   def gauge(name: String): Gauge[Double] =
@@ -330,7 +359,7 @@ object ZIOMetric {
 
   /**
    * A numeric histogram metric, which keeps track of the count of numbers that
-   * fall in buckets of the specified boundaries.
+   * fall in bins with the specified boundaries.
    */
   def histogram(name: String, boundaries: Histogram.Boundaries): Histogram[Double] =
     fromMetricKey(MetricKey.histogram(name, boundaries))
@@ -357,9 +386,20 @@ object ZIOMetric {
     fromMetricKey(MetricKey.summary(name, maxAge, maxSize, error, quantiles))
 
   /**
-   * A string histogram metric, which keeps track of the counts of different
-   * strings.
+   * Creates a timer metric, based on a histogram, which keeps track of
+   * durations in the specified unit of time (milliseconds, seconds, etc.). The
+   * unit of time will automatically be added to the metric as a tag
+   * ("time_unit: milliseconds").
    */
-  def setCount(name: String, setTag: String): SetCount[String] =
-    fromMetricKey(MetricKey.setCount(name, setTag))
+  def timer(
+    name: String,
+    chronoUnit: ChronoUnit
+  ): ZIOMetric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
+    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 100)
+    val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
+
+    base.contramap[Duration] { (duration: Duration) =>
+      duration.get(chronoUnit).toDouble
+    }
+  }
 }

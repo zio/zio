@@ -1292,8 +1292,8 @@ private[zio] object FiberContext {
 
   import zio.metrics._
 
-  lazy val fiberFailureCauses = ZIOMetric.setCount("zio_fiber_failure_causes", "class")
-  lazy val fiberForkLocations = ZIOMetric.setCount("zio_fiber_fork", "location")
+  lazy val fiberFailureCauses = ZIOMetric.frequency("zio_fiber_failure_causes")
+  lazy val fiberForkLocations = ZIOMetric.frequency("zio_fiber_fork_locations")
 
   lazy val fibersStarted  = ZIOMetric.counter("zio_fiber_started")
   lazy val fiberSuccesses = ZIOMetric.counter("zio_fiber_successes")

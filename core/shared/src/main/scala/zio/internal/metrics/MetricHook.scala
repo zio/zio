@@ -48,5 +48,5 @@ object MetricHook {
   type Gauge     = MetricHook[Double, MetricState.Gauge]
   type Histogram = MetricHook[Double, MetricState.Histogram]
   type Summary   = MetricHook[(Double, java.time.Instant), MetricState.Summary]
-  type SetCount  = MetricHook[String, MetricState.SetCount]
+  type Frequency = MetricHook[String, MetricState.Frequency]
 }
