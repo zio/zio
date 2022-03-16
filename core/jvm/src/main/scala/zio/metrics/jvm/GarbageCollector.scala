@@ -31,8 +31,8 @@ trait GarbageCollector extends JvmMetrics {
     ZIO.foreachParDiscard(garbageCollectors) { gc =>
       for {
         name <- ZIO.attempt(gc.getName)
-        _    <- ZIO.attempt(gc.getCollectionCount) @@ gcCollectionSecondsCount(name)
-        _    <- ZIO.attempt(gc.getCollectionTime) @@ gcCollectionSecondsSum(name)
+        _    <- gcCollectionSecondsCount(name).set(gc.getCollectionCount)
+        _    <- gcCollectionSecondsSum(name).set(gc.getCollectionTime)
       } yield ()
     }
 

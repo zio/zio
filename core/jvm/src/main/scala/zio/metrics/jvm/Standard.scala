@@ -86,7 +86,7 @@ trait Standard extends JvmMetrics {
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
       _ <- (getProcessCPUTime.unsafeGet @@ cpuSecondsTotal).when(getProcessCPUTime.isAvailable)
-      _ <- ZIO.attempt(runtimeMXBean.getStartTime) @@ processStartTime
+      _ <- processStartTime.set(runtimeMXBean.getStartTime)
       _ <- (getOpenFileDescriptorCount.unsafeGet @@ openFdCount).when(
              getOpenFileDescriptorCount.isAvailable
            )
