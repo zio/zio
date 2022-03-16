@@ -1025,7 +1025,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def forkScoped(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).fork.tap(fiber => ZIO.addFinalizer(_ => fiber.interrupt))
+      restore(self).fork.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
     }
 
   /**
@@ -2588,6 +2588,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.whenZIO(p)(self)
 
   /**
+   * Treats this workflow as the acquisition of a resource and adds the
+   * specified finalizer to the current scope. This workflow will be run
+   * uninterruptibly and the finalizer will be run when the scope is closed.
+   */
+  final def withFinalizer[R1 <: R](finalizer: URIO[R1, Any])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E, A] =
+    withFinalizerExit(_ => finalizer)
+
+  /**
+   * A more powerful variant of `withFinalizer` that allows the finalizer to
+   * depend on the `Exit` value that the scope is closed with.
+   */
+  final def withFinalizerExit[R1 <: R](finalizer: Exit[Any, Any] => URIO[R1, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1 with Scope, E, A] =
+    ZIO.acquireReleaseExit[R1, E, A](self)((_, exit) => finalizer(exit))
+
+  /**
    * Runs this effect with the specified maximum number of fibers for parallel
    * operators.
    */
@@ -2771,7 +2788,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def acquireReleaseExit[R, E, A](acquire: ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
-    ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizer(exit => release(a, exit))))
+    ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerWith(exit => release(a, exit))))
 
   /**
    * A variant of `acquireRelease` that allows the `acquire` workflow to be
@@ -2784,7 +2801,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def acquireReleaseInterruptible[R, E, A](acquire: ZIO[R, E, A])(release: ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
-    acquire.ensuring(ZIO.addFinalizer(_ => release))
+    acquire.ensuring(ZIO.addFinalizer(release))
 
   /**
    * A more powerful variant of `acquireReleaseInterruptible` that allows the
@@ -2794,7 +2811,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def acquireReleaseExitInterruptible[R, E, A](acquire: ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R, Nothing, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
-    acquire.ensuring(ZIO.addFinalizer(exit => release(exit)))
+    acquire.ensuring(ZIO.addFinalizerWith(release))
 
   /**
    * When this effect represents acquisition of a resource (for example, opening
@@ -2881,7 +2898,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Adds a finalizer to the scope of this workflow. The finalizer is guaranteed
    * to be run when the scope is closed.
    */
-  def addFinalizer[R](
+  def addFinalizer[R](finalizer: URIO[R, Any])(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
+    addFinalizerWith(_ => finalizer)
+
+  /**
+   * A more powerful variant of `addFinalizer` that allows the finalizer to
+   * depend on the `Exit` value that the scope is closed with.
+   */
+  def addFinalizerWith[R](
     finalizer: Exit[Any, Any] => URIO[R, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
     for {

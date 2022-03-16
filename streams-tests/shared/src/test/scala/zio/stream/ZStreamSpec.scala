@@ -3016,7 +3016,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 finalized <- Ref.make(0)
                 stream = ZStream.unwrapScoped(
                            ZIO
-                             .addFinalizer(_ => finalized.getAndUpdate(_ + 1))
+                             .addFinalizer(finalized.getAndUpdate(_ + 1))
                              .as(ZStream.fromZIO(finalized.get) ++ ZStream.fail(None))
                          )
                 results <- stream.retry(Schedule.forever).take(2).runCollect

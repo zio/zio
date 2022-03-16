@@ -118,7 +118,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
   /**
    * Returns a scoped effect that describes acquiring the specified number of
-   * permits as the `acquire` action and releasing them as the `release` action.
+   * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
     ZIO.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)

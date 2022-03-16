@@ -128,7 +128,7 @@ object ZPool {
                )
         fiber  <- restore(pool.initialize).forkDaemon
         shrink <- restore(strategy.run(initial, pool.excess, pool.shrink)).forkDaemon
-        _      <- ZIO.addFinalizer(_ => fiber.interrupt *> shrink.interrupt *> pool.shutdown)
+        _      <- ZIO.addFinalizer(fiber.interrupt *> shrink.interrupt *> pool.shutdown)
       } yield pool
     }
 

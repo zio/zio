@@ -385,7 +385,7 @@ object TestClock extends Serializable {
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)
-        _                     <- ZIO.addFinalizer(_ => test.warningDone *> test.suspendedWarningDone)
+        _                     <- ZIO.addFinalizer(test.warningDone *> test.suspendedWarningDone)
       } yield test
     }
 

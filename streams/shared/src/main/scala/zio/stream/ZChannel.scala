@@ -714,7 +714,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.scoped[Env1] {
       ZIO.withChildren { getChildren =>
         for {
-          _           <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
+          _           <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
           queue       <- ZIO.acquireRelease(Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n))(_.shutdown)
           errorSignal <- Promise.make[OutErr1, Nothing]
           permits     <- Semaphore.make(n.toLong)
@@ -1501,7 +1501,7 @@ object ZChannel {
           n             <- ZIO.succeed(n)
           bufferSize    <- ZIO.succeed(bufferSize)
           mergeStrategy <- ZIO.succeed(mergeStrategy)
-          _             <- ZIO.addFinalizer(_ => getChildren.flatMap(Fiber.interruptAll(_)))
+          _             <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
           queue         <- ZIO.acquireRelease(Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize))(_.shutdown)
           cancelers     <- ZIO.acquireRelease(Queue.unbounded[Promise[Nothing, Unit]])(_.shutdown)
           lastDone      <- Ref.make[Option[OutDone]](None)

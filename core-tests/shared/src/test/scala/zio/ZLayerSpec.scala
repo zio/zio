@@ -241,7 +241,7 @@ object ZLayerSpec extends ZIOBaseSpec {
           promise <- Promise.make[Nothing, Unit]
           layer1   = ZLayer(ZIO.never)
           layer2 =
-            ZLayer(ZIO.acquireRelease(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
+            ZLayer.scoped(ZIO.acquireRelease(promise.succeed(()).map(ZEnvironment(_)))(_ => ZIO.unit))
           env = (layer1 ++ layer2).build
           _  <- ZIO.scoped(env).forkDaemon
           _  <- promise.await
@@ -339,7 +339,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           testRef <- Ref.make(Vector[String]())
           layer =
-            ZLayer {
+            ZLayer.scoped {
               for {
                 ref <-
                   ZIO.acquireRelease(Ref.make[Vector[String]](Vector()))(_.get.flatMap(testRef.set))
