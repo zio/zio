@@ -2903,7 +2903,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
     for {
       environment <- ZIO.environment[R]
-      scope       <- ZIO.service[Scope]
+      scope       <- ZIO.scope
       _           <- scope.addFinalizer(exit => finalizer(exit).provideEnvironment(environment))
     } yield ()
 
@@ -4920,7 +4920,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def parallelFinalizers[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
     ZIO.uninterruptibleMask { restore =>
       for {
-        outerScope <- ZIO.service[Scope]
+        outerScope <- ZIO.scope
         innerScope <- Scope.parallel
         _          <- outerScope.addFinalizer(innerScope.close)
         a          <- restore(innerScope.use[R](zio))
