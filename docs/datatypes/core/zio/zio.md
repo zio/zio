@@ -144,6 +144,9 @@ val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
 ``` 
 
 3. **`ZIO.getOrFail`**— We can lift an `Option` into a `ZIO` and if the option is not defined we can fail the ZIO with the proper error type:
+  - `ZIO.getOrFail` fails with `Throwable` error type.
+  - `ZIO.getOrFailUnit` fails with `Unit` error type.
+  - `ZIO.getOrFailWith` fails with custom error type.
 
 ```scala mdoc:compile-only
 import zio._
@@ -163,7 +166,10 @@ val r3: ZIO[Any, NumberFormatException, Int] =
   ZIO.getOrFailWith(new NumberFormatException("invalid input"))(parseInt("1.2"))
 ```
 
-4. **`ZIO.nonOrFail`**— It lifts an option into a ZIO value. If the option is empty it succeeds with `Unit` and if the option is defined it fails with the content of the optional value:
+4. **`ZIO.nonOrFail`**— It lifts an option into a ZIO value. If the option is empty it succeeds with `Unit` and if the option is defined it fails with a proper error type: 
+  - `ZIO.nonOrFail` fails with the content of the optional value.
+  - `ZIO.nonOrFailUnit` fails with the `Unit` error type.
+  - `ZIO.nonOrFailWith` fails with custom error type.
 
 ```scala mdoc:compile-only
 import zio._ 
