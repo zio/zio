@@ -12,8 +12,8 @@ object ScopedSpec extends ZIOBaseSpec {
 
   object Counter {
 
-    val live: ZLayer[Scope, Nothing, Counter] =
-      ZLayer {
+    val live: Layer[Nothing, Counter] =
+      ZLayer.scoped {
         ZIO.acquireRelease(Ref.make(1))(_.set(-10)).map { ref =>
           new Counter {
             val incrementAndGet: UIO[Int] = ref.updateAndGet(_ + 1)
@@ -43,7 +43,7 @@ object ScopedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(5))
         }
       )
-    ).provideLayerShared(ZLayer.scoped(Counter.live)) @@ sequential,
+    ).provideLayerShared(Counter.live) @@ sequential,
     suite("scoped per test")(
       suite("first suite")(
         test("first test") {
@@ -61,6 +61,6 @@ object ScopedSpec extends ZIOBaseSpec {
           assertM(Counter.incrementAndGet)(equalTo(2))
         }
       )
-    ).provideLayer(ZLayer.scoped[Any](Counter.live))
+    ).provideLayer(Counter.live)
   )
 }

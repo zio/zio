@@ -124,8 +124,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A])(implicit
       trace: ZTraceElement
-    ): ZLayer[R with Scope, E, A] =
-      ZLayer.fromZIO(m.scoped)
+    ): ZLayer[R, E, A] =
+      ZLayer.scoped[R](m.scoped)
 
     /**
      * Constructs a layer from a managed resource, which must return one or more
@@ -133,8 +133,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     def fromManagedEnvironment[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
       trace: ZTraceElement
-    ): ZLayer[R with Scope, E, A] =
-      ZLayer.fromZIOEnvironment(m.scoped)
+    ): ZLayer[R, E, A] =
+      ZLayer.scopedEnvironment[R](m.scoped)
 
     /**
      * Constructs a layer from a managed resource, which must return one or more
@@ -143,7 +143,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     @deprecated("use fromManagedEnvironment", "2.0.0")
     def fromManagedMany[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
       trace: ZTraceElement
-    ): ZLayer[R with Scope, E, A] =
+    ): ZLayer[R, E, A] =
       fromManagedEnvironment(m)
 
     /**
@@ -153,7 +153,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     @deprecated("use toLayer", "2.0.0")
     def fromServiceManaged[A: Tag, R, E, B: Tag](f: A => ZManaged[R, E, B])(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A with Scope, E, B] =
+    ): ZLayer[R with A, E, B] =
       fromServiceManyManaged[A, R, E, B](a => f(a).asService)
 
     /**
@@ -163,7 +163,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     @deprecated("use toLayer", "2.0.0")
     def fromServicesManaged[A0: Tag, A1: Tag, R, E, B: Tag](
       f: (A0, A1) => ZManaged[R, E, B]
-    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with Scope, E, B] = {
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -182,7 +182,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       B: Tag
     ](
       f: (A0, A1, A2) => ZManaged[R, E, B]
-    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with Scope, E, B] = {
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -204,7 +204,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3) => ZManaged[R, E, B]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with Scope, E, B] = {
+    ): ZLayer[R with A0 with A1 with A2 with A3, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -227,7 +227,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4) => ZManaged[R, E, B]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with Scope, E, B] = {
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -251,7 +251,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, B]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with Scope, E, B] = {
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -274,9 +274,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       B: Tag
     ](
       f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, B]
-    )(implicit
-      trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with Scope, E, B] = {
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -302,7 +300,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, B]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with Scope, E, B] = {
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -329,7 +327,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, B]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with Scope, E, B] = {
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -357,7 +355,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, B]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with Scope, E, B] = {
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] = {
       val layer = fromServicesManyManaged(andThen(f)(_.asService))
       layer
     }
@@ -385,7 +383,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
       E,
       B
     ] = {
@@ -417,7 +415,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
       E,
       B
     ] = {
@@ -450,7 +448,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
       E,
       B
     ] = {
@@ -484,7 +482,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
       E,
       B
     ] = {
@@ -519,7 +517,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
       E,
       B
     ] = {
@@ -555,7 +553,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
       E,
       B
     ] = {
@@ -592,7 +590,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
       E,
       B
     ] = {
@@ -630,7 +628,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
       E,
       B
     ] = {
@@ -669,7 +667,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
       E,
       B
     ] = {
@@ -709,7 +707,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
       E,
       B
     ] = {
@@ -772,7 +770,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A20
       ) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
       E,
       B
     ] =
@@ -862,7 +860,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A21
       ) => ZManaged[R, E, B]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
       E,
       B
     ] = {
@@ -878,7 +876,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     @deprecated("use toLayer", "2.0.0")
     def fromServiceManyManaged[A: Tag, R, E, B](f: A => ZManaged[R, E, ZEnvironment[B]])(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A with Scope, E, B] =
+    ): ZLayer[R with A, E, B] =
       ZLayer.fromManagedMany(ZManaged.serviceWithManaged[A](f))
 
     /**
@@ -889,7 +887,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     @deprecated("use toLayer", "2.0.0")
     def fromServicesManyManaged[A0: Tag, A1: Tag, R, E, B](
       f: (A0, A1) => ZManaged[R, E, ZEnvironment[B]]
-    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with Scope, E, B] =
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -913,7 +911,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       B
     ](
       f: (A0, A1, A2) => ZManaged[R, E, ZEnvironment[B]]
-    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with Scope, E, B] =
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -939,7 +937,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       B
     ](
       f: (A0, A1, A2, A3) => ZManaged[R, E, ZEnvironment[B]]
-    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with Scope, E, B] =
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -969,7 +967,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with Scope, E, B] =
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -1001,7 +999,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with Scope, E, B] =
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -1033,9 +1031,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       B
     ](
       f: (A0, A1, A2, A3, A4, A5, A6) => ZManaged[R, E, ZEnvironment[B]]
-    )(implicit
-      trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with Scope, E, B] =
+    )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -1071,7 +1067,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with Scope, E, B] =
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -1109,7 +1105,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with Scope, E, B] =
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -1149,7 +1145,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with Scope, E, B] =
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0 <- ZManaged.service[A0]
@@ -1191,11 +1187,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit
       trace: ZTraceElement
-    ): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with Scope,
-      E,
-      B
-    ] =
+    ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10, E, B] =
       ZLayer.fromManagedMany {
         for {
           a0  <- ZManaged.service[A0]
@@ -1238,7 +1230,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
       E,
       B
     ] =
@@ -1286,7 +1278,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
       E,
       B
     ] =
@@ -1336,7 +1328,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
       E,
       B
     ] =
@@ -1388,7 +1380,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
       E,
       B
     ] =
@@ -1442,7 +1434,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
       E,
       B
     ] =
@@ -1498,7 +1490,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     ](
       f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
       E,
       B
     ] =
@@ -1575,7 +1567,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A17
       ) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
       E,
       B
     ] =
@@ -1655,7 +1647,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A18
       ) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
       E,
       B
     ] =
@@ -1738,7 +1730,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A19
       ) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
       E,
       B
     ] =
@@ -1824,7 +1816,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A20
       ) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
       E,
       B
     ] =
@@ -1913,7 +1905,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
         A21
       ) => ZManaged[R, E, ZEnvironment[B]]
     )(implicit trace: ZTraceElement): ZLayer[
-      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21 with Scope,
+      R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
       E,
       B
     ] =

@@ -537,8 +537,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: ZTraceElement
-  ): ZLayer[R with Scope, E, A] =
-    ZLayer.fromZIO(ZIO.acquireRelease(acquire)(release))
+  ): ZLayer[R, E, A] =
+    ZLayer.scoped[R](ZIO.acquireRelease(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -549,8 +549,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     acquire: ZIO[R, E, ZEnvironment[A]]
   )(release: ZEnvironment[A] => URIO[R, Any])(implicit
     trace: ZTraceElement
-  ): ZLayer[R with Scope, E, A] =
-    ZLayer.fromZIOEnvironment(ZIO.acquireRelease(acquire)(release))
+  ): ZLayer[R, E, A] =
+    scopedEnvironment[R](ZIO.acquireRelease(acquire)(release))
 
   /**
    * Constructs a layer from acquire and release actions, which must return one
@@ -560,7 +560,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   @deprecated("use fromAcquireReleaseEnvironment", "2.0.0")
   def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
     implicit trace: ZTraceElement
-  ): ZLayer[R with Scope, E, A] =
+  ): ZLayer[R, E, A] =
     fromAcquireReleaseEnvironment(acquire)(release)
 
   /**
@@ -3963,13 +3963,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     )
 
   /**
-   * Scopes all resources used in this layer to the lifetime of the layer,
-   * ensuring that the resources are released as soon as the workflow that the
-   * layer is provided to completes execution, whether by success, failure, or
-   * interruption.
+   * Constructs a layer from the specified scoped effect.
    */
-  def scoped[RIn]: ScopedPartiallyApplied[RIn] =
-    new ScopedPartiallyApplied[RIn]
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
+
+  /**
+   * Constructs a layer from the specified scoped effect, which must return one
+   * or more services.
+   */
+  def scopedEnvironment[R]: ScopedEnvironmentPartiallyApplied[R] =
+    new ScopedEnvironmentPartiallyApplied[R]
 
   /**
    * Constructs a layer that accesses and returns the specified service from the
@@ -4008,14 +4012,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     Suspend(() => self)
   }
 
-  final class ScopedPartiallyApplied[RIn](private val dummy: Boolean = true) {
-    def apply[E, ROut](layer: ZLayer[Scope with RIn, E, ROut])(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] = {
-      val scope = ZLayer.Scoped[Any, Nothing, Scope](
-        ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)).map(ZEnvironment(_))
-      )
-      ZLayer.environment[RIn] ++ scope >>> layer
-    }
-  }
+  // final class ScopedPartiallyApplied[RIn](private val dummy: Boolean = true) {
+  //   def apply[E, ROut](layer: ZLayer[Scope with RIn, E, ROut])(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] = {
+  //     val scope = ZLayer.Scoped[Any, Nothing, Scope](
+  //       ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)).map(ZEnvironment(_))
+  //     )
+  //     ZLayer.environment[RIn] ++ scope >>> layer
+  //   }
+  // }
 
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
@@ -4315,6 +4319,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
       g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
 
+  implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
+      trace: ZTraceElement
+    ): ZLayer[R, E, A] =
+      scopedEnvironment[R](zio.map(ZEnvironment(_)))
+  }
+
+  implicit final class ScopedEnvironmentPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](zio: ZIO[Scope with R, E, ZEnvironment[A]])(implicit
+      trace: ZTraceElement
+    ): ZLayer[R, E, A] =
+      Scoped[R, E, A](zio)
+  }
+
   implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
@@ -4339,7 +4357,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >>>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit tag: EnvironmentTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
-      ZLayer.To(ZLayer.environment[RIn2] +!+ self, that)
+      ZLayer.To(ZLayer.environment[RIn2] ++ self, that)
 
     /**
      * Feeds the output services of this layer into the input of the specified
@@ -4363,7 +4381,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       tagged2: EnvironmentTag[ROut2],
       trace: ZTraceElement
     ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
-      self +!+ self.>>>[RIn2, E1, ROut2](that)
+      self ++ self.>>>[RIn2, E1, ROut2](that)
 
     /**
      * Feeds the output services of this layer into the input of the specified
@@ -4376,6 +4394,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       tagged: EnvironmentTag[ROut2],
       trace: ZTraceElement
     ): ZLayer[RIn, E1, ROut1 with ROut2] =
-      self.zipWithPar(self >>> that)(_.unionAll[ROut2](_))
+      self.zipWithPar(self >>> that)(_.union[ROut2](_))
   }
 }

@@ -24,22 +24,22 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   trait Service1
 
-  def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Scope, Nothing, Service1] =
-    ZLayer {
+  def makeLayer1(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service1] =
+    ZLayer.scoped {
       ZIO.acquireRelease(ref.update(_ :+ acquire1).as(new Service1 {}))(_ => ref.update(_ :+ release1))
     }
 
   trait Service2
 
-  def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Scope, Nothing, Service2] =
-    ZLayer {
+  def makeLayer2(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service2] =
+    ZLayer.scoped {
       ZIO.acquireRelease(ref.update(_ :+ acquire2).as(new Service2 {}))(_ => ref.update(_ :+ release2))
     }
 
   trait Service3
 
-  def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Scope, Nothing, Service3] =
-    ZLayer {
+  def makeLayer3(ref: Ref[Vector[String]]): ZLayer[Any, Nothing, Service3] =
+    ZLayer.scoped {
       ZIO.acquireRelease(ref.update(_ :+ acquire3).as(new Service3 {}))(_ => ref.update(_ :+ release3))
     }
 
@@ -364,9 +364,9 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer1 = ZLayer.fail("foo")
         val layer2 = ZLayer.succeed("bar")
         val layer3 = ZLayer.succeed("baz")
-        val layer4 = ZLayer(ZIO.acquireRelease(sleep)(_ => sleep))
+        val layer4 = ZLayer.scoped[Any](ZIO.acquireRelease(sleep)(_ => sleep))
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideCustomLayer(ZLayer.scoped(env)).exit)(fails(equalTo("foo")))
+        assertM(ZIO.unit.provideCustomLayer(env).exit)(fails(equalTo("foo")))
       },
       test("project") {
         final case class Person(name: String, age: Int)

@@ -113,7 +113,7 @@ sealed class ZTestTask(
           Error,
           zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock with Scope
         ] =
-          ZLayer.scoped(layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
+          Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 
         val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {

@@ -18,9 +18,9 @@ trait JvmMetrics { self =>
    * A layer that when constructed forks a fiber that periodically updates the
    * JVM metrics
    */
-  lazy val live: ZLayer[Clock with System with Scope, Throwable, Feature] = {
+  lazy val live: ZLayer[Clock with System, Throwable, Feature] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    collectMetrics.toLayer(featureTag, trace)
+    ZLayer.scoped(collectMetrics)(featureTag, trace)
   }
 
   /** A ZIO application that periodically updates the JVM metrics */
@@ -29,8 +29,9 @@ trait JvmMetrics { self =>
     private implicit val trace: ZTraceElement                      = Tracer.newTrace
     override val tag: EnvironmentTag[Environment]                  = EnvironmentTag[Environment]
     override type Environment = Clock with System with Feature
-    override val layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
-      Clock.live ++ System.live >>> live ++ Clock.live ++ System.live
+    override val layer: ZLayer[ZIOAppArgs, Any, Environment] = {
+      Clock.live ++ System.live >+> live
+    }
     override def run: ZIO[Environment with ZIOAppArgs, Any, Any] = ZIO.unit
   }
 }

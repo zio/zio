@@ -117,7 +117,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       runner =
         TestRunner(
           TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any](
-            ZLayer.succeedEnvironment(environment) +!+ ZLayer.scoped(testEnvironment)
+            ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment)
           ),
           runtimeConfig
         )
