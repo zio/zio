@@ -19,7 +19,7 @@ object Exit {
 }
 ```
 
-We can call `run` on our effect to determine the Success or Failure of our fiber:
+We can call `ZIO#exit` on our effect to determine the Success or Failure of our fiber:
 
 ```scala mdoc:silent
 import zio._
