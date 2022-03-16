@@ -20,23 +20,8 @@ final case class MetricHook[-In, +Out](
   update: In => Unit,
   get: () => Out
 ) { self =>
-  def contramap[In2](f: In2 => In): MetricHook[In2, Out] =
-    MetricHook(update.compose(f), get)
-
-  def map[Out2](f: Out => Out2): MetricHook[In, Out2] =
-    MetricHook(update, () => f(get()))
-
   def onUpdate[In1 <: In](f: In1 => Unit): MetricHook[In1, Out] =
     MetricHook(in => { f(in); self.update(in) }, get)
-
-  def zip[In2, Out2](that: MetricHook[In2, Out2]): MetricHook[(In, In2), (Out, Out2)] =
-    MetricHook(
-      t => {
-        self.update(t._1)
-        that.update(t._2)
-      },
-      () => (self.get(), that.get())
-    )
 }
 object MetricHook {
   import zio.metrics.MetricState

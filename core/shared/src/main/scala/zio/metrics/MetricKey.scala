@@ -28,8 +28,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 final case class MetricKey[+Type] private (
   name: String,
-  tags: Set[MetricLabel],
-  keyType: Type
+  keyType: Type,
+  tags: Set[MetricLabel] = Set.empty
 ) { self =>
 
   /**
@@ -65,20 +65,20 @@ object MetricKey {
    * Creates a metric key for a counter, with the specified name.
    */
   def counter(name: String): Counter =
-    MetricKey(name, Set.empty, MetricKeyType.Counter)
+    MetricKey(name, MetricKeyType.Counter)
 
   /**
    * Creates a metric key for a categorical frequency table, with the specified
    * name.
    */
   def frequency(name: String): Frequency =
-    MetricKey(name, Set.empty, MetricKeyType.Frequency)
+    MetricKey(name, MetricKeyType.Frequency)
 
   /**
    * Creates a metric key for a gauge, with the specified name.
    */
   def gauge(name: String): Gauge =
-    MetricKey(name, Set.empty, MetricKeyType.Gauge)
+    MetricKey(name, MetricKeyType.Gauge)
 
   /**
    * Creates a metric key for a histogram, with the specified name.
@@ -87,7 +87,7 @@ object MetricKey {
     name: String,
     boundaries: Boundaries
   ): Histogram =
-    MetricKey(name, Set.empty, MetricKeyType.Histogram(boundaries))
+    MetricKey(name, MetricKeyType.Histogram(boundaries))
 
   /**
    * Creates a metric key for a summary, with the specified name.
@@ -99,5 +99,5 @@ object MetricKey {
     error: Double,
     quantiles: Chunk[Double]
   ): Summary =
-    MetricKey(name, Set.empty, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
+    MetricKey(name, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
 }

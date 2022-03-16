@@ -7,7 +7,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
-private[zio] class ConcurrentState {
+private[zio] class ConcurrentMetricRegistry {
   private val listener: MetricListener =
     new MetricListener {
       override def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit =

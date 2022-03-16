@@ -322,7 +322,7 @@ object ZIOMetric {
       def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
         val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
 
-        metricState.get(fullKey)
+        metricRegistry.get(fullKey)
       }
     }
 

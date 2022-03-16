@@ -41,17 +41,17 @@ private[zio] object MetricClient {
    * Unsafely installs the specified metric listener.
    */
   final def unsafeInstallListener(listener: MetricListener): Unit =
-    metricState.installListener(listener)
+    metricRegistry.installListener(listener)
 
   /**
    * Unsafely removes the specified metric listener.
    */
   final def unsafeRemoveListener(listener: MetricListener): Unit =
-    metricState.removeListener(listener)
+    metricRegistry.removeListener(listener)
 
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
   final def unsafeSnapshot(): Set[MetricPair.Untyped] =
-    metricState.snapshot()
+    metricRegistry.snapshot()
 }
