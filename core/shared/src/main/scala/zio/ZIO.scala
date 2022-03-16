@@ -1000,6 +1000,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def fork(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
     new ZIO.Fork(self, None, trace)
 
+  /**
+   * Forks the workflow in the specified scope. The fiber will be interrupted
+   * when the scope is closed.
+   */
   final def forkIn(scope: => Scope)(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).forkDaemon.tap(fiber => scope.addFinalizer(_ => fiber.interrupt))
