@@ -37,7 +37,7 @@ trait Scope extends Serializable { self =>
    * depend on the `Exit` value that the scope is closed with.
    */
   final def addFinalizer(finalizer: UIO[Any]): UIO[Unit] =
-    addFinalizer(finalizer)
+    addFinalizerExit(_ => finalizer)
 
   /**
    * Extends the scope of a `ZIO` workflow that needs a scope into this scope by
