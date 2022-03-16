@@ -4311,14 +4311,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
 
   implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A: Tag](zio: ZIO[Scope with R, E, A])(implicit
+    def apply[E, A: Tag](zio: => ZIO[Scope with R, E, A])(implicit
       trace: ZTraceElement
     ): ZLayer[R, E, A] =
       scopedEnvironment[R](zio.map(ZEnvironment(_)))
   }
 
   implicit final class ScopedEnvironmentPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](zio: ZIO[Scope with R, E, ZEnvironment[A]])(implicit
+    def apply[E, A](zio: => ZIO[Scope with R, E, ZEnvironment[A]])(implicit
       trace: ZTraceElement
     ): ZLayer[R, E, A] =
       Scoped[R, E, A](zio)

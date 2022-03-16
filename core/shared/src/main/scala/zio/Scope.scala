@@ -36,7 +36,7 @@ trait Scope extends Serializable { self =>
    * A simplified version of `addFinalizerWith` when the `finalizer` does not
    * depend on the `Exit` value that the scope is closed with.
    */
-  final def addFinalizer(finalizer: UIO[Any]): UIO[Unit] =
+  final def addFinalizer(finalizer: => UIO[Any]): UIO[Unit] =
     addFinalizerExit(_ => finalizer)
 
   /**
@@ -57,7 +57,7 @@ object Scope {
      * Closes a scope with the specified exit value, running all finalizers that
      * have been added to the scope.
      */
-    def close(exit: Exit[Any, Any]): UIO[Unit]
+    def close(exit: => Exit[Any, Any]): UIO[Unit]
 
     /**
      * Uses the scope by providing it to a `ZIO` workflow that needs a scope,
@@ -72,7 +72,7 @@ object Scope {
   /**
    * Accesses a scope in the environment and adds a finalizer to it.
    */
-  def addFinalizer(finalizer: UIO[Any]): ZIO[Scope, Nothing, Unit] =
+  def addFinalizer(finalizer: => UIO[Any]): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizer(finalizer))
 
   /**
@@ -96,9 +96,9 @@ object Scope {
    */
   val global: Scope.Closeable =
     new Scope.Closeable {
-      def addFinalizerExit(finalizer: Finalizer): UIO[Unit] =
+      def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit] =
         ZIO.unit
-      def close(exit: Exit[Any, Any]): UIO[Unit] =
+      def close(exit: => Exit[Any, Any]): UIO[Unit] =
         ZIO.unit
     }
 
@@ -114,13 +114,13 @@ object Scope {
    * Makes a scope. Finalizers added to this scope will be run according to the
    * specified `ExecutionStrategy`.
    */
-  def makeWith(executionStrategy: ExecutionStrategy): UIO[Scope.Closeable] =
+  def makeWith(executionStrategy: => ExecutionStrategy): UIO[Scope.Closeable] =
     ReleaseMap.make.map { releaseMap =>
       new Scope.Closeable { self =>
         def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit] =
           releaseMap.add(finalizer).unit
-        def close(exit: Exit[Any, Any]): UIO[Unit] =
-          releaseMap.releaseAll(exit, executionStrategy).unit
+        def close(exit: => Exit[Any, Any]): UIO[Unit] =
+          ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
       }
     }
 
@@ -132,12 +132,12 @@ object Scope {
     makeWith(ExecutionStrategy.Parallel)
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
-    def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    def apply[E, A](zio: => ZIO[Scope with R, E, A]): ZIO[R, E, A] =
       zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope)))
   }
 
   final class UsePartiallyApplied[R](private val scope: Scope.Closeable) extends AnyVal {
-    def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    def apply[E, A](zio: => ZIO[Scope with R, E, A]): ZIO[R, E, A] =
       scope.extend[R](zio).onExit(scope.close(_))
   }
 

@@ -856,7 +856,9 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   )(implicit trace: ZTraceElement): ZManaged[R0, E1, A] =
     ZManaged(
       Scope.make.flatMap { scope =>
-        layer.build.provideSomeEnvironment[R0](_.union[Scope](ZEnvironment(scope))).map(r => (scope.close(_), r))
+        layer.build
+          .provideSomeEnvironment[R0](_.union[Scope](ZEnvironment(scope)))
+          .map(r => ((exit: Exit[Any, Any]) => scope.close(exit), r))
       }
     ).flatMap(self.provideEnvironment(_))
 
@@ -1487,7 +1489,7 @@ object ZManaged extends ZManagedPlatformSpecific {
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, A](scoped: ZIO[zio.Scope with R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    def apply[E, A](scoped: => ZIO[zio.Scope with R, E, A])(implicit trace: ZTraceElement): ZManaged[R, E, A] =
       ZManaged.acquireReleaseExitWith(zio.Scope.make)((scope, exit) => scope.close(exit)).mapZIO { scope =>
         scoped.provideSomeEnvironment[R](_.union[zio.Scope](ZEnvironment(scope)))
       }

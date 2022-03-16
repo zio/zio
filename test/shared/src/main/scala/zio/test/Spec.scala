@@ -691,7 +691,7 @@ object Spec {
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, T](scoped: ZIO[Scope with R, E, Spec[R, E, T]]): Spec[R, E, T] =
+    def apply[E, T](scoped: => ZIO[Scope with R, E, Spec[R, E, T]]): Spec[R, E, T] =
       Spec(ScopedCase[R, E, Spec[R, E, T]](scoped))
   }
 
