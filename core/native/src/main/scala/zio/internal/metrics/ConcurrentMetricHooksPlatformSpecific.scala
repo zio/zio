@@ -159,15 +159,15 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       slot.increment()
     }
 
-    def snapshot(): Chunk[(String, Long)] = {
-      val builder = ChunkBuilder.make[(String, Long)]()
+    def snapshot(): Map[String, Long] = {
+      val builder = scala.collection.mutable.Map[String, Long]()
       val it      = values.entrySet().iterator()
       while (it.hasNext()) {
         val e = it.next()
-        builder += e.getKey() -> e.getValue().longValue()
+        builder.update(e.getKey(), e.getValue().longValue())
       }
 
-      builder.result()
+      builder.toMap
     }
 
     MetricHook(update, () => MetricState.Frequency(snapshot()))
