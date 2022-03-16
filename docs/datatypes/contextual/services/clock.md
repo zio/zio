@@ -14,15 +14,15 @@ import java.time.DateTimeException
 ```
 
 ```scala mdoc:silent
-val inMiliseconds: URIO[Clock, Long] = Clock.currentTime(TimeUnit.MILLISECONDS)
+val inMilliseconds: URIO[Clock, Long] = Clock.currentTime(TimeUnit.MILLISECONDS)
 val inDays:        URIO[Clock, Long] = Clock.currentTime(TimeUnit.DAYS)
 ```
 
-To get current data time in the current timezone the `currentDateTime` function returns a ZIO effect containing `OffsetDateTime`.
+To get current date time in the current timezone the `currentDateTime` function returns a ZIO effect containing `OffsetDateTime`.
 
-Also, the Clock service has a very useful functionality for sleeping and creating a delay between jobs. The `sleep` takes a `Duration` and sleep for the specified duration. It is analogous to `java.lang.Thread.sleep` function, but it doesn't block any underlying thread. It's completely non-blocking.
+Also, the Clock service has a very useful functionality for sleeping and creating a delay between jobs. The `sleep` takes a `Duration` and sleeps for the specified duration. It is analogous to `java.lang.Thread.sleep` function, but it doesn't block any underlying thread. It's completely non-blocking.
 
-In following example we are going to print the current time periodically by placing a one second`sleep` between each print call:
+In the following example we are going to print the current time periodically by placing a one second `sleep` between each print call:
 
 ```scala mdoc:silent
 def printTimeForever: ZIO[Console & Clock, Throwable, Nothing] =

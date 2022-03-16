@@ -23,7 +23,7 @@ In some cases, a `ZLayer` may not have any dependencies or requirements from the
 
 ZLayers are:
 
-1. **Recipes for Creating Services** — They describe how a given dependencies produces another services. For example, the `ZLayer[Logging & Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
+1. **Recipes for Creating Services** — They describe how to create services from given dependencies. For example, the `ZLayer[Logging & Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
 
 2. **An Alternative to Constructors** — We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
@@ -33,13 +33,13 @@ ZLayers are:
   
   For example, to create a recipe for a `Database` service, we should describe how the `Database` will be initialized using an acquisition action. In addition, it may contain information about how the `Database` releases its connection pools.
 
-6. **Asynchronous** — Unlike class constructors which are blocking, `ZLayer` is fully asynchronous and non-blocking. Note that constructors in classes are always synchronous. This is a drawback for non-blocking applications because sometimes we might want to use something that is blocking the inside constructor.
+6. **Asynchronous** — Unlike class constructors which are blocking, `ZLayer` is fully asynchronous and non-blocking. Note that in non-blocking applications we typically want to avoid creating something that is blocking inside its constructor.
 
-  For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So that wouldn't be a good idea to block inside a constructor. There are some workarounds for fixing this issue, but they are not perfect as the ZIO solution.
+  For example, when we are constructing some sort of Kafka streaming service, we might want to connect to the Kafka cluster in the constructor of our service, which takes some time. So it wouldn't be a good idea to block inside the constructor. There are some workarounds for fixing this issue, but they are not as perfect as the ZIO solution which allows for asynchronous, non-blocking constructors.
 
 6. **Parallelism** — ZIO layers can be acquired in parallel, unlike class constructors, which do not support parallelism. When we compose multiple layers and then acquire them, the construction of each layer will occur in parallel. This will reduce the initialization time of ZIO applications with a large number of dependencies.
 
-  With ZIO ZLayer, our constructor could be asynchronous, and they could also block. We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO. And that is because `ZLayer` has the full power of the `ZIO` data type, and as a result, we have strictly more power on our constructors with `ZLayer`.
+  With ZIO ZLayer, our constructor could be asynchronous, but it could also block. We can acquire resources asynchronously or in a blocking fashion, and spend some time doing that, and we don't need to worry about it. That is not an anti-pattern. This is the best practice with ZIO. And that is because `ZLayer` has the full power of the `ZIO` data type, and as a result, we have strictly more power on our constructors with `ZLayer`.
 
 7. **Resilient** — Layer construction can be resilient. So if the acquiring phase fails, we can have a schedule to retry the acquiring stage. This helps us write apps that are error-proof and respond appropriately to failures.
 
@@ -199,7 +199,7 @@ val layer1: ZLayer[Any, Nothing, String] = ZLayer.fromZIO(ZIO.succeed("Hello, Wo
 val layer2: ZLayer[Any, Nothing, String] = ZIO.succeed("Hello, World!").toLayer
 ```
 
-For example, assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
+For example, assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
 
 ```scala mdoc:compile-only
 import zio._
@@ -234,7 +234,7 @@ def loggingLive(console: Console, clock: Clock): Logging =
     override def log(line: String): UIO[Unit] =
       for {
         time <- clock.currentDateTime
-        _    <- console.printLine(s"$time —- $line").orDie
+        _    <- console.printLine(s"$time — $line").orDie
       } yield ()
   }
 ```
@@ -254,7 +254,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
   override def log(line: String): UIO[Unit] =
     for {
       time <- clock.currentDateTime
-      _    <- console.printLine(s"$time —- $line").orDie
+      _    <- console.printLine(s"$time — $line").orDie
     } yield ()
 }
 
@@ -292,7 +292,7 @@ We said that we can think of the `ZLayer` as a more powerful _constructor_. Cons
 
 ### Vertical and Horizontal Composition
 
-Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically.
+Assume we have several services with their dependencies, and we need a way to compose and wire up these dependencies to create the dependency graph of our application. `ZLayer` is a ZIO solution for this problem, it allows us to build up the whole application dependency graph by composing layers horizontally and vertically.
 
 ```scala mdoc:invisible
 trait A
@@ -301,7 +301,7 @@ trait C
 trait D
 ```
 
-1. **Horizontal Composition** — Layers can be composed together horizontally with the `++` operator. When we compose layers horizontally, the new layer requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that they don't have any relationship with each other.
+1. **Horizontal Composition** — Layers can be composed together horizontally with the `++` operator. When we compose layers horizontally, the new layer requires all the services that both of them require and produces all services that both of them produce. Horizontal composition is a way of composing two layers side-by-side. It is useful when we combine two layers that don't have any relationship with each other.
 
 We can compose `fooLayer` and `barLayer` _horizontally_ to build a layer that has the requirements of both, to provide the capabilities of both, through `fooLayer ++ barLayer`:
 
@@ -350,7 +350,7 @@ val result2 : ZLayer[A, Nothing, A & B] =  // A ==> A & B
 
 By default, the `ZLayer` hides intermediate dependencies when composing vertically. For example, when we compose `fooLayer` with `barLayer` vertically, the output would be a `ZLayer[A, Throwable, C]`. This hides the dependency on the `B` layer. By using the above technique, we can pass through hidden dependencies.
 
-Let's include the `B` service into the upstream dependencies of the final layer using the `ZIO.service[B]`. We can think of `ZIO.service[B]` is an _identity function_ (`B ==> B`).
+Let's include the `B` service into the upstream dependencies of the final layer using the `ZIO.service[B]`. We can think of `ZIO.service[B]` as an _identity function_ (`B ==> B`).
 
 ```scala mdoc:compile-only
 import zio._
@@ -422,7 +422,7 @@ val layer: ZLayer[A & C, Throwable, D] =        // A & C ==> D
 // (A & C ==> D)
 ```
 
-Here is an example of which passthrough all requirements to bake a `Cake` so all the requirements are available to all the downstream services: 
+Here is an example in which we passthrough all requirements to bake a `Cake` so all the requirements are available to all the downstream services: 
 
 ```scala mdoc:silent
 import zio._
@@ -638,7 +638,7 @@ val myApp: ZIO[Console with Cake, IOException, Unit] = for {
 
 The type of `myApp` indicates we should provide `Console` and `Cake` to this ZIO application to run it. Let's give it those and see what happens:
 
-```scala mdoc:fail
+```scala mdoc:fail:silent
 object MainApp extends ZIOAppDefault {
   def run =
     myApp.provide(
@@ -646,6 +646,18 @@ object MainApp extends ZIOAppDefault {
       Console.live
     )
 }
+
+// error:
+// 
+// ──── ZLAYER ERROR ────────────────────────────────────────────────────
+// 
+//  Please provide layers for the following 2 types:
+// 
+//    Required by Cake.live
+//    1. Chocolate
+//    2. Flour
+//    
+// ──────────────────────────────────────────────────────────────────────
 ```
 
 Here are the errors that will be printed:
@@ -664,7 +676,7 @@ Here are the errors that will be printed:
 
 It says that we missed providing `Chocolate` and `Flour` layers. Now let's add these two missing layers:
 
-```scala mdoc:fail
+```scala mdoc:fail:silent
 import zio._
 
 object MainApp extends ZIOAppDefault {
@@ -676,6 +688,20 @@ object MainApp extends ZIOAppDefault {
       Flour.live
     )
 }
+
+// error:
+// 
+// ──── ZLAYER ERROR ────────────────────────────────────────────────────
+// 
+// Please provide a layer for the following type:
+// 
+// Required by Flour.live
+// 1. Spoon
+// 
+// Required by Chocolate.live
+// 1. Spoon
+// 
+// ──────────────────────────────────────────────────────────────────────
 ```
 
 Again, the compiler asks us to provide another dependency called `Spoon`:
@@ -843,9 +869,9 @@ If we use the `ZLayer.Debug.mermaid` layer, it will generate the following debug
 
 ## Dependency Propagation
 
-When we write an application, our application has a lot of dependencies. We need a way to provide implementations and feeding and propagating all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
+When we write an application, our application has a lot of dependencies. We need a way to provide implementations and to feed and propagate all dependencies throughout the whole application. We can solve the propagation problem by using _ZIO environment_.
 
-During the development of an application, we don't care about implementations. Incrementally, when we use various effects with different requirements on their environment, all part of our application composed together, and at the end of the day we have a ZIO effect which requires some services as an environment. Before running this effect by `unsafeRun` we should provide an implementation of these services into the ZIO Environment of that effect.
+During the development of an application, we don't care about implementations. Incrementally, when we use various effects with different requirements on their environment, all parts of our application compose together, and at the end of the day we have a ZIO effect which requires some services as an environment. Before running this effect by `unsafeRun` we should provide an implementation of these services into the ZIO Environment of that effect.
 
 ZIO has some facilities for doing this. `ZIO#provide` is the core function that allows us to _feed_ an `R` to an effect that requires an `R`.
 
@@ -896,13 +922,13 @@ val loggingImpl = new Logging {
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
 ```
 
-Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our services, instead; we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide`, `ZIO#provideSome` and `ZIO#provideCustom` to propagate dependencies into the environment of our ZIO effect.
+Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our services; instead, we use `ZLayer` to construct the dependency graph of our application, then we use methods like `ZIO#provide`, `ZIO#provideSome` and `ZIO#provideCustom` to propagate dependencies into the environment of our ZIO effect.
 
 #### Using `ZIO#provide` Method
 
 Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZLayer` to the ZIO effect and translates it to another level.
 
-Assume we have written this piece of program that requires Clock and Console services:
+Assume we have written this piece of program that requires `Clock` and `Console` services:
 
 ```scala mdoc:silent:nest
 import zio.Clock._
@@ -917,14 +943,14 @@ val myApp: ZIO[Random & Console & Clock, Nothing, Unit] = for {
 } yield ()
 ```
 
-We provide implementation of `Random`, `Console` and `Clock` services to the `myApp` effect by using `ZIO#provide` method:
+We provide implementations of `Random`, `Console` and `Clock` services to the `myApp` effect by using `ZIO#provide` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
   myApp.provide(Random.live, Console.live, Clock.live)
 ```
 
-As we see, the type of our effect converted from `ZIO[Random & Console & Clock, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
+As we see, the type of our effect converted from `ZIO[Random & Console & Clock, Nothing, Unit]` which requires three services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
 #### Using `ZIO#provideSome` Method
 
@@ -1334,7 +1360,7 @@ object MainApp extends ZIOAppDefault {
   val zio: ZIO[AppConfig, Nothing, Unit] = 
     for {
       config <- ZIO.service[AppConfig]
-      _      <- ZIO.succeed(println(s"Applicaiton started with config: $config"))
+      _      <- ZIO.succeed(println(s"Application started with config: $config"))
     } yield ()
 
   // Create a ZLayer that produces an AppConfig and can be used to satisfy the AppConfig 
@@ -1347,7 +1373,7 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-### An Example of a ZIO Application with Multiple dependencies
+### An Example of a ZIO Application with Multiple Dependencies
 
 In the following example, our ZIO application has several dependencies:
 - `zio.Clock`
@@ -1587,7 +1613,7 @@ object MainApp extends ZIOAppDefault {
 
 ### An Example of Providing Different Implementations of the Same Service
 
-Let's say we want to provide different versions of the same service to different services. In this example, both `UserRepo` and `DocumentRepo` services require the `Cache` service. However, we want to provide different cache implementations for these two services. Our goal is to provide an 'InmemoryCache' layer for `UserRepo` and a `PersistentCache` layer for the `DocumentRepo` service:
+Let's say we want to provide different versions of the same service to different services. In this example, both `UserRepo` and `DocumentRepo` services require the `Cache` service. However, we want to provide different cache implementations for these two services. Our goal is to provide an `InmemoryCache` layer for `UserRepo` and a `PersistentCache` layer for the `DocumentRepo` service:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1610,7 +1636,7 @@ object MainApp extends ZIOAppDefault {
 
 Having covered the topic of [acquiring fresh layers](#acquiring-a-fresh-version), let's see an example of using the `ZLayer#fresh` operator.
 
-`DocumentRepo` and `UserRepo` services are dependent on an in-memory cache service. On the other hand, let's assume the cache service is quite simple, and we might be prone to cache conflicts between services. While sharing the cache service may cause some problems for our business logic, we should separate the cache service for both DocumentRepo and UserRepo:
+`DocumentRepo` and `UserRepo` services are dependent on an in-memory cache service. On the other hand, let's assume the cache service is quite simple, and we might be prone to cache conflicts between services. While sharing the cache service may cause some problems for our business logic, we should separate the cache service for both `DocumentRepo` and `UserRepo`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1631,7 +1657,7 @@ object MainApp extends ZIOAppDefault {
 
 ### An Example of Pass-through Dependencies
 
-Notice that in the previous examples, both `UserRepo` and `DocuemntRepo` have some [hidden dependencies](#hidden-versus-passed-through-dependencies), such as `Cache`, `Database`, and `BlobStorage`.  So these hidden dependencies are no longer expressed in the type signature of the `layers`. From the perspective of a caller, `layers` just outputs a `UserRepo` and `DocuemntRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` and `DocuemntRepo` are constructed.
+Notice that in the previous examples, both `UserRepo` and `DocuemntRepo` have some [hidden dependencies](#hidden-versus-passed-through-dependencies), such as `Cache`, `Database`, and `BlobStorage`.  So these hidden dependencies are no longer expressed in the type signature of the `layers`. From the perspective of a caller, `layers` just outputs a `UserRepo` and `DocuemntRepo` and requires no inputs. The caller does not need to be concerned with the internal implementation details of how the `UserRepo` and `DocumentRepo` are constructed.
 
 An upstream dependency that is used by many other services can be "passed-through" and included in a layer's output. This can be done with the `>+>` operator, which provides the output of one layer to another layer, returning a new layer that outputs the services of _both_.
 
