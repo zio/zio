@@ -1013,7 +1013,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def forkIn(scope: => Scope)(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).forkDaemon.tap(fiber => scope.addFinalizer(_ => fiber.interrupt))
+      restore(self).forkDaemon.tap(fiber => scope.addFinalizer(fiber.interrupt))
     }
 
   /**
@@ -1494,8 +1494,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
-    ZIO.acquireReleaseExitWith(Scope.make)((scope: Scope, exit: Exit[Any, Any]) => scope.close(exit)) { scope =>
-      layer.build(scope).flatMap(r => self.provideEnvironment(r))
+    ZIO.acquireReleaseExitWith(Scope.make)((scope: Scope.Closeable, exit: Exit[Any, Any]) => scope.close(exit)) {
+      scope =>
+        layer.build(scope).flatMap(r => self.provideEnvironment(r))
     }
 
   /**
@@ -2785,7 +2786,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def acquireReleaseExit[R, E, A](acquire: ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R with Scope, E, A] =
-    ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerWith(exit => release(a, exit))))
+    ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
   /**
    * A variant of `acquireRelease` that allows the `acquire` workflow to be
@@ -2805,10 +2806,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `release` workflow to depend on the `Exit` value specified when the scope
    * is closed.
    */
-  def acquireReleaseExitInterruptible[R, E, A](acquire: ZIO[R, E, A])(
+  def acquireReleaseInterruptibleExit[R, E, A](acquire: ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R, Nothing, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
-    acquire.ensuring(ZIO.addFinalizerWith(release))
+    acquire.ensuring(ZIO.addFinalizerExit(release))
 
   /**
    * When this effect represents acquisition of a resource (for example, opening
@@ -2896,19 +2897,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * to be run when the scope is closed.
    */
   def addFinalizer[R](finalizer: URIO[R, Any])(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
-    addFinalizerWith(_ => finalizer)
+    addFinalizerExit(_ => finalizer)
 
   /**
    * A more powerful variant of `addFinalizer` that allows the finalizer to
    * depend on the `Exit` value that the scope is closed with.
    */
-  def addFinalizerWith[R](
+  def addFinalizerExit[R](
     finalizer: Exit[Any, Any] => URIO[R, Any]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
     for {
       environment <- ZIO.environment[R]
       scope       <- ZIO.scope
-      _           <- scope.addFinalizer(exit => finalizer(exit).provideEnvironment(environment))
+      _           <- scope.addFinalizerExit(exit => finalizer(exit).provideEnvironment(environment))
     } yield ()
 
   /**
@@ -4926,7 +4927,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       for {
         outerScope <- ZIO.scope
         innerScope <- Scope.parallel
-        _          <- outerScope.addFinalizer(innerScope.close)
+        _          <- outerScope.addFinalizerExit(innerScope.close)
         a          <- restore(innerScope.use[R](zio))
       } yield a
     }
@@ -6506,7 +6507,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val right: ZIO[R, ER, B],
     val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
     val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
-    // val scope: Option[FiberScope],
     val trace: ZTraceElement
   ) extends ZIO[R, E, C] {
     def unsafeLog: () => String =

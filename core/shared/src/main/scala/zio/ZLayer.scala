@@ -3955,8 +3955,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * interruption. This can be used to close a scope when providing a layer to a
    * workflow.
    */
-  val scope: ZLayer[Any, Nothing, Scope] =
-    ZLayer.Scoped[Any, Nothing, Scope](
+  val scope: ZLayer[Any, Nothing, Scope.Closeable] =
+    ZLayer.Scoped[Any, Nothing, Scope.Closeable](
       ZIO
         .acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit))(ZTraceElement.empty)
         .map(ZEnvironment(_))(ZTraceElement.empty)
@@ -4070,7 +4070,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                     val cached: ZIO[Any, E, ZEnvironment[B]] = acquire
                       .asInstanceOf[IO[E, ZEnvironment[B]]]
                       .onExit {
-                        case Exit.Success(_) => scope.addFinalizer(release)
+                        case Exit.Success(_) => scope.addFinalizerExit(release)
                         case Exit.Failure(_) => UIO.unit
                       }
 
@@ -4105,7 +4105,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                                   }
                                              _ <- observers.update(_ + 1)
                                              outerFinalizer <-
-                                               outerScope.addFinalizer(e => finalizerRef.get.flatMap(_.apply(e)))
+                                               outerScope.addFinalizerExit(e => finalizerRef.get.flatMap(_.apply(e)))
                                              _ <- promise.succeed(b)
                                            } yield b
                                        }

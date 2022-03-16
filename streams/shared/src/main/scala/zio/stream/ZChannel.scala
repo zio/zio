@@ -1838,7 +1838,7 @@ object ZChannel {
     def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone, A](zio: => ZIO[Scope with Env, OutErr, A])(
       use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
     )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope, OutElem, OutDone] {
+      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope.Closeable, OutElem, OutDone] {
         Scope.make
       } { (scope, exit) =>
         scope.close(exit)

@@ -343,7 +343,7 @@ object ZHub {
   private def unsafeMakeHub[A](
     hub: internal.Hub[A],
     subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
-    scope: Scope,
+    scope: Scope.Closeable,
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
@@ -392,7 +392,7 @@ object ZHub {
       def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]] =
         ZIO.acquireRelease {
           makeSubscription(hub, subscribers, strategy).tap { dequeue =>
-            scope.addFinalizer(_ => dequeue.shutdown)
+            scope.addFinalizer(dequeue.shutdown)
           }
         } { dequeue =>
           dequeue.shutdown

@@ -7,7 +7,7 @@ object ScopeSpec extends ZIOBaseSpec {
   def resource(id: Int)(ref: Ref[Chunk[Action]]): ZIO[Scope, Nothing, Int] =
     ZIO
       .uninterruptible(ref.update(_ :+ Action.Acquire(id)).as(id))
-      .ensuring(Scope.addFinalizer(_ => ref.update(_ :+ Action.Release(id))))
+      .ensuring(Scope.addFinalizer(ref.update(_ :+ Action.Release(id))))
 
   def spec = suite("ScopeSpec")(
     test("basic example") {
