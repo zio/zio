@@ -619,6 +619,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   /**
+   * Returns a new workflow that will not supervise any fibers forked by this
+   * workflow.
+   */
+  final def daemonChildren(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.suspendSucceed(new ZIO.OverrideForkScope(self, Some(FiberScope.global), trace))
+
+  /**
    * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
@@ -1523,13 +1530,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def provideSomeLayer[R0]: ZIO.ProvideSomeLayer[R0, R, E, A] =
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
-
-  /**
-   * Returns a new effect that will utilize the default scope (fiber scope) to
-   * supervise any fibers forked within the original effect.
-   */
-  final def resetForkScope(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    new ZIO.OverrideForkScope(self, None, trace)
 
   /**
    * Returns an effect that races this effect with the specified effect,

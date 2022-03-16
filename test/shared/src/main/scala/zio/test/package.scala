@@ -165,7 +165,7 @@ package object test extends CompileVariants {
     ): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
-        // .overrideForkScope(ZScope.global)
+        .daemonChildren
         .ensuringChildren { children =>
           ZIO.foreach(children) { child =>
             val warning =
