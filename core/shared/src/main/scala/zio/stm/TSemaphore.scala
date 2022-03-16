@@ -121,7 +121,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
-    ZIO.acquireReleaseInterruptible(acquireN(n).commit)(release.commit)
+    ZIO.acquireReleaseInterruptible(acquireN(n).commit)(releaseN(n).commit)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")

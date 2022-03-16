@@ -1004,7 +1004,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask { restore =>
       restore(self).forkDaemon.tap(fiber => scope.addFinalizer(_ => fiber.interrupt))
     }
-    
 
   /**
    * Forks the effect into a new fiber attached to the global scope. Because the
