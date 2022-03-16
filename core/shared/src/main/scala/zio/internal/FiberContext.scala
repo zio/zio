@@ -647,17 +647,23 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case executing @ Executing(status, _, _, _, CancelerState.Empty, _) =>
+      case executing @ Executing(Status.Running(interrupting), _, _, _, CancelerState.Empty, _) =>
         val asyncTrace = trace
 
         val newStatus =
-          Status.Suspended(status, unsafeIsInterruptible() && !unsafeIsInterrupting(), epoch, blockingOn, asyncTrace)
+          Status.Suspended(
+            interrupting,
+            unsafeIsInterruptible() && !unsafeIsInterrupting(),
+            epoch,
+            blockingOn,
+            asyncTrace
+          )
 
         val newState = executing.copy(status = newStatus, asyncCanceler = CancelerState.Pending)
 
         if (!state.compareAndSet(oldState, newState)) unsafeEnterAsync(epoch, register, blockingOn)
 
-      case _ =>
+      case _ => throw new IllegalStateException(s"Fiber $fiberId is not running")
     }
   }
 
@@ -697,9 +703,10 @@ private[zio] final class FiberContext[E, A](
     val oldState = state.get
 
     oldState match {
-      case executing @ Executing(Status.Suspended(status, _, oldEpoch, _, _), _, _, _, _, _) if epoch == oldEpoch =>
+      case executing @ Executing(Status.Suspended(interrupting, _, oldEpoch, _, _), _, _, _, _, _)
+          if epoch == oldEpoch =>
         val newState =
-          executing.copy(status = status, asyncCanceler = CancelerState.Empty)
+          executing.copy(status = Status.Running(interrupting), asyncCanceler = CancelerState.Empty)
 
         if (!state.compareAndSet(oldState, newState)) unsafeExitAsync(epoch)
         else true
@@ -784,7 +791,7 @@ private[zio] final class FiberContext[E, A](
             ) =>
           val newState =
             executing.copy(
-              status = oldStatus.withInterrupting(true),
+              status = Status.Running(true),
               interruptors = interruptors + fiberId,
               asyncCanceler = CancelerState.Empty
             )
