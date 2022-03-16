@@ -5148,7 +5148,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the current scope and uses it to perform the specified workflow.
    */
   def scopeWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
-    ZIO.serviceWithZIO(f)
+    ZIO.serviceWithZIO[Scope](f)
 
   /**
    * Sets the `FiberRef` values for the fiber running this effect to the values
