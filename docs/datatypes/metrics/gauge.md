@@ -11,29 +11,7 @@ A gauge is a named variable of type _Double_ that can change over time. It can e
 
 ## API
 
-**`setGauge`** — Create a gauge that can be set to absolute values. It can be applied to effects yielding a Double
-
-```scala
-def setGauge(name: String, tags: MetricLabel*): Gauge[Double]
-```
-
-**`setGaugeWith`** — Create a gauge that can be set to absolute values. It can be applied to effects producing a value of type `A`. Given the effect produces `v: A` the gauge will be set to `f(v)` upon successful execution of the effect.
-
-```scala
-def setGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A]
-```
-
-**`adjustGauge`** — Create a gauge that can be set relative to its previous value. It can be applied to effects yielding a _Double_.
-
-```scala
-def adjustGauge(name: String, tags: MetricLabel*): Gauge[Double]
-```
-
-**`adjustGaugeWith`** — Create a gauge that can be set relative to its previous value. It can be applied to effects producing a value of type `A`. Given the effect produces `v: A` the gauge will be modified by `_ + f(v)` upon successful execution of the effect.
-
-```scala
-def adjustGaugeWith[A](name: String, tags: MetricLabel*)(f: A => Double): Gauge[A]
-```
+TODO
 
 ## Use Case
 
@@ -50,24 +28,18 @@ Create a gauge that can be set to absolute values, it can be applied to effects 
 
 ```scala mdoc:silent:nest
 import zio._
-val absoluteGuage = ZIOMetric.setGauge("setGauge")
-```
-
-Create a gauge that can be set relative to its current value, it can be applied to effects yielding a `Double`:
-
-```scala mdoc:silent:nest
-val relativeGauge = ZIOMetric.adjustGauge("adjustGauge")
+import zio.metrics._
+val absoluteGauge = ZIOMetric.gauge("setGauge")
 ```
 
 Now we can apply these gauges to effects having an output type `Double`. Note that we can instrument an effect with any number of aspects if the type constraints are satisfied:
 
 ```scala mdoc:invisible
-val countAll = ZIOMetric.count("countAll")
+val countAll = ZIOMetric.counter("countAll").fromConst(1)
 ```
 
 ```scala mdoc:silent:nest
 for {
-  _ <- Random.nextDoubleBetween(0.0d, 100.0d) @@ absoluteGuage @@ countAll
-  _ <- Random.nextDoubleBetween(-50d, 50d) @@ relativeGauge @@ countAll
+  _ <- Random.nextDoubleBetween(0.0d, 100.0d) @@ absoluteGauge @@ countAll
 } yield ()
 ```
