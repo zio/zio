@@ -67,25 +67,8 @@ JVM Metrics are collection of the following ZIO services:
 
 We can access any of them from the environment and call the `collectMetrics` operation:
 
-```scala mdoc:compile-only
-import zio._
-import zio.metrics.jvm.Thread
-import zio.metrics.{MetricClient, MetricKey}
-
-object JvmMetricsExample extends ZIOAppDefault {
-  val myApp =
-    for {
-      _ <- Console.printLine("Collecting JVM Threads metrics ...")
-      _ <- ZIO.service[Thread].flatMap(_.collectMetrics.useNow)
-      _ <- Console.printLine(s"Current thread count of the JVM: " +
-        MetricClient.unsafeState(MetricKey.Gauge("jvm_threads_current")))
-    } yield ()
-
-  def run =
-    myApp
-      .schedule(Schedule.fixed(10.seconds))
-      .provideCustom(Thread.live)
-}
+```scala
+TODO
 ```
 
 This method of collecting metrics is not idiomatic. It's for educational purposes or rare cases where we need to gather metrics within our main logic. In most cases, [we collect metrics without involving the core application logic](#collecting-as-a-sidecar-to-a-zio-application).
@@ -94,30 +77,6 @@ This method of collecting metrics is not idiomatic. It's for educational purpose
 
 ZIO JVM metrics have built-in applications that collect the JVM metrics. They can be composed with other ZIO applications as a _sidecar_. By doing so, we are able to collect JVM metrics without modifying our main ZIO application. They will be executed as a daemon alongside the main app:
 
-```scala mdoc:compile-only
-import zio._
-import zio.metrics.MetricClient
-import zio.metrics.jvm.DefaultJvmMetrics
-
-object MainApp extends ZIOAppDefault {
-  val myAppLogic =
-    for {
-      _ <- Console.printLine("starting the main logic ...")
-      _ <- Console.printLine("running a time consuming logic").delay(30.seconds)
-      _ <- Console.printLine("finished my job!")
-    } yield ()
-
-  val printMetrics =
-    Console.printLine(MetricClient.unsafeStates)
-            .schedule(Schedule.fixed(10.seconds))
-
-  def run =
-    for {
-      main    <- myAppLogic.fork
-      metrics <- printMetrics.fork
-      _       <- (main <*> metrics).join
-    } yield ()
-}
-
-object MainAppWithJvmMetrics extends ZIOApp.Proxy(MainApp <> DefaultJvmMetrics.app)
+```scala
+TODO
 ```

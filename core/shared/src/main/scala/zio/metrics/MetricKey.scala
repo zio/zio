@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 John A. De Goes and the ZIO Contributors
+ * Copyright 2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,34 +21,83 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based
- * on a combination of the metric type, the name and labels associated with the
+ * on a combination of the metric type, the name and tags associated with the
  * metric, and any other information to describe a a metric, such as the
  * boundaries of a histogram. In this way, it is impossible to ever create
- * metrics with conflicting keys.
+ * different metrics with conflicting keys.
  */
-sealed trait MetricKey
+final case class MetricKey[+Type] private (
+  name: String,
+  keyType: Type,
+  tags: Set[MetricLabel] = Set.empty
+) { self =>
 
+  /**
+   * Returns a new `MetricKey` with the specified tag appended.
+   */
+  def tagged(key: String, value: String): MetricKey[Type] =
+    tagged(Set(MetricLabel(key, value)))
+
+  /**
+   * Returns a new `MetricKey` with the specified tags appended.
+   */
+  def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): MetricKey[Type] =
+    tagged(Set(extraTag) ++ extraTags.toSet)
+
+  /**
+   * Returns a new `MetricKey` with the specified tags appended.
+   */
+  def tagged(extraTags: Set[MetricLabel]): MetricKey[Type] =
+    if (extraTags.isEmpty) self else copy(tags = tags ++ extraTags)
+}
 object MetricKey {
-  final case class Counter(name: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey
+  type Untyped = MetricKey[Any]
 
-  final case class Gauge(name: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey
+  type Counter   = MetricKey[MetricKeyType.Counter]
+  type Gauge     = MetricKey[MetricKeyType.Gauge]
+  type Histogram = MetricKey[MetricKeyType.Histogram]
+  type Summary   = MetricKey[MetricKeyType.Summary]
+  type Frequency = MetricKey[MetricKeyType.Frequency]
 
-  final case class Histogram(
+  import MetricKeyType.Histogram.Boundaries
+
+  /**
+   * Creates a metric key for a counter, with the specified name.
+   */
+  def counter(name: String): Counter =
+    MetricKey(name, MetricKeyType.Counter)
+
+  /**
+   * Creates a metric key for a categorical frequency table, with the specified
+   * name.
+   */
+  def frequency(name: String): Frequency =
+    MetricKey(name, MetricKeyType.Frequency)
+
+  /**
+   * Creates a metric key for a gauge, with the specified name.
+   */
+  def gauge(name: String): Gauge =
+    MetricKey(name, MetricKeyType.Gauge)
+
+  /**
+   * Creates a metric key for a histogram, with the specified name.
+   */
+  def histogram(
     name: String,
-    boundaries: ZIOMetric.Histogram.Boundaries,
-    tags: Chunk[MetricLabel] = Chunk.empty
-  ) extends MetricKey
+    boundaries: Boundaries
+  ): Histogram =
+    MetricKey(name, MetricKeyType.Histogram(boundaries))
 
-  final case class Summary(
+  /**
+   * Creates a metric key for a summary, with the specified name.
+   */
+  def summary(
     name: String,
     maxAge: Duration,
     maxSize: Int,
     error: Double,
-    quantiles: Chunk[Double],
-    tags: Chunk[MetricLabel] = Chunk.empty
-  ) extends MetricKey
-
-  final case class SetCount(name: String, setTag: String, tags: Chunk[MetricLabel] = Chunk.empty) extends MetricKey {
-    def counterKey(word: String): MetricKey.Counter = MetricKey.Counter(name, Chunk(MetricLabel(setTag, word)) ++ tags)
-  }
+    quantiles: Chunk[Double]
+  ): Summary =
+    MetricKey(name, MetricKeyType.Summary(maxAge, maxSize, error, quantiles))
 }

@@ -45,8 +45,8 @@ private[zio] final class FiberContext[E, A](
   import FiberContext._
   import FiberState._
 
-  if (trackMetrics) fibersStarted.unsafeIncrement()
-  if (trackMetrics) fiberForkLocations.unsafeObserve(location.toString)
+  if (trackMetrics) fibersStarted.unsafeUpdate(1)
+  if (trackMetrics) fiberForkLocations.unsafeUpdate(location.toString)
 
   // Accessed from multiple threads:
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
@@ -1103,16 +1103,16 @@ private[zio] final class FiberContext[E, A](
 
             val lifetime = endTimeSeconds - startTimeSeconds
 
-            if (trackMetrics) fiberLifetimes.unsafeObserve(lifetime.toDouble)
+            if (trackMetrics) fiberLifetimes.unsafeUpdate(lifetime.toDouble)
 
             newExit match {
-              case Exit.Success(_) => if (trackMetrics) fiberSuccesses.unsafeIncrement()
+              case Exit.Success(_) => if (trackMetrics) fiberSuccesses.unsafeUpdate(1)
 
               case Exit.Failure(cause) =>
-                if (trackMetrics) fiberFailures.unsafeIncrement()
+                if (trackMetrics) fiberFailures.unsafeUpdate(1)
 
                 cause.fold[Unit](
-                  fiberFailureCauses.unsafeObserve("<empty>"),
+                  fiberFailureCauses.unsafeUpdate("<empty>"),
                   (failure, _) => {
                     observeFailure(failure.getClass())
                   },
@@ -1218,7 +1218,7 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private def observeFailure(clzz: Class[_]): Unit =
-    if (trackMetrics) fiberFailureCauses.unsafeObserve(clzz.getName)
+    if (trackMetrics) fiberFailureCauses.unsafeUpdate(clzz.getName)
 
   private[this] class Finalizer(val finalizer: UIO[Any]) extends ErasedTracedCont {
     def apply(v: Any): Erased = {
@@ -1290,17 +1290,17 @@ private[zio] object FiberContext {
   val catastrophicFailure: AtomicBoolean =
     new AtomicBoolean(false)
 
-  import zio.ZIOMetric
+  import zio.metrics._
 
-  lazy val fiberFailureCauses = ZIOMetric.occurrences("zio_fiber_failure_causes", "class").setCount
-  lazy val fiberForkLocations = ZIOMetric.occurrences("zio_fiber_fork", "location").setCount
+  lazy val fiberFailureCauses = ZIOMetric.frequency("zio_fiber_failure_causes")
+  lazy val fiberForkLocations = ZIOMetric.frequency("zio_fiber_fork_locations")
 
-  lazy val fibersStarted  = ZIOMetric.count("zio_fiber_started").counter
-  lazy val fiberSuccesses = ZIOMetric.count("zio_fiber_successes").counter
-  lazy val fiberFailures  = ZIOMetric.count("zio_fiber_failures").counter
-  lazy val fiberLifetimes = ZIOMetric.observeHistogram("zio_fiber_lifetimes", fiberLifetimeBoundaries).histogram
+  lazy val fibersStarted  = ZIOMetric.counter("zio_fiber_started")
+  lazy val fiberSuccesses = ZIOMetric.counter("zio_fiber_successes")
+  lazy val fiberFailures  = ZIOMetric.counter("zio_fiber_failures")
+  lazy val fiberLifetimes = ZIOMetric.histogram("zio_fiber_lifetimes", fiberLifetimeBoundaries)
 
-  lazy val fiberLifetimeBoundaries = ZIOMetric.Histogram.Boundaries.exponential(1.0, 2.0, 100)
+  lazy val fiberLifetimeBoundaries = MetricKeyType.Histogram.Boundaries.exponential(1.0, 2.0, 100)
 
   val combineUnit = (a: Unit, b: Unit) => ()
   val leftUnit    = (a: Unit, b: Any) => a

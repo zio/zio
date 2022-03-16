@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio
+package zio.metrics
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 

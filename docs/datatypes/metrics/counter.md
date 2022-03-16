@@ -9,29 +9,7 @@ With a counter, the quantity of interest is the cumulative value over time, as o
 
 ## API
 
-**`count`** — Create a counter which is incremented by 1 every time it is executed successfully. This can be applied to any effect.
-
-```scala
-def count(name: String, tags: MetricLabel*): Counter[Any]
-```
-
-**`countErrors`** — A counter which counts the number of failed executions of the effect it is applied to. This can be applied to any effect.
-
-```scala
-def countErrors(name: String, tags: MetricLabel*): Counter[Any]
-```
-
-**`countValue`** — This counter can be applied to effects having an output type of Double. The counter will be increased by the value the effect produces.
-
-```scala
-def countValue(name: String, tags: MetricLabel*): Counter[Double]
-```
-
-**`countValueWith`** — A counter that can be applied to effects having the result type `A`. Given the effect produces `v: A`, the counter will be increased by `f(v)`.
-
-```scala
-def countValueWith[A](name: String, tags: MetricLabel*)(f: A => Double): Counter[A]
-```
+TODO
 
 ## Use Cases
 
@@ -52,7 +30,8 @@ Create a counter named `countAll` which is incremented by `1` every time it is i
 
 ```scala mdoc:silent:nest
 import zio._
-val countAll = ZIOMetric.count("countAll")
+import zio.metrics._
+val countAll = ZIOMetric.counter("countAll").fromConst(1)
 ```
 
 Now the counter can be applied to any effect. Note, that the same aspect can be applied to more than one effect. In the example we would count the sum of executions of both effects in the for comprehension:
@@ -67,17 +46,17 @@ val myApp = for {
 Or we can apply them in recurrence situations:
 
 ```scala mdoc:silent:nest
-(zio.Random.nextIntBounded(10) @@ ZIOMetric.count("request_counts")).repeatUntil(_ == 7)
+(zio.Random.nextLongBounded(10) @@ ZIOMetric.counter("request_counts")).repeatUntil(_ == 7)
 ```
 
 Create a counter named `countBytes` that can be applied to effects having the output type `Double`:
 
 ```scala mdoc:silent:nest
-val countBytes = ZIOMetric.countValue("countBytes")
+val countBytes = ZIOMetric.counter("countBytes")
 ```
 
 Now we can apply it to effects producing `Double` (in a real application the value might be the number of bytes read from a stream or something similar):
 
 ```scala mdoc:silent:nest
-val myApp = Random.nextDoubleBetween(0.0d, 100.0d) @@ countBytes
+val myApp = Random.nextLongBetween(0, 100) @@ countBytes
 ```

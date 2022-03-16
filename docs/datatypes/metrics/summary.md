@@ -24,31 +24,7 @@ The ZIO Metrics API also allows summaries to be configured with an error margin 
 
 ## API
 
-**`observeSummary`** — A metric aspect that adds a value to a summary each time the effect it is applied to succeeds. This aspect can be applied to effects producing a `Double`.
-
-```scala
-def observeSummary(
-  name: String,
-  maxAge: Duration,
-  maxSize: Int,
-  error: Double,
-  quantiles: Chunk[Double],
-  tags: MetricLabel*
-): Summary[Double]
-```
-
-**`observeSummaryWith`** — A metric aspect that adds a value to a summary each time the effect it is applied to succeeds, using the specified function to transform the value returned by the effect to the value to add to the summary.
-
-```scala
-def observeSummaryWith[A](
-  name: String,
-  maxAge: Duration,
-  maxSize: Int,
-  error: Double,
-  quantiles: Chunk[Double],
-  tags: MetricLabel*
-)(f: A => Double): Summary[A]
-```
+TODO
 
 ## Use Cases
 
@@ -61,20 +37,12 @@ Like [histograms](histogram.md), summaries are used for _monitoring latencies_, 
 
 Create a summary that can hold `100` samples, the max age of the samples is `1 day` and the error margin is `3%`. The summary should report the `10%`, `50%` and `90%` Quantile. It can be applied to effects yielding an `Int`:
 
-```scala mdoc:silent:nest
-import zio._
-val summary =
-  ZIOMetric.observeSummaryWith[Int](
-    name = "mySummary", 
-    maxAge = 1.day,
-    maxSize = 100,
-    error = 0.03d, 
-    quantiles = Chunk(0.1, 0.5, 0.9)
-  )(_.toDouble)
-``` 
+```scala
+TODO
+```
 
 Now we can apply this aspect to an effect producing an `Int`:
 
-```scala mdoc:silent:nest
-Random.nextIntBetween(100, 500) @@ summary
+```scala
+TODO
 ```
