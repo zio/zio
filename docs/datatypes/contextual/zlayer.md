@@ -51,7 +51,7 @@ There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.succeed` to create a layer from an existing service
 - `ZLayer.succeedEnvironment` to create a layer from a value that's one or more services
 - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
-- `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
+- `ZLayer.fromZIO` to lift a `ZIO` effect to a layer requiring the effect environment
 - `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `Scope`.
 - `ZLayer.identity` to express the requirement for a dependency
 - `ZIO#toLayer` to construct a layer from an effect
@@ -112,8 +112,8 @@ Some components of our applications need to be scoped, meaning they undergo a re
 import zio._
 import scala.io.BufferedSource
 
-val fileLayer: ZLayer[Scope, Throwable, BufferedSource] =
-  ZLayer {
+val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
+  ZLayer.scoped {
     ZIO.fromAutoCloseable(
       ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     )
@@ -171,8 +171,8 @@ def scoped: ZIO[Console with Scope, Throwable, UserRepository] =
 We can convert that to `ZLayer` with `ZLayer.apply`:
 
 ```scala mdoc:nest
-val usersLayer : ZLayer[Console with Scope, Throwable, UserRepository] =
-  ZLayer(scoped)
+val usersLayer : ZLayer[Console, Throwable, UserRepository] =
+  ZLayer.scoped(scoped)
 ```
 
 ```scala mdoc:invisible:reset
@@ -1190,7 +1190,7 @@ object Database {
   def connect: ZIO[Any, Throwable, Database] = ???
 }
 
-val database: ZLayer[Scope, Throwable, Database] =
+val database: ZLayer[Any, Throwable, Database] =
   ZLayer.fromAcquireRelease(
     Database.connect.debug("connecting to the database")
   )(_.close)

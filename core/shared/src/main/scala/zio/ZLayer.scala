@@ -4012,15 +4012,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     Suspend(() => self)
   }
 
-  // final class ScopedPartiallyApplied[RIn](private val dummy: Boolean = true) {
-  //   def apply[E, ROut](layer: ZLayer[Scope with RIn, E, ROut])(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] = {
-  //     val scope = ZLayer.Scoped[Any, Nothing, Scope](
-  //       ZIO.acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit)).map(ZEnvironment(_))
-  //     )
-  //     ZLayer.environment[RIn] ++ scope >>> layer
-  //   }
-  // }
-
   implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
