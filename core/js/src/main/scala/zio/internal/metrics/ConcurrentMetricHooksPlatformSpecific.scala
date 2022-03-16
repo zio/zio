@@ -19,9 +19,6 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 
-import java.util.concurrent.atomic._
-import java.util.concurrent.ConcurrentHashMap
-
 class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     var sum = 0.0

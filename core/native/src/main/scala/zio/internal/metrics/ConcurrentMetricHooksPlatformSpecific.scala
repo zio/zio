@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package zio.internal.metrics
 
 import zio._
@@ -20,23 +21,23 @@ import zio.metrics._
 
 class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
-    val adder = new DoubleAdder
+    var sum = 0.0
 
-    MetricHook(v => adder.add(v), () => MetricState.Counter(adder.sum()))
+    MetricHook(v => sum += v, () => MetricState.Counter(sum))
   }
 
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge = {
-    val ref: AtomicReference[Double] = new AtomicReference[Double](startAt)
+    var value = startAt
 
-    MetricHook(v => ref.set(v), () => MetricState.Gauge(ref.get()))
+    MetricHook(v => value = v, () => MetricState.Gauge(value))
   }
 
   def histogram(key: MetricKey.Histogram): MetricHook.Histogram = {
     val bounds     = key.keyType.boundaries.values
-    val values     = new AtomicLongArray(bounds.length + 1)
+    val values     = Array.ofDim[Long](bounds.length + 1)
     val boundaries = Array.ofDim[Double](bounds.length)
-    val count      = new LongAdder
-    val sum        = new DoubleAdder
+    var count      = 0L
+    var sum        = 0.0
     val size       = bounds.length
 
     bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
@@ -55,9 +56,9 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
           if (value <= boundaries(from)) to = from else from = to
         }
       }
-      values.getAndIncrement(from)
-      count.increment()
-      sum.add(value)
+      values(from) = values(from) + 1
+      count += 1
+      sum += value
       ()
     }
 
@@ -67,7 +68,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       var cumulated = 0L
       while (i != size) {
         val boundary = boundaries(i)
-        val value    = values.get(i)
+        val value    = values(i)
         cumulated += value
         builder += boundary -> cumulated
         i += 1
@@ -75,24 +76,22 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       builder.result()
     }
 
-    MetricHook(update, () => MetricState.Histogram(getBuckets(), count.longValue(), sum.doubleValue()))
+    MetricHook(update, () => MetricState.Histogram(getBuckets(), count, sum))
   }
 
   def summary(key: MetricKey.Summary): MetricHook.Summary = {
     import key.keyType.{maxSize, maxAge, error, quantiles}
 
-    val values = new AtomicReferenceArray[(java.time.Instant, Double)](maxSize)
-    val head   = new AtomicInteger(0)
-    val count  = new LongAdder
-    val sum    = new DoubleAdder
+    val values = Array.ofDim[(java.time.Instant, Double)](maxSize)
+    var head   = 0
+    var count  = 0L
+    var sum    = 0.0
 
     val sortedQuantiles: Chunk[Double] = quantiles.sorted(DoubleOrdering)
 
-    def getCount(): Long =
-      count.longValue
+    def getCount(): Long = count
 
-    def getSum(): Double =
-      sum.doubleValue
+    def getSum(): Double = sum
 
     // Just before the Snapshot we filter out all values older than maxAge
     def snapshot(now: java.time.Instant): Chunk[(Double, Option[Double])] = {
@@ -106,7 +105,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       // The order does not matter because it gets sorted before passing to calculateQuantiles.
 
       for (idx <- 0 until maxSize) {
-        val item = values.get(idx)
+        val item = values(idx)
         if (item != null) {
           val (t, v) = item
           val age    = Duration.fromInterval(t, now)
@@ -123,12 +122,13 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     // While Observing we cut off the first sample if we have already maxSize samples
     def observe(value: Double, t: java.time.Instant): Unit = {
       if (maxSize > 0) {
-        val target = head.incrementAndGet() % maxSize
-        values.set(target, (t, value))
+        head = head + 1 // TODO: Should `head` start at -1???
+        val target = head % maxSize
+        values(target) = (t, value)
       }
 
-      count.increment()
-      sum.add(value)
+      count += 1
+      sum += value
       ()
     }
 
@@ -145,18 +145,14 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   }
 
   def frequency(key: MetricKey.Frequency): MetricHook.Frequency = {
-    val count  = new LongAdder
-    val values = new ConcurrentHashMap[String, LongAdder]
+    var count  = 0L
+    val values = new java.util.HashMap[String, Long]()
 
     val update = (word: String) => {
-      count.increment()
-      var slot = values.get(word)
-      if (slot eq null) {
-        val cnt = new LongAdder
-        values.putIfAbsent(word, cnt)
-        slot = values.get(word)
-      }
-      slot.increment()
+      count += 1
+      var slotCount = Option(values.get(word)).getOrElse(0L)
+      values.put(word, slotCount + 1)
+      ()
     }
 
     def snapshot(): Map[String, Long] = {
