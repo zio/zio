@@ -148,19 +148,37 @@ val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
 ```scala mdoc:compile-only
 import zio._
 
-val optionalValue: Option[Int] = ???
+def parseInt(input: String): Option[Int] = input.toIntOption
 
-// If the optionalValue is not defined it fails with Throwable error type: 
+// If the optional value is not defined it fails with Throwable error type: 
 val r1: ZIO[Any, Throwable, Int] =
-  ZIO.getOrFail(optionalValue)
+  ZIO.getOrFail(parseInt("1.2"))
 
-// If the optionalValue is not defined it fails with Unit error type:
-val r2: IO[Unit, Int] =
-  ZIO.getOrFailUnit(optionalValue)
+// If the optional value is not defined it fails with Unit error type:
+val r2: ZIO[Any, Unit, Int] =
+  ZIO.getOrFailUnit(parseInt("1.2"))
 
-// If the optionalValue is not defined it fail with given error type:
-val r3: IO[NoSuchElementException, Int] =
-  ZIO.getOrFailWith(new NoSuchElementException("None.get"))(optionalValue)
+// If the optional value is not defined it fail with given error type:
+val r3: ZIO[Any, NumberFormatException, Int] =
+  ZIO.getOrFailWith(new NumberFormatException("invalid input"))(parseInt("1.2"))
+```
+
+4. **`ZIO.nonOrFail`**— It lifts an option into a ZIO value. If the option is empty it succeeds with `Unit` and if the option is defined it fails with the content of the optional value:
+
+```scala mdoc:compile-only
+import zio._ 
+
+val optionalValue: Option[String] = ???
+
+// If the optional value is empty it succeeds with Unit
+// If the optional value is defined it will fail with the content of the optional value
+val r1: ZIO[Any, String, Unit] = 
+  ZIO.noneOrFail(optionalValue)
+
+// If the optional value is empty it succeeds with Unit
+// If the optional value is defined, it will fail by applying the error function to it:
+val r2: ZIO[Any, NumberFormatException, Unit] = 
+  ZIO.noneOrFailWith(optionalValue)(e => new NumberFormatException(e))
 ```
 
 #### Either
