@@ -99,6 +99,20 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     ZIO.serviceWithZIO[Scope](build)
 
   /**
+   * Builds a layer into a ZIO value. Any resources associated with this layer
+   * will be released when the specified scope is closed unless their scope has
+   * been extended. This allows building layers where the lifetime of some of
+   * the services output by the layer exceed the lifetime of the effect the
+   * layer is provided to.
+   */
+  final def build(scope: Scope)(implicit trace: ZTraceElement): ZIO[RIn, E, ZEnvironment[ROut]] =
+    for {
+      memoMap <- ZLayer.MemoMap.make
+      run     <- self.scope(scope)
+      value   <- run(memoMap)
+    } yield value
+
+  /**
    * Recovers from all errors.
    */
   final def catchAll[RIn1 <: RIn, E1, ROut1 >: ROut](
@@ -304,13 +318,6 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     that: ZLayer[RIn2, E1, ROut2]
   )(f: (ZEnvironment[ROut], ZEnvironment[ROut2]) => ZEnvironment[ROut3]): ZLayer[RIn with RIn2, E1, ROut3] =
     ZLayer.ZipWithPar(self, that, f)
-
-  private final def build(scope: Scope)(implicit trace: ZTraceElement): ZIO[RIn, E, ZEnvironment[ROut]] =
-    for {
-      memoMap <- ZLayer.MemoMap.make
-      run     <- self.scope(scope)
-      value   <- run(memoMap)
-    } yield value
 
   /**
    * Returns whether this layer is a fresh version that will not be shared.
