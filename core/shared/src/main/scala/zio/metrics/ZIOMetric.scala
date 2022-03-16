@@ -255,7 +255,7 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * metric were a counter, the update would increment the method by the
    * provided amount.
    */
-  final def update(in: In)(implicit trace: ZTraceElement): UIO[Unit] =
+  final def update(in: => In)(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.succeed(unsafeUpdate(in, Set.empty))
 
   /**
@@ -300,11 +300,11 @@ object ZIOMetric {
   implicit class CounterSyntax[In](counter: ZIOMetric[MetricKeyType.Counter, In, Any]) {
     def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
 
-    def incrementBy(value: In)(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(value)
+    def incrementBy(value: => In)(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(value)
   }
 
   implicit class GaugeSyntax[In](gauge: ZIOMetric[MetricKeyType.Gauge, In, Any]) {
-    def set(value: In): UIO[Unit] = gauge.update(value)
+    def set(value: => In): UIO[Unit] = gauge.update(value)
   }
 
   def fromMetricKey[Type <: MetricKeyType](
