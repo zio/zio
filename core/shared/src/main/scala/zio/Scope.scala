@@ -82,6 +82,15 @@ object Scope {
     ZIO.serviceWithZIO(_.addFinalizerExit(finalizer))
 
   /**
+   * A layer that constructs a scope and closes it when the workflow the layer
+   * is provided to completes execution, whether by success, failure, or
+   * interruption. This can be used to close a scope when providing a layer to a
+   * workflow.
+   */
+  val default: ZLayer[Any, Nothing, Scope.Closeable] =
+    ZLayer.scope
+
+  /**
    * The global scope which is never closed. Finalizers added to this scope will
    * be immediately discarded and closing this scope has no effect.
    */
@@ -92,15 +101,6 @@ object Scope {
       def close(exit: Exit[Any, Any]): UIO[Unit] =
         ZIO.unit
     }
-
-  /**
-   * A layer that constructs a scope and closes it when the workflow the layer
-   * is provided to completes execution, whether by success, failure, or
-   * interruption. This can be used to close a scope when providing a layer to a
-   * workflow.
-   */
-  def default: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.scope
 
   /**
    * Makes a scope. Finalizers added to this scope will be run sequentially in
@@ -132,12 +132,12 @@ object Scope {
     makeWith(ExecutionStrategy.Parallel)
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
-    final def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
       zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope)))
   }
 
   final class UsePartiallyApplied[R](private val scope: Scope.Closeable) extends AnyVal {
-    final def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    def apply[E, A](zio: ZIO[Scope with R, E, A]): ZIO[R, E, A] =
       scope.extend[R](zio).onExit(scope.close(_))
   }
 
