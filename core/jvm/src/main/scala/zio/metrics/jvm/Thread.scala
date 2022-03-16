@@ -67,19 +67,19 @@ trait Thread extends JvmMetrics {
     threadMXBean: ThreadMXBean
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
-      _ <- ZIO.attempt(threadMXBean.getThreadCount) @@ threadsCurrent
-      _ <- ZIO.attempt(threadMXBean.getDaemonThreadCount) @@ threadsDaemon
-      _ <- ZIO.attempt(threadMXBean.getPeakThreadCount) @@ threadsPeak
-      _ <- ZIO.attempt(threadMXBean.getTotalStartedThreadCount) @@ threadsStartedTotal
-      _ <- ZIO.attempt(
+      _ <- threadsCurrent.set(threadMXBean.getThreadCount)
+      _ <- threadsDaemon.set(threadMXBean.getDaemonThreadCount)
+      _ <- threadsPeak.set(threadMXBean.getPeakThreadCount)
+      _ <- threadsStartedTotal.set(threadMXBean.getTotalStartedThreadCount)
+      _ <- threadsDeadlocked.set(
              Option(threadMXBean.findDeadlockedThreads()).map(_.length).getOrElse(0)
-           ) @@ threadsDeadlocked
-      _ <- ZIO.attempt(
+           )
+      _ <- threadsDeadlockedMonitor.set(
              Option(threadMXBean.findMonitorDeadlockedThreads()).map(_.length).getOrElse(0)
-           ) @@ threadsDeadlockedMonitor
+           )
       threadStateCounts <- getThreadStateCounts(threadMXBean)
       _ <- ZIO.foreachDiscard(threadStateCounts) { case (state, count) =>
-             ZIO.succeed(count) @@ threadsState(state)
+             threadsState(state).set(count)
            }
     } yield ()
 

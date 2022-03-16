@@ -300,7 +300,7 @@ object ZIOMetric {
   implicit class CounterSyntax[In](counter: ZIOMetric[MetricKeyType.Counter, In, Any]) {
     def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
 
-    def incrementBy(value: Int)(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(value))
+    def incrementBy(value: In)(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(value)
   }
 
   implicit class GaugeSyntax[In](gauge: ZIOMetric[MetricKeyType.Gauge, In, Any]) {
