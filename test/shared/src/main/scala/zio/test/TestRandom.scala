@@ -588,7 +588,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearBooleans
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -600,7 +600,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearBytes
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -612,7 +612,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearChars
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -624,7 +624,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearDoubles
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -636,7 +636,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearFloats
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -648,7 +648,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearInts
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -660,7 +660,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearLongs
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -672,7 +672,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearStrings
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -684,7 +684,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.clearUUIDs
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -696,7 +696,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedBooleans(booleans: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -708,7 +708,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedBytes(bytes: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -720,7 +720,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedChars(chars: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -732,7 +732,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedDoubles(doubles: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -744,7 +744,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedFloats(floats: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -756,7 +756,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedInts(ints: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -768,7 +768,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedLongs(longs: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -780,7 +780,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedStrings(strings: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -792,7 +792,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.feedUUIDs(uuids: _*)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
@@ -803,7 +803,7 @@ object TestRandom extends Serializable {
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
       runtimeConfig.services.get[Random] match {
         case testRandom: TestRandom => testRandom.getSeed
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+        case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
       }
     }
 
