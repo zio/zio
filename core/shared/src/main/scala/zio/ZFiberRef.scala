@@ -668,5 +668,5 @@ object ZFiberRef {
     ZFiberRef.unsafeMake(None, a => a, (a, _) => a)
 
   private[zio] val currentEnvironment: FiberRef.Runtime[ZEnvironment[Any]] =
-    ZFiberRef.unsafeMake(ZEnvironment.empty, a => a, (a, _) => a)
+    ZFiberRef.unsafeMake(ZEnvironment.empty)
 }
