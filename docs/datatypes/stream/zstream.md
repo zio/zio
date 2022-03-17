@@ -1432,7 +1432,7 @@ We can broadcast a stream by using `ZStream#broadcast`, it returns a scoped list
 In the following example, we are broadcasting stream of random numbers to the two downstream streams. One of them is responsible to compute the maximum number, and the other one does some logging job with additional delay. The upstream stream decreases its speed by the logging stream:
 
 ```scala mdoc:silent:nest
-val stream: ZIO[Console with Random with Clock, IOException, Unit] =
+val stream: ZIO[Any, IOException, Unit] =
   ZIO.scoped {
     ZStream
       .fromIterable(1 to 20)
@@ -1631,7 +1631,7 @@ abstract class ZStream[-R, +E, +O] {
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] = ???
+  )(implicit trace: ZTraceElement): ZStream[R1, E2, B] = ???
 }
 ```
 

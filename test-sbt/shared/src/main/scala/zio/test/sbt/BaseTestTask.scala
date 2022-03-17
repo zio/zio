@@ -13,12 +13,9 @@ import zio.test.{
 import zio.{
   Chunk,
   Clock,
-  Console,
   Layer,
-  Random,
   Runtime,
   Scope,
-  System,
   UIO,
   ULayer,
   ZEnvironment,
@@ -39,7 +36,7 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
-  ): ZIO[TestLogger with Clock, Throwable, Unit] =
+  ): ZIO[TestLogger, Throwable, Unit] =
     for {
       spec   <- spec.runSpec(FilteredSpec(spec.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
@@ -67,7 +64,7 @@ abstract class BaseTestTask(
     val fullLayer: ZLayer[
       Any,
       Error,
-      spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock with Scope
+      spec.Environment with ZIOAppArgs with TestEnvironment with Scope
     ] =
       Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 
@@ -86,7 +83,7 @@ abstract class BaseTestTask(
 
   protected def sbtTestLayer(
     loggers: Array[Logger]
-  ): Layer[Nothing, TestLogger with Clock] =
+  ): Layer[Nothing, TestLogger] =
     ZLayer.succeed[TestLogger](new TestLogger {
       def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore

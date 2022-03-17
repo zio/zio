@@ -231,7 +231,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn with Clock](
+  final def retry[RIn1 <: RIn](
     schedule: Schedule[RIn1, E, Any]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] = {
     import Schedule.Decision._

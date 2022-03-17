@@ -803,10 +803,10 @@ val urls: UIO[Content] =
 
 | Function            | Input Type                                                           | Output Type                            |
 |---------------------|----------------------------------------------------------------------|----------------------------------------|
-| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1 with Clock, E, A]`             |
+| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1, E, A]`             |
 | `retryN`            | `n: Int`                                                             | `ZIO[R, E, A]`                         |
-| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1 with Clock, E1, A1]`           |
-| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Clock, E1, Either[B, A]]` |
+| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1, E1, A1]`           |
+| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1, E1, Either[B, A]]` |
 | `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
 | `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
 | `retryUntilZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
@@ -821,7 +821,7 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails according to the specified policy:
 
 ```scala mdoc:silent
-val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 

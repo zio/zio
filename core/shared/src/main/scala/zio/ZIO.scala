@@ -3179,6 +3179,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f, trace)
 
+  def clock(implicit trace: ZTraceElement): UIO[Clock] =
+    ZIO.runtimeConfig.map(_.services.get[Clock])
+
   /**
    * Evaluate each effect in the structure from left to right, collecting the
    * the successful values and discarding the empty cases. For a parallel

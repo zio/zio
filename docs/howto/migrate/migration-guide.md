@@ -611,7 +611,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: URLayer[Console with Clock, Logging] =
+  val layer: ZLayer[Any, Nothing, Logging] =
     (LoggingLive(_, _)).toLayer[Logging]
 }
 ```

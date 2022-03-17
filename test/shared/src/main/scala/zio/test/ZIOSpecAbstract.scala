@@ -102,7 +102,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     }
 
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock with Scope, Any],
+    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any],
     testArgs: TestArgs,
     sendSummary: URIO[Summary, Unit]
   )(implicit

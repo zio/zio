@@ -111,7 +111,7 @@ sealed class ZTestTask(
 
         val fullLayer: Layer[
           Error,
-          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock with Scope
+          zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope
         ] =
           Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 

@@ -31,7 +31,7 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: Layer[Nothing, TestLogger with Clock] =
+  bootstrap: Layer[Nothing, TestLogger] =
     (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live
 ) { self =>
 
@@ -40,7 +40,7 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: ZSpec[R, E])(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[E]] =
+  def run(spec: ZSpec[R, E])(implicit trace: ZTraceElement): URIO[TestLogger, ExecutedSpec[E]] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, results) =>
       reporter(duration, results).as(results)
     }
@@ -95,6 +95,6 @@ final case class TestRunner[R, E](
 
   private[test] def buildRuntime(implicit
     trace: ZTraceElement
-  ): ZIO[Scope, Nothing, Runtime[TestLogger with Clock]] =
+  ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
     bootstrap.toRuntime(runtimeConfig)
 }

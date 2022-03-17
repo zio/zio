@@ -4603,7 +4603,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             trait A
             lazy val schedule: Schedule[R, Any, A]               = ???
             lazy val actual                                      = ZStream.from(schedule)
-            lazy val expected: ZStream[R with Clock, Nothing, A] = actual
+            lazy val expected: ZStream[R, Nothing, A] = actual
             lazy val _                                           = expected
             assertCompletes
           },

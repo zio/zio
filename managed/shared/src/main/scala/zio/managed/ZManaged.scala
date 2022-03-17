@@ -963,7 +963,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def retry[R1 <: R, S](
     policy: => Schedule[R1, E, S]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1 with Clock, E, A] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E, A] =
     ZManaged(zio.retry(policy))
 
   /**
@@ -1134,7 +1134,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Returns a new effect that executes this one and times the acquisition of
    * the resource.
    */
-  def timed(implicit trace: ZTraceElement): ZManaged[R with Clock, E, (Duration, A)] =
+  def timed(implicit trace: ZTraceElement): ZManaged[R, E, (Duration, A)] =
     ZManaged {
       self.zio.timed.map { case (duration, (fin, a)) =>
         (fin, (duration, a))
@@ -1148,7 +1148,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * action will be run on a new fiber. `Some` will be returned if acquisition
    * and reservation complete in time
    */
-  def timeout(d: => Duration)(implicit trace: ZTraceElement): ZManaged[R with Clock, E, Option[A]] =
+  def timeout(d: => Duration)(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {
