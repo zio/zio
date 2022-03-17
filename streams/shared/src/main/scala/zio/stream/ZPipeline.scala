@@ -281,7 +281,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline from a chunk processing function.
    */
   def fromPush[Env, Err, In, Out](
-    push: => ZManaged[Env, Nothing, Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]]
+    push: => ZIO[Scope with Env, Nothing, Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]]
   )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] = {
 
     def pull(
@@ -297,7 +297,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       )
 
     val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
-      ZChannel.unwrapManaged(push.map(pull))
+      ZChannel.unwrapScoped[Env](push.map(pull))
 
     new ZPipeline(channel)
   }

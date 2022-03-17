@@ -36,12 +36,6 @@ package object internal {
     ZIO.succeedNow(a)
 
   /**
-   * Lifts an eager, pure value into a Managed.
-   */
-  def ZManagedSucceedNow[A](r: A): ZManaged[Any, Nothing, A] =
-    ZManaged.succeedNow(r)
-
-  /**
    * Returns an `STM` effect that succeeds with the specified value.
    */
   def ZSTMSucceedNow[A](a: A): ZSTM[Any, Nothing, A] =

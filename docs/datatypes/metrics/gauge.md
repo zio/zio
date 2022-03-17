@@ -29,13 +29,13 @@ Create a gauge that can be set to absolute values, it can be applied to effects 
 ```scala mdoc:silent:nest
 import zio._
 import zio.metrics._
-val absoluteGauge = ZIOMetric.gauge("setGauge")
+val absoluteGauge = Metric.gauge("setGauge")
 ```
 
 Now we can apply these gauges to effects having an output type `Double`. Note that we can instrument an effect with any number of aspects if the type constraints are satisfied:
 
 ```scala mdoc:invisible
-val countAll = ZIOMetric.counter("countAll").fromConst(1)
+val countAll = Metric.counter("countAll").fromConst(1)
 ```
 
 ```scala mdoc:silent:nest

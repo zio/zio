@@ -129,7 +129,7 @@ the write lock.
 
 Using `acquireRead`, `acquireWrite`, `releaseRead` and `releaseWrite` should be avoided for simple use cases relying on
 methods like `readLock` and `writeLock` instead. `readLock` and `writeLock` automatically acquire and release the lock
-thanks to the `Managed` construct. The program described below is a safer version of the program above and ensures we 
+thanks to the `Scope` construct. The program described below is a safer version of the program above and ensures we 
 don't hold onto any resources once we are done using the reentrant lock.
 
 ```scala mdoc:silent
@@ -139,8 +139,8 @@ import zio.stm._
 
 val saferProgram: URIO[Console with Clock, Unit] = for {
   lock <- TReentrantLock.make.commit
-  f1   <- lock.readLock.useDiscard(ZIO.sleep(5.seconds) *> printLine("Powering down").orDie).fork
-  f2   <- lock.readLock.useDiscard(lock.writeLock.useDiscard(printLine("Huzzah, writes are mine").orDie)).fork
+  f1   <- ZIO.scoped(lock.readLock *> ZIO.sleep(5.seconds) *> printLine("Powering down").orDie).fork
+  f2   <- ZIO.scoped(lock.readLock *> lock.writeLock *> printLine("Huzzah, writes are mine").orDie).fork
   _    <- (f1 zip f2).join
 } yield ()
 ```

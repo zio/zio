@@ -27,7 +27,7 @@ import zio.test.{
   ZIOSpecAbstract,
   sbt
 }
-import zio.{Chunk, Clock, Exit, Layer, Random, Runtime, System, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Chunk, Clock, Exit, Layer, Random, Runtime, Scope, System, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -103,17 +103,17 @@ sealed class ZTestTask(
             ZIOAppArgs(Chunk.empty)
           )
 
-        val filledTestlayer: Layer[Nothing, TestEnvironment] =
+        val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment] =
           zio.ZEnv.live >>> TestEnvironment.live
 
-        val layer: Layer[Error, zioSpec.Environment] =
+        val layer: ZLayer[Scope, Error, zioSpec.Environment] =
           (argslayer +!+ filledTestlayer) >>> zioSpec.layer.mapError(e => new Error(e.toString))
 
         val fullLayer: Layer[
           Error,
-          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock
+          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock with Scope
         ] =
-          layer +!+ argslayer +!+ filledTestlayer
+          Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 
         val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
@@ -139,9 +139,8 @@ sealed class ZTestTask(
       }
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
-          run(eventHandler, abstractRunnableSpec).toManaged
+          run(eventHandler, abstractRunnableSpec)
             .provide(sbtTestLayer(loggers))
-            .useDiscard(ZIO.unit)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

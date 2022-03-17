@@ -1,6 +1,7 @@
 package zio.macros
 
 import zio._
+import zio.managed._
 import zio.stream._
 import zio.test.Assertion._
 import zio.test._

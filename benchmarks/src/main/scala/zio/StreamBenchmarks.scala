@@ -6,7 +6,7 @@ import akka.stream.scaladsl.{Keep, Sink => AkkaSink, Source => AkkaSource}
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO => CatsIO}
 import fs2.{Chunk => FS2Chunk, Stream => FS2Stream}
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
 import zio.stream._
 
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration => ScalaDuration}
 import scala.concurrent.{Await, ExecutionContextExecutor}
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class StreamBenchmarks {
@@ -82,7 +82,7 @@ class StreamBenchmarks {
   }
 }
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class CSVStreamBenchmarks {

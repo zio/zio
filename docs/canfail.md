@@ -39,31 +39,6 @@ Code | Rewrite
 `ZIO.validateZIO(in)(f)` | `ZIO.foreach(in)(f)`*
 `ZIO.validateFirstZIO(in)(f)` | `ZIO.foreach(in)(f)`*
 
-**ZManaged**
-
-Code | Rewrite 
---- | ---
-`umanaged <> zmanaged` | `umanaged`
-`umanaged.catchAll(f)` | `umanaged`
-`umanaged.catchSome(pf)` | `umanaged`
-`umanaged.either` | `umanaged`*
-`umanaged.flatMapError(f)` | `umanaged`
-`umanaged.fold(f, g)` | `umanaged.map(f)`
-`umanaged.foldManaged(f, g)` | `umanaged.flatMap(g)`
-`umanaged.mapBoth(f, g)` | `umanaged.map(g)`
-`umanaged.mapError(f)` | `umanaged`
-`umanaged.option` | `umanaged`*
-`umanaged.orDie` | `umanaged`
-`umanaged.orDieWith(f)` | `umanaged`
-`umanaged.orElse(zmanaged)` | `umanaged`
-`umanaged.orElseEither(zmanaged)` | `umanaged`
-`umanaged.orElseFail(e)` | `umanaged`
-`umanaged.asElseSucceed(a)` | `umanaged`
-`umanaged.refineOrDie(pf)` | `umanaged`
-`umanaged.refineToOrDie` | `umanaged`
-`umanaged.refineToOrDieWith(pf)(f)` | `umanaged`
-`umanaged.retry(s)` | `umanaged`
-
 **ZStream**
 
 Code | Rewrite 

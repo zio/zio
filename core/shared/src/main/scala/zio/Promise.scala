@@ -253,13 +253,6 @@ object Promise {
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: ZTraceElement): UIO[Promise[E, A]] =
     ZIO.succeed(unsafeMake(fiberId))
 
-  /**
-   * Makes a new managed promise to be completed by the fiber creating the
-   * promise.
-   */
-  def makeManaged[E, A](implicit trace: ZTraceElement): UManaged[Promise[E, A]] =
-    make[E, A].toManaged
-
   private[zio] def unsafeMake[E, A](fiberId: FiberId): Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
 }

@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, Platform, StackBool, StackTraceBuilder}
+import zio.internal.{FiberContext, FiberScope, Platform, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -387,7 +387,7 @@ trait Runtime[+R] {
       children
     )
 
-    ZScope.global.unsafeAdd(runtimeConfig, context)
+    FiberScope.global.unsafeAdd(runtimeConfig, context)
 
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
@@ -426,7 +426,7 @@ object Runtime {
   /**
    * A runtime that can be shutdown to release resources allocated to it.
    */
-  abstract class Managed[+R] extends Runtime[R] {
+  abstract class Scoped[+R] extends Runtime[R] {
 
     /**
      * Shuts down this runtime and releases resources allocated to it. Once this
@@ -435,33 +435,33 @@ object Runtime {
      */
     def shutdown(): Unit
 
-    override final def as[R1](r1: ZEnvironment[R1]): Runtime.Managed[R1] =
+    override final def as[R1](r1: ZEnvironment[R1]): Runtime.Scoped[R1] =
       map(_ => r1)
 
-    override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Managed[R1] =
-      Managed(f(environment), runtimeConfig, () => shutdown())
+    override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
+      Scoped(f(environment), runtimeConfig, () => shutdown())
 
-    override final def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime.Managed[R] =
-      Managed(environment, f(runtimeConfig), () => shutdown())
+    override final def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime.Scoped[R] =
+      Scoped(environment, f(runtimeConfig), () => shutdown())
 
-    override final def withExecutor(e: Executor): Runtime.Managed[R] =
+    override final def withExecutor(e: Executor): Runtime.Scoped[R] =
       mapRuntimeConfig(_.copy(executor = e))
 
-    override final def withFatal(f: Throwable => Boolean): Runtime.Managed[R] =
+    override final def withFatal(f: Throwable => Boolean): Runtime.Scoped[R] =
       mapRuntimeConfig(_.copy(fatal = f))
 
-    override final def withReportFatal(f: Throwable => Nothing): Runtime.Managed[R] =
+    override final def withReportFatal(f: Throwable => Nothing): Runtime.Scoped[R] =
       mapRuntimeConfig(_.copy(reportFatal = f))
   }
 
-  object Managed {
+  object Scoped {
 
     /**
-     * Builds a new managed runtime given an environment `R`, a
+     * Builds a new scoped runtime given an environment `R`, a
      * [[zio.RuntimeConfig]], and a shut down action.
      */
-    def apply[R](r: ZEnvironment[R], runtimeConfig0: RuntimeConfig, shutdown0: () => Unit): Runtime.Managed[R] =
-      new Runtime.Managed[R] {
+    def apply[R](r: ZEnvironment[R], runtimeConfig0: RuntimeConfig, shutdown0: () => Unit): Runtime.Scoped[R] =
+      new Runtime.Scoped[R] {
         val environment   = r
         val runtimeConfig = runtimeConfig0
         def shutdown()    = shutdown0()
@@ -504,14 +504,14 @@ object Runtime {
   def unsafeFromLayer[R](
     layer: Layer[Any, R],
     runtimeConfig: RuntimeConfig = RuntimeConfig.default
-  )(implicit trace: ZTraceElement): Runtime.Managed[R] = {
+  )(implicit trace: ZTraceElement): Runtime.Scoped[R] = {
     val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
-      ZManaged.ReleaseMap.make.flatMap { releaseMap =>
-        ZManaged.currentReleaseMap.locally(releaseMap)(layer.build.zio).flatMap { case (_, acquire) =>
+      Scope.make.flatMap { scope =>
+        scope.extend(layer.build).flatMap { acquire =>
           val finalizer = () =>
             runtime.unsafeRun {
-              releaseMap.releaseAll(Exit.unit, ExecutionStrategy.Sequential).uninterruptible.unit
+              scope.close(Exit.unit).uninterruptible.unit
             }
 
           UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
@@ -519,6 +519,6 @@ object Runtime {
       }
     }
 
-    Runtime.Managed(environment, runtimeConfig, shutdown)
+    Runtime.Scoped(environment, runtimeConfig, shutdown)
   }
 }

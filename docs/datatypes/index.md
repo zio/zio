@@ -79,13 +79,8 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[TSemaphore](stm/tsemaphore.md)** — A `TSemaphore` is a semaphore that can participate in transactions.
 
 ## Resource Management
-- **[ZManaged](resource/zmanaged.md)** — A `ZManaged` is a value that describes a perishable resource that may be consumed only once inside a given scope.
-    - **[Managed](resource/managed.md)** — `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`.
-    - **[TaskManaged](resource/task-managed.md)** — `TaskManaged[A]` is a type alias for `ZManaged[Any, Throwable, A]`.
-    - **[RManaged](resource/rmanaged.md)** — `RManaged[R, A]` is a type alias for `ZManaged[R, Throwable, A]`.
-    - **[UManaged](resource/umanaged.md)** — `UManaged[A]` is a type alias for `ZManaged[Any, Nothing, A]`.
-    - **[URManaged](resource/urmanaged.md)** — `URManaged[R, A]` is a type alias for `ZManaged[R, Nothing, A]`.
-- **[ZPool](resource/zpool.md)** — An asynchronous and concurrent generalized pool of reusable managed resources.
+- **[Scope](resource/scope.md)** — A scope in which resources can safely be used.
+- **[ZPool](resource/zpool.md)** — An asynchronous and concurrent generalized pool of reusable resources.
 
 ## Streaming
 - **[ZStream](stream/zstream.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.

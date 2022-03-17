@@ -2748,9 +2748,8 @@ object ZIOSpec extends ZIOBaseSpec {
           ref    <- Ref.make(0)
           fibers <- Ref.make(Set.empty[Fiber[Any, Any]])
           latch  <- Promise.make[Nothing, Unit]
-          scope  <- ZIO.descriptor.map(_.scope)
           effect = ZIO.uninterruptibleMask { restore =>
-                     restore(latch.await.onInterrupt(ref.update(_ + 1))).forkIn(scope).tap(f => fibers.update(_ + f))
+                     restore(latch.await.onInterrupt(ref.update(_ + 1))).fork.tap(f => fibers.update(_ + f))
                    }
           awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
           _       <- effect race effect

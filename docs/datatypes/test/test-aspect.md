@@ -134,7 +134,7 @@ test("before and after") {
 )
 ```
 
-2. The `TestAspect.aroundTest` takes a managed resource and evaluates every test within the context of the managed function.
+2. The `TestAspect.aroundTest` takes a scoped resource and evaluates every test within the context of the scoped function.
 
 3. There are also `TestAspect.beforeAll`, `TestAspect.afterAll`, and `TestAspect.aroundAll` variants.
 

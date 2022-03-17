@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Chunk, ZIO, ZManaged, ZTraceElement}
+import zio.{Chunk, Scope, ZIO, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
@@ -64,26 +64,11 @@ trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
       type OutError       = E2
       type OutSuccess     = T
       def apply(specs: ZIO[R, E, Collection[Spec[R1, E1, T]]])(implicit trace: ZTraceElement): Spec[R with R1, E2, T] =
-        Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).toManaged)
+        Spec.scoped[R with R1](specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))))
     }
 }
 
-trait SuiteConstructorLowPriority4 extends SuiteConstructorLowPriority5 {
-
-  implicit def ZManagedConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
-    : SuiteConstructor.WithOut[ZManaged[R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =
-    new SuiteConstructor[ZManaged[R, E, Collection[Spec[R1, E1, T]]]] {
-      type OutEnvironment = R with R1
-      type OutError       = E2
-      type OutSuccess     = T
-      def apply(specs: ZManaged[R, E, Collection[Spec[R1, E1, T]]])(implicit
-        trace: ZTraceElement
-      ): Spec[R with R1, E2, T] =
-        Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))))
-    }
-}
-
-trait SuiteConstructorLowPriority5 {
+trait SuiteConstructorLowPriority4 {
 
   implicit def ZSTMConstructor[R, R1, E <: E2, E1 <: E2, E2, T, Collection[+Element] <: Iterable[Element]]
     : SuiteConstructor.WithOut[ZSTM[R, E, Collection[Spec[R1, E1, T]]], R with R1, E2, T] =
@@ -92,6 +77,6 @@ trait SuiteConstructorLowPriority5 {
       type OutError       = E2
       type OutSuccess     = T
       def apply(specs: ZSTM[R, E, Collection[Spec[R1, E1, T]]])(implicit trace: ZTraceElement): Spec[R with R1, E2, T] =
-        Spec.managed(specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).commit.toManaged)
+        Spec.scoped[R with R1](specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).commit)
     }
 }

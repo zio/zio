@@ -2,13 +2,13 @@ package zio
 
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO => CIO}
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
 import zio.stm._
 
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)

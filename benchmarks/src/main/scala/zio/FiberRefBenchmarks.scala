@@ -8,7 +8,7 @@ import org.openjdk.jmh.annotations.{
   Mode,
   OutputTimeUnit,
   Param,
-  Scope,
+  Scope => JScope,
   State,
   Threads,
   Warmup
@@ -17,7 +17,7 @@ import zio.BenchmarkUtil.verify
 
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Warmup(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)

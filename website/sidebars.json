@@ -71,15 +71,6 @@
       "datatypes/stm/treentrantlock",
       "datatypes/stm/tsemaphore"
     ],
-    "Resource Safety": [
-      "datatypes/resource/index",
-      "datatypes/resource/zmanaged",
-      "datatypes/resource/managed",
-      "datatypes/resource/task-managed",
-      "datatypes/resource/rmanaged",
-      "datatypes/resource/umanaged",
-      "datatypes/resource/urmanaged"
-    ],
     "Streaming": [
       "datatypes/stream/index",
       "datatypes/stream/zstream",

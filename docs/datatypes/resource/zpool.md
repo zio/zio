@@ -24,7 +24,7 @@ To address these issues, we can create a pool of pre-initialized resources:
 
 ## Introduction
 
-`ZPool` is an asynchronous and concurrent generalized pool of reusable managed resources, that is used to create and manage a pool of objects.
+`ZPool` is an asynchronous and concurrent generalized pool of reusable resources, that is used to create and manage a pool of objects.
 
 ```scala mdoc:invisible
 import zio._
@@ -32,13 +32,13 @@ import zio._
 
 ```scala mdoc:nest
 trait ZPool[+Error, Item] {
-  def get: Managed[Error, Item]
+  def get: ZIO[Scope, Error, Item]
   def invalidate(item: Item): UIO[Unit]
 }
 ```
 
 The two fundamental operators on a `ZPool` is `get` and `invalidate`:
-- The `get` operator retrieves an item from the pool in a `Managed` effect.
+- The `get` operator retrieves an item from the pool in a scoped effect.
 - The `invalidate` operator invalidates the specified item. This will cause the pool to eventually reallocate the item.
 
 ## Constructing ZPools
@@ -49,16 +49,16 @@ The `make` constructor is a common way to create a `ZPool`:
 
 ```scala mdoc:silent
 object ZPool {
-  def make[E, A](get: Managed[E, A], size: Int): UManaged[ZPool[E, A]] = ???
+  def make[E, A](get: ZIO[Scope, E, A], size: Int): ZIO[Scope, Nothing, ZPool[E, A]] = ???
 }
 ```
 
 ```scala mdoc:reset:invisible
 ```
 
-It takes a managed resource of type `A`, and the `size` of the pool. The return type will be a managed `ZPool`.
+It takes a scoped resource of type `A`, and the `size` of the pool. The return type will be a scoped `ZPool`.
 - A fixed pool size will be used to pre-allocate pool entries, so all the entries of the pool will be acquired eagerly. As a client of the `ZPool` it is recommended to analyze requirements to find out the best suitable size for the resource pool. If we set up a pool with too many eagerly-acquired resources, that may reduce the performance due to the resource contention.
-- As the return type of the constructor is `UManaged[ZPool[E, A]]`, it will manage automatically the life cycle of the pool. So, as a client of `ZPool`, we do not require to shutdown the pool manually.
+- As the return type of the constructor is `ZIO[Scope, Nothing, ZPool[E, A]]`, it will manage automatically the life cycle of the pool. So, as a client of `ZPool`, we do not require to shutdown the pool manually.
 
 There is another constructor called `ZPool.fromInterable` that is suitable when no cleanup or release actions are required.
 
@@ -67,9 +67,9 @@ There is another constructor called `ZPool.fromInterable` that is suitable when 
 The previous constructor creates a `ZPool` with a fixed size, so all of its entries are pre-allocated. There is another constructor that creates a pool with pre-allocated minimum entries (eagerly-acquired resources), plus it can increase its entries _on-demand_ (lazily-acquired resources) until reaches the specified maximum size:
 
 ```scala
-def make[E, A](get: Managed[E, A],
+def make[E, A](get: ZIO[Scope, E, A],
         range: Range, // minimum and maximum size of the pool
-        timeToLive: Duration): URManaged[Clock, ZPool[E, A]]
+        timeToLive: Duration): ZIO[Clock with Scope, Nothing, ZPool[E, A]]
 ```
 
 Having a lot of resources that are over our average requirement can waste space and degrade the performance. Therefore, this variant of `ZPool` has an _eviction policy_. By taking the `timeToLive` argument, it will evict excess items that have not been acquired for more than the `timeToLive` time, until it reaches the minimum size.
@@ -81,7 +81,7 @@ import zio._
 
 case class Connection()
 
-val acquireDbConnection = ZManaged.succeed(Connection())
+val acquireDbConnection = ZIO.succeed(Connection())
 
 def useConnection(i: Connection) = {
   val _ = i
@@ -90,8 +90,12 @@ def useConnection(i: Connection) = {
 ```
 
 ```scala mdoc:silent
-ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).use { pool =>
-  pool.get.use { conn => useConnection(conn) }
+ZIO.scoped {
+  ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).flatMap { pool =>
+    ZIO.scoped {
+      pool.get.flatMap { conn => useConnection(conn) }
+    }
+  }
 }
 ```
 
@@ -103,7 +107,7 @@ After creating a pool, we can retrieve a resource from the pool using `ZPool#get
 
 ```scala mdoc:nest
 trait ZPool[+Error, Item] {
-  def get: Managed[Error, Item]
+  def get: ZIO[Scope, Error, Item]
 }
 ```
 
@@ -116,13 +120,13 @@ Here is how it works behind the scenes:
 In case of failure, we can retry a failed acquisition. It will repeat the acquisition attempt:
 
 ```scala mdoc:invisible
-val acquireDbConnection: ZManaged[Any, String, Connection] = 
-  ZManaged.fail("Boom!")
+val acquireDbConnection: ZIO[Any, String, Connection] = 
+  ZIO.fail("Boom!")
 ```
 
 ```scala mdoc:silent:nest
-ZPool.make(acquireDbConnection, 10).use { pool =>
-  pool.get.use( conn => useConnection(conn)).eventually
+ZPool.make(acquireDbConnection, 10).flatMap { pool =>
+  pool.get.flatMap( conn => useConnection(conn)).eventually
 }
 ```
 

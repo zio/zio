@@ -4,7 +4,7 @@ import com.github.ghik.silencer.silent
 
 import zio._
 import zio.metrics._
-import zio.metrics.ZIOMetric.Gauge
+import zio.metrics.Metric.Gauge
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, MemoryUsage}
@@ -21,35 +21,35 @@ trait MemoryPools extends JvmMetrics {
 
   /** Used bytes of a given JVM memory area. */
   private def memoryBytesUsed(area: Area): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_bytes_used").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_bytes_used").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
 
   /** Committed (bytes) of a given JVM memory area. */
   private def memoryBytesCommitted(area: Area): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_bytes_committed").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_bytes_committed").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
 
   /** Max (bytes) of a given JVM memory area. */
   private def memoryBytesMax(area: Area): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_bytes_max").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_bytes_max").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
 
   /** Initial bytes of a given JVM memory area. */
   private def memoryBytesInit(area: Area): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_bytes_init").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_bytes_init").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
 
   /** Used bytes of a given JVM memory pool. */
   private def poolBytesUsed(pool: String): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_pool_bytes_used").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_pool_bytes_used").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   /** Committed bytes of a given JVM memory pool. */
   private def poolBytesCommitted(pool: String): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_pool_bytes_committed").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_pool_bytes_committed").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   /** Max bytes of a given JVM memory pool. */
   private def poolBytesMax(pool: String): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_pool_bytes_max").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_pool_bytes_max").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   /** Initial bytes of a given JVM memory pool. */
   private def poolBytesInit(pool: String): Gauge[Long] =
-    ZIOMetric.gauge("jvm_memory_pool_bytes_init").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
+    Metric.gauge("jvm_memory_pool_bytes_init").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
 
   private def reportMemoryUsage(usage: MemoryUsage, area: Area)(implicit
     trace: ZTraceElement
@@ -90,14 +90,14 @@ trait MemoryPools extends JvmMetrics {
     } yield ()
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, MemoryPools] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, MemoryPools] =
     for {
-      memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean).toManaged
-      poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList).toManaged
+      memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)
+      poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
       _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 

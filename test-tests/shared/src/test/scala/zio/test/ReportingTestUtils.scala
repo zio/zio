@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.render.TestRenderer
-import zio.{Cause, Layer, ZIO, ZTraceElement}
+import zio.{Cause, Scope, ZIO, ZLayer, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -44,13 +44,11 @@ object ReportingTestUtils {
 
   def runLog(
     spec: ZSpec[TestEnvironment, String]
-  )(implicit trace: ZTraceElement): ZIO[TestEnvironment, Nothing, String] =
+  )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <- TestTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer(
-               TestLogger.fromConsole ++ TestClock.default
-             )
+             .provideLayer(TestLogger.fromConsole ++ TestClock.default)
       output <- TestConsole.output
     } yield output.mkString
 
@@ -59,12 +57,12 @@ object ReportingTestUtils {
       results <- TestTestRunner(testEnvironment)
                    .run(spec)
                    .provideLayer(
-                     TestLogger.fromConsole ++ TestClock.default
+                     Scope.default >>> (TestLogger.fromConsole ++ TestClock.default +!+ ZLayer.environment[Scope])
                    )
       actualSummary = SummaryBuilder.buildSummary(results)
     } yield actualSummary.summary
 
-  private[this] def TestTestRunner(testEnvironment: Layer[Nothing, TestEnvironment])(implicit
+  private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment])(implicit
     trace: ZTraceElement
   ) =
     TestRunner[TestEnvironment, String](

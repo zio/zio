@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.{CompressionLevel, CompressionStrategy, FlushMode, Gzipper}
-import zio.{Chunk, ZIO, ZManaged, ZTraceElement}
+import zio.{Chunk, ZIO, ZTraceElement}
 
 object Gzip {
   def makeGzipper[Err, Done](
@@ -11,9 +11,9 @@ object Gzip {
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.managed {
-      ZManaged
-        .acquireReleaseWith(
+    ZChannel.scoped {
+      ZIO
+        .acquireRelease(
           Gzipper.make(bufferSize, level, strategy, flushMode)
         ) { gzipper =>
           ZIO.succeed(gzipper.close())

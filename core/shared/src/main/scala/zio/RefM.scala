@@ -35,11 +35,4 @@ object RefM {
    */
   def make[A](a: => A)(implicit trace: ZTraceElement): UIO[RefM[A]] =
     ZRefM.make(a)
-
-  /**
-   * @see
-   *   [[zio.ZRefM.makeManaged]]
-   */
-  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): UManaged[RefM[A]] =
-    ZRefM.makeManaged(a)
 }

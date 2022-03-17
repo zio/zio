@@ -5,7 +5,7 @@ import com.github.ghik.silencer.silent
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.metrics._
-import zio.metrics.ZIOMetric.Counter
+import zio.metrics.Metric.Counter
 
 import com.sun.management.GarbageCollectionNotificationInfo
 import java.lang.management.ManagementFactory
@@ -24,7 +24,7 @@ trait MemoryAllocation extends JvmMetrics {
    * not continuously.
    */
   private def countAllocations(pool: String): Counter[Long] =
-    ZIOMetric.counter("jvm_memory_pool_allocated_bytes_total").tagged(MetricLabel("pool", pool))
+    Metric.counter("jvm_memory_pool_allocated_bytes_total").tagged(MetricLabel("pool", pool))
 
   private class Listener(runtime: Runtime[Any]) extends NotificationListener {
     private val lastMemoryUsage: mutable.Map[String, Long] = mutable.HashMap.empty
@@ -78,9 +78,9 @@ trait MemoryAllocation extends JvmMetrics {
   @silent("JavaConverters")
   override def collectMetrics(implicit
     trace: ZTraceElement
-  ): ZManaged[Clock with System, Throwable, MemoryAllocation] =
-    ZManaged
-      .acquireReleaseWith(
+  ): ZIO[Clock with System with Scope, Throwable, MemoryAllocation] =
+    ZIO
+      .acquireRelease(
         for {
           runtime                 <- ZIO.runtime[Any]
           listener                 = new Listener(runtime)

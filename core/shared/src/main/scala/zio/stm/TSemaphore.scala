@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{UIO, ZIO, ZManaged, ZTraceElement}
+import zio.{Scope, UIO, ZIO, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -35,8 +35,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * until permits become available without blocking any underlying operating
  * system threads. If you want to acquire more than one permit at a time you can
  * use `withPermits`, which allows specifying a number of permits to acquire.
- * You can also use `withPermitManaged` or `withPermitsManaged` to acquire and
- * release permits within the context of a managed effect for composing with
+ * You can also use `withPermitScoped` or `withPermitsScoped` to acquire and
+ * release permits within the context of a scoped effect for composing with
  * other resources.
  *
  * For more advanced concurrency problems you can use the `acquire` and
@@ -101,11 +101,11 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     withPermits(1L)(zio)
 
   /**
-   * Returns a managed effect that describes acquiring a permit as the `acquire`
+   * Returns a scoped effect that describes acquiring a permit as the `acquire`
    * action and releasing it as the `release` action.
    */
-  def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    withPermitsManaged(1L)
+  def withPermitScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    withPermitsScoped(1L)
 
   /**
    * Executes the specified effect, acquiring the specified number of permits
@@ -117,11 +117,11 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     ZIO.uninterruptibleMask(restore => restore(acquireN(n).commit) *> restore(zio).ensuring(releaseN(n).commit))
 
   /**
-   * Returns a managed effect that describes acquiring the specified number of
-   * permits as the `acquire` action and releasing them as the `release` action.
+   * Returns a scoped effect that describes acquiring the specified number of
+   * permits and releasing them when the scope is closed.
    */
-  def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-    ZManaged.acquireReleaseInterruptible(acquireN(n).commit)(releaseN(n).commit)
+  def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    ZIO.acquireReleaseInterruptible(acquireN(n).commit)(releaseN(n).commit)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")

@@ -70,10 +70,10 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
-   * be evaluated multiple times within the scope of the managed to take a
-   * message from the hub each time.
+   * be evaluated multiple times within the scope to take a message from the hub
+   * each time.
    */
-  def subscribe(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZDequeue[RB, EB, B]]
+  def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB, EB, B]]
 
   /**
    * Transforms messages published to the hub using the specified function.
@@ -137,7 +137,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
         self.shutdown
       def size(implicit trace: ZTraceElement): UIO[Int] =
         self.size
-      def subscribe(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZDequeue[RD, ED, D]] =
+      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RD, ED, D]] =
         self.subscribe.map(_.mapZIO(g))
     }
 
@@ -179,7 +179,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
         self.shutdown
       def size(implicit trace: ZTraceElement): UIO[Int] =
         self.size
-      def subscribe(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZDequeue[RB, EB, B]] =
+      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB, EB, B]] =
         self.subscribe
     }
 
@@ -219,7 +219,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
         self.shutdown
       def size(implicit trace: ZTraceElement): UIO[Int] =
         self.size
-      def subscribe(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZDequeue[RB1, EB1, B]] =
+      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB1, EB1, B]] =
         self.subscribe.map(_.filterOutputZIO(f))
     }
 
@@ -324,12 +324,12 @@ object ZHub {
    * Creates a hub with the specified strategy.
    */
   private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A])(implicit trace: ZTraceElement): UIO[Hub[A]] =
-    ZManaged.ReleaseMap.make.flatMap { releaseMap =>
+    Scope.make.flatMap { scope =>
       Promise.make[Nothing, Unit].map { promise =>
         unsafeMakeHub(
           hub,
           Platform.newConcurrentSet[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])](),
-          releaseMap,
+          scope,
           promise,
           new AtomicBoolean(false),
           strategy
@@ -343,7 +343,7 @@ object ZHub {
   private def unsafeMakeHub[A](
     hub: internal.Hub[A],
     subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
-    releaseMap: ZManaged.ReleaseMap,
+    scope: Scope.Closeable,
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
@@ -380,7 +380,7 @@ object ZHub {
           shutdownFlag.set(true)
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
-              releaseMap.releaseAll(Exit.interrupt(fiberId), ExecutionStrategy.Parallel) *> strategy.shutdown
+              scope.close(Exit.interrupt(fiberId)) *> strategy.shutdown
             }
             .unit
         }.uninterruptible
@@ -389,12 +389,14 @@ object ZHub {
           if (shutdownFlag.get) ZIO.interrupt
           else ZIO.succeedNow(hub.size())
         }
-      def subscribe(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Dequeue[A]] =
-        for {
-          dequeue <- makeSubscription(hub, subscribers, strategy).toManaged
-          _ <-
-            ZManaged.acquireReleaseExitWith(releaseMap.add(_ => dequeue.shutdown))((finalizer, exit) => finalizer(exit))
-        } yield dequeue
+      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]] =
+        ZIO.acquireRelease {
+          makeSubscription(hub, subscribers, strategy).tap { dequeue =>
+            scope.addFinalizer(dequeue.shutdown)
+          }
+        } { dequeue =>
+          dequeue.shutdown
+        }
     }
 
   /**

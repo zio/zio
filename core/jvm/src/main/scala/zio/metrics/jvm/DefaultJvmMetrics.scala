@@ -1,6 +1,7 @@
 package zio.metrics.jvm
 
 import zio._
+
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**

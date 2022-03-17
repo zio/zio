@@ -4,7 +4,7 @@ import com.github.ghik.silencer.silent
 
 import zio._
 import zio.metrics._
-import zio.metrics.ZIOMetric.Gauge
+import zio.metrics.Metric.Gauge
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
@@ -17,13 +17,13 @@ trait GarbageCollector extends JvmMetrics {
 
   /** Time spent in a given JVM garbage collector in seconds. */
   private def gcCollectionSecondsSum(gc: String): Gauge[Long] =
-    ZIOMetric
+    Metric
       .gauge("jvm_gc_collection_seconds_sum")
       .tagged(MetricLabel("gc", gc))
       .contramap((ms: Long) => ms.toDouble / 1000.0)
 
   private def gcCollectionSecondsCount(gc: String): Gauge[Long] =
-    ZIOMetric.gauge("jvm_gc_collection_seconds_count").tagged(MetricLabel("gc", gc)).contramap(_.toDouble)
+    Metric.gauge("jvm_gc_collection_seconds_count").tagged(MetricLabel("gc", gc)).contramap(_.toDouble)
 
   private def reportGarbageCollectionMetrics(
     garbageCollectors: List[GarbageCollectorMXBean]
@@ -37,13 +37,13 @@ trait GarbageCollector extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, GarbageCollector] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, GarbageCollector] =
     for {
-      classLoadingMXBean <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList).toManaged
+      classLoadingMXBean <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 

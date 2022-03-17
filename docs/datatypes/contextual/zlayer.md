@@ -49,14 +49,14 @@ Let's see how we can create a layer:
 
 There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.succeed` to create a layer from an existing service
-- `ZLayer.succeedMany` to create a layer from a value that's one or more services
+- `ZLayer.succeedEnvironment` to create a layer from a value that's one or more services
 - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
-- `ZLayer.fromEffect` to lift a `ZIO` effect to a layer requiring the effect environment
-- `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `ZManaged`.
+- `ZLayer.fromZIO` to lift a `ZIO` effect to a layer requiring the effect environment
+- `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `Scope`.
 - `ZLayer.identity` to express the requirement for a dependency
-- `ZIO#toLayer` or `ZManaged#toLayer` to construct a layer from an effect
+- `ZIO#toLayer` to construct a layer from an effect
 
-Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`), resourcefully (suffixed by `Managed`), or to create a combination of services (suffixed by `Many`).
+Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`) or to create a combination of services (suffixed by `Environment`).
 
 Let's review some of the `ZLayer`'s most useful constructors:
 
@@ -102,35 +102,25 @@ object Logging {
 }
 ```
 
-### From Managed Resources
+### From Scoped Resources
 
-Some components of our applications need to be managed, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
+Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
-1. The `ZLayer` relies on the powerful `ZManaged` data type and this makes this process extremely simple. We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.apply` or the `ZIO.fromManaged` constructor:
+1. The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.apply` constructor:
 
 ```scala mdoc:silent:nest
 import zio._
 import scala.io.BufferedSource
 
 val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
-  // alternative: ZLayer.fromManaged
-  ZLayer {
-    ZManaged.fromAutoCloseable(
+  ZLayer.scoped {
+    ZIO.fromAutoCloseable(
       ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     )
   }
 ```
 
-2. Also, every `ZIO` effect can be converted to `ZManaged` using `ZIO#toManagedAuto` or `ZIO#toManagedWith` and then can be converted to `ZLayer` by calling the `ZLayer#toLayer`:
-
-```scala mdoc:compile-only
-val managedFile: ZLayer[Any, Throwable, BufferedSource] =
-  ZIO.attempt(scala.io.Source.fromFile("file.txt"))
-    .toManagedAuto   // alternative: toManagedWith(b => UIO(b.close())
-    .toLayer
-```
-
-3. We can create a `ZLayer` directly from `acquire` and `release` actions of a managed resource:
+2. We can create a `ZLayer` directly from `acquire` and `release` actions of a scoped resource:
 
 ```scala mdoc:compile-only
 import zio._
@@ -139,11 +129,11 @@ import java.io.{Closeable, FileInputStream}
 def acquire: Task[FileInputStream] = ZIO.attempt(new FileInputStream("file.txt"))
 def release(resource: Closeable): UIO[Unit] = ZIO.succeed(resource.close())
 
-val inputStreamLayer: ZLayer[Any, Throwable, FileInputStream] =
+val inputStreamLayer: ZLayer[Scope, Throwable, FileInputStream] =
   ZLayer.fromAcquireRelease(acquire)(release)
 ```
 
-Let's see a real-world example of creating a layer from managed resources. Assume we have the following `UserRepository` service:
+Let's see a real-world example of creating a layer from scoped resources. Assume we have the following `UserRepository` service:
 
 ```scala mdoc:silent
 import zio._
@@ -156,7 +146,7 @@ trait User
 
 def dbConfig: Task[DBConfig] = Task.attempt(???)
 def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
-def makeTransactor(config: DBConfig): ZManaged[Any, Throwable, Transactor] = ZManaged.attempt(???)
+def makeTransactor(config: DBConfig): ZIO[Scope, Throwable, Transactor] = ZIO.attempt(???)
 
 trait UserRepository {
   def save(user: User): Task[Unit]
@@ -167,21 +157,22 @@ case class UserRepositoryLive(xa: Transactor) extends UserRepository {
 }
 ```
 
-Assume we have written a managed `UserRepository`:
+Assume we have written a scoped `UserRepository`:
 
 ```scala mdoc:silent:nest
-def managed: ZManaged[Console, Throwable, UserRepository] = 
+def scoped: ZIO[Console with Scope, Throwable, UserRepository] = 
   for {
-    cfg <- dbConfig.toManaged
-    _   <- initializeDb(cfg).toManaged
+    cfg <- dbConfig
+    _   <- initializeDb(cfg)
     xa  <- makeTransactor(cfg)
   } yield new UserRepositoryLive(xa)
 ```
 
-We can convert that to `ZLayer` with `ZLayer.fromManaged` or `ZManaged#toLayer`:
+We can convert that to `ZLayer` with `ZLayer.apply`:
 
 ```scala mdoc:nest
-val usersLayer : ZLayer[Console, Throwable, UserRepository] = managed.toLayer
+val usersLayer : ZLayer[Console, Throwable, UserRepository] =
+  ZLayer.scoped(scoped)
 ```
 
 ```scala mdoc:invisible:reset
@@ -1181,7 +1172,7 @@ object MainApp extends ZIOAppDefault {
 
 #### Manual Memoization
 
-We can memoize the `A` layer manually using the `ZLayer#memoize` operator. It will return a managed effect that, if evaluated, will return the lazily computed result of this layer:
+We can memoize the `A` layer manually using the `ZLayer#memoize` operator. It will return a scoped effect that, if evaluated, will return the lazily computed result of this layer:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1189,11 +1180,13 @@ import zio._
 object MainApp extends ZIOAppDefault {
 
   val myApp: ZIO[Any, Nothing, Unit] =
-    a.memoize.use { aLayer =>
-      for {
-        _ <- ZIO.service[A].provide(aLayer)
-        _ <- ZIO.service[A].provide(aLayer)
-      } yield ()
+    ZIO.scoped {
+      a.memoize.flatMap { aLayer =>
+        for {
+          _ <- ZIO.service[A].provide(aLayer)
+          _ <- ZIO.service[A].provide(aLayer)
+        } yield ()
+      }
     }
     
   def run = myApp
@@ -1208,9 +1201,9 @@ object MainApp extends ZIOAppDefault {
 
 ## Other Operators
 
-### Converting a Layer to a Managed Value
+### Converting a Layer to a Scoped Value
 
-Every `ZLayer` can be converted to a `ZManaged` by using `ZLayer.build`:
+Every `ZLayer` can be converted to a scoped `ZIO` by using `ZLayer.build`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1228,7 +1221,7 @@ val database: ZLayer[Any, Throwable, Database] =
     Database.connect.debug("connecting to the database")
   )(_.close)
 
-val managedDatabase: ZManaged[Any, Throwable, ZEnvironment[Database]] =
+val scopedDatabase: ZIO[Scope, Throwable, ZEnvironment[Database]] =
   database.build
 ```
 

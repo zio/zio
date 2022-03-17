@@ -9,8 +9,8 @@ trait VersionInfo extends JvmMetrics {
   override val featureTag: Tag[VersionInfo] = Tag[VersionInfo]
 
   /** JVM version info */
-  def jvmInfo(version: String, vendor: String, runtime: String): ZIOMetric.Gauge[Unit] =
-    ZIOMetric
+  def jvmInfo(version: String, vendor: String, runtime: String): Metric.Gauge[Unit] =
+    Metric
       .gauge(
         "jvm_info"
       )
@@ -31,8 +31,8 @@ trait VersionInfo extends JvmMetrics {
 
   override def collectMetrics(implicit
     trace: ZTraceElement
-  ): ZManaged[Clock with System, Throwable, VersionInfo] =
-    reportVersions().repeat(collectionSchedule).interruptible.forkManaged.as(this)
+  ): ZIO[Clock with System with Scope, Throwable, VersionInfo] =
+    reportVersions().repeat(collectionSchedule).interruptible.forkScoped.as(this)
 }
 
 object VersionInfo extends VersionInfo with JvmMetrics.DefaultSchedule {

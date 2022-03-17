@@ -1,0 +1,428 @@
+/*
+ * Copyright 2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package zio.metrics
+
+import zio._
+import zio.metrics.MetricKey
+import zio.metrics.MetricKeyType.Histogram
+
+import zio.internal.metrics._
+import java.util.concurrent.TimeUnit
+import java.time.temporal.ChronoUnit
+
+/**
+ * A `Metric[In, Out]` represents a concurrent metric, which accepts updates of
+ * type `In`, which are aggregated to a stateful value of type `Out`.
+ *
+ * For example, a counter metric would have type `Metric[Double, Double]`,
+ * representing the fact that the metric can be updated with doubles (the amount
+ * to increment or decrement the counter by), and the state of the counter is a
+ * double.
+ *
+ * There are five primitive metric types supported by ZIO:
+ *
+ *   - Counters
+ *   - Frequencies
+ *   - Gauges
+ *   - Histograms
+ *   - Summaries
+ *
+ * The companion object contains constructors for these primitive metrics. All
+ * metrics are derived from these primitive metrics.
+ */
+trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
+
+  /**
+   * The type of the underlying primitive metric. For example, this could be
+   * [[MetricKeyType.Counter]] or [[MetricKeyType.Gauge]].
+   */
+  val keyType: Type
+
+  /**
+   * Applies the metric computation to the result of the specified effect.
+   */
+  final def apply[R, E, A1 <: In](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+    zio.tap(update(_))
+
+  /**
+   * Returns a new metric that is powered by this one, but which accepts updates
+   * of the specified new type, which must be transformable to the input type of
+   * this metric.
+   */
+  final def contramap[In2](f: In2 => In): Metric[Type, In2, Out] =
+    new Metric[Type, In2, Out] {
+      val keyType = self.keyType
+
+      def unsafeUpdate(in: In2, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        self.unsafeUpdate(f(in), extraTags)
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out =
+        self.unsafeValue(extraTags)
+    }
+
+  /**
+   * Returns a new metric that is powered by this one, but which accepts updates
+   * of any type, and translates them to updates with the specified constant
+   * update value.
+   */
+  final def fromConst(in: => In): Metric[Type, Any, Out] =
+    contramap[Any](_ => in)
+
+  /**
+   * Returns a new metric that is powered by this one, but which outputs a new
+   * state type, determined by transforming the state type of this metric by the
+   * specified function.
+   */
+  final def map[Out2](f: Out => Out2): Metric[Type, In, Out2] =
+    new Metric[Type, In, Out2] {
+      val keyType = self.keyType
+
+      def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        self.unsafeUpdate(in, extraTags)
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out2 =
+        f(self.unsafeValue(extraTags))
+    }
+
+  final def mapType[Type2](f: Type => Type2): Metric[Type2, In, Out] =
+    new Metric[Type2, In, Out] {
+      val keyType = f(self.keyType)
+
+      def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        self.unsafeUpdate(in, extraTags)
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out =
+        self.unsafeValue(extraTags)
+    }
+
+  /**
+   * Returns a new metric, which is identical in every way to this one, except
+   * the specified tag will be added to the tags of this metric.
+   */
+  final def tagged(key: String, value: String): Metric[Type, In, Out] =
+    tagged(MetricLabel(key, value))
+
+  /**
+   * Returns a new metric, which is identical in every way to this one, except
+   * the specified tags have been added to the tags of this metric.
+   */
+  final def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): Metric[Type, In, Out] =
+    tagged(Set(extraTag) ++ extraTags.toSet)
+
+  /**
+   * Returns a new metric, which is identical in every way to this one, except
+   * the specified tags have been added to the tags of this metric.
+   */
+  final def tagged(extraTags0: Set[MetricLabel]): Metric[Type, In, Out] =
+    new Metric[Type, In, Out] {
+      val keyType = self.keyType
+
+      def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        self.unsafeUpdate(in, extraTags0 ++ extraTags)
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out =
+        self.unsafeValue(extraTags0 ++ extraTags)
+    }
+
+  /**
+   * Returns a new metric, which is identical in every way to this one, except
+   * dynamic tags are added based on the update values. Note that the metric
+   * returned by this method does not return any useful information, due to the
+   * dynamic nature of the added tags.
+   */
+  final def taggedWith[In1 <: In](
+    f: In1 => Set[MetricLabel]
+  ): Metric[Type, In1, Unit] =
+    new Metric[Type, In1, Out] {
+      val keyType = self.keyType
+
+      def unsafeUpdate(in: In1, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        self.unsafeUpdate(in, f(in) ++ extraTags)
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out =
+        self.unsafeValue(extraTags)
+    }.map(_ => ())
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the specified
+   * constant value every time the aspect is applied to an effect, regardless of
+   * whether that effect fails or succeeds.
+   */
+  final def trackAll(in: => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.map { a =>
+          unsafeUpdate(in)
+
+          a
+        }
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the throwable defects
+   * of the effects that it is applied to. To call this method, the input type
+   * of the metric must be `Throwable`.
+   */
+  final def trackDefect(implicit ev: Throwable <:< In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
+    trackDefectWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the defect throwables of the effects
+   * that the aspect is applied to.
+   */
+  final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
+      val updater: Throwable => Unit = defect => unsafeUpdate(f(defect))
+      def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(updater)))
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the duration that the
+   * effect takes to execute. To call this method, the input type of the metric
+   * must be `Duration`.
+   */
+  final def trackDuration(implicit ev: Duration <:< In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    trackDurationWith(ev)
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the duration that the
+   * effect takes to execute. To call this method, you must supply a function
+   * that can convert the Duration to the input type of this metric.
+   */
+  final def trackDurationWith(f: Duration => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        ZIO.suspendSucceed {
+          val startTime = java.lang.System.nanoTime()
+
+          zio.map { a =>
+            val endTime = java.lang.System.nanoTime()
+
+            val duration = Duration.fromNanos(endTime - startTime)
+
+            unsafeUpdate(f(duration))
+
+            a
+          }
+        }
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the failure value of
+   * the effects that it is applied to.
+   */
+  final def trackError: ZIOAspect[Nothing, Any, Nothing, In, Nothing, Any] =
+    trackErrorWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the error value of the effects that the
+   * aspect is applied to.
+   */
+  final def trackErrorWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, In2, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, In2, Nothing, Any] {
+      val updater: In2 => UIO[Unit] = error => update(f(error))
+
+      def apply[R, E <: In2, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        zio.tapError(updater)
+    }
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the success value of
+   * the effects that it is applied to.
+   */
+  final def trackSuccess: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] =
+    trackSuccessWith(identity(_))
+
+  /**
+   * Returns a ZIOAspect that will update this metric with the result of
+   * applying the specified function to the success value of the effects that
+   * the aspect is applied to.
+   */
+  final def trackSuccessWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] {
+      def apply[R, E, A1 <: In2](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+        zio.tap(in2 => update(f(in2)))
+    }
+
+  /**
+   * Updates the metric with the specified update message. For example, if the
+   * metric were a counter, the update would increment the method by the
+   * provided amount.
+   */
+  final def update(in: => In)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.succeed(unsafeUpdate(in, Set.empty))
+
+  /**
+   * Retrieves a snapshot of the value of the metric at this moment in time.
+   */
+  final def value(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
+
+  final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): Metric[Type, In2, Out] =
+    contramap[In2](in2 => ev((in2, java.time.Instant.now())))
+
+  private[zio] def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit
+
+  private[zio] def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out
+}
+object Metric {
+  type Counter[-In]   = Metric[MetricKeyType.Counter, In, MetricState.Counter]
+  type Gauge[-In]     = Metric[MetricKeyType.Gauge, In, MetricState.Gauge]
+  type Histogram[-In] = Metric[MetricKeyType.Histogram, In, MetricState.Histogram]
+  type Summary[-In]   = Metric[MetricKeyType.Summary, In, MetricState.Summary]
+  type Frequency[-In] = Metric[MetricKeyType.Frequency, In, MetricState.Frequency]
+
+  implicit class InvariantSyntax[Type, In, Out](self: Metric[Type, In, Out]) {
+    final def zip[Type2, In2, Out2](that: Metric[Type2, In2, Out2])(implicit
+      z1: Zippable[Type, Type2],
+      uz: Unzippable[In, In2],
+      z2: Zippable[Out, Out2]
+    ): Metric[z1.Out, uz.In, z2.Out] =
+      new Metric[z1.Out, uz.In, z2.Out] {
+        val keyType = z1.zip(self.keyType, that.keyType)
+
+        def unsafeUpdate(in: uz.In, extraTags: Set[MetricLabel] = Set.empty): Unit = {
+          val (l, r) = uz.unzip(in)
+          self.unsafeUpdate(l, extraTags)
+          that.unsafeUpdate(r, extraTags)
+        }
+
+        def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): z2.Out =
+          z2.zip(self.unsafeValue(extraTags), that.unsafeValue(extraTags))
+      }
+  }
+
+  implicit class CounterSyntax[In](counter: Metric[MetricKeyType.Counter, In, Any]) {
+    def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
+
+    def incrementBy(value: => In)(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(value)
+  }
+
+  implicit class GaugeSyntax[In](gauge: Metric[MetricKeyType.Gauge, In, Any]) {
+    def set(value: => In): UIO[Unit] = gauge.update(value)
+  }
+
+  def fromMetricKey[Type <: MetricKeyType](
+    key: MetricKey[Type]
+  ): Metric[Type, key.keyType.In, key.keyType.Out] =
+    new Metric[Type, key.keyType.In, key.keyType.Out] {
+      val keyType = key.keyType
+
+      final def unsafeUpdate(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        hook(extraTags).update(in)
+
+      final def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): key.keyType.Out =
+        hook(extraTags).get()
+
+      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
+        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+
+        metricRegistry.get(fullKey)
+      }
+    }
+
+  /**
+   * A counter, which can be incremented by longs.
+   */
+  def counter(name: String): Counter[Long] =
+    counterDouble(name).contramap[Long](_.toDouble)
+
+  /**
+   * A counter, which can be incremented by doubles.
+   */
+  def counterDouble(name: String): Counter[Double] =
+    fromMetricKey(MetricKey.counter(name))
+
+  /**
+   * A counter, which can be incremented by integers.
+   */
+  def counterInt(name: String): Counter[Int] =
+    counterDouble(name).contramap[Int](_.toInt)
+
+  /**
+   * A string histogram metric, which keeps track of the counts of different
+   * strings.
+   */
+  def frequency(name: String): Frequency[String] =
+    fromMetricKey(MetricKey.frequency(name))
+
+  /**
+   * A gauge, which can be set to a value.
+   */
+  def gauge(name: String): Gauge[Double] =
+    fromMetricKey(MetricKey.gauge(name))
+
+  /**
+   * A numeric histogram metric, which keeps track of the count of numbers that
+   * fall in bins with the specified boundaries.
+   */
+  def histogram(name: String, boundaries: Histogram.Boundaries): Histogram[Double] =
+    fromMetricKey(MetricKey.histogram(name, boundaries))
+
+  /**
+   * Creates a metric that ignores input and produces constant output.
+   */
+  def succeed[Out](out: => Out): Metric[Unit, Any, Out] =
+    new Metric[Unit, Any, Out] {
+      val keyType = ()
+
+      def unsafeUpdate(in: Any, extraTags: Set[MetricLabel] = Set.empty): Unit = ()
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out = out
+    }
+
+  /**
+   * A summary metric.
+   */
+  def summary(
+    name: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[Double] =
+    summaryInstant(name, maxAge, maxSize, error, quantiles).withNow[Double]
+
+  def summaryInstant(
+    name: String,
+    maxAge: Duration,
+    maxSize: Int,
+    error: Double,
+    quantiles: Chunk[Double]
+  ): Summary[(Double, java.time.Instant)] =
+    fromMetricKey(MetricKey.summary(name, maxAge, maxSize, error, quantiles))
+
+  /**
+   * Creates a timer metric, based on a histogram, which keeps track of
+   * durations in the specified unit of time (milliseconds, seconds, etc.). The
+   * unit of time will automatically be added to the metric as a tag
+   * ("time_unit: milliseconds").
+   */
+  def timer(
+    name: String,
+    chronoUnit: ChronoUnit
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
+    val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 100)
+    val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
+
+    base.contramap[Duration] { (duration: Duration) =>
+      duration.get(chronoUnit).toDouble
+    }
+  }
+}

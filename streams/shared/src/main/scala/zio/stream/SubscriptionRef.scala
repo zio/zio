@@ -38,14 +38,12 @@ object SubscriptionRef {
     for {
       ref <- Ref.Synchronized.make(a)
       hub <- Hub.unbounded[A]
-      changes = ZStream.unwrapManaged {
-                  ZManaged {
-                    ref.modifyZIO { a =>
-                      ZIO.succeedNow(a).zipWith(hub.subscribe.zio) { case (a, (finalizer, queue)) =>
-                        ((finalizer, ZStream(a) ++ ZStream.fromQueue(queue)), a)
-                      }
-                    }.uninterruptible
-                  }
+      changes = ZStream.unwrapScoped {
+                  ref.modifyZIO { a =>
+                    ZIO.succeedNow(a).zipWith(hub.subscribe) { case (a, queue) =>
+                      (ZStream(a) ++ ZStream.fromQueue(queue), a)
+                    }
+                  }.uninterruptible
                 }
     } yield new SubscriptionRef(ref.tapInput(hub.publish), changes)
 }
