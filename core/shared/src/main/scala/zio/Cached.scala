@@ -65,7 +65,7 @@ object Cached {
       ref <- ScopedRef.fromAcquire(acquire.exit)
     } yield Manual(ref, acquire.provideEnvironment(env))
 
-  private final case class Manual[Error, Resource] private (
+  private final case class Manual[Error, Resource](
     ref: ScopedRef[Exit[Error, Resource]],
     acquire: ZIO[Scope, Error, Resource]
   ) extends Cached[Error, Resource] {
