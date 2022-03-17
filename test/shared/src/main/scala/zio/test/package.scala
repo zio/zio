@@ -173,9 +173,9 @@ package object test extends CompileVariants {
    *   withLive(test)(_.timeout(duration))
    * }}}
    */
-  def withLive[R, E, E1, A, B](
+  def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R with Live, E1, B] =
+  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R with Live, E1, B] =
     Live.withLive(zio)(f)
 
   /**

@@ -61,6 +61,6 @@ object Live {
    */
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
-    ZIO.environmentWithZIO[R](r => live(f(zio.provideEnvironment(r))))
+  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
+    ZEnv.services.get.flatMap(services => live(f(ZEnv.services.locally(services)(zio))))
 }

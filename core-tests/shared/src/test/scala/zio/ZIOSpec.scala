@@ -3312,7 +3312,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- TestClock.adjust(5.seconds)
           value   <- ref.get.map(_.reverse)
         } yield assert(value)(equalTo(List(1.second, 2.seconds, 3.seconds, 4.seconds, 5.seconds)))
-      }.provideLayer(TestClock.default)
+      }
     ),
     suite("someOrElse")(
       test("extracts the value from Some") {
