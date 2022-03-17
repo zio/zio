@@ -4,55 +4,55 @@ import com.github.ghik.silencer.silent
 
 import zio._
 import zio.metrics._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.management.{BufferPoolMXBean, ManagementFactory}
 
 import scala.collection.JavaConverters._
 
-trait BufferPools extends JvmMetrics {
-  override type Feature = BufferPools
-  override val featureTag = Tag[BufferPools]
+final case class BufferPools(
+  bufferPoolUsedBytes: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  bufferPoolCapacityBytes: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  bufferPoolUsedBuffers: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]]
+)
 
-  /** Used bytes of a given JVM buffer pool. */
-  private def bufferPoolUsedBytes(pool: String): Metric.Gauge[Long] =
-    Metric.gauge("jvm_buffer_pool_used_bytes").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  /** Bytes capacity of a given JVM buffer pool. */
-  private def bufferPoolCapacityBytes(pool: String): Metric.Gauge[Long] =
-    Metric.gauge("jvm_buffer_pool_capacity_bytes").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  /** Used buffers of a given JVM buffer pool. */
-  private def bufferPoolUsedBuffers(pool: String): Metric.Gauge[Long] =
-    Metric.gauge("jvm_buffer_pool_used_buffers").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  private def reportBufferPoolMetrics(
-    bufferPoolMXBeans: List[BufferPoolMXBean]
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    ZIO.foreachParDiscard(bufferPoolMXBeans) { bufferPoolMXBean =>
-      for {
-        name <- ZIO.attempt(bufferPoolMXBean.getName)
-        _    <- bufferPoolUsedBytes(name).set(bufferPoolMXBean.getMemoryUsed)
-        _    <- bufferPoolCapacityBytes(name).set(bufferPoolMXBean.getTotalCapacity)
-        _    <- bufferPoolUsedBuffers(name).set(bufferPoolMXBean.getCount)
-      } yield ()
-    }
-
+object BufferPools {
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, BufferPools] =
-    for {
-      bufferPoolMXBeans <- ZIO.attempt(
-                             ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
-                           )
-      _ <- reportBufferPoolMetrics(bufferPoolMXBeans)
-             .repeat(collectionSchedule)
-             .interruptible
-             .forkScoped
-    } yield this
-}
+  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, BufferPools] =
+    ZLayer.scoped {
+      for {
+        bufferPoolMXBeans <- ZIO.attempt(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala)
+        bufferPoolUsedBytes = PollingMetric.collectAll(bufferPoolMXBeans.map { mxBean =>
+                                PollingMetric(
+                                  Metric
+                                    .gauge("jvm_buffer_pool_used_bytes")
+                                    .tagged("pool", mxBean.getName)
+                                    .contramap[Long](_.toDouble),
+                                  ZIO.attempt(mxBean.getMemoryUsed)
+                                )
+                              })
+        bufferPoolCapacityBytes = PollingMetric.collectAll(bufferPoolMXBeans.map { mxBean =>
+                                    PollingMetric(
+                                      Metric
+                                        .gauge("jvm_buffer_pool_capacity_bytes")
+                                        .tagged("pool", mxBean.getName)
+                                        .contramap[Long](_.toDouble),
+                                      ZIO.attempt(mxBean.getTotalCapacity)
+                                    )
+                                  })
+        bufferPoolUsedBuffers = PollingMetric.collectAll(bufferPoolMXBeans.map { mxBean =>
+                                  PollingMetric(
+                                    Metric
+                                      .gauge("jvm_buffer_pool_used_buffers")
+                                      .tagged("pool", mxBean.getName)
+                                      .contramap[Long](_.toDouble),
+                                    ZIO.attempt(mxBean.getCount)
+                                  )
+                                })
 
-object BufferPools extends BufferPools with JvmMetrics.DefaultSchedule {
-  def withSchedule(schedule: Schedule[Any, Any, Unit]): BufferPools = new BufferPools {
-    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
-  }
+        schedule <- ZIO.service[JvmMetricsSchedule]
+        _        <- bufferPoolUsedBytes.launch(schedule.value)
+        _        <- bufferPoolCapacityBytes.launch(schedule.value)
+        _        <- bufferPoolUsedBuffers.launch(schedule.value)
+      } yield BufferPools(bufferPoolUsedBytes, bufferPoolCapacityBytes, bufferPoolUsedBuffers)
+    }
 }
