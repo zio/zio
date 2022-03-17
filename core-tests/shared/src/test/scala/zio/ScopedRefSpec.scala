@@ -4,8 +4,8 @@ import zio.test._
 
 object ScopedRefSpec extends ZIOBaseSpec {
   case class Counter(ref: Ref[(Int, Int)]) {
-    def incrementAcquire: UIO[Int] = ref.modify { case (l, r) => (l + 1) -> (l + 1, r) }
-    def incrementRelease: UIO[Int] = ref.modify { case (l, r) => (r + 1) -> (l, r + 1) }
+    def incrementAcquire: UIO[Int] = ref.modify { case (l, r) => (l + 1) -> ((l + 1, r)) }
+    def incrementRelease: UIO[Int] = ref.modify { case (l, r) => (r + 1) -> ((l, r + 1)) }
 
     def acquired: UIO[Int] = ref.get.map(_._1)
 
