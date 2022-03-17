@@ -1,7 +1,7 @@
 package zio.metrics.jvm
 
-import zio.metrics.ZIOMetric
-import zio.metrics.ZIOMetric.Gauge
+import zio.metrics.Metric
+import zio.metrics.Metric.Gauge
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -13,21 +13,21 @@ trait ClassLoading extends JvmMetrics {
 
   /** The number of classes that are currently loaded in the JVM */
   private val loadedClassCount: Gauge[Int] =
-    ZIOMetric.gauge("jvm_classes_loaded").contramap(_.toDouble)
+    Metric.gauge("jvm_classes_loaded").contramap(_.toDouble)
 
   /**
    * The total number of classes that have been loaded since the JVM has started
    * execution
    */
   private val totalLoadedClassCount: Gauge[Long] =
-    ZIOMetric.gauge("jvm_classes_loaded_total").contramap(_.toDouble)
+    Metric.gauge("jvm_classes_loaded_total").contramap(_.toDouble)
 
   /**
    * The total number of classes that have been unloaded since the JVM has
    * started execution
    */
   private val unloadedClassCount: Gauge[Long] =
-    ZIOMetric.gauge("jvm_classes_unloaded_total").contramap(_.toDouble)
+    Metric.gauge("jvm_classes_unloaded_total").contramap(_.toDouble)
 
   private def reportClassLoadingMetrics(
     classLoadingMXBean: ClassLoadingMXBean

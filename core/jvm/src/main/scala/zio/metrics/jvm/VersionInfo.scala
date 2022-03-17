@@ -9,8 +9,8 @@ trait VersionInfo extends JvmMetrics {
   override val featureTag: Tag[VersionInfo] = Tag[VersionInfo]
 
   /** JVM version info */
-  def jvmInfo(version: String, vendor: String, runtime: String): ZIOMetric.Gauge[Unit] =
-    ZIOMetric
+  def jvmInfo(version: String, vendor: String, runtime: String): Metric.Gauge[Unit] =
+    Metric
       .gauge(
         "jvm_info"
       )

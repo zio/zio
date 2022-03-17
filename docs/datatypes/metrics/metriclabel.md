@@ -17,7 +17,7 @@ For example, we can append following labels (dimensions) to our metric aspects:
 
 ```scala
 import zio._
-val counter = ZIOMetric.counter("http_requests")
+val counter = Metric.counter("http_requests")
   .tagged(
     MetricLabel("env", "production")
     MetricLabel("method", "GET"),
