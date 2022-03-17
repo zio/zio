@@ -31,7 +31,7 @@ Create a counter named `countAll` which is incremented by `1` every time it is i
 ```scala mdoc:silent:nest
 import zio._
 import zio.metrics._
-val countAll = ZIOMetric.counter("countAll").fromConst(1)
+val countAll = Metric.counter("countAll").fromConst(1)
 ```
 
 Now the counter can be applied to any effect. Note, that the same aspect can be applied to more than one effect. In the example we would count the sum of executions of both effects in the for comprehension:
@@ -46,13 +46,13 @@ val myApp = for {
 Or we can apply them in recurrence situations:
 
 ```scala mdoc:silent:nest
-(zio.Random.nextLongBounded(10) @@ ZIOMetric.counter("request_counts")).repeatUntil(_ == 7)
+(zio.Random.nextLongBounded(10) @@ Metric.counter("request_counts")).repeatUntil(_ == 7)
 ```
 
 Create a counter named `countBytes` that can be applied to effects having the output type `Double`:
 
 ```scala mdoc:silent:nest
-val countBytes = ZIOMetric.counter("countBytes")
+val countBytes = Metric.counter("countBytes")
 ```
 
 Now we can apply it to effects producing `Double` (in a real application the value might be the number of bytes read from a stream or something similar):
