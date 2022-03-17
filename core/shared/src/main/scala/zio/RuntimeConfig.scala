@@ -29,8 +29,7 @@ final case class RuntimeConfig(
   reportFatal: Throwable => Nothing,
   supervisor: Supervisor[Any],
   logger: ZLogger[String, Any],
-  flags: RuntimeConfigFlags,
-  services: ZEnvironment[ZEnv]
+  flags: RuntimeConfigFlags
 ) { self =>
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
 

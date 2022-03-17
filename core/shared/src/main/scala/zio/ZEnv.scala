@@ -36,4 +36,7 @@ object ZEnv {
 
   val live: Layer[Nothing, ZEnv] =
     Clock.live ++ Console.live ++ System.live ++ Random.live
+
+  val services: FiberRef[ZEnvironment[ZEnv]] =
+    ZFiberRef.unsafeMake(Services.live)
 }

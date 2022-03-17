@@ -82,7 +82,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       supervisor,
       logger,
       RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots,
-      ZEnv.Services.live
     )
   }
 

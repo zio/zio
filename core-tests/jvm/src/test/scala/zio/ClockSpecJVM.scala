@@ -32,6 +32,6 @@ object ClockSpecJVM extends ZIOBaseSpec {
           time   <- Clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
           finish <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
-      } @@ TestAspect.liveClock @@ TestAspect.nonFlaky
+      } @@ TestAspect.nonFlaky
     )
 }

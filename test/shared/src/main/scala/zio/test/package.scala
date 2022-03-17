@@ -101,8 +101,8 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
+    ZEnv.services.get.flatMap { services =>
+      services.get[Clock] match {
         case testClock: TestClock => f(testClock)
         case _                    => ZIO.dieMessage("Defect: TestClock is missing")
       }
@@ -119,8 +119,8 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
+    ZEnv.services.get.flatMap { services =>
+      services.get[Console] match {
         case testConsole: TestConsole => f(testConsole)
         case _                    => ZIO.dieMessage("Defect: TestConsole is missing")
       }
@@ -137,8 +137,8 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Random] match {
+    ZEnv.services.get.flatMap { services =>
+      services.get[Random] match {
         case testRandom: TestRandom => f(testRandom)
         case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
       }
@@ -155,8 +155,8 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[System] match {
+    ZEnv.services.get.flatMap { services =>
+      services.get[System] match {
         case testSystem: TestSystem => f(testSystem)
         case _                    => ZIO.dieMessage("Defect: TestSystem is missing")
       }

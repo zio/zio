@@ -41,10 +41,8 @@ object Live {
     ZIO
       .environmentWith[ZEnv] { zenv =>
         new Live {
-          def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] = {
-            val runtimeConfigAspect = RuntimeConfigAspect(_.copy(services = zenv))
-            zio @@ ZIOAspect.runtimeConfig(runtimeConfigAspect)
-          }
+          def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+            ZEnv.services.locally(ZEnv.Services.live)(zio)
         }
       }
       .toLayer

@@ -385,9 +385,8 @@ object TestClock extends Serializable {
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)
-        runtimeConfig         <- ZIO.runtimeConfig
-        _                     <- ZIO.setRuntimeConfig(runtimeConfig.copy(services = runtimeConfig.services.add(test)))
-        _                     <- ZIO.addFinalizer(ZIO.setRuntimeConfig(runtimeConfig))
+        services              <- ZEnv.services.get        
+        _                     <- ZEnv.services.locallyScoped(services.add(test))
         _                     <- ZIO.addFinalizer(test.warningDone *> test.suspendedWarningDone)
       } yield test
     }

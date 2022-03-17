@@ -26,9 +26,6 @@ final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
 }
 object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeConfigAspect) {
 
-  def addClock(clock: Clock): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(services = self.services.add(clock)))
-
   def addLogger(logger: ZLogger[String, Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(logger = self.logger +> logger))
 
