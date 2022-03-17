@@ -7,26 +7,26 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.lang.management.{ManagementFactory, ThreadMXBean}
 
 trait Thread extends JvmMetrics {
-  import ZIOMetric.Gauge
+  import Metric.Gauge
 
   override type Feature = Thread
   override val featureTag: Tag[Thread] = Tag[Thread]
 
   /** Current thread count of a JVM */
   private val threadsCurrent: Gauge[Int] =
-    ZIOMetric.gauge("jvm_threads_current").contramap(_.toDouble)
+    Metric.gauge("jvm_threads_current").contramap(_.toDouble)
 
   /** Daemon thread count of a JVM */
   private val threadsDaemon: Gauge[Int] =
-    ZIOMetric.gauge("jvm_threads_daemon").contramap(_.toDouble)
+    Metric.gauge("jvm_threads_daemon").contramap(_.toDouble)
 
   /** Peak thread count of a JVM */
   private val threadsPeak: Gauge[Int] =
-    ZIOMetric.gauge("jvm_threads_peak").contramap(_.toDouble)
+    Metric.gauge("jvm_threads_peak").contramap(_.toDouble)
 
   /** Started thread count of a JVM */
   private val threadsStartedTotal: Gauge[Long] =
-    ZIOMetric
+    Metric
       .gauge("jvm_threads_started_total")
       .contramap(
         _.toDouble
@@ -37,18 +37,18 @@ trait Thread extends JvmMetrics {
    * monitors or ownable synchronizers
    */
   private val threadsDeadlocked: Gauge[Int] =
-    ZIOMetric.gauge("jvm_threads_deadlocked").contramap(_.toDouble)
+    Metric.gauge("jvm_threads_deadlocked").contramap(_.toDouble)
 
   /**
    * Cycles of JVM-threads that are in deadlock waiting to acquire object
    * monitors
    */
   private val threadsDeadlockedMonitor: Gauge[Int] =
-    ZIOMetric.gauge("jvm_threads_deadlocked_monitor").contramap(_.toDouble)
+    Metric.gauge("jvm_threads_deadlocked_monitor").contramap(_.toDouble)
 
   /** Current count of threads by state */
   private def threadsState(state: java.lang.Thread.State): Gauge[Long] =
-    ZIOMetric.gauge("jvm_threads_state").tagged(MetricLabel("state", state.name())).contramap(_.toDouble)
+    Metric.gauge("jvm_threads_state").tagged(MetricLabel("state", state.name())).contramap(_.toDouble)
 
   private def getThreadStateCounts(
     threadMXBean: ThreadMXBean

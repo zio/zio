@@ -25,10 +25,10 @@ import java.util.concurrent.TimeUnit
 import java.time.temporal.ChronoUnit
 
 /**
- * A `ZIOMetric[In, Out]` represents a concurrent metric, which accepts updates
- * of type `In`, which are aggregated to a stateful value of type `Out`.
+ * A `Metric[In, Out]` represents a concurrent metric, which accepts updates of
+ * type `In`, which are aggregated to a stateful value of type `Out`.
  *
- * For example, a counter metric would have type `ZIOMetric[Double, Double]`,
+ * For example, a counter metric would have type `Metric[Double, Double]`,
  * representing the fact that the metric can be updated with doubles (the amount
  * to increment or decrement the counter by), and the state of the counter is a
  * double.
@@ -36,15 +36,15 @@ import java.time.temporal.ChronoUnit
  * There are five primitive metric types supported by ZIO:
  *
  *   - Counters
+ *   - Frequencies
  *   - Gauges
  *   - Histograms
  *   - Summaries
- *   - Set Counts
  *
  * The companion object contains constructors for these primitive metrics. All
  * metrics are derived from these primitive metrics.
  */
-trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
+trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In] { self =>
 
   /**
    * The type of the underlying primitive metric. For example, this could be
@@ -63,8 +63,8 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * of the specified new type, which must be transformable to the input type of
    * this metric.
    */
-  final def contramap[In2](f: In2 => In): ZIOMetric[Type, In2, Out] =
-    new ZIOMetric[Type, In2, Out] {
+  final def contramap[In2](f: In2 => In): Metric[Type, In2, Out] =
+    new Metric[Type, In2, Out] {
       val keyType = self.keyType
 
       def unsafeUpdate(in: In2, extraTags: Set[MetricLabel] = Set.empty): Unit =
@@ -79,7 +79,7 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * of any type, and translates them to updates with the specified constant
    * update value.
    */
-  final def fromConst(in: => In): ZIOMetric[Type, Any, Out] =
+  final def fromConst(in: => In): Metric[Type, Any, Out] =
     contramap[Any](_ => in)
 
   /**
@@ -87,8 +87,8 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    * state type, determined by transforming the state type of this metric by the
    * specified function.
    */
-  final def map[Out2](f: Out => Out2): ZIOMetric[Type, In, Out2] =
-    new ZIOMetric[Type, In, Out2] {
+  final def map[Out2](f: Out => Out2): Metric[Type, In, Out2] =
+    new Metric[Type, In, Out2] {
       val keyType = self.keyType
 
       def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
@@ -98,26 +98,37 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
         f(self.unsafeValue(extraTags))
     }
 
+  final def mapType[Type2](f: Type => Type2): Metric[Type2, In, Out] =
+    new Metric[Type2, In, Out] {
+      val keyType = f(self.keyType)
+
+      def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        self.unsafeUpdate(in, extraTags)
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out =
+        self.unsafeValue(extraTags)
+    }
+
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tag will be added to the tags of this metric.
    */
-  final def tagged(key: String, value: String): ZIOMetric[Type, In, Out] =
+  final def tagged(key: String, value: String): Metric[Type, In, Out] =
     tagged(MetricLabel(key, value))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  final def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): ZIOMetric[Type, In, Out] =
+  final def tagged(extraTag: MetricLabel, extraTags: MetricLabel*): Metric[Type, In, Out] =
     tagged(Set(extraTag) ++ extraTags.toSet)
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
    * the specified tags have been added to the tags of this metric.
    */
-  final def tagged(extraTags0: Set[MetricLabel]): ZIOMetric[Type, In, Out] =
-    new ZIOMetric[Type, In, Out] {
+  final def tagged(extraTags0: Set[MetricLabel]): Metric[Type, In, Out] =
+    new Metric[Type, In, Out] {
       val keyType = self.keyType
 
       def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit =
@@ -135,8 +146,8 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    */
   final def taggedWith[In1 <: In](
     f: In1 => Set[MetricLabel]
-  ): ZIOMetric[Type, In1, Unit] =
-    new ZIOMetric[Type, In1, Out] {
+  ): Metric[Type, In1, Unit] =
+    new Metric[Type, In1, Out] {
       val keyType = self.keyType
 
       def unsafeUpdate(in: In1, extraTags: Set[MetricLabel] = Set.empty): Unit =
@@ -263,27 +274,27 @@ trait ZIOMetric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, 
    */
   final def value(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
 
-  final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): ZIOMetric[Type, In2, Out] =
+  final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): Metric[Type, In2, Out] =
     contramap[In2](in2 => ev((in2, java.time.Instant.now())))
 
   private[zio] def unsafeUpdate(in: In, extraTags: Set[MetricLabel] = Set.empty): Unit
 
   private[zio] def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out
 }
-object ZIOMetric {
-  type Counter[-In]   = ZIOMetric[MetricKeyType.Counter, In, MetricState.Counter]
-  type Gauge[-In]     = ZIOMetric[MetricKeyType.Gauge, In, MetricState.Gauge]
-  type Histogram[-In] = ZIOMetric[MetricKeyType.Histogram, In, MetricState.Histogram]
-  type Summary[-In]   = ZIOMetric[MetricKeyType.Summary, In, MetricState.Summary]
-  type Frequency[-In] = ZIOMetric[MetricKeyType.Frequency, In, MetricState.Frequency]
+object Metric {
+  type Counter[-In]   = Metric[MetricKeyType.Counter, In, MetricState.Counter]
+  type Gauge[-In]     = Metric[MetricKeyType.Gauge, In, MetricState.Gauge]
+  type Histogram[-In] = Metric[MetricKeyType.Histogram, In, MetricState.Histogram]
+  type Summary[-In]   = Metric[MetricKeyType.Summary, In, MetricState.Summary]
+  type Frequency[-In] = Metric[MetricKeyType.Frequency, In, MetricState.Frequency]
 
-  implicit class InvariantSyntax[Type, In, Out](self: ZIOMetric[Type, In, Out]) {
-    final def zip[Type2, In2, Out2](that: ZIOMetric[Type2, In2, Out2])(implicit
+  implicit class InvariantSyntax[Type, In, Out](self: Metric[Type, In, Out]) {
+    final def zip[Type2, In2, Out2](that: Metric[Type2, In2, Out2])(implicit
       z1: Zippable[Type, Type2],
       uz: Unzippable[In, In2],
       z2: Zippable[Out, Out2]
-    ): ZIOMetric[z1.Out, uz.In, z2.Out] =
-      new ZIOMetric[z1.Out, uz.In, z2.Out] {
+    ): Metric[z1.Out, uz.In, z2.Out] =
+      new Metric[z1.Out, uz.In, z2.Out] {
         val keyType = z1.zip(self.keyType, that.keyType)
 
         def unsafeUpdate(in: uz.In, extraTags: Set[MetricLabel] = Set.empty): Unit = {
@@ -297,20 +308,20 @@ object ZIOMetric {
       }
   }
 
-  implicit class CounterSyntax[In](counter: ZIOMetric[MetricKeyType.Counter, In, Any]) {
+  implicit class CounterSyntax[In](counter: Metric[MetricKeyType.Counter, In, Any]) {
     def increment(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(numeric.fromInt(1))
 
     def incrementBy(value: => In)(implicit numeric: Numeric[In]): UIO[Unit] = counter.update(value)
   }
 
-  implicit class GaugeSyntax[In](gauge: ZIOMetric[MetricKeyType.Gauge, In, Any]) {
+  implicit class GaugeSyntax[In](gauge: Metric[MetricKeyType.Gauge, In, Any]) {
     def set(value: => In): UIO[Unit] = gauge.update(value)
   }
 
   def fromMetricKey[Type <: MetricKeyType](
     key: MetricKey[Type]
-  ): ZIOMetric[Type, key.keyType.In, key.keyType.Out] =
-    new ZIOMetric[Type, key.keyType.In, key.keyType.Out] {
+  ): Metric[Type, key.keyType.In, key.keyType.Out] =
+    new Metric[Type, key.keyType.In, key.keyType.Out] {
       val keyType = key.keyType
 
       final def unsafeUpdate(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty): Unit =
@@ -365,6 +376,18 @@ object ZIOMetric {
     fromMetricKey(MetricKey.histogram(name, boundaries))
 
   /**
+   * Creates a metric that ignores input and produces constant output.
+   */
+  def succeed[Out](out: => Out): Metric[Unit, Any, Out] =
+    new Metric[Unit, Any, Out] {
+      val keyType = ()
+
+      def unsafeUpdate(in: Any, extraTags: Set[MetricLabel] = Set.empty): Unit = ()
+
+      def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): Out = out
+    }
+
+  /**
    * A summary metric.
    */
   def summary(
@@ -394,7 +417,7 @@ object ZIOMetric {
   def timer(
     name: String,
     chronoUnit: ChronoUnit
-  ): ZIOMetric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
+  ): Metric[MetricKeyType.Histogram, Duration, MetricState.Histogram] = {
     val boundaries = Histogram.Boundaries.exponential(1.0, 2.0, 100)
     val base       = histogram(name, boundaries).tagged(MetricLabel("time_unit", chronoUnit.toString.toLowerCase()))
 

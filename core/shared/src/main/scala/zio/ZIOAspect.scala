@@ -1,7 +1,7 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.metrics.{ZIOMetric, MetricLabel}
+import zio.metrics.{Metric, MetricLabel}
 import scala.concurrent.ExecutionContext
 
 trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
