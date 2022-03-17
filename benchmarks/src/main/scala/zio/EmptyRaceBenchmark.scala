@@ -1,11 +1,11 @@
 package zio
 
 import cats.effect.unsafe.implicits.global
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)

@@ -62,7 +62,7 @@ package object test extends CompileVariants {
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+    val live: ZLayer[ZEnv with Scope, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
@@ -77,7 +77,7 @@ package object test extends CompileVariants {
 
   val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: Layer[Nothing, TestEnvironment] = {
+  val testEnvironment: ZLayer[Scope, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
     ZEnv.live >>> TestEnvironment.live
   }
@@ -165,7 +165,7 @@ package object test extends CompileVariants {
     ): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
-        .overrideForkScope(ZScope.global)
+        .daemonChildren
         .ensuringChildren { children =>
           ZIO.foreach(children) { child =>
             val warning =

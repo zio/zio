@@ -30,9 +30,9 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val managed: ZStream[Clock with Random, Nothing, Unit] = ???
+   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSome[Random](clockLayer)
+   * val stream2 = stream.provideSome[Random](clockLayer)
    * }}}
    */
   def provideSome[R0]: ProvideSomeLayerStreamPartiallyApplied[R0, R, E, O] =

@@ -107,6 +107,9 @@ lazy val root = project
     macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
+    managedJS,
+    managedJVM,
+    managedNative,
     scalafixTests,
     stacktracerJS,
     stacktracerJVM,
@@ -222,9 +225,37 @@ lazy val coreTestsJS = coreTests.js
     }
   )
 
+lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .in(file("managed"))
+  .dependsOn(core, streams)
+  .settings(stdSettings("zio-managed"))
+  .settings(crossProjectSettings)
+  .settings(buildInfoSettings("zio.managed"))
+  .settings(streamReplSettings)
+  .enablePlugins(BuildInfoPlugin)
+  .settings(macroDefinitionSettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3)
+        Seq.empty
+      else
+        Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
+    }
+  )
+
+lazy val managedJVM = managed.jvm
+  .settings(dottySettings)
+  .settings(mimaSettings(failOnProblem = false))
+
+lazy val managedJS = managed.js
+  .settings(dottySettings)
+
+lazy val managedNative = managed.native
+  .settings(nativeSettings)
+
 lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
-  .dependsOn(core)
+  .dependsOn(core, managed)
   .settings(stdSettings("zio-macros"))
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)

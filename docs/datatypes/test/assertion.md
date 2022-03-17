@@ -430,7 +430,7 @@ In order to understand the `Assertion` data type, let's first look at the `test`
 def test[In](label: String)(assertion: => In)(implicit testConstructor: TestConstructor[Nothing, In]): testConstructor.Out
 ```
 
-Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]`, `ZManaged[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `ZSpec[R, E]` data type:
+Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `ZSpec[R, E]` data type:
 
 ```scala
 def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing]

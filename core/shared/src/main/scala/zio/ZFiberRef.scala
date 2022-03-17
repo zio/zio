@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.internal.FiberScope
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -99,11 +100,11 @@ sealed abstract class ZFiberRef[+EA, +EB, -A, +B] extends Serializable { self =>
   def locally[R, EC >: EA, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C]
 
   /**
-   * Returns a managed effect that sets the value associated with the curent
-   * fiber to the specified value as its `acquire` action and restores it to its
-   * original value as its `release` action.
+   * Returns a scoped effect that sets the value associated with the curent
+   * fiber to the specified value and restores it to its original value when the
+   * scope is closed.
    */
-  def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit]
+  def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit]
 
   /**
    * Sets the value associated with the current fiber.
@@ -308,8 +309,8 @@ object ZFiberRef {
     def locally[R, EC, C](value: A)(use: ZIO[R, EC, C])(implicit trace: ZTraceElement): ZIO[R, EC, C] =
       new ZIO.FiberRefLocally(value, self, use, trace)
 
-    def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
-      ZManaged.acquireReleaseWith(get.flatMap(old => set(value).as(old)))(set).unit
+    def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+      ZIO.acquireRelease(get.flatMap(old => set(value).as(old)))(set).unit
 
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
       new ZIO.FiberRefModify(this, f, trace)
@@ -448,8 +449,8 @@ object ZFiberRef {
         )
       }
 
-    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
-      ZManaged.acquireReleaseWith {
+    def locallyScoped(a: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit] =
+      ZIO.acquireRelease {
         value.get.flatMap { old =>
           setEither(a).fold(
             e => ZIO.fail(e),
@@ -522,8 +523,8 @@ object ZFiberRef {
         )
       }
 
-    def locallyManaged(a: A)(implicit trace: ZTraceElement): ZManaged[Any, EA, Unit] =
-      ZManaged.acquireReleaseWith {
+    def locallyScoped(a: A)(implicit trace: ZTraceElement): ZIO[Scope, EA, Unit] =
+      ZIO.acquireRelease {
         value.get.flatMap { old =>
           setEither(a)(old).fold(
             e => ZIO.fail(e),
@@ -661,7 +662,7 @@ object ZFiberRef {
       }
   }
 
-  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[ZScope]] =
+  private[zio] val forkScopeOverride: FiberRef.Runtime[Option[FiberScope]] =
     ZFiberRef.unsafeMake(None, _ => None, (a, _) => a)
 
   private[zio] val currentExecutor: FiberRef.Runtime[Option[zio.Executor]] =

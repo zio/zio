@@ -77,19 +77,21 @@ object ZChannelSpec extends ZIOBaseSpec {
               events.get.map(assert(_)(equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2", "Release2"))))
           }
         },
-        test("last finalizers are deferred to the ZManaged") {
+        test("last finalizers are deferred to the Scope") {
           Ref.make(Chunk[String]()).flatMap { events =>
             def event(label: String) = events.update(_ :+ label)
             val channel =
               (ZChannel.fromZIO(event("Acquire1")).ensuring(event("Release11")).ensuring(event("Release12")) *>
                 ZChannel.fromZIO(event("Acquire2")).ensuring(event("Release2"))).ensuring(event("ReleaseOuter"))
 
-            channel.toPull.use { pull =>
-              pull.exit *> events.get
-            }.flatMap { eventsInZManaged =>
-              events.get.map { eventsAfterZManaged =>
-                assert(eventsInZManaged)(equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2"))) &&
-                assert(eventsAfterZManaged)(
+            ZIO.scoped {
+              channel.toPull.flatMap { pull =>
+                pull.exit *> events.get
+              }
+            }.flatMap { eventsInScope =>
+              events.get.map { eventsAfterScope =>
+                assert(eventsInScope)(equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2"))) &&
+                assert(eventsAfterScope)(
                   equalTo(Chunk("Acquire1", "Release11", "Release12", "Acquire2", "Release2", "ReleaseOuter"))
                 )
               }
@@ -366,10 +368,10 @@ object ZChannelSpec extends ZIOBaseSpec {
           )
         }
       ),
-      suite("ZChannel#managedOut")(
+      suite("ZChannel#scopedOut")(
         test("failure") {
           for {
-            exit <- ZChannel.managedOut(ZManaged.fail("error")).runCollect.exit
+            exit <- ZChannel.scopedOut(ZIO.fail("error")).runCollect.exit
           } yield assert(exit)(fails(equalTo("error")))
         }
       ),

@@ -1,6 +1,6 @@
 package zio
 
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 
 import java.util.concurrent.TimeUnit
 
@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit
  * [info] RegionBenchmark.zioUninterruptible2       1000  thrpt    5  20062.071 ∩┐╜ 277.925  ops/s
  * }}}
  */
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class RegionBenchmark {

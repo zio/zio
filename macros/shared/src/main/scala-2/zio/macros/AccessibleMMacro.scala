@@ -29,8 +29,8 @@ private[macros] class AccessibleMMacro(override val c: whitebox.Context) extends
   private lazy val task: Tree = tq"_root_.zio.Task"
   private lazy val uio: Tree  = tq"_root_.zio.UIO"
 
-  private lazy val taskManaged: Tree = tq"_root_.zio.TaskManaged"
-  private lazy val uManaged: Tree    = tq"_root_.zio.UManaged"
+  private lazy val taskManaged: Tree = tq"_root_.zio.managed.TaskManaged"
+  private lazy val uManaged: Tree    = tq"_root_.zio.managed.UManaged"
 
   protected lazy val macroName: String = "accessibleM"
 

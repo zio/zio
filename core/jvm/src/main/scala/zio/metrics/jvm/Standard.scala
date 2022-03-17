@@ -97,38 +97,40 @@ trait Standard extends JvmMetrics {
     } yield ()
 
   private def collectMemoryMetricsLinux()(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    ZManaged.readFile("/proc/self/status").use { stream =>
-      stream
-        .readAll(8192)
-        .catchAll {
-          case None        => ZIO.succeed(Chunk.empty)
-          case Some(error) => ZIO.fail(error)
-        }
-        .flatMap { bytes =>
-          ZIO.attempt(new String(bytes.toArray, StandardCharsets.US_ASCII)).flatMap { raw =>
-            ZIO.foreachDiscard(raw.split('\n')) { line =>
-              if (line.startsWith("VmSize:")) {
-                ZIO.attempt(line.split("\\s+")(1).toDouble * 1024.0) @@ virtualMemorySize
-              } else if (line.startsWith("VmRSS:")) {
-                ZIO.attempt(line.split("\\s+")(1).toDouble * 1024.0) @@ residentMemorySize
-              } else {
-                ZIO.unit
+    ZIO.scoped {
+      ZIO.readFile("/proc/self/status").flatMap { stream =>
+        stream
+          .readAll(8192)
+          .catchAll {
+            case None        => ZIO.succeed(Chunk.empty)
+            case Some(error) => ZIO.fail(error)
+          }
+          .flatMap { bytes =>
+            ZIO.attempt(new String(bytes.toArray, StandardCharsets.US_ASCII)).flatMap { raw =>
+              ZIO.foreachDiscard(raw.split('\n')) { line =>
+                if (line.startsWith("VmSize:")) {
+                  ZIO.attempt(line.split("\\s+")(1).toDouble * 1024.0) @@ virtualMemorySize
+                } else if (line.startsWith("VmRSS:")) {
+                  ZIO.attempt(line.split("\\s+")(1).toDouble * 1024.0) @@ residentMemorySize
+                } else {
+                  ZIO.unit
+                }
               }
             }
           }
-        }
+      }
     }
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Standard] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Standard] =
     for {
-      runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean).toManaged
-      operatingSystemMXBean <- ZIO.attempt(ManagementFactory.getOperatingSystemMXBean).toManaged
+      runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean)
+      operatingSystemMXBean <- ZIO.attempt(ManagementFactory.getOperatingSystemMXBean)
       getProcessCpuTime      = new MXReflection("getProcessCpuTime", operatingSystemMXBean)
       getOpenFileDescriptorCount =
         new MXReflection("getOpenFileDescriptorCount", operatingSystemMXBean)
       getMaxFileDescriptorCount =
         new MXReflection("getMaxFileDescriptorCount", operatingSystemMXBean)
-      isLinux <- ZIO.attempt(operatingSystemMXBean.getName.indexOf("Linux") == 0).toManaged
+      isLinux <- ZIO.attempt(operatingSystemMXBean.getName.indexOf("Linux") == 0)
       _ <-
         reportStandardMetrics(
           runtimeMXBean,
@@ -139,7 +141,7 @@ trait Standard extends JvmMetrics {
         )
           .repeat(collectionSchedule)
           .interruptible
-          .forkManaged
+          .forkScoped
     } yield this
 }
 

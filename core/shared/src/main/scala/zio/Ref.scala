@@ -33,13 +33,6 @@ object Ref extends Serializable {
 
   /**
    * @see
-   *   [[zio.ZRef.makeManaged]]
-   */
-  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): UManaged[Ref[A]] =
-    ZRef.makeManaged(a)
-
-  /**
-   * @see
    *   [[zio.ZRef.unsafeMake]]
    */
   private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =

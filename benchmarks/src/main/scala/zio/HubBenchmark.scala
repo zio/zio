@@ -6,13 +6,13 @@ import cats.effect.{Fiber => CFiber, IO => CIO, Resource}
 import cats.syntax.all._
 import fs2.concurrent.Topic
 import io.github.timwspence.cats.stm.{STM => CSTM}
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
 import zio.stm._
 
 import java.util.concurrent.TimeUnit
 
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 @Measurement(iterations = 15, timeUnit = TimeUnit.SECONDS, time = 3)
@@ -150,7 +150,7 @@ class HubBenchmarks {
 
   trait ZIOHubLike[A] {
     def publish(a: A): UIO[Any]
-    def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]]
+    def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]]
   }
 
   object ZIOHubLike {
@@ -160,7 +160,7 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             hub.publish(a)
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
             hub.subscribe.map(dequeue => n => zioRepeat(n)(dequeue.take))
         }
       }
@@ -170,7 +170,7 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             hub.publish(a)
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
             hub.subscribe.map(dequeue => n => zioRepeat(n)(dequeue.take))
         }
       }
@@ -180,11 +180,11 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             ref.get.flatMap(map => ZIO.foreach(map.values)(_.offer(a)))
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
             for {
-              key   <- key.getAndUpdate(_ + 1).toManaged
-              queue <- Queue.bounded[A](capacity).toManaged
-              _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)))(ref.update(_ - key))
+              key   <- key.getAndUpdate(_ + 1)
+              queue <- Queue.bounded[A](capacity)
+              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)))(_ => ref.update(_ - key))
             } yield n => zioRepeat(n)(queue.take)
         }
       }
@@ -194,11 +194,11 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             ref.get.flatMap(map => ZIO.foreach(map.values)(_.offer(a)))
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
             for {
-              key   <- key.getAndUpdate(_ + 1).toManaged
-              queue <- Queue.unbounded[A].toManaged
-              _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)))(ref.update(_ - key))
+              key   <- key.getAndUpdate(_ + 1)
+              queue <- Queue.unbounded[A]
+              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)))(_ => ref.update(_ - key))
             } yield n => zioRepeat(n)(queue.take)
         }
       }
@@ -208,8 +208,8 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             hub.publish(a).commit
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
-            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
+            hub.subscribeScoped.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
         }
       }
 
@@ -218,8 +218,8 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             hub.publish(a).commit
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
-            hub.subscribeManaged.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
+            hub.subscribeScoped.map(dequeue => n => zioRepeat(n)(dequeue.take.commit))
         }
       }
 
@@ -228,11 +228,11 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             ref.get.flatMap(map => ZSTM.foreach(map.values)(_.offer(a))).commit
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
             for {
-              key   <- key.getAndUpdate(_ + 1).commit.toManaged
-              queue <- TQueue.bounded[A](capacity).commit.toManaged
-              _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)).commit)(ref.update(_ - key).commit)
+              key   <- key.getAndUpdate(_ + 1).commit
+              queue <- TQueue.bounded[A](capacity).commit
+              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)).commit)(_ => ref.update(_ - key).commit)
             } yield n => zioRepeat(n)(queue.take.commit)
         }
       }
@@ -242,11 +242,11 @@ class HubBenchmarks {
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             ref.get.flatMap(map => ZSTM.foreach(map.values)(_.offer(a))).commit
-          def subscribe: ZManaged[Any, Nothing, Int => UIO[Any]] =
+          def subscribe: ZIO[Scope, Nothing, Int => UIO[Any]] =
             for {
-              key   <- key.getAndUpdate(_ + 1).commit.toManaged
-              queue <- TQueue.unbounded[A].commit.toManaged
-              _     <- ZManaged.acquireRelease(ref.update(_ + (key -> queue)).commit)(ref.update(_ - key).commit)
+              key   <- key.getAndUpdate(_ + 1).commit
+              queue <- TQueue.unbounded[A].commit
+              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)).commit)(_ => ref.update(_ - key).commit)
             } yield n => zioRepeat(n)(queue.take.commit)
         }
       }
@@ -366,10 +366,10 @@ class HubBenchmarks {
       ref     <- Ref.make(subscriberParallelism)
       promise <- Promise.make[Nothing, Unit]
       hub     <- makeHub
-      subscribers <- zioForkAll(List.fill(subscriberParallelism)(hub.subscribe.use { take =>
+      subscribers <- zioForkAll(List.fill(subscriberParallelism)(ZIO.scoped(hub.subscribe.flatMap { take =>
                        promise.succeed(()).whenZIO(ref.updateAndGet(_ - 1).map(_ == 0)) *>
                          take(totalSize)
-                     }))
+                     })))
       _ <- promise.await
       _ <- zioForkAll(List.fill(publisherParallelism)(zioRepeat(totalSize / publisherParallelism)(hub.publish(0))))
       _ <- zioJoinAll(subscribers)
@@ -385,11 +385,11 @@ class HubBenchmarks {
       promise1 <- Promise.make[Nothing, Unit]
       promise2 <- Promise.make[Nothing, Unit]
       hub      <- makeHub
-      subscribers <- zioForkAll(List.fill(subscriberParallelism)(hub.subscribe.use { take =>
+      subscribers <- zioForkAll(List.fill(subscriberParallelism)(ZIO.scoped(hub.subscribe.flatMap { take =>
                        promise1.succeed(()).whenZIO(ref.updateAndGet(_ - 1).map(_ == 0)) *>
                          promise2.await *>
                          take(totalSize)
-                     }))
+                     })))
       _ <- promise1.await
       _ <- zioRepeat(totalSize)(hub.publish(0))
       _ <- promise2.succeed(())

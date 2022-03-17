@@ -95,6 +95,6 @@ final case class TestRunner[R, E](
 
   private[test] def buildRuntime(implicit
     trace: ZTraceElement
-  ): Managed[Nothing, Runtime[TestLogger with Clock]] =
+  ): ZIO[Scope, Nothing, Runtime[TestLogger with Clock]] =
     bootstrap.toRuntime(runtimeConfig)
 }

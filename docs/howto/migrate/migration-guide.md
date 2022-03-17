@@ -168,8 +168,8 @@ Here are some of the most important changes:
 
 - **`as`, `to`, `into` prefixes** — The `ZIO#asService` method is renamed to `ZIO#toLayer` and also the `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
     1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
-    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer`, `ZIO#toManaged`, and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
-    3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, `ZStream#intoQueue` and `ZStream#intoManaged`)
+    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer` and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
+    3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, and `ZStream#intoQueue`)
 
 | ZIO 1.x                        | ZIO 2.x                           |
 |--------------------------------|-----------------------------------|
@@ -211,7 +211,6 @@ Here are some of the most important changes:
 | `ZIO#bracketExit`              | `ZIO#acquireReleaseExitWith`      |
 | `ZIO#bracketExit`              | `ZIO#acquireReleaseExitWith`      |
 | `ZIO#bracketOnError`           | `ZIO#acquireReleaseOnErrorWith`   |
-| `ZIO#toManaged_`               | `ZIO#toManaged`                   |
 |                                |                                   |
 | `ZIO.collectAll_`              | `ZIO.collectAllDiscard`           |
 | `ZIO.collectAllPar_`           | `ZIO.collectAllParDiscard`        |
@@ -342,7 +341,7 @@ While in ZIO 2.x, we have more ergonomics result type and also the `Unit` data-t
 val zipped = x1 <*> x2 <*> x3 <*> x4
 ```
 
-This change is not only for the `ZIO` data type but also for all other data types like `ZManaged`, `ZStream`, `ZSTM`, etc.
+This change is not only for the `ZIO` data type but also for all other data types like `ZStream`, `ZSTM`, etc.
 
 As we have compositional zips, we no longer need higher arity zips in ZIO 1.x like `mapN`, `mapParN`, `Gen#zipN`, and `Gen#crossN`. They are deprecated in ZIO 2.x.
 
@@ -477,7 +476,7 @@ object MyApp extends zio.App {
 }
 ```
 
-Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOAppDefault` trait which is simpler than the former approach (Note that the `ZApp` and `ManagedApp` are also deprecated, and we should use the `ZIOAppDefault` instead):
+Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOAppDefault` trait which is simpler than the former approach (Note that the `ZApp` is also deprecated, and we should use the `ZIOAppDefault` instead):
 
 ```scala mdoc:compile-only
 import zio.ZIOAppDefault
@@ -595,14 +594,10 @@ ZIO 2.x deprecates all `ZLayer.fromService*` functions:
 | `ZLayer.fromServices`            | `toLayer` |
 | `ZLayer.fromServiceM`            | `toLayer` |
 | `ZLayer.fromServicesM`           | `toLayer` |
-| `ZLayer.fromServiceManaged`      | `toLayer` |
-| `ZLayer.fromServicesManaged`     | `toLayer` |
 | `ZLayer.fromServiceMany`         | `toLayer` |
 | `ZLayer.fromServicesMany`        | `toLayer` |
 | `ZLayer.fromServiceManyM`        | `toLayer` |
 | `ZLayer.fromServicesManyM`       | `toLayer` |
-| `ZLayer.fromServiceManyManaged`  | `toLayer` |
-| `ZLayer.fromServicesManyManaged` | `toLayer` |
 
 Instead, it provides the `toLayer` extension methods for functions:
 
@@ -663,7 +658,7 @@ import zio._
 
 ### Accessing Multiple Services in the Environment
 
-In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services` and `ZManaged.services`:
+In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services`:
 
 ```scala mdoc:silent:nest:warn
 for {
@@ -1237,7 +1232,7 @@ As we see, we have the following changes:
  
     > **_Note:_**
     > 
-    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` or `ZManaged.service` and then implement the service and call `toLayer` on it:
+    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` and then implement the service and call `toLayer` on it:
     > ```scala mdoc:silent:nest
     > object LoggingLive {
     >   val layer: ZLayer[Clock with Console, Nothing, Logging] =
@@ -1307,72 +1302,6 @@ Here is list of other deprecated methods:
 | `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
-
-## ZManaged
-
-| ZIO 1.x                              | ZIO 2.x                                    |
-|--------------------------------------|--------------------------------------------|
-| `ZManaged#&&&`                       | `ZManaged#zip`                             |
-| `ZManaged#mapN`                      | `ZManaged#zip`                             |
-| `ZManaged.mapM`                      | `ZManaged.mapZIO`                          |
-| `ZManaged.mapParN`                   | `ZManaged.zipPar`                          |
-| `ZManaged#>>=`                       | `ZManaged#flatMap`                         |
-| `ZManaged#bimap`                     | `ZManaged#mapBoth`                         |
-| `ZManaged#mapEffect`                 | `ZManaged#mapAttempt`                      |
-| `ZManaged#flattenM`                  | `ZManaged#flattenZIO`                      |
-|                                      |                                            |
-| `ZManaged#get`                       | `ZManaged#some`                            |
-| `ZManaged#someOrElseM`               | `ZManaged#someOrElseManaged`               |
-|                                      |                                            |
-| `ZManaged#asService`                 | `ZManaged#toLayer`                |
-| `ZManaged.services`                  | `ZManaged.service`                         |
-|                                      |                                            |
-| `ZManaged.foreach_`                  | `ZManaged.foreachDiscard`                  |
-| `ZManaged.foreachPar_`               | `ZManaged.foreachParDiscard`               |
-| `ZManaged.foreachParN_`              | `ZManaged.foreachParNDiscard`              |
-|                                      |                                            |
-| `ZManaged#foldCauseM`                | `ZManaged#foldCauseManaged`                |
-| `ZManaged#foldM`                     | `ZManaged#foldManaged`                     |
-|                                      |                                            |
-| `ZManaged.make`                      | `ZManaged.acquireReleaseWith`              |
-| `ZManaged.make_`                     | `ZManaged.acquireRelease`                  |
-| `ZManaged.makeEffect`                | `ZManaged.acquireReleaseAttemptWith`       |
-| `ZManaged.makeEffect_`               | `ZManaged.acquireReleaseAttempt`           |
-| `ZManaged.makeEffectTotal`           | `ZManaged.acquireReleaseSucceedWith`       |
-| `ZManaged.makeEffectTotal_`          | `ZManaged.acquireReleaseSucceed`           |
-| `ZManaged.makeExit`                  | `ZManaged.acquireReleaseExitWith`          |
-| `ZManaged.makeExit_`                 | `ZManaged.acquireReleaseExit`              |
-| `ZManaged.makeInterruptible`         | `ZManaged.acquireReleaseInterruptibleWith` |
-| `ZManaged.makeInterruptible_`        | `ZManaged.acquireReleaseInterruptible`     |
-| `ZManaged.makeReserve`               | `ZManaged.fromReservationZIO`              |
-| `ZManaged.reserve`                   | `ZManaged.fromReservation`                 |
-|                                      |                                            |
-| `ZManaged#ifM`                       | `ZManaged#ifManaged`                       |
-| `ZManaged.loop_`                     | `ZManaged.loopDiscard`                     |
-| `ZManaged#unlessM`                   | `ZManaged#unlessManaged`                   |
-| `ZManaged#whenCaseM`                 | `ZManaged#whenCaseManaged`                 |
-| `ZManaged#whenM`                     | `ZManaged#whenManaged`                     |
-|                                      |                                            |
-| `ZManaged.fromFunction`              | `ZManaged.access`                          |
-| `ZManaged.fromFunctionM`             | `ZManaged.environmentWithZIOManaged`             |
-| `ZManaged.fromEffect`                | `ZManaged.fromZIO`                         |
-| `ZManaged.fromEffectUninterruptible` | `ZManaged.fromZIOUninterruptible`          |
-| `ZManaged.effect`                    | `ZManaged.attempt`                         |
-| `ZManaged.effectTotal`               | `ZManaged.succeed`                         |
-|                                      |                                            |
-| `ZManaged#collectM`                  | `ZManaged#collectManage`                   |
-| `ZManaged#collectAll_`               | `ZManaged#collectAllDiscard`               |
-| `ZManaged#collectAllPar_`            | `ZManaged#collectAllParDiscard`            |
-| `ZManaged#collectAllParN_`           | `ZManaged#collectAllParNDiscard`           |
-|                                      |                                            |
-| `ZManaged#use_`                      | `ZManaged#useDiscard`                      |
-| `ZManaged.require`                   | `ZManaged.someOrFail`                      |
-| `ZManaged.accessM`                   | `ZManaged.environmentWithZIO`                    |
-| `ZManaged#rejectM`                   | `ZManaged#rejectManaged`                   |
-| `ZManaged#tapM`                      | `ZManaged#tapZIO`                          |
-| `ZManaged#on`                        | `ZManaged#onExecutionContext`              |
-| `ZManaged#optional`                  | `ZManaged#unoption`                        |
-| `ZManaged#halt`                      | `ZManaged#failCause`                       |
 
 ## ZRef
 
@@ -1765,7 +1694,7 @@ Method names in the _Console_ service were renamed to the more readable names:
 
 ### Smart Constructors
 
-Every data type in ZIO (`ZIO`, `ZManaged`, `ZStream`, etc.) has a variety of constructor functions that are designed to _up convert_ some weaker type into the target type. Typically, these converter functions are named `fromXYZ`, e.g. `ZIO.fromEither`, `ZStream.fromZIO`, etc.
+Every data type in ZIO (`ZIO`, `ZStream`, etc.) has a variety of constructor functions that are designed to _up convert_ some weaker type into the target type. Typically, these converter functions are named `fromXYZ`, e.g. `ZIO.fromEither`, `ZStream.fromZIO`, etc.
 
 While these are precise, ZIO 2.0 provides the `ZIO.from` constructor which can intelligently choose the most likely constructor based on the input type. So instead of writing `ZIO.fromEither(Right(3))` we can easily write `ZIO.from(Right(3))`. Let's try some of them:
 
@@ -1781,9 +1710,6 @@ ZIO.from(Right(3))
 
 ZIO.fromFiber(Fiber.succeed("Ok!"))
 ZIO.from(Fiber.succeed("Ok!"))
-
-ZManaged.fromZIO(ZIO.fromEither(Right("Ok!"))) 
-ZManaged.from(ZIO.attempt(Right("Ok!")))
 
 ZStream.fromIterable(List(1,2,3)) 
 ZStream.from(List(1,1,3))
@@ -1838,12 +1764,14 @@ for {
   hub <- Hub.bounded[String](requestedCapacity = 2)
   s1 = hub.subscribe
   s2 = hub.subscribe
-  _ <- s1.zip(s2).use { case (left, right) =>
-    for {
-      _ <- hub.publish("Hello from a hub!")
-      _ <- left.take.flatMap(Console.printLine(_))
-      _ <- right.take.flatMap(Console.printLine(_))
-    } yield ()
+  _ <- ZIO.scoped {
+    s1.zip(s2).flatMap { case (left, right) =>
+      for {
+        _ <- hub.publish("Hello from a hub!")
+        _ <- left.take.flatMap(Console.printLine(_))
+        _ <- right.take.flatMap(Console.printLine(_))
+      } yield ()
+    }
   }
 } yield ()
 ```

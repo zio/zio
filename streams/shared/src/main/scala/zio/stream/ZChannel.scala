@@ -1,6 +1,5 @@
 package zio.stream
 
-import zio.ZManaged.ReleaseMap
 import zio.{ZIO, _}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
@@ -572,7 +571,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
     val m =
       for {
-        input      <- SingleProducerAsyncInput.make[InErr1, InElem1, InDone1].toManaged
+        input      <- SingleProducerAsyncInput.make[InErr1, InElem1, InDone1]
         queueReader = ZChannel.fromInput(input)
         pullL      <- (queueReader >>> self).toPull
         pullR      <- (queueReader >>> that).toPull
@@ -671,7 +670,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           .embedInput(input)
       }
 
-    ZChannel.unwrapManaged(m)
+    ZChannel.unwrapScoped[Env1](m)
   }
 
   def mergeMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
@@ -712,13 +711,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    ZChannel.managed {
-      ZManaged.withChildren { getChildren =>
+    ZChannel.scoped[Env1] {
+      ZIO.withChildren { getChildren =>
         for {
-          _           <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue       <- Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n).toManagedWith(_.shutdown)
-          errorSignal <- Promise.makeManaged[OutErr1, Nothing]
-          permits     <- Semaphore.make(n.toLong).toManaged
+          _           <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
+          queue       <- ZIO.acquireRelease(Queue.bounded[ZIO[Env1, OutErr1, Either[OutDone, OutElem2]]](n))(_.shutdown)
+          errorSignal <- Promise.make[OutErr1, Nothing]
+          permits     <- Semaphore.make(n.toLong)
           pull        <- self.toPull
           _ <- pull
                  .foldCauseZIO(
@@ -743,7 +742,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  )
                  .forever
                  .interruptible
-                 .forkManaged
+                 .forkScoped
         } yield queue
       }
     } { queue =>
@@ -856,7 +855,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def provideLayer[OutErr1 >: OutErr, Env0](
     layer: => ZLayer[Env0, OutErr1, Env]
   )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
-    ZChannel.managed(layer.build)(env => self.provideEnvironment(env))
+    ZChannel.scoped[Env0](layer.build)(env => self.provideEnvironment(env))
 
   /**
    * Provides the channel with the single service it requires. If the channel
@@ -892,13 +891,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     loop
   }
 
-  def runManaged(implicit
+  def runScoped(implicit
     ev1: Any <:< InElem,
     ev2: OutElem <:< Nothing,
     trace: ZTraceElement
-  ): ZManaged[Env, OutErr, OutDone] =
-    ZManaged
-      .acquireReleaseExitWith(
+  ): ZIO[Env with Scope, OutErr, OutDone] =
+    ZIO
+      .acquireReleaseExit[Env, OutErr, ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](
         ZIO.succeed(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
@@ -911,7 +910,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         if (finalize ne null) finalize
         else ZIO.unit
       }
-      .mapZIO { exec =>
+      .flatMap { exec =>
         ZIO.suspendSucceed {
           def interpret(channelState: ChannelExecutor.ChannelState[Env, OutErr]): ZIO[Env, OutErr, OutDone] =
             channelState match {
@@ -934,7 +933,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       }
 
   def run(implicit ev1: Any <:< InElem, ev2: OutElem <:< Nothing, trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
-    runManaged.useNow
+    ZIO.scoped[Env](runScoped)
 
   def runCollect(implicit ev1: Any <:< InElem, trace: ZTraceElement): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
     doneCollect.run
@@ -959,9 +958,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     : ZChannel.UpdateServiceAt[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service] =
     new ZChannel.UpdateServiceAt[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service](self)
 
-  def toPull(implicit trace: ZTraceElement): ZManaged[Env, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
-    ZManaged
-      .acquireReleaseExitWith(
+  def toPull(implicit trace: ZTraceElement): ZIO[Env with Scope, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
+    ZIO
+      .acquireReleaseExit[Env, Nothing, ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]](
         ZIO.succeed(
           new ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
             () => self,
@@ -1430,42 +1429,11 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
-  def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZManaged[Env, OutErr, A])(
-    use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, ReleaseMap, OutElem, OutDone](ReleaseMap.make)(
-      (releaseMap, exit) =>
-        releaseMap.releaseAll(
-          exit,
-          ExecutionStrategy.Sequential
-        )
-    ) { releaseMap =>
-      fromZIO[Env, OutErr, A](
-        ZManaged.currentReleaseMap
-          .locally(releaseMap)(m.zio)
-          .map(_._2)
-      )
-        .flatMap(use)
-    }
+  def scoped[Env]: ScopedPartiallyApplied[Env] =
+    new ScopedPartiallyApplied[Env]
 
-  def managedOut[R, E, A](
-    m: => ZManaged[R, E, A]
-  )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
-    acquireReleaseOutExitWith(
-      ReleaseMap.make.flatMap { releaseMap =>
-        ZIO.uninterruptibleMask { restore =>
-          ZManaged.currentReleaseMap
-            .locally(releaseMap)(restore(m.zio))
-            .foldCauseZIO(
-              cause =>
-                releaseMap.releaseAll(Exit.failCause(cause), ExecutionStrategy.Sequential) *> ZIO.failCause(cause),
-              { case (_, out) => ZIO.succeedNow((out, releaseMap)) }
-            )
-        }
-      }
-    ) { case ((_, releaseMap), exit) =>
-      releaseMap.releaseAll(exit, ExecutionStrategy.Sequential)
-    }.mapOut(_._1)
+  def scopedOut[R]: ScopedOutPartiallyApplied[R] =
+    new ScopedOutPartiallyApplied[R]
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -1527,18 +1495,18 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    managed {
-      ZManaged.withChildren { getChildren =>
+    scoped[Env] {
+      ZIO.withChildren { getChildren =>
         for {
-          n             <- ZManaged.succeed(n)
-          bufferSize    <- ZManaged.succeed(bufferSize)
-          mergeStrategy <- ZManaged.succeed(mergeStrategy)
-          _             <- ZManaged.finalizer(getChildren.flatMap(Fiber.interruptAll(_)))
-          queue         <- Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize).toManagedWith(_.shutdown)
-          cancelers     <- Queue.unbounded[Promise[Nothing, Unit]].toManagedWith(_.shutdown)
-          lastDone      <- Ref.makeManaged[Option[OutDone]](None)
-          errorSignal   <- Promise.makeManaged[Nothing, Unit]
-          permits       <- Semaphore.make(n.toLong).toManaged
+          n             <- ZIO.succeed(n)
+          bufferSize    <- ZIO.succeed(bufferSize)
+          mergeStrategy <- ZIO.succeed(mergeStrategy)
+          _             <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
+          queue         <- ZIO.acquireRelease(Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize))(_.shutdown)
+          cancelers     <- ZIO.acquireRelease(Queue.unbounded[Promise[Nothing, Unit]])(_.shutdown)
+          lastDone      <- Ref.make[Option[OutDone]](None)
+          errorSignal   <- Promise.make[Nothing, Unit]
+          permits       <- Semaphore.make(n.toLong)
           pull          <- channels.toPull
           evaluatePull = (pull: ZIO[Env, OutErr, Either[OutDone, OutElem]]) =>
                            pull.flatMap {
@@ -1580,8 +1548,10 @@ object ZChannel {
                        mergeStrategy match {
                          case MergeStrategy.BackPressure =>
                            for {
-                             latch   <- Promise.make[Nothing, Unit]
-                             raceIOs  = channel.toPull.use(evaluatePull(_).race(errorSignal.await))
+                             latch <- Promise.make[Nothing, Unit]
+                             raceIOs = ZIO.scoped[Env](
+                                         channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await))
+                                       )
                              _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
                              _       <- latch.await
                              errored <- errorSignal.isDone
@@ -1593,16 +1563,19 @@ object ZChannel {
                              size     <- cancelers.size
                              _        <- ZIO.when(size >= n)(cancelers.take.flatMap(_.succeed(())))
                              _        <- cancelers.offer(canceler)
-                             raceIOs   = channel.toPull.use(evaluatePull(_).race(errorSignal.await).race(canceler.await))
-                             _        <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
-                             _        <- latch.await
-                             errored  <- errorSignal.isDone
+                             raceIOs =
+                               ZIO.scoped[Env](
+                                 channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await).race(canceler.await))
+                               )
+                             _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
+                             _       <- latch.await
+                             errored <- errorSignal.isDone
                            } yield !errored
                        }
                    }
                  )
                  .repeatWhileEquals(true)
-                 .forkManaged
+                 .forkScoped
         } yield queue
       }
     } { queue =>
@@ -1705,19 +1678,17 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.fromZIO(channel).flatten
 
-  def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
-    channel: => ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    ZChannel.concatAllWith(managedOut(channel))((d, _) => d, (d, _) => d)
+  def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
+    new UnwrapScopedPartiallyApplied[Env]
 
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-    ZChannel.managed(hub.subscribe)(fromQueue(_))
+    ZChannel.scoped(hub.subscribe)(fromQueue(_))
 
-  def fromHubManaged[Err, Done, Elem](
+  def fromHubScoped[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
-  )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
+  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
 
   def fromInput[Err, Elem, Done](
@@ -1863,6 +1834,38 @@ object ZChannel {
         .provideLayer(ZLayer.environment[Env0] ++ layer)
   }
 
+  final class ScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone, A](zio: => ZIO[Scope with Env, OutErr, A])(
+      use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
+    )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope.Closeable, OutElem, OutDone] {
+        Scope.make
+      } { (scope, exit) =>
+        scope.close(exit)
+      } { scope =>
+        ZChannel.fromZIO(scope.extend[Env](zio)).flatMap(use)
+      }
+  }
+
+  final class ScopedOutPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[E, A](
+      zio: => ZIO[Scope with R, E, A]
+    )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
+      acquireReleaseOutExitWith(
+        Scope.make.flatMap { scope =>
+          ZIO.uninterruptibleMask { restore =>
+            restore(scope.extend[R](zio))
+              .foldCauseZIO(
+                cause => scope.close(Exit.failCause(cause)) *> ZIO.failCause(cause),
+                { case out => ZIO.succeedNow((out, scope)) }
+              )
+          }
+        }
+      ) { case ((_, scope), exit) =>
+        scope.close(exit)
+      }.mapOut(_._1)
+  }
+
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
@@ -1897,6 +1900,15 @@ object ZChannel {
       trace: ZTraceElement
     ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
       ZChannel.service[Service].mapZIO(f)
+  }
+
+  final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone](
+      channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+    )(implicit
+      trace: ZTraceElement
+    ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+      ZChannel.concatAllWith(scopedOut[Env](channel))((d, _) => d, (d, _) => d)
   }
 
   final class UpdateService[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](

@@ -34,11 +34,4 @@ object ZRefM {
    */
   def make[A](a: => A)(implicit trace: ZTraceElement): UIO[RefM[A]] =
     ZRef.Synchronized.make(a)
-
-  /**
-   * Creates a new `ZRefM` with the specified value in the context of a
-   * `Managed.`
-   */
-  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): UManaged[RefM[A]] =
-    ZRef.Synchronized.makeManaged(a)
 }

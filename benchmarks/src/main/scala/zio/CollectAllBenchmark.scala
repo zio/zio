@@ -4,7 +4,7 @@ import cats.effect.implicits._
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO => CIO}
 import cats.implicits._
-import org.openjdk.jmh.annotations._
+import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio.BenchmarkUtil._
 
 import java.util.concurrent.TimeUnit
@@ -15,7 +15,7 @@ import scala.concurrent.{Await, Future}
 @Warmup(iterations = 10, time = 3, timeUnit = TimeUnit.SECONDS)
 @Fork(2)
 @Threads(1)
-@State(Scope.Thread)
+@State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class CollectAllBenchmark {

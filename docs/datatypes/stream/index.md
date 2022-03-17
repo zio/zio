@@ -150,7 +150,7 @@ ZIO Streams are working at the level of chunks. Every time we are working with Z
 
 ### 6. Seamless Integration with ZIO
 
-ZIO stream has a powerful seamless integrated support for ZIO. It uses `ZManaged`, `Schedule`, and any other powerful data types in ZIO. So we can stay within the same ecosystem and get all its significant benefits.
+ZIO stream has a powerful seamless integrated support for ZIO. It uses `Scope`, `Schedule`, and any other powerful data types in ZIO. So we can stay within the same ecosystem and get all its significant benefits.
 
 ### 7. Back-Pressure
 

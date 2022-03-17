@@ -36,11 +36,13 @@ object ZTestLogger {
    * provided to with the `RuntimeConfig` updated to add the `ZTestLogger`.
    */
   val default: ZLayer[Any, Nothing, Any] =
-    ZLayer {
+    ZLayer.scoped {
       for {
-        runtimeConfig <- ZManaged.runtimeConfig
-        testLogger    <- ZTestLogger.make.toManaged
-        _             <- ZManaged.withRuntimeConfig(runtimeConfig.copy(logger = testLogger))
+        runtimeConfig <- ZIO.runtimeConfig
+        testLogger    <- ZTestLogger.make
+        acquire        = ZIO.setRuntimeConfig(runtimeConfig.copy(logger = testLogger))
+        release        = ZIO.setRuntimeConfig(runtimeConfig)
+        _             <- ZIO.acquireRelease(acquire)(_ => release)
       } yield ()
     }
 

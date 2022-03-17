@@ -83,11 +83,11 @@ trait Thread extends JvmMetrics {
            }
     } yield ()
 
-  override def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock with System, Throwable, Thread] =
+  override def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Thread] =
     for {
-      threadMXBean <- ZIO.attempt(ManagementFactory.getThreadMXBean).toManaged
+      threadMXBean <- ZIO.attempt(ManagementFactory.getThreadMXBean)
       _ <-
-        reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkManaged
+        reportThreadMetrics(threadMXBean).repeat(collectionSchedule).interruptible.forkScoped
     } yield this
 }
 

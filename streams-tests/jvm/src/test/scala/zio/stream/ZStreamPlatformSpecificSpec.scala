@@ -15,8 +15,8 @@ import java.util.concurrent.CountDownLatch
 import scala.concurrent.ExecutionContext.global
 
 object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
-  def socketClient(port: Int): ZManaged[Any, Throwable, AsynchronousSocketChannel] =
-    ZManaged.acquireReleaseWith(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
+  def socketClient(port: Int): ZIO[Scope, Throwable, AsynchronousSocketChannel] =
+    ZIO.acquireRelease(ZIO.attemptBlockingIO(AsynchronousSocketChannel.open()).flatMap { client =>
       ZIO
         .fromFutureJava(client.connect(new InetSocketAddress("localhost", port)))
         .map(_ => client)
@@ -119,15 +119,15 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           } yield assert(isDone)(isFalse)
         }
       ),
-      suite("asyncManaged")(
-        test("asyncManaged")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
+      suite("asyncScoped")(
+        test("asyncScoped")(check(Gen.chunkOf(Gen.int).filter(_.nonEmpty)) { chunk =>
           for {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
-                       .asyncManaged[Any, Throwable, Int] { k =>
+                       .asyncScoped[Any, Throwable, Int] { k =>
                          global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
-                         latch.succeed(()).toManaged *>
-                           Task.unit.toManaged
+                         latch.succeed(()) *>
+                           Task.unit
                        }
                        .take(chunk.size.toLong)
                        .run(ZSink.collectAll)
@@ -136,28 +136,28 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             s <- fiber.join
           } yield assert(s)(equalTo(chunk))
         }),
-        test("asyncManaged signal end stream") {
+        test("asyncScoped signal end stream") {
           for {
             result <- ZStream
-                        .asyncManaged[Any, Nothing, Int] { k =>
+                        .asyncScoped[Any, Nothing, Int] { k =>
                           global.execute(() => k(IO.fail(None)))
-                          UIO.unit.toManaged
+                          UIO.unit
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
         },
-        test("asyncManaged back pressure") {
+        test("asyncScoped back pressure") {
           for {
             refCnt  <- Ref.make(0)
             refDone <- Ref.make[Boolean](false)
-            stream = ZStream.asyncManaged[Any, Throwable, Int](
+            stream = ZStream.asyncScoped[Any, Throwable, Int](
                        cb => {
                          global.execute { () =>
                            // 1st consumed by sink, 2-6 – in queue, 7th – back pressured
                            (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                            cb(refDone.set(true) *> ZIO.fail(None))
                          }
-                         UIO.unit.toManaged
+                         UIO.unit
                        },
                        5
                      )
@@ -304,7 +304,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
             readMessages <- ZStream
                               .fromSocketServer(8896)
-                              .zip(ZStream.managed(socketClient(8896)))
+                              .zip(ZStream.scoped(socketClient(8896)))
                               .flatMap { case (serverChannel, clientChannel) =>
                                 ZStream
                                   .fromIterable(messages)
@@ -328,7 +328,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             messages <- Gen.listOf1(Gen.byte).map(_.toArray).runCollectN(200)
             writtenMessages <- ZStream
                                  .fromSocketServer(8897)
-                                 .zip(ZStream.managed(socketClient(8897)))
+                                 .zip(ZStream.scoped(socketClient(8897)))
                                  .flatMap { case (serverChannel, clientChannel) =>
                                    ZStream
                                      .fromIterable(messages)
@@ -388,17 +388,17 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           lazy val _                                    = expected
           assertCompletes
         },
-        test("JavaStreamManaged") {
-          trait R
-          trait E extends Throwable
-          trait A
-          trait JavaStreamLike[A] extends java.util.stream.Stream[A]
-          lazy val javaStreamManaged: ZManaged[R, E, JavaStreamLike[A]] = ???
-          lazy val actual                                               = ZStream.from(javaStreamManaged)
-          lazy val expected: ZStream[R, Throwable, A]                   = actual
-          lazy val _                                                    = expected
-          assertCompletes
-        },
+        // test("JavaStreamScoped") {
+        //   trait R
+        //   trait E extends Throwable
+        //   trait A
+        //   trait JavaStreamLike[A] extends java.util.stream.Stream[A]
+        //   lazy val javaStreamScoped: ZIO[R with Scope, E, JavaStreamLike[A]] = ???
+        //   lazy val actual                                               = ZStream.from(javaStreamScoped)
+        //   lazy val expected: ZStream[R, Throwable, A]                   = actual
+        //   lazy val _                                                    = expected
+        //   assertCompletes
+        // },
         test("JavaStreamZIO") {
           trait R
           trait E extends Throwable

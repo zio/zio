@@ -157,7 +157,9 @@ object TestAspect extends TimeoutVariants {
   )(after: A0 => ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
       def some[R <: R0, E >: E0](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
-        Spec.managed(ZManaged.acquireReleaseWith(before)(after).mapError(TestFailure.fail).as(spec))
+        Spec.scoped[R](
+          ZIO.acquireRelease(before)(after).mapError(TestFailure.fail).as(spec)
+        )
     }
 
   /**
@@ -169,16 +171,16 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that evaluates every test inside the context of the
-   * managed function.
+   * scoped function.
    */
   def aroundTest[R0, E0](
-    managed: ZManaged[R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
+    scoped: ZIO[Scope with R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
   ): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        managed.use(f => test.flatMap(f))
+        ZIO.scoped[R](scoped.flatMap(f => test.flatMap(f)))
     }
 
   /**

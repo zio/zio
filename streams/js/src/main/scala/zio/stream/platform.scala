@@ -51,10 +51,10 @@ trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[Canceler[R], ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ZStream.unwrapManaged(for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
-      runtime <- ZManaged.runtime[R]
-      eitherStream <- ZManaged.succeed {
+    ZStream.unwrapScoped[R](for {
+      output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
+      runtime <- ZIO.runtime[R]
+      eitherStream <- ZIO.succeed {
                         register { k =>
                           try {
                             runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -87,18 +87,18 @@ trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback itself returns an a managed
+   * times. The registration of the callback itself returns an a scoped
    * resource. The optionality of the error type `E` can be used to signal the
    * end of the stream, by setting it to `None`.
    */
-  def asyncManaged[R, E, A](
-    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZManaged[R, E, Any],
+  def asyncScoped[R, E, A](
+    register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R with Scope, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    managed {
+    scoped[R] {
       for {
-        output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
-        runtime <- ZIO.runtime[R].toManaged
+        output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
+        runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
                  runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -107,7 +107,7 @@ trait ZStreamPlatformSpecificConstructors {
                    Future.successful(false)
                }
              }
-        done <- ZRef.makeManaged(false)
+        done <- ZRef.make(false)
         pull = done.get.flatMap {
                  if (_)
                    Pull.end
@@ -127,9 +127,9 @@ trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    new ZStream(ZChannel.unwrapManaged(for {
-      output  <- Queue.bounded[stream.Take[E, A]](outputBuffer).toManagedWith(_.shutdown)
-      runtime <- ZManaged.runtime[R]
+    new ZStream(ZChannel.unwrapScoped[R](for {
+      output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
+      runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
                runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
@@ -137,7 +137,7 @@ trait ZStreamPlatformSpecificConstructors {
                case FiberFailure(c) if c.isInterrupted =>
                  Future.successful(false)
              }
-           }.toManaged
+           }
     } yield {
       lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] = ZChannel.unwrap(
         output.take

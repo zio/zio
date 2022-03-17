@@ -199,12 +199,6 @@ object ZRef extends Serializable {
   private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     Atomic(new AtomicReference(a))
 
-  /**
-   * Creates a new managed `ZRef` with the specified value
-   */
-  def makeManaged[A](a: => A)(implicit trace: ZTraceElement): Managed[Nothing, Ref[A]] =
-    make(a).toManaged
-
   implicit class UnifiedSyntax[-R, +E, A](private val self: ZRef[R, R, E, E, A, A]) extends AnyVal {
 
     /**
@@ -804,15 +798,6 @@ object ZRef extends Serializable {
         def unsafeSetAsync(a: A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Unit] =
           ref.setAsync(a)
       }
-
-    /**
-     * Creates a new `ZRef.Synchronized` with the specified value in the context
-     * of a `Managed.`
-     */
-    def makeManaged[A](a: => A)(implicit
-      trace: ZTraceElement
-    ): UManaged[Synchronized[Any, Any, Nothing, Nothing, A, A]] =
-      make(a).toManaged
 
     implicit class UnifiedSyntax[-R, +E, A](private val self: Synchronized[R, R, E, E, A, A]) extends AnyVal {
 

@@ -25,7 +25,7 @@ import zio.test.render._
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp { self =>
 
-  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any]
+  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
   type Failure
 
@@ -37,22 +37,23 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
-  final def run: ZIO[ZEnv with ZIOAppArgs, Any, Any] = {
+  final def run: ZIO[ZEnv with ZIOAppArgs with Scope, Any, Any] = {
     implicit val trace = Tracer.newTrace
 
-    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs](
-      ZLayer.environment[ZEnv with ZIOAppArgs] ++ (TestEnvironment.live ++ layer ++ TestLogger.fromConsole)
+    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs with Scope](
+      ZLayer
+        .environment[ZEnv with ZIOAppArgs with Scope] +!+ (TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
     )
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
-      def layer: ZLayer[ZIOAppArgs, Any, Environment] =
+      def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
         self.layer +!+ that.layer
-      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] =
+      override def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any, Any] =
         self.runSpec.zipPar(that.runSpec)
-      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs, Any] =
+      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.spec + that.spec
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
@@ -62,7 +63,7 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
       }
     }
 
-  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any, Any] = {
+  protected def runSpec: ZIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any, Any] = {
     implicit val trace = Tracer.newTrace
     for {
       args         <- ZIO.service[ZIOAppArgs]
@@ -101,22 +102,22 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
     }
 
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock, Any],
+    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Clock with Scope, Any],
     testArgs: TestArgs,
     sendSummary: URIO[Summary, Unit]
   )(implicit
     trace: ZTraceElement
-  ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger, ExecutedSpec[Any]] = {
+  ): URIO[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, ExecutedSpec[Any]] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
-      runtime      <- ZIO.runtime[Environment with TestEnvironment with ZIOAppArgs with TestLogger]
+      runtime      <- ZIO.runtime[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope]
       environment   = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
       runner =
         TestRunner(
-          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger, Any](
-            ZLayer.succeedEnvironment(environment) +!+ testEnvironment
+          TestExecutor.default[Environment with TestEnvironment with ZIOAppArgs with TestLogger with Scope, Any](
+            ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment)
           ),
           runtimeConfig
         )

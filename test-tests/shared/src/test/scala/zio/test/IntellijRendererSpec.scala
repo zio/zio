@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Layer, ZIO, ZTraceElement}
+import zio.{Scope, ZIO, ZLayer, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -187,18 +187,18 @@ object IntelliJRenderUtils {
 
   def runLog(
     spec: ZSpec[TestEnvironment, String]
-  )(implicit trace: ZTraceElement): ZIO[TestEnvironment, Nothing, String] =
+  )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <- IntelliJTestRunner(testEnvironment)
              .run(spec)
-             .provideLayer[Nothing, TestEnvironment](
+             .provideLayer[Nothing, TestEnvironment with Scope](
                TestLogger.fromConsole ++ TestClock.default
              )
       output <- TestConsole.output
     } yield output.mkString
 
   private[this] def IntelliJTestRunner(
-    testEnvironment: Layer[Nothing, TestEnvironment]
+    testEnvironment: ZLayer[Scope, Nothing, TestEnvironment]
   )(implicit trace: ZTraceElement) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](testEnvironment),

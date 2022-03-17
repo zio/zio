@@ -90,7 +90,6 @@ If you are using operators from from Cats Effect extension methods see also
 | `Fiber` | `Fiber` |
 | `MVar` | `Queue` |
 | `Ref` | `Ref` |
-| `Resource` | `ZManaged` |
 | `Semaphore` | `Semaphore` |
 | `TaskApp` | `App` |
 | `TaskLocal` | `FiberRef` |

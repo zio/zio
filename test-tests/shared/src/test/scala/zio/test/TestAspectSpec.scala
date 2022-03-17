@@ -10,7 +10,7 @@ import scala.reflect.ClassTag
 object TestAspectSpec extends ZIOBaseSpec {
 
   def spec = suite("TestAspectSpec")(
-    test("around evaluates tests inside context of Managed") {
+    test("around evaluates tests inside context of Scope") {
       for {
         ref <- Ref.make(0)
         spec = test("test") {

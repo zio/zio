@@ -38,14 +38,14 @@ trait ClassLoading extends JvmMetrics {
       _ <- unloadedClassCount.set(classLoadingMXBean.getUnloadedClassCount)
     } yield ()
 
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, ClassLoading] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, ClassLoading] =
     for {
       classLoadingMXBean <-
-        ZIO.attempt(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean])).toManaged
+        ZIO.attempt(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean]))
       _ <- reportClassLoadingMetrics(classLoadingMXBean)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 

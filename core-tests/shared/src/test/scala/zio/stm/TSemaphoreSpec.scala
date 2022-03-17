@@ -87,7 +87,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
       test("withPermitsManaged releases same number of permits") {
         for {
           semaphore <- TSemaphore.make(2L).commit
-          _         <- semaphore.withPermitsManaged(2).useNow
+          _         <- ZIO.scoped(semaphore.withPermitsScoped(2))
           permits   <- semaphore.permits.get.commit
         } yield assertTrue(permits == 2L)
       }

@@ -30,9 +30,9 @@ private[macros] class AccessibleMMMacro(override val c: whitebox.Context) extend
   private lazy val rio: Tree  = tq"_root_.zio.RIO"
   private lazy val urio: Tree = tq"_root_.zio.URIO"
 
-  private lazy val managed: Tree   = tq"_root_.zio.Managed"
-  private lazy val rManaged: Tree  = tq"_root_.zio.RManaged"
-  private lazy val urManaged: Tree = tq"_root_.zio.URManaged"
+  private lazy val managed: Tree   = tq"_root_.zio.managed.Managed"
+  private lazy val rManaged: Tree  = tq"_root_.zio.managed.RManaged"
+  private lazy val urManaged: Tree = tq"_root_.zio.managed.URManaged"
 
   protected lazy val macroName: String = "accessibleMM"
 

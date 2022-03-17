@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.{CompressionException, Gunzipper}
-import zio.{Chunk, ZIO, ZManaged, ZTraceElement}
+import zio.{Chunk, ZIO, ZTraceElement}
 
 object Gunzip {
   def makeGunzipper[Done](
@@ -10,8 +10,8 @@ object Gunzip {
   )(implicit
     trace: ZTraceElement
   ): ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
-    ZChannel.managed(
-      ZManaged.acquireReleaseWith(
+    ZChannel.scoped(
+      ZIO.acquireRelease(
         Gunzipper.make(bufferSize)
       )(gunzipper => ZIO.succeed(gunzipper.close()))
     ) {

@@ -39,17 +39,15 @@ trait BufferPools extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZManaged[Clock, Throwable, BufferPools] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, BufferPools] =
     for {
-      bufferPoolMXBeans <- ZIO
-                             .attempt(
-                               ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
-                             )
-                             .toManaged
+      bufferPoolMXBeans <- ZIO.attempt(
+                             ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala.toList
+                           )
       _ <- reportBufferPoolMetrics(bufferPoolMXBeans)
              .repeat(collectionSchedule)
              .interruptible
-             .forkManaged
+             .forkScoped
     } yield this
 }
 
