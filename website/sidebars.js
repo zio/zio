@@ -118,6 +118,7 @@ module.exports = {
     ],
     "Resource Management": [
       "datatypes/resource/index",
+      "datatypes/resource/scope",
       "datatypes/resource/zpool",
     ],
     "Streaming": [

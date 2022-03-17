@@ -4925,14 +4925,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   def parallelFinalizers[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
-    ZIO.uninterruptibleMask { restore =>
-      for {
-        outerScope <- ZIO.scope
-        innerScope <- Scope.parallel
-        _          <- outerScope.addFinalizerExit(innerScope.close(_))
-        a          <- restore(innerScope.use[R](zio))
-      } yield a
-    }
+    for {
+      outerScope <- ZIO.scope
+      innerScope <- Scope.parallel
+      _          <- outerScope.addFinalizerExit(innerScope.close(_))
+      a          <- innerScope.extend[R](zio)
+    } yield a
 
   /**
    * Retrieves the maximum number of fibers for parallel operators or `None` if

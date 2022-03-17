@@ -79,6 +79,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[TSemaphore](stm/tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
 
 ## Resource Management
+- **[Scope](resource/scope.md)** — A scope in which resources can safely be used.
 - **[ZPool](resource/zpool.md)** — An asynchronous and concurrent generalized pool of reusable resources.
 
 ## Streaming
