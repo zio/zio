@@ -19,7 +19,7 @@ package zio
 import zio.internal.MutableConcurrentQueue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A `ZQueue[RA, RB, EA, EB, A, B]` is a lightweight, asynchronous queue into
@@ -423,6 +423,14 @@ object ZQueue {
   def unbounded[A](implicit trace: ZTraceElement): UIO[Queue[A]] =
     IO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Strategy.Dropping()))
 
+  sealed trait State
+
+  object State {
+    final case object Running     extends State
+    final case object WindingDown extends State
+    final case object Shutdown    extends State
+  }
+
   private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A])(implicit
     trace: ZTraceElement
   ): UIO[Queue[A]] =
@@ -437,14 +445,6 @@ object ZQueue {
           strategy
         )
       )
-
-  sealed trait State
-
-  object State {
-    final case object Running     extends State
-    final case object WindingDown extends State
-    final case object Shutdown    extends State
-  }
 
   private def unsafeCreate[A](
     queue: MutableConcurrentQueue[A],

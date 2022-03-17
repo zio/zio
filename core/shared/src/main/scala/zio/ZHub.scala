@@ -20,7 +20,7 @@ import zio.internal.{MutableConcurrentQueue, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.Set
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 
 /**
  * A `ZHub[RA, RB, EA, EB, A, B]` is an asynchronous message hub. Publishers can
@@ -398,6 +398,14 @@ object ZHub {
         } yield dequeue
     }
 
+  sealed trait State
+
+  object State {
+    final case object Running     extends State
+    final case object WindingDown extends State
+    final case object Shutdown    extends State
+  }
+
   /**
    * Creates a subscription with the specified strategy.
    */
@@ -413,7 +421,7 @@ object ZHub {
         hub.subscribe(),
         MutableConcurrentQueue.unbounded[Promise[Nothing, A]],
         promise,
-        new AtomicBoolean(false),
+        new AtomicReference[State](State.Running),
         strategy
       )
     }
@@ -427,7 +435,7 @@ object ZHub {
     subscription: internal.Hub.Subscription[A],
     pollers: MutableConcurrentQueue[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
-    shutdownFlag: AtomicBoolean,
+    stateRef: AtomicReference[State],
     strategy: Strategy[A]
   ): Dequeue[A] =
     new Dequeue[A] { self =>
@@ -436,14 +444,14 @@ object ZHub {
       val capacity: Int =
         hub.capacity
       def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
-        ZIO.succeed(shutdownFlag.get)
+        ZIO.succeed(stateRef.get eq State.Shutdown)
       def offer(a: Nothing)(implicit trace: ZTraceElement): ZIO[Nothing, Any, Boolean] =
         ZIO.succeedNow(false)
       def offerAll(as: Iterable[Nothing])(implicit trace: ZTraceElement): ZIO[Nothing, Any, Boolean] =
         ZIO.succeedNow(false)
       def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
-          shutdownFlag.set(true)
+          stateRef.set(State.Shutdown)
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
               ZIO.foreachPar(unsafePollAll(pollers))(_.interruptAs(fiberId)) *>
@@ -454,24 +462,28 @@ object ZHub {
         }.uninterruptible
       def size(implicit trace: ZTraceElement): UIO[Int] =
         ZIO.suspendSucceed {
-          if (shutdownFlag.get) ZIO.interrupt
+          if (stateRef.get eq State.Shutdown) ZIO.interrupt
           else ZIO.succeedNow(subscription.size())
         }
       def take(implicit trace: ZTraceElement): UIO[A] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
-          if (shutdownFlag.get) ZIO.interrupt
+          if (stateRef.get eq State.Shutdown) ZIO.interrupt
           else {
             val empty   = null.asInstanceOf[A]
             val message = if (pollers.isEmpty()) subscription.poll(empty) else empty
             message match {
               case null =>
-                val promise = Promise.unsafeMake[Nothing, A](fiberId)
-                ZIO.suspendSucceed {
-                  pollers.offer(promise)
-                  subscribers.add(subscription -> pollers)
-                  strategy.unsafeCompletePollers(hub, subscribers, subscription, pollers)
-                  if (shutdownFlag.get) ZIO.interrupt else promise.await
-                }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
+                if (stateRef.get eq State.WindingDown) {
+                  shutdown *> ZIO.interrupt
+                } else {
+                  val promise = Promise.unsafeMake[Nothing, A](fiberId)
+                  ZIO.suspendSucceed {
+                    pollers.offer(promise)
+                    subscribers.add(subscription -> pollers)
+                    strategy.unsafeCompletePollers(hub, subscribers, subscription, pollers)
+                    if (stateRef.get eq State.Shutdown) ZIO.interrupt else promise.await
+                  }.onInterrupt(ZIO.succeed(unsafeRemove(pollers, promise)))
+                }
               case a =>
                 strategy.unsafeOnHubEmptySpace(hub, subscribers)
                 ZIO.succeedNow(a)
@@ -480,24 +492,52 @@ object ZHub {
         }
       def takeAll(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
-          if (shutdownFlag.get) ZIO.interrupt
-          else {
+          val _takeAll = ZIO.succeed {
             val as = if (pollers.isEmpty()) unsafePollAll(subscription) else Chunk.empty
             strategy.unsafeOnHubEmptySpace(hub, subscribers)
-            ZIO.succeedNow(as)
+            as
+          }
+
+          stateRef.get match {
+            case State.Shutdown =>
+              ZIO.interrupt
+            case State.WindingDown =>
+              if (subscription.size() <= 0)
+                shutdown *> ZIO.interrupt
+              else
+                _takeAll
+            case State.Running =>
+              _takeAll
           }
         }
       def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
-          if (shutdownFlag.get) ZIO.interrupt
-          else {
+          val _takeUpTo = ZIO.succeed {
             val as = if (pollers.isEmpty()) unsafePollN(subscription, max) else Chunk.empty
             strategy.unsafeOnHubEmptySpace(hub, subscribers)
-            ZIO.succeedNow(as)
+            as
+          }
+
+          stateRef.get match {
+            case State.Shutdown =>
+              ZIO.interrupt
+            case State.WindingDown =>
+              if (subscription.size() <= 0)
+                shutdown *> ZIO.interrupt
+              else
+                _takeUpTo
+            case State.Running =>
+              _takeUpTo
           }
         }
 
-      override def windDown(implicit trace: ZTraceElement): UIO[Unit] = ZIO.unit
+      override def windDown(implicit trace: ZTraceElement): UIO[Unit] = ZIO.suspendSucceed {
+        if (subscription.size() <= 0)
+          shutdown
+        else {
+          ZIO.succeed(stateRef.set(State.WindingDown))
+        }
+      }
     }
 
   /**
