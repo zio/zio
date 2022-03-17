@@ -1,108 +1,135 @@
 package zio.metrics.jvm
 
 import com.github.ghik.silencer.silent
-
 import zio._
 import zio.metrics._
-import zio.metrics.Metric.Gauge
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.lang.management.{ManagementFactory, MemoryMXBean, MemoryPoolMXBean, MemoryUsage}
-
+import java.lang.management.ManagementFactory
 import scala.collection.JavaConverters._
 
-trait MemoryPools extends JvmMetrics {
-  override type Feature = MemoryPools
-  override val featureTag = Tag[MemoryPools]
+final case class MemoryPools(
+  memoryBytesUsed: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  memoryBytesCommitted: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  memoryBytesMax: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  memoryBytesInit: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  poolBytesUsed: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  poolBytesCommitted: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  poolBytesMax: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  poolBytesInit: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]]
+)
 
+object MemoryPools {
   sealed private trait Area { val label: String }
   private case object Heap    extends Area { override val label: String = "heap"    }
   private case object NonHeap extends Area { override val label: String = "nonheap" }
 
-  /** Used bytes of a given JVM memory area. */
-  private def memoryBytesUsed(area: Area): Gauge[Long] =
-    Metric.gauge("jvm_memory_bytes_used").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
-
-  /** Committed (bytes) of a given JVM memory area. */
-  private def memoryBytesCommitted(area: Area): Gauge[Long] =
-    Metric.gauge("jvm_memory_bytes_committed").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
-
-  /** Max (bytes) of a given JVM memory area. */
-  private def memoryBytesMax(area: Area): Gauge[Long] =
-    Metric.gauge("jvm_memory_bytes_max").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
-
-  /** Initial bytes of a given JVM memory area. */
-  private def memoryBytesInit(area: Area): Gauge[Long] =
-    Metric.gauge("jvm_memory_bytes_init").tagged(MetricLabel("area", area.label)).contramap(_.toDouble)
-
-  /** Used bytes of a given JVM memory pool. */
-  private def poolBytesUsed(pool: String): Gauge[Long] =
-    Metric.gauge("jvm_memory_pool_bytes_used").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  /** Committed bytes of a given JVM memory pool. */
-  private def poolBytesCommitted(pool: String): Gauge[Long] =
-    Metric.gauge("jvm_memory_pool_bytes_committed").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  /** Max bytes of a given JVM memory pool. */
-  private def poolBytesMax(pool: String): Gauge[Long] =
-    Metric.gauge("jvm_memory_pool_bytes_max").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  /** Initial bytes of a given JVM memory pool. */
-  private def poolBytesInit(pool: String): Gauge[Long] =
-    Metric.gauge("jvm_memory_pool_bytes_init").tagged(MetricLabel("pool", pool)).contramap(_.toDouble)
-
-  private def reportMemoryUsage(usage: MemoryUsage, area: Area)(implicit
-    trace: ZTraceElement
-  ): ZIO[Any, Nothing, Unit] =
-    for {
-      _ <- memoryBytesUsed(area).set(usage.getUsed)
-      _ <- memoryBytesCommitted(area).set(usage.getCommitted)
-      _ <- memoryBytesMax(area).set(usage.getMax)
-      _ <- memoryBytesInit(area).set(usage.getInit)
-    } yield ()
-
-  private def reportPoolUsage(usage: MemoryUsage, pool: String)(implicit
-    trace: ZTraceElement
-  ): ZIO[Any, Nothing, Unit] =
-    for {
-      _ <- poolBytesUsed(pool).set(usage.getUsed)
-      _ <- poolBytesCommitted(pool).set(usage.getCommitted)
-      _ <- poolBytesMax(pool).set(usage.getMax)
-      _ <- poolBytesInit(pool).set(usage.getInit)
-    } yield ()
-
-  private def reportMemoryMetrics(
-    memoryMXBean: MemoryMXBean,
-    poolMXBeans: List[MemoryPoolMXBean]
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    for {
-      heapUsage    <- ZIO.attempt(memoryMXBean.getHeapMemoryUsage)
-      nonHeapUsage <- ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage)
-      _            <- reportMemoryUsage(heapUsage, Heap)
-      _            <- reportMemoryUsage(nonHeapUsage, NonHeap)
-      _ <- ZIO.foreachParDiscard(poolMXBeans) { pool =>
-             for {
-               name  <- ZIO.attempt(pool.getName)
-               usage <- ZIO.attempt(pool.getUsage)
-               _     <- reportPoolUsage(usage, name)
-             } yield ()
-           }
-    } yield ()
+  private def pollingMemoryMetric(
+    name: String,
+    pollHeap: ZIO[Any, Throwable, Long],
+    pollNonHeap: ZIO[Any, Throwable, Long]
+  ): PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]] =
+    PollingMetric.collectAll(
+      Seq(
+        PollingMetric(
+          Metric
+            .gauge(name)
+            .tagged("area", Heap.label)
+            .contramap[Long](_.toDouble),
+          pollHeap
+        ),
+        PollingMetric(
+          Metric
+            .gauge(name)
+            .tagged("area", NonHeap.label)
+            .contramap[Long](_.toDouble),
+          pollNonHeap
+        )
+      )
+    )
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, MemoryPools] =
-    for {
-      memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)
-      poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
-      _ <- reportMemoryMetrics(memoryMXBean, poolMXBeans)
-             .repeat(collectionSchedule)
-             .interruptible
-             .forkScoped
-    } yield this
-}
+  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, MemoryPools] =
+    ZLayer.scoped {
+      for {
+        memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)
+        poolMXBeans  <- ZIO.attempt(ManagementFactory.getMemoryPoolMXBeans.asScala.toList)
 
-object MemoryPools extends MemoryPools with JvmMetrics.DefaultSchedule {
-  def withSchedule(schedule: Schedule[Any, Any, Unit]): MemoryPools = new MemoryPools {
-    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
-  }
+        memoryBytesUsed = pollingMemoryMetric(
+                            "jvm_memory_bytes_used",
+                            ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getUsed),
+                            ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getUsed)
+                          )
+        memoryBytesCommitted = pollingMemoryMetric(
+                                 "jvm_memory_bytes_committed",
+                                 ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getCommitted),
+                                 ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getCommitted)
+                               )
+        memoryBytesMax = pollingMemoryMetric(
+                           "jvm_memory_bytes_max",
+                           ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getMax),
+                           ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getMax)
+                         )
+        memoryBytesInit = pollingMemoryMetric(
+                            "jvm_memory_bytes_init",
+                            ZIO.attempt(memoryMXBean.getHeapMemoryUsage.getInit),
+                            ZIO.attempt(memoryMXBean.getNonHeapMemoryUsage.getInit)
+                          )
+
+        poolBytesUsed = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
+                          PollingMetric(
+                            Metric
+                              .gauge("jvm_memory_pool_bytes_used")
+                              .tagged("pool", poolBean.getName)
+                              .contramap[Long](_.toDouble),
+                            ZIO.attempt(poolBean.getUsage.getUsed)
+                          )
+                        })
+        poolBytesCommitted = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
+                               PollingMetric(
+                                 Metric
+                                   .gauge("jvm_memory_pool_bytes_committed")
+                                   .tagged("pool", poolBean.getName)
+                                   .contramap[Long](_.toDouble),
+                                 ZIO.attempt(poolBean.getUsage.getCommitted)
+                               )
+                             })
+        poolBytesMax = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
+                         PollingMetric(
+                           Metric
+                             .gauge("jvm_memory_pool_bytes_max")
+                             .tagged("pool", poolBean.getName)
+                             .contramap[Long](_.toDouble),
+                           ZIO.attempt(poolBean.getUsage.getMax)
+                         )
+                       })
+        poolBytesInit = PollingMetric.collectAll(poolMXBeans.map { poolBean =>
+                          PollingMetric(
+                            Metric
+                              .gauge("jvm_memory_pool_bytes_init")
+                              .tagged("pool", poolBean.getName)
+                              .contramap[Long](_.toDouble),
+                            ZIO.attempt(poolBean.getUsage.getInit)
+                          )
+                        })
+
+        schedule <- ZIO.service[JvmMetricsSchedule]
+        _        <- memoryBytesUsed.launch(schedule.value)
+        _        <- memoryBytesCommitted.launch(schedule.value)
+        _        <- memoryBytesMax.launch(schedule.value)
+        _        <- memoryBytesInit.launch(schedule.value)
+        _        <- poolBytesUsed.launch(schedule.value)
+        _        <- poolBytesCommitted.launch(schedule.value)
+        _        <- poolBytesMax.launch(schedule.value)
+        _        <- poolBytesInit.launch(schedule.value)
+      } yield MemoryPools(
+        memoryBytesUsed,
+        memoryBytesCommitted,
+        memoryBytesMax,
+        memoryBytesInit,
+        poolBytesUsed,
+        poolBytesCommitted,
+        poolBytesMax,
+        poolBytesInit
+      )
+    }
 }
