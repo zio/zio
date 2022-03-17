@@ -28,7 +28,7 @@ trait DefaultJvmMetrics {
   lazy val live: ZLayer[
     Clock with System,
     Throwable,
-    BufferPools with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard /*with Thread with VersionInfo*/
+    BufferPools with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard with Thread with VersionInfo
   ] =
     jvmMetricsSchedule >>>
       (BufferPools.live ++
@@ -36,10 +36,9 @@ trait DefaultJvmMetrics {
         GarbageCollector.live ++
         MemoryAllocation.live ++
         MemoryPools.live ++
-        Standard.live //++
-//      Thread.live ++
-//      VersionInfo.live
-      )
+        Standard.live ++
+        Thread.live ++
+        VersionInfo.live)
 }
 
 /** JVM metrics, compatible with the prometheus-hotspot library */
