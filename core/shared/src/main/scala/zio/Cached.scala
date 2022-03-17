@@ -62,15 +62,15 @@ object Cached {
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Cached[Error, Resource]] =
     for {
       env <- ZIO.environment[R]
-      ref <- ScopedRef.fromAcquire(acquire.either)
+      ref <- ScopedRef.fromAcquire(acquire.exit)
     } yield Manual(ref, acquire.provideEnvironment(env))
 
   private final case class Manual[Error, Resource] private (
-    ref: ScopedRef[Either[Error, Resource]],
+    ref: ScopedRef[Exit[Error, Resource]],
     acquire: ZIO[Scope, Error, Resource]
   ) extends Cached[Error, Resource] {
-    def get(implicit trace: ZTraceElement): IO[Error, Resource] = ref.get.flatMap(ZIO.fromEither(_))
+    def get(implicit trace: ZTraceElement): IO[Error, Resource] = ref.get.flatMap(ZIO.done(_))
 
-    def refresh(implicit trace: ZTraceElement): IO[Error, Unit] = ref.set[Any, Error](acquire.map(Right(_)))
+    def refresh(implicit trace: ZTraceElement): IO[Error, Unit] = ref.set[Any, Error](acquire.map(Exit.succeed(_)))
   }
 }
