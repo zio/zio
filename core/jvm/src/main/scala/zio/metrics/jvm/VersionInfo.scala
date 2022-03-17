@@ -21,7 +21,7 @@ trait VersionInfo extends JvmMetrics {
       )
       .contramap[Unit](_ => 1.0)
 
-  private def reportVersions()(implicit trace: ZTraceElement): ZIO[System, Throwable, Unit] =
+  private def reportVersions()(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
       version <- System.propertyOrElse("java.runtime.version", "unknown")
       vendor  <- System.propertyOrElse("java.vm.vendor", "unknown")
@@ -31,7 +31,7 @@ trait VersionInfo extends JvmMetrics {
 
   override def collectMetrics(implicit
     trace: ZTraceElement
-  ): ZIO[Clock with System with Scope, Throwable, VersionInfo] =
+  ): ZIO[Scope, Throwable, VersionInfo] =
     reportVersions().repeat(collectionSchedule).interruptible.forkScoped.as(this)
 }
 

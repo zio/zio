@@ -12,13 +12,13 @@ trait JvmMetrics { self =>
 
   protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit]
 
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Feature]
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Scope, Throwable, Feature]
 
   /**
    * A layer that when constructed forks a fiber that periodically updates the
    * JVM metrics
    */
-  lazy val live: ZLayer[Clock with System, Throwable, Feature] = {
+  lazy val live: ZLayer[Any, Throwable, Feature] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
     ZLayer.scoped(collectMetrics)(featureTag, trace)
   }
@@ -28,10 +28,8 @@ trait JvmMetrics { self =>
     @silent private implicit val ftag: zio.EnvironmentTag[Feature] = featureTag
     private implicit val trace: ZTraceElement                      = Tracer.newTrace
     override val tag: EnvironmentTag[Environment]                  = EnvironmentTag[Environment]
-    override type Environment = Clock with System with Feature
-    override val layer: ZLayer[ZIOAppArgs, Any, Environment] = {
-      Clock.live ++ System.live >+> live
-    }
+    override type Environment = Feature
+    override val layer: ZLayer[ZIOAppArgs, Any, Environment] = live
     override def run: ZIO[Environment with ZIOAppArgs, Any, Any] = ZIO.unit
   }
 }

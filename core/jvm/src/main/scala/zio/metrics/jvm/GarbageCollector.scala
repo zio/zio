@@ -37,7 +37,7 @@ trait GarbageCollector extends JvmMetrics {
     }
 
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, GarbageCollector] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Scope, Throwable, GarbageCollector] =
     for {
       classLoadingMXBean <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
       _ <- reportGarbageCollectionMetrics(classLoadingMXBean)

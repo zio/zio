@@ -518,6 +518,12 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) identity else ignore
 
   /**
+   * An aspect that runs tests with the live clock.
+   */
+  val liveClock: TestAspectPoly =
+    runtimeConfig(RuntimeConfigAspect.addClock(Clock.ClockLive))
+
+  /**
    * An aspect that runs only on operating systems accepted by the specified
    * predicate.
    */

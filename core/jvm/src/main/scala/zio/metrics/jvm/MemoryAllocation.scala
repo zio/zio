@@ -78,7 +78,7 @@ trait MemoryAllocation extends JvmMetrics {
   @silent("JavaConverters")
   override def collectMetrics(implicit
     trace: ZTraceElement
-  ): ZIO[Clock with System with Scope, Throwable, MemoryAllocation] =
+  ): ZIO[Scope, Throwable, MemoryAllocation] =
     ZIO
       .acquireRelease(
         for {

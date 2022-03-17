@@ -121,7 +121,7 @@ trait Standard extends JvmMetrics {
       }
     }
 
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Standard] =
+  def collectMetrics(implicit trace: ZTraceElement): ZIO[Scope, Throwable, Standard] =
     for {
       runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean)
       operatingSystemMXBean <- ZIO.attempt(ManagementFactory.getOperatingSystemMXBean)

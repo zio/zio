@@ -1,6 +1,6 @@
 package zio.metrics.jvm
 
-import zio.{Clock, NonEmptyChunk, Scope, System, ZIO, ZIOApp, ZTraceElement}
+import zio.{NonEmptyChunk, Scope, System, ZIO, ZIOApp, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -12,7 +12,7 @@ trait MultipleJvmMetrics {
    * While acquired it starts fibers periodically updating the same JVM metrics
    * as the Prometheus Java client's default exporters
    */
-  def collectDefaultJvmMetrics(implicit trace: ZTraceElement): ZIO[Clock with System with Scope, Throwable, Unit] =
+  def collectDefaultJvmMetrics(implicit trace: ZTraceElement): ZIO[Scope, Throwable, Unit] =
     ZIO.foreachParDiscard(collectors)(_.collectMetrics)
 
   /**
