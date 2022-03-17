@@ -17,8 +17,8 @@ final case class Thread(
 object Thread {
 
   /** Current count of threads by state */
-  private def threadsState(state: java.lang.Thread.State): Metric[MetricKeyType.Gauge, Int, MetricState.Gauge] =
-    Metric.gauge("jvm_threads_state").tagged(MetricLabel("state", state.name())).contramap[Int](_.toDouble)
+  private def threadsState(state: java.lang.Thread.State): Metric[MetricKeyType.Gauge, Long, MetricState.Gauge] =
+    Metric.gauge("jvm_threads_state").tagged(MetricLabel("state", state.name())).contramap[Long](_.toDouble)
 
   private def getThreadStateCounts(
     threadMXBean: ThreadMXBean

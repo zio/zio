@@ -53,6 +53,7 @@ object BufferPools {
         _        <- bufferPoolUsedBytes.launch(schedule.value)
         _        <- bufferPoolCapacityBytes.launch(schedule.value)
         _        <- bufferPoolUsedBuffers.launch(schedule.value)
+        // TODO: periodically update the list of pools
       } yield BufferPools(bufferPoolUsedBytes, bufferPoolCapacityBytes, bufferPoolUsedBuffers)
     }
 }

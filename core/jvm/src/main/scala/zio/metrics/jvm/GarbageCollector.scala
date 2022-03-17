@@ -1,14 +1,10 @@
 package zio.metrics.jvm
 
 import com.github.ghik.silencer.silent
-
 import zio._
 import zio.metrics._
-import zio.metrics.Metric.Gauge
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
-
+import java.lang.management.ManagementFactory
 import scala.collection.JavaConverters._
 
 final case class GarbageCollector(
