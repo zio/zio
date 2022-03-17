@@ -52,7 +52,7 @@ private[zio] final class FiberContext[E, A](
   private val state = new AtomicReference[FiberState[E, A]](FiberState.initial)
 
   @volatile
-  private[this] var asyncEpoch: Long = 0L
+  private[this] var asyncEpoch: Int = 0
 
   private[this] val stack = Stack[ErasedTracedCont]()
 
@@ -639,7 +639,7 @@ private[zio] final class FiberContext[E, A](
 
   @tailrec
   private def unsafeEnterAsync(
-    epoch: Long,
+    epoch: Int,
     register: AnyRef,
     blockingOn: FiberId
   )(implicit trace: ZTraceElement): Unit = {
