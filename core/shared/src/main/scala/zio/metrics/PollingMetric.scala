@@ -24,7 +24,7 @@ import zio.metrics._
  * A `PollingMetric[Type, Out]` is a combination of a metric and an effect that
  * polls for updates to the metric.
  */
-sealed trait PollingMetric[-R, +E, +Out] { self =>
+trait PollingMetric[-R, +E, +Out] { self =>
   type Type
   type In
 
@@ -104,6 +104,9 @@ object PollingMetric {
   type Full[Type0, In0, -R, +E, +Out] =
     PollingMetric[R, E, Out] { type Type = Type0; type In = In0 }
 
+  /**
+   * Constructs a new polling metric from a metric and poll effect.
+   */
   def apply[Type0, In0, R, E, Out](
     metric0: Metric[Type0, In0, Out],
     poll0: ZIO[R, E, In0]
@@ -117,6 +120,10 @@ object PollingMetric {
       def poll(implicit trace: ZTraceElement): ZIO[R, E, In] = poll0
     }
 
+  /**
+   * Collects all of the polling metrics into a single polling metric, which
+   * polls for, updates, and produces the outputs of all individual metrics.
+   */
   def collectAll[R, E, Out](
     in0: Iterable[PollingMetric[R, E, Out]]
   ): PollingMetric[R, E, Chunk[Out]] =

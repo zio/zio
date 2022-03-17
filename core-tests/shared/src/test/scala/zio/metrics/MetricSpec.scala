@@ -4,7 +4,7 @@ import zio.metrics._
 import zio.metrics.MetricKeyType.Histogram
 import zio.test._
 
-object ZIOMetricSpec extends ZIOBaseSpec {
+object MetricSpec extends ZIOBaseSpec {
 
   private val labels1 = Set(MetricLabel("x", "a"), MetricLabel("y", "b"))
 
