@@ -32,9 +32,9 @@ trait BufferPools extends JvmMetrics {
     ZIO.foreachParDiscard(bufferPoolMXBeans) { bufferPoolMXBean =>
       for {
         name <- ZIO.attempt(bufferPoolMXBean.getName)
-        _    <- ZIO.attempt(bufferPoolMXBean.getMemoryUsed) @@ bufferPoolUsedBytes(name)
-        _    <- ZIO.attempt(bufferPoolMXBean.getTotalCapacity) @@ bufferPoolCapacityBytes(name)
-        _    <- ZIO.attempt(bufferPoolMXBean.getCount) @@ bufferPoolUsedBuffers(name)
+        _    <- bufferPoolUsedBytes(name).set(bufferPoolMXBean.getMemoryUsed)
+        _    <- bufferPoolCapacityBytes(name).set(bufferPoolMXBean.getTotalCapacity)
+        _    <- bufferPoolUsedBuffers(name).set(bufferPoolMXBean.getCount)
       } yield ()
     }
 

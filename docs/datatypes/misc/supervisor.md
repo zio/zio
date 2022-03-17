@@ -61,6 +61,7 @@ In the following example we are going to periodically monitor the number of fibe
 
 ```scala mdoc:compile-only
 import zio._
+import zio.Fiber.Status
 
 object SupervisorExample extends ZIOAppDefault {
 
@@ -69,7 +70,7 @@ object SupervisorExample extends ZIOAppDefault {
     fiber <- fib(20).supervised(supervisor).fork
     policy = Schedule
       .spaced(500.milliseconds)
-      .whileInputZIO[Any, Unit](_ => fiber.status.map(x => !x.isDone))
+      .whileInputZIO[Any, Unit](_ => fiber.status.map(_ != Status.Done))
     logger <- monitorFibers(supervisor)
       .repeat(policy).fork
     _ <- logger.join

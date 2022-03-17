@@ -33,9 +33,9 @@ trait ClassLoading extends JvmMetrics {
     classLoadingMXBean: ClassLoadingMXBean
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     for {
-      _ <- ZIO.attempt(classLoadingMXBean.getLoadedClassCount) @@ loadedClassCount
-      _ <- ZIO.attempt(classLoadingMXBean.getTotalLoadedClassCount) @@ totalLoadedClassCount
-      _ <- ZIO.attempt(classLoadingMXBean.getUnloadedClassCount) @@ unloadedClassCount
+      _ <- loadedClassCount.set(classLoadingMXBean.getLoadedClassCount)
+      _ <- totalLoadedClassCount.set(classLoadingMXBean.getTotalLoadedClassCount)
+      _ <- unloadedClassCount.set(classLoadingMXBean.getUnloadedClassCount)
     } yield ()
 
   def collectMetrics(implicit trace: ZTraceElement): ZIO[Clock with Scope, Throwable, ClassLoading] =

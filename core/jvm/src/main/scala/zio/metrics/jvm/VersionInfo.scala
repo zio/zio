@@ -26,7 +26,7 @@ trait VersionInfo extends JvmMetrics {
       version <- System.propertyOrElse("java.runtime.version", "unknown")
       vendor  <- System.propertyOrElse("java.vm.vendor", "unknown")
       runtime <- System.propertyOrElse("java.runtime.name", "unknown")
-      _       <- ZIO.unit @@ jvmInfo(version, vendor, runtime)
+      _       <- jvmInfo(version, vendor, runtime).set(())
     } yield ()
 
   override def collectMetrics(implicit

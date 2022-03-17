@@ -70,8 +70,7 @@ trait MemoryAllocation extends JvmMetrics {
       if (diff2 < 0) diff2 = 0
       val increase = diff1 + diff2
       if (increase > 0) {
-        val effect: ZIO[Any, Nothing, Long] = ZIO.succeed(increase) @@ countAllocations(memoryPool)
-        runtime.unsafeRun(effect.unit)
+        runtime.unsafeRun(countAllocations(memoryPool).incrementBy(increase))
       }
     }
   }
