@@ -53,10 +53,7 @@ object ScopedRef {
    * Creates a new [[ScopedRef]] from the specified value. This method should
    * not be used for values whose creation require the acquisition of resources.
    */
-  def make[A](a: => A): UIO[ScopedRef[A]] =
-    for {
-      ref <- Ref.Synchronized.make((Scope.global, a))
-    } yield Synch(ref)
+  def make[A](a: => A): ZIO[Scope, Nothing, ScopedRef[A]] = fromAcquire[Any, Nothing, A](ZIO.succeed(a))
 
   /**
    * Creates a new [[ScopedRef]] from an effect that resourcefully produces a

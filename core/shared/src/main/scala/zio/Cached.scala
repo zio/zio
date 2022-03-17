@@ -47,7 +47,7 @@ object Cached {
   ): ZIO[R with Clock with Scope, Nothing, Cached[Error, Resource]] =
     for {
       manual <- manual(acquire)
-      _      <- ZIO.acquireRelease(manual.refresh.schedule(policy).forkDaemon)(_.interrupt)
+      _      <- ZIO.acquireRelease(ZIO.interruptible(manual.refresh.schedule(policy)).forkDaemon)(_.interrupt)
     } yield manual
 
   /**
