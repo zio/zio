@@ -178,8 +178,8 @@ object ZIOMetricSpec extends ZIOBaseSpec {
         for {
           // NOTE: observeDurations always uses real clock
           start  <- ZIO.attempt(java.lang.System.nanoTime())
-          _      <- (Clock.sleep(1.second) @@ h.trackDuration).provide(Clock.live)
-          _      <- (Clock.sleep(3.seconds) @@ h.trackDuration).provide(Clock.live)
+          _      <- (Clock.sleep(1.second) @@ h.trackDuration)
+          _      <- (Clock.sleep(3.seconds) @@ h.trackDuration)
           end    <- ZIO.attempt(java.lang.System.nanoTime())
           elapsed = (end - start) / 1e9
           state  <- h.value

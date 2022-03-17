@@ -584,133 +584,228 @@ object TestRandom extends Serializable {
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of booleans.
    */
-  def clearBooleans(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearBooleans)
+  def clearBooleans(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearBooleans
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of bytes.
    */
-  def clearBytes(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearBytes)
+  def clearBytes(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearBytes
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of characters.
    */
-  def clearChars(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearChars)
+  def clearChars(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearChars
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of doubles.
    */
-  def clearDoubles(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearDoubles)
+  def clearDoubles(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearDoubles
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of floats.
    */
-  def clearFloats(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearFloats)
+  def clearFloats(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearFloats
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of integers.
    */
-  def clearInts(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearInts)
+  def clearInts(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearInts
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of longs.
    */
-  def clearLongs(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearLongs)
+  def clearLongs(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearLongs
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of strings.
    */
-  def clearStrings(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearStrings)
+  def clearStrings(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearStrings
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of UUIDs.
    */
-  def clearUUIDs(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.clearUUIDs)
+  def clearUUIDs(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.clearUUIDs
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of booleans.
    */
-  def feedBooleans(booleans: Boolean*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedBooleans(booleans: _*))
+  def feedBooleans(booleans: Boolean*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedBooleans(booleans: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of chunks of bytes.
    */
-  def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedBytes(bytes: _*))
+  def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedBytes(bytes: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of characters.
    */
-  def feedChars(chars: Char*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedChars(chars: _*))
+  def feedChars(chars: Char*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedChars(chars: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of doubles.
    */
-  def feedDoubles(doubles: Double*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedDoubles(doubles: _*))
+  def feedDoubles(doubles: Double*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedDoubles(doubles: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of floats.
    */
-  def feedFloats(floats: Float*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedFloats(floats: _*))
+  def feedFloats(floats: Float*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedFloats(floats: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of integers.
    */
-  def feedInts(ints: Int*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedInts(ints: _*))
+  def feedInts(ints: Int*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedInts(ints: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of longs.
    */
-  def feedLongs(longs: Long*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedLongs(longs: _*))
+  def feedLongs(longs: Long*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedLongs(longs: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of strings.
    */
-  def feedStrings(strings: String*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedStrings(strings: _*))
+  def feedStrings(strings: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedStrings(strings: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of UUIDs.
    */
-  def feedUUIDs(uuids: UUID*)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.feedUUIDs(uuids: _*))
+  def feedUUIDs(uuids: UUID*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.feedUUIDs(uuids: _*)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Accesses a `TestRandom` instance in the environment and gets the seed.
    */
-  def getSeed(implicit trace: ZTraceElement): URIO[TestRandom, Long] =
-    ZIO.serviceWithZIO(_.getSeed)
+  def getSeed(implicit trace: ZTraceElement): UIO[Long] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => testRandom.getSeed
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
 
   /**
    * Constructs a new `TestRandom` with the specified initial state. This can be

@@ -116,13 +116,11 @@ object System extends Serializable {
   )(implicit trace: ZTraceElement): IO[Throwable, Option[String]] =
     property(prop).map(_.orElse(alt))
 
-  // Accessor Methods
-
   /**
    * Retrieves the value of an environment variable.
    */
-  def env(variable: => String)(implicit trace: ZTraceElement): ZIO[System, SecurityException, Option[String]] =
-    ZIO.serviceWithZIO(_.env(variable))
+  def env(variable: => String)(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].env(variable))
 
   /**
    * Retrieves the value of an environment variable or else returns the
@@ -130,8 +128,8 @@ object System extends Serializable {
    */
   def envOrElse(variable: => String, alt: => String)(implicit
     trace: ZTraceElement
-  ): ZIO[System, SecurityException, String] =
-    ZIO.serviceWithZIO(_.envOrElse(variable, alt))
+  ): IO[SecurityException, String] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].envOrElse(variable, alt))
 
   /**
    * Retrieves the value of an environment variable or else returns the
@@ -139,33 +137,33 @@ object System extends Serializable {
    */
   def envOrOption(variable: => String, alt: => Option[String])(implicit
     trace: ZTraceElement
-  ): ZIO[System, SecurityException, Option[String]] =
-    ZIO.serviceWithZIO(_.envOrOption(variable, alt))
+  ): IO[SecurityException, Option[String]] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].envOrOption(variable, alt))
 
   /**
    * Retrieves the values of all environment variables.
    */
-  def envs(implicit trace: ZTraceElement): ZIO[System, SecurityException, Map[String, String]] =
-    ZIO.serviceWithZIO(_.envs)
+  def envs(implicit trace: ZTraceElement): IO[SecurityException, Map[String, String]] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].envs)
 
   /**
    * Retrieves the values of all system properties.
    */
-  def properties(implicit trace: ZTraceElement): ZIO[System, Throwable, Map[String, String]] =
-    ZIO.serviceWithZIO(_.properties)
+  def properties(implicit trace: ZTraceElement): Task[Map[String, String]] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].properties)
 
   /**
    * Retrieves the value of a system property.
    */
-  def property(prop: => String)(implicit trace: ZTraceElement): ZIO[System, Throwable, Option[String]] =
-    ZIO.serviceWithZIO(_.property(prop))
+  def property(prop: => String)(implicit trace: ZTraceElement): Task[Option[String]] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].property(prop))
 
   /**
    * Retrieves the value of a system property or else return the specified
    * fallback value.
    */
-  def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): RIO[System, String] =
-    ZIO.serviceWithZIO(_.propertyOrElse(prop, alt))
+  def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): Task[String] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].propertyOrElse(prop, alt))
 
   /**
    * Retrieves the value of a system property or else return the specified
@@ -173,14 +171,14 @@ object System extends Serializable {
    */
   def propertyOrOption(prop: => String, alt: => Option[String])(implicit
     trace: ZTraceElement
-  ): ZIO[System, Throwable, Option[String]] =
-    ZIO.serviceWithZIO(_.propertyOrOption(prop, alt))
+  ): Task[Option[String]] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].propertyOrOption(prop, alt))
 
   /**
    * Retrieves the value of the system-specific line separator.
    */
-  def lineSeparator(implicit trace: ZTraceElement): URIO[System, String] =
-    ZIO.serviceWithZIO(_.lineSeparator)
+  def lineSeparator(implicit trace: ZTraceElement): UIO[String] =
+    ZIO.runtimeConfig.flatMap(_.services.get[System].lineSeparator)
 
   private val osName =
     Option(scala.util.Try(java.lang.System.getProperty("os.name")).getOrElse("")).map(_.toLowerCase()).getOrElse("")

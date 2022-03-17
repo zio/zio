@@ -216,15 +216,25 @@ object TestConsole extends Serializable {
    * Accesses a `TestConsole` instance in the environment and clears the input
    * buffer.
    */
-  def clearInput(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWithZIO(_.clearInput)
+  def clearInput(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.clearInput
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
-  def clearOutput(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWithZIO(_.clearOutput)
+  def clearOutput(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.clearOutput
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
@@ -232,45 +242,75 @@ object TestConsole extends Serializable {
    * rendered to standard output in addition to being written to the output
    * buffer.
    */
-  def debug[R <: TestConsole, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWithZIO[TestConsole](_.debug(zio))
+  def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.debug(zio)
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
-  def feedLines(lines: String*)(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWithZIO(_.feedLines(lines: _*))
+  def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.feedLines(lines: _*)
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
-  def output(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.serviceWithZIO(_.output)
+  def output(implicit trace: ZTraceElement): UIO[Vector[String]] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.output
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
-  def outputErr(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.serviceWithZIO(_.outputErr)
+  def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.outputErr
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the console
    * state in an effect which, when run, will restore the `TestConsole` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, UIO[Unit]] =
-    ZIO.serviceWithZIO(_.save)
+  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.save
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
    * effect with the `TestConsole` set to silent mode, so that console output is
    * only written to the output buffer and not rendered to standard output.
    */
-  def silent[R <: TestConsole, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWithZIO[TestConsole](_.silent(zio))
+  def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => testConsole.silent(zio)
+        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
 
   /**
    * The state of the `TestConsole`.

@@ -398,7 +398,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Returns the sink that executes this one and times its execution.
    */
-  final def timed(implicit trace: ZTraceElement): ZSink[R with Clock, E, In, L, (Z, Duration)] =
+  final def timed(implicit trace: ZTraceElement): ZSink[R, E, In, L, (Z, Duration)] =
     summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
 
   def repeat(implicit ev: L <:< In, trace: ZTraceElement): ZSink[R, E, In, L, Chunk[Z]] =
@@ -1661,7 +1661,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       }
     }
 
-  def timed(implicit trace: ZTraceElement): ZSink[Clock, Nothing, Any, Nothing, Duration] =
+  def timed(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Duration] =
     ZSink.drain.timed.map(_._2)
 
   /**

@@ -176,44 +176,74 @@ object TestSystem extends Serializable {
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of environment variables.
    */
-  def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.serviceWithZIO(_.putEnv(name, value))
+  def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => testSystem.putEnv(name, value)
+        case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
-  def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.serviceWithZIO(_.putProperty(name, value))
+  def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => testSystem.putProperty(name, value)
+        case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
 
   /**
    * Accesses a `TestSystem` instance in the environment and saves the system
    * state in an effect which, when run, will restore the `TestSystem` to the
    * saved state
    */
-  def save(implicit trace: ZTraceElement): ZIO[TestSystem, Nothing, UIO[Unit]] =
-    ZIO.serviceWithZIO(_.save)
+  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => testSystem.save
+        case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
-  def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.serviceWithZIO(_.setLineSeparator(lineSep))
+  def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => testSystem.setLineSeparator(lineSep)
+        case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
-  def clearEnv(variable: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.serviceWithZIO(_.clearEnv(variable))
+  def clearEnv(variable: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => testSystem.clearEnv(variable)
+        case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
-  def clearProperty(prop: => String)(implicit trace: ZTraceElement): URIO[TestSystem, Unit] =
-    ZIO.serviceWithZIO(_.clearProperty(prop))
+  def clearProperty(prop: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => testSystem.clearProperty(prop)
+        case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
 
   /**
    * The state of the `TestSystem`.
