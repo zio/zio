@@ -571,7 +571,7 @@ object Fiber extends FiberPlatformSpecific {
         def executor: Executor               = executor0
         def isLocked: Boolean                = locked0
       }
-  }  
+  }
 
   final case class Descriptor2(
     id: FiberId,
