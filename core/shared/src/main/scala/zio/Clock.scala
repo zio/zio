@@ -141,36 +141,36 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * Returns the current time, relative to the Unix epoch.
    */
   def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].currentTime(unit))
+    ZIO.clockWith(_.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
   def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].currentDateTime)
+    ZIO.clockWith(_.currentDateTime)
 
   def instant(implicit trace: ZTraceElement): UIO[java.time.Instant] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].instant)
+    ZIO.clockWith(_.instant)
 
   def localDateTime(implicit trace: ZTraceElement): UIO[java.time.LocalDateTime] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].localDateTime)
+    ZIO.clockWith(_.localDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
   def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].nanoTime)
+    ZIO.clockWith(_.nanoTime)
 
   /**
    * Returns the scheduler used for scheduling effects.
    */
   def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].scheduler)
+    ZIO.clockWith(_.scheduler)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
   def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap(_.services.get[Clock].sleep(duration))
+    ZIO.clockWith(_.sleep(duration))
 
 }

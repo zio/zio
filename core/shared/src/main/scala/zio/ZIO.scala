@@ -3179,8 +3179,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     new ZIO.CheckInterrupt(f, trace)
 
+  /**
+   * Retreives the `Clock` service for this workflow.
+   */
   def clock(implicit trace: ZTraceElement): UIO[Clock] =
-    ZIO.runtimeConfig.map(_.services.get[Clock])
+    ZIO.clockWith(ZIO.succeedNow)
+
+  /**
+   * Retreives the `Clock` service for this workflow and uses it to run the
+   * specified workflow.
+   */
+  def clockWith[R, E, A](f: Clock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap(runtimeConfig => f(runtimeConfig.services.get[Clock]))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -3476,6 +3486,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def cond[E, A](predicate: => Boolean, result: => A, error: => E)(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.suspendSucceed(if (predicate) ZIO.succeedNow(result) else ZIO.fail(error))
+
+  /**
+   * Retreives the `Console` service for this workflow.
+   */
+  def console(implicit trace: ZTraceElement): UIO[Console] =
+    ZIO.consoleWith(ZIO.succeedNow)
+
+  /**
+   * Retreives the `Console` service for this workflow and uses it to run the
+   * specified workflow.
+   */
+  def consoleWith[R, E, A](f: Console => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap(runtimeConfig => f(runtimeConfig.services.get[Console]))
 
   /**
    * Prints the specified message to the console for debugging purposes.
@@ -5056,6 +5079,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(zio.raceAll(ios))
 
   /**
+   * Retreives the `Random` service for this workflow.
+   */
+  def random(implicit trace: ZTraceElement): UIO[Random] =
+    ZIO.randomWith(ZIO.succeedNow)
+
+  /**
+   * Retreives the `Random` service for this workflow and uses it to run the
+   * specified workflow.
+   */
+  def randomWith[R, E, A](f: Random => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap(runtimeConfig => f(runtimeConfig.services.get[Random]))
+
+  /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
   def reduceAll[R, R1 <: R, E, A](a: => ZIO[R, E, A], as: => Iterable[ZIO[R1, E, A]])(
@@ -5380,6 +5416,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     )
+
+  /**
+   * Retreives the `System` service for this workflow.
+   */
+  def system(implicit trace: ZTraceElement): UIO[System] =
+    ZIO.systemWith(ZIO.succeedNow)
+
+  /**
+   * Retreives the `System` service for this workflow and uses it to run the
+   * specified workflow.
+   */
+  def systemWith[R, E, A](f: System => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap(runtimeConfig => f(runtimeConfig.services.get[System]))
 
   /**
    * Capture ZIO trace at the current point
