@@ -584,6 +584,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             override def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
               q.takeUpTo(max)
 
+            override def windDown(implicit trace: ZTraceElement): UIO[Unit] = q.windDown
           }
 
           for {

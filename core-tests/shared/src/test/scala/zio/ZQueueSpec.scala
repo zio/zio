@@ -516,6 +516,124 @@ object ZQueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("windDown with take fiber") {
+      for {
+        selfId <- ZIO.fiberId
+        queue  <- Queue.bounded[Int](3)
+        f      <- queue.take.fork
+        _      <- waitForSize(queue, -1)
+        _      <- queue.windDown
+        res    <- f.join.sandbox.either
+      } yield assert(res.left.map(_.untraced))(isLeft(equalTo(Cause.interrupt(selfId))))
+    },
+    test("windDown with offer fiber") {
+      for {
+        selfId <- ZIO.fiberId
+        queue  <- Queue.bounded[Int](2)
+        _      <- queue.offer(1)
+        _      <- queue.offer(1)
+        f      <- queue.offer(1).fork
+        _      <- waitForSize(queue, 3)
+        _      <- queue.windDown
+        res    <- f.join.sandbox.either
+      } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
+    },
+    test("windDown with offer") {
+      for {
+        selfId <- ZIO.fiberId
+        queue  <- Queue.bounded[Int](1)
+        _      <- queue.windDown
+        res    <- queue.offer(1).sandbox.either
+      } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
+    },
+    test("windDown with take interrupts and shutdowns on empty") {
+      for {
+        selfId     <- ZIO.fiberId
+        queue      <- Queue.bounded[Int](1)
+        _          <- queue.windDown
+        res        <- queue.take.sandbox.either
+        isShutdown <- queue.isShutdown
+      } yield {
+        assert(res)(isLeft(equalTo(Cause.interrupt(selfId)))) &&
+        assert(isShutdown)(isTrue)
+      }
+    },
+    test("windDown with take on non empty") {
+      for {
+        selfId <- ZIO.fiberId
+        queue  <- Queue.bounded[Int](1)
+        _      <- queue.offer(1)
+        _      <- queue.windDown
+        res1   <- queue.take
+        res2   <- queue.take.sandbox.either
+      } yield {
+        assert(res1)(equalTo(1)) &&
+        assert(res2)(isLeft(equalTo(Cause.interrupt(selfId))))
+      }
+    },
+    test("windDown with takeAll interrupts and shutdowns on empty") {
+      for {
+        selfId     <- ZIO.fiberId
+        queue      <- Queue.bounded[Int](1)
+        _          <- queue.windDown
+        res        <- queue.takeAll.sandbox.either
+        isShutdown <- queue.isShutdown
+      } yield {
+        assert(res)(isLeft(equalTo(Cause.interrupt(selfId)))) &&
+        assert(isShutdown)(isTrue)
+      }
+    },
+    test("windDown with takeAll on non empty") {
+      for {
+        selfId <- ZIO.fiberId
+        queue  <- Queue.bounded[Int](3)
+        _      <- queue.offer(1)
+        _      <- queue.offer(2)
+        _      <- queue.offer(3)
+        _      <- queue.windDown
+        res1   <- queue.takeAll
+        res2   <- queue.takeAll.sandbox.either
+      } yield {
+        assert(res1)(equalTo(Chunk(1, 2, 3))) &&
+        assert(res2)(isLeft(equalTo(Cause.interrupt(selfId))))
+      }
+    },
+    test("windDown with takeUpTo interrupts and shutdowns on empty") {
+      for {
+        selfId     <- ZIO.fiberId
+        queue      <- Queue.bounded[Int](1)
+        _          <- queue.windDown
+        res        <- queue.takeUpTo(1).sandbox.either
+        isShutdown <- queue.isShutdown
+      } yield {
+        assert(res)(isLeft(equalTo(Cause.interrupt(selfId)))) &&
+        assert(isShutdown)(isTrue)
+      }
+    },
+    test("windDown with takeUpTo on non empty") {
+      for {
+        selfId <- ZIO.fiberId
+        queue  <- Queue.bounded[Int](3)
+        _      <- queue.offer(1)
+        _      <- queue.offer(2)
+        _      <- queue.offer(3)
+        _      <- queue.windDown
+        res1   <- queue.takeUpTo(2)
+        res2   <- queue.takeUpTo(2)
+        res3   <- queue.takeUpTo(2).sandbox.either
+      } yield {
+        assert(res1)(equalTo(Chunk(1, 2))) &&
+        assert(res2)(equalTo(Chunk(3))) &&
+        assert(res3)(isLeft(equalTo(Cause.interrupt(selfId))))
+      }
+    },
+    test("windDown shutdowns empty queue") {
+      for {
+        queue      <- Queue.bounded[Int](3)
+        _          <- queue.windDown
+        isShutdown <- queue.isShutdown
+      } yield assert(isShutdown)(isTrue)
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)
@@ -626,6 +744,15 @@ object ZQueueSpec extends ZIOBaseSpec {
         _     <- queue.shutdown
         p     <- Promise.make[Nothing, Boolean]
         _     <- (queue.awaitShutdown *> p.succeed(true)).fork
+        res   <- p.await
+      } yield assert(res)(isTrue)
+    },
+    test("awaitShutdown on windDown when queue is empty") {
+      for {
+        queue <- Queue.bounded[Int](3)
+        p     <- Promise.make[Nothing, Boolean]
+        _     <- (queue.awaitShutdown *> p.succeed(true)).fork
+        _     <- queue.windDown
         res   <- p.await
       } yield assert(res)(isTrue)
     },
@@ -839,6 +966,24 @@ object ZQueueSpec extends ZIOBaseSpec {
         _ <- q.offer(1)
         f <- q.take.forever.fork
         _ <- q.shutdown
+        _ <- f.await
+      } yield assertCompletes
+    } @@ jvm(nonFlaky),
+    test("windDown race condition with offer") {
+      for {
+        q <- Queue.bounded[Int](2)
+        f <- q.offer(1).forever.fork
+        _ <- q.windDown
+        _ <- f.await
+      } yield assertCompletes
+    } @@ jvm(nonFlaky),
+    test("windDown race condition with take") {
+      for {
+        q <- Queue.bounded[Int](2)
+        _ <- q.offer(1)
+        _ <- q.offer(1)
+        f <- q.take.forever.fork
+        _ <- q.windDown
         _ <- f.await
       } yield assertCompletes
     } @@ jvm(nonFlaky),

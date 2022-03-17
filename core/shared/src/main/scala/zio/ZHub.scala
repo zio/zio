@@ -281,6 +281,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
         ZIO.succeedNow(Chunk.empty)
       def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Nothing, Any, Chunk[Any]] =
         ZIO.succeedNow(Chunk.empty)
+      def windDown(implicit trace: ZTraceElement): UIO[Unit] = self.shutdown
     }
 }
 
@@ -495,6 +496,8 @@ object ZHub {
             ZIO.succeedNow(as)
           }
         }
+
+      override def windDown(implicit trace: ZTraceElement): UIO[Unit] = ZIO.unit
     }
 
   /**
