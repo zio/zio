@@ -124,7 +124,7 @@ for {
 } yield assert(value == 1)
 ```
 
-> _**Note**_:  
+> **Note**:  
 >
 > The `update` is not the composition of `get` and `set`, this composition is not concurrently safe. So whenever we need to update our state, we should not compose `get` and `set` to manage our state in a concurrent environment. Instead, we should use the `update` operation which modifies its `Ref` atomically. 
 

@@ -3,12 +3,12 @@ id: system
 title: "System"
 ---
 
-System service contains several useful functions related to system environments and properties. Both of **system environments** and **system properties** are key/value pairs. They used to pass user-defined information to our application.
+System service contains several useful functions related to system environments and properties. Both of **system environments** and **system properties** are key/value pairs. They are used to pass user-defined information to our application.
 
-Environment variables are global operating system level variables available to all applications running on the same machine while the properties are application-level variables provided to our application.
+Environment variables are global operating system level variables available to all applications running on the same machine, while properties are application-level variables provided to our application.
 
 ## System Environment
-The `env` function retrieve the value of an environment variable:
+The `env` function retrieves the value of an environment variable:
 
 ```scala mdoc:compile-only
 import zio._
@@ -25,7 +25,7 @@ for {
 ```
 
 ## System Property
-Also, the System service has a `property function to retrieve the value of a system property:
+Also, the System service has a `property` function to retrieve the value of a system property:
 
 ```scala mdoc:compile-only
 import zio._

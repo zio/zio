@@ -26,17 +26,17 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[ZIOApp](core/zioapp.md)** — `ZIOApp` and the `ZIOAppDefault` are entry points for ZIO applications.
  - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
  - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
- - **[Cause](core/cause.md)** - `Cause[E]` is a description of a full story of a fiber failure. 
+ - **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure. 
  - **[Runtime](core/runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
 
 ## Contextual Data Types
 - **[ZEnvironment](contextual/zenvironment.md)** — `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect.
-- **[ZLayer](contextual/zlayer.md)** — The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
+- **[ZLayer](contextual/zlayer.md)** — `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
     + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
-    + **[ULayer](contextual/ulayer.md)** — ULayer[+ROut] is a type alias for ZLayer[Any, Nothing, ROut], which represents a layer that doesn't require any services as its input, it can't fail, and returns ROut as its output.
-    + **[Layer](contextual/layer.md)** — Layer[+E, +ROut] is a type alias for ZLayer[Any, E, ROut], which represents a layer that doesn't require any services, it may fail with an error type of E, and returns ROut as its output.
-    + **[URLayer](contextual/urlayer.md)** — URLayer[-RIn, +ROut] is a type alias for ZLayer[RIn, Nothing, ROut], which represents a layer that requires RIn as its input, it can't fail, and returns ROut as its output.
-    + **[TaskLayer](contextual/task-layer.md)** — TaskLayer[+ROut] is a type alias for ZLayer[Any, Throwable, ROut], which represents a layer that doesn't require any services as its input, it may fail with Throwable value, and returns ROut as its output.
+    + **[ULayer](contextual/ulayer.md)** — `ULayer[+ROut]` is a type alias for `ZLayer[Any, Nothing, ROut]`, which represents a layer that doesn't require any services as its input, it can't fail, and returns `ROut` as its output.
+    + **[Layer](contextual/layer.md)** — `Layer[+E, +ROut]` is a type alias for `ZLayer[Any, E, ROut]`, which represents a layer that doesn't require any services, it may fail with an error type of `E`, and returns `ROut` as its output.
+    + **[URLayer](contextual/urlayer.md)** — `URLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Nothing, ROut]`, which represents a layer that requires `RIn` as its input, it can't fail, and returns `ROut` as its output.
+    + **[TaskLayer](contextual/task-layer.md)** — `TaskLayer[+ROut]` is a type alias for `ZLayer[Any, Throwable, ROut]`, which represents a layer that doesn't require any services as its input, it may fail with `Throwable` value, and returns `ROut` as its output.
 
 ## Concurrency
 
@@ -47,7 +47,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[FiberId](fiber/fiberid.md)** — `FiberId` describe the unique identity of a Fiber.
  
 ### Concurrency Primitives
- - **[Hub](concurrency/hub.md)** - A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
+ - **[Hub](concurrency/hub.md)** — A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
  - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
  - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
 - **[ZRef](concurrency/zref.md)** — A `ZRef[EA, EB, A, B]` is a polymorphic, purely functional description of a mutable reference. The fundamental operations of a `ZRef` are `set` and `get`.
@@ -67,16 +67,16 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ### STM
 
-- **[STM](stm/stm.md)** - An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
-- **[TArray](stm/tarray.md)** - A `TArray` is an array of mutable references that can participate in transactions.
-- **[TSet](stm/tset.md)** - A `TSet` is a mutable set that can participate in transactions.
-- **[TMap](stm/tmap.md)** - A `TMap` is a mutable map that can participate in transactions.
-- **[TRef](stm/tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
-- **[TPriorityQueue](stm/tpriorityqueue.md)** - A `TPriorityQueue` is a mutable priority queue that can participate in transactions.
-- **[TPromise](stm/tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
-- **[TQueue](stm/tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
-- **[TReentrantLock](stm/treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
-- **[TSemaphore](stm/tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
+- **[STM](stm/stm.md)** — An `STM` represents an effect that can be performed transactionally resulting in a failure or success.
+- **[TArray](stm/tarray.md)** — A `TArray` is an array of mutable references that can participate in transactions.
+- **[TSet](stm/tset.md)** — A `TSet` is a mutable set that can participate in transactions.
+- **[TMap](stm/tmap.md)** — A `TMap` is a mutable map that can participate in transactions.
+- **[TRef](stm/tref.md)** — A `TRef` is a mutable reference to an immutable value that can participate in transactions.
+- **[TPriorityQueue](stm/tpriorityqueue.md)** — A `TPriorityQueue` is a mutable priority queue that can participate in transactions.
+- **[TPromise](stm/tpromise.md)** — A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
+- **[TQueue](stm/tqueue.md)** — A `TQueue` is a mutable queue that can participate in transactions.
+- **[TReentrantLock](stm/treentrantlock.md)** — A `TReentrantLock` is a reentrant read / write lock that can be composed.
+- **[TSemaphore](stm/tsemaphore.md)** — A `TSemaphore` is a semaphore that can participate in transactions.
 
 ## Resource Management
 - **[ZManaged](resource/zmanaged.md)** — A `ZManaged` is a value that describes a perishable resource that may be consumed only once inside a given scope.
@@ -90,9 +90,9 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 ## Streaming
 - **[ZStream](stream/zstream.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.
    + **[Stream](stream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`. 
-- **[ZSink](stream/zsink.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produces a value when it has consumed enough.
+- **[ZSink](stream/zsink.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produce a value when it has consumed enough.
    + **[Sink](stream/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
-- **[ZPipeline](stream/zpipeline.md)** - `ZPipeline` is a polymorphic stream transformer.
+- **[ZPipeline](stream/zpipeline.md)** — `ZPipeline` is a polymorphic stream transformer.
 - **[SubscriptionRef](stream/subscriptionref.md)** — `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
  
 ## Miscellaneous

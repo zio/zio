@@ -156,7 +156,7 @@ def fib(n: Int): UIO[Int] =
 ## Error Model
 The `IO` error model is simple, consistent, permits both typed errors and termination, and does not violate any laws in the `Functor` hierarchy.
 
-An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case bas been exposed as part of the `Either` success case.  
+An `IO[E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case has been exposed as part of the `Either` success case.  
 
 ```scala mdoc:silent
 val error: Task[String] = IO.fail(new RuntimeException("Some Error"))
@@ -316,7 +316,7 @@ If a CPU Work doesn't yield quickly, then that is going to monopolize a thread. 
 
 The best practice is to run those huge CPU Work on a dedicated thread pool, by lifting them with the `blocking` operator in the `ZIO.blocking` package.
 
-> _**Note**:_
+> **Note**:
 >
 > So as a rule of thumb, when we have a huge CPU Work that is not chunked with built-in ZIO operations and going to monopolize the underlying thread, we should run that on a dedicated thread pool that is designed to perform CPU-driven tasks.
 

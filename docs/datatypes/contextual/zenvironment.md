@@ -32,7 +32,7 @@ ZEnvironment(
 )
 ```
 
-From a ZIO Environment point of view, we can think of `ZIO` as the following function:
+From a ZIO environment point of view, we can think of `ZIO` as the following function:
 
 ```scala
 type ZIO[R, E, A] = ZEnvironment[R] => Either[E, A]
@@ -63,7 +63,7 @@ val originalEffect: ZIO[Console & Random, IOException, Unit] =
 
 By providing `ZEnvironment[Console & Random]` we can eliminate the environment of the `originalEffect`:
 
-```
+```scala
 val eliminatedEffect: IO[IOException, Unit] =
   originalEffect.provideEnvironment(
     ZEnvironment(
@@ -106,8 +106,7 @@ To create the default ZIO environment:
 ```scala mdoc:compile-only
 import zio._
 
-val default: ZEnvironment[ZEnv] = 
-  ZEnvironment.default 
+val default: ZEnvironment[ZEnv] = ZEnvironment.default 
 ```
 
 To create an empty ZIO environment:
@@ -171,7 +170,7 @@ trait Database
 
 ```scala mdoc:silent:nest
 val database: URIO[Map[String, Database], Option[Database]] =
-  ZIO.serviceAt[Database]("persistent")
+  ZIO.serviceAt[Database]("inmemory")
 ```
 
 A service can be updated at the specified key using the `ZIO#updateServiceAt` operator.

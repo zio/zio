@@ -19,14 +19,11 @@ import zio.ZIO
 type UIO[+A] = ZIO[Any, Nothing, A]
 ```
 
-So the `UIO` just equal to `ZIO` which doesn't need any requirement and cannot fail because in the Scala the `Nothing` type has no inhabitant, we can't create an instance of type `Nothing`.
+So `UIO` is equal to a `ZIO` that doesn't need any requirement (because it accepts `Any` environment) and that cannot fail (because in Scala the `Nothing` type is _uninhabitable_, i.e. there can be no actual value of type `Nothing`). It succeeds with `A`.
 
-`ZIO` values of type `UIO[A]` (where the error type is `Nothing`) are considered _infallible_,
-because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may produce an `A`, but will never fail with an `E`.
+`ZIO` values of type `UIO[A]` are considered _infallible_. Values of this type may produce an `A`, but will never fail.
 
-Let's write a fibonacci function. As we don't expect any failure, it is an unexceptional effect:
-
-In the following example, the `fib`, doesn't have any requirement, as it is an unexceptional effect, we don't except any failure, and it succeeds with value of type `Int`:
+Let's write a Fibonacci function. In the following example, the `fib` function is an unexceptional effect, since it has no requirements, we don't expect any failure, and it succeeds with a value of type `Int`:
 
 ```scala mdoc:reset:silent
 import zio.UIO
@@ -50,4 +47,4 @@ def fib(n: Int): UIO[Int] =
 >
 > Lot of the time, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the proper specialized type alias.
 >
-> So there is no need to convert type aliases to the `ZIO` data type, whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
+> So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.

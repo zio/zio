@@ -19,7 +19,7 @@ import zio.ZIO
 type IO[+E, +A] = ZIO[Any, E, A]
 ```
 
-So the `IO` just equal to `ZIO` which doesn't need any requirement.
+So `IO` is equal to a `ZIO` that doesn't need any requirement.
 
 `ZIO` values of type `IO[E, Nothing]` (where the value type is `Nothing`) are considered _unproductive_, because the `Nothing` type is _uninhabitable_, i.e. there can be no actual values of type `Nothing`. Values of this type may fail with an `E`, but will never produce a value.
 
@@ -29,4 +29,4 @@ So the `IO` just equal to `ZIO` which doesn't need any requirement.
 >
 > Lot of the time, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the proper specialized type alias.
 >
-> So there is no need to convert type aliases to the `ZIO` data type, whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
+> So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.

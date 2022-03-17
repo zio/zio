@@ -14,7 +14,6 @@ The `ZIOAppDefault` has a `run` function, which is the main entry point for runn
 
 ```scala mdoc:compile-only
 import zio._
-import zio.Console
 
 object MyApp extends ZIOAppDefault {
   def run = for {
@@ -27,10 +26,11 @@ object MyApp extends ZIOAppDefault {
 
 ## Accessing Command-line Arguments
 
-ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using built-in `getArgs` method, which is a helper method:
+ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using the built-in `getArgs` method:
 
 ```scala mdoc:compile-only
 import zio._
+
 object HelloApp extends ZIOAppDefault {
   def run = for {
     args <- getArgs
@@ -45,7 +45,7 @@ object HelloApp extends ZIOAppDefault {
 
 ## Customized Runtime
 
-In the ZIO app, by overriding the `runtime` we can map the current runtime to a newly customized one. Let's try customizing it by introducing our own executor:
+In the ZIO app, by overriding its `runtime` value, we can map the current runtime to a customized one. Let's customize it by introducing our own executor:
 
 ```scala mdoc:invisible
 import zio._
@@ -87,7 +87,7 @@ A detailed explanation of the `RuntimeConfigAspect` can be found on the [runtime
 
 ## Composing ZIO Applications
 
-To compose ZIO application, we can use `<>` operator:
+To compose ZIO applications, we can use `<>` operator:
 
 ```scala mdoc:invisible
 import zio._

@@ -33,16 +33,16 @@ val eliminated: ZIO[Any, IOException, String] =
   }
 ```
 
-ZIO provide this facility through the following concept and data types:
+ZIO provides this facility through the following concepts and data types:
 1. [ZIO Environment](#1-zio-environment) — The `R` type parameter of `ZIO[R, E, A]` data type.
 2. [ZEnvironment](zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
 3. [ZLayer](zlayer.md) — Describes how to build one or more services in our application.
 
-Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using _Service Pattern_.
+Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using the _Service Pattern_.
 
 ## 1. ZIO Environment
 
-The `ZIO[-R, +E, +A]` data type describes an effect that requires an input type of `R`, as an environment, may fail with an error of type `E` or succeed and produces a value of type `A`.
+The `ZIO[-R, +E, +A]` data type describes an effect that requires an input of type `R`, as an environment, may fail with an error of type `E`, or succeed with a value of type `A`.
 
 The input type is also known as _environment type_. This type-parameter indicates that to run an effect we need one or some services as an environment of that effect. In other word, `R` represents the _requirement_ for the effect to run, meaning we need to fulfill the requirement in order to make the effect _runnable_.
 
@@ -174,7 +174,7 @@ object ConsoleLive extends Console {
 
 Finally, we can provide the `ConsoleLive` to our application and run the whole:
 
-```mdoc:compile-only
+```scala mdoc:fail:silent
 import zio._
 
 object MainApp extends ZIOAppDefault {
@@ -193,9 +193,9 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-In the above example, we discard the fact that we can use the ZIO environment and utilize the `R` parameter of the `ZIO` data type. So instead we tried to write the application with the `Task` data type which ignore the ZIO environment. To create our application testable, we gathered all console functionalities into the same interface called, `Console` and implement that in another object called, `ConsoleLive`. Finally, at the end of the day, we provide the implementation of the `Console` service, i.e. `ConsoleLive`, to our application.
+In the above example, we discard the fact that we could use the ZIO environment and utilize the `R` parameter of the `ZIO` data type. So instead we tried to write the application with the `Task` data type, which ignores the ZIO environment. To create our application testable, we gathered all console functionalities into the same interface called `Console`, and implemented that in another object called `ConsoleLive`. Finally, at the end of the day, we provide the implementation of the `Console` service, i.e. `ConsoleLive`, to our application.
 
-**While this technique works for small programs, it doesn't scale.** Assume we have multiple services, and we use them in our application logic like bellow:
+**While this technique works for small programs, it doesn't scale.** Assume we have multiple services, and we use them in our application logic like below:
 
 ```scala
 def foo(
@@ -241,7 +241,7 @@ def bar(arg1: Int, arg2: String, arg3: Double, arg4: Int): ZIO[Service1 & Servic
 
 ZIO environment facility enables us to:
 
-1. **Code to Interface** — like object-oriented paradigm, in ZIO we encouraged to code to interface and defer the implementation. It is the best practice, but ZIO does not enforce us to do that.
+1. **Code to Interface** — Like object-oriented paradigm, in ZIO we are encouraged to code to interface and defer the implementation. It is the best practice, but ZIO does not enforce us to do that.
 
 2. **Write a Testable Code** — By coding to an interface, whenever we want to test our effects, we can easily mock any external services, by providing a _test_ version of those instead of the _live_ version.
 
@@ -280,7 +280,7 @@ In the example above, the compiler can infer the environment type of the `myApp`
 
 We have two types of accessors for the ZIO environment:
 1. **Service Accessor (`ZIO.service`)** is used to access a specific service from the environment.
-2. **Service Members Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
+2. **Service Member Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
 
 > **Note**:
 >
@@ -332,7 +332,7 @@ for {
 
 When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Service Pattern](#service-pattern) section.
 
-#### Service Members Accessors
+#### Service Member Accessors
 
 Sometimes instead of accessing a service, we need to access the capabilities (members) of a service. Based on the return type of each capability, we can use one of these accessors:
 - **ZIO.serviceWith**
@@ -403,21 +403,21 @@ val myApp: ZIO[Logging & Console, Throwable, Unit] =
 
 `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-`ZLayer` combined with the _ZIO Environment_, allow us to use ZIO for _dependency injection_. There are two parts for dependency injection:
+`ZLayer` combined with the _ZIO Environment_, allow us to use ZIO for _dependency injection_. There are two parts of dependency injection:
 1. **Building Dependency Graph**
 2. **Dependency Propagation**
 
-ZIO has a full solution to the dependency injection problem. It solves the first problem by using [compositional properties](zlayer.md#manual-layer-construction) of `ZLayer`. Assume we have several services with their dependencies, and we need a way to compose and wiring up these dependencies and create the dependency graph of the application. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically. 
+ZIO has a full solution to the dependency injection problem. It solves the first problem by using [compositional properties](zlayer.md#manual-layer-construction) of `ZLayer`. Assume we have several services with their dependencies, and we need a way to compose and wire up these dependencies to create the dependency graph of the application. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically. 
 
 ZIO also solves the second problem by using [ZIO Environment facilities like `ZIO#provide`](zlayer.md#dependency-propagation).
 
 > **Note:**
 > 
-> By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. Note that it doesn't necessary to use it, and we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+> By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. Note that we are not enforced to use this approach, as we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
 
 ## Defining ZIO Services
 
-Defining service in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using the _Service Pattern_, which is quite similar to the object-oriented style.
+Defining services in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using _Service Pattern_, which is quite similar to the object-oriented style.
 
 Before diving into writing services in ZIO style, let's review how we define them in an object-oriented fashion in the next section.
 
@@ -425,7 +425,7 @@ Before diving into writing services in ZIO style, let's review how we define the
 
 Here are the steps we take to implement a service in object-oriented programming:
 
-1. **Service Definition** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality which are defined in a trait:
+1. **Service Definition** — In object-oriented programming, we define services with traits. A service is a bundle of related functionality that is defined in a trait:
 
 ```scala mdoc:silent:nest
 trait FooService {
@@ -475,7 +475,7 @@ A service is a group of functions that deals with only one concern. Keeping the 
 
 `ZIO` itself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
 
-In the functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
+In functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
 
 * Allowing the client to hold an interface as a contract and don't worry about the implementation. The interface signature determines all operations that should be done.
 
@@ -483,7 +483,7 @@ In the functional Scala as well as in object-oriented programming the best pract
 
 * Providing the ability to write more modular applications. So we can plug in different implementations for different purposes without a major modification.
 
-It is not mandatory but ZIO encourages us to follow this principle by bundling related functionality as an interface by using _Service Pattern_.
+It is not mandatory, but ZIO encourages us to follow this principle by bundling related functionality as an interface by using the _Service Pattern_.
 
 The core idea is that a layer depends upon the interfaces exposed by the layers immediately below itself, but is completely unaware of its dependencies' internal implementations.
 
@@ -491,13 +491,13 @@ In object-oriented programming:
 
 - **Service Definition** is done by using _interfaces_ (Scala trait or Java Interface).
 - **Service Implementation** is done by implementing interfaces using _classes_ or creating _new object_ of the interface.
-- **Defining Dependencies** is done by using _constructors_. They allow us to build classes, give their dependencies. This is called constructor-based dependency injection.
+- **Defining Dependencies** is done by using _constructors_. They allow us to build classes, given their dependencies. This is called constructor-based dependency injection.
 
-We have a similar analogy in Service Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
+We have a similar analogy in the Service Pattern, except instead of using _constructors_ we use **`ZLayer`** to define dependencies. So in ZIO fashion, we can think of `ZLayer` as a service constructor.
 
 ### Service Pattern
 
-Writing services in ZIO using _Service Pattern_ is much similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.
+Writing services in ZIO using the _Service Pattern_ is very similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.
 
 Let's start learning this service pattern by writing a `Logging` service:
 
@@ -516,7 +516,7 @@ trait Logging {
 2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
 
 ```scala mdoc:compile-only
-case class LoggingLiveee() extends Logging {
+case class LoggingLive() extends Logging {
   override def log(line: String): UIO[Unit] = 
     ZIO.succeed(print(line))
 }
@@ -575,7 +575,7 @@ object Logging {
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `Logging.log`, we don't need to pull out the `log` function from the ZIO Environment. The `ZIO.serviceWithZIO` constructor helps us to access the environment and reduce the redundant operations, every time.
 
-This is how ZIO services are created. Let's use the `Logging` service in our application. We should provide the live layer of `Logging` service to be able to run the application:
+This is how ZIO services are created. Let's use the `Logging` service in our application. We should provide the live layer of the `Logging` service to be able to run the application:
 
 ```scala mdoc:compile-only
 import zio._
@@ -601,9 +601,9 @@ That's it! Very simple! ZIO encourages us to follow some of the best practices i
 
 ### Defining Polymorphic Services in ZIO
 
-As we discussed [here](zenvironment.md) the `ZEnvironment`, which is the underlying data type used by `ZLayer`, is backed by a type-level mapping from types of services to implementations of those services. This functionality is backed by `izumi.reflect.Tag`, which captures a type as a value. 
+As we discussed [here](zenvironment.md), the `ZEnvironment`, which is the underlying data type used by `ZLayer`, is backed by a type-level mapping from types of services to implementations of those services. This functionality is backed by `izumi.reflect.Tag`, which captures a type as a value. 
 
-We just need to know what is the type of service when we put it in the `ZEnvironment` because `ZEnvironment` is essentially a map from _service types (interfaces)_ to _implementation of those interfaces_. To implement the map the `ZEnvironment` needs a type tag for the new service, and also needs a way to remove the old service from the type level map. So we should have service type information at the runtime. 
+We just need to know what is the type of service when we put it in the `ZEnvironment` because `ZEnvironment` is essentially a map from _service types (interfaces)_ to _implementation of those interfaces_. To implement the map, the `ZEnvironment` needs a type tag for the new service, and also needs a way to remove the old service from the type level map. So we should have service type information at the runtime. 
 
 We can think of `Tag[A]` as like a `TypeTag[A]` or `ClassTag[A]` from the Scala standard library but available on a cross-version and cross-platform basis. Basically, it carries information about a certain type into runtime that was available at compile time. Methods that construct `ZEnvironment` values generally require a tag for the value being included in the “bundle of services”. 
 
@@ -623,7 +623,7 @@ trait KeyValueStore[K, V, E, F[_, _]] {
 
 In the next step, we are going to write its accessors. We might end up with the following snippet code:
 
-```scala mdoc:fail
+```scala mdoc:fail:silent
 import zio._
 
 object KeyValueStore {
@@ -636,6 +636,31 @@ object KeyValueStore {
   def remove[K, V, E](key: K): ZIO[KeyValueStore[K, V, E, IO], E, Unit] =
     ZIO.serviceWithZIO(_.remove(key))
 }
+
+// error: could not find implicit value for izumi.reflect.Tag[K]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in K? e.g. def x[T: Tag, F[_]: TagK] = ...
+// 
+// 
+// <trace>: 
+//   deriving Tag for K, dealiased: K:
+//   could not find implicit value for Tag[K]: K is a type parameter without an implicit Tag!
+//     ZIO.serviceWithZIO[KeyValueStore[K, V, E, IO]](_.get(key))
+//                                                   ^
+// error: could not find implicit value for izumi.reflect.Tag[K]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in K? e.g. def x[T: Tag, F[_]: TagK] = ...
+// 
+// 
+// <trace>: 
+//   deriving Tag for K, dealiased: K:
+//   could not find implicit value for Tag[K]: K is a type parameter without an implicit Tag!
+//     ZIO.serviceWithZIO[KeyValueStore[K, V, E, IO]](_.set(key, value))
+//                                                   ^
+// error: could not find implicit value for izumi.reflect.Tag[K]. Did you forget to put on a Tag, TagK or TagKK context bound on one of the parameters in K? e.g. def x[T: Tag, F[_]: TagK] = ...
+// 
+// 
+// <trace>: 
+//   deriving Tag for K, dealiased: K:
+//   could not find implicit value for Tag[K]: K is a type parameter without an implicit Tag!
+//     ZIO.serviceWithZIO(_.remove(key))
+//                       ^
 ```
 
 The compiler generates the following errors:
@@ -731,9 +756,6 @@ object KeyValueStore {
 }
 ```
 
-```scala mdoc:compile-only
-
-```
 
 ### Generating Accessor Methods Using Macros
 
@@ -765,7 +787,7 @@ Also, to enable macro expansion we need to setup our project:
 
 #### Monomorphic Services
 
-We can `@accessible` macro to generate _capability accessors_:
+We can use the `@accessible` macro to generate _service member accessors_:
 
 ```scala
 import zio._
@@ -1062,7 +1084,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 
 So keep in mind, we can't do something like this:
 
-```scala mdoc:fail
+```scala mdoc:fail:silent
 case class LoggingLive() extends Logging {
   override def log(line: String) =
     for {
@@ -1072,6 +1094,13 @@ case class LoggingLive() extends Logging {
       _       <- console.printLine(s"$current--$line").orDie
     } yield ()
 }
+
+// error: type mismatch;
+//  found   : zio.ZIO[zio.Console & zio.Clock,Nothing,Unit]
+//     (which expands to)  zio.ZIO[zio.Console with zio.Clock,Nothing,Unit]
+//  required: zio.ZIO[Logging,Nothing,Unit]
+//   def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO[Logging](_.log(line))
+//                                                                            ^^^^^^^^^^^
 ```
 
 3. **Business Logic** — Finally, in the business logic we should use the ZIO environment to consume services.

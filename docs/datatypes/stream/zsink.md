@@ -242,7 +242,7 @@ ZStream(1, 2, 2, 4, 2, 1, 1, 1, 0, 2, 1, 2)
 // Output: Chunk(1,2,2),Chunk(4),Chunk(2,1,1,1,0),Chunk(2,1,2)
 ```
 
-> _**Note**_
+> **Note**:
 >
 > The `ZSink.foldWeighted` cannot decompose elements whose weight is more than the `max` number. So elements that have an individual cost larger than `max` will force the pipeline to cross the `max` cost. In the last example, if the source stream was `ZStream(1, 2, 2, 4, 2, 1, 6, 1, 0, 2, 1, 2)` the output would be `Chunk(1,2,2),Chunk(4),Chunk(2,1),Chunk(6),Chunk(1,0,2,1),Chunk(2)`. As we see, the `6` element crossed the `max` cost.
 >
