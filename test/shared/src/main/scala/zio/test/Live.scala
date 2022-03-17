@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{IO, ZEnv, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, RuntimeConfigAspect, ZEnv, ZIO, ZIOAspect, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -25,7 +25,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * are re-exported in the `environment` package for easy availability.
  */
 trait Live {
-  def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A]
+  def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
 }
 
 object Live {
@@ -41,8 +41,10 @@ object Live {
     ZIO
       .environmentWith[ZEnv] { zenv =>
         new Live {
-          def provide[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): IO[E, A] =
-            zio.provideEnvironment(zenv)
+          def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] = {
+            val runtimeConfigAspect = RuntimeConfigAspect(_.copy(services = zenv))
+            zio @@ ZIOAspect.runtimeConfig(runtimeConfigAspect)
+          }
         }
       }
       .toLayer
@@ -51,8 +53,8 @@ object Live {
   /**
    * Provides an effect with the "live" environment.
    */
-  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Live, E, A] =
-    ZIO.serviceWithZIO(_.provide(zio))
+  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Live, E, A] =
+    ZIO.serviceWithZIO[Live](_.provide(zio))
 
   /**
    * Provides a transformation function with access to the live environment
@@ -61,6 +63,6 @@ object Live {
    */
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
+  )(f: IO[E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
     ZIO.environmentWithZIO[R](r => live(f(zio.provideEnvironment(r))))
 }
