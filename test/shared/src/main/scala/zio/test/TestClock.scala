@@ -404,22 +404,12 @@ object TestClock extends Serializable {
    * the new time in order.
    */
   def adjust(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.adjust(duration)
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.adjust(duration))
 
   def adjustWith[R, E, A](duration: => Duration)(zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.adjustWith(duration)(zio)
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.adjustWith(duration)(zio))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
@@ -427,12 +417,7 @@ object TestClock extends Serializable {
    * saved state.
    */
   def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.save
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -440,12 +425,7 @@ object TestClock extends Serializable {
    * before the new time in order.
    */
   def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.setDateTime(dateTime)
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -453,12 +433,7 @@ object TestClock extends Serializable {
    * actions scheduled for on or before the new time in order.
    */
   def setTime(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.setTime(duration)
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone
@@ -467,36 +442,21 @@ object TestClock extends Serializable {
    * result of this effect.
    */
   def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.setTimeZone(zone)
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
   def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.sleeps
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
   def timeZone(implicit trace: ZTraceElement): UIO[ZoneId] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Clock] match {
-        case testClock: TestClock => testClock.timeZone
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
-    }
+    testClockWith(_.timeZone)
 
   /**
    * `Data` represents the state of the `TestClock`, including the clock time

@@ -217,24 +217,14 @@ object TestConsole extends Serializable {
    * buffer.
    */
   def clearInput(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.clearInput
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
   def clearOutput(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.clearOutput
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.clearOutput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
@@ -243,48 +233,28 @@ object TestConsole extends Serializable {
    * buffer.
    */
   def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.debug(zio)
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.debug(zio))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
   def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.feedLines(lines: _*)
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
   def output(implicit trace: ZTraceElement): UIO[Vector[String]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.output
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
   def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.outputErr
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.outputErr)
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the console
@@ -292,12 +262,7 @@ object TestConsole extends Serializable {
    * saved state.
    */
   def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.save
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.save)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
@@ -305,12 +270,7 @@ object TestConsole extends Serializable {
    * only written to the output buffer and not rendered to standard output.
    */
   def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.services.get[Console] match {
-        case testConsole: TestConsole => testConsole.silent(zio)
-        case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
-    }
+    testConsoleWith(_.silent(zio))
 
   /**
    * The state of the `TestConsole`.

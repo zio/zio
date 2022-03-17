@@ -91,6 +91,78 @@ package object test extends CompileVariants {
     Live.live(zio)
 
   /**
+   * Retrieves the `TestClock` service for this test.
+   */
+  def testClock(implicit trace: ZTraceElement): UIO[TestClock] =
+    testClockWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestClock` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Clock] match {
+        case testClock: TestClock => f(testClock)
+        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
+      }
+    }
+
+  /**
+   * Retrieves the `TestConsole` service for this test.
+   */
+  def testConsole(implicit trace: ZTraceElement): UIO[TestConsole] =
+    testConsoleWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestConsole` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Console] match {
+        case testConsole: TestConsole => f(testConsole)
+        case _                    => ZIO.dieMessage("Defect: TestConsole is missing")
+      }
+    }
+
+  /**
+   * Retrieves the `TestRandom` service for this test.
+   */
+  def testRandom(implicit trace: ZTraceElement): UIO[TestConsole] =
+    testConsoleWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestRandom` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[Random] match {
+        case testRandom: TestRandom => f(testRandom)
+        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
+      }
+    }
+
+  /**
+   * Retrieves the `TestSystem` service for this test.
+   */
+  def testSystem(implicit trace: ZTraceElement): UIO[TestConsole] =
+    testConsoleWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestSystem` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.runtimeConfig.flatMap { runtimeConfig =>
+      runtimeConfig.services.get[System] match {
+        case testSystem: TestSystem => f(testSystem)
+        case _                    => ZIO.dieMessage("Defect: TestSystem is missing")
+      }
+    }
+
+  /**
    * Transforms this effect with the specified function. The test environment
    * will be provided to this effect, but the live environment will be provided
    * to the transformation function. This can be useful for applying
