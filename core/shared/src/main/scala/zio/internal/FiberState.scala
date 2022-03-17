@@ -456,8 +456,9 @@ object successor {
     final def unsafeIsSuspended(): Boolean = flagsState.getStatus() == Flags.Status.Suspended
 
     final def unsafeLog(tag: LightTypeTag, message: () => Any)(implicit trace: ZTraceElement): Unit = {
-      val logLevel = unsafeGetRefOrInitial(FiberRef.currentLogLevel)
-      val spans    = unsafeGetRefOrInitial(FiberRef.currentLogSpan)
+      val logLevel    = unsafeGetRefOrInitial(FiberRef.currentLogLevel)
+      val spans       = unsafeGetRefOrInitial(FiberRef.currentLogSpan)
+      val annotations = unsafeGetRefOrInitial(FiberRef.currentLogAnnotations)
 
       unsafeLogForEach(tag) { logger =>
         logger(trace, fiberId, logLevel, message, ???, spans, location) // FIXME
@@ -479,6 +480,8 @@ object successor {
 
       val spans = unsafeGetRefOrInitial(FiberRef.currentLogSpan)
 
+      val annotations = unsafeGetRefOrInitial(FiberRef.currentLogAnnotations)
+
       val contextMap =
         if (overrideRef1 ne null) {
           val map: Map[FiberRef.Runtime[_], AnyRef] = ??? // FIXME
@@ -488,7 +491,7 @@ object successor {
         } else ??? // FIXME
 
       unsafeLogForEach(tag) { logger =>
-        logger(trace, fiberId, logLevel, message, contextMap, spans, location)
+        logger(trace, fiberId, logLevel, message, Cause.empty, contextMap, spans, annotations) // FIXME
       }
     }
 
