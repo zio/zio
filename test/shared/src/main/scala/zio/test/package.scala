@@ -101,11 +101,9 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.services.get.flatMap { services =>
-      services.get[Clock] match {
-        case testClock: TestClock => f(testClock)
-        case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-      }
+    ZEnv.clock.get.flatMap {
+      case testClock: TestClock => f(testClock)
+      case _                    => ZIO.dieMessage("Defect: TestClock is missing")
     }
 
   /**
@@ -119,47 +117,41 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.services.get.flatMap { services =>
-      services.get[Console] match {
-        case testConsole: TestConsole => f(testConsole)
-        case _                    => ZIO.dieMessage("Defect: TestConsole is missing")
-      }
+    ZEnv.console.get.flatMap {
+      case testConsole: TestConsole => f(testConsole)
+      case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
     }
 
   /**
    * Retrieves the `TestRandom` service for this test.
    */
-  def testRandom(implicit trace: ZTraceElement): UIO[TestConsole] =
-    testConsoleWith(ZIO.succeedNow)
+  def testRandom(implicit trace: ZTraceElement): UIO[TestRandom] =
+    testRandomWith(ZIO.succeedNow)
 
   /**
    * Retrieves the `TestRandom` service for this test and uses it to run the
    * specified workflow.
    */
   def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.services.get.flatMap { services =>
-      services.get[Random] match {
-        case testRandom: TestRandom => f(testRandom)
-        case _                    => ZIO.dieMessage("Defect: TestRandom is missing")
-      }
+    ZEnv.random.get.flatMap {
+      case testRandom: TestRandom => f(testRandom)
+      case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
     }
 
   /**
    * Retrieves the `TestSystem` service for this test.
    */
-  def testSystem(implicit trace: ZTraceElement): UIO[TestConsole] =
-    testConsoleWith(ZIO.succeedNow)
+  def testSystem(implicit trace: ZTraceElement): UIO[TestSystem] =
+    testSystemWith(ZIO.succeedNow)
 
   /**
    * Retrieves the `TestSystem` service for this test and uses it to run the
    * specified workflow.
    */
   def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.services.get.flatMap { services =>
-      services.get[System] match {
-        case testSystem: TestSystem => f(testSystem)
-        case _                    => ZIO.dieMessage("Defect: TestSystem is missing")
-      }
+    ZEnv.system.get.flatMap {
+      case testSystem: TestSystem => f(testSystem)
+      case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
     }
 
   /**

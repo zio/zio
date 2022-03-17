@@ -10,20 +10,7 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{
-  Chunk,
-  Clock,
-  Layer,
-  Runtime,
-  Scope,
-  UIO,
-  ULayer,
-  ZEnvironment,
-  ZIO,
-  ZIOAppArgs,
-  ZLayer,
-  ZTraceElement
-}
+import zio.{Chunk, Clock, Layer, Runtime, Scope, UIO, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,

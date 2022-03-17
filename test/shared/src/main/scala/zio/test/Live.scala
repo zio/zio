@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{IO, RuntimeConfigAspect, ZEnv, ZIO, ZIOAspect, ZLayer, ZTraceElement}
+import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -36,13 +36,13 @@ object Live {
    * live versions of all the standard ZIO environment types but could be useful
    * if you are mixing in interfaces to create your own environment type.
    */
-  def default: ZLayer[ZEnv, Nothing, Live] = {
+  val default: ZLayer[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
     ZIO
       .environmentWith[ZEnv] { zenv =>
         new Live {
           def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-            ZEnv.services.locally(ZEnv.Services.live)(zio)
+            ZEnv.locally(zenv.get[Clock], zenv.get[Console], zenv.get[Random], zenv.get[System])(zio)
         }
       }
       .toLayer
@@ -62,5 +62,11 @@ object Live {
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
   )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
-    ZEnv.services.get.flatMap(services => live(f(ZEnv.services.locally(services)(zio))))
+    for {
+      clock   <- ZEnv.clock.get
+      console <- ZEnv.console.get
+      random  <- ZEnv.random.get
+      system  <- ZEnv.system.get
+      b       <- live(f(ZEnv.locally(clock, console, random, system)(zio)))
+    } yield b
 }

@@ -29,7 +29,7 @@ trait JvmMetrics { self =>
     private implicit val trace: ZTraceElement                      = Tracer.newTrace
     override val tag: EnvironmentTag[Environment]                  = EnvironmentTag[Environment]
     override type Environment = Feature
-    override val layer: ZLayer[ZIOAppArgs, Any, Environment] = live
+    override val layer: ZLayer[ZIOAppArgs, Any, Environment]     = live
     override def run: ZIO[Environment with ZIOAppArgs, Any, Any] = ZIO.unit
   }
 }
