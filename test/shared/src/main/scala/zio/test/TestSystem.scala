@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, Layer, Ref, System, UIO, URIO, ZEnv, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.ZTrace
@@ -163,7 +163,13 @@ object TestSystem extends Serializable {
    */
   def live(data: Data): Layer[Nothing, TestSystem] = {
     implicit val trace: ZTraceElement = Tracer.newTrace
-    Ref.make(data).map(Test(_)).toLayer
+    ZLayer.scoped {
+      for {
+        ref <- Ref.make(data)
+        test = Test(ref)
+        _   <- ZEnv.system.locallyScoped(test)
+      } yield test
+    }
   }
 
   val any: ZLayer[TestSystem, Nothing, TestSystem] =

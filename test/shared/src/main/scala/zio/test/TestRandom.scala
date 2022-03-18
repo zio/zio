@@ -719,11 +719,12 @@ object TestRandom extends Serializable {
    */
   def make(data: Data): Layer[Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
-    ZLayer {
+    ZLayer.scoped {
       for {
         data   <- Ref.make(data)
         buffer <- Ref.make(Buffer())
         test    = Test(data, buffer)
+        _      <- ZEnv.random.locallyScoped(test)
       } yield test
     }
   }
