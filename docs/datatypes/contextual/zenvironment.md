@@ -54,7 +54,7 @@ Let's see an example:
 import zio._
 import java.io.IOException
 
-val originalEffect: ZIO[Console & Random, IOException, Unit] =
+val originalEffect: ZIO[Any, IOException, Unit] =
   for {
     uuid <- Random.nextUUID
     _ <- Console.printLine(s"next random UUID: $uuid")
@@ -205,7 +205,7 @@ import zio._
 
 object MultipleConfigExample extends ZIOAppDefault {
 
-  val myApp: ZIO[Map[String, AppConfig] & System, String, Unit] = for {
+  val myApp: ZIO[Map[String, AppConfig], String, Unit] = for {
     env <- System.env("APP_ENV")
       .flatMap(x => ZIO.fromOption(x))
       .orElseFail("The environment variable APP_ENV cannot be found.")
@@ -216,7 +216,7 @@ object MultipleConfigExample extends ZIOAppDefault {
   } yield ()
 
   def run =
-    myApp.provideCustom(AppConfig.layer)
+    myApp.provide(AppConfig.layer)
 
 }
 ```
@@ -273,6 +273,6 @@ object MultipleDatabaseExample extends ZIOAppDefault {
     _ <- persistent.add("key2", "value2".getBytes(StandardCharsets.UTF_8))
   } yield ()
 
-  def run = myApp.provideCustomLayer(Database.layer)
+  def run = myApp.provideLayer(Database.layer)
 }
 ```

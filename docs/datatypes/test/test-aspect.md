@@ -514,7 +514,7 @@ import zio._
 import zio.test._
 import zio.test.TestAspect._
 
-def repeat5[R0 <: ZTestEnv with Live] =
+def repeat5[R0 <: Live] =
   new PerTest[Nothing, R0, Nothing, Nothing] {
     override def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess])(
       implicit trace: ZTraceElement
@@ -533,7 +533,7 @@ import java.util.concurrent.TimeUnit
 suite("clock suite")(
   test("adjusting clock") {
     for {
-      clock <- ZIO.service[Clock]
+      clock <- ZEnv.clock.get
       _ <- TestClock.adjust(1.second)
       time <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
     } yield assertTrue(time == 1)
@@ -564,7 +564,7 @@ import java.util.concurrent.TimeUnit
 suite("clock suite")(
   test("adjusting clock") {
     for {
-      clock <- ZIO.service[Clock]
+      clock <- ZEnv.clock.get
       _ <- TestClock.adjust(1.second)
       time <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
     } yield assertTrue(time == 1)

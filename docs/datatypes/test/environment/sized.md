@@ -67,7 +67,7 @@ The return type requires _Random_ and _Sized_ services. Therefore, to run this e
 
 ```scala mdoc:silent:nest
 zio.Runtime.default.unsafeRun(
-  samples.provideCustom(Sized.live(100)) 
+  samples.provide(Sized.live(100)) 
 )
 // Sample Output: List(34, 44, 89, 14, 15)
 ```

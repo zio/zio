@@ -191,7 +191,7 @@ import zio.console._
 import zio.zmx._
 import zio.zmx.diagnostics._
 
-val program: ZIO[Console, Throwable, Unit] =
+val program: ZIO[Any, Throwable, Unit] =
   for {
     _ <- putStrLn("Waiting for input")
     a <- getStrLn

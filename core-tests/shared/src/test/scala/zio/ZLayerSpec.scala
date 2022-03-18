@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect.nonFlaky
+import zio.test.TestAspect._
 import zio.test._
 
 object ZLayerSpec extends ZIOBaseSpec {
@@ -367,7 +367,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer4 = ZLayer.scoped[Any](ZIO.acquireRelease(sleep)(_ => sleep))
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
         assertM(ZIO.unit.provideLayer(env).exit)(fails(equalTo("foo")))
-      },
+      } @@ withLiveClock,
       test("project") {
         final case class Person(name: String, age: Int)
         val personLayer = ZLayer.succeed(Person("User", 42))

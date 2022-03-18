@@ -88,9 +88,9 @@ val stream: ZIO[Clock, Nothing, Long] =
 **ZSink.foreach** — A sink that executes the provided effectful function for every element fed to it:
 
 ```scala mdoc:silent:nest
-val printer: ZSink[Console, IOException, Int, Int, Unit] =
+val printer: ZSink[Any, IOException, Int, Int, Unit] =
   ZSink.foreach((i: Int) => printLine(i))
-val stream : ZIO[Console, IOException, Unit]             =
+val stream : ZIO[Any, IOException, Unit]             =
   ZStream(1, 2, 3, 4, 5).run(printer)
 ```
 

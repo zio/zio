@@ -71,7 +71,7 @@ import zio.test.Assertion._
 
 import java.io.IOException
 
-def sayHello: ZIO[Console, IOException, Unit] =
+def sayHello: ZIO[Any, IOException, Unit] =
   Console.printLine("Hello, World!")
 
 suite("HelloWorldSpec")(

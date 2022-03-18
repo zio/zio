@@ -120,7 +120,7 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingLayer: ZLayer[Clock with LoggingService, Nothing, SchedulingService] =
+val schedulingLayer: ZLayer[LoggingService, Nothing, SchedulingService] =
   ZLayer.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
@@ -135,7 +135,7 @@ test("One can control time for failing effects too") {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
 
-  val partialLayer = (Clock.any ++ failingLogger) >>> schedulingLayer
+  val partialLayer = failingLogger >>> schedulingLayer
 
   val testCase =
     for {

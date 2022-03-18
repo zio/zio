@@ -426,7 +426,7 @@ case class RowData()
 ```scala mdoc:silent:nest
 case class PageResult(results: Chunk[RowData], isLast: Boolean)
 
-def listPaginated(pageNumber: Int): ZIO[Console, Throwable, PageResult] = ZIO.fail(???)
+def listPaginated(pageNumber: Int): ZIO[Any, Throwable, PageResult] = ZIO.fail(???)
 ```
 
 We want to convert this API to a stream of `RowData` events. For the first attempt, we might think we can do it by using `unfold` operation as below:
@@ -657,8 +657,8 @@ It is useful when need to add a finalizer to an existing stream. Assume we need 
 ```scala mdoc:silent:nest
 import zio.Console._
 
-def application: ZStream[Console, IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
-def deleteDir(dir: Path): ZIO[Console, IOException, Unit] = printLine("Deleting file.")
+def application: ZStream[Any, IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
+def deleteDir(dir: Path): ZIO[Any, IOException, Unit] = printLine("Deleting file.")
 
 val myApp: ZStream[Console, IOException, Any] =
   application ++ ZStream.finalizer(

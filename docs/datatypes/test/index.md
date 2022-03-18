@@ -80,7 +80,7 @@ import java.io.IOException
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: ZIO[Console, IOException, Unit] =
+  def sayHello: ZIO[Any, IOException, Unit] =
     Console.printLine("Hello, World!")
 }
 

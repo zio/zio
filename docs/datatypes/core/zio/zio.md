@@ -30,8 +30,8 @@ import java.io.IOException
 ```
 
 ```scala mdoc:silent
-val readLine: ZIO[Console, IOException, String] =
-  ZIO.serviceWithZIO(_.readLine)
+val readLine: ZIO[Any, IOException, String] =
+  Console.readLine
 ```
 
 `ZIO` values are immutable, and all `ZIO` functions produce new `ZIO` values, enabling `ZIO` to be reasoned about and used like any ordinary Scala immutable data structure.
@@ -371,7 +371,7 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
 ```scala mdoc:silent
-val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
+val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 

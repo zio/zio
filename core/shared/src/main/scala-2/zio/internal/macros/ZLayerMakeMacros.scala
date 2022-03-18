@@ -34,17 +34,6 @@ final class ZLayerMakeMacros(val c: blackbox.Context) extends LayerMacroUtils {
     constructLayer[R0, R, E](layer, ProvideMethod.ProvideSome)
   }
 
-  def makeCustomImpl[
-    E,
-    R: c.WeakTypeTag
-  ](layer: c.Expr[ZLayer[_, E, _]]*)(
-    dummyK: c.Expr[DummyK[R]]
-  ): c.Expr[ZLayer[ZEnv, E, R]] = {
-    val _ = dummyK
-    assertEnvIsNotNothing[R]()
-    constructLayer[ZEnv, R, E](layer, ProvideMethod.ProvideCustom)
-  }
-
   /**
    * Ensures the macro has been annotated with the intended result type. The
    * macro will not behave correctly otherwise.

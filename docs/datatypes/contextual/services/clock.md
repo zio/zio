@@ -25,7 +25,7 @@ Also, the Clock service has a very useful functionality for sleeping and creatin
 In the following example we are going to print the current time periodically by placing a one second `sleep` between each print call:
 
 ```scala mdoc:silent
-def printTimeForever: ZIO[Console & Clock, Throwable, Nothing] =
+def printTimeForever: ZIO[Any, Throwable, Nothing] =
   Clock.currentDateTime.flatMap(Console.printLine(_)) *>
     ZIO.sleep(1.seconds) *> printTimeForever
 ```
