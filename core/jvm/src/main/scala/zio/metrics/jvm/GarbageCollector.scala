@@ -38,8 +38,8 @@ object GarbageCollector {
                                    })
 
         schedule <- ZIO.service[JvmMetricsSchedule]
-        _        <- gcCollectionSecondsSum.launch(schedule.value)
-        _        <- gcCollectionSecondsCount.launch(schedule.value)
+        _        <- gcCollectionSecondsSum.launch(schedule.updateMetrics)
+        _        <- gcCollectionSecondsCount.launch(schedule.updateMetrics)
       } yield GarbageCollector(gcCollectionSecondsSum, gcCollectionSecondsCount)
     }
 }

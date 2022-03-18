@@ -126,15 +126,14 @@ object Standard {
         residentMemorySize = Metric.gauge("process_resident_memory_bytes")
 
         schedule <- ZIO.service[JvmMetricsSchedule]
-        _        <- cpuSecondsTotal.launch(schedule.value)
-        _        <- processStartTime.launch(schedule.value)
-        _        <- openFdCount.launch(schedule.value).when(getOpenFileDescriptorCount.isAvailable)
-        _        <- maxFdCount.launch(schedule.value).when(getMaxFileDescriptorCount.isAvailable)
-        _ <- ZIO
-               .acquireRelease(
-                 collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize).repeat(schedule.value).forkDaemon
-               )(_.interrupt)
-               .when(isLinux)
+        _        <- cpuSecondsTotal.launch(schedule.updateMetrics)
+        _        <- processStartTime.launch(schedule.updateMetrics)
+        _        <- openFdCount.launch(schedule.updateMetrics).when(getOpenFileDescriptorCount.isAvailable)
+        _        <- maxFdCount.launch(schedule.updateMetrics).when(getMaxFileDescriptorCount.isAvailable)
+        _ <-
+          collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize)
+            .scheduleBackground(schedule.updateMetrics)
+            .when(isLinux)
 
       } yield Standard(
         cpuSecondsTotal,

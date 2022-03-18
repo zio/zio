@@ -113,14 +113,14 @@ object MemoryPools {
                         })
 
         schedule <- ZIO.service[JvmMetricsSchedule]
-        _        <- memoryBytesUsed.launch(schedule.value)
-        _        <- memoryBytesCommitted.launch(schedule.value)
-        _        <- memoryBytesMax.launch(schedule.value)
-        _        <- memoryBytesInit.launch(schedule.value)
-        _        <- poolBytesUsed.launch(schedule.value)
-        _        <- poolBytesCommitted.launch(schedule.value)
-        _        <- poolBytesMax.launch(schedule.value)
-        _        <- poolBytesInit.launch(schedule.value)
+        _        <- memoryBytesUsed.launch(schedule.updateMetrics)
+        _        <- memoryBytesCommitted.launch(schedule.updateMetrics)
+        _        <- memoryBytesMax.launch(schedule.updateMetrics)
+        _        <- memoryBytesInit.launch(schedule.updateMetrics)
+        _        <- poolBytesUsed.launch(schedule.updateMetrics)
+        _        <- poolBytesCommitted.launch(schedule.updateMetrics)
+        _        <- poolBytesMax.launch(schedule.updateMetrics)
+        _        <- poolBytesInit.launch(schedule.updateMetrics)
       } yield MemoryPools(
         memoryBytesUsed,
         memoryBytesCommitted,
