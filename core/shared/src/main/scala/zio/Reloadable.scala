@@ -55,7 +55,7 @@ object Reloadable {
    * of a static service. The service is automatically reloaded according to the
    * provided schedule.
    */
-  def auto[In, E: Tag, Out: Tag](layer: ZLayer[In, E, Out], schedule: Schedule[In, Any, Any])(implicit
+  def auto[In, E, Out: Tag](layer: ZLayer[In, E, Out], schedule: Schedule[In, Any, Any])(implicit
     trace: ZTraceElement
   ): ZLayer[In with Clock, E, Reloadable[Out]] =
     ZLayer.scoped[In with Clock] {

@@ -4038,7 +4038,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Returns a layer that produces a reloadable version of this service.
      */
     def reloadableAuto(schedule: Schedule[RIn, Any, Any])(implicit
-      tagErr: Tag[E],
       tagOut: Tag[ROut],
       trace: ZTraceElement
     ): ZLayer[RIn with Clock, E, Reloadable[ROut]] =
@@ -4048,7 +4047,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * Returns a layer that produces a reloadable version of this service.
      */
     def reloadableManual(implicit
-      tagErr: Tag[E],
       tagOut: Tag[ROut],
       trace: ZTraceElement
     ): ZLayer[RIn, E, Reloadable[ROut]] =
