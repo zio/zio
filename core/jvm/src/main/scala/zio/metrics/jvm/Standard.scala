@@ -131,10 +131,8 @@ object Standard {
         _        <- openFdCount.launch(schedule.updateMetrics).when(getOpenFileDescriptorCount.isAvailable)
         _        <- maxFdCount.launch(schedule.updateMetrics).when(getMaxFileDescriptorCount.isAvailable)
         _ <-
-          ZIO
-            .acquireRelease(
-              collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize).repeat(schedule.updateMetrics).forkDaemon
-            )(_.interrupt)
+          collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize)
+            .scheduleBackground(schedule.updateMetrics)
             .when(isLinux)
 
       } yield Standard(

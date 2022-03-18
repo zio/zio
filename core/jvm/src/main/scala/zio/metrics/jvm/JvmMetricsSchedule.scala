@@ -12,11 +12,11 @@ import zio._
  *   metrics
  */
 final case class JvmMetricsSchedule(
-  updateMetrics: Schedule[Any, Any, Unit],
-  reloadDynamicMetrics: Schedule[Any, Any, Unit]
+  updateMetrics: Schedule[Any, Any, Any],
+  reloadDynamicMetrics: Schedule[Any, Any, Any]
 )
 
 object JvmMetricsSchedule {
   val default: ULayer[JvmMetricsSchedule] =
-    ZLayer.succeed(JvmMetricsSchedule(Schedule.fixed(10.seconds).unit, Schedule.fixed(1.minute).unit))
+    ZLayer.succeed(JvmMetricsSchedule(Schedule.fixed(10.seconds), Schedule.fixed(1.minute)))
 }

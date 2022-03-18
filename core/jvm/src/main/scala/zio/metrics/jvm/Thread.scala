@@ -95,10 +95,7 @@ object Thread {
         _        <- threadsStartedTotal.launch(schedule.updateMetrics)
         _        <- threadsDeadlocked.launch(schedule.updateMetrics)
         _        <- threadsDeadlockedMonitor.launch(schedule.updateMetrics)
-        _ <- ZIO.acquireRelease(refreshThreadStateCounts(threadMXBean).repeat(schedule.updateMetrics).forkDaemon)(
-               _.interrupt
-             )
-
+        _        <- refreshThreadStateCounts(threadMXBean).scheduleBackground(schedule.updateMetrics)
       } yield Thread(
         threadsCurrent,
         threadsDaemon,
