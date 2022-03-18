@@ -517,12 +517,6 @@ object TestAspect extends TimeoutVariants {
   val jvmOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) identity else ignore
 
-  // /**
-  //  * An aspect that runs tests with the live clock.
-  //  */
-  // val liveClock: TestAspectPoly =
-  //   runtimeConfig(RuntimeConfigAspect.addClock(Clock.ClockLive))
-
   /**
    * An aspect that runs only on operating systems accepted by the specified
    * predicate.
@@ -983,13 +977,65 @@ object TestAspect extends TimeoutVariants {
    */
   val windows: TestAspectAtLeastR[Annotations] = os(_.isWindows)
 
+  lazy val withLiveClock: TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
+        val layer = ZLayer.scoped {
+          for {
+            clock <- live(ZEnv.clock.get)
+            _     <- ZEnv.clock.locallyScoped(clock)
+          } yield ()
+        }
+        spec.provideSomeLayer[R](layer)
+      }
+    }
+
+  lazy val withLiveConsole: TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
+        val layer = ZLayer.scoped {
+          for {
+            console <- live(ZEnv.console.get)
+            _       <- ZEnv.console.locallyScoped(console)
+          } yield ()
+        }
+        spec.provideSomeLayer[R](layer)
+      }
+    }
+
   /**
    * An aspect that runs tests with the live environment.
    */
-  val withLiveEnvironment: TestAspectAtLeastR[Live] =
+  lazy val withLiveEnvironment: TestAspectAtLeastR[Live] =
+    withLiveClock >>>
+      withLiveConsole >>>
+      withLiveRandom >>>
+      withLiveSystem
+
+  lazy val withLiveRandom: TestAspectAtLeastR[Live] =
     new TestAspectAtLeastR[Live] {
-      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
-        ??? //spec.provideSomeLayer[R](ZLayer.fromZIOEnvironment(Live.live(ZIO.environment)))
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
+        val layer = ZLayer.scoped {
+          for {
+            random <- live(ZEnv.random.get)
+            _      <- ZEnv.random.locallyScoped(random)
+          } yield ()
+        }
+        spec.provideSomeLayer[R](layer)
+      }
+    }
+
+  lazy val withLiveSystem: TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
+        val layer = ZLayer.scoped {
+          for {
+            system <- live(ZEnv.system.get)
+            _      <- ZEnv.system.locallyScoped(system)
+          } yield ()
+        }
+        spec.provideSomeLayer[R](layer)
+      }
     }
 
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
