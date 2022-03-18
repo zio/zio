@@ -1039,7 +1039,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def forkScoped(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).fork.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
+      restore(self).forkDaemon.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
     }
 
   /**
