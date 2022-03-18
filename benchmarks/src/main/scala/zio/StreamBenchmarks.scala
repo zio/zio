@@ -182,25 +182,13 @@ class StreamBenchmarks {
   }
 
   @Benchmark
-  def fs2GroupAdjecentBy: Long = {
-    val chunks = (1 to chunkCount).map(i => FS2Chunk.array(Array.fill(chunkSize)(i)))
-    FS2Stream(chunks: _*)
-      .flatMap(FS2Stream.chunk(_))
-      .groupAdjacentBy(_ % 2)
-      .covary[CatsIO]
-      .compile
-      .fold(0L)((c, _) => c + 1L)
-      .unsafeRunSync()
-  }
-
-  @Benchmark
-  def zioGroupAdjecentBy: Long = {
+  def zioGroupBy: Long = {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
     val result = ZStream
       .fromChunks(chunks: _*)
       .groupByKey(_ % 2) { case (k, s) =>
         ZStream.fromEffect(s.runCollect.map(vs => k -> vs))
-      } // zio2 groupAdjacentBy ?
+      }
       .runCount
 
     unsafeRun(result)
