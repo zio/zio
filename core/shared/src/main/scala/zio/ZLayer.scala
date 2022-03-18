@@ -4044,6 +4044,17 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       Reloadable.auto(self, schedule)
 
     /**
+     * Returns a layer that produces a reloadable version of this service, where
+     * the reloading schedule is derived from the layer input.
+     */
+    def reloadableAutoFromConfig[RIn2](scheduleFromConfig: ZEnvironment[RIn2] => Schedule[RIn with RIn2, Any, Any])(
+      implicit
+      tagOut: Tag[ROut],
+      trace: ZTraceElement
+    ): ZLayer[RIn with RIn2 with Clock, E, Reloadable[ROut]] =
+      Reloadable.autoFromConfig(self, scheduleFromConfig)
+
+    /**
      * Returns a layer that produces a reloadable version of this service.
      */
     def reloadableManual(implicit
