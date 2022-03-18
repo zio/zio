@@ -2040,7 +2040,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def scheduleBackground[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Clock with Scope, E, Fiber[Any, B]] =
+  ): ZIO[R1 with Clock with Scope, E, Fiber.Runtime[Any, B]] =
     ZIO.acquireRelease(ZIO.interruptible(self.schedule(schedule)).forkDaemon)(_.interrupt)
 
   /**
