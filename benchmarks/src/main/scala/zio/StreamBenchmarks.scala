@@ -239,6 +239,19 @@ class StreamBenchmarks {
   }
 
   @Benchmark
+  def zioGroupByKey: Long = {
+    val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(chunkSize)(i)))
+    val result = ZStream
+      .fromChunks(chunks: _*)
+      .groupByKey(_ % 2) { case (k, s) =>
+        ZStream.fromZIO(s.runCollect.map(vs => k -> vs))
+      }
+      .runCount
+
+    unsafeRun(result)
+  }
+
+  @Benchmark
   def akkaMapPar: Long = {
     val chunks = (1 to chunkCount).map(i => Array.fill(parChunkSize)(i))
     val program = AkkaSource
