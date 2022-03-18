@@ -44,10 +44,10 @@ object Reloadable {
   )(implicit trace: ZTraceElement): ZLayer[In, E, Reloadable[Out]] =
     ZLayer.scoped[In] {
       for {
-        in     <- ZIO.environment[In]
-        ref    <- ScopedRef.fromAcquire(layer.build.map(_.get[Out]))
-        refresh = ref.set[In, E](layer.build.map(_.get[Out])).provideEnvironment(in)
-      } yield Reloadable[Out](ref, refresh)
+        in    <- ZIO.environment[In]
+        ref   <- ScopedRef.fromAcquire(layer.build.map(_.get[Out]))
+        reload = ref.set[In, E](layer.build.map(_.get[Out])).provideEnvironment(in)
+      } yield Reloadable[Out](ref, reload)
     }
 
   /**
@@ -60,11 +60,32 @@ object Reloadable {
   ): ZLayer[In with Clock, E, Reloadable[Out]] =
     ZLayer.scoped[In with Clock] {
       for {
-        in     <- ZIO.environment[In]
-        ref    <- ScopedRef.fromAcquire(layer.build.map(_.get[Out]))
-        refresh = ref.set[In, E](layer.build.map(_.get[Out])).provideEnvironment(in)
-        _      <- ZIO.acquireRelease(ZIO.interruptible(refresh.ignoreLogged.schedule(schedule).forkDaemon))(_.interrupt)
-      } yield Reloadable[Out](ref, refresh)
+        env       <- manual(layer).build
+        reloadable = env.get[Reloadable[Out]]
+        _ <- ZIO.acquireRelease(ZIO.interruptible(reloadable.reload.ignoreLogged.schedule(schedule).forkDaemon))(
+               _.interrupt
+             )
+      } yield reloadable
+    }
+
+  /**
+   * Makes a new reloadable service from a layer that describes the construction
+   * of a static service. The service is automatically reloaded according to a
+   * schedule, which is extracted from the input to the layer.
+   */
+  def autoFromConfig[In, E, Out: Tag](
+    layer: ZLayer[In, E, Out],
+    scheduleFromConfig: ZEnvironment[In] => Schedule[In, Any, Any]
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[In with Clock, E, Reloadable[Out]] =
+    ZLayer.scoped[In with Clock] {
+      for {
+        in        <- ZIO.environment[In]
+        schedule   = scheduleFromConfig(in)
+        env       <- auto(layer, schedule).build
+        reloadable = env.get[Reloadable[Out]]
+      } yield reloadable
     }
 
   def get[Service: Tag](implicit trace: ZTraceElement): ZIO[Reloadable[Service], Any, Service] =
