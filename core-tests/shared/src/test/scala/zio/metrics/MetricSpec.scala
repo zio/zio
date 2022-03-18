@@ -3,6 +3,7 @@ package zio
 import zio.metrics._
 import zio.metrics.MetricKeyType.Histogram
 import zio.test._
+import zio.test.TestAspect._
 
 object MetricSpec extends ZIOBaseSpec {
 
@@ -188,7 +189,7 @@ object MetricSpec extends ZIOBaseSpec {
           state.sum > 3.9,
           state.sum <= elapsed
         )
-      },
+      } @@ withLiveClock,
       test("observeHistogram") {
         val h = Metric
           .histogram("h4", Histogram.Boundaries.linear(0, 1.0, 10))
