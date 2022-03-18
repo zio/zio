@@ -4,39 +4,38 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.types.net._
 import zio.test.Gen
 import zio.test.magnolia.DeriveGen
-import zio.Random
 
 object net extends NetInstances
 
 trait NetInstances {
   private val _0to255 = Gen.int(0, 255)
 
-  val portNumberGen: Gen[Random, PortNumber]                   = Gen.int(0, 656535).map(Refined.unsafeApply)
-  val systemPortNumberGen: Gen[Random, SystemPortNumber]       = Gen.int(0, 1023).map(Refined.unsafeApply)
-  val userPortNumberGen: Gen[Random, UserPortNumber]           = Gen.int(1024, 49151).map(Refined.unsafeApply)
-  val dynamicPortNumberGen: Gen[Random, DynamicPortNumber]     = Gen.int(49152, 65535).map(Refined.unsafeApply)
-  val nonSystemPortNumberGen: Gen[Random, NonSystemPortNumber] = Gen.int(1024, 65535).map(Refined.unsafeApply)
-  val rfc1918ClassAPrivateGen: Gen[Random, Rfc1918ClassAPrivate] =
+  val portNumberGen: Gen[Any, PortNumber]                   = Gen.int(0, 656535).map(Refined.unsafeApply)
+  val systemPortNumberGen: Gen[Any, SystemPortNumber]       = Gen.int(0, 1023).map(Refined.unsafeApply)
+  val userPortNumberGen: Gen[Any, UserPortNumber]           = Gen.int(1024, 49151).map(Refined.unsafeApply)
+  val dynamicPortNumberGen: Gen[Any, DynamicPortNumber]     = Gen.int(49152, 65535).map(Refined.unsafeApply)
+  val nonSystemPortNumberGen: Gen[Any, NonSystemPortNumber] = Gen.int(1024, 65535).map(Refined.unsafeApply)
+  val rfc1918ClassAPrivateGen: Gen[Any, Rfc1918ClassAPrivate] =
     (_0to255 <*> _0to255 <*> _0to255).map { case (a, b, c) => Refined.unsafeApply(s"10.$a.$b.$c") }
-  val rfc1918ClassBPrivateGen: Gen[Random, Rfc1918ClassBPrivate] =
+  val rfc1918ClassBPrivateGen: Gen[Any, Rfc1918ClassBPrivate] =
     (Gen.int(16, 31) <*> _0to255 <*> _0to255).map { case (a, b, c) => Refined.unsafeApply(s"172.$a.$b.$c") }
-  val rfc1918ClassCPrivateGen: Gen[Random, Rfc1918ClassCPrivate] =
+  val rfc1918ClassCPrivateGen: Gen[Any, Rfc1918ClassCPrivate] =
     (_0to255 <*> _0to255).map { case (a, b) => Refined.unsafeApply(s"192.168.$a.$b") }
-  val rfc1918PrivateGen: Gen[Random, Rfc1918Private] =
+  val rfc1918PrivateGen: Gen[Any, Rfc1918Private] =
     Gen
       .oneOf(rfc1918ClassAPrivateGen, rfc1918ClassBPrivateGen, rfc1918ClassCPrivateGen)
       .map(v => Refined.unsafeApply(v.value))
-  val rfc5737Testnet1Gen: Gen[Random, Rfc5737Testnet1] = _0to255.map(v => Refined.unsafeApply(s"192.0.2.$v"))
-  val rfc5737Testnet2Gen: Gen[Random, Rfc5737Testnet2] = _0to255.map(v => Refined.unsafeApply(s"198.51.100.$v"))
-  val rfc5737Testnet3Gen: Gen[Random, Rfc5737Testnet3] = _0to255.map(v => Refined.unsafeApply(s"203.0.113.$v"))
-  val rfc5737TestnetGen: Gen[Random, Rfc5737Testnet] = Gen
+  val rfc5737Testnet1Gen: Gen[Any, Rfc5737Testnet1] = _0to255.map(v => Refined.unsafeApply(s"192.0.2.$v"))
+  val rfc5737Testnet2Gen: Gen[Any, Rfc5737Testnet2] = _0to255.map(v => Refined.unsafeApply(s"198.51.100.$v"))
+  val rfc5737Testnet3Gen: Gen[Any, Rfc5737Testnet3] = _0to255.map(v => Refined.unsafeApply(s"203.0.113.$v"))
+  val rfc5737TestnetGen: Gen[Any, Rfc5737Testnet] = Gen
     .oneOf(rfc5737Testnet1Gen, rfc5737Testnet2Gen, rfc5737Testnet3Gen)
     .map(v => Refined.unsafeApply(v.value))
-  val rfc3927LocalLinkGen: Gen[Random, Rfc3927LocalLink] =
+  val rfc3927LocalLinkGen: Gen[Any, Rfc3927LocalLink] =
     (_0to255 <*> _0to255).map { case (a, b) => Refined.unsafeApply(s"169.254.$a.$b") }
-  val rfc2544BenchmarkGen: Gen[Random, Rfc2544Benchmark] =
+  val rfc2544BenchmarkGen: Gen[Any, Rfc2544Benchmark] =
     (Gen.int(18, 19) <*> _0to255 <*> _0to255).map { case (a, b, c) => Refined.unsafeApply(s"198.$a.$b.$c") }
-  val privateNetworkGen: Gen[Random, PrivateNetwork] =
+  val privateNetworkGen: Gen[Any, PrivateNetwork] =
     Gen
       .oneOf(rfc1918PrivateGen, rfc5737TestnetGen, rfc3927LocalLinkGen, rfc2544BenchmarkGen)
       .map(v => Refined.unsafeApply(v.value))

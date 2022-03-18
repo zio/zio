@@ -23,10 +23,10 @@ object AutoWireSpec extends ZIOBaseSpec {
               } yield str.length + double.toInt
             }
           test("automatically constructs a layer") {
-            val program = ZIO.environment[ZEnv] *> ZIO.service[Int]
+            val program = ZIO.service[Int]
             assertM(program)(equalTo(128))
           }
-            .provideCustom(doubleLayer, stringLayer, intLayer)
+            .provide(doubleLayer, stringLayer, intLayer)
         },
         test("reports missing top-level dependencies") {
           val program: URIO[String with Int, String] = ZIO.succeed("test")
@@ -111,7 +111,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           def add(int: Int): UIO[Int] = ref.getAndUpdate(_ + int)
         }
 
-        val addOne: ZIO[IntService with Random, Nothing, Int] =
+        val addOne: ZIO[IntService, Nothing, Int] =
           ZIO
             .service[IntService]
             .zip(Random.nextIntBounded(2))
@@ -128,7 +128,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(2))),
             test("test 4")(assertM(addOne)(equalTo(3)))
           )
-        ).provideCustomShared(refLayer) @@ TestAspect.sequential
+        ).provideShared(refLayer) @@ TestAspect.sequential
       } @@ TestAspect.exceptScala3,
       // suite(".provideSomeShared") {
       //   val addOne =

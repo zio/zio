@@ -18,7 +18,6 @@ package zio.test.laws
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{FunctionVariants, Gen}
-import zio.Random
 import zio.ZTraceElement
 
 /**
@@ -40,10 +39,10 @@ object GenF2 extends FunctionVariants {
   /**
    * A generator of `Function1` A => B values.
    */
-  val function1: GenF2[Random, Function1] =
-    new GenF2[Random, Function1] {
+  val function1: GenF2[Any, Function1] =
+    new GenF2[Any, Function1] {
 
-      override def apply[R1 <: Random, A, B](gen: Gen[R1, B])(implicit
+      override def apply[R1, A, B](gen: Gen[R1, B])(implicit
         trace: ZTraceElement
       ): Gen[R1, Function1[A, B]] =
         function[R1, A, B](gen)

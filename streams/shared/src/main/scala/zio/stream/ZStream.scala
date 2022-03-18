@@ -2661,27 +2661,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(self.channel pipeToOrFail channel)
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a stream that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val stream: ZStream[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val stream2 = stream.provideCustomLayer(loggingLayer)
-   * }}}
-   */
-  def provideCustomLayer[E1 >: E, R1](
-    layer: => ZLayer[ZEnv, E1, R1]
-  )(implicit
-    ev: ZEnv with R1 <:< R,
-    tagged: EnvironmentTag[R1],
-    trace: ZTraceElement
-  ): ZStream[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
-
-  /**
    * Provides the stream with its required environment, which eliminates its
    * dependency on `R`.
    */

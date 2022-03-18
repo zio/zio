@@ -8,9 +8,7 @@ import zio.test._
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec: Spec[Random with TestClock with TestConsole with TestRandom with TestSystem with Annotations, TestFailure[
-    Any
-  ], TestSuccess] = suite("ZChannelSpec")(
+  def spec = suite("ZChannelSpec")(
     suite("interpreter")(
       test("ZChannel.succeed") {
         for {

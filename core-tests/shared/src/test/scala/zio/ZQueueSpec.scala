@@ -863,6 +863,6 @@ object ZQueueSpecUtil {
   def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 
-  val smallInt: Gen[Random with Sized, Int] =
+  val smallInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_), 1)
 }

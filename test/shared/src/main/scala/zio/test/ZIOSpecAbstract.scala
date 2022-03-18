@@ -37,12 +37,14 @@ abstract class ZIOSpecAbstract extends ZIOApp { self =>
   ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
-  final def run: ZIO[ZEnv with ZIOAppArgs with Scope, Any, Any] = {
+  final def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
     implicit val trace = Tracer.newTrace
 
-    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs with Scope](
+    runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer
-        .environment[ZEnv with ZIOAppArgs with Scope] +!+ (TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
+        .environment[
+          ZIOAppArgs with Scope
+        ] +!+ (zio.ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
     )
   }
 

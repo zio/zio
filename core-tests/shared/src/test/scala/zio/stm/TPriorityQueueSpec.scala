@@ -2,7 +2,7 @@ package zio.stm
 
 import zio.test.Assertion._
 import zio.test._
-import zio.{Chunk, Random, ZIOBaseSpec}
+import zio.{Chunk, ZIOBaseSpec}
 
 object TPriorityQueueSpec extends ZIOBaseSpec {
 
@@ -11,16 +11,16 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   implicit val eventOrdering: Ordering[Event] =
     Ordering.by(_.time)
 
-  val genEvent: Gen[Random with Sized, Event] =
+  val genEvent: Gen[Any with Sized, Event] =
     for {
       time        <- Gen.int(-10, 10)
       description <- Gen.alphaNumericString
     } yield Event(time, description)
 
-  val genEvents: Gen[Random with Sized, Chunk[Event]] =
+  val genEvents: Gen[Any with Sized, Chunk[Event]] =
     Gen.chunkOf(genEvent)
 
-  val genPredicate: Gen[Random, Event => Boolean] =
+  val genPredicate: Gen[Any, Event => Boolean] =
     Gen.function(Gen.boolean)
 
   def spec = suite("TPriorityQueueSpec")(

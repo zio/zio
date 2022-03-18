@@ -810,27 +810,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     }
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a managed effect that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val managed2 = managed.provideCustomLayer(loggingLayer)
-   * }}}
-   */
-  final def provideCustomLayer[E1 >: E, R1](
-    layer: => ZLayer[ZEnv, E1, R1]
-  )(implicit
-    ev: ZEnv with R1 <:< R,
-    tagged: EnvironmentTag[R1],
-    trace: ZTraceElement
-  ): ZManaged[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
-
-  /**
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */

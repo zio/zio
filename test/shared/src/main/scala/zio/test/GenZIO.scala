@@ -24,7 +24,7 @@ trait GenZIO {
   /**
    * A generator of `Cause` values
    */
-  final def causes[R <: Random with Sized, E](e: Gen[R, E], t: Gen[R, Throwable])(implicit
+  final def causes[R <: Sized, E](e: Gen[R, E], t: Gen[R, Throwable])(implicit
     trace: ZTraceElement
   ): Gen[R, Cause[E]] = {
     val fiberId           = (Gen.int zip Gen.int zip Gen.const(ZTraceElement.empty)).map { case (a, b, c) => FiberId(a, b, c) }
@@ -65,7 +65,7 @@ trait GenZIO {
    * A generator of effects that are the result of chaining the specified effect
    * with itself a random number of times.
    */
-  final def chained[R <: Random with Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]])(implicit
+  final def chained[R <: Sized, Env, E, A](gen: Gen[R, ZIO[Env, E, A]])(implicit
     trace: ZTraceElement
   ): Gen[R, ZIO[Env, E, A]] =
     Gen.small(chainedN(_)(gen))
@@ -74,7 +74,7 @@ trait GenZIO {
    * A generator of effects that are the result of chaining the specified effect
    * with itself a given number of times.
    */
-  final def chainedN[R <: Random, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]])(implicit
+  final def chainedN[R, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]])(implicit
     trace: ZTraceElement
   ): Gen[R, ZIO[Env, E, A]] =
     Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))

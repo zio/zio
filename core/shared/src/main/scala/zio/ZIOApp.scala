@@ -45,7 +45,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * the application will be non-zero. Otherwise, the exit code of the
    * application will be zero.
    */
-  def run: ZIO[Environment with ZEnv with ZIOAppArgs with Scope, Any, Any]
+  def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any]
 
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
@@ -83,22 +83,22 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   /**
    * Invokes the main app. Designed primarily for testing.
    */
-  final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[ZEnv, Any, Any] =
+  final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[Any, Any, Any] =
     ZIO.suspendSucceed {
       val newLayer =
-        ZLayer.environment[ZEnv with Scope] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer +!+ ZLayer.environment[ZEnv with ZIOAppArgs with Scope]
+        ZLayer.environment[Scope] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          layer +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
       ZIO.scoped {
         for {
           _          <- installSignalHandlers
-          newRuntime <- ZIO.runtime[ZEnv with Scope].map(_.mapRuntimeConfig(hook))
+          newRuntime <- ZIO.runtime[Scope].map(_.mapRuntimeConfig(hook))
           result     <- newRuntime.run(run.provideLayer(newLayer))
         } yield result
       }
     }
 
-  def runtime: Runtime[ZEnv] = Runtime.default
+  def runtime: Runtime[Any] = Runtime.default
 
   protected def installSignalHandlers(implicit trace: ZTraceElement): UIO[Any] =
     ZIO.attempt {
@@ -127,7 +127,7 @@ object ZIOApp {
       app.hook
     final def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
       app.layer
-    override final def run: ZIO[Environment with ZEnv with ZIOAppArgs with Scope, Any, Any] =
+    override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
     implicit final def tag: EnvironmentTag[Environment] =
       app.tag
@@ -138,7 +138,7 @@ object ZIOApp {
    * program, as well as a hook into the ZIO runtime configuration.
    */
   def apply[R](
-    run0: ZIO[R with ZEnv with ZIOAppArgs with Scope, Any, Any],
+    run0: ZIO[R with ZIOAppArgs with Scope, Any, Any],
     layer0: ZLayer[ZIOAppArgs with Scope, Any, R],
     hook0: RuntimeConfigAspect
   )(implicit tagged: EnvironmentTag[R]): ZIOApp =
@@ -154,6 +154,6 @@ object ZIOApp {
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's
    * configuration.
    */
-  def fromZIO(run0: ZIO[ZEnv with ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
+  def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
     ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
 }

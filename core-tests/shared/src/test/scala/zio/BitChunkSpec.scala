@@ -5,12 +5,12 @@ import zio.test._
 
 object BitChunkSpec extends ZIOBaseSpec {
 
-  val genByteChunk: Gen[Random with Sized, Chunk[Byte]] =
+  val genByteChunk: Gen[Sized, Chunk[Byte]] =
     for {
       bytes <- Gen.listOf(Gen.byte)
     } yield Chunk.fromIterable(bytes)
 
-  val genInt: Gen[Random with Sized, Int] =
+  val genInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_))
 
   def toBinaryString(byte: Byte): String =

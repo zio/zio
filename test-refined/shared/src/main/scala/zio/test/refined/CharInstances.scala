@@ -20,19 +20,18 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.char._
 import zio.test.Gen
 import zio.test.magnolia.DeriveGen
-import zio.Random
 
 object char extends CharInstances
 
 trait CharInstances {
 
-  val digitGen: Gen[Random, Refined[Char, Digit]]   = Gen.numericChar.map(value => Refined.unsafeApply(value))
-  val letterGen: Gen[Random, Refined[Char, Letter]] = Gen.alphaChar.map(value => Refined.unsafeApply(value))
-  val lowerCaseGen: Gen[Random, Refined[Char, LowerCase]] =
+  val digitGen: Gen[Any, Refined[Char, Digit]]   = Gen.numericChar.map(value => Refined.unsafeApply(value))
+  val letterGen: Gen[Any, Refined[Char, Letter]] = Gen.alphaChar.map(value => Refined.unsafeApply(value))
+  val lowerCaseGen: Gen[Any, Refined[Char, LowerCase]] =
     Gen.alphaChar.map(value => Refined.unsafeApply(value.toLower))
-  val upperCaseGen: Gen[Random, Refined[Char, UpperCase]] =
+  val upperCaseGen: Gen[Any, Refined[Char, UpperCase]] =
     Gen.alphaChar.map(value => Refined.unsafeApply(value.toUpper))
-  val whitespaceGen: Gen[Random, Refined[Char, Whitespace]] =
+  val whitespaceGen: Gen[Any, Refined[Char, Whitespace]] =
     Gen.whitespaceChars.map(char => Refined.unsafeApply(char))
 
   implicit def digitArbitrary: DeriveGen[Refined[Char, Digit]] =

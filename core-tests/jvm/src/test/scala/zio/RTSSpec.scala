@@ -14,7 +14,7 @@ object RTSSpec extends ZIOBaseSpec {
   def spec = suite("Blocking specs (to be migrated to ZIOSpecJvm)")(
     test("blocking caches threads") {
 
-      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Clock, Nothing, Boolean] =
+      def runAndTrack(ref: Ref[Set[Thread]]): ZIO[Any, Nothing, Boolean] =
         ZIO.blocking {
           ZIO
             .succeed(Thread.currentThread())

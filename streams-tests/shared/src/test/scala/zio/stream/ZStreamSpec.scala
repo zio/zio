@@ -3071,7 +3071,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWithZIO[A](_.live)
-              .provideCustomLayer(ZLayer.succeed(new A {
+              .provideLayer(ZLayer.succeed(new A {
                 override def live: UIO[Int] = ZIO.succeed(10)
               }))
               .runCollect
@@ -3086,7 +3086,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             ZStream
               .serviceWithStream[A](_.live)
-              .provideCustomLayer(ZLayer.succeed(new A {
+              .provideLayer(ZLayer.succeed(new A {
                 override def live: ZStream[Any, Nothing, Int] =
                   ZStream.fromIterable(numbers)
               }))
@@ -5028,8 +5028,8 @@ object ZStreamSpec extends ZIOBaseSpec {
   def assertWithChunkCoordination[A](
     chunks: List[Chunk[A]]
   )(
-    assertion: ChunkCoordination[A] => ZIO[Clock with TestClock, Nothing, TestResult]
-  ): ZIO[Clock with TestClock, Nothing, TestResult] =
+    assertion: ChunkCoordination[A] => ZIO[Any, Nothing, TestResult]
+  ): ZIO[Any, Nothing, TestResult] =
     for {
       q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]

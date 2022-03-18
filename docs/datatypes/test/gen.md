@@ -169,7 +169,7 @@ The `Gen.suspend` constructs a generator lazily. This is useful to avoid infinit
 The `unfoldGen` takes the initial state and depending on the previous state, it determines what will be the next generated value:
 
 ```scala
-def unfoldGen[R <: Random with Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]]
+def unfoldGen[R <: Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]]
 ```
 
 Assume we want to test the built-in scala stack (`scala.collection.mutable.Stack`). One way to do that is to create an acceptable series of push and pop commands, and then check that the stack doesn't throw any exception by executing these commands:
@@ -182,7 +182,7 @@ final case class Push(value: Char) extends Command
 val genPop:  Gen[Any, Command]    = Gen.const(Pop)
 def genPush: Gen[Random, Command] = Gen.alphaChar.map(Push)
 
-val genCommands: Gen[Random with Sized, List[Command]] =
+val genCommands: Gen[Sized, List[Command]] =
   Gen.unfoldGen(0) { n =>
     if (n <= 0)
       genPush.map(command => (n + 1, command))
@@ -361,7 +361,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 2. Failed effects (`Gen.failures`):
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random with Sized, IO[String, Nothing]] = Gen.failures(Gen.string)
+  val gen: Gen[Sized, IO[String, Nothing]] = Gen.failures(Gen.string)
   ```
 
 3. Died effects (`Gen.died`):
@@ -373,7 +373,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 4. Cause values (`Gen.causes`):
 
   ```scala mdoc:compile-only
-  val causes: Gen[Random with Sized, Cause[String]] = 
+  val causes: Gen[Sized, Cause[String]] = 
     Gen.causes(Gen.string, Gen.throwable)
   ```
   
@@ -390,7 +390,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
   By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of chained effects:
 
   ```scala mdoc:compile-only
-  val chained : Gen[Random with Sized, ZIO[Any, Nothing, Int]] = 
+  val chained : Gen[Sized, ZIO[Any, Nothing, Int]] = 
     Gen.chained(Gen.successes(Gen.int))
     
   val chainedN: Gen[Random, ZIO[Any, Nothing, Int]] = 
@@ -407,7 +407,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 7. Parallel effects (`Gen.parallel`): A generator of effects that are the result of applying parallelism combinators to the specified effect that are guaranteed not to change its value.
 
   ```scala mdoc:compile-only
-  val random: Gen[Random with Sized, UIO[String]] =
+  val random: Gen[Sized, UIO[String]] =
     Gen.successes(Gen.string).flatMap(Gen.parallel)
     
   val constant: Gen[Any, UIO[String]] =

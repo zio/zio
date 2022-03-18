@@ -4,55 +4,54 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.types.numeric._
 import zio.test.Gen
 import zio.test.magnolia.DeriveGen
-import zio.Random
 
 object numeric extends NumericInstances
 
 trait NumericInstances {
-  val posByteGen: Gen[Random, PosByte]           = Gen.byte(1, Byte.MaxValue).map(Refined.unsafeApply)
-  val nonNegByteGen: Gen[Random, NonNegByte]     = Gen.byte(0, Byte.MaxValue).map(Refined.unsafeApply)
-  val negByteGen: Gen[Random, NegByte]           = Gen.byte(Byte.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosByteGen: Gen[Random, NonPosByte]     = Gen.byte(Byte.MinValue, 0).map(Refined.unsafeApply)
-  val posShortGen: Gen[Random, PosShort]         = Gen.short(1, Short.MaxValue).map(Refined.unsafeApply)
-  val nonNegShortGen: Gen[Random, NonNegShort]   = Gen.short(0, Short.MaxValue).map(Refined.unsafeApply)
-  val negShortGen: Gen[Random, NegShort]         = Gen.short(Short.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosShortGen: Gen[Random, NonPosShort]   = Gen.short(Short.MinValue, 0).map(Refined.unsafeApply)
-  val posIntGen: Gen[Random, PosInt]             = Gen.int(1, Int.MaxValue).map(Refined.unsafeApply)
-  val nonNegIntGen: Gen[Random, NonNegInt]       = Gen.int(0, Int.MaxValue).map(Refined.unsafeApply)
-  val negIntGen: Gen[Random, NegInt]             = Gen.int(Int.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosIntGen: Gen[Random, NonPosInt]       = Gen.int(Int.MinValue, 0).map(Refined.unsafeApply)
-  val posLongGen: Gen[Random, PosLong]           = Gen.long(1, Long.MaxValue).map(Refined.unsafeApply)
-  val nonNegLongGen: Gen[Random, NonNegLong]     = Gen.long(0, Long.MaxValue).map(Refined.unsafeApply)
-  val negLongGen: Gen[Random, NegLong]           = Gen.long(Long.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosLongGen: Gen[Random, NonPosLong]     = Gen.long(Long.MinValue, 0).map(Refined.unsafeApply)
-  val posBigIntGen: Gen[Random, PosBigInt]       = Gen.bigInt(1, Long.MaxValue).map(Refined.unsafeApply)
-  val nonNegBigIntGen: Gen[Random, NonNegBigInt] = Gen.bigInt(0, Long.MaxValue).map(Refined.unsafeApply)
-  val negBigIntGen: Gen[Random, NegBigInt]       = Gen.bigInt(Long.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosBigIntGen: Gen[Random, NonPosBigInt] = Gen.bigInt(Long.MinValue, 0).map(Refined.unsafeApply)
-  val posFloatGen: Gen[Random, PosFloat] = Gen
+  val posByteGen: Gen[Any, PosByte]           = Gen.byte(1, Byte.MaxValue).map(Refined.unsafeApply)
+  val nonNegByteGen: Gen[Any, NonNegByte]     = Gen.byte(0, Byte.MaxValue).map(Refined.unsafeApply)
+  val negByteGen: Gen[Any, NegByte]           = Gen.byte(Byte.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosByteGen: Gen[Any, NonPosByte]     = Gen.byte(Byte.MinValue, 0).map(Refined.unsafeApply)
+  val posShortGen: Gen[Any, PosShort]         = Gen.short(1, Short.MaxValue).map(Refined.unsafeApply)
+  val nonNegShortGen: Gen[Any, NonNegShort]   = Gen.short(0, Short.MaxValue).map(Refined.unsafeApply)
+  val negShortGen: Gen[Any, NegShort]         = Gen.short(Short.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosShortGen: Gen[Any, NonPosShort]   = Gen.short(Short.MinValue, 0).map(Refined.unsafeApply)
+  val posIntGen: Gen[Any, PosInt]             = Gen.int(1, Int.MaxValue).map(Refined.unsafeApply)
+  val nonNegIntGen: Gen[Any, NonNegInt]       = Gen.int(0, Int.MaxValue).map(Refined.unsafeApply)
+  val negIntGen: Gen[Any, NegInt]             = Gen.int(Int.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosIntGen: Gen[Any, NonPosInt]       = Gen.int(Int.MinValue, 0).map(Refined.unsafeApply)
+  val posLongGen: Gen[Any, PosLong]           = Gen.long(1, Long.MaxValue).map(Refined.unsafeApply)
+  val nonNegLongGen: Gen[Any, NonNegLong]     = Gen.long(0, Long.MaxValue).map(Refined.unsafeApply)
+  val negLongGen: Gen[Any, NegLong]           = Gen.long(Long.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosLongGen: Gen[Any, NonPosLong]     = Gen.long(Long.MinValue, 0).map(Refined.unsafeApply)
+  val posBigIntGen: Gen[Any, PosBigInt]       = Gen.bigInt(1, Long.MaxValue).map(Refined.unsafeApply)
+  val nonNegBigIntGen: Gen[Any, NonNegBigInt] = Gen.bigInt(0, Long.MaxValue).map(Refined.unsafeApply)
+  val negBigIntGen: Gen[Any, NegBigInt]       = Gen.bigInt(Long.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosBigIntGen: Gen[Any, NonPosBigInt] = Gen.bigInt(Long.MinValue, 0).map(Refined.unsafeApply)
+  val posFloatGen: Gen[Any, PosFloat] = Gen
     .double(1, Float.MaxValue.toDouble)
     .map(v => Refined.unsafeApply(v.toFloat))
-  val nonNegFloatGen: Gen[Random, NonNegFloat] = Gen
+  val nonNegFloatGen: Gen[Any, NonNegFloat] = Gen
     .double(0, Float.MaxValue.toDouble)
     .map(v => Refined.unsafeApply(v.toFloat))
-  val negFloatGen: Gen[Random, NegFloat] = Gen
+  val negFloatGen: Gen[Any, NegFloat] = Gen
     .double(Float.MinValue.toDouble, -1)
     .map(v => Refined.unsafeApply(v.toFloat))
-  val nonPosFloatGen: Gen[Random, NonPosFloat] = Gen
+  val nonPosFloatGen: Gen[Any, NonPosFloat] = Gen
     .double(Float.MinValue.toDouble, 0)
     .map(v => Refined.unsafeApply(v.toFloat))
-  val posDoubleGen: Gen[Random, PosDouble]         = Gen.double(1, Double.MaxValue).map(Refined.unsafeApply)
-  val nonNegDoubleGen: Gen[Random, NonNegDouble]   = Gen.double(0, Double.MaxValue).map(Refined.unsafeApply)
-  val negDoubleGen: Gen[Random, NegDouble]         = Gen.double(Double.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosDoubleGen: Gen[Random, NonPosDouble]   = Gen.double(Double.MinValue, 0).map(Refined.unsafeApply)
-  val posBigDecimalGen: Gen[Random, PosBigDecimal] = Gen.bigDecimal(1, Double.MaxValue).map(Refined.unsafeApply)
-  val nonNegBigDecimalGen: Gen[Random, NonNegBigDecimal] =
+  val posDoubleGen: Gen[Any, PosDouble]         = Gen.double(1, Double.MaxValue).map(Refined.unsafeApply)
+  val nonNegDoubleGen: Gen[Any, NonNegDouble]   = Gen.double(0, Double.MaxValue).map(Refined.unsafeApply)
+  val negDoubleGen: Gen[Any, NegDouble]         = Gen.double(Double.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosDoubleGen: Gen[Any, NonPosDouble]   = Gen.double(Double.MinValue, 0).map(Refined.unsafeApply)
+  val posBigDecimalGen: Gen[Any, PosBigDecimal] = Gen.bigDecimal(1, Double.MaxValue).map(Refined.unsafeApply)
+  val nonNegBigDecimalGen: Gen[Any, NonNegBigDecimal] =
     Gen.bigDecimal(0, Double.MaxValue).map(Refined.unsafeApply)
-  val negBigDecimalGen: Gen[Random, NegBigDecimal] = Gen.bigDecimal(Double.MinValue, -1).map(Refined.unsafeApply)
-  val nonPosBigDecimalGen: Gen[Random, NonPosBigDecimal] =
+  val negBigDecimalGen: Gen[Any, NegBigDecimal] = Gen.bigDecimal(Double.MinValue, -1).map(Refined.unsafeApply)
+  val nonPosBigDecimalGen: Gen[Any, NonPosBigDecimal] =
     Gen.bigDecimal(Double.MinValue, 0).map(Refined.unsafeApply)
-  val nonNanFloatGen: Gen[Random, NonNaNFloat]   = Gen.float.map(Refined.unsafeApply)
-  val nonNanDoubleGen: Gen[Random, NonNaNDouble] = Gen.double.map(Refined.unsafeApply)
+  val nonNanFloatGen: Gen[Any, NonNaNFloat]   = Gen.float.map(Refined.unsafeApply)
+  val nonNanDoubleGen: Gen[Any, NonNaNDouble] = Gen.double.map(Refined.unsafeApply)
 
   implicit val posByteDeriveGen: DeriveGen[PosByte]                   = DeriveGen.instance(posByteGen)
   implicit val nonNegByteDeriveGen: DeriveGen[NonNegByte]             = DeriveGen.instance(nonNegByteGen)

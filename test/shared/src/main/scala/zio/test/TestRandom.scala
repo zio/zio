@@ -762,15 +762,15 @@ object TestRandom extends Serializable {
    * state in an effect which, when run, will restore the `TestRandom` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): ZIO[TestRandom, Nothing, UIO[Unit]] =
-    ZIO.serviceWithZIO(_.save)
+  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    testRandomWith(_.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to
    * the specified value.
    */
-  def setSeed(seed: => Long)(implicit trace: ZTraceElement): URIO[TestRandom, Unit] =
-    ZIO.serviceWithZIO(_.setSeed(seed))
+  def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
+    testRandomWith(_.setSeed(seed))
 
   /**
    * The buffer of the `TestRandom`.

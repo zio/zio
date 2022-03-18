@@ -56,8 +56,7 @@ package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
 
-  type TestEnvironment =
-    Annotations with Live with Sized with TestClock with TestConfig with TestConsole with TestRandom with TestSystem
+  type TestEnvironment = Annotations with Live with Sized with TestConfig
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -205,13 +204,6 @@ package object test extends CompileVariants {
      */
     val silent: TestReporter[Any] = (_, _) => ZIO.unit
   }
-
-  /**
-   * A `ZRTestEnv` is an alias for all ZIO provided
-   * [[zio.test.Restorable Restorable]]
-   * [[zio.test.TestEnvironment TestEnvironment]] objects
-   */
-  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
    * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and

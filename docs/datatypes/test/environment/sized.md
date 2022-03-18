@@ -52,14 +52,14 @@ In the following example, we are creating a sized generator, which generates int
 import zio._
 import zio.test._
 
-val sizedInts: Gen[Random with Sized, Int] = 
+val sizedInts: Gen[Sized, Int] = 
   Gen.sized(Gen.int(0, _))
 ```
 
 To generate some sample values, we can use `Gen#runCollectN` operator on that:
 
 ```scala mdoc:silent:nest
-val samples: URIO[Random with Sized, List[Int]] = 
+val samples: URIO[Sized, List[Int]] = 
   sizedInts.runCollectN(5).debug
 ```
 

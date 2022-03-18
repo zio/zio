@@ -289,7 +289,7 @@ object Random extends Serializable {
   /**
    * generates a pseudo-random boolean.
    */
-  def nextBoolean(implicit trace: ZTraceElement): URIO[Random, Boolean] =
+  def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean] =
     ZIO.randomWith(_.nextBoolean)
 
   /**

@@ -1240,7 +1240,7 @@ object ZSTMSpec extends ZIOBaseSpec {
 
   def liveClockSleep(d: Duration): ZIO[Live, Nothing, Unit] = Live.live(ZIO.sleep(d))
 
-  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Clock, Nothing, Int] =
+  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Any, Nothing, Int] =
     STM
       .atomically(for {
         v <- tvar.get
@@ -1254,7 +1254,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     tvar1: TRef[Int],
     tvar2: TRef[Int],
     tvar3: TRef[Int]
-  ): ZIO[Clock, Nothing, Int] =
+  ): ZIO[Any, Nothing, Int] =
     STM
       .atomically(for {
         v1 <- tvar1.get
