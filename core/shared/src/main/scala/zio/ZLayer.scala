@@ -4012,7 +4012,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     Suspend(() => self)
   }
 
-  implicit final class ZLayerPassthroughOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
+  implicit final class ZLayerInvariantOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
     /**
      * Returns a new layer that produces the outputs of this layer but also
@@ -4024,18 +4024,44 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       trace: ZTraceElement
     ): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.environment[RIn] ++ self
-  }
-
-  implicit final class ZLayerProjectOps[R, E, A](private val self: ZLayer[R, E, A]) extends AnyVal {
 
     /**
      * Projects out part of one of the services output by this layer using the
      * specified function.
      */
-    def project[B: Tag](
-      f: A => B
-    )(implicit tag: Tag[A], trace: ZTraceElement): ZLayer[R, E, B] =
+    def project[ROut2: Tag](
+      f: ROut => ROut2
+    )(implicit tag: Tag[ROut], trace: ZTraceElement): ZLayer[RIn, E, ROut2] =
       self.map(environment => ZEnvironment(f(environment.get)))
+
+    /**
+     * Returns a layer that produces a reloadable version of this service.
+     */
+    def reloadableAuto(schedule: Schedule[RIn, Any, Any])(implicit
+      tagOut: Tag[ROut],
+      trace: ZTraceElement
+    ): ZLayer[RIn with Clock, E, Reloadable[ROut]] =
+      Reloadable.auto(self, schedule)
+
+    /**
+     * Returns a layer that produces a reloadable version of this service, where
+     * the reloading schedule is derived from the layer input.
+     */
+    def reloadableAutoFromConfig[RIn2](scheduleFromConfig: ZEnvironment[RIn2] => Schedule[RIn with RIn2, Any, Any])(
+      implicit
+      tagOut: Tag[ROut],
+      trace: ZTraceElement
+    ): ZLayer[RIn with RIn2 with Clock, E, Reloadable[ROut]] =
+      Reloadable.autoFromConfig(self, scheduleFromConfig)
+
+    /**
+     * Returns a layer that produces a reloadable version of this service.
+     */
+    def reloadableManual(implicit
+      tagOut: Tag[ROut],
+      trace: ZTraceElement
+    ): ZLayer[RIn, E, Reloadable[ROut]] =
+      Reloadable.manual(self)
   }
 
   /**
