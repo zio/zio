@@ -1,57 +1,47 @@
 package zio.metrics.jvm
 
-import zio.metrics.Metric
-import zio.metrics.Metric.Gauge
 import zio._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.metrics.{Metric, MetricState, PollingMetric}
 
 import java.lang.management.{ClassLoadingMXBean, ManagementFactory}
 
-trait ClassLoading extends JvmMetrics {
-  override type Feature = ClassLoading
-  override val featureTag = Tag[ClassLoading]
+final case class ClassLoading(
+  loadedClassCount: PollingMetric[Any, Throwable, MetricState.Gauge],
+  totalLoadedClassCount: PollingMetric[Any, Throwable, MetricState.Gauge],
+  unloadedClassCount: PollingMetric[Any, Throwable, MetricState.Gauge]
+)
 
-  /** The number of classes that are currently loaded in the JVM */
-  private val loadedClassCount: Gauge[Int] =
-    Metric.gauge("jvm_classes_loaded").contramap(_.toDouble)
+object ClassLoading {
+  val live: ZLayer[JvmMetricsSchedule, Throwable, ClassLoading] =
+    ZLayer.scoped {
+      for {
+        classLoadingMXBean <- ZIO.attempt(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean]))
+        loadedClassCount =
+          PollingMetric(
+            Metric
+              .gauge("jvm_classes_loaded")
+              .contramap[Int](_.toDouble),
+            ZIO.attempt(classLoadingMXBean.getLoadedClassCount)
+          )
+        totalLoadedClassCount =
+          PollingMetric(
+            Metric
+              .gauge("jvm_classes_loaded_total")
+              .contramap[Long](_.toDouble),
+            ZIO.attempt(classLoadingMXBean.getTotalLoadedClassCount)
+          )
+        unloadedClassCount =
+          PollingMetric(
+            Metric
+              .gauge("jvm_classes_unloaded_total")
+              .contramap[Long](_.toDouble),
+            ZIO.attempt(classLoadingMXBean.getUnloadedClassCount)
+          )
 
-  /**
-   * The total number of classes that have been loaded since the JVM has started
-   * execution
-   */
-  private val totalLoadedClassCount: Gauge[Long] =
-    Metric.gauge("jvm_classes_loaded_total").contramap(_.toDouble)
-
-  /**
-   * The total number of classes that have been unloaded since the JVM has
-   * started execution
-   */
-  private val unloadedClassCount: Gauge[Long] =
-    Metric.gauge("jvm_classes_unloaded_total").contramap(_.toDouble)
-
-  private def reportClassLoadingMetrics(
-    classLoadingMXBean: ClassLoadingMXBean
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    for {
-      _ <- loadedClassCount.set(classLoadingMXBean.getLoadedClassCount)
-      _ <- totalLoadedClassCount.set(classLoadingMXBean.getTotalLoadedClassCount)
-      _ <- unloadedClassCount.set(classLoadingMXBean.getUnloadedClassCount)
-    } yield ()
-
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Scope, Throwable, ClassLoading] =
-    for {
-      classLoadingMXBean <-
-        ZIO.attempt(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean]))
-      _ <- reportClassLoadingMetrics(classLoadingMXBean)
-             .repeat(collectionSchedule)
-             .interruptible
-             .forkScoped
-    } yield this
-}
-
-/** Exports metrics related to JVM class loading */
-object ClassLoading extends ClassLoading with JvmMetrics.DefaultSchedule {
-  def withSchedule(schedule: Schedule[Any, Any, Unit]): ClassLoading = new ClassLoading {
-    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
-  }
+        schedule <- ZIO.service[JvmMetricsSchedule]
+        _        <- loadedClassCount.launch(schedule.value)
+        _        <- totalLoadedClassCount.launch(schedule.value)
+        _        <- unloadedClassCount.launch(schedule.value)
+      } yield ClassLoading(loadedClassCount, totalLoadedClassCount, unloadedClassCount)
+    }
 }

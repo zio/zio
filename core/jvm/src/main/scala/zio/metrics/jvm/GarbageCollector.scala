@@ -1,55 +1,45 @@
 package zio.metrics.jvm
 
 import com.github.ghik.silencer.silent
-
 import zio._
 import zio.metrics._
-import zio.metrics.Metric.Gauge
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
-
+import java.lang.management.ManagementFactory
 import scala.collection.JavaConverters._
 
-trait GarbageCollector extends JvmMetrics {
-  override type Feature = GarbageCollector
-  override val featureTag = Tag[GarbageCollector]
+final case class GarbageCollector(
+  gcCollectionSecondsSum: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
+  gcCollectionSecondsCount: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]]
+)
 
-  /** Time spent in a given JVM garbage collector in seconds. */
-  private def gcCollectionSecondsSum(gc: String): Gauge[Long] =
-    Metric
-      .gauge("jvm_gc_collection_seconds_sum")
-      .tagged(MetricLabel("gc", gc))
-      .contramap((ms: Long) => ms.toDouble / 1000.0)
-
-  private def gcCollectionSecondsCount(gc: String): Gauge[Long] =
-    Metric.gauge("jvm_gc_collection_seconds_count").tagged(MetricLabel("gc", gc)).contramap(_.toDouble)
-
-  private def reportGarbageCollectionMetrics(
-    garbageCollectors: List[GarbageCollectorMXBean]
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    ZIO.foreachParDiscard(garbageCollectors) { gc =>
-      for {
-        name <- ZIO.attempt(gc.getName)
-        _    <- gcCollectionSecondsCount(name).set(gc.getCollectionCount)
-        _    <- gcCollectionSecondsSum(name).set(gc.getCollectionTime)
-      } yield ()
-    }
-
+object GarbageCollector {
   @silent("JavaConverters")
-  def collectMetrics(implicit trace: ZTraceElement): ZIO[Scope, Throwable, GarbageCollector] =
-    for {
-      classLoadingMXBean <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
-      _ <- reportGarbageCollectionMetrics(classLoadingMXBean)
-             .repeat(collectionSchedule)
-             .interruptible
-             .forkScoped
-    } yield this
-}
+  val live: ZLayer[JvmMetricsSchedule, Throwable, GarbageCollector] =
+    ZLayer.scoped {
+      for {
+        gcMXBeans <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala)
+        gcCollectionSecondsSum = PollingMetric.collectAll(gcMXBeans.map { gc =>
+                                   PollingMetric(
+                                     Metric
+                                       .gauge("jvm_gc_collection_seconds_sum")
+                                       .tagged("gc", gc.getName)
+                                       .contramap((ms: Long) => ms.toDouble / 1000.0),
+                                     ZIO.attempt(gc.getCollectionTime)
+                                   )
+                                 })
+        gcCollectionSecondsCount = PollingMetric.collectAll(gcMXBeans.map { gc =>
+                                     PollingMetric(
+                                       Metric
+                                         .gauge("jvm_gc_collection_seconds_count")
+                                         .tagged("gc", gc.getName)
+                                         .contramap[Long](_.toDouble),
+                                       ZIO.attempt(gc.getCollectionCount)
+                                     )
+                                   })
 
-/** Exports metrics related to the garbage collector */
-object GarbageCollector extends GarbageCollector with JvmMetrics.DefaultSchedule {
-  def withSchedule(schedule: Schedule[Any, Any, Unit]): GarbageCollector = new GarbageCollector {
-    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
-  }
+        schedule <- ZIO.service[JvmMetricsSchedule]
+        _        <- gcCollectionSecondsSum.launch(schedule.value)
+        _        <- gcCollectionSecondsCount.launch(schedule.value)
+      } yield GarbageCollector(gcCollectionSecondsSum, gcCollectionSecondsCount)
+    }
 }

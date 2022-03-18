@@ -1,23 +1,20 @@
 package zio.metrics.jvm
 
 import com.github.ghik.silencer.silent
-
-import zio._
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.metrics._
-import zio.metrics.Metric.Counter
-
 import com.sun.management.GarbageCollectionNotificationInfo
-import java.lang.management.ManagementFactory
+import zio._
+import zio.metrics.Metric.Counter
+import zio.metrics._
+
+import java.lang.management.{GarbageCollectorMXBean, ManagementFactory}
 import javax.management.openmbean.CompositeData
 import javax.management.{Notification, NotificationEmitter, NotificationListener}
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
-trait MemoryAllocation extends JvmMetrics {
-  override type Feature = MemoryAllocation
-  override val featureTag           = Tag[MemoryAllocation]
-  implicit val trace: ZTraceElement = ZTraceElement.empty
+final case class MemoryAllocation(listener: NotificationListener, garbageCollectorMXBeans: List[GarbageCollectorMXBean])
+
+object MemoryAllocation {
 
   /**
    * Total bytes allocated in a given JVM memory pool. Only updated after GC,
@@ -76,35 +73,28 @@ trait MemoryAllocation extends JvmMetrics {
   }
 
   @silent("JavaConverters")
-  override def collectMetrics(implicit
-    trace: ZTraceElement
-  ): ZIO[Scope, Throwable, MemoryAllocation] =
-    ZIO
-      .acquireRelease(
-        for {
-          runtime                 <- ZIO.runtime[Any]
-          listener                 = new Listener(runtime)
-          garbageCollectorMXBeans <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala)
-          _ <- ZIO.foreachDiscard(garbageCollectorMXBeans) {
-                 case emitter: NotificationEmitter =>
-                   ZIO.attempt(emitter.addNotificationListener(listener, null, null))
-                 case _ => ZIO.unit
-               }
-        } yield (listener, garbageCollectorMXBeans)
-      ) { case (listener, garbageCollectorMXBeans) =>
-        ZIO
-          .foreachDiscard(garbageCollectorMXBeans) {
-            case emitter: NotificationEmitter =>
-              ZIO.attempt(emitter.removeNotificationListener(listener))
-            case _ => ZIO.unit
-          }
-          .orDie
-      }
-      .as(this)
-}
-
-object MemoryAllocation extends MemoryAllocation with JvmMetrics.DefaultSchedule {
-  def withSchedule(schedule: Schedule[Any, Any, Unit]): MemoryAllocation = new MemoryAllocation {
-    override protected def collectionSchedule(implicit trace: ZTraceElement): Schedule[Any, Any, Unit] = schedule
-  }
+  val live: ZLayer[Any, Throwable, MemoryAllocation] =
+    ZLayer.scoped {
+      ZIO
+        .acquireRelease(
+          for {
+            runtime                 <- ZIO.runtime[Any]
+            listener                 = new Listener(runtime)
+            garbageCollectorMXBeans <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala.toList)
+            _ <- ZIO.foreachDiscard(garbageCollectorMXBeans) {
+                   case emitter: NotificationEmitter =>
+                     ZIO.attempt(emitter.addNotificationListener(listener, null, null))
+                   case _ => ZIO.unit
+                 }
+          } yield MemoryAllocation(listener, garbageCollectorMXBeans)
+        ) { memoryAllocation =>
+          ZIO
+            .foreachDiscard(memoryAllocation.garbageCollectorMXBeans) {
+              case emitter: NotificationEmitter =>
+                ZIO.attempt(emitter.removeNotificationListener(memoryAllocation.listener))
+              case _ => ZIO.unit
+            }
+            .orDie
+        }
+    }
 }
