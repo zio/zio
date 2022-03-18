@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion._
-import zio.test.TestAspect._
+import zio.test.TestAspect.{nonFlaky, withLiveClock}
 import zio.test._
 
 object ZLayerSpec extends ZIOBaseSpec {
