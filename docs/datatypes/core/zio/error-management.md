@@ -2430,6 +2430,8 @@ val eitherEffect: ZIO[Any, Exception, Either[String, Int]] = ???
 eitherEffect // ZIO[Any, Exception, Either[String, Int]]
   .left      // ZIO[Any, Either[Exception, Int], String]
   .unleft    // ZIO[Any, Exception, Either[String, Int]]
+
+eitherEffect // ZIO[Any, Exception, Either[String, Int]]
   .right     // ZIO[Any, Either[String, Exception], Int]
   .unright   // ZIO[Any, Exception, Either[String, Int]]
 ```
