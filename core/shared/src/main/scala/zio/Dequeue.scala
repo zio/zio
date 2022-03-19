@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be dequeued.
  */
-trait Dequeue[+A] {
+trait Dequeue[+A] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will

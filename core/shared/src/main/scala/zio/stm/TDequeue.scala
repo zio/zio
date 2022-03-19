@@ -5,7 +5,7 @@ import zio._
 /**
  * A transactional queue that can only be dequeued.
  */
-trait TDequeue[+A] {
+trait TDequeue[+A] extends Serializable {
 
   /**
    * The maximum capacity of the queue.
