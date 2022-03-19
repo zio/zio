@@ -52,19 +52,6 @@ package object zio
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
-  type Queue[A] = ZQueue[A, A]
-  val Queue: ZQueue.type = ZQueue
-
-  /**
-   * A queue that can only be dequeued.
-   */
-  type Dequeue[+A] = ZQueue[Nothing, A]
-
-  /**
-   * A queue that can only be enqueued.
-   */
-  type Enqueue[-A] = ZQueue[A, Any]
-
   @deprecated("use Ref.Synchronized", "2.0.0")
   type RefM[A] = Ref.Synchronized[A]
   val RefM: Ref.Synchronized.type = Ref.Synchronized

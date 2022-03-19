@@ -724,70 +724,6 @@ object ZQueueSpec extends ZIOBaseSpec {
         assert(t3)(isNone) &&
         assert(t4)(isNone)
     },
-    test("queue map") {
-      for {
-        q <- Queue.bounded[Int](100).map(_.map(_.toString))
-        _ <- q.offer(10)
-        v <- q.take
-      } yield assert(v)(equalTo("10"))
-    },
-    test("queue map identity") {
-      for {
-        q <- Queue.bounded[Int](100).map(_.map(identity))
-        _ <- q.offer(10)
-        v <- q.take
-      } yield assert(v)(equalTo(10))
-    },
-    test("queue contramap") {
-      for {
-        q <- Queue.bounded[String](100).map(_.contramap[Int](_.toString))
-        _ <- q.offer(10)
-        v <- q.take
-      } yield assert(v)(equalTo("10"))
-    },
-    test("queue dimap") {
-      for {
-        q <- Queue.bounded[String](100).map(_.dimap[Int, Int](_.toString, _.toInt))
-        _ <- q.offer(10)
-        v <- q.take
-      } yield assert(v)(equalTo(10))
-    },
-    test("queue filterInput") {
-      for {
-        q  <- Queue.bounded[Int](100).map(_.filterInput[Int](_ % 2 == 0))
-        _  <- q.offer(1)
-        s1 <- q.size
-        _  <- q.offer(2)
-        s2 <- q.size
-      } yield assert(s1)(equalTo(0)) &&
-        assert(s2)(equalTo(1))
-    },
-    test("queue filterOutput with take") {
-      for {
-        queue <- Queue.bounded[Int](2).map(_.filterOutput(_ % 2 == 0))
-        _     <- queue.offer(1)
-        _     <- queue.offer(2)
-        value <- queue.take
-      } yield assert(value)(equalTo(2))
-    },
-    test("queue filterOutput with takeAll") {
-      for {
-        queue  <- Queue.unbounded[Int].map(_.filterOutput(_ % 2 == 0))
-        _      <- queue.offerAll(List(1, 2, 3, 4, 5))
-        values <- queue.takeAll
-        size   <- queue.size
-      } yield assert(values)(equalTo(Chunk(2, 4))) &&
-        assert(size)(equalTo(0))
-    },
-    test("queue filterOutput with takeUpTo") {
-      for {
-        queue  <- Queue.unbounded[Int].map(_.filterOutput(_ % 2 == 0))
-        _      <- queue.offerAll(List(1, 2, 3, 4, 5))
-        values <- queue.takeUpTo(2)
-        size   <- queue.size
-      } yield assert(values)(equalTo(Chunk(2, 4))) &&
-        assert(size)(equalTo(1))
-    },
     test("queue isShutdown") {
       for {
         queue <- Queue.bounded[Int](5)
@@ -839,7 +775,7 @@ object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
     Live.live((ref <* Clock.sleep(10.millis)).repeatUntil(_ == value))
 
-  def waitForSize[A, B](queue: ZQueue[A, B], size: Int): URIO[Live, Int] =
+  def waitForSize[A](queue: Queue[A], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 
   val smallInt: Gen[Random with Sized, Int] =

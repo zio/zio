@@ -2153,7 +2153,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     @deprecated("use runIntoQueueManaged", "2.0.0")
     final def intoManaged[E1 >: E](
-      queue: => ZQueue[Take[E1, A], Any]
+      queue: => Enqueue[Take[E1, A]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
@@ -2163,7 +2163,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     @deprecated("use runIntoQueueManaged", "2.0.0")
     final def intoQueueManaged[E1 >: E](
-      queue: => ZQueue[Take[E1, A], Any]
+      queue: => Enqueue[Take[E1, A]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
@@ -2274,7 +2274,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     @deprecated("use runIntoQueueElementsManaged", "2.0.0")
     final def runIntoElementsManaged[E1 >: E](
-      queue: => ZQueue[Exit[Option[E1], A], Any]
+      queue: => Enqueue[Exit[Option[E1], A]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoQueueElementsScoped(queue))
 
@@ -2293,7 +2293,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     @deprecated("use runIntoQueueManaged", "2.0.0")
     final def runIntoManaged[E1 >: E](
-      queue: => ZQueue[Take[E1, A], Any]
+      queue: => Enqueue[Take[E1, A]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
@@ -2302,7 +2302,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * to allow for scope composition.
      */
     final def runIntoQueueManaged[E1 >: E](
-      queue: => ZQueue[Take[E1, A], Any]
+      queue: => Enqueue[Take[E1, A]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
@@ -2311,7 +2311,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * to allow for scope composition.
      */
     final def runIntoQueueElementsManaged[E1 >: E](
-      queue: => ZQueue[Exit[Option[E1], A], Any]
+      queue: => Enqueue[Exit[Option[E1], A]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoQueueElementsScoped(queue))
 

@@ -2032,7 +2032,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("use runIntoQueue", "2.0.0")
   final def runInto[R1 <: R, E1 >: E](
-    queue: => ZQueue[Take[E1, A], Any]
+    queue: => Enqueue[Take[E1, A]]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
     runIntoQueue(queue)
 
@@ -2070,7 +2070,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   @deprecated("use runIntoQueue", "2.0.0")
   final def intoQueue[E1 >: E](
-    queue: => ZQueue[Take[E1, A], Any]
+    queue: => Enqueue[Take[E1, A]]
   )(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
     runIntoQueue(queue)
 
@@ -2079,7 +2079,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * will also be signalled.
    */
   final def runIntoQueue[R1 <: R, E1 >: E](
-    queue: => ZQueue[Take[E1, A], Any]
+    queue: => Enqueue[Take[E1, A]]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
     ZIO.scoped[R1](runIntoQueueScoped(queue))
 
@@ -2088,7 +2088,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * to allow for scope composition.
    */
   final def runIntoQueueScoped[E1 >: E](
-    queue: => ZQueue[Take[E1, A], Any]
+    queue: => Enqueue[Take[E1, A]]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E1, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, E, Take[E1, A], Any] = ZChannel
       .readWithCause[R, E, Chunk[A], Any, E, Take[E1, A], Any](
@@ -2109,7 +2109,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * to allow for scope composition.
    */
   final def runIntoQueueElementsScoped[E1 >: E](
-    queue: => ZQueue[Exit[Option[E1], A], Any]
+    queue: => Enqueue[Exit[Option[E1], A]]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E1, Unit] = {
     lazy val writer: ZChannel[R, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any] =
       ZChannel.readWith[R, E1, Chunk[A], Any, Nothing, Exit[Option[E1], A], Any](
@@ -4558,7 +4558,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a queue of values
    */
   def fromChunkQueue[O](
-    queue: => ZQueue[Nothing, Chunk[O]]
+    queue: => Dequeue[Chunk[O]]
   )(implicit trace: ZTraceElement): ZStream[Any, Nothing, O] =
     repeatZIOChunkOption {
       queue.take
@@ -4574,7 +4574,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a queue of values. The queue will be shutdown once
    * the stream is closed.
    */
-  def fromChunkQueueWithShutdown[O](queue: => ZQueue[Nothing, Chunk[O]])(implicit
+  def fromChunkQueueWithShutdown[O](queue: => Queue[Chunk[O]])(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, O] =
     fromChunkQueue(queue).ensuring(queue.shutdown)
@@ -4926,7 +4926,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *   Maximum number of queued elements to put in one chunk in the stream
    */
   def fromQueue[O](
-    queue: => ZQueue[Nothing, O],
+    queue: => Dequeue[O],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, Nothing, O] =
     repeatZIOChunkOption {
@@ -4949,7 +4949,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *   Maximum number of queued elements to put in one chunk in the stream
    */
   def fromQueueWithShutdown[O](
-    queue: => ZQueue[Nothing, O],
+    queue: => Dequeue[O],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, Nothing, O] =
     fromQueue(queue, maxChunkSize).ensuring(queue.shutdown)
@@ -5694,7 +5694,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                    case None =>
                      add.flatMap { case (idx, q) =>
                        (ref.update(_ + (k -> idx)) *>
-                         out.offer(Exit.succeed(k -> q.map(_.map(_._2))))).as(_ == idx)
+                         out.offer(Exit.succeed(k -> ???))).as(_ == idx)
                      }
                  }
                }
@@ -5803,10 +5803,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, B]` from a `ZQueue[A, Chunk[B]]`.
      */
-    implicit def ChunkQueueConstructor[A, B]: WithOut[ZQueue[A, Chunk[B]], ZStream[Any, Nothing, B]] =
-      new ZStreamConstructor[ZQueue[A, Chunk[B]]] {
-        type Out = ZStream[Any, Nothing, B]
-        def make(input: => ZQueue[A, Chunk[B]])(implicit trace: ZTraceElement): ZStream[Any, Nothing, B] =
+    implicit def ChunkQueueConstructor[A]: WithOut[Queue[Chunk[A]], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Queue[Chunk[A]]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Queue[Chunk[A]])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
           ZStream.fromChunkQueue(input)
       }
 
@@ -5965,10 +5965,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, B]` from a `ZQueue[A, B]`.
      */
-    implicit def QueueConstructor[A, B]: WithOut[ZQueue[A, B], ZStream[Any, Nothing, B]] =
-      new ZStreamConstructor[ZQueue[A, B]] {
-        type Out = ZStream[Any, Nothing, B]
-        def make(input: => ZQueue[A, B])(implicit trace: ZTraceElement): ZStream[Any, Nothing, B] =
+    implicit def QueueConstructor[A]: WithOut[Queue[A], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Queue[A]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Queue[A])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
           ZStream.fromQueue(input)
       }
 

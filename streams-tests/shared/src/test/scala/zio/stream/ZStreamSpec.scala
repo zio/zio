@@ -250,7 +250,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
               for {
                 fib <- ZStream
-                         .fromQueue(c.queue.map(Take(_)))
+                         .fromQueue(c.queue)
+                         .map(Take(_))
                          .tap(_ => c.proceed)
                          .flattenTake
                          .aggregateAsyncWithin(ZSink.last[Int], Schedule.fixed(200.millis))
@@ -4490,10 +4491,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("ChunkQueue") {
             trait A
-            trait B
-            lazy val chunkQueue: ZQueue[A, Chunk[B]]    = ???
+            lazy val chunkQueue: Queue[Chunk[A]]        = ???
             lazy val actual                             = ZStream.from(chunkQueue)
-            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
             assertCompletes
           },
@@ -4573,10 +4573,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("Queue") {
             trait A
-            trait B
-            lazy val queue: ZQueue[A, B]                = ???
+            lazy val queue: Queue[A]                    = ???
             lazy val actual                             = ZStream.from(queue)
-            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
             assertCompletes
           },

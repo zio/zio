@@ -545,7 +545,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         test("should enqueue all elements") {
 
           for {
-            queue          <- ZQueue.unbounded[Int]
+            queue          <- Queue.unbounded[Int]
             _              <- ZStream(1, 2, 3).run(ZSink.fromQueue(queue))
             enqueuedValues <- queue.takeAll
           } yield {
@@ -587,7 +587,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
 
           for {
-            queue          <- ZQueue.unbounded[Int].map(createQueueSpy)
+            queue          <- Queue.unbounded[Int].map(createQueueSpy)
             _              <- ZStream(1, 2, 3).run(ZSink.fromQueueWithShutdown(queue))
             enqueuedValues <- queue.takeAll
             isShutdown     <- queue.isShutdown

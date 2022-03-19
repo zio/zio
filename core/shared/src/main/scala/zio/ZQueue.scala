@@ -29,137 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * may utilize an environment of type `RB` and may fail with errors of type
  * `EB`.
  */
-abstract class ZQueue[-A, +B] extends Serializable { self =>
-
-  /**
-   * Waits until the queue is shutdown. The `IO` returned by this method will
-   * not resume until the queue has been shutdown. If the queue is already
-   * shutdown, the `IO` will resume right away.
-   */
-  def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]
-
-  /**
-   * How many elements can hold in the queue
-   */
-  def capacity: Int
-
-  /**
-   * `true` if `shutdown` has been called.
-   */
-  def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]
-
-  /**
-   * Places one value in the queue.
-   */
-  def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean]
-
-  /**
-   * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
-   * the queue and always returns true. If the queue has reached capacity, then
-   * the fiber performing the `offerAll` will be suspended until there is room
-   * in the queue.
-   *
-   * For Unbounded Queue: Places all values in the queue and returns true.
-   *
-   * For Sliding Queue: uses `Sliding` Strategy If there is room in the queue,
-   * it places the values otherwise it removes the old elements and enqueues the
-   * new ones. Always returns true.
-   *
-   * For Dropping Queue: uses `Dropping` Strategy, It places the values in the
-   * queue but if there is no room it will not enqueue them and return false.
-   */
-  def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean]
-
-  /**
-   * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
-   * to `offer*` and `take*` will be interrupted immediately.
-   */
-  def shutdown(implicit trace: ZTraceElement): UIO[Unit]
-
-  /**
-   * Retrieves the size of the queue, which is equal to the number of elements
-   * in the queue. This may be negative if fibers are suspended waiting for
-   * elements to be added to the queue.
-   */
-  def size(implicit trace: ZTraceElement): UIO[Int]
-
-  /**
-   * Removes the oldest value in the queue. If the queue is empty, this will
-   * return a computation that resumes when an item has been added to the queue.
-   */
-  def take(implicit trace: ZTraceElement): UIO[B]
-
-  /**
-   * Removes all the values in the queue and returns the values. If the queue is
-   * empty returns an empty collection.
-   */
-  def takeAll(implicit trace: ZTraceElement): UIO[Chunk[B]]
-
-  /**
-   * Takes up to max number of values in the queue.
-   */
-  def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[B]]
-
-  /**
-   * Takes a number of elements from the queue between the specified minimum and
-   * maximum. If there are fewer than the minimum number of elements available,
-   * suspends until at least the minimum number of elements have been collected.
-   */
-  final def takeBetween(min: Int, max: Int)(implicit trace: ZTraceElement): UIO[Chunk[B]] =
-    ZIO.suspendSucceed {
-
-      def takeRemainder(min: Int, max: Int, acc: Chunk[B]): UIO[Chunk[B]] =
-        if (max < min) ZIO.succeedNow(acc)
-        else
-          takeUpTo(max).flatMap { bs =>
-            val remaining = min - bs.length
-            if (remaining == 1)
-              take.map(b => acc ++ bs :+ b)
-            else if (remaining > 1) {
-              take.flatMap { b =>
-                takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs :+ b)
-
-              }
-            } else
-              ZIO.succeedNow(acc ++ bs)
-          }
-
-      takeRemainder(min, max, Chunk.empty)
-    }
-
-  /**
-   * Takes the specified number of elements from the queue. If there are fewer
-   * than the specified number of elements available, it suspends until they
-   * become available.
-   */
-  final def takeN(n: Int)(implicit trace: ZTraceElement): UIO[Chunk[B]] =
-    takeBetween(n, n)
-
-  /**
-   * Transforms elements enqueued into this queue with a pure function.
-   */
-  final def contramap[C](f: C => A): ZQueue[C, B] =
-    ???
-
-  /**
-   * Transforms elements enqueued into and dequeued from this queue with the
-   * specified pure functions.
-   */
-  final def dimap[C, D](f: C => A, g: B => D): ZQueue[C, D] =
-    ???
-
-  /**
-   * Applies a filter to elements enqueued into this queue. Elements that do not
-   * pass the filter will be immediately dropped.
-   */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZQueue[A1, B] =
-    ???
-
-  /**
-   * Filters elements dequeued from the queue using the specified predicate.
-   */
-  final def filterOutput(f: B => Boolean): ZQueue[A, B] =
-    ???
+abstract class Queue[A] extends Dequeue[A] with Enqueue[A] { self =>
 
   /**
    * Checks whether the queue is currently empty.
@@ -172,21 +42,9 @@ abstract class ZQueue[-A, +B] extends Serializable { self =>
    */
   final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
     self.size.map(_ == capacity)
-
-  /**
-   * Transforms elements dequeued from this queue with a function.
-   */
-  final def map[C](f: B => C): ZQueue[A, C] =
-    ???
-
-  /**
-   * Take the head option of values in the queue.
-   */
-  final def poll(implicit trace: ZTraceElement): UIO[Option[B]] =
-    takeUpTo(1).map(_.headOption)
 }
 
-object ZQueue {
+object Queue {
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any
