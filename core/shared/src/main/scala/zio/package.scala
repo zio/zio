@@ -67,6 +67,7 @@ package object zio
 
   @deprecated("use Ref.Synchronized", "2.0.0")
   type RefM[A] = Ref.Synchronized[A]
+  val RefM: Ref.Synchronized.type = Ref.Synchronized
 
   type Hub[A] = ZHub[A, A]
   val Hub: ZHub.type = ZHub

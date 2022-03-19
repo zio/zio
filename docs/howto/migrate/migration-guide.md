@@ -1303,31 +1303,29 @@ Here is list of other deprecated methods:
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
 
-## ZRef
+## Ref
 
-ZIO 2.x unifies `ZRef` and `ZRefM`. `ZRefM` becomes a subtype of `ZRef` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
+ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
 
 | ZIO 1.x | ZIO 2.x             |
 |---------|---------------------|
-| `ZRefM` | `ZRef.Synchronized` |
 | `RefM`  | `Ref.Synchronized`  |
-| `ERefM` | `ERef.Synchronized` |
 
-As the `ZRefM` is renamed to `ZRef.Synchronized`; now the `Synchronized` is a subtype of `ZRef`. This change allows a `ZRef.Synchronized` to be used anywhere a `Ref` is currently being used.
+As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subtype of `Ref`. This change allows a `Ref.Synchronized` to be used anywhere a `Ref` is currently being used.
 
-To perform the migration, after renaming these types to the newer ones (e.g. `ZRefM` renamed to `ZRef.Synchronized`) we should perform the following method renames:
+To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
 | ZIO 1.x                  | ZIO 2.x                                 |
 |--------------------------|-----------------------------------------|
-| `ZRefM#dequeueRef`       | `ZRef.Synchronized#SubscriptionRef`     |
-| `ZRefM#getAndUpdate`     | `ZRef.Synchronized#getAndUpdateZIO`     |
-| `ZRefM#getAndUpdateSome` | `ZRef.Synchronized#getAndUpdateSomeZIO` |
-| `ZRefM#modify`           | `ZRef.Synchronized#modifyZIO`           |
-| `ZRefM#modifySome`       | `ZRef.Synchronized#modifySomeZIO`       |
-| `ZRefM#update`           | `ZRef.Synchronized#updateZIO`           |
-| `ZRefM#updateAndGet`     | `ZRef.Synchronized#updateAndGetZIO`     |
-| `ZRefM#updateSome`       | `ZRef.Synchronized#updateSomeZIO`       |
-| `ZRefM#updateSomeAndGet` | `ZRef.Synchronized#updateSomeAndGetZIO` |
+| `RefM#dequeueRef`       | `Ref.Synchronized#SubscriptionRef`     |
+| `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
+| `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
+| `RefM#modify`           | `Ref.Synchronized#modifyZIO`           |
+| `RefM#modifySome`       | `Ref.Synchronized#modifySomeZIO`       |
+| `RefM#update`           | `Ref.Synchronized#updateZIO`           |
+| `RefM#updateAndGet`     | `Ref.Synchronized#updateAndGetZIO`     |
+| `RefM#updateSome`       | `Ref.Synchronized#updateSomeZIO`       |
+| `RefM#updateSomeAndGet` | `Ref.Synchronized#updateSomeAndGetZIO` |
 
 ## Semaphore and TSemaphore
 
@@ -1440,9 +1438,9 @@ By introducing smart constructors, we do not longer have the `testM` function to
 ZIO 1.x:
 
 ```scala
-suite("ZRef") {
+suite("Ref") {
   testM("updateAndGet") {
-    val result = ZRef.make(0).flatMap(_.updateAndGet(_ + 1))
+    val result = Ref.make(0).flatMap(_.updateAndGet(_ + 1))
     assertM(result)(Assertion.equalTo(1))
   }
 }
@@ -1455,9 +1453,9 @@ import zio.test._
 ```
 
 ```scala mdoc:silent:nest
-suite("ZRef") {
+suite("Ref") {
   test("updateAndGet") {
-    val result = ZRef.make(0).flatMap(_.updateAndGet(_ + 1))
+    val result = Ref.make(0).flatMap(_.updateAndGet(_ + 1))
     assertM(result)(Assertion.equalTo(1))
   }
 }

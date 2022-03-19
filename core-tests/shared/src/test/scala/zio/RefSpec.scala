@@ -3,9 +3,9 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object ZRefSpec extends ZIOBaseSpec {
+object RefSpec extends ZIOBaseSpec {
 
-  def spec = suite("ZRefSpec")(
+  def spec = suite("RefSpec")(
     suite("Atomic")(
       test("get") {
         for {
