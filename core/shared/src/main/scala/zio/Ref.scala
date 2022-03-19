@@ -21,13 +21,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A `Ref[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional description
- * of a mutable reference. The fundamental operations of a `Ref` are `set` and
- * `get`. `set` takes a value of type `A` and sets the reference to a new value,
- * requiring an environment of type `RA` and potentially failing with an error
- * of type `EA`. `get` gets the current value of the reference and returns a
- * value of type `B`, requiring an environment of type `RB` and potentially
- * failing with an error of type `EB`.
+ * A `Ref` is a purely functional description of a mutable reference. The
+ * fundamental operations of a `Ref` are `set` and `get`. `set` sets the
+ * reference to a new value. `get` gets the current value of the reference.
  *
  * By default, `Ref` is implemented in terms of compare and swap operations for
  * maximum performance and does not support performing effects within update
@@ -36,11 +32,6 @@ import java.util.concurrent.atomic.AtomicReference
  * performing effects within update operations at some cost to performance. In
  * this case writes will semantically block other writers, while multiple
  * readers can read simultaneously.
- *
- * `Ref.Synchronized` also supports composing multiple `ZRRefef.Synchronized`
- * values together to form a single `Ref.Synchronized` value that can be
- * atomically updated using the `zip` operator. In this case reads and writes
- * will semantically block other readers and writers.
  *
  * NOTE: While `Ref` provides the functional equivalent of a mutable reference,
  * the value inside the `Ref` should normally be immutable since compare and
@@ -56,6 +47,13 @@ abstract class Ref[A] extends Serializable { self =>
   def get(implicit trace: ZTraceElement): UIO[A]
 
   /**
+   * Atomically modifies the `Ref` with the specified function, which computes a
+   * return value for the modification. This is a more powerful version of
+   * `update`.
+   */
+  def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B]
+
+  /**
    * Writes a new value to the `Ref`, with a guarantee of immediate consistency
    * (at some cost to performance).
    */
@@ -66,13 +64,6 @@ abstract class Ref[A] extends Serializable { self =>
    * consistency.
    */
   def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit]
-
-  /**
-   * Atomically modifies the `Ref` with the specified function, which computes a
-   * return value for the modification. This is a more powerful version of
-   * `update`.
-   */
-  def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B]
 
   /**
    * Atomically writes the specified value to the `Ref`, returning the value
@@ -158,28 +149,15 @@ object Ref extends Serializable {
     Atomic(new AtomicReference(a))
 
   /**
-   * A `Ref.Synchronized[RA, RB, EA, EB, A, B]` is a polymorphic, purely
-   * functional description of a mutable reference. The fundamental operations
-   * of a `Ref.Synchronized` are `set` and `get`. `set` takes a value of type
-   * `A` and sets the reference to a new value, requiring an environment of type
-   * `RA` and potentially failing with an error of type `EA`. `get` gets the
-   * current value of the reference and returns a value of type `B`, requiring
-   * an environment of type `RB` and potentially failing with an error of type
-   * `EB`.
-   *
-   * When the error and value types of the `Ref.Synchronized` are unified, that
-   * is, it is a `Ref.Synchronized[R, R, E, E, A, A]`, the `Ref.Synchronized`
-   * also supports atomic `modify` and `update` operations.
+   * A `Ref.Synchronized` is a purely functional description of a mutable
+   * reference. The fundamental operations of a `Ref.Synchronized` are `set` and
+   * `get`. `set` sets the reference to a new value. `get` gets the current
+   * value of the reference.
    *
    * Unlike an ordinary `Ref`, a `Ref.Synchronized` allows performing effects
    * within update operations, at some cost to performance. Writes will
    * semantically block other writers, while multiple readers can read
    * simultaneously.
-   *
-   * `Ref.Synchronized` also supports composing multiple `Ref.Synchronized`
-   * values together to form a single `Ref.Synchronized` value that can be
-   * atomically updated using the `zip` operator. In this case reads and writes
-   * will semantically block other readers and writers.
    */
   abstract class Synchronized[A] extends Ref[A] { self =>
 
@@ -363,12 +341,10 @@ object Ref extends Serializable {
         def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: ZTraceElement): ZIO[R, E, B] =
           semaphore.withPermit(get.flatMap(f).flatMap { case (b, a) => set(a).as(b) })
         def set(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ref.set(a)
+          semaphore.withPermit(ref.set(a))
         def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
-          ref.setAsync(a)
+          semaphore.withPermit(ref.setAsync(a))
       }
-
-    implicit class UnifiedSyntax[A](private val self: Synchronized[A]) extends AnyVal {}
   }
 
   private[zio] final case class Atomic[A](value: AtomicReference[A]) extends Ref[A] {

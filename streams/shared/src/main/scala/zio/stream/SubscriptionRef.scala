@@ -26,9 +26,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait SubscriptionRef[A] extends Ref.Synchronized[A] {
 
   /**
-    * A stream containing the current value of the `Ref` as well as all changes
-    * to that value.
-    */
+   * A stream containing the current value of the `Ref` as well as all changes
+   * to that value.
+   */
   def changes: ZStream[Any, Nothing, A]
 }
 
