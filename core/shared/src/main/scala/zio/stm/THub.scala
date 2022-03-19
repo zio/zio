@@ -39,13 +39,13 @@ sealed abstract class THub[A] extends TEnqueue[A] { self =>
    * Publishes a message to the hub, returning whether the message was published
    * to the hub.
    */
-  def publish(a: A): ZSTM[Any, Nothing, Boolean]
+  def publish(a: A): USTM[Boolean]
 
   /**
    * Publishes all of the specified messages to the hub, returning whether they
    * were published to the hub.
    */
-  def publishAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean]
+  def publishAll(as: Iterable[A]): USTM[Boolean]
 
   /**
    * Shuts down the hub.
@@ -65,17 +65,17 @@ sealed abstract class THub[A] extends TEnqueue[A] { self =>
    */
   def subscribe: USTM[TDequeue[A]]
 
-  def offer(a: A): ZSTM[Any, Nothing, Boolean] =
-    publish(a)
-
-  def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean] =
-    offerAll(as)
-
   /**
    * Waits for the hub to be shut down.
    */
   final def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
+
+  final def offer(a: A): USTM[Boolean] =
+    publish(a)
+
+  final def offerAll(as: Iterable[A]): USTM[Boolean] =
+    offerAll(as)
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
@@ -84,35 +84,6 @@ sealed abstract class THub[A] extends TEnqueue[A] { self =>
    */
   final def subscribeScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, TDequeue[A]] =
     ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit)
-
-  /**
-   * Views the hub as a transactional queue that can only be written to.
-   */
-  final def toTQueue: TEnqueue[A] =
-    new TEnqueue[A] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def offer(a: A): ZSTM[Any, Nothing, Boolean] =
-        self.publish(a)
-      def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean] =
-        self.publishAll(as)
-      def peek: ZSTM[Any, Nothing, Any] =
-        ZSTM.unit
-      def peekOption: ZSTM[Any, Nothing, Option[Any]] =
-        ZSTM.succeedNow(None)
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def take: ZSTM[Any, Nothing, Any] =
-        ZSTM.unit
-      def takeAll: ZSTM[Any, Nothing, Chunk[Any]] =
-        ZSTM.succeedNow(Chunk.empty)
-      def takeUpTo(n: Int): ZSTM[Any, Nothing, Chunk[Any]] =
-        ZSTM.succeedNow(Chunk.empty)
-    }
 }
 
 object THub {

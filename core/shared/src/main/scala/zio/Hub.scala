@@ -60,12 +60,6 @@ sealed abstract class Hub[A] extends Enqueue[A] { self =>
    */
   def shutdown(implicit trace: ZTraceElement): UIO[Unit]
 
-  final def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
-    publish(a)
-
-  final def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
-    publishAll(as)
-
   /**
    * The current number of messages in the hub.
    */
@@ -89,6 +83,12 @@ sealed abstract class Hub[A] extends Enqueue[A] { self =>
    */
   final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
     self.size.map(_ == capacity)
+
+  final def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
+    publish(a)
+
+  final def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
+    publishAll(as)
 }
 
 object Hub {
