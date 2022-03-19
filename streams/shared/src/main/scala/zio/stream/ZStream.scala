@@ -5791,7 +5791,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   object ZStreamConstructor extends ZStreamConstructorPlatformSpecific {
 
     /**
-     * Constructs a `ZStream[RB, EB, B]` from a `ZHub[A, Chunk[B]]`.
+     * Constructs a `ZStream[RB, EB, B]` from a `Hub[Chunk[B]]`.
      */
     implicit def ChunkHubConstructor[A]: WithOut[Hub[Chunk[A]], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Hub[Chunk[A]]] {
@@ -5801,7 +5801,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Nothing, B]` from a `ZQueue[A, Chunk[B]]`.
+     * Constructs a `ZStream[Any, Nothing, A]` from a Queue[Chunk[A]]`.
      */
     implicit def ChunkQueueConstructor[A]: WithOut[Queue[Chunk[A]], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Queue[Chunk[A]]] {
@@ -5942,7 +5942,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Nothing, B]` from a `ZHub[A, B]`.
+     * Constructs a `ZStream[Any, Nothing, B]` from a `Hub[B]`.
      */
     implicit def HubConstructor[A]: WithOut[Hub[A], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Hub[A]] {
@@ -5963,7 +5963,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Nothing, B]` from a `ZQueue[A, B]`.
+     * Constructs a `ZStream[Any, Nothing, A]` from a `Queue[A]`.
      */
     implicit def QueueConstructor[A]: WithOut[Queue[A], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Queue[A]] {

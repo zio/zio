@@ -6,11 +6,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
- * A `ZTQueue[RA, RB, EA, EB, A, B]` is a transactional queue. Offerors can
- * offer values of type `A` to the queue and takers can take values of type `B`
- * from the queue. Offering values can require an environment of type `RA` and
- * fail with an error of type `EA`. Taking values can require an environment of
- * type `RB` and fail with an error of type `EB`.
+ * A `TQueue` is a transactional queue. Offerors can offer values to the queue
+ * and takers can take values from the queue.
  */
 trait TQueue[A] extends TDequeue[A] with TEnqueue[A] { self =>
 

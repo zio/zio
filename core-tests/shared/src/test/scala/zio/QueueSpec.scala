@@ -1,16 +1,16 @@
 package zio
 
-import zio.ZQueueSpecUtil._
+import zio.QueueSpecUtil._
 import zio.test.Assertion._
 import zio.test.TestAspect.{jvm, nonFlaky}
 import zio.test._
 
 import scala.collection.immutable.Range
 
-object ZQueueSpec extends ZIOBaseSpec {
+object QueueSpec extends ZIOBaseSpec {
   import ZIOTag._
 
-  def spec = suite("ZQueueSpec")(
+  def spec = suite("QueueSpec")(
     test("sequential offer and take") {
       for {
         queue <- Queue.bounded[Int](100)
@@ -771,7 +771,7 @@ object ZQueueSpec extends ZIOBaseSpec {
   )
 }
 
-object ZQueueSpecUtil {
+object QueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
     Live.live((ref <* Clock.sleep(10.millis)).repeatUntil(_ == value))
 

@@ -110,7 +110,7 @@ module.exports = {
                 "datatypes/stm/tqueue",
                 "datatypes/stm/treentrantlock",
                 "datatypes/stm/tsemaphore",
-                "datatypes/stm/zthub",
+                "datatypes/stm/thub",
             ]
         },
     ],

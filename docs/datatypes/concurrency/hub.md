@@ -290,7 +290,7 @@ object ZSink {
 
 The sink will publish each value sent to the sink to the specified hub. Again there is a `fromHubWithShutdown` variant that will shut down the hub when the stream ends.
 
-Finally, `ZHub` is used internally to provide a highly efficient implementation of the `broadcast` family of operators, including `broadcast` and `broadcastDynamic`.
+Finally, `Hub` is used internally to provide a highly efficient implementation of the `broadcast` family of operators, including `broadcast` and `broadcastDynamic`.
 
 ```scala mdoc:nest
 trait ZStream[-R, +E, +O] {
@@ -306,6 +306,6 @@ trait ZStream[-R, +E, +O] {
 
 The `broadcast` operator generates the specified number of new streams and broadcasts each value from the original stream to each of the new streams. The `broadcastDynamic` operator returns a new `ZIO` value that you can use to dynamically subscribe and unsubscribe to receive values broadcast from the original stream.
 
-You don't have to do anything with `ZHub` to take advantage of these operators other than enjoy their optimized implementation in terms of `ZHub`.
+You don't have to do anything with `Hub` to take advantage of these operators other than enjoy their optimized implementation in terms of `Hub`.
 
 With `broadcast` and other `ZStream` operators that model distributing values to different streams and combining values from different streams it is straightforward to build complex data flow graphs, all while being as performant as possible.

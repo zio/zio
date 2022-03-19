@@ -20,11 +20,8 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `ZTHub[RA, RB, EA, EB, A, B]` is a transactional message hub. Publishers
- * can publish messages of type `A` to the hub and subscribers can subscribe to
- * take messages of type `B` from the hub. Publishing messages can require an
- * environment of type `RA` and fail with an error of type `EA`. Taking messages
- * can require an environment of type `RB` and fail with an error of type `EB`.
+ * A `THub` is a transactional message hub. Publishers can publish messages to
+ * the hub and subscribers can subscribe to take messages from the hub.
  */
 sealed abstract class THub[A] extends TEnqueue[A] { self =>
 

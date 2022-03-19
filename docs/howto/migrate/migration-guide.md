@@ -1371,9 +1371,9 @@ Also, there is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, in
 | ZIO 1.x      | `STM[E, B]`    | `STM[E, B]`    |
 | ZIO 2.x      | `ZIO[R, E, A]` | `ZIO[R, E, A]` |
 
-## ZQueue
+## Queue
 
-In ZIO 2.x, the `ZQueue` uses `Chunk` consistently with other ZIO APIs like ZIO Streams. This will avoid unnecessary conversions between collection types, particularly for streaming applications where streams use `Chunk` internally, but bulk take operations previously returned a `List` on `ZQueue`.
+In ZIO 2.x, the `Queue` uses `Chunk` consistently with other ZIO APIs like ZIO Streams. This will avoid unnecessary conversions between collection types, particularly for streaming applications where streams use `Chunk` internally, but bulk take operations previously returned a `List` on `Queue`.
 
 Here is a list of affected APIs: `takeAll`, `takeUpTo`, `takeBetween`, `takeN`, `unsafePollAll`, `unsafePollN`, and `unsafeOfferAll`. Let's see an example:
 
@@ -1749,11 +1749,11 @@ object ZStateExample extends zio.ZIOAppDefault {
 }
 ```
 
-### ZHub
+### Hub
 
-`ZHub` is a new concurrent data structure like `ZQueue`. While `ZQueue` solves the problem of _distributing_ messages to multiple consumers, the `ZHub` solves the problem of _broadcasting_ the same message to multiple consumers.
+`Hub` is a new concurrent data structure like `Queue`. While `Queue` solves the problem of _distributing_ messages to multiple consumers, the `Hub` solves the problem of _broadcasting_ the same message to multiple consumers.
 
-![ZHub](/img/assets/zhub.svg)
+![Hub](/img/assets/hub.svg)
 
 Here is an example of broadcasting messages to multiple subscribers:
 

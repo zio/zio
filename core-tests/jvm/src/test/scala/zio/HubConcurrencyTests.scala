@@ -3,7 +3,7 @@ package zio
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.infra.results.IIII_Result
 
-object ZHubConcurrencyTests {
+object HubConcurrencyTests {
 
   val runtime = Runtime.default
   /*

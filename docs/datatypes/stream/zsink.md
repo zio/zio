@@ -349,7 +349,7 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
 
 ### From Hub
 
-`Hub` is an asynchronous data type in which publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `ZHub` and returns a `ZSink` which publishes each element to that `ZHub`.
+`Hub` is an asynchronous data type in which publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `Hub` and returns a `ZSink` which publishes each element to that `Hub`.
 
 In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
 

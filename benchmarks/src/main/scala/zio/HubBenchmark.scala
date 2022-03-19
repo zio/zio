@@ -156,7 +156,7 @@ class HubBenchmarks {
   object ZIOHubLike {
 
     def zioHubBounded[A](capacity: Int): UIO[ZIOHubLike[A]] =
-      ZHub.bounded[A](capacity).map { hub =>
+      Hub.bounded[A](capacity).map { hub =>
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             hub.publish(a)
@@ -166,7 +166,7 @@ class HubBenchmarks {
       }
 
     def zioHubUnbounded[A]: UIO[ZIOHubLike[A]] =
-      ZHub.unbounded[A].map { hub =>
+      Hub.unbounded[A].map { hub =>
         new ZIOHubLike[A] {
           def publish(a: A): UIO[Any] =
             hub.publish(a)
