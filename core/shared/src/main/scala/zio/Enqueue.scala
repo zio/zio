@@ -72,4 +72,16 @@ trait Enqueue[-A] extends Serializable {
    * elements to be added to the queue.
    */
   def size(implicit trace: ZTraceElement): UIO[Int]
+
+  /**
+   * Checks whether the queue is currently empty.
+   */
+  def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    size.map(_ == 0)
+
+  /**
+   * Checks whether the queue is currently full.
+   */
+  def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    size.map(_ == capacity)
 }

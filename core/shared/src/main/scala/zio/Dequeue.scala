@@ -69,6 +69,18 @@ trait Dequeue[+A] extends Serializable {
   def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[A]]
 
   /**
+   * Checks whether the queue is currently empty.
+   */
+  def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    size.map(_ == 0)
+
+  /**
+   * Checks whether the queue is currently full.
+   */
+  def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    size.map(_ == capacity)
+
+  /**
    * Takes a number of elements from the queue between the specified minimum and
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.

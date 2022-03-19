@@ -30,13 +30,13 @@ abstract class Queue[A] extends Dequeue[A] with Enqueue[A] { self =>
   /**
    * Checks whether the queue is currently empty.
    */
-  final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+  override final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
     self.size.map(_ == 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+  override final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
     self.size.map(_ == capacity)
 }
 

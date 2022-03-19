@@ -23,17 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `THub` is a transactional message hub. Publishers can publish messages to
  * the hub and subscribers can subscribe to take messages from the hub.
  */
-sealed abstract class THub[A] extends TEnqueue[A] { self =>
-
-  /**
-   * The maximum capacity of the hub.
-   */
-  def capacity: Int
-
-  /**
-   * Checks whether the hub is shut down.
-   */
-  def isShutdown: USTM[Boolean]
+abstract class THub[A] extends TEnqueue[A] { self =>
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -48,16 +38,6 @@ sealed abstract class THub[A] extends TEnqueue[A] { self =>
   def publishAll(as: Iterable[A]): USTM[Boolean]
 
   /**
-   * Shuts down the hub.
-   */
-  def shutdown: USTM[Unit]
-
-  /**
-   * The current number of messages in the hub.
-   */
-  def size: USTM[Int]
-
-  /**
    * Subscribes to receive messages from the hub. The resulting subscription can
    * be evaluated multiple times to take a message from the hub each time. The
    * caller is responsible for unsubscribing from the hub by shutting down the
@@ -65,11 +45,20 @@ sealed abstract class THub[A] extends TEnqueue[A] { self =>
    */
   def subscribe: USTM[TDequeue[A]]
 
-  /**
-   * Waits for the hub to be shut down.
-   */
-  final def awaitShutdown: USTM[Unit] =
+  override final def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
+
+  /**
+   * Checks if the queue is empty.
+   */
+  override final def isEmpty: USTM[Boolean] =
+    size.map(_ == 0)
+
+  /**
+   * Checks if the queue is at capacity.
+   */
+  override final def isFull: USTM[Boolean] =
+    size.map(_ == capacity)
 
   final def offer(a: A): USTM[Boolean] =
     publish(a)

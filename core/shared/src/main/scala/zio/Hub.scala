@@ -26,22 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
  */
-sealed abstract class Hub[A] extends Enqueue[A] { self =>
-
-  /**
-   * Waits for the hub to be shut down.
-   */
-  def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]
-
-  /**
-   * The maximum capacity of the hub.
-   */
-  def capacity: Int
-
-  /**
-   * Checks whether the hub is shut down.
-   */
-  def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]
+abstract class Hub[A] extends Enqueue[A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -56,33 +41,17 @@ sealed abstract class Hub[A] extends Enqueue[A] { self =>
   def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
-   * Shuts down the hub.
-   */
-  def shutdown(implicit trace: ZTraceElement): UIO[Unit]
-
-  /**
-   * The current number of messages in the hub.
-   */
-  def size(implicit trace: ZTraceElement): UIO[Int]
-
-  /**
    * Subscribes to receive messages from the hub. The resulting subscription can
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
   def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]]
 
-  /**
-   * Checks whether the hub is currently empty.
-   */
-  final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
-    self.size.map(_ == 0)
+  override final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+    size.map(_ == 0)
 
-  /**
-   * Checks whether the hub is currently full.
-   */
-  final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
-    self.size.map(_ == capacity)
+  override final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+    size.map(_ == capacity)
 
   final def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
     publish(a)
