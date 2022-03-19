@@ -17,7 +17,7 @@
 package zio.internal
 
 import zio.Fiber.Status
-import zio.ZFiberRef.{currentEnvironment, currentExecutor, forkScopeOverride}
+import zio.FiberRef.{currentEnvironment, currentExecutor, forkScopeOverride}
 import zio.ZIO.{FlatMap, TracedCont}
 import zio._
 import zio.internal.FiberContext.FiberRefLocals

@@ -25,7 +25,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * value as well as all changes to the value.
  */
 final class SubscriptionRef[A] private (
-  val ref: ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A],
+  val ref: Ref.Synchronized[A],
   val changes: ZStream[Any, Nothing, A]
 )
 

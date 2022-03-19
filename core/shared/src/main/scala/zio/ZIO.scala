@@ -1501,7 +1501,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): IO[E, A] =
-    ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -3686,7 +3686,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the whole environment of the effect.
    */
   def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
-    ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
+    ZIO.suspendSucceed(FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
    * Accesses the environment of the effect.
@@ -4636,7 +4636,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the log annotations associated with the current scope.
    */
   def logAnnotations(implicit trace: ZTraceElement): UIO[Map[String, String]] =
-    ZFiberRef.currentLogAnnotations.get
+    FiberRef.currentLogAnnotations.get
 
   /**
    * Logs the specified message at the debug log level.
@@ -5891,7 +5891,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
       ZIO.suspendSucceed {
-        ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
+        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }
     }
   }
@@ -6466,7 +6466,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefGetAll[R, E, A](
-    val make: Map[ZFiberRef.Runtime[_], Any] => ZIO[R, E, A],
+    val make: Map[FiberRef.Runtime[_], Any] => ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =

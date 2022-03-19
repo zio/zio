@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * environment of type `RA` and fail with an error of type `EA`. Taking messages
  * can require an environment of type `RB` and fail with an error of type `EB`.
  */
-sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZHub[-A, +B] extends Serializable { self =>
 
   /**
    * Waits for the hub to be shut down.
@@ -50,13 +50,13 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * Publishes a message to the hub, returning whether the message was published
    * to the hub.
    */
-  def publish(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
+  def publish(a: A)(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
    * Publishes all of the specified messages to the hub, returning whether they
    * were published to the hub.
    */
-  def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean]
+  def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean]
 
   /**
    * Shuts down the hub.
@@ -73,155 +73,7 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB, EB, B]]
-
-  /**
-   * Transforms messages published to the hub using the specified function.
-   */
-  final def contramap[C](f: C => A): ZHub[RA, RB, EA, EB, C, B] =
-    contramapZIO(c => ZIO.succeedNow(f(c)))
-
-  /**
-   * Transforms messages published to the hub using the specified effectual
-   * function.
-   */
-  @deprecated("use contramapZIO", "2.0.0")
-  final def contramapM[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZHub[RC, RB, EC, EB, C, B] =
-    contramapZIO(f)
-
-  /**
-   * Transforms messages published to the hub using the specified effectual
-   * function.
-   */
-  final def contramapZIO[RC <: RA, EC >: EA, C](f: C => ZIO[RC, EC, A]): ZHub[RC, RB, EC, EB, C, B] =
-    dimapZIO(f, ZIO.succeedNow)
-
-  /**
-   * Transforms messages published to and taken from the hub using the specified
-   * functions.
-   */
-  final def dimap[C, D](f: C => A, g: B => D): ZHub[RA, RB, EA, EB, C, D] =
-    dimapZIO(c => ZIO.succeedNow(f(c)), b => ZIO.succeedNow(g(b)))
-
-  /**
-   * Transforms messages published to and taken from the hub using the specified
-   * effectual functions.
-   */
-  @deprecated("use dimapZIO", "2.0.0")
-  final def dimapM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
-    f: C => ZIO[RC, EC, A],
-    g: B => ZIO[RD, ED, D]
-  ): ZHub[RC, RD, EC, ED, C, D] =
-    dimapZIO(f, g)
-
-  /**
-   * Transforms messages published to and taken from the hub using the specified
-   * effectual functions.
-   */
-  final def dimapZIO[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
-    f: C => ZIO[RC, EC, A],
-    g: B => ZIO[RD, ED, D]
-  ): ZHub[RC, RD, EC, ED, C, D] =
-    new ZHub[RC, RD, EC, ED, C, D] {
-      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.awaitShutdown
-      def capacity: Int =
-        self.capacity
-      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
-        self.isShutdown
-      def publish(c: C)(implicit trace: ZTraceElement): ZIO[RC, EC, Boolean] =
-        f(c).flatMap(self.publish)
-      def publishAll(cs: Iterable[C])(implicit trace: ZTraceElement): ZIO[RC, EC, Boolean] =
-        ZIO.foreach(cs)(f).flatMap(self.publishAll)
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.shutdown
-      def size(implicit trace: ZTraceElement): UIO[Int] =
-        self.size
-      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RD, ED, D]] =
-        self.subscribe.map(_.mapZIO(g))
-    }
-
-  /**
-   * Filters messages published to the hub using the specified function.
-   */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZHub[RA, RB, EA, EB, A1, B] =
-    filterInputZIO(a => ZIO.succeedNow(f(a)))
-
-  /**
-   * Filters messages published to the hub using the specified effectual
-   * function.
-   */
-  @deprecated("use filterInputZIO", "2.0.0")
-  final def filterInputM[RA1 <: RA, EA1 >: EA, A1 <: A](
-    f: A1 => ZIO[RA1, EA1, Boolean]
-  ): ZHub[RA1, RB, EA1, EB, A1, B] =
-    filterInputZIO(f)
-
-  /**
-   * Filters messages published to the hub using the specified effectual
-   * function.
-   */
-  final def filterInputZIO[RA1 <: RA, EA1 >: EA, A1 <: A](
-    f: A1 => ZIO[RA1, EA1, Boolean]
-  ): ZHub[RA1, RB, EA1, EB, A1, B] =
-    new ZHub[RA1, RB, EA1, EB, A1, B] {
-      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.awaitShutdown
-      def capacity: Int =
-        self.capacity
-      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
-        self.isShutdown
-      def publish(a: A1)(implicit trace: ZTraceElement): ZIO[RA1, EA1, Boolean] =
-        f(a).flatMap(b => if (b) self.publish(a) else ZIO.succeedNow(false))
-      def publishAll(as: Iterable[A1])(implicit trace: ZTraceElement): ZIO[RA1, EA1, Boolean] =
-        ZIO.filter(as)(f).flatMap(as => if (as.nonEmpty) self.publishAll(as) else ZIO.succeedNow(false))
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.shutdown
-      def size(implicit trace: ZTraceElement): UIO[Int] =
-        self.size
-      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB, EB, B]] =
-        self.subscribe
-    }
-
-  /**
-   * Filters messages taken from the hub using the specified function.
-   */
-  final def filterOutput(f: B => Boolean): ZHub[RA, RB, EA, EB, A, B] =
-    filterOutputZIO(b => ZIO.succeedNow(f(b)))
-
-  /**
-   * Filters messages taken from the hub using the specified effectual function.
-   */
-  @deprecated("use filterOutputZIO", "2.0.0")
-  final def filterOutputM[RB1 <: RB, EB1 >: EB](
-    f: B => ZIO[RB1, EB1, Boolean]
-  ): ZHub[RA, RB1, EA, EB1, A, B] =
-    filterOutputZIO(f)
-
-  /**
-   * Filters messages taken from the hub using the specified effectual function.
-   */
-  final def filterOutputZIO[RB1 <: RB, EB1 >: EB](
-    f: B => ZIO[RB1, EB1, Boolean]
-  ): ZHub[RA, RB1, EA, EB1, A, B] =
-    new ZHub[RA, RB1, EA, EB1, A, B] {
-      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.awaitShutdown
-      def capacity: Int =
-        self.capacity
-      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
-        self.isShutdown
-      def publish(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean] =
-        self.publish(a)
-      def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean] =
-        self.publishAll(as)
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.shutdown
-      def size(implicit trace: ZTraceElement): UIO[Int] =
-        self.size
-      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZDequeue[RB1, EB1, B]] =
-        self.subscribe.map(_.filterOutputZIO(f))
-    }
+  def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[B]]
 
   /**
    * Checks whether the hub is currently empty.
@@ -236,50 +88,29 @@ sealed abstract class ZHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { se
     self.size.map(_ == capacity)
 
   /**
-   * Transforms messages taken from the hub using the specified function.
-   */
-  final def map[C](f: B => C): ZHub[RA, RB, EA, EB, A, C] =
-    mapZIO(b => ZIO.succeedNow(f(b)))
-
-  /**
-   * Transforms messages taken from the hub using the specified effectual
-   * function.
-   */
-  @deprecated("use mapZIO", "2.0.0")
-  final def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C] =
-    mapZIO(f)
-
-  /**
-   * Transforms messages taken from the hub using the specified effectual
-   * function.
-   */
-  final def mapZIO[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C] =
-    dimapZIO(ZIO.succeedNow, f)
-
-  /**
    * Views the hub as a queue that can only be written to.
    */
-  final def toQueue: ZEnqueue[RA, EA, A] =
-    new ZEnqueue[RA, EA, A] {
+  final def toQueue: Enqueue[A] =
+    new Enqueue[A] {
       def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
         self.awaitShutdown
       def capacity: Int =
         self.capacity
       def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
         self.isShutdown
-      def offer(a: A)(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean] =
+      def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
         self.publish(a)
-      def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[RA, EA, Boolean] =
+      def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
         self.publishAll(as)
       def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
         self.shutdown
       def size(implicit trace: ZTraceElement): UIO[Int] =
         self.size
-      def take(implicit trace: ZTraceElement): ZIO[Nothing, Any, Any] =
+      def take(implicit trace: ZTraceElement): UIO[Any] =
         ZIO.unit
-      def takeAll(implicit trace: ZTraceElement): ZIO[Nothing, Any, Chunk[Any]] =
+      def takeAll(implicit trace: ZTraceElement): UIO[Chunk[Any]] =
         ZIO.succeedNow(Chunk.empty)
-      def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Nothing, Any, Chunk[Any]] =
+      def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[Any]] =
         ZIO.succeedNow(Chunk.empty)
     }
 }
@@ -438,9 +269,9 @@ object ZHub {
         hub.capacity
       def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
         ZIO.succeed(shutdownFlag.get)
-      def offer(a: Nothing)(implicit trace: ZTraceElement): ZIO[Nothing, Any, Boolean] =
+      def offer(a: Nothing)(implicit trace: ZTraceElement): UIO[Boolean] =
         ZIO.succeedNow(false)
-      def offerAll(as: Iterable[Nothing])(implicit trace: ZTraceElement): ZIO[Nothing, Any, Boolean] =
+      def offerAll(as: Iterable[Nothing])(implicit trace: ZTraceElement): UIO[Boolean] =
         ZIO.succeedNow(false)
       def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.suspendSucceedWith { (_, fiberId) =>

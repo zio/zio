@@ -26,7 +26,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * environment of type `RA` and fail with an error of type `EA`. Taking messages
  * can require an environment of type `RB` and fail with an error of type `EB`.
  */
-sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+sealed abstract class ZTHub[-A, +B] extends Serializable { self =>
 
   /**
    * The maximum capacity of the hub.
@@ -42,13 +42,13 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
    * Publishes a message to the hub, returning whether the message was published
    * to the hub.
    */
-  def publish(a: A): ZSTM[RA, EA, Boolean]
+  def publish(a: A): ZSTM[Any, Nothing, Boolean]
 
   /**
    * Publishes all of the specified messages to the hub, returning whether they
    * were published to the hub.
    */
-  def publishAll(as: Iterable[A]): ZSTM[RA, EA, Boolean]
+  def publishAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean]
 
   /**
    * Shuts down the hub.
@@ -66,7 +66,7 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
    * caller is responsible for unsubscribing from the hub by shutting down the
    * queue.
    */
-  def subscribe: USTM[ZTDequeue[RB, EB, B]]
+  def subscribe: USTM[TDequeue[B]]
 
   /**
    * Waits for the hub to be shut down.
@@ -77,155 +77,68 @@ sealed abstract class ZTHub[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { s
   /**
    * Transforms messages published to the hub using the specified function.
    */
-  final def contramap[C](f: C => A): ZTHub[RA, RB, EA, EB, C, B] =
-    contramapSTM(c => ZSTM.succeedNow(f(c)))
-
-  /**
-   * Transforms messages published to the hub using the specified transactional
-   * function.
-   */
-  final def contramapSTM[RC <: RA, EC >: EA, C](f: C => ZSTM[RC, EC, A]): ZTHub[RC, RB, EC, EB, C, B] =
-    dimapSTM(f, ZSTM.succeedNow)
+  final def contramap[C](f: C => A): ZTHub[C, B] =
+    ???
 
   /**
    * Transforms messages published to and taken from the hub using the specified
    * functions.
    */
-  final def dimap[C, D](f: C => A, g: B => D): ZTHub[RA, RB, EA, EB, C, D] =
-    dimapSTM(c => ZSTM.succeedNow(f(c)), b => ZSTM.succeedNow(g(b)))
-
-  /**
-   * Transforms messages published to and taken from the hub using the specified
-   * transactional functions.
-   */
-  final def dimapSTM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
-    f: C => ZSTM[RC, EC, A],
-    g: B => ZSTM[RD, ED, D]
-  ): ZTHub[RC, RD, EC, ED, C, D] =
-    new ZTHub[RC, RD, EC, ED, C, D] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def publish(c: C): ZSTM[RC, EC, Boolean] =
-        f(c).flatMap(self.publish)
-      def publishAll(cs: Iterable[C]): ZSTM[RC, EC, Boolean] =
-        ZSTM.foreach(cs)(f).flatMap(self.publishAll)
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def subscribe: USTM[ZTDequeue[RD, ED, D]] =
-        self.subscribe.map(_.mapSTM(g))
-    }
+  final def dimap[C, D](f: C => A, g: B => D): ZTHub[C, D] =
+    ???
 
   /**
    * Filters messages published to the hub using the specified function.
    */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZTHub[RA, RB, EA, EB, A1, B] =
-    filterInputSTM(a => ZSTM.succeedNow(f(a)))
-
-  /**
-   * Filters messages published to the hub using the specified transactional
-   * function.
-   */
-  final def filterInputSTM[RA1 <: RA, EA1 >: EA, A1 <: A](
-    f: A1 => ZSTM[RA1, EA1, Boolean]
-  ): ZTHub[RA1, RB, EA1, EB, A1, B] =
-    new ZTHub[RA1, RB, EA1, EB, A1, B] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def publish(a: A1): ZSTM[RA1, EA1, Boolean] =
-        f(a).flatMap(b => if (b) self.publish(a) else ZSTM.succeedNow(false))
-      def publishAll(as: Iterable[A1]): ZSTM[RA1, EA1, Boolean] =
-        ZSTM.filter(as)(f).flatMap(as => if (as.nonEmpty) self.publishAll(as) else ZSTM.succeedNow(false))
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def subscribe: USTM[ZTDequeue[RB, EB, B]] =
-        self.subscribe
-    }
+  final def filterInput[A1 <: A](f: A1 => Boolean): ZTHub[A1, B] =
+    ???
 
   /**
    * Filters messages taken from the hub using the specified function.
    */
-  final def filterOutput(f: B => Boolean): ZTHub[RA, RB, EA, EB, A, B] =
-    filterOutputSTM(b => ZSTM.succeedNow(f(b)))
-
-  /**
-   * Filters messages taken from the hub using the specified transactional
-   * function.
-   */
-  final def filterOutputSTM[RB1 <: RB, EB1 >: EB](
-    f: B => ZSTM[RB1, EB1, Boolean]
-  ): ZTHub[RA, RB1, EA, EB1, A, B] =
-    new ZTHub[RA, RB1, EA, EB1, A, B] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def publish(a: A): ZSTM[RA, EA, Boolean] =
-        self.publish(a)
-      def publishAll(as: Iterable[A]): ZSTM[RA, EA, Boolean] =
-        self.publishAll(as)
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def subscribe: USTM[ZTDequeue[RB1, EB1, B]] =
-        self.subscribe.map(_.filterOutputSTM(f))
-    }
+  final def filterOutput(f: B => Boolean): ZTHub[A, B] =
+    ???
 
   /**
    * Transforms messages taken from the hub using the specified function.
    */
-  final def map[C](f: B => C): ZTHub[RA, RB, EA, EB, A, C] =
-    mapSTM(b => ZSTM.succeedNow(f(b)))
-
-  /**
-   * Transforms messages taken from the hub using the specified transactional
-   * function.
-   */
-  final def mapSTM[RC <: RB, EC >: EB, C](f: B => ZSTM[RC, EC, C]): ZTHub[RA, RC, EA, EC, A, C] =
-    dimapSTM(ZSTM.succeedNow, f)
+  final def map[C](f: B => C): ZTHub[A, C] =
+    ???
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  final def subscribeScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZTDequeue[RB, EB, B]] =
+  final def subscribeScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, TDequeue[B]] =
     ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit)
 
   /**
    * Views the hub as a transactional queue that can only be written to.
    */
-  final def toTQueue: ZTEnqueue[RA, EA, A] =
-    new ZTEnqueue[RA, EA, A] {
+  final def toTQueue: TEnqueue[A] =
+    new TEnqueue[A] {
       def capacity: Int =
         self.capacity
       def isShutdown: USTM[Boolean] =
         self.isShutdown
-      def offer(a: A): ZSTM[RA, EA, Boolean] =
+      def offer(a: A): ZSTM[Any, Nothing, Boolean] =
         self.publish(a)
-      def offerAll(as: Iterable[A]): ZSTM[RA, EA, Boolean] =
+      def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean] =
         self.publishAll(as)
-      def peek: ZSTM[Nothing, Any, Any] =
+      def peek: ZSTM[Any, Nothing, Any] =
         ZSTM.unit
-      def peekOption: ZSTM[Nothing, Any, Option[Any]] =
+      def peekOption: ZSTM[Any, Nothing, Option[Any]] =
         ZSTM.succeedNow(None)
       def shutdown: USTM[Unit] =
         self.shutdown
       def size: USTM[Int] =
         self.size
-      def take: ZSTM[Nothing, Any, Any] =
+      def take: ZSTM[Any, Nothing, Any] =
         ZSTM.unit
-      def takeAll: ZSTM[Nothing, Any, Chunk[Any]] =
+      def takeAll: ZSTM[Any, Nothing, Chunk[Any]] =
         ZSTM.succeedNow(Chunk.empty)
-      def takeUpTo(n: Int): ZSTM[Nothing, Any, Chunk[Any]] =
+      def takeUpTo(n: Int): ZSTM[Any, Nothing, Chunk[Any]] =
         ZSTM.succeedNow(Chunk.empty)
     }
 }
@@ -313,7 +226,7 @@ object ZTHub {
             else {
               val currentHubSize = hubSize.unsafeGet(journal)
               if (currentHubSize < capacity) {
-                val updatedPublisherTail = ZTRef.unsafeMake[Node[A]](null)
+                val updatedPublisherTail = TRef.unsafeMake[Node[A]](null)
                 val updatedNode          = Node(a, currentSubscriberCount, updatedPublisherTail)
                 currentPublisherTail.unsafeSet(journal, updatedNode)
                 publisherTail.unsafeSet(journal, updatedPublisherTail)
@@ -343,7 +256,7 @@ object ZTHub {
                           }
                         }
                       }
-                      val updatedPublisherTail = ZTRef.unsafeMake[Node[A]](null)
+                      val updatedPublisherTail = TRef.unsafeMake[Node[A]](null)
                       val updatedNode          = Node(a, currentSubscriberCount, updatedPublisherTail)
                       currentPublisherTail.unsafeSet(journal, updatedNode)
                       publisherTail.unsafeSet(journal, updatedPublisherTail)
@@ -416,9 +329,9 @@ object ZTHub {
           val currentSubscriberHead = subscriberHead.unsafeGet(journal)
           currentSubscriberHead eq null
         }
-      override def offer(a: Nothing): ZSTM[Nothing, Any, Boolean] =
+      override def offer(a: Nothing): ZSTM[Any, Nothing, Boolean] =
         ZSTM.succeedNow(false)
-      override def offerAll(as: Iterable[Nothing]): ZSTM[Nothing, Any, Boolean] =
+      override def offerAll(as: Iterable[Nothing]): ZSTM[Any, Nothing, Boolean] =
         ZSTM.succeedNow(false)
       override def peek: ZSTM[Any, Nothing, A] =
         ZSTM.Effect { (journal, fiberId, _) =>

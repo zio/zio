@@ -39,7 +39,7 @@ final class TMap[K, V] private (
    * Tests if the map is empty or not
    */
   def isEmpty: USTM[Boolean] =
-    tSize.map(_ == 0).get
+    tSize.get.map(_ == 0)
 
   /**
    * Removes binding for given key.
@@ -234,7 +234,7 @@ final class TMap[K, V] private (
 
       i = 0
       while (i < newCapacity) {
-        newArray(i) = ZTRef.unsafeMake(newBuckets(i))
+        newArray(i) = TRef.unsafeMake(newBuckets(i))
         i += 1
       }
 

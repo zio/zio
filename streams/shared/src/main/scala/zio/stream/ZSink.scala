@@ -1467,35 +1467,35 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which enqueues each element into the specified queue.
    */
-  def fromQueue[R, E, I](queue: => ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, Nothing, Unit] =
+  def fromQueue[I](queue: => Enqueue[I])(implicit trace: ZTraceElement): ZSink[Any, Nothing, I, Nothing, Unit] =
     ZSink.unwrap(ZIO.succeed(queue).map(queue => foreachChunk(queue.offerAll)))
 
   /**
    * Create a sink which enqueues each element into the specified queue. The
    * queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, I](queue: => ZQueue[R, Nothing, E, Any, I, Any])(implicit
+  def fromQueueWithShutdown[I](queue: => Enqueue[I])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, Nothing, Unit] =
+  ): ZSink[Any, Nothing, I, Nothing, Unit] =
     ZSink.unwrapScoped(
-      ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I](_))
+      ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[I](_))
     )
 
   /**
    * Create a sink which publishes each element to the specified hub.
    */
-  def fromHub[R, E, I](hub: => ZHub[R, Nothing, E, Any, I, Any])(implicit
+  def fromHub[I](hub: => ZHub[I, Any])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, Nothing, Unit] =
+  ): ZSink[Any, Nothing, I, Nothing, Unit] =
     fromQueue(hub.toQueue)
 
   /**
    * Create a sink which publishes each element to the specified hub. The hub
    * will be shutdown once the stream is closed.
    */
-  def fromHubWithShutdown[R, E, I](hub: => ZHub[R, Nothing, E, Any, I, Any])(implicit
+  def fromHubWithShutdown[I](hub: => ZHub[I, Any])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, Nothing, Unit] =
+  ): ZSink[Any, Nothing, I, Nothing, Unit] =
     fromQueueWithShutdown(hub.toQueue)
 
   /**
@@ -1546,7 +1546,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Retrieves the log annotations associated with the current scope.
    */
   def logAnnotations(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Map[String, String]] =
-    ZSink.fromZIO(ZFiberRef.currentLogAnnotations.get)
+    ZSink.fromZIO(FiberRef.currentLogAnnotations.get)
 
   /**
    * Logs the specified message at the debug log level.

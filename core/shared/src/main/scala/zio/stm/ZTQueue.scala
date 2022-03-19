@@ -12,7 +12,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * fail with an error of type `EA`. Taking values can require an environment of
  * type `RB` and fail with an error of type `EB`.
  */
-trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
+trait ZTQueue[-A, +B] extends Serializable { self =>
 
   /**
    * The maximum capacity of the queue.
@@ -28,25 +28,25 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * Offers a value to the queue, returning whether the value was offered to the
    * queue.
    */
-  def offer(a: A): ZSTM[RA, EA, Boolean]
+  def offer(a: A): ZSTM[Any, Nothing, Boolean]
 
   /**
    * Offers all of the specified values to the queue, returning whether they
    * were offered to the queue.
    */
-  def offerAll(as: Iterable[A]): ZSTM[RA, EA, Boolean]
+  def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean]
 
   /**
    * Views the next element in the queue without removing it, retrying if the
    * queue is empty.
    */
-  def peek: ZSTM[RB, EB, B]
+  def peek: ZSTM[Any, Nothing, B]
 
   /**
    * Views the next element in the queue without removing it, returning `None`
    * if the queue is empty.
    */
-  def peekOption: ZSTM[RB, EB, Option[B]]
+  def peekOption: ZSTM[Any, Nothing, Option[B]]
 
   /**
    * Shuts down the queue.
@@ -61,17 +61,17 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Takes a value from the queue.
    */
-  def take: ZSTM[RB, EB, B]
+  def take: ZSTM[Any, Nothing, B]
 
   /**
    * Takes all the values from the queue.
    */
-  def takeAll: ZSTM[RB, EB, Chunk[B]]
+  def takeAll: ZSTM[Any, Nothing, Chunk[B]]
 
   /**
    * Takes up to the specified number of values from the queue.
    */
-  def takeUpTo(max: Int): ZSTM[RB, EB, Chunk[B]]
+  def takeUpTo(max: Int): ZSTM[Any, Nothing, Chunk[B]]
 
   /**
    * Waits for the queue to be shut down.
@@ -82,149 +82,27 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Transforms values offered to the queue using the specified function.
    */
-  final def contramap[C](f: C => A): ZTQueue[RA, RB, EA, EB, C, B] =
-    contramapSTM(c => ZSTM.succeedNow(f(c)))
-
-  /**
-   * Transforms values offered to the queue using the specified transactional
-   * function.
-   */
-  final def contramapSTM[RC <: RA, EC >: EA, C](f: C => ZSTM[RC, EC, A]): ZTQueue[RC, RB, EC, EB, C, B] =
-    dimapSTM(f, ZSTM.succeedNow)
+  final def contramap[C](f: C => A): ZTQueue[C, B] =
+    ???
 
   /**
    * Transforms values offered to and taken from the queue using the specified
    * functions.
    */
-  final def dimap[C, D](f: C => A, g: B => D): ZTQueue[RA, RB, EA, EB, C, D] =
-    dimapSTM(c => ZSTM.succeedNow(f(c)), b => ZSTM.succeedNow(g(b)))
-
-  /**
-   * Transforms messages published to and taken from the queue using the
-   * specified transactional functions.
-   */
-  final def dimapSTM[RC <: RA, RD <: RB, EC >: EA, ED >: EB, C, D](
-    f: C => ZSTM[RC, EC, A],
-    g: B => ZSTM[RD, ED, D]
-  ): ZTQueue[RC, RD, EC, ED, C, D] =
-    new ZTQueue[RC, RD, EC, ED, C, D] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def offer(c: C): ZSTM[RC, EC, Boolean] =
-        f(c).flatMap(self.offer)
-      def offerAll(cs: Iterable[C]): ZSTM[RC, EC, Boolean] =
-        ZSTM.foreach(cs)(f).flatMap(self.offerAll)
-      def peek: ZSTM[RD, ED, D] =
-        self.peek.flatMap(g)
-      def peekOption: ZSTM[RD, ED, Option[D]] =
-        self.peekOption.flatMap {
-          case Some(b) => g(b).asSome
-          case None    => ZSTM.none
-        }
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def take: ZSTM[RD, ED, D] =
-        self.take.flatMap(g)
-      def takeAll: ZSTM[RD, ED, Chunk[D]] =
-        self.takeAll.flatMap(bs => ZSTM.foreach(bs)(g))
-      def takeUpTo(max: Int): ZSTM[RD, ED, Chunk[D]] =
-        self.takeUpTo(max).flatMap(bs => ZSTM.foreach(bs)(g))
-    }
+  final def dimap[C, D](f: C => A, g: B => D): ZTQueue[C, D] =
+    ???
 
   /**
    * Filters values offered to the queue using the specified function.
    */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZTQueue[RA, RB, EA, EB, A1, B] =
-    filterInputSTM(a => ZSTM.succeedNow(f(a)))
-
-  /**
-   * Filters values offered to the queue using the specified transactional
-   * function.
-   */
-  final def filterInputSTM[RA1 <: RA, EA1 >: EA, A1 <: A](
-    f: A1 => ZSTM[RA1, EA1, Boolean]
-  ): ZTQueue[RA1, RB, EA1, EB, A1, B] =
-    new ZTQueue[RA1, RB, EA1, EB, A1, B] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def offer(a: A1): ZSTM[RA1, EA1, Boolean] =
-        f(a).flatMap(b => if (b) self.offer(a) else ZSTM.succeedNow(false))
-      def offerAll(as: Iterable[A1]): ZSTM[RA1, EA1, Boolean] =
-        ZSTM.filter(as)(f).flatMap(as => if (as.nonEmpty) self.offerAll(as) else ZSTM.succeedNow(false))
-      def peek: ZSTM[RB, EB, B] =
-        self.peek
-      def peekOption: ZSTM[RB, EB, Option[B]] =
-        self.peekOption
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def take: ZSTM[RB, EB, B] =
-        self.take
-      def takeAll: ZSTM[RB, EB, Chunk[B]] =
-        self.takeAll
-      def takeUpTo(max: Int): ZSTM[RB, EB, Chunk[B]] =
-        self.takeUpTo(max)
-    }
+  final def filterInput[A1 <: A](f: A1 => Boolean): ZTQueue[A1, B] =
+    ???
 
   /**
    * Filters values taken from the queue using the specified function.
    */
-  final def filterOutput(f: B => Boolean): ZTQueue[RA, RB, EA, EB, A, B] =
-    filterOutputSTM(b => ZSTM.succeedNow(f(b)))
-
-  /**
-   * Filters values taken from the queue using the specified transactional
-   * function.
-   */
-  final def filterOutputSTM[RB1 <: RB, EB1 >: EB](
-    f: B => ZSTM[RB1, EB1, Boolean]
-  ): ZTQueue[RA, RB1, EA, EB1, A, B] =
-    new ZTQueue[RA, RB1, EA, EB1, A, B] {
-      def capacity: Int =
-        self.capacity
-      def isShutdown: USTM[Boolean] =
-        self.isShutdown
-      def offer(a: A): ZSTM[RA, EA, Boolean] =
-        self.offer(a)
-      def offerAll(as: Iterable[A]): ZSTM[RA, EA, Boolean] =
-        self.offerAll(as)
-      def peek: ZSTM[RB1, EB1, B] =
-        self.peek.flatMap(b => f(b).flatMap(p => if (p) ZSTM.succeedNow(b) else self.take *> peek))
-      def peekOption: ZSTM[RB1, EB1, Option[B]] =
-        self.peekOption.flatMap {
-          case Some(b) => f(b).flatMap(p => if (p) ZSTM.some(b) else self.take *> peekOption)
-          case None    => ZSTM.none
-        }
-      def shutdown: USTM[Unit] =
-        self.shutdown
-      def size: USTM[Int] =
-        self.size
-      def take: ZSTM[RB1, EB1, B] =
-        self.take.flatMap(b => f(b).flatMap(p => if (p) ZSTM.succeedNow(b) else take))
-      def takeAll: ZSTM[RB1, EB1, Chunk[B]] =
-        self.takeAll.flatMap(bs => ZSTM.filter(bs)(f))
-      def takeUpTo(max: Int): ZSTM[RB1, EB1, Chunk[B]] =
-        ZSTM.suspend {
-          def loop(max: Int, acc: Chunk[B]): ZSTM[RB1, EB1, Chunk[B]] =
-            self.takeUpTo(max).flatMap { bs =>
-              if (bs.isEmpty) ZSTM.succeedNow(acc)
-              else
-                ZSTM.filter(bs)(f).flatMap { filtered =>
-                  val length = filtered.length
-                  if (length == max) ZSTM.succeedNow(acc ++ filtered)
-                  else loop(max - length, acc ++ filtered)
-                }
-            }
-          loop(max, Chunk.empty)
-        }
-    }
+  final def filterOutput(f: B => Boolean): ZTQueue[A, B] =
+    ???
 
   /**
    * Checks if the queue is empty.
@@ -241,21 +119,14 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
   /**
    * Transforms values taken from the queue using the specified function.
    */
-  final def map[C](f: B => C): ZTQueue[RA, RB, EA, EB, A, C] =
-    mapSTM(b => ZSTM.succeedNow(f(b)))
-
-  /**
-   * Transforms values taken from the queue using the specified transactional
-   * function.
-   */
-  final def mapSTM[RC <: RB, EC >: EB, C](f: B => ZSTM[RC, EC, C]): ZTQueue[RA, RC, EA, EC, A, C] =
-    dimapSTM(ZSTM.succeedNow, f)
+  final def map[C](f: B => C): ZTQueue[A, C] =
+    ???
 
   /**
    * Takes a single element from the queue, returning `None` if the queue is
    * empty.
    */
-  final def poll: ZSTM[RB, EB, Option[B]] =
+  final def poll: ZSTM[Any, Nothing, Option[B]] =
     takeUpTo(1).map(_.headOption)
 
   /**
@@ -263,7 +134,7 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * taking and returning the first element that does satisfy the predicate.
    * Retries if no elements satisfy the predicate.
    */
-  final def seek(f: B => Boolean): ZSTM[RB, EB, B] =
+  final def seek(f: B => Boolean): ZSTM[Any, Nothing, B] =
     take.flatMap(b => if (f(b)) ZSTM.succeedNow(b) else seek(f))
 
   /**
@@ -271,10 +142,10 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * maximum. If there are fewer than the minimum number of elements available,
    * retries until at least the minimum number of elements have been collected.
    */
-  final def takeBetween(min: Int, max: Int): ZSTM[RB, EB, Chunk[B]] =
+  final def takeBetween(min: Int, max: Int): ZSTM[Any, Nothing, Chunk[B]] =
     ZSTM.suspend {
 
-      def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZSTM[RB, EB, Chunk[B]] =
+      def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZSTM[Any, Nothing, Chunk[B]] =
         if (max < min) ZSTM.succeedNow(acc)
         else
           takeUpTo(max).flatMap { bs =>
@@ -298,7 +169,7 @@ trait ZTQueue[-RA, -RB, +EA, +EB, -A, +B] extends Serializable { self =>
    * than the specified number of elements available, it retries until they
    * become available.
    */
-  final def takeN(n: Int): ZSTM[RB, EB, Chunk[B]] =
+  final def takeN(n: Int): ZSTM[Any, Nothing, Chunk[B]] =
     takeBetween(n, n)
 }
 

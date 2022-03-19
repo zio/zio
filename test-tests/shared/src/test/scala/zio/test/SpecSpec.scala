@@ -173,7 +173,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(ZLayer.scoped(ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
+          ).provideCustomLayerShared(ZLayer.scoped[Any](ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
         assertM(succeeded(spec))(isTrue)
       }
     ),

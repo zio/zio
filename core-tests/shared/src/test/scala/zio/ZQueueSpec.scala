@@ -738,27 +738,6 @@ object ZQueueSpec extends ZIOBaseSpec {
         v <- q.take
       } yield assert(v)(equalTo(10))
     },
-    test("queue mapZIO") {
-      for {
-        q <- Queue.bounded[Int](100).map(_.mapZIO(IO.succeed(_)))
-        _ <- q.offer(10)
-        v <- q.take
-      } yield assert(v)(equalTo(10))
-    },
-    test("queue mapZIO with success") {
-      for {
-        q <- Queue.bounded[IO[String, Int]](100).map(_.mapZIO(identity))
-        _ <- q.offer(IO.succeed(10))
-        v <- q.take.sandbox.either
-      } yield assert(v)(isRight(equalTo(10)))
-    },
-    test("queue mapZIO with failure") {
-      for {
-        q <- Queue.bounded[IO[String, Int]](100).map(_.mapZIO(identity))
-        _ <- q.offer(IO.fail("Ouch"))
-        v <- q.take.exit
-      } yield assert(v)(fails(equalTo("Ouch")))
-    } @@ zioTag(errors),
     test("queue contramap") {
       for {
         q <- Queue.bounded[String](100).map(_.contramap[Int](_.toString))
@@ -860,7 +839,7 @@ object ZQueueSpecUtil {
   def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
     Live.live((ref <* Clock.sleep(10.millis)).repeatUntil(_ == value))
 
-  def waitForSize[RA, EA, RB, EB, A, B](queue: ZQueue[RA, EA, RB, EB, A, B], size: Int): URIO[Live, Int] =
+  def waitForSize[A, B](queue: ZQueue[A, B], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 
   val smallInt: Gen[Random with Sized, Int] =

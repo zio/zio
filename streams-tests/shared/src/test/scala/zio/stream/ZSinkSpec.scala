@@ -557,7 +557,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("fromQueueWithShutdown")(
         test("should enqueue all elements and shutsdown queue") {
 
-          def createQueueSpy[A](q: Queue[A]) = new ZQueue[Any, Any, Nothing, Nothing, A, A] {
+          def createQueueSpy[A](q: Queue[A]) = new Queue[A] {
 
             @volatile
             private var isShutDown = false

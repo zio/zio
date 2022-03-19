@@ -359,20 +359,6 @@ object FiberRefSpec extends ZIOBaseSpec {
           value1   <- fiberRef.get
           value2   <- ZIO.succeed(handle.get())
         } yield assert((value1, value2))(equalTo((initial, initial)))
-      },
-      test("it can be transformed polymorphically") {
-        final case class Person(name: String, age: Int)
-        def getAge(person: Person): Either[Nothing, Int] =
-          Right(person.age)
-        def setAge(age: Int)(person: Person): Either[Nothing, Person] =
-          Right(person.copy(age = age))
-        for {
-          personRef <- FiberRef.make(Person("Jane Doe", 42))
-          ageRef     = personRef.foldAll(identity, identity, identity, setAge, getAge)
-          fiber     <- ageRef.update(_ + 1).fork
-          _         <- fiber.join
-          person    <- personRef.get
-        } yield assert(person)(equalTo(Person("Jane Doe", 43)))
       }
     )
   ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)

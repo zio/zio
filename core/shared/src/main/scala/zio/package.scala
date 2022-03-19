@@ -52,37 +52,23 @@ package object zio
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
-  type Queue[A] = ZQueue[Any, Any, Nothing, Nothing, A, A]
+  type Queue[A] = ZQueue[A, A]
   val Queue: ZQueue.type = ZQueue
 
   /**
    * A queue that can only be dequeued.
    */
-  type ZDequeue[-R, +E, +A] = ZQueue[Nothing, R, Any, E, Nothing, A]
-  type Dequeue[+A]          = ZQueue[Nothing, Any, Any, Nothing, Nothing, A]
+  type Dequeue[+A] = ZQueue[Nothing, A]
 
   /**
    * A queue that can only be enqueued.
    */
-  type ZEnqueue[-R, +E, -A] = ZQueue[R, Nothing, E, Any, A, Any]
-  type Enqueue[-A]          = ZQueue[Any, Nothing, Nothing, Any, A, Any]
+  type Enqueue[-A] = ZQueue[A, Any]
 
-  type Ref[A] = ZRef[Any, Any, Nothing, Nothing, A, A]
-
-  type ERef[+E, A] = ZRef[Any, Any, E, E, A, A]
-  val ERef: ZRef.type = ZRef
-
-  @deprecated("use ZRef.Synchronized", "2.0.0")
-  type ZRefM[-RA, -RB, +EA, +EB, -A, +B] = ZRef.Synchronized[RA, RB, EA, EB, A, B]
   @deprecated("use Ref.Synchronized", "2.0.0")
-  type RefM[A] = ZRefM[Any, Any, Nothing, Nothing, A, A]
-  @deprecated("use ERef.Synchronized", "2.0.0")
-  type ERefM[+E, A] = ZRefM[Any, Any, E, E, A, A]
+  type RefM[A] = Ref.Synchronized[A]
 
-  type FiberRef[A] = ZFiberRef[Nothing, Nothing, A, A]
-  val FiberRef: ZFiberRef.type = ZFiberRef
-
-  type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
+  type Hub[A] = ZHub[A, A]
   val Hub: ZHub.type = ZHub
 
   type Semaphore = stm.TSemaphore

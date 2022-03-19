@@ -4481,29 +4481,21 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertCompletes
           },
           test("ChunkHub") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
             trait B
-            lazy val chunkHub: ZHub[RA, RB, EA, EB, A, Chunk[B]] = ???
-            lazy val actual                                      = ZStream.from(chunkHub)
-            lazy val expected: ZStream[RB, EB, B]                = actual
-            lazy val _                                           = expected
+            lazy val chunkHub: ZHub[A, Chunk[B]]        = ???
+            lazy val actual                             = ZStream.from(chunkHub)
+            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("ChunkQueue") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
             trait B
-            lazy val chunkQueue: ZQueue[RA, RB, EA, EB, A, Chunk[B]] = ???
-            lazy val actual                                          = ZStream.from(chunkQueue)
-            lazy val expected: ZStream[RB, EB, B]                    = actual
-            lazy val _                                               = expected
+            lazy val chunkQueue: ZQueue[A, Chunk[B]]    = ???
+            lazy val actual                             = ZStream.from(chunkQueue)
+            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("Chunks") {
@@ -4515,16 +4507,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertCompletes
           },
           test("Hub") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
             trait B
-            lazy val hub: ZHub[RA, RB, EA, EB, A, B] = ???
-            lazy val actual                          = ZStream.from(hub)
-            lazy val expected: ZStream[RB, EB, B]    = actual
-            lazy val _                               = expected
+            lazy val hub: ZHub[A, B]                    = ???
+            lazy val actual                             = ZStream.from(hub)
+            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("Iterable") {
@@ -4586,16 +4574,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertCompletes
           },
           test("Queue") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
             trait B
-            lazy val queue: ZQueue[RA, RB, EA, EB, A, B] = ???
-            lazy val actual                              = ZStream.from(queue)
-            lazy val expected: ZStream[RB, EB, B]        = actual
-            lazy val _                                   = expected
+            lazy val queue: ZQueue[A, B]                = ???
+            lazy val actual                             = ZStream.from(queue)
+            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("Schedule") {
