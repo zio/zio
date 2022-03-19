@@ -2142,9 +2142,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * allow for scope composition.
      */
     @deprecated("use runIntoHubManaged", "2.0.0")
-    final def intoHubManaged[E1 >: E, A1 >: A](
-      hub: => Hub[Take[E1, A1]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def intoHubManaged(
+      hub: => Hub[Take[E, A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
     /**
@@ -2152,9 +2152,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * for scope composition.
      */
     @deprecated("use runIntoQueueManaged", "2.0.0")
-    final def intoManaged[E1 >: E](
-      queue: => Enqueue[Take[E1, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def intoManaged(
+      queue: => Enqueue[Take[E, A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
     /**
@@ -2162,9 +2162,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * allow for scope composition.
      */
     @deprecated("use runIntoQueueManaged", "2.0.0")
-    final def intoQueueManaged[E1 >: E](
-      queue: => Enqueue[Take[E1, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def intoQueueManaged(
+      queue: => Enqueue[Take[E, A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
     /**
@@ -2273,18 +2273,18 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * allow for scope composition.
      */
     @deprecated("use runIntoQueueElementsManaged", "2.0.0")
-    final def runIntoElementsManaged[E1 >: E](
-      queue: => Enqueue[Exit[Option[E1], A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def runIntoElementsManaged(
+      queue: => Enqueue[Exit[Option[E], A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueElementsScoped(queue))
 
     /**
      * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
      * allow for scope composition.
      */
-    final def runIntoHubManaged[E1 >: E, A1 >: A](
-      hub: => Hub[Take[E1, A1]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def runIntoHubManaged(
+      hub: => Hub[Take[E, A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
     /**
@@ -2292,27 +2292,27 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * allow for scope composition.
      */
     @deprecated("use runIntoQueueManaged", "2.0.0")
-    final def runIntoManaged[E1 >: E](
-      queue: => Enqueue[Take[E1, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def runIntoManaged(
+      queue: => Enqueue[Take[E, A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
     /**
      * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
      * to allow for scope composition.
      */
-    final def runIntoQueueManaged[E1 >: E](
-      queue: => Enqueue[Take[E1, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def runIntoQueueManaged(
+      queue: => Enqueue[Take[E, A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
     /**
      * Like [[ZStream#runIntoQueue]], but provides the result as a [[ZManaged]]
      * to allow for scope composition.
      */
-    final def runIntoQueueElementsManaged[E1 >: E](
-      queue: => Enqueue[Exit[Option[E1], A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    final def runIntoQueueElementsManaged(
+      queue: => Enqueue[Exit[Option[E], A]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueElementsScoped(queue))
 
     def runManaged[R1 <: R, E1 >: E, B](sink: => ZSink[R1, E1, A, Any, B])(implicit
@@ -2328,9 +2328,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * effect. The managed effect describes subscribing to receive messages from
      * the hub while the stream describes taking messages from the hub.
      */
-    def fromChunkHubManaged[R, E, O](
+    def fromChunkHubManaged[O](
       hub: => Hub[Chunk[O]]
-    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, O]] =
+    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, O]] =
       ZManaged.scoped(ZStream.fromChunkHubScoped(hub))
 
     /**
