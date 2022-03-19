@@ -1948,14 +1948,14 @@ package object managed extends ZManagedCompatPlatformSpecific {
       ZManaged.fromZIO(Ref.Synchronized.make(a))
   }
 
-  implicit final class ZManagedTHubSyntax[A, B](private val self: ZTHub[A, B]) extends AnyVal {
+  implicit final class ZManagedTHubSyntax[A](private val self: THub[A]) extends AnyVal {
 
     /**
      * Subscribes to receive messages from the hub. The resulting subscription
      * can be evaluated multiple times within the scope of the managed to take a
      * message from the hub each time.
      */
-    final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, TDequeue[B]] =
+    final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, TDequeue[A]] =
       ZManaged.scoped(self.subscribeScoped)
   }
 

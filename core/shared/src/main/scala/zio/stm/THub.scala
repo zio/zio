@@ -26,7 +26,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * environment of type `RA` and fail with an error of type `EA`. Taking messages
  * can require an environment of type `RB` and fail with an error of type `EB`.
  */
-sealed abstract class ZTHub[-A, +B] extends Serializable { self =>
+sealed abstract class THub[A] extends Serializable { self =>
 
   /**
    * The maximum capacity of the hub.
@@ -66,7 +66,7 @@ sealed abstract class ZTHub[-A, +B] extends Serializable { self =>
    * caller is responsible for unsubscribing from the hub by shutting down the
    * queue.
    */
-  def subscribe: USTM[TDequeue[B]]
+  def subscribe: USTM[TDequeue[A]]
 
   /**
    * Waits for the hub to be shut down.
@@ -75,42 +75,11 @@ sealed abstract class ZTHub[-A, +B] extends Serializable { self =>
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
 
   /**
-   * Transforms messages published to the hub using the specified function.
-   */
-  final def contramap[C](f: C => A): ZTHub[C, B] =
-    ???
-
-  /**
-   * Transforms messages published to and taken from the hub using the specified
-   * functions.
-   */
-  final def dimap[C, D](f: C => A, g: B => D): ZTHub[C, D] =
-    ???
-
-  /**
-   * Filters messages published to the hub using the specified function.
-   */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZTHub[A1, B] =
-    ???
-
-  /**
-   * Filters messages taken from the hub using the specified function.
-   */
-  final def filterOutput(f: B => Boolean): ZTHub[A, B] =
-    ???
-
-  /**
-   * Transforms messages taken from the hub using the specified function.
-   */
-  final def map[C](f: B => C): ZTHub[A, C] =
-    ???
-
-  /**
    * Subscribes to receive messages from the hub. The resulting subscription can
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  final def subscribeScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, TDequeue[B]] =
+  final def subscribeScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, TDequeue[A]] =
     ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit)
 
   /**
@@ -143,7 +112,7 @@ sealed abstract class ZTHub[-A, +B] extends Serializable { self =>
     }
 }
 
-object ZTHub {
+object THub {
 
   /**
    * Creates a bounded hub with the back pressure strategy. The hub will retain
@@ -329,10 +298,6 @@ object ZTHub {
           val currentSubscriberHead = subscriberHead.unsafeGet(journal)
           currentSubscriberHead eq null
         }
-      override def offer(a: Nothing): ZSTM[Any, Nothing, Boolean] =
-        ZSTM.succeedNow(false)
-      override def offerAll(as: Iterable[Nothing]): ZSTM[Any, Nothing, Boolean] =
-        ZSTM.succeedNow(false)
       override def peek: ZSTM[Any, Nothing, A] =
         ZSTM.Effect { (journal, fiberId, _) =>
           var currentSubscriberHead = subscriberHead.unsafeGet(journal)

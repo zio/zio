@@ -12,97 +12,13 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * fail with an error of type `EA`. Taking values can require an environment of
  * type `RB` and fail with an error of type `EB`.
  */
-trait ZTQueue[-A, +B] extends Serializable { self =>
-
-  /**
-   * The maximum capacity of the queue.
-   */
-  def capacity: Int
-
-  /**
-   * Checks whether the queue is shut down.
-   */
-  def isShutdown: USTM[Boolean]
-
-  /**
-   * Offers a value to the queue, returning whether the value was offered to the
-   * queue.
-   */
-  def offer(a: A): ZSTM[Any, Nothing, Boolean]
-
-  /**
-   * Offers all of the specified values to the queue, returning whether they
-   * were offered to the queue.
-   */
-  def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean]
-
-  /**
-   * Views the next element in the queue without removing it, retrying if the
-   * queue is empty.
-   */
-  def peek: ZSTM[Any, Nothing, B]
-
-  /**
-   * Views the next element in the queue without removing it, returning `None`
-   * if the queue is empty.
-   */
-  def peekOption: ZSTM[Any, Nothing, Option[B]]
-
-  /**
-   * Shuts down the queue.
-   */
-  def shutdown: USTM[Unit]
-
-  /**
-   * The current number of values in the queue.
-   */
-  def size: USTM[Int]
-
-  /**
-   * Takes a value from the queue.
-   */
-  def take: ZSTM[Any, Nothing, B]
-
-  /**
-   * Takes all the values from the queue.
-   */
-  def takeAll: ZSTM[Any, Nothing, Chunk[B]]
-
-  /**
-   * Takes up to the specified number of values from the queue.
-   */
-  def takeUpTo(max: Int): ZSTM[Any, Nothing, Chunk[B]]
+trait TQueue[A] extends TDequeue[A] with TEnqueue[A] { self =>
 
   /**
    * Waits for the queue to be shut down.
    */
   final def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
-
-  /**
-   * Transforms values offered to the queue using the specified function.
-   */
-  final def contramap[C](f: C => A): ZTQueue[C, B] =
-    ???
-
-  /**
-   * Transforms values offered to and taken from the queue using the specified
-   * functions.
-   */
-  final def dimap[C, D](f: C => A, g: B => D): ZTQueue[C, D] =
-    ???
-
-  /**
-   * Filters values offered to the queue using the specified function.
-   */
-  final def filterInput[A1 <: A](f: A1 => Boolean): ZTQueue[A1, B] =
-    ???
-
-  /**
-   * Filters values taken from the queue using the specified function.
-   */
-  final def filterOutput(f: B => Boolean): ZTQueue[A, B] =
-    ???
 
   /**
    * Checks if the queue is empty.
@@ -115,65 +31,9 @@ trait ZTQueue[-A, +B] extends Serializable { self =>
    */
   final def isFull: USTM[Boolean] =
     size.map(_ == capacity)
-
-  /**
-   * Transforms values taken from the queue using the specified function.
-   */
-  final def map[C](f: B => C): ZTQueue[A, C] =
-    ???
-
-  /**
-   * Takes a single element from the queue, returning `None` if the queue is
-   * empty.
-   */
-  final def poll: ZSTM[Any, Nothing, Option[B]] =
-    takeUpTo(1).map(_.headOption)
-
-  /**
-   * Drops elements from the queue while they do not satisfy the predicate,
-   * taking and returning the first element that does satisfy the predicate.
-   * Retries if no elements satisfy the predicate.
-   */
-  final def seek(f: B => Boolean): ZSTM[Any, Nothing, B] =
-    take.flatMap(b => if (f(b)) ZSTM.succeedNow(b) else seek(f))
-
-  /**
-   * Takes a number of elements from the queue between the specified minimum and
-   * maximum. If there are fewer than the minimum number of elements available,
-   * retries until at least the minimum number of elements have been collected.
-   */
-  final def takeBetween(min: Int, max: Int): ZSTM[Any, Nothing, Chunk[B]] =
-    ZSTM.suspend {
-
-      def takeRemainder(min: Int, max: Int, acc: Chunk[B]): ZSTM[Any, Nothing, Chunk[B]] =
-        if (max < min) ZSTM.succeedNow(acc)
-        else
-          takeUpTo(max).flatMap { bs =>
-            val remaining = min - bs.length
-            if (remaining == 1)
-              take.map(b => acc ++ bs :+ b)
-            else if (remaining > 1) {
-              take.flatMap { b =>
-                takeRemainder(remaining - 1, max - bs.length - 1, acc ++ bs :+ b)
-
-              }
-            } else
-              ZSTM.succeedNow(acc ++ bs)
-          }
-
-      takeRemainder(min, max, Chunk.empty)
-    }
-
-  /**
-   * Takes the specified number of elements from the queue. If there are fewer
-   * than the specified number of elements available, it retries until they
-   * become available.
-   */
-  final def takeN(n: Int): ZSTM[Any, Nothing, Chunk[B]] =
-    takeBetween(n, n)
 }
 
-object ZTQueue {
+object TQueue {
 
   /**
    * Creates a bounded queue with the back pressure strategy. The queue will

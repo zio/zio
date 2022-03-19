@@ -25,20 +25,4 @@ package object stm extends EitherCompat {
   type STM[+E, +A]   = ZSTM[Any, E, A]
   type USTM[+A]      = ZSTM[Any, Nothing, A]
   type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
-
-  type TQueue[A] = ZTQueue[A, A]
-  val TQueue: ZTQueue.type = ZTQueue
-
-  /**
-   * A transactional queue that can only be dequeued.
-   */
-  type TDequeue[+A] = ZTQueue[Nothing, A]
-
-  /**
-   * A transactional queue that can only be enqueued.
-   */
-  type TEnqueue[-A] = ZTQueue[A, Any]
-
-  type THub[A] = ZTHub[A, A]
-  val THub: ZTHub.type = ZTHub
 }
