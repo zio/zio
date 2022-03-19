@@ -3,7 +3,7 @@ id: hub
 title:  "Hub"
 ---
 
-A `Hub[A]` is an asynchronous message hub. Publishers can publish messages of type `A` to the hub and subscribers can subscribe to receive messages of type `A` from the hub.
+A `Hub` is an asynchronous message hub. Publishers can publish messages to the hub and subscribers can subscribe to receive messagesfrom the hub.
 
 Unlike a `Queue`, where each value offered to the queue can be taken by _one_ taker, each value published to a hub can be received by _all_ subscribers. Whereas a `Queue` represents the optimal solution to the problem of how to _distribute_ values, a `Hub` represents the optimal solution to the problem of how to _broadcast_ them.
 
@@ -132,9 +132,7 @@ As you can see, the operators on `Hub` are identical to the ones on `Queue` with
 In fact, a `Hub` can be viewed as a `Queue` that can only be written to.
 
 ```scala mdoc:nest
-trait Hub[A] {
-  def toQueue[A]: Enqueue[A]
-}
+trait Hub[A] extends Enqueue[A]
 ```
 
 Here the `Enqueue` type represents a queue that can only be enqueued. Enqueing to the queue publishes a value to the hub, shutting down the queue shuts down the hub, and so on.
@@ -147,9 +145,9 @@ For example, say we are using the `into` operator on `ZStream` to send all eleme
 import zio.stream._
 
 trait ZStream[-R, +E, +O] {
-  def into[R1 <: R, E1 >: E](
-    queue: Enqueue[Take[E1, O]]
-  ): ZIO[R1, E1, Unit]
+  def into(
+    queue: Enqueue[Take[E, O]]
+  ): ZIO[R, E, Unit]
 }
 ```
 
@@ -165,10 +163,10 @@ type Transaction = ???
 val transactionStream: ZStream[Any, Nothing, Transaction] =
   ???
 
-val hub: Hub[Transaction] =
+val hub: Hub[Take[Nothing, Transaction]] =
   ???
 
-transactionStream.into(hub.toQueue)
+transactionStream.into(hub)
 ```
 
 All of the elements from the transaction stream will now be published to the hub. We can now have multiple downstream consumers process elements from the financial transactions stream with the guarantee that all downstream consumers will see all transactions in the stream, changing the topology of our data flow from one-to-one to one-to-many with a single line change.
@@ -194,7 +192,7 @@ There is also a `fromHubScoped` operator that returns the stream in the context 
 
 ```scala mdoc:nest
 object ZStream {
-  def fromHubScoped[Any, Nothing, O](
+  def fromHubScoped[O](
     hub: Hub[O]
   ): ZIO[Scope, Nothing, ZStream[Any, Nothing, O]] =
     ???
