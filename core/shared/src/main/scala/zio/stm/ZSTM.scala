@@ -1840,7 +1840,7 @@ object ZSTM {
 
     type TxnId = Long
 
-    type Journal = MutableMap[TRef.Atomic[_], Entry]
+    type Journal = MutableMap[TRef[_], Entry]
 
     type Todo = () => Any
 
@@ -1848,7 +1848,7 @@ object ZSTM {
      * Creates a function that can reset the journal.
      */
     def prepareResetJournal(journal: Journal): () => Any = {
-      val saved = new MutableMap[TRef.Atomic[_], Entry](journal.size)
+      val saved = new MutableMap[TRef[_], Entry](journal.size)
 
       val it = journal.entrySet.iterator
       while (it.hasNext) {
@@ -1872,7 +1872,7 @@ object ZSTM {
      * it.
      */
     def allocJournal(journal: Journal): Journal =
-      if (journal eq null) new MutableMap[TRef.Atomic[_], Entry](DefaultJournalSize)
+      if (journal eq null) new MutableMap[TRef[_], Entry](DefaultJournalSize)
       else {
         journal.clear()
         journal
@@ -1997,7 +1997,7 @@ object ZSTM {
      * `oldJournal`.
      */
     def untrackedTodoTargets(oldJournal: Journal, newJournal: Journal): Journal = {
-      val untracked = new MutableMap[TRef.Atomic[_], Entry](newJournal.size)
+      val untracked = new MutableMap[TRef[_], Entry](newJournal.size)
 
       untracked.putAll(newJournal)
 
@@ -2027,7 +2027,7 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       r: ZEnvironment[R]
     ): TryCommit[E, A] = {
-      var journal = null.asInstanceOf[MutableMap[TRef.Atomic[_], Entry]]
+      var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
       var loop    = true
@@ -2143,7 +2143,7 @@ object ZSTM {
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
     ): TryCommit[E, A] = {
-      var journal = null.asInstanceOf[MutableMap[TRef.Atomic[_], Entry]]
+      var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
       var loop    = true
@@ -2236,7 +2236,7 @@ object ZSTM {
     abstract class Entry { self =>
       type S
 
-      val tref: TRef.Atomic[S]
+      val tref: TRef[S]
 
       private[stm] val expected: Versioned[S]
 
@@ -2297,7 +2297,7 @@ object ZSTM {
        * Creates an entry for the journal, given the `TRef` being untracked, the
        * new value of the `TRef`, and the expected version of the `TRef`.
        */
-      private[stm] def apply[A0](tref0: TRef.Atomic[A0], isNew0: Boolean): Entry = {
+      private[stm] def apply[A0](tref0: TRef[A0], isNew0: Boolean): Entry = {
         val versioned = tref0.versioned
 
         new Entry {
