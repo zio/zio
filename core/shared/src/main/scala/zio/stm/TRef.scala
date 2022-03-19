@@ -16,7 +16,6 @@
 
 package zio.stm
 
-import com.github.ghik.silencer.silent
 import zio.{UIO, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
