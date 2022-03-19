@@ -3,11 +3,11 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object ZRefMSpec extends ZIOBaseSpec {
+object RefSynchronizedSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def spec = suite("ZRefSynchronizedSpec")(
+  def spec = suite("RefSynchronizedSpec")(
     suite("atomic")(
       test("get") {
         for {
