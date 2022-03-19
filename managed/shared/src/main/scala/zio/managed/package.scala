@@ -2142,8 +2142,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * allow for scope composition.
      */
     @deprecated("use runIntoHubManaged", "2.0.0")
-    final def intoHubManaged[E1 >: E](
-      hub: => ZHub[Take[E1, A], Any]
+    final def intoHubManaged[E1 >: E, A1 >: A](
+      hub: => Hub[Take[E1, A1]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
@@ -2282,8 +2282,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
      * allow for scope composition.
      */
-    final def runIntoHubManaged[E1 >: E](
-      hub: => ZHub[Take[E1, A], Any]
+    final def runIntoHubManaged[E1 >: E, A1 >: A](
+      hub: => Hub[Take[E1, A1]]
     )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
@@ -2329,7 +2329,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * the hub while the stream describes taking messages from the hub.
      */
     def fromChunkHubManaged[R, E, O](
-      hub: => ZHub[Nothing, Chunk[O]]
+      hub: => Hub[Chunk[O]]
     )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[R, E, O]] =
       ZManaged.scoped(ZStream.fromChunkHubScoped(hub))
 
@@ -2341,7 +2341,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * The hub will be shut down once the stream is closed.
      */
     def fromChunkHubManagedWithShutdown[O](
-      hub: => ZHub[Nothing, Chunk[O]]
+      hub: => Hub[Chunk[O]]
     )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, O]] =
       ZManaged.scoped(ZStream.fromChunkHubScopedWithShutdown(hub))
 
@@ -2351,7 +2351,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * the hub while the stream describes taking messages from the hub.
      */
     def fromHubManaged[A](
-      hub: => ZHub[Nothing, A],
+      hub: => Hub[A],
       maxChunkSize: => Int = ZStream.DefaultChunkSize
     )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, A]] =
       ZManaged.scoped(ZStream.fromHubScoped(hub, maxChunkSize))
@@ -2364,7 +2364,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * The hub will be shut down once the stream is closed.
      */
     def fromHubManagedWithShutdown[A](
-      hub: => ZHub[Nothing, A],
+      hub: => Hub[A],
       maxChunkSize: => Int = ZStream.DefaultChunkSize
     )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, A]] =
       ZManaged.scoped(ZStream.fromHubScopedWithShutdown(hub, maxChunkSize))

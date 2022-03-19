@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * environment of type `RA` and fail with an error of type `EA`. Taking messages
  * can require an environment of type `RB` and fail with an error of type `EB`.
  */
-sealed abstract class ZHub[-A, +B] extends Serializable { self =>
+sealed abstract class Hub[A] extends Serializable { self =>
 
   /**
    * Waits for the hub to be shut down.
@@ -73,7 +73,7 @@ sealed abstract class ZHub[-A, +B] extends Serializable { self =>
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[B]]
+  def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]]
 
   /**
    * Checks whether the hub is currently empty.
@@ -115,7 +115,7 @@ sealed abstract class ZHub[-A, +B] extends Serializable { self =>
     }
 }
 
-object ZHub {
+object Hub {
 
   /**
    * Creates a bounded hub with the back pressure strategy. The hub will retain

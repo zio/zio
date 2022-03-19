@@ -2041,17 +2041,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * also be signalled.
    */
   @deprecated("use runIntoHub", "2.0.0")
-  final def intoHub[R1 <: R, E1 >: E](
-    hub: => ZHub[Take[E1, A], Any]
-  )(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
+  final def intoHub[E1 >: E, A1 >: A](
+    hub: => Hub[Take[E1, A1]]
+  )(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
     runIntoHub(hub)
 
   /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
    * also be signalled.
    */
-  final def runIntoHub[E1 >: E](
-    hub: => ZHub[Take[E1, A], Any]
+  final def runIntoHub[E1 >: E, A1 >: A](
+    hub: => Hub[Take[E1, A1]]
   )(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
     runIntoQueue(hub.toQueue)
 
@@ -2059,8 +2059,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Like [[ZStream#runIntoHub]], but provides the result as a scoped [[ZIO]] to
    * allow for scope composition.
    */
-  final def runIntoHubScoped[E1 >: E](
-    hub: => ZHub[Take[E1, A], Any]
+  final def runIntoHubScoped[E1 >: E, A1 >: A](
+    hub: => Hub[Take[E1, A1]]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E1, Unit] =
     runIntoQueueScoped(hub.toQueue)
 
@@ -3665,11 +3665,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Converts the stream to a scoped hub of chunks. After the scope is closed,
    * the hub will never again produce values and should be discarded.
    */
-  def toHub(
+  def toHub[E1 >: E, A1 >: A](
     capacity: => Int
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, ZHub[Nothing, Take[E, A]]] =
+  )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Hub[Take[E1, A1]]] =
     for {
-      hub <- ZIO.acquireRelease(Hub.bounded[Take[E, A]](capacity))(_.shutdown)
+      hub <- ZIO.acquireRelease(Hub.bounded[Take[E1, A1]](capacity))(_.shutdown)
       _   <- self.runIntoHubScoped(hub).fork
     } yield hub
 
@@ -4517,7 +4517,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a subscription to a hub.
    */
-  def fromChunkHub[R, E, O](hub: => ZHub[Nothing, Chunk[O]])(implicit
+  def fromChunkHub[R, E, O](hub: => Hub[Chunk[O]])(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, O] =
     scoped(hub.subscribe).flatMap(queue => fromChunkQueue(queue))
@@ -4528,7 +4528,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * the hub while the stream describes taking messages from the hub.
    */
   def fromChunkHubScoped[O](
-    hub: => ZHub[Nothing, Chunk[O]]
+    hub: => Hub[Chunk[O]]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[Any, Nothing, O]] =
     hub.subscribe.map(queue => fromChunkQueue(queue))
 
@@ -4537,7 +4537,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    *
    * The hub will be shut down once the stream is closed.
    */
-  def fromChunkHubWithShutdown[O](hub: => ZHub[Nothing, Chunk[O]])(implicit
+  def fromChunkHubWithShutdown[O](hub: => Hub[Chunk[O]])(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, O] =
     fromChunkHub(hub).ensuring(hub.shutdown)
@@ -4550,7 +4550,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The hub will be shut down once the stream is closed.
    */
   def fromChunkHubScopedWithShutdown[O](
-    hub: => ZHub[Nothing, Chunk[O]]
+    hub: => Hub[Chunk[O]]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[Any, Nothing, O]] =
     fromChunkHubScoped(hub).map(_.ensuring(hub.shutdown))
 
@@ -4604,7 +4604,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a subscription to a hub.
    */
   def fromHub[A](
-    hub: => ZHub[Nothing, A],
+    hub: => Hub[A],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
     scoped(hub.subscribe).flatMap(queue => fromQueue(queue, maxChunkSize))
@@ -4615,7 +4615,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * the hub while the stream describes taking messages from the hub.
    */
   def fromHubScoped[A](
-    hub: => ZHub[Nothing, A],
+    hub: => Hub[A],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[Any, Nothing, A]] =
     ZIO.suspendSucceed(hub.subscribe.map(queue => fromQueueWithShutdown(queue, maxChunkSize)))
@@ -4626,7 +4626,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The hub will be shut down once the stream is closed.
    */
   def fromHubWithShutdown[A](
-    hub: => ZHub[Nothing, A],
+    hub: => Hub[A],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
     fromHub(hub, maxChunkSize).ensuring(hub.shutdown)
@@ -4639,7 +4639,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The hub will be shut down once the stream is closed.
    */
   def fromHubScopedWithShutdown[A](
-    hub: => ZHub[Nothing, A],
+    hub: => Hub[A],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[Any, Nothing, A]] =
     fromHubScoped(hub, maxChunkSize).map(_.ensuring(hub.shutdown))
@@ -5793,10 +5793,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[RB, EB, B]` from a `ZHub[A, Chunk[B]]`.
      */
-    implicit def ChunkHubConstructor[A, B]: WithOut[ZHub[A, Chunk[B]], ZStream[Any, Nothing, B]] =
-      new ZStreamConstructor[ZHub[A, Chunk[B]]] {
-        type Out = ZStream[Any, Nothing, B]
-        def make(input: => ZHub[A, Chunk[B]])(implicit trace: ZTraceElement): ZStream[Any, Nothing, B] =
+    implicit def ChunkHubConstructor[A]: WithOut[Hub[Chunk[A]], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Hub[Chunk[A]]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Hub[Chunk[A]])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
           ZStream.fromChunkHub(input)
       }
 
@@ -5944,10 +5944,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Constructs a `ZStream[Any, Nothing, B]` from a `ZHub[A, B]`.
      */
-    implicit def HubConstructor[A, B]: WithOut[ZHub[A, B], ZStream[Any, Nothing, B]] =
-      new ZStreamConstructor[ZHub[A, B]] {
-        type Out = ZStream[Any, Nothing, B]
-        def make(input: => ZHub[A, B])(implicit trace: ZTraceElement): ZStream[Any, Nothing, B] =
+    implicit def HubConstructor[A]: WithOut[Hub[A], ZStream[Any, Nothing, A]] =
+      new ZStreamConstructor[Hub[A]] {
+        type Out = ZStream[Any, Nothing, A]
+        def make(input: => Hub[A])(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
           ZStream.fromHub(input)
       }
 

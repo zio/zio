@@ -4482,10 +4482,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("ChunkHub") {
             trait A
-            trait B
-            lazy val chunkHub: ZHub[A, Chunk[B]]        = ???
+            lazy val chunkHub: Hub[Chunk[A]]            = ???
             lazy val actual                             = ZStream.from(chunkHub)
-            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
             assertCompletes
           },
@@ -4508,10 +4507,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("Hub") {
             trait A
-            trait B
-            lazy val hub: ZHub[A, B]                    = ???
+            lazy val hub: Hub[A]                        = ???
             lazy val actual                             = ZStream.from(hub)
-            lazy val expected: ZStream[Any, Nothing, B] = actual
+            lazy val expected: ZStream[Any, Nothing, A] = actual
             lazy val _                                  = expected
             assertCompletes
           },

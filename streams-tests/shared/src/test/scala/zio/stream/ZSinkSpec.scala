@@ -603,7 +603,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             promise1 <- Promise.make[Nothing, Unit]
             promise2 <- Promise.make[Nothing, Unit]
-            hub      <- ZHub.unbounded[Int]
+            hub      <- Hub.unbounded[Int]
             f <- ZIO.scoped {
                    hub.subscribe.flatMap(s => promise1.succeed(()) *> promise2.await *> s.takeAll)
                  }.fork
@@ -620,7 +620,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("fromHubWithShutdown")(
         test("should shutdown hub") {
           for {
-            hub        <- ZHub.unbounded[Int]
+            hub        <- Hub.unbounded[Int]
             _          <- ZStream(1, 2, 3).run(ZSink.fromHubWithShutdown(hub))
             isShutdown <- hub.isShutdown
           } yield {

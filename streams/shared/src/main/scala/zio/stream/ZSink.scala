@@ -379,7 +379,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z2] = {
     val scoped =
       for {
-        hub   <- ZHub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
+        hub   <- Hub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
         c1    <- ZChannel.fromHubScoped(hub)
         c2    <- ZChannel.fromHubScoped(hub)
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
@@ -1484,7 +1484,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which publishes each element to the specified hub.
    */
-  def fromHub[I](hub: => ZHub[I, Any])(implicit
+  def fromHub[I](hub: => Hub[I])(implicit
     trace: ZTraceElement
   ): ZSink[Any, Nothing, I, Nothing, Unit] =
     fromQueue(hub.toQueue)
@@ -1493,7 +1493,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Create a sink which publishes each element to the specified hub. The hub
    * will be shutdown once the stream is closed.
    */
-  def fromHubWithShutdown[I](hub: => ZHub[I, Any])(implicit
+  def fromHubWithShutdown[I](hub: => Hub[I])(implicit
     trace: ZTraceElement
   ): ZSink[Any, Nothing, I, Nothing, Unit] =
     fromQueueWithShutdown(hub.toQueue)
