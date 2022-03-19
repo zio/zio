@@ -23,13 +23,13 @@ import zio.stm.STM
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A `Ref[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional
- * description of a mutable reference. The fundamental operations of a `Ref`
- * are `set` and `get`. `set` takes a value of type `A` and sets the reference
- * to a new value, requiring an environment of type `RA` and potentially failing
- * with an error of type `EA`. `get` gets the current value of the reference and
- * returns a value of type `B`, requiring an environment of type `RB` and
- * potentially failing with an error of type `EB`.
+ * A `Ref[RA, RB, EA, EB, A, B]` is a polymorphic, purely functional description
+ * of a mutable reference. The fundamental operations of a `Ref` are `set` and
+ * `get`. `set` takes a value of type `A` and sets the reference to a new value,
+ * requiring an environment of type `RA` and potentially failing with an error
+ * of type `EA`. `get` gets the current value of the reference and returns a
+ * value of type `B`, requiring an environment of type `RB` and potentially
+ * failing with an error of type `EB`.
  *
  * By default, `Ref` is implemented in terms of compare and swap operations for
  * maximum performance and does not support performing effects within update
@@ -119,9 +119,9 @@ object Ref extends Serializable {
       }
 
     /**
-     * Atomically modifies the `Ref` with the specified function, which
-     * computes a return value for the modification. This is a more powerful
-     * version of `update`.
+     * Atomically modifies the `Ref` with the specified function, which computes
+     * a return value for the modification. This is a more powerful version of
+     * `update`.
      */
     @silent("unreachable code")
     def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
@@ -154,8 +154,8 @@ object Ref extends Serializable {
       }
 
     /**
-     * Atomically modifies the `Ref` with the specified function and returns
-     * the updated value.
+     * Atomically modifies the `Ref` with the specified function and returns the
+     * updated value.
      */
     def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
       self match {
@@ -168,8 +168,8 @@ object Ref extends Serializable {
       }
 
     /**
-     * Atomically modifies the `Ref` with the specified partial function. If
-     * the function is undefined on the current value it doesn't change it.
+     * Atomically modifies the `Ref` with the specified partial function. If the
+     * function is undefined on the current value it doesn't change it.
      */
     def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
       self match {
@@ -182,8 +182,8 @@ object Ref extends Serializable {
       }
 
     /**
-     * Atomically modifies the `Ref` with the specified partial function. If
-     * the function is undefined on the current value it returns the old value
+     * Atomically modifies the `Ref` with the specified partial function. If the
+     * function is undefined on the current value it returns the old value
      * without changing it.
      */
     def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
