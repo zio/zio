@@ -4614,7 +4614,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
    */
-  def fromHubScoped[Any, Nothing, A](
+  def fromHubScoped[A](
     hub: => ZHub[Nothing, A],
     maxChunkSize: => Int = DefaultChunkSize
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZStream[Any, Nothing, A]] =
