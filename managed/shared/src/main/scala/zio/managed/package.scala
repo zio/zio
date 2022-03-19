@@ -2142,9 +2142,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * allow for scope composition.
      */
     @deprecated("use runIntoHubManaged", "2.0.0")
-    final def intoHubManaged(
-      hub: => Hub[Take[E, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+    final def intoHubManaged[E1 >: E, A1 >: A](
+      hub: => Hub[Take[E1, A1]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
     /**
@@ -2282,9 +2282,9 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Like [[ZStream#runIntoHub]], but provides the result as a [[ZManaged]] to
      * allow for scope composition.
      */
-    final def runIntoHubManaged(
-      hub: => Hub[Take[E, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+    final def runIntoHubManaged[E1 >: E, A1 >: A](
+      hub: => Hub[Take[E1, A1]]
+    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
     /**
