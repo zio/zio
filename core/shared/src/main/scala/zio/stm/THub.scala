@@ -64,7 +64,7 @@ abstract class THub[A] extends TEnqueue[A] { self =>
     publish(a)
 
   final def offerAll(as: Iterable[A]): USTM[Boolean] =
-    offerAll(as)
+    publishAll(as)
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
