@@ -6466,7 +6466,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefGetAll[R, E, A](
-    val make: Map[FiberRef.Runtime[_], Any] => ZIO[R, E, A],
+    val make: Map[FiberRef[_], Any] => ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
@@ -6476,7 +6476,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefModify[A, B](
-    val fiberRef: FiberRef.Runtime[A],
+    val fiberRef: FiberRef[A],
     val f: A => (B, A),
     val trace: ZTraceElement
   ) extends UIO[B] {
@@ -6488,7 +6488,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class FiberRefLocally[V, R, E, A](
     val localValue: V,
-    val fiberRef: FiberRef.Runtime[V],
+    val fiberRef: FiberRef[V],
     val zio: ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
@@ -6499,7 +6499,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefDelete(
-    val fiberRef: FiberRef.Runtime[_],
+    val fiberRef: FiberRef[_],
     val trace: ZTraceElement
   ) extends UIO[Unit] {
     def unsafeLog: () => String =
@@ -6509,7 +6509,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefWith[R, E, A, B](
-    val fiberRef: FiberRef.Runtime[A],
+    val fiberRef: FiberRef[A],
     val f: A => ZIO[R, E, B],
     val trace: ZTraceElement
   ) extends ZIO[R, E, B] {
@@ -6587,7 +6587,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val cause: Cause[Any],
     val overrideLogLevel: Option[LogLevel],
     val trace: ZTraceElement,
-    val overrideRef1: FiberRef.Runtime[_] = null,
+    val overrideRef1: FiberRef[_] = null,
     val overrideValue1: AnyRef = null
   ) extends ZIO[Any, Nothing, Unit] {
     def unsafeLog: () => String =

@@ -370,7 +370,7 @@ object FiberRefSpecUtil {
     (ZIO.yieldNow <* Clock.sleep(1.nano)).repeatN(100)
   }
 
-  def setRefOrHandle(fiberRef: FiberRef.Runtime[Int], value: Int): UIO[Unit] =
+  def setRefOrHandle(fiberRef: FiberRef[Int], value: Int): UIO[Unit] =
     if (value % 2 == 0) fiberRef.set(value)
     else fiberRef.unsafeAsThreadLocal.flatMap(h => ZIO.succeed(h.set(value)))
 
