@@ -336,7 +336,7 @@ A queue has a finite or infinite buffer size, so they are useful in situations w
 ```scala mdoc:silent:nest
 val myApp: ZIO[Console with Clock, IOException, Unit] =
   for {
-    queue    <- ZQueue.bounded[Int](32)
+    queue    <- Queue.bounded[Int](32)
     producer <- ZStream
       .iterate(1)(_ + 1)
       .fixed(200.millis)
@@ -357,7 +357,7 @@ In the following example, the `sink` consumes elements of the `producer` stream 
 val myApp: ZIO[Console with Clock, IOException, Unit] =
   for {
     promise <- Promise.make[Nothing, Unit]
-    hub <- ZHub.bounded[Int](1)
+    hub <- Hub.bounded[Int](1)
     sink <- ZIO.succeed(ZSink.fromHub(hub))
     producer <- ZStream.iterate(0)(_ + 1).fixed(1.seconds).run(sink).fork
     consumers <- ZIO.scoped {

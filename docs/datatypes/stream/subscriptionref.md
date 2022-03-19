@@ -59,7 +59,7 @@ To wire everything together, we start the server, then start multiple instances 
 ```scala mdoc:compile-only
 for {
   subscriptionRef <- SubscriptionRef.make(0L)
-  server          <- server(subscriptionRef.ref).fork
+  server          <- server(subscriptionRef).fork
   chunks          <- ZIO.collectAllPar(List.fill(100)(client(subscriptionRef.changes)))
   _               <- server.interrupt
   _               <- ZIO.foreach(chunks)(chunk => Console.printLine(chunk))

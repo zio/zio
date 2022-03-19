@@ -572,7 +572,7 @@ If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` construct
 ```scala mdoc:silent:nest
 for {
   promise <- Promise.make[Nothing, Unit]
-  hub     <- ZHub.unbounded[Chunk[Int]]
+  hub     <- Hub.unbounded[Chunk[Int]]
   scoped = ZStream.fromChunkHubScoped(hub).tap(_ => promise.succeed(()))
   stream  = ZStream.unwrapScoped(scoped)
   fiber   <- stream.foreach(printLine(_)).fork
