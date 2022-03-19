@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * environment of type `RA` and fail with an error of type `EA`. Taking messages
  * can require an environment of type `RB` and fail with an error of type `EB`.
  */
-sealed abstract class Hub[A] extends Serializable { self =>
+sealed abstract class Hub[A] extends Enqueue[A] { self =>
 
   /**
    * Waits for the hub to be shut down.
@@ -63,6 +63,12 @@ sealed abstract class Hub[A] extends Serializable { self =>
    */
   def shutdown(implicit trace: ZTraceElement): UIO[Unit]
 
+  final def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
+    publish(a)
+
+  final def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
+    publishAll(as)
+
   /**
    * The current number of messages in the hub.
    */
@@ -86,33 +92,6 @@ sealed abstract class Hub[A] extends Serializable { self =>
    */
   final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
     self.size.map(_ == capacity)
-
-  /**
-   * Views the hub as a queue that can only be written to.
-   */
-  final def toQueue: Enqueue[A] =
-    new Enqueue[A] {
-      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.awaitShutdown
-      def capacity: Int =
-        self.capacity
-      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
-        self.isShutdown
-      def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
-        self.publish(a)
-      def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
-        self.publishAll(as)
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        self.shutdown
-      def size(implicit trace: ZTraceElement): UIO[Int] =
-        self.size
-      def take(implicit trace: ZTraceElement): UIO[Any] =
-        ZIO.unit
-      def takeAll(implicit trace: ZTraceElement): UIO[Chunk[Any]] =
-        ZIO.succeedNow(Chunk.empty)
-      def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[Any]] =
-        ZIO.succeedNow(Chunk.empty)
-    }
 }
 
 object Hub {

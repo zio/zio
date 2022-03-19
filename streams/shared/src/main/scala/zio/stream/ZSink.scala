@@ -1487,7 +1487,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def fromHub[I](hub: => Hub[I])(implicit
     trace: ZTraceElement
   ): ZSink[Any, Nothing, I, Nothing, Unit] =
-    fromQueue(hub.toQueue)
+    fromQueue(hub)
 
   /**
    * Create a sink which publishes each element to the specified hub. The hub
@@ -1496,7 +1496,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def fromHubWithShutdown[I](hub: => Hub[I])(implicit
     trace: ZTraceElement
   ): ZSink[Any, Nothing, I, Nothing, Unit] =
-    fromQueueWithShutdown(hub.toQueue)
+    fromQueueWithShutdown(hub)
 
   /**
    * Creates a sink halting with a specified cause.

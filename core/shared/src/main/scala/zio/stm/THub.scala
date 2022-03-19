@@ -26,7 +26,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * environment of type `RA` and fail with an error of type `EA`. Taking messages
  * can require an environment of type `RB` and fail with an error of type `EB`.
  */
-sealed abstract class THub[A] extends Serializable { self =>
+sealed abstract class THub[A] extends TEnqueue[A] { self =>
 
   /**
    * The maximum capacity of the hub.
@@ -67,6 +67,12 @@ sealed abstract class THub[A] extends Serializable { self =>
    * queue.
    */
   def subscribe: USTM[TDequeue[A]]
+
+  def offer(a: A): ZSTM[Any, Nothing, Boolean] =
+    publish(a)
+
+  def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean] =
+    offerAll(as)
 
   /**
    * Waits for the hub to be shut down.

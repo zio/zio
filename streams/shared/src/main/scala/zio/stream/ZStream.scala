@@ -2053,7 +2053,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHub[E1 >: E, A1 >: A](
     hub: => Hub[Take[E1, A1]]
   )(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
-    runIntoQueue(hub.toQueue)
+    runIntoQueue(hub)
 
   /**
    * Like [[ZStream#runIntoHub]], but provides the result as a scoped [[ZIO]] to
@@ -2062,7 +2062,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def runIntoHubScoped[E1 >: E, A1 >: A](
     hub: => Hub[Take[E1, A1]]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E1, Unit] =
-    runIntoQueueScoped(hub.toQueue)
+    runIntoQueueScoped(hub)
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending
@@ -5694,7 +5694,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                    case None =>
                      add.flatMap { case (idx, q) =>
                        (ref.update(_ + (k -> idx)) *>
-                         out.offer(Exit.succeed(k -> ???))).as(_ == idx)
+                         out.offer(Exit.succeed(k -> mapDequeue(q)(_.map(_._2))))).as(_ == idx)
                      }
                  }
                }
@@ -6525,4 +6525,24 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       self.combineChunks[R1, E1, State, (K, B), (K, C)](that)(PullBoth)(pull)
     }
   }
+
+  private def mapDequeue[A, B](dequeue: Dequeue[A])(f: A => B): Dequeue[B] =
+    new Dequeue[B] {
+      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
+        dequeue.awaitShutdown
+      def capacity: Int =
+        dequeue.capacity
+      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
+        dequeue.isShutdown
+      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+        dequeue.shutdown
+      def size(implicit trace: ZTraceElement): UIO[Int] =
+        dequeue.size
+      def take(implicit trace: ZTraceElement): UIO[B] =
+        dequeue.take.map(f)
+      def takeAll(implicit trace: ZTraceElement): UIO[Chunk[B]] =
+        dequeue.takeAll.map(_.map(f))
+      def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[B]] =
+        dequeue.takeUpTo(max).map(_.map(f))
+    }
 }

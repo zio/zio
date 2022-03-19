@@ -1729,7 +1729,7 @@ object ZChannel {
   def toHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
-    toQueue(hub.toQueue)
+    toQueue(hub)
 
   def toQueue[Err, Done, Elem](
     queue: => Enqueue[Either[Exit[Err, Done], Elem]]
