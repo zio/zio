@@ -4,10 +4,10 @@ import zio.Chunk
 import zio.test.render.ConsoleRenderer
 
 object ReporterEventRenderer {
-  def render(sectionId: TestSectionId, reporterEvent: ReporterEvent) =
+  def render(reporterEvent: ReporterEvent): Chunk[String] =
     Chunk.fromIterable(
       ConsoleRenderer
         .render(DefaultTestReporter.render(reporterEvent, false), TestAnnotationRenderer.timed)
-        .map(line => s"${sectionId.id.toString.take(4)} $line")
+        .map(line => s"${reporterEvent.id.id.toString.take(4)} $line")
     )
 }

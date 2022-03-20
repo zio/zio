@@ -1,6 +1,5 @@
 package zio.test
 
-import zio.test.render.ConsoleRenderer
 import zio.{Chunk, Ref, ZIO, ZLayer}
 
 trait StreamingTestOutput {
@@ -36,7 +35,7 @@ case class DumbStreamer() extends StreamingTestOutput {
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.debug(
-      ReporterEventRenderer.render(id, reporterEvent)
+      ReporterEventRenderer.render(reporterEvent)
     )
 
 }
@@ -65,7 +64,7 @@ object StreamingTestOutput {
 }
 
 case class TestOutputTree(
-  output: Ref[Map[TestSectionId, Chunk[String]]]
+  output: Ref[Map[TestSectionId, Chunk[ReporterEvent]]]
 ) extends StreamingTestOutput {
 
   private def getAndRemoveSectionOutput(id: TestSectionId) =
@@ -73,7 +72,6 @@ case class TestOutputTree(
       .getAndUpdate(initial => updatedWith(initial, id)(_ => None))
       .map(_.getOrElse(id, Chunk.empty))
 
-  // TODO Scrutinize this method
   def printOrSendOutputToParent(
     id: TestSectionId,
     ancestors: List[TestSectionId],
@@ -85,7 +83,9 @@ case class TestOutputTree(
         talkers.useTalkingStickIAmTheHolder(
           id,
           behaviorIfAvailable = ZIO.foreachDiscard(sectionOutput) { subLine =>
-            TestLogger.logLine(subLine)
+            TestLogger.logLine(
+              ReporterEventRenderer.render(subLine).mkString("\n") // TODO might need to shuffle this
+            )
           },
           fallback =
             if (sectionOutput.nonEmpty)
@@ -94,7 +94,7 @@ case class TestOutputTree(
         )
     } yield ()
 
-  private def appendToSectionContents(id: TestSectionId, content: Chunk[String]) =
+  private def appendToSectionContents(id: TestSectionId, content: Chunk[ReporterEvent]) =
     output.update { outputNow =>
       updatedWith(outputNow, id)(previousSectionOutput =>
         Some(previousSectionOutput.map(old => old ++ content).getOrElse(content))
@@ -106,31 +106,28 @@ case class TestOutputTree(
     ancestors: List[TestSectionId],
     talkers: TestReporters,
     reporterEvent: ReporterEvent
-  ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] = {
-    // TODO Rendering the reporterEvent should happen *before* it comes into this class
-    val content =
-      ReporterEventRenderer.render(id, reporterEvent)
-
+  ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     for {
-      _ <- appendToSectionContents(id, content)
+      _ <- appendToSectionContents(id, Chunk(reporterEvent))
       _ <-
         talkers.useTalkingStickIAmTheHolder(
           id,
           for {
             currentOutput <- getAndRemoveSectionOutput(id)
             _ <- ZIO.foreachDiscard(currentOutput) { line =>
-                   TestLogger.logLine(line)
+                   TestLogger.logLine(
+                     ReporterEventRenderer.render(line).mkString("\n") // TODO might need to shuffle this
+                   )
                  }
           } yield (),
           ZIO.unit
         )
     } yield ()
-  }
 
   // We need this helper to run on Scala 2.11
-  private def updatedWith[TestSectionId](initial: Map[TestSectionId, Chunk[String]], key: TestSectionId)(
-    remappingFunction: Option[Chunk[String]] => Option[Chunk[String]]
-  ): Map[TestSectionId, Chunk[String]] = {
+  private def updatedWith[TestSectionId](initial: Map[TestSectionId, Chunk[ReporterEvent]], key: TestSectionId)(
+    remappingFunction: Option[Chunk[ReporterEvent]] => Option[Chunk[ReporterEvent]]
+  ): Map[TestSectionId, Chunk[ReporterEvent]] = {
     val previousValue = initial.get(key)
     val nextValue     = remappingFunction(previousValue)
     (previousValue, nextValue) match {
@@ -144,7 +141,7 @@ case class TestOutputTree(
 object TestOutputTree {
 
   def make: ZIO[Any, Nothing, StreamingTestOutput] = for {
-    output <- Ref.make[Map[TestSectionId, Chunk[String]]](Map.empty)
+    output <- Ref.make[Map[TestSectionId, Chunk[ReporterEvent]]](Map.empty)
   } yield TestOutputTree(output)
 
 }
