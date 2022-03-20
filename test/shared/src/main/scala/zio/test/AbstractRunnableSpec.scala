@@ -21,7 +21,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 @EnableReflectiveInstantiation
-@deprecated("Use zio.test.ZIOSpecAbstract instead", "2.0.0-RC4")
+@deprecated("Use ZIOSpecAbstract", "2.0.0")
 abstract class AbstractRunnableSpec {
 
   type Environment
