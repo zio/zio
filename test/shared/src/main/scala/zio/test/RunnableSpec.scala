@@ -22,7 +22,6 @@ import zio.test.render._
 /**
  * A `RunnableSpec` has a main function and can be run by the JVM / Scala.js.
  */
-@deprecated("Use ZIOSpec", "2.0.0")
 abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
   override type Environment = R
   override type Failure     = E

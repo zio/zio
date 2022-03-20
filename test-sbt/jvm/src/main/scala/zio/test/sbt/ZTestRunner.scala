@@ -88,7 +88,6 @@ final class ZTestTaskNew(
   val newSpec: ZIOSpecAbstract
 ) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))
 
-@silent("deprecated")
 object ZTestTask {
   def apply(
     taskDef: TaskDef,
@@ -99,6 +98,7 @@ object ZTestTask {
     disectTask(taskDef, testClassLoader) match {
       case NewSpecWrapper(zioSpec) =>
         new ZTestTaskNew(taskDef, testClassLoader, sendSummary, args, zioSpec)
+
       case LegacySpecWrapper(abstractRunnableSpec) =>
         new ZTestTaskLegacy(taskDef, testClassLoader, sendSummary, args, abstractRunnableSpec)
     }

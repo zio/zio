@@ -7,4 +7,4 @@ sealed trait NewOrLegacySpec
 
 case class NewSpecWrapper(ZIOSpec: ZIOSpecAbstract) extends NewOrLegacySpec
 @silent("deprecated")
-case class LegacySpecWrapper(abstractRunnableSpec: AbstractRunnableSpec) extends NewOrLegacySpec
+case class LegacySpecWrapper(@silent("deprecated") abstractRunnableSpec: AbstractRunnableSpec) extends NewOrLegacySpec
