@@ -1,6 +1,6 @@
 package zio.managed
 
-import zio.{test => _, _}
+import zio._
 import zio.Exit.Failure
 import zio.managed.ZManaged.ReleaseMap
 import zio.test.Assertion._
