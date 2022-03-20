@@ -2436,6 +2436,32 @@ eitherEffect // ZIO[Any, Exception, Either[String, Int]]
   .unright   // ZIO[Any, Exception, Either[String, Int]]
 ```
 
+## Converting Optional Values to Optional Errors and Vice Versa
+
+Assume we have the following effect:
+
+```scala mdoc:compile-only
+import zio._
+
+val nextRandomEven: ZIO[Random, String, Option[Int]] =
+  Random.nextInt
+    .reject {
+      case n if n < 0 => s"$n is negative!"
+    }
+    .map{
+      case n if n % 2 == 0 => Some(n)
+      case _               => None
+    }
+```
+
+Now we can convert this effect which is optional on the success channel to an effect that is optional on the error channel using the `ZIO#some` operator and also the `ZIO#unsome` to reverse this conversion.
+
+```scala mdoc:compile-only
+nextRandomEven // ZIO[Random, String, Option[Int]] 
+  .some        // ZIO[Random, Option[String], Int] 
+  .unsome      // ZIO[Random, String, Option[Int]]
+```
+
 ## Best Practices
 
 ### Model Domain Errors Using Algebraic Data Types
