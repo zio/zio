@@ -381,8 +381,8 @@ import zio.stream.interop.fs2z._
 val fs2stream = ZStream.fromChunks(Chunk(1, 2, 3, 4)).toFs2Stream
 ```
 
-## Using ZQueue with Cats Effect
-The `interop-cats` library has an `import zio.interop.Queue` package to lift creation of `ZQueue` effect from `UIO[Queue[A]]` to `F[Queue[F, A]]` which enables us to run `ZQueue` under Cats Effect runtime. It supports all variants of `ZQueue` like `bounded`, `unbounded`, `sliding` and `dropping`.
+## Using Queue with Cats Effect
+The `interop-cats` library has an `import zio.interop.Queue` package to lift creation of `Queue` effect from `UIO[Queue[A]]` to `F[Queue[F, A]]` which enables us to run `Queue` under Cats Effect runtime. It supports all variants of `Queue` like `bounded`, `unbounded`, `sliding` and `dropping`.
 
 ```scala
 def bounded[F[+_], A](capacity: Int)(implicit R: Runtime[ZEnv], F: LiftIO[F]): F[Queue[F, A]]
@@ -390,7 +390,7 @@ def bounded[F[+_], A](capacity: Int)(implicit R: Runtime[ZEnv], F: LiftIO[F]): F
 
 ### Cats Effect 2.x
 
-In the following example, we are going to lift the `ZQueue` creation effect to Cats `IO` effect. If we are integrating with 2.x Cats Effect library, this snippet works properly:
+In the following example, we are going to lift the `Queue` creation effect to Cats `IO` effect. If we are integrating with 2.x Cats Effect library, this snippet works properly:
 
 ```scala
 import zio.interop.Queue
@@ -407,7 +407,7 @@ def liftedToIO: IO[List[Int]] = for {
 
 ### Cats Effect 3.x
 
-To run `ZQueue` with Cats Effect 3.x we also need to provide an instance of `Dispatcher` to our contextual environment:
+To run `Queue` with Cats Effect 3.x we also need to provide an instance of `Dispatcher` to our contextual environment:
 
 ```scala
 import zio.interop.Queue

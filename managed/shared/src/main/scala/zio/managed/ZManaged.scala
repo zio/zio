@@ -2707,7 +2707,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Retrieves current log annotations.
    */
   def logAnnotations(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Map[String, String]] =
-    ZManaged.fromZIO(ZFiberRef.currentLogAnnotations.get)
+    ZManaged.fromZIO(FiberRef.currentLogAnnotations.get)
 
   /**
    * Logs the specified message at the debug log level.

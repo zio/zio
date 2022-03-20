@@ -211,7 +211,7 @@ There are a variety of transactional data structures that can take part in an ST
 - **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
 - **[TReentrantLock](treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
 - **[TSemaphore](tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
-- **[ZTHub](zthub.md)** - A `ZTHub` is a hub that can participate in STM transactions.
+- **[THub](thub.md)** - A `THub` is a hub that can participate in STM transactions.
 
 Since STM places a great emphasis on compositionality, we can build upon these data structures and define our very own concurrent data structures. For example, we can build a transactional priority queue using `TRef`, `TMap` and `TQueue`.
 

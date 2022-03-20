@@ -3,7 +3,7 @@ package zio
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.infra.results.IIII_Result
 
-object ZHubConcurrencyTests {
+object HubConcurrencyTests {
 
   val runtime = Runtime.default
   /*
@@ -19,8 +19,8 @@ object ZHubConcurrencyTests {
   @State
   class ManyToManyTest {
     val hub: Hub[Int]       = runtime.unsafeRun(Hub.bounded(2))
-    val left: Dequeue[Int]  = runtime.unsafeRun(Scope.global.extend(hub.subscribe))
-    val right: Dequeue[Int] = runtime.unsafeRun(Scope.global.extend(hub.subscribe))
+    val left: Dequeue[Int]  = runtime.unsafeRun(Scope.global.extend[Any](hub.subscribe))
+    val right: Dequeue[Int] = runtime.unsafeRun(Scope.global.extend[Any](hub.subscribe))
     var p1                  = 0
     var p2                  = 0
     var p3                  = 0

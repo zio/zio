@@ -20,14 +20,17 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `SubscriptionRef[A]` contains a `Ref.Synchronized` with a value of type `A`
- * and a `ZStream` that can be subscribed to in order to receive the current
- * value as well as all changes to the value.
+ * A `SubscriptionRef[A]` is a `Ref` that can be subscribed to in order to
+ * receive the current value as well as all changes to the value.
  */
-final class SubscriptionRef[A] private (
-  val ref: ZRef.Synchronized[Any, Any, Nothing, Nothing, A, A],
-  val changes: ZStream[Any, Nothing, A]
-)
+trait SubscriptionRef[A] extends Ref.Synchronized[A] {
+
+  /**
+   * A stream containing the current value of the `Ref` as well as all changes
+   * to that value.
+   */
+  def changes: ZStream[Any, Nothing, A]
+}
 
 object SubscriptionRef {
 
@@ -38,12 +41,22 @@ object SubscriptionRef {
     for {
       ref <- Ref.Synchronized.make(a)
       hub <- Hub.unbounded[A]
-      changes = ZStream.unwrapScoped {
-                  ref.modifyZIO { a =>
-                    ZIO.succeedNow(a).zipWith(hub.subscribe) { case (a, queue) =>
-                      (ZStream(a) ++ ZStream.fromQueue(queue), a)
-                    }
-                  }.uninterruptible
-                }
-    } yield new SubscriptionRef(ref.tapInput(hub.publish), changes)
+    } yield new SubscriptionRef[A] {
+      def changes: ZStream[Any, Nothing, A] =
+        ZStream.unwrapScoped {
+          ref.modifyZIO { a =>
+            ZStream.fromHubScoped(hub).map { stream =>
+              (ZStream(a) ++ stream, a)
+            }
+          }
+        }
+      def get(implicit trace: ZTraceElement): UIO[A] =
+        ref.get
+      def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+        ref.modifyZIO(a => f(a).tap { case (_, a) => hub.publish(a) })
+      def set(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
+        ref.set(a)
+      def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
+        ref.setAsync(a)
+    }
 }

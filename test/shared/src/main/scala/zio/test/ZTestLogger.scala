@@ -67,7 +67,7 @@ object ZTestLogger {
     logLevel: LogLevel,
     message: () => String,
     cause: Cause[Any],
-    context: Map[FiberRef.Runtime[_], AnyRef],
+    context: Map[FiberRef[_], AnyRef],
     spans: List[LogSpan],
     annotations: Map[String, String]
   ) {
@@ -91,7 +91,7 @@ object ZTestLogger {
           logLevel: LogLevel,
           message: () => String,
           cause: Cause[Any],
-          context: Map[FiberRef.Runtime[_], AnyRef],
+          context: Map[FiberRef[_], AnyRef],
           spans: List[LogSpan],
           annotations: Map[String, String]
         ): Unit = {

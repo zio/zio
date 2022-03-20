@@ -10,7 +10,7 @@ In this page we are going to answer general questions related to the ZIO project
 
 No, it doesn't denote that the data type is effectual. Instead, the `Z` prefix is used for two purposes:
 
-1. **Polymorphic Version of Another Data Type** — The `Z` prefix indicates a more polymorphic version of another data type, not a data type that is effectual. So for example `IO` and `ZIO` are equally effectual but `ZIO` is more polymorphic because it has the additional type parameter `R`. Similarly, `Ref` and `ZRef` are equally effectual but `ZRef` allows the get and set types to be different and to potentially fail with different errors, and so on for other data types such as `ZQueue` and `ZHub`.
+1. **Polymorphic Version of Another Data Type** — The `Z` prefix indicates a more polymorphic version of another data type, not a data type that is effectual. So for example `IO` and `ZIO` are equally effectual but `ZIO` is more polymorphic because it has the additional type parameter `R`.
 
 2. **Term Disambiguation** — There are some cases where the `Z` prefix is used to disambiguate a term that might otherwise be too common and create risk of name conflicts (e.g. `ZPool`).
 

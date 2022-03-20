@@ -545,7 +545,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         test("should enqueue all elements") {
 
           for {
-            queue          <- ZQueue.unbounded[Int]
+            queue          <- Queue.unbounded[Int]
             _              <- ZStream(1, 2, 3).run(ZSink.fromQueue(queue))
             enqueuedValues <- queue.takeAll
           } yield {
@@ -557,7 +557,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("fromQueueWithShutdown")(
         test("should enqueue all elements and shutsdown queue") {
 
-          def createQueueSpy[A](q: Queue[A]) = new ZQueue[Any, Any, Nothing, Nothing, A, A] {
+          def createQueueSpy[A](q: Queue[A]) = new Queue[A] {
 
             @volatile
             private var isShutDown = false
@@ -587,7 +587,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           }
 
           for {
-            queue          <- ZQueue.unbounded[Int].map(createQueueSpy)
+            queue          <- Queue.unbounded[Int].map(createQueueSpy)
             _              <- ZStream(1, 2, 3).run(ZSink.fromQueueWithShutdown(queue))
             enqueuedValues <- queue.takeAll
             isShutdown     <- queue.isShutdown
@@ -603,7 +603,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           for {
             promise1 <- Promise.make[Nothing, Unit]
             promise2 <- Promise.make[Nothing, Unit]
-            hub      <- ZHub.unbounded[Int]
+            hub      <- Hub.unbounded[Int]
             f <- ZIO.scoped {
                    hub.subscribe.flatMap(s => promise1.succeed(()) *> promise2.await *> s.takeAll)
                  }.fork
@@ -620,7 +620,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       suite("fromHubWithShutdown")(
         test("should shutdown hub") {
           for {
-            hub        <- ZHub.unbounded[Int]
+            hub        <- Hub.unbounded[Int]
             _          <- ZStream(1, 2, 3).run(ZSink.fromHubWithShutdown(hub))
             isShutdown <- hub.isShutdown
           } yield {

@@ -711,7 +711,7 @@ case class InmemoryKeyValueStore(map: Ref[Map[String, Int]])
 object InmemoryKeyValueStore {
   def layer: ULayer[KeyValueStore[String, Int, String, IO]] =
     ZLayer {
-      ZRef.make(Map[String, Int]()).map(InmemoryKeyValueStore.apply)
+      Ref.make(Map[String, Int]()).map(InmemoryKeyValueStore.apply)
     }
 }
 ```
@@ -870,7 +870,7 @@ object InmemoryKeyValueStore {
   val layer: ULayer[KeyValueStore] =
     ZLayer {
       for {
-        map <- ZRef.make(Map[String, Int]())
+        map <- Ref.make(Map[String, Int]())
       } yield InmemoryKeyValueStore(map)
     }
 }
@@ -920,7 +920,7 @@ object InmemoryKeyValueStore {
   val layer: ULayer[KeyValueStore[String, Int]] =
     ZLayer {
       for {
-        map <- ZRef.make(Map[String, Int]())
+        map <- Ref.make(Map[String, Int]())
       } yield InmemoryKeyValueStore(map)
     }
 }
@@ -965,7 +965,7 @@ object InmemoryKeyValueStore {
   val layer: ULayer[KeyValueStore[String, Int, Task]] =
     ZLayer {
       for {
-        map <- ZRef.make(Map[String, Int]())
+        map <- Ref.make(Map[String, Int]())
       } yield InmemoryKeyValueStore(map)
     }
 }
@@ -1011,7 +1011,7 @@ object InmemoryKeyValueStore {
   val layer: ULayer[KeyValueStore[String, Int, String, IO]] =
     ZLayer {
       for {
-        map <- ZRef.make(Map[String, Int]())
+        map <- Ref.make(Map[String, Int]())
       } yield InmemoryKeyValueStore(map)
     }
 }

@@ -556,14 +556,14 @@ ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamZIO` and `Z
 
 ```scala
 object ZStream {
-  def fromQueue[R, E, O](
-    queue: ZQueue[Nothing, R, Any, E, Nothing, O],
+  def fromQueue[O](
+    queue: Dequeue[O],
     maxChunkSize: Int = DefaultChunkSize
-  ): ZStream[R, E, O] = ???
+  ): ZStream[Any, Nothing, O] = ???
 
-  def fromHub[R, E, A](
-    hub: ZHub[Nothing, R, Any, E, Nothing, A]
-  ): ZStream[R, E, A] = ???
+  def fromHub[A](
+    hub: Hub[A]
+  ): ZStream[Any, Nothing, A] = ???
 }
 ```
 
@@ -572,7 +572,7 @@ If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` construct
 ```scala mdoc:silent:nest
 for {
   promise <- Promise.make[Nothing, Unit]
-  hub     <- ZHub.unbounded[Chunk[Int]]
+  hub     <- Hub.unbounded[Chunk[Int]]
   scoped = ZStream.fromChunkHubScoped(hub).tap(_ => promise.succeed(()))
   stream  = ZStream.unwrapScoped(scoped)
   fiber   <- stream.foreach(printLine(_)).fork
