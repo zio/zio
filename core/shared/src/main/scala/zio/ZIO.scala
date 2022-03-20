@@ -2809,8 +2809,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * A more powerful variant of `acquireRelease` that allows the `release`
    * effect to depend on the `Exit` value specified when the scope is closed.
    */
-  def acquireReleaseExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(
-    implicit trace: ZTraceElement
+  def acquireReleaseExit[R, R1 <: R, E, A](
+    acquire: => ZIO[R, E, A]
+  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit
+    trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
