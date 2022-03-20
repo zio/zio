@@ -87,36 +87,8 @@ object TestExecutor {
                         staticAnnotations: TestAnnotationMap
                       ) =>
                     for {
-                      result <- test.either
-                      (testEvent, annotations) = result match {
-                                                   // TODO Calculate real durations and assign to Test
-                                                   case Left(
-                                                         (
-                                                           testFailure: TestFailure[
-                                                             E
-                                                           ],
-                                                           annotations
-                                                         )
-                                                       ) =>
-                                                     (
-                                                       Left(
-                                                         testFailure
-                                                       ),
-                                                       annotations
-                                                     )
-                                                   case Right(
-                                                         (
-                                                           testSuccess,
-                                                           annotations
-                                                         )
-                                                       ) =>
-                                                     (
-                                                       Right(
-                                                         testSuccess
-                                                       ),
-                                                       annotations
-                                                     )
-                                                 }
+                      result                  <- test.either
+                      (testEvent, annotations) = extract(result)
                       _ <-
                         sink.process(
                           ExecutionEvent
@@ -142,6 +114,37 @@ object TestExecutor {
       } yield summary
 
     val environment = env
+
+    private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =
+      result match {
+        // TODO Calculate real durations and assign to Test
+        case Left(
+              (
+                testFailure: TestFailure[
+                  E
+                ],
+                annotations
+              )
+            ) =>
+          (
+            Left(
+              testFailure
+            ),
+            annotations
+          )
+        case Right(
+              (
+                testSuccess,
+                annotations
+              )
+            ) =>
+          (
+            Right(
+              testSuccess
+            ),
+            annotations
+          )
+      }
   }
 
 }
