@@ -2418,7 +2418,7 @@ val myApp: ZIO[Random, String, Int] =
     .debug
 ```
 
-## left/unleft and right/unright
+## Zoom in/out on Left or Right Side of An Either Value 
 
 With `Either` ZIO values, we can zoom in or out on the left or right side of an `Either`, as well as we can do the inverse and zoom out.
 
