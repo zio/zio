@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `THub` is a transactional message hub. Publishers can publish messages to
  * the hub and subscribers can subscribe to take messages from the hub.
  */
-abstract class THub[A] extends TEnqueue[A] { self =>
+abstract class THub[A] extends TEnqueue[A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published

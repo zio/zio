@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference
  * concurrent access. If you do need to use a mutable value `Ref.Synchronized`
  * will guarantee that access to the value is properly synchronized.
  */
-abstract class Ref[A] extends Serializable { self =>
+abstract class Ref[A] extends Serializable {
 
   /**
    * Reads the value from the `Ref`.
@@ -159,7 +159,7 @@ object Ref extends Serializable {
    * semantically block other writers, while multiple readers can read
    * simultaneously.
    */
-  abstract class Synchronized[A] extends Ref[A] { self =>
+  abstract class Synchronized[A] extends Ref[A] {
 
     /**
      * Reads the value from the `Ref`.
@@ -339,7 +339,7 @@ object Ref extends Serializable {
         def get(implicit trace: ZTraceElement): UIO[A] =
           ref.get
         def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: ZTraceElement): ZIO[R, E, B] =
-          semaphore.withPermit(get.flatMap(f).flatMap { case (b, a) => set(a).as(b) })
+          semaphore.withPermit(get.flatMap(f).flatMap { case (b, a) => ref.set(a).as(b) })
         def set(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
           semaphore.withPermit(ref.set(a))
         def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit] =

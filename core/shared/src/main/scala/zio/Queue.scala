@@ -25,19 +25,19 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Queue` is a lightweight, asynchronous queue into which values can be
  * enqueued and of which elements can be dequeued.
  */
-abstract class Queue[A] extends Dequeue[A] with Enqueue[A] { self =>
+abstract class Queue[A] extends Dequeue[A] with Enqueue[A] {
 
   /**
    * Checks whether the queue is currently empty.
    */
   override final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
-    self.size.map(_ == 0)
+    size.map(_ == 0)
 
   /**
    * Checks whether the queue is currently full.
    */
   override final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
-    self.size.map(_ == capacity)
+    size.map(_ == capacity)
 }
 
 object Queue {

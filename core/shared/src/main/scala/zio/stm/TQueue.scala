@@ -25,7 +25,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * A `TQueue` is a transactional queue. Offerors can offer values to the queue
  * and takers can take values from the queue.
  */
-trait TQueue[A] extends TDequeue[A] with TEnqueue[A] { self =>
+trait TQueue[A] extends TDequeue[A] with TEnqueue[A] {
 
   override final def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
