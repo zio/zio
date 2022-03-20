@@ -110,6 +110,8 @@ lazy val root = project
     managedJS,
     managedJVM,
     managedNative,
+    managedTestsJS,
+    managedTestsJVM,
     scalafixTests,
     stacktracerJS,
     stacktracerJVM,
@@ -252,6 +254,38 @@ lazy val managedJS = managed.js
 
 lazy val managedNative = managed.native
   .settings(nativeSettings)
+
+lazy val managedTests = crossProject(JSPlatform, JVMPlatform)
+  .in(file("managed-tests"))
+  .dependsOn(managed)
+  .dependsOn(test)
+  .settings(stdSettings("managed-tests"))
+  .settings(crossProjectSettings)
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
+  .dependsOn(testRunner)
+  .settings(buildInfoSettings("zio"))
+  .settings(publish / skip := true)
+  .settings(
+    Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  )
+  .enablePlugins(BuildInfoPlugin)
+
+lazy val managedTestsJVM = managedTests.jvm
+  .settings(dottySettings)
+  .configure(_.enablePlugins(JCStressPlugin))
+  .settings(replSettings)
+
+lazy val managedTestsJS = managedTests.js
+  .settings(dottySettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
