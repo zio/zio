@@ -838,7 +838,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         suite("take")(
           test("take")(
             check(Gen.chunkOf(Gen.small(Gen.chunkOfN(_)(Gen.int))), Gen.int) { (chunks, n) =>
-              ZIO.scoped[Any] {
+              ZIO.scoped {
                 ZStream
                   .fromChunks(chunks: _*)
                   .peel(ZSink.take[Int](n))
