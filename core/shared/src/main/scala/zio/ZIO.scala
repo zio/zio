@@ -5709,9 +5709,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     /**
      * Like `withFinalizer, add a finalizer from AutoClosable.
      */
-    def withFinalizerAutoCloseable[R1 <: R & Scope](implicit
-      trace: ZTraceElement
-    ): ZIO[R1 with Scope, E, A] = ZIO.acquireReleaseExit(io)((a, _) => ZIO.succeed(a.close()))
+    def withFinalizerAuto(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+      ZIO.acquireRelease(io)(a => ZIO.succeed(a.close()))
 
     /**
      * Like `bracket`, safely wraps a use and release of a resource. This
