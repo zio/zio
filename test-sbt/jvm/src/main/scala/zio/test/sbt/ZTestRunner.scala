@@ -88,8 +88,8 @@ final class ZTestTaskNew(
   val newSpec: ZIOSpecAbstract
 ) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))
 
+@silent("deprecated")
 object ZTestTask {
-  @silent("deprecated")
   def apply(
     taskDef: TaskDef,
     testClassLoader: ClassLoader,
@@ -103,7 +103,6 @@ object ZTestTask {
         new ZTestTaskLegacy(taskDef, testClassLoader, sendSummary, args, abstractRunnableSpec)
     }
 
-  @silent("deprecated")
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"

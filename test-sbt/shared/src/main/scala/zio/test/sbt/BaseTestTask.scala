@@ -29,6 +29,7 @@ import zio.{
   ZTraceElement
 }
 
+@silent("deprecated")
 abstract class BaseTestTask(
   val taskDef: TaskDef,
   val testClassLoader: ClassLoader,
@@ -37,7 +38,6 @@ abstract class BaseTestTask(
   val spec: NewOrLegacySpec
 ) extends Task {
 
-  @silent("deprecated")
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
@@ -94,7 +94,6 @@ abstract class BaseTestTask(
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 
-  @silent("deprecated")
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
       spec match {
