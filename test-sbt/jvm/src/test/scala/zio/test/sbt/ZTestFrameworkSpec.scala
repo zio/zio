@@ -43,10 +43,10 @@ object ZTestFrameworkSpec {
     assert(
       reported.exists(event =>
         event match {
-          case SectionState(results) =>
+          case SectionState(results, _) =>
             results.exists(result => result.test.isLeft && result.labelsReversed == List("failing test", "some suite"))
-          case RuntimeFailure(_, _, _) => false
-          case SectionHeader(_)        => false
+          case RuntimeFailure(_, _, _, _) => false
+          case SectionHeader(_, _)        => false
         }
       )
     )
@@ -54,10 +54,10 @@ object ZTestFrameworkSpec {
     assert(
       reported.exists(event =>
         event match {
-          case SectionState(results) =>
+          case SectionState(results, _) =>
             results.exists(result => result.test.isRight && result.labelsReversed == List("ignored test", "some suite"))
-          case RuntimeFailure(_, _, _) => false
-          case SectionHeader(_)        => false
+          case RuntimeFailure(_, _, _, _) => false
+          case SectionHeader(_, _)        => false
         }
       )
     )
@@ -65,10 +65,10 @@ object ZTestFrameworkSpec {
     assert(
       reported.exists(event =>
         event match {
-          case SectionState(results) =>
+          case SectionState(results, _) =>
             results.exists(result => result.test.isRight && result.labelsReversed == List("passing test", "some suite"))
-          case RuntimeFailure(_, _, _) => false
-          case SectionHeader(_)        => false
+          case RuntimeFailure(_, _, _, _) => false
+          case SectionHeader(_, _)        => false
         }
       )
     )
@@ -90,9 +90,9 @@ object ZTestFrameworkSpec {
     assert(
       reported.forall(event =>
         event match {
-          case SectionState(results)   => results.forall((result: ExecutionEvent.Test[_]) => result.duration > 0)
-          case RuntimeFailure(_, _, _) => false
-          case SectionHeader(_)        => false
+          case SectionState(results, _)   => results.forall((result: ExecutionEvent.Test[_]) => result.duration > 0)
+          case RuntimeFailure(_, _, _, _) => false
+          case SectionHeader(_, _)        => false
         }
       ),
       s"reported events should have positive durations: $reported"
