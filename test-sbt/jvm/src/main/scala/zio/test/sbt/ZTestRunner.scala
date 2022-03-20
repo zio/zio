@@ -16,6 +16,7 @@
 
 package zio.test.sbt
 
+import com.github.ghik.silencer.silent
 import sbt.testing._
 import zio.ZIO
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
@@ -70,6 +71,7 @@ sealed class ZTestTask(
   spec: NewOrLegacySpec
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec)
 
+@silent("deprecated")
 final class ZTestTaskLegacy(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
@@ -87,6 +89,7 @@ final class ZTestTaskNew(
 ) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))
 
 object ZTestTask {
+  @silent("deprecated")
   def apply(
     taskDef: TaskDef,
     testClassLoader: ClassLoader,
@@ -100,6 +103,7 @@ object ZTestTask {
         new ZTestTaskLegacy(taskDef, testClassLoader, sendSummary, args, abstractRunnableSpec)
     }
 
+  @silent("deprecated")
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"

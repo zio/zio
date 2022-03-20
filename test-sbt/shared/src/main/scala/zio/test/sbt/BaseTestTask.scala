@@ -1,5 +1,6 @@
 package zio.test.sbt
 
+import com.github.ghik.silencer.silent
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.{
   AbstractRunnableSpec,
@@ -36,6 +37,7 @@ abstract class BaseTestTask(
   val spec: NewOrLegacySpec
 ) extends Task {
 
+  @silent("deprecated")
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
@@ -92,6 +94,7 @@ abstract class BaseTestTask(
         ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
     }) ++ Clock.live
 
+  @silent("deprecated")
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
       spec match {

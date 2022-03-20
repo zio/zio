@@ -1,11 +1,13 @@
 package zio
 
+import com.github.ghik.silencer.silent
 import zio.test.Assertion._
 import zio.test._
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
+@silent("deprecated")
 object LegacyRunnableSpec extends DefaultRunnableSpec {
 
   def spec: Spec[Annotations with TestConfig with ZTestEnv with Live with Annotations, TestFailure[
