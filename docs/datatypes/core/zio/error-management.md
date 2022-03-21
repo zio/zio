@@ -763,6 +763,14 @@ ZIO
   }
 ```
 
+#### Catching Non-Fatal
+
+We can use the `ZIO#catchNonFatalOrDie` to recover from all non-fatal errors, in case of occurring any [fatal error](#3-fatal-errors), it will die.
+
+```scala
+openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
+```
+
 ### 2. Fallback
 
 1. **`ZIO#orElse`**— We can try one effect, or if it fails, try another effect with the `orElse` combinator:
