@@ -2440,7 +2440,7 @@ eitherEffect // ZIO[Any, Exception, Either[String, Int]]
 
 Assume we have the following effect:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 
 val nextRandomEven: ZIO[Random, String, Option[Int]] =
@@ -2461,6 +2461,41 @@ nextRandomEven // ZIO[Random, String, Option[Int]]
   .some        // ZIO[Random, Option[String], Int] 
   .unsome      // ZIO[Random, String, Option[Int]]
 ```
+
+```scala mdoc:invisible:reset
+
+```
+
+## Uncovering the Underlying Cause of an Effect
+
+Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def cause: URIO[R, Cause[E]]
+  def uncause[E1 >: E](implicit ev: A IsSubtypeOfOutput Cause[E1]): ZIO[R, E1, Unit]
+}
+```
+
+In the following example, we expose and then untrace the underlying cause:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val f1: ZIO[Any, String, Int] = 
+    ZIO.fail("Oh uh!").as(1)
+    
+  val f2: ZIO[Any, String, Int] = 
+    ZIO.fail("Oh error!").as(2)
+
+  val myApp: ZIO[Any, String, (Int, Int)] = f1 zipPar f2
+
+  def run = myApp.cause.map(_.untraced).debug
+}
+```
+
+Sometimes the [`ZIO#mapErrorCause`](#map-and-flatmap-on-error-channel) operator is a better choice when we just want to map the underlying cause without exposing the cause.
 
 ## Best Practices
 
@@ -2595,6 +2630,8 @@ val url = new URL("https://zio.dev")
 ```
 
 ```scala mdoc:compile-only
+import zio._
+
 val response: ZIO[Clock, Nothing, Response] =
   ZIO
     .attemptBlocking(
@@ -2685,6 +2722,8 @@ When we type errors, we know that they can't be lost. So typed errors give us th
 When we are writing an application using the ZIO effect, we are writing workflows as data transformers. So there are lots of cases where we need to debug our application by seeing how the data transformed through the workflow. We can add or remove debugging capability without changing the signature of our effect:
 
 ```scala mdoc:silent:nest
+import zio._
+
 ZIO.ifZIO(
   Random.nextIntBounded(10)
     .debug("random number")
