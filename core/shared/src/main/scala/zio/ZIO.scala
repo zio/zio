@@ -2614,19 +2614,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * finalizer to the current scope. This effect will be run uninterruptibly and
    * the finalizer will be run when the scope is closed.
    */
-  final def withFinalizer[R1 <: R](finalizer: => URIO[R1, Any])(implicit
+  final def withFinalizer[R1 <: R](finalizer: A => URIO[R1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
-    withFinalizerExit(_ => finalizer)
+    ZIO.acquireRelease(self)(finalizer)
 
   /**
    * A more powerful variant of `withFinalizer` that allows the finalizer to
    * depend on the `Exit` value that the scope is closed with.
    */
-  final def withFinalizerExit[R1 <: R](finalizer: Exit[Any, Any] => URIO[R1, Any])(implicit
+  final def withFinalizerExit[R1 <: R](finalizer: (A, Exit[Any, Any]) => URIO[R1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
-    ZIO.acquireReleaseExit[R1, E, A](self)((_, exit) => finalizer(exit))
+    ZIO.acquireReleaseExit(self)(finalizer)
 
   /**
    * Runs this effect with the specified maximum number of fibers for parallel
@@ -2800,18 +2800,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * The `acquire` and `release` effects will be run uninterruptibly.
    */
-  def acquireRelease[R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any])(implicit
+  def acquireRelease[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  ): ZIO[R1 with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
   /**
    * A more powerful variant of `acquireRelease` that allows the `release`
    * effect to depend on the `Exit` value specified when the scope is closed.
    */
-  def acquireReleaseExit[R, E, A](acquire: => ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(
-    implicit trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  def acquireReleaseExit[R, R1 <: R, E, A](
+    acquire: => ZIO[R, E, A]
+  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1 with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
   /**
@@ -2822,9 +2824,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * what finalization, if any, needs to be performed (e.g. by examining in
    * memory state).
    */
-  def acquireReleaseInterruptible[R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R, Nothing, Any])(implicit
+  def acquireReleaseInterruptible[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  ): ZIO[R1 with Scope, E, A] =
     acquireReleaseInterruptibleExit(acquire)(_ => release)
 
   /**
@@ -2832,9 +2834,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `release` effect to depend on the `Exit` value specified when the scope is
    * closed.
    */
-  def acquireReleaseInterruptibleExit[R, E, A](acquire: => ZIO[R, E, A])(
-    release: Exit[Any, Any] => ZIO[R, Nothing, Any]
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+  def acquireReleaseInterruptibleExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
+    release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
+  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E, A] =
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
