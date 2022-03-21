@@ -222,7 +222,7 @@ class StreamBenchmarks {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(parChunkSize)(i)))
     val result = ZStream
       .fromChunks(chunks: _*)
-      .mapMPar(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
+      .mapMPar[Any, Nothing, BigDecimal](4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
       .runCount
     unsafeRun(result)
   }
@@ -255,7 +255,7 @@ class StreamBenchmarks {
     val chunks = (1 to chunkCount).map(i => Chunk.fromArray(Array.fill(parChunkSize)(i)))
     val result = ZStream
       .fromChunks(chunks: _*)
-      .mapMParUnordered(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
+      .mapMParUnordered[Any, Nothing, BigDecimal](4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
       .runCount
     unsafeRun(result)
   }
