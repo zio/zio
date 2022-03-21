@@ -28,7 +28,9 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 
   val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
     ZIO.succeed {
-      summaries.updateAndGet(_ :+ summary)
+      println("eh?")
+      val result = summaries.updateAndGet(_ :+ summary)
+      println("Result: " + result.mkString(","))
       ()
     }
   )

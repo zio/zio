@@ -105,7 +105,9 @@ abstract class BaseTestTask(
           Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec, loggers)
               .provideLayer(sbtTestLayer(loggers))
-              .onError(e => ZIO.debug("Error while executing tests: " + e.prettyPrint))
+//              .onError(e => ZIO.succeed(println(e.prettyPrint)))
+              .catchAll(e => ZIO.debug("Error while executing tests: " + e.getMessage))
+//              .catchAll(e => ZIO.debug("Error while executing tests: " + e.prettyPrint))
           }
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>
