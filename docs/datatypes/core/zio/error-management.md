@@ -1758,7 +1758,7 @@ res.debug
 // (List(1 is not even, 3 is not even, 5 is not even),List(0, 2, 4, 6))
 ```
 
-## Error Channel Conversions
+## Error Channel Operations
 
 ### map and flatMap on Error Channel
 
@@ -2105,7 +2105,7 @@ timestamp=2022-02-18T14:21:52.559872464Z level=ERROR thread=#zio-fiber-0 message
 
 ### Error Refinement 
 
-ZIO has some operators useful for converting defects to failure. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.
+ZIO has some operators useful for converting defects into failures. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.
 
 Note that both `ZIO#refine*` and `ZIO#unrefine*` do not alter the error behavior, but only change the error model. That is to say, if an effect fails or die, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still fail or die; and if an effect succeeds, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still succeed; only the manner in which it signals the error will be altered by these two methods:
 1. The `ZIO#refine*` pinches off a piece of _failure_ of type `E`, and converts it into a _defect_.
@@ -2389,7 +2389,7 @@ val r2: ZIO[Any, List[String], List[Int]] = evens.flip.map(_.reverse).flip
 val r3: ZIO[Any, List[String], List[Int]] = evens.flipWith(_.map(_.reverse))
 ```
 
-## Rejecting Some Success Values
+### Rejecting Some Success Values
 
 We can reject some success values using the `ZIO#reject` operator:
 
@@ -2418,7 +2418,7 @@ val myApp: ZIO[Random, String, Int] =
     .debug
 ```
 
-## Zoom in/out on Left or Right Side of An Either Value 
+### Zoom in/out on Left or Right Side of An Either Value 
 
 With `Either` ZIO values, we can zoom in or out on the left or right side of an `Either`, as well as we can do the inverse and zoom out.
 
@@ -2436,7 +2436,7 @@ eitherEffect // ZIO[Any, Exception, Either[String, Int]]
   .unright   // ZIO[Any, Exception, Either[String, Int]]
 ```
 
-## Converting Optional Values to Optional Errors and Vice Versa
+### Converting Optional Values to Optional Errors and Vice Versa
 
 Assume we have the following effect:
 
@@ -2466,7 +2466,7 @@ nextRandomEven // ZIO[Random, String, Option[Int]]
 
 ```
 
-## Uncovering the Underlying Cause of an Effect
+### Uncovering the Underlying Cause of an Effect
 
 Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
 
