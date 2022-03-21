@@ -16,7 +16,6 @@
 
 package zio.test.sbt
 
-import com.github.ghik.silencer.silent
 import sbt.testing._
 import zio.test.{
   AbstractRunnableSpec,
@@ -95,7 +94,6 @@ sealed class ZTestTask(
   spec: NewOrLegacySpec
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  @silent("deprecated")
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     spec match {
       case NewSpecWrapper(zioSpec) => {
@@ -153,7 +151,6 @@ sealed class ZTestTask(
     }
 }
 object ZTestTask {
-  @silent("deprecated")
   def apply(
     taskDef: TaskDef,
     testClassLoader: ClassLoader,
@@ -168,7 +165,6 @@ object ZTestTask {
         new ZTestTaskLegacy(taskDef, testClassLoader, runnerType, sendSummary, args, abstractRunnableSpec)
     }
 
-  @silent("deprecated")
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
@@ -189,7 +185,6 @@ object ZTestTask {
   }
 }
 
-@silent("deprecated")
 final class ZTestTaskLegacy(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,

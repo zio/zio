@@ -16,7 +16,6 @@
 
 package zio.test.sbt
 
-import com.github.ghik.silencer.silent
 import sbt.testing._
 import zio.ZIO
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
@@ -71,7 +70,6 @@ sealed class ZTestTask(
   spec: NewOrLegacySpec
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec)
 
-@silent("deprecated")
 final class ZTestTaskLegacy(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,

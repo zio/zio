@@ -1,6 +1,5 @@
 package zio.test.sbt
 
-import com.github.ghik.silencer.silent
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.{
   AbstractRunnableSpec,
@@ -29,7 +28,6 @@ import zio.{
   ZTraceElement
 }
 
-@silent("deprecated")
 abstract class BaseTestTask(
   val taskDef: TaskDef,
   val testClassLoader: ClassLoader,
