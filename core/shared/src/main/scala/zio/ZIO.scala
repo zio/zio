@@ -5289,6 +5289,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeed(Some(a))
 
   /**
+   * Provides a stateful ZIO workflow with its initial state, resulting in a
+   * workflow that is ready to be run.
+   *
+   * {{{
+   * ZIO.stateful(0) {
+   *   for {
+   *       _     <- ZIO.updateState[Int](_ + 1)
+   *       state <- ZIO.getState[Int]
+   *     } yield assertTrue(state == 1)
+   *   }
+   * }}}
+   */
+  def stateful[R]: StatefulPartiallyApplied[R] =
+    new StatefulPartiallyApplied[R]
+
+  /**
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: => A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] =
@@ -5900,6 +5916,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }
     }
+  }
+
+  final class StatefulPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[S, E, A](
+      s: S
+    )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[R, E, A] =
+      ZState.make(s).flatMap { state =>
+        zio.provideSomeEnvironment[R](_.union[ZState[S]](ZEnvironment(state)))
+      }
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
