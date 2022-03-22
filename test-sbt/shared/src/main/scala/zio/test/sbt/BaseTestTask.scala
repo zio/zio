@@ -90,13 +90,16 @@ abstract class BaseTestTask(
 
   protected def sbtTestLayer(
     loggers: Array[Logger]
-  ): Layer[Nothing, TestLogger with Clock with StreamingTestOutput with ExecutionEventSink with Random] =
+  ): Layer[Nothing, TestLogger with Clock with StreamingTestOutput with ExecutionEventSink with Random] = {
     ZLayer.succeed[TestLogger](
       new TestLogger {
-        def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
+        def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = {
+          println("Logging to wrapped Mock logger: " + colored(line))
           ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
+        }
       }
     ) ++ Clock.live ++ (StreamingTestOutput.live >>> ExecutionEventSink.live) ++ Random.live ++ StreamingTestOutput.live
+  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
@@ -104,8 +107,6 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec, loggers)
-              .provideLayer(sbtTestLayer(loggers))
-//              .onError(e => ZIO.succeed(println(e.prettyPrint)))
               .catchAll(e => ZIO.debug("Error while executing tests: " + e.getMessage))
 //              .catchAll(e => ZIO.debug("Error while executing tests: " + e.prettyPrint))
           }

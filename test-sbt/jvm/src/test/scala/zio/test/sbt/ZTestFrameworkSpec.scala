@@ -24,7 +24,7 @@ object ZTestFrameworkSpec {
     // test("should log messages")(testLogMessages()),
     // test("should correctly display colorized output for multi-line strings")(testColored()),
      test("should test only selected test")(testTestSelection()),
-    test("should return summary when done")(testSummary())
+//    test("should return summary when done")(testSummary())
 //    test("should use a shared layer without re-initializing it")(testSharedLayer())
     // test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
@@ -149,16 +149,17 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
 
-    loggers.map(_.messages) foreach (messages =>
+    loggers.map(_.messages) foreach { messages =>
+      val results = messages.drop(1).mkString("\n")
       assertEquals(
         "logged messages",
-        messages.mkString.split("\n").dropRight(1).mkString("\n"),
+        results,
         List(
           s"${reset("info:")} ${green("+")} some suite",
-          s"${reset("info:")}   ${green("+")} passing test"
+          s"${reset("info:")}     ${green("+")} passing test"
         ).mkString("\n")
       )
-    )
+    }
   }
 
   private val counter = new AtomicInteger(0)
