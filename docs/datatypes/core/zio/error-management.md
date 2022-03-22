@@ -2095,7 +2095,15 @@ def sqrt(input: ZIO[Any, Nothing, Double]): ZIO[Any, String, Double] =
 
 ### Converting Defects to Failures
 
-Both `ZIO#resurrect` and `ZIO#absorb` are symmetrical opposite of the `ZIO#orDie` operator. The `ZIO#orDie` takes failures from the error channel and converts them into defects, whereas the `ZIO#absorb` and `ZIO#resurrect` take defects and convert them into failures.
+Both `ZIO#resurrect` and `ZIO#absorb` are symmetrical opposite of the `ZIO#orDie` operator. The `ZIO#orDie` takes failures from the error channel and converts them into defects, whereas the `ZIO#absorb` and `ZIO#resurrect` take defects and convert them into failures:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def absorb(implicit ev: E IsSubtypeOfError Throwable): ZIO[R, Throwable, A]
+  def absorbWith(f: E => Throwable): ZIO[R, Throwable, A]
+  def resurrect(implicit ev1: E IsSubtypeOfError Throwable): ZIO[R, Throwable, A]
+}
+```
 
 Below are examples of the `ZIO#absorb` and `ZIO#resurrect` operators:
 
@@ -2117,7 +2125,7 @@ val effect2 =
 
 So what is the difference between `ZIO#absorb` and `ZIO#resurrect` operators?
 
-1. The `ZIO#absorb` can recover from both `Die` and `Interruption` causes. Using this operator we can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert defects into a failure, throwing away all information about the cause of the error:
+1. The `ZIO#absorb` can recover from both `Die` and `Interruption` causes. Using this operator we can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert all causes into a failure, throwing away all information about the cause of the error:
 
 ```scala mdoc:compile-only
 import zio._
