@@ -2,13 +2,13 @@ package zio.test
 
 object ExecutionEvent {
 
-  // TODO store ancestor annotations
-  // TODO Calculate duration in appropriate location
+  // TODO Do we need to do something else for ancestor annotations?
   final case class Test[+E](
     labelsReversed: List[String],
     test: Either[TestFailure[E], TestSuccess],
     annotations: TestAnnotationMap,
     ancestors: List[TestSectionId],
+    // TODO Calculate duration in appropriate location
     duration: Long = 0L,
     id: TestSectionId
   ) extends ExecutionEvent {

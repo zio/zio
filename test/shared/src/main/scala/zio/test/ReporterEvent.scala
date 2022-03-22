@@ -4,6 +4,9 @@ import zio.Chunk
 
 import java.util.UUID
 
+/**
+ * These types contain all the information needed to print test results
+ */
 sealed trait ReporterEvent {
   val id: TestSectionId
 }
@@ -12,10 +15,7 @@ case class SectionHeader(
   id: TestSectionId
 ) extends ReporterEvent
 
-case class SectionState(results: Chunk[ExecutionEvent.Test[_]], id: TestSectionId) extends ReporterEvent {
-  def containsFailures: Boolean =
-    results.exists(_.test.isLeft)
-}
+case class SectionState(results: Chunk[ExecutionEvent.Test[_]], id: TestSectionId) extends ReporterEvent
 
 case class RuntimeFailure[E](
   labelsReversed: List[String],

@@ -17,7 +17,6 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.TestArrow.Span
 import zio.test.render.ExecutionResult.ResultType.{Suite, Test}
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -26,11 +25,9 @@ import zio.test.render._
 import zio.{Cause, _}
 
 import java.util.regex.Pattern
-import scala.:+
 import scala.annotation.tailrec
-import scala.util.Try
 
-// TODO Needs to be completely re-written for new streaming behavior
+// TODO Needs to be re-written or simply dropped for new streaming behavior
 object DefaultTestReporter {
   def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
     trace: ZTraceElement
@@ -47,7 +44,7 @@ object DefaultTestReporter {
     includeCause: Boolean
   )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
     reporterEvent match {
-      case SectionHeader(labelsReversed, sectionId) => // TODO use sectionId
+      case SectionHeader(labelsReversed, _) =>
         val depth = labelsReversed.length - 1
         labelsReversed.reverse match {
           case Nil => Seq.empty
@@ -56,7 +53,8 @@ object DefaultTestReporter {
               ExecutionResult(
                 ResultType.Suite,
                 label = nonEmptyList.last,
-                Status.Passed, // TODO Examine all results to get this
+                // We no longer know if the suite has passed here, because the output is streamed
+                Status.Passed,
                 offset = depth * 2,
                 List(TestAnnotationMap.empty), // TODO Examine all results to get this
                 lines = List(fr(nonEmptyList.last).toLine)
@@ -64,18 +62,18 @@ object DefaultTestReporter {
             )
         }
 
-      case SectionState(results, sectionId) => // TODO use sectionId
+      case SectionState(results, _) =>
         results.map { executionEventTest =>
           val initialDepth = executionEventTest.labels.length - 1
           ExecutionResult(
             ResultType.Test,
             executionEventTest.labels.headOption.getOrElse(""),
             executionEventTest.test match {
-              case Left(value) => Status.Failed
+              case Left(_) => Status.Failed
               case Right(value: TestSuccess) =>
                 value match {
-                  case TestSuccess.Succeeded(result) => Status.Passed
-                  case TestSuccess.Ignored           => Status.Ignored
+                  case TestSuccess.Succeeded(_) => Status.Passed
+                  case TestSuccess.Ignored      => Status.Ignored
                 }
             },
             initialDepth * 2,
@@ -104,7 +102,6 @@ object DefaultTestReporter {
                       warn(label).toLine
                     )
                   )
-                // TODO improve error rendering
                 case Left(TestFailure.Assertion(result)) =>
                   result
                     .fold[Option[TestResult]] {
@@ -149,27 +146,15 @@ object DefaultTestReporter {
                     renderRuntimeCause(cause, executionEventTest.labels.reverse.mkString(" - "), depth, includeCause)
                   )
               }
-              renderedResult.map(r => r.lines.toList).getOrElse(Nil)
+              renderedResult.map(r => r.lines).getOrElse(Nil)
             }
           )
         }
-      case RuntimeFailure(labelsReversed, failure, ancestors, sectionId) => // TODO use sectionId
+      case RuntimeFailure(_, failure, _, _) =>
         failure match {
-          case TestFailure.Assertion(result) => ???
-          case TestFailure.Runtime(cause)    => ???
+          case TestFailure.Assertion(_) => throw new NotImplementedError("Assertion failures are not supported")
+          case TestFailure.Runtime(_)   => throw new NotImplementedError("Runtime failures are not supported")
         }
-//        Some(
-//          renderFailureCase(???, 0, None)
-//        )
-//        FailureCase(
-//          errorMessage: failure.,
-//          codeString: String,
-//          location: String,
-//          path: Chunk[(String, Any)],
-//          span: Span.,
-//          nestedFailures: Chunk[FailureCase],
-//          result: Any
-//        )
     }
   }
 

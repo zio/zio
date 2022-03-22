@@ -40,9 +40,9 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
       //                      case ExecutedSpec.TestCase(test, _) => test.isLeft
       //                      case _                              => false
       //                    }
-      //      _ <- TestLogger
-      //             .logLine(SummaryBuilder.buildSummary(results).summary)
-      //             .when(testArgs.printSummary)
+      _ <- TestLogger
+             .logLine(results.toString) // TODO Better formatting for Summary
+             .when(testArgs.printSummary)
     } yield if (hasFailures) 1 else 0
   }
 
