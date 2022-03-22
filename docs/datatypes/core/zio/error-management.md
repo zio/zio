@@ -2036,6 +2036,15 @@ object MainApp extends ZIOAppDefault {
 
 ### Putting Errors Into Success Channel and Submerging Them Back Again
 
+Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def either(implicit ev: CanFail[E]): URIO[R, Either[E, A]]
+  def absolve[E1 >: E, B](implicit ev: A IsSubtypeOfOutput Either[E1, B]): ZIO[R, E1, B]
+}
+```
+
 1. **`ZIO#either`**— The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
 
 ```scala mdoc:compile-only
