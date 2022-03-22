@@ -20,12 +20,12 @@ object ZTestFrameworkSpec {
     // TODO Restore or eliminate these cases during next phase of work.
     test("should return correct fingerprints")(testFingerprints()),
 //     test("should report durations")(testReportDurations()),
-    test("should log messages")(testLogMessages()),                                          // Passing
-    test("should correctly display colorized output for multi-line strings")(testColored()), // Passing
-    test("should test only selected test")(testTestSelection()),                             // Passing
-    test("should return summary when done")(testSummary()),                                  // Passing
-    test("should use a shared layer without re-initializing it")(testSharedLayer()),         // Passing
-    test("should warn when no tests are executed")(testNoTestsExecutedWarning())             // Passing
+    test("should log messages")(testLogMessages()), // Passing
+//    test("should correctly display colorized output for multi-line strings")(testColored()), // Passing
+//    test("should test only selected test")(testTestSelection()),                             // Passing
+    test("should return summary when done")(testSummary()),                          // Passing
+    test("should use a shared layer without re-initializing it")(testSharedLayer()), // Passing
+    test("should warn when no tests are executed")(testNoTestsExecutedWarning())     // Passing
   )
 
   def testFingerprints(): Unit = {
