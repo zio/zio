@@ -2507,6 +2507,11 @@ nextRandomEven // ZIO[Random, String, Option[Int]]
 
 ```
 
+Sometimes instead of converting optional values to optional errors, we can perform one of the following operations:
+- Failing the original operation (`ZIO#someOrFail`)
+- Succeeding with an alternate value (`ZIO#someOrElse`)
+- Running an alternative ZIO effect (`ZIO#someOrElseZIO`)
+
 ### Uncovering the Underlying Cause of an Effect
 
 Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
