@@ -2001,6 +2001,39 @@ val r5: ZIO[Random, Nothing, Int] =
   Random.nextInt.filterOrElseWith(_ >= 0)(x => ZIO.succeed(-x))
 ```
 
+### Tapping Errors
+
+Like [tapping for success values](zio.md#tapping) ZIO has several operators for tapping error values. So we can peek into failures or underlying defects or causes:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, ZTrace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any], g: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+}
+```
+
+Let's try an example:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val myApp: ZIO[Console, NumberFormatException, Int] =
+    Console.readLine
+      .mapAttempt(_.toInt)
+      .refineToOrDie[NumberFormatException]
+      .tapError { e =>
+        ZIO.debug(s"user entered an invalid input: ${e}").when(e.isInstanceOf[NumberFormatException])
+      }
+
+  def run = myApp
+}
+```
+
 ### Putting Errors Into Success Channel and Submerging Them Back Again
 
 1. **`ZIO#either`**— The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
@@ -2508,7 +2541,7 @@ nextRandomEven // ZIO[Random, String, Option[Int]]
 ```
 
 Sometimes instead of converting optional values to optional errors, we can perform one of the following operations:
-- Failing the original operation (`ZIO#someOrFail`)
+- Failing the original operation (`ZIO#someOrFail` and `ZIO#someOrFailException`)
 - Succeeding with an alternate value (`ZIO#someOrElse`)
 - Running an alternative ZIO effect (`ZIO#someOrElseZIO`)
 
