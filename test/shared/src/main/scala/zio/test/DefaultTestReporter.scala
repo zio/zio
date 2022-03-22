@@ -68,11 +68,15 @@ object DefaultTestReporter {
         results.map { executionEventTest =>
           val initialDepth = executionEventTest.labels.length - 1
           ExecutionResult(
-            ResultType.Suite,
+            ResultType.Test,
             executionEventTest.labels.headOption.getOrElse(""),
             executionEventTest.test match {
               case Left(value)  => Status.Failed
-              case Right(value) => Status.Passed
+              case Right(value: TestSuccess) =>
+                value match {
+                  case TestSuccess.Succeeded(result) => Status.Passed
+                  case TestSuccess.Ignored => Status.Ignored
+                }
             },
             initialDepth * 2,
             List(executionEventTest.annotations), {

@@ -47,6 +47,7 @@ trait ConsoleRenderer extends TestRenderer {
       case Status.Passed => withOffset(offset)(info("+") + sp) +: message
       case Status.Failed => withOffset(offset)(Line.empty) +: message
       case Status.Ignored =>
+        println("Rendering Ignored message in Suite")
         withOffset(offset)(Line.empty) +: message :+ fr(" - " + TestAnnotation.ignored.identifier + " suite").toLine
     }
 

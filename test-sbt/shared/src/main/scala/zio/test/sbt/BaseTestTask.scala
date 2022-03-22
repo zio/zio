@@ -94,7 +94,6 @@ abstract class BaseTestTask(
     ZLayer.succeed[TestLogger](
       new TestLogger {
         def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = {
-          println("Logging to wrapped Mock logger: " + colored(line))
           ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
         }
       }

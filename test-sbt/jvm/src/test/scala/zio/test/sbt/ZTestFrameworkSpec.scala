@@ -18,15 +18,15 @@ object ZTestFrameworkSpec {
 
   def tests: Seq[Try[Unit]] = Seq(
     // TODO Restore or eliminate these cases during next phase of work.
-//    test("should return correct fingerprints")(testFingerprints()),
+    test("should return correct fingerprints")(testFingerprints()),
 //     test("should report events")(testReportEvents()),
 //     test("should report durations")(testReportDurations()),
-    // test("should log messages")(testLogMessages()),
-    // test("should correctly display colorized output for multi-line strings")(testColored()),
-     test("should test only selected test")(testTestSelection()),
-//    test("should return summary when done")(testSummary())
-//    test("should use a shared layer without re-initializing it")(testSharedLayer())
-    // test("should warn when no tests are executed")(testNoTestsExecutedWarning())
+     test("should log messages")(testLogMessages()), // Passing
+     test("should correctly display colorized output for multi-line strings")(testColored()), // Passing
+     test("should test only selected test")(testTestSelection()), // Passing
+     test("should return summary when done")(testSummary()), // Passing
+     test("should use a shared layer without re-initializing it")(testSharedLayer()), // Passing
+     test("should warn when no tests are executed")(testNoTestsExecutedWarning()) // Passing
   )
 
   def testFingerprints(): Unit = {
@@ -104,21 +104,33 @@ object ZTestFrameworkSpec {
 
     loadAndExecute(failingSpecFQN, loggers = loggers)
 
-    loggers.map(_.messages) foreach (messages =>
-      assertEquals(
-        "logged messages",
-        messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
-        List(
-          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
-          s"${reset("info:")}   ${red("- failing test")}",
-          s"${reset("info:")}     ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}     ${assertSourceLocation()}",
-          reset("info: "),
-          s"${reset("info:")}   ${green("+")} passing test",
-          s"${reset("info:")}   ${yellow("-")} ${yellow("ignored test")} - ignored: 1"
-        ).mkString("\n")
+    loggers.map(_.messages.map(_.withNoLineNumbers)) foreach { messages =>
+      assertContains(
+        "logs success",
+        messages,
+        Seq(
+          s"${reset("info:")}     ${green("+")} passing test",
+        )
       )
-    )
+      assertContains(
+        "logs errors",
+        messages,
+        Seq(
+          s"${reset("info:")}     ${red("- failing test")}",
+          s"${reset("info:")}       ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
+          s"${reset("info:")}       ${assertSourceLocation()}",
+        )
+      )
+      assertContains(
+        "logs ignored message",
+        messages,
+        Seq(
+          s"${reset("info:")}     ${yellow("-")} ${yellow("ignored test")}"
+        )
+      )
+      // We can't do this assertion anymore with the streaming approach
+      //          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
+    }
   }
 
   def testColored(): Unit = {
@@ -128,13 +140,12 @@ object ZTestFrameworkSpec {
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
-        messages.mkString.split("\n").dropRight(1).mkString("\n").withNoLineNumbers,
+        messages.drop(1).mkString("\n").withNoLineNumbers,
         List(
-          s"${reset("info: ")}${red("- multi-line test")}",
-          s"${reset("info: ")}  ${Console.BLUE}Hello,",
+          s"${reset("info: ")}  ${red("- multi-line test")}",
+          s"${reset("info: ")}    ${Console.BLUE}Hello,",
           s"${reset("info: ")}${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"${reset("info: ")}  ${assertSourceLocation()}",
-          s"${reset("info: ")}"
+          s"${reset("info: ")}    ${assertSourceLocation()}",
         ).mkString("\n")
 //          .mkString("\n")
 //          .split('\n')

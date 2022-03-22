@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicReference
 class MockLogger extends Logger {
   private val logged = new AtomicReference(Vector.empty[String])
   private def log(str: String) = {
-    println("in mocked logger with line: " + str)
     logged.getAndUpdate(_ :+ str)
     ()
   }
