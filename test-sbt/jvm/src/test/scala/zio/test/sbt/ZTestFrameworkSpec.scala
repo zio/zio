@@ -2,6 +2,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.Assertion.equalTo
+import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
 import zio.{ZEnvironment, ZIO, ZLayer, ZTraceElement, durationInt}
@@ -17,15 +18,15 @@ object ZTestFrameworkSpec {
     run(tests: _*)
 
   def tests: Seq[Try[Unit]] = Seq(
-    // TODO Restore or eliminate these cases during next phase of work.
     test("should return correct fingerprints")(testFingerprints()),
-//     test("should report durations")(testReportDurations()),
-    test("should log messages")(testLogMessages()), // Passing
-//    test("should correctly display colorized output for multi-line strings")(testColored()), // Passing
-//    test("should test only selected test")(testTestSelection()),                             // Passing
-    test("should return summary when done")(testSummary()),                          // Passing
-    test("should use a shared layer without re-initializing it")(testSharedLayer()), // Passing
-    test("should warn when no tests are executed")(testNoTestsExecutedWarning())     // Passing
+    // TODO restore once we are calculating durations again
+    //test("should report durations")(testReportDurations()),
+    test("should log messages")(testLogMessages()),
+    test("should correctly display colorized output for multi-line strings")(testColored()),
+    test("should test only selected test")(testTestSelection()),
+    test("should return summary when done")(testSummary()),
+    test("should use a shared layer without re-initializing it")(testSharedLayer()),
+    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
@@ -101,12 +102,9 @@ object ZTestFrameworkSpec {
           s"${reset("info: ")}  ${red("- multi-line test")}",
           s"${reset("info: ")}    ${Console.BLUE}Hello,",
           s"${reset("info: ")}${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"${reset("info: ")}    ${assertSourceLocation()}"
+          s"${reset("info: ")}    ${assertSourceLocation()}",
+          s"""${reset("info: ")}${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
         ).mkString("\n")
-//          .mkString("\n")
-//          .split('\n')
-//          .map(s"${reset("info:")} " + _)
-//          .mkString("\n")
       )
     )
   }
@@ -123,7 +121,8 @@ object ZTestFrameworkSpec {
         results,
         List(
           s"${reset("info:")} ${green("+")} some suite",
-          s"${reset("info:")}     ${green("+")} passing test"
+          s"${reset("info:")}     ${green("+")} passing test",
+          s"""${reset("info: ")}${ConsoleRenderer.render(Summary(1, 0, 0, ""))}"""
         ).mkString("\n")
       )
     }

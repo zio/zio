@@ -1,12 +1,12 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import zio.test.render.ConsoleRenderer
 import zio.test.{
   AbstractRunnableSpec,
   ExecutionEventSink,
   FilteredSpec,
   StreamingTestOutput,
-  Summary,
   TestArgs,
   TestEnvironment,
   TestLogger,
@@ -83,15 +83,12 @@ abstract class BaseTestTask(
                      testLoggers +!+ fullLayer
                    )
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-      _ <- TestLogger.logLine(simpleSummary(summary)).provideLayer(testLoggers)
+      _ <- TestLogger.logLine(ConsoleRenderer.render(summary)).provideLayer(testLoggers)
       _ <- (if (summary.fail > 0)
               ZIO.fail(new Exception("Failed tests"))
             else ZIO.unit)
     } yield ()
   }
-
-  private def simpleSummary(summary: Summary): String =
-    s""" ${summary.success}  tests passed  ${summary.fail}  tests failed ${summary.ignore}   tests ignored """
 
   protected def sbtTestLayer(
     loggers: Array[Logger]
