@@ -29,8 +29,8 @@ object TestingSupport {
 
   def assertContains(what: String, actual: => Seq[String], expected: Seq[String]): Unit = {
     val splitByNewLines = actual.flatMap(_.split("\n"))
-    val msg = s"""$what:\nexpected to contain:\n${expected.mkString("\n")}\nactual:\n${actual.mkString("\n")}"""
-    assert(splitByNewLines.sliding(expected.size).contains(expected) , msg)
+    val msg             = s"""$what:\nexpected to contain:\n${expected.mkString("\n")}\nactual:\n${actual.mkString("\n")}"""
+    assert(splitByNewLines.sliding(expected.size).contains(expected), msg)
   }
 
   def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"

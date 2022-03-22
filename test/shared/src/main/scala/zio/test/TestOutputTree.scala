@@ -4,16 +4,16 @@ import zio.{Chunk, Ref, ZIO, ZLayer}
 
 trait StreamingTestOutput {
 
-  def printOrSendOutputToParent(
+  def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters
+    reporters: TestReporters
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
 
   def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters,
+    reporters: TestReporters,
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
 
@@ -21,17 +21,17 @@ trait StreamingTestOutput {
 
 // Used as a baseline to compare against
 case class DumbStreamer() extends StreamingTestOutput {
-  override def printOrSendOutputToParent(
+  override def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters
+    reporters: TestReporters
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.unit
 
   override def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters,
+    reporters: TestReporters,
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.debug(
@@ -51,7 +51,7 @@ object StreamingTestOutput {
     ancestors: List[TestSectionId],
     talkers: TestReporters
   ): ZIO[StreamingTestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
-    ZIO.serviceWithZIO[StreamingTestOutput](_.printOrSendOutputToParent(id, ancestors, talkers))
+    ZIO.serviceWithZIO[StreamingTestOutput](_.printOrFlush(id, ancestors, talkers))
 
   def printOrQueue(
     id: TestSectionId,
@@ -72,19 +72,19 @@ case class TestOutputTree(
       .getAndUpdate(initial => updatedWith(initial, id)(_ => None))
       .map(_.getOrElse(id, Chunk.empty))
 
-  def printOrSendOutputToParent(
+  def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters
+    reporters: TestReporters
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     for {
       sectionOutput <- getAndRemoveSectionOutput(id)
       _ <-
-        talkers.useTalkingStickIAmTheHolder(
+        reporters.printOrElse(
           id,
-          behaviorIfAvailable = ZIO.foreachDiscard(sectionOutput) { subLine =>
+          print = ZIO.foreachDiscard(sectionOutput) { subLine =>
             TestLogger.logLine(
-              ReporterEventRenderer.render(subLine).mkString("\n") // TODO might need to shuffle this
+              ReporterEventRenderer.render(subLine).mkString("\n")
             )
           },
           fallback =
@@ -104,13 +104,13 @@ case class TestOutputTree(
   def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters,
+    reporters: TestReporters,
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     for {
       _ <- appendToSectionContents(id, Chunk(reporterEvent))
       _ <-
-        talkers.useTalkingStickIAmTheHolder(
+        reporters.printOrElse(
           id,
           for {
             currentOutput <- getAndRemoveSectionOutput(id)

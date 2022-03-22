@@ -9,7 +9,7 @@ object TestReporters {
 
 case class TestReporters(testIds: Ref[List[TestSectionId]]) {
 
-  def attemptToGetTalkingStickZ(sectionId: TestSectionId, ancestors: List[TestSectionId]) =
+  def attemptToGetPrintingControl(sectionId: TestSectionId, ancestors: List[TestSectionId]): ZIO[Any, Nothing, Unit] =
     testIds.updateSome {
       case Nil =>
         List(sectionId)
@@ -18,11 +18,9 @@ case class TestReporters(testIds: Ref[List[TestSectionId]]) {
         sectionId :: writers
     }
 
-  // TODO Consider more domain-specific version of `UUID`
-  // TODO Consider returning non-printed `List[String]` as the result
-  def useTalkingStickIAmTheHolder(
+  def printOrElse(
     id: TestSectionId,
-    behaviorIfAvailable: ZIO[ExecutionEventSink with TestLogger, Nothing, Unit],
+    print: ZIO[ExecutionEventSink with TestLogger, Nothing, Unit],
     fallback: ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
   )(implicit
     trace: ZTraceElement
@@ -31,12 +29,12 @@ case class TestReporters(testIds: Ref[List[TestSectionId]]) {
       initialTalker <- testIds.get.map(_.head)
       _ <-
         if (initialTalker == id)
-          behaviorIfAvailable
+          print
         else
           fallback
     } yield ()
 
-  def relinquishTalkingStick(sectionId: TestSectionId) =
+  def relinquishPrintingControl(sectionId: TestSectionId) =
     testIds.updateSome {
       case head :: tail if head == sectionId =>
         tail

@@ -6,6 +6,7 @@ import zio.test.{
   ExecutionEventSink,
   FilteredSpec,
   StreamingTestOutput,
+  Summary,
   TestArgs,
   TestEnvironment,
   TestLogger,
@@ -82,23 +83,25 @@ abstract class BaseTestTask(
                      testLoggers +!+ fullLayer
                    )
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
+      _ <- TestLogger.logLine(simpleSummary(summary)).provideLayer(testLoggers)
       _ <- (if (summary.fail > 0)
               ZIO.fail(new Exception("Failed tests"))
             else ZIO.unit)
     } yield ()
   }
 
+  private def simpleSummary(summary: Summary): String =
+    s""" ${summary.success}  tests passed  ${summary.fail}  tests failed ${summary.ignore}   tests ignored """
+
   protected def sbtTestLayer(
     loggers: Array[Logger]
-  ): Layer[Nothing, TestLogger with Clock with StreamingTestOutput with ExecutionEventSink with Random] = {
+  ): Layer[Nothing, TestLogger with Clock with StreamingTestOutput with ExecutionEventSink with Random] =
     ZLayer.succeed[TestLogger](
       new TestLogger {
-        def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = {
+        def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] =
           ZIO.attempt(loggers.foreach(_.info(colored(line)))).ignore
-        }
       }
     ) ++ Clock.live ++ (StreamingTestOutput.live >>> ExecutionEventSink.live) ++ Random.live ++ StreamingTestOutput.live
-  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {

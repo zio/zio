@@ -19,14 +19,13 @@ object ZTestFrameworkSpec {
   def tests: Seq[Try[Unit]] = Seq(
     // TODO Restore or eliminate these cases during next phase of work.
     test("should return correct fingerprints")(testFingerprints()),
-//     test("should report events")(testReportEvents()),
 //     test("should report durations")(testReportDurations()),
-     test("should log messages")(testLogMessages()), // Passing
-     test("should correctly display colorized output for multi-line strings")(testColored()), // Passing
-     test("should test only selected test")(testTestSelection()), // Passing
-     test("should return summary when done")(testSummary()), // Passing
-     test("should use a shared layer without re-initializing it")(testSharedLayer()), // Passing
-     test("should warn when no tests are executed")(testNoTestsExecutedWarning()) // Passing
+    test("should log messages")(testLogMessages()),                                          // Passing
+    test("should correctly display colorized output for multi-line strings")(testColored()), // Passing
+    test("should test only selected test")(testTestSelection()),                             // Passing
+    test("should return summary when done")(testSummary()),                                  // Passing
+    test("should use a shared layer without re-initializing it")(testSharedLayer()),         // Passing
+    test("should warn when no tests are executed")(testNoTestsExecutedWarning())             // Passing
   )
 
   def testFingerprints(): Unit = {
@@ -34,50 +33,7 @@ object ZTestFrameworkSpec {
     assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint, ZioSpecFingerprint))
   }
 
-  def testReportEvents(): Unit = {
-    val loggers  = Seq(new MockLogger)
-    val reported = ArrayBuffer[ReporterEvent]()
-
-    loadAndExecute(failingSpecFQN, loggers = loggers)
-
-    assert(
-      reported.exists(event =>
-        event match {
-          case SectionState(results, _) =>
-            results.exists(result => result.test.isLeft && result.labelsReversed == List("failing test", "some suite"))
-          case RuntimeFailure(_, _, _, _) => false
-          case SectionHeader(_, _)        => false
-        }
-      )
-    )
-
-    assert(
-      reported.exists(event =>
-        event match {
-          case SectionState(results, _) =>
-            results.exists(result => result.test.isRight && result.labelsReversed == List("ignored test", "some suite"))
-          case RuntimeFailure(_, _, _, _) => false
-          case SectionHeader(_, _)        => false
-        }
-      )
-    )
-
-    assert(
-      reported.exists(event =>
-        event match {
-          case SectionState(results, _) =>
-            results.exists(result => result.test.isRight && result.labelsReversed == List("passing test", "some suite"))
-          case RuntimeFailure(_, _, _, _) => false
-          case SectionHeader(_, _)        => false
-        }
-      )
-    )
-
-  }
-
-  val dummyHandler: EventHandler = new EventHandler {
-    override def handle(event: Event): Unit = ()
-  }
+  val dummyHandler: EventHandler = (_: Event) => ()
 
   def testReportDurations(): Unit = {
     val loggers  = Seq(new MockLogger)
@@ -109,7 +65,7 @@ object ZTestFrameworkSpec {
         "logs success",
         messages,
         Seq(
-          s"${reset("info:")}     ${green("+")} passing test",
+          s"${reset("info:")}     ${green("+")} passing test"
         )
       )
       assertContains(
@@ -118,7 +74,7 @@ object ZTestFrameworkSpec {
         Seq(
           s"${reset("info:")}     ${red("- failing test")}",
           s"${reset("info:")}       ${blue("1")} did not satisfy ${cyan("equalTo(2)")}",
-          s"${reset("info:")}       ${assertSourceLocation()}",
+          s"${reset("info:")}       ${assertSourceLocation()}"
         )
       )
       assertContains(
@@ -128,8 +84,8 @@ object ZTestFrameworkSpec {
           s"${reset("info:")}     ${yellow("-")} ${yellow("ignored test")}"
         )
       )
-      // We can't do this assertion anymore with the streaming approach
-      //          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
+    // We can't do this assertion anymore with the streaming approach
+    //          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
     }
   }
 
@@ -145,7 +101,7 @@ object ZTestFrameworkSpec {
           s"${reset("info: ")}  ${red("- multi-line test")}",
           s"${reset("info: ")}    ${Console.BLUE}Hello,",
           s"${reset("info: ")}${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
-          s"${reset("info: ")}    ${assertSourceLocation()}",
+          s"${reset("info: ")}    ${assertSourceLocation()}"
         ).mkString("\n")
 //          .mkString("\n")
 //          .split('\n')
@@ -221,7 +177,9 @@ object ZTestFrameworkSpec {
   }
 
   def testSharedLayer(): Unit = {
-    loadAndExecuteAllZ(Seq.fill(3)(spec1UsingSharedLayer))
+
+    val loggers = Seq(new MockLogger)
+    loadAndExecuteAll(Seq.fill(3)(spec1UsingSharedLayer), loggers, Array.empty)
 
     assert(counter.get() == 1)
   }
@@ -273,15 +231,13 @@ object ZTestFrameworkSpec {
 
   private def loadAndExecute(
     fqn: String,
-    eventHandler: EventHandler = _ => (),
     loggers: Seq[Logger],
     testArgs: Array[String] = Array.empty
   ) =
-    loadAndExecuteAll(Seq(fqn), eventHandler, loggers, testArgs)
+    loadAndExecuteAll(Seq(fqn), loggers, testArgs)
 
   private def loadAndExecuteAll(
     fqns: Seq[String],
-    eventHandler: EventHandler,
     loggers: Seq[Logger],
     testArgs: Array[String]
   ) = {
@@ -297,35 +253,13 @@ object ZTestFrameworkSpec {
 
     @scala.annotation.tailrec
     def doRun(tasks: Iterable[Task]): Unit = {
-      val more = tasks.flatMap(_.execute(eventHandler, loggers.toArray))
+      val more = tasks.flatMap(_.execute(dummyHandler, loggers.toArray))
       if (more.nonEmpty) {
         doRun(more)
       }
     }
 
     doRun(Iterable(task))
-  }
-
-  // TODO Can we remove this after recent deletions?
-  private def loadAndExecuteAllZ(
-    fqns: Seq[String],
-    loggers: Seq[Logger] = Nil,
-    testArgs: Array[String] = Array.empty
-  ) = {
-
-    val tasks =
-      fqns
-        .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
-        .toArray
-    val task = new ZTestFramework()
-      .runner(testArgs, Array(), getClass.getClassLoader)
-      .tasks(tasks)
-      .head
-
-    val zTaskNew =
-      task.asInstanceOf[ZTestTaskNew]
-
-    zTaskNew.execute(dummyHandler, loggers.toArray)
   }
 
   lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName

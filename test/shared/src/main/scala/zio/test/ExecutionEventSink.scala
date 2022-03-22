@@ -36,7 +36,7 @@ object ExecutionEventSink {
 
           case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
             for {
-              _ <- talkers.attemptToGetTalkingStickZ(id, ancestors)
+              _ <- talkers.attemptToGetPrintingControl(id, ancestors)
               _ <- StreamingTestOutput.printOrQueue(
                      id,
                      ancestors,
@@ -47,7 +47,7 @@ object ExecutionEventSink {
 
           case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
             StreamingTestOutput.printOrSendOutputToParent(id, ancestors, talkers) *>
-              talkers.relinquishTalkingStick(id)
+              talkers.relinquishPrintingControl(id)
 
           case ExecutionEvent.RuntimeFailure(labelsReversed, failure, ancestors) =>
             ZIO.unit // TODO Decide how to report this

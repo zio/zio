@@ -71,11 +71,11 @@ object DefaultTestReporter {
             ResultType.Test,
             executionEventTest.labels.headOption.getOrElse(""),
             executionEventTest.test match {
-              case Left(value)  => Status.Failed
+              case Left(value) => Status.Failed
               case Right(value: TestSuccess) =>
                 value match {
                   case TestSuccess.Succeeded(result) => Status.Passed
-                  case TestSuccess.Ignored => Status.Ignored
+                  case TestSuccess.Ignored           => Status.Ignored
                 }
             },
             initialDepth * 2,

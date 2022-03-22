@@ -53,7 +53,8 @@ final case class TestRunner[R, E](
     trace: ZTraceElement
   ): URIO[StreamingTestOutput with TestLogger with Clock with ExecutionEventSink with Random, Summary] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
-      // TODO Can we use duration here to ultimately report a proper runtime to SBT?
+      // TODO Why is duration 0 here?
+      println("Duration: " + duration)
       ZIO.succeed(summary)
     }
 
@@ -81,7 +82,6 @@ final case class TestRunner[R, E](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  // TODO Consider returning a Summary here instead of unit
   def unsafeRunSync(
     spec: ZSpec[R, E]
   )(implicit trace: ZTraceElement): Exit[Nothing, Unit] =

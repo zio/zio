@@ -79,11 +79,9 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   ] = {
     implicit val trace = Tracer.newTrace
     for {
-      _       <- UIO.succeed(println("runSpec"))
       args    <- ZIO.service[ZIOAppArgs]
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpec(spec, testArgs)
-      // TODO Check this behavior
       exitCode = if (summary.fail > 0) 1 else 0
       _       <- doExit(exitCode)
     } yield ()

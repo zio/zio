@@ -20,8 +20,6 @@ import zio.{Chunk, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
 
-import java.util.UUID
-
 object SummaryBuilder {
   def buildSummary[E](reporterEvent: ReporterEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(reporterEvent) {
@@ -39,7 +37,7 @@ object SummaryBuilder {
     val failures = extractFailures(reporterEvent)
 
     val rendered =
-//      TODO See if this is used. We're giving an arbitrary/bad boolean value
+//      TODO Check impact of hard-coded false here
       ConsoleRenderer
         .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
         .mkString("\n")
@@ -58,36 +56,34 @@ object SummaryBuilder {
     executedSpec: ReporterEvent
   )(pred: Either[TestFailure[_], TestSuccess] => Boolean): Int =
     executedSpec match {
-      case SectionState(results: Chunk[ExecutionEvent.Test[_]], sectionId) => // TODO use sectionId
+      case SectionState(results: Chunk[ExecutionEvent.Test[_]], _) =>
         results.count { t =>
-          val tmp: Either[TestFailure[_], TestSuccess] = t.test
           pred.apply(t.test)
         }
-      case RuntimeFailure(labelsReversed, failure, ancestors, sectionId) =>
+      case RuntimeFailure(_, _, _, _) =>
         0
 
-      case SectionHeader(_, sectionId) => 0
+      case SectionHeader(_, _) => 0
     }
 
   private def extractFailures[E](reporterEvent: ReporterEvent): Seq[ReporterEvent] =
     reporterEvent match {
-      case SectionState(results, sectionId) =>
+      case SectionState(results, _) =>
         if (
-          results.exists {
-            case ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, sectionId) =>
-              test match {
-                case Left(failure) =>
-                  true
-                case _ =>
-                  false
-              }
+          results.exists { case ExecutionEvent.Test(_, test, _, _, _, _) =>
+            test match {
+              case Left(_) =>
+                true
+              case _ =>
+                false
+            }
           }
         ) {
           Seq(reporterEvent)
         } else {
           Seq.empty
         }
-      case RuntimeFailure(labelsReversed, failure, ancestors, sectionId) => Seq(reporterEvent)
-      case SectionHeader(_, sectionId)                                   => Seq.empty
+      case RuntimeFailure(_, _, _, _) => Seq(reporterEvent)
+      case SectionHeader(_, _)        => Seq.empty
     }
 }

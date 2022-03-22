@@ -99,8 +99,8 @@ object TestArrow {
 
   private def attempt[A](f: => Trace[A]): Trace[A] =
     Try(f) match {
-      case scala.util.Failure(exception) => Trace.die(exception)
-      case Success(value)                => value
+      case Failure(exception) => Trace.die(exception)
+      case Success(value)     => value
     }
 
   def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {

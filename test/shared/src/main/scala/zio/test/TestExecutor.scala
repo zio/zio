@@ -18,9 +18,7 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{ExecutionStrategy, Layer, Random, ZIO, ZTraceElement}
-
-import java.util.UUID
+import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
 
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
@@ -50,54 +48,47 @@ object TestExecutor {
             ancestors: List[TestSectionId],
             sectionId: TestSectionId
           ): ZIO[StreamingTestOutput with TestLogger with ExecutionEventSink with Random with Scope, Nothing, Unit] =
-            for {
-              logger <- ZIO.service[TestLogger]
-              _ <- {
-                (spec.caseValue match {
-                  case Spec.ExecCase(exec, spec) =>
-                    loop(labels, spec, exec, ancestors, sectionId)
+            (spec.caseValue match {
+              case Spec.ExecCase(exec, spec) =>
+                loop(labels, spec, exec, ancestors, sectionId)
 
-                  case Spec.LabeledCase(label, spec) =>
-                    loop(label :: labels, spec, exec, ancestors, sectionId)
+              case Spec.LabeledCase(label, spec) =>
+                loop(label :: labels, spec, exec, ancestors, sectionId)
 
-                  case Spec.ScopedCase(managed) =>
-                    managed
-                      .map(loop(labels, _, exec, ancestors, sectionId))
-                      .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(labels, e._1, ancestors)))
+              case Spec.ScopedCase(managed) =>
+                managed
+                  .map(loop(labels, _, exec, ancestors, sectionId))
+                  .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(labels, e._1, ancestors)))
 
-                  case Spec.MultipleCase(specs) =>
-                    ZIO.uninterruptibleMask(restore =>
-                      for {
-                        newMultiSectionId <- TestSectionId.newRandom
-                        newAncestors       = sectionId :: ancestors
-                        _                 <- sink.process(ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors))
-                        _ <-
-                          restore(
-                            ZIO.foreachExec(specs)(exec)(spec =>
-                              loop(labels, spec, exec, newAncestors, newMultiSectionId)
-                            )
-                          )
-                            .ensuring(
-                              sink.process(ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors))
-                            )
-                      } yield ()
-                    )
-                  case Spec.TestCase(
-                        test,
-                        staticAnnotations: TestAnnotationMap
-                      ) =>
-                    for {
-                      result                  <- test.either
-                      (testEvent, annotations) = extract(result)
-                      _ <-
-                        sink.process(
-                          ExecutionEvent
-                            .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
+              case Spec.MultipleCase(specs) =>
+                ZIO.uninterruptibleMask(restore =>
+                  for {
+                    newMultiSectionId <- TestSectionId.newRandom
+                    newAncestors       = sectionId :: ancestors
+                    _                 <- sink.process(ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors))
+                    _ <-
+                      restore(
+                        ZIO.foreachExec(specs)(exec)(spec => loop(labels, spec, exec, newAncestors, newMultiSectionId))
+                      )
+                        .ensuring(
+                          sink.process(ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors))
                         )
-                    } yield ()
-                })
-              }
-            } yield ()
+                  } yield ()
+                )
+              case Spec.TestCase(
+                    test,
+                    staticAnnotations: TestAnnotationMap
+                  ) =>
+                for {
+                  result                  <- test.either
+                  (testEvent, annotations) = extract(result)
+                  _ <-
+                    sink.process(
+                      ExecutionEvent
+                        .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
+                    )
+                } yield ()
+            }).unit
 
           val scopedSpec =
             (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated
@@ -117,7 +108,6 @@ object TestExecutor {
 
     private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =
       result match {
-        // TODO Calculate real durations and assign to Test
         case Left(
               (
                 testFailure: TestFailure[
