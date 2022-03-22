@@ -28,9 +28,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
 
   val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
     ZIO.succeed {
-      println("eh?")
-      val result = summaries.updateAndGet(_ :+ summary)
-      println("Result: " + result.mkString(","))
+      summaries.updateAndGet(_ :+ summary)
       ()
     }
   )
@@ -148,7 +146,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                       new ZTestTaskNew(
                         existingNewTestTask.spec.taskDef,
                         existingNewTestTask.spec.testClassLoader,
-                        existingNewTestTask.spec.sendSummary zip taskNew.sendSummary,
+                        existingNewTestTask.spec.sendSummary,
                         existingNewTestTask.spec.args,
                         existingNewTestTask.spec.newSpec <> taskNew.newSpec
                       ),
