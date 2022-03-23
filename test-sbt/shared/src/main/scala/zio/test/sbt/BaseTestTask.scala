@@ -63,6 +63,11 @@ abstract class BaseTestTask(
     ) +!+ consoleTestLogger
   } +!+ Scope.default
 
+  protected def constructLayer[Environment](
+    specLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
+  ): ZLayer[Any, Error, Environment with TestEnvironment with TestLogger with ZIOAppArgs with Scope] =
+    (sharedFilledTestlayer >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer
+
   protected def run(
     eventHandler: EventHandler, // TODO delete?
     spec: ZIOSpecAbstract
@@ -78,15 +83,12 @@ abstract class BaseTestTask(
         with Scope
         with TestLogger
 
-    val layer: ZLayer[Any, Error, spec.Environment] =
-      sharedFilledTestlayer >>> spec.layer.mapError(e => new Error(e.toString))
-
     val fullLayer: ZLayer[
       Any,
       Error,
       SpecAndGenericEnvironment
     ] =
-      (layer +!+ sharedFilledTestlayer)
+      constructLayer[spec.Environment](spec.layer)
 
     (for {
       summary <- spec

@@ -27,7 +27,7 @@ import zio.test.{
   ZIOSpecAbstract,
   sbt
 }
-import zio.{Clock, Exit, Layer, Random, Runtime, Scope, System, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs}
 
 import scala.collection.mutable
 
@@ -98,14 +98,11 @@ sealed class ZTestTask(
     spec match {
       case NewSpecWrapper(zioSpec) => {
 
-        val layer: ZLayer[Any, Error, zioSpec.Environment] =
-          (sharedFilledTestlayer) >>> zioSpec.layer.mapError(e => new Error(e.toString))
-
         val fullLayer: Layer[
           Error,
-          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock with Scope with TestLogger
+          zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
         ] =
-          layer +!+ sharedFilledTestlayer
+          constructLayer[zioSpec.Environment](zioSpec.layer)
 
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
