@@ -52,27 +52,24 @@ abstract class BaseTestTask(
     eventHandler: EventHandler, // TODO delete?
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
-    assert(eventHandler != null)
     val argslayer: ULayer[ZIOAppArgs] =
       ZLayer.succeed(
         ZIOAppArgs(Chunk.empty)
       )
 
-    val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer
-
-    val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment] = {
-      (zio.ZEnv.live ++ ZLayer.environment[Scope]) >>> TestEnvironment.live
+    val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment with TestLogger with ZIOAppArgs] = {
+      argslayer +!+ (Scope.default >>>(zio.ZEnv.live ++ ZLayer.environment[Scope]) >>> TestEnvironment.live) +!+ consoleTestLogger
     }
 
     val layer: ZLayer[Scope, Error, spec.Environment] =
-      (argslayer +!+ filledTestlayer) >>> spec.layer.mapError(e => new Error(e.toString))
+      filledTestlayer >>> spec.layer.mapError(e => new Error(e.toString))
 
     val fullLayer: ZLayer[
       Any,
       Error,
       spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock with Scope with TestLogger
     ] =
-      Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope]) +!+ consoleTestLogger
+      Scope.default >>> (layer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 
     for {
       summary <- spec
@@ -94,7 +91,7 @@ abstract class BaseTestTask(
              println("ZZZ handled event")
            }
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-      _ <- TestLogger.logLine(ConsoleRenderer.render(summary)).provideLayer(testLoggers)
+      _ <- TestLogger.logLine(ConsoleRenderer.render(summary)).provideLayer(consoleTestLogger)
       _ <- (if (summary.fail > 0)
               ZIO.fail(new Exception("Failed tests"))
             else ZIO.unit)
