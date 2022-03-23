@@ -554,6 +554,8 @@ If we want to catch and recover from all _typed error_ and effectfully attempt r
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]
+  
+  def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] 
 }
 ```
 
@@ -654,16 +656,6 @@ object MainApp extends ZIOAppDefault {
 
 If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
 
-```scala
-trait ZIO[-R, +E, +A] {
-  def catchSome[R1 <: R, E1 >: E, A1 >: A](
-    pf: PartialFunction[E, ZIO[R1, E1, A1]]
-  ): ZIO[R1, E1, A1]
-}
-```
-
-Now we can do the same:
-
 ```scala mdoc:compile-only
 import zio._
 
@@ -676,7 +668,17 @@ val data: ZIO[Any, IOException, Array[Byte]] =
 
 #### Catching Defects
 
-Like catching failures, ZIO has two operators to catch _defects_: `ZIO#catchAllDefect` and `ZIO#catchSomeDefect`. Let's try the former one:
+Like catching failures, ZIO has two operators to catch _defects_: `ZIO#catchAllDefect` and `ZIO#catchSomeDefect`. 
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def catchAllDefect[R1 <: R, E1 >: E, A1 >: A](h: Throwable => ZIO[R1, E1, A1]): ZIO[R1, E1, A1]
+  
+  def catchSomeDefect[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[Throwable, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1]
+}
+```
+
+Let's try the former one:
 
 ```scala mdoc:compile-only
 import zio._
@@ -701,6 +703,16 @@ Although, in some cases, we might need to reload a part of the application inste
 #### Catching Causes
 
 So far, we have only studied how to catch _failures_ and _defects_. But what about _fiber interruptions_ or how about the specific combination of these errors?
+
+There are two ZIO operators useful for catching causes:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]
+  
+  def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]): ZIO[R1, E1, A1]
+}
+```
 
 With the help of the `ZIO#catchAllCause` operator we can catch all errors of an effect and recover from them:
 
@@ -768,7 +780,17 @@ ZIO
 
 #### Catching Non-Fatal
 
-We can use the `ZIO#catchNonFatalOrDie` to recover from all non-fatal errors, in case of occurring any [fatal error](#3-fatal-errors), it will die.
+We can use the `ZIO#catchNonFatalOrDie` to recover from all non-fatal errors:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def catchNonFatalOrDie[R1 <: R, E2, A1 >: A](
+    h: E => ZIO[R1, E2, A1]
+  )(implicit ev1: CanFail[E], ev2: E <:< Throwable): ZIO[R1, E2, A1]
+}
+```
+
+In case of occurring any [fatal error](#3-fatal-errors), it will die.
 
 ```scala
 openFile("data.json").catchNonFatalOrDie(_ => openFile("backup.json"))
@@ -819,6 +841,7 @@ val result: ZIO[Any, Throwable, Either[LocalConfig, RemoteConfig]] =
 ```scala
 trait ZIO[-R, +R, +E] {
   def orElseFail[E1](e1: => E1): ZIO[R, E1, A]
+  
   def orElseSucceed[A1 >: A](a1: => A1): ZIO[R, Nothing, A1]
 }
 ```
