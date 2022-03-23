@@ -201,6 +201,15 @@ object ZTestFrameworkSpec {
       }
       .head
 
+    // TODO Figure out how to get correct TestConsole instance in this non-ZIO realm.
+    zio.Runtime.default.unsafeRun(
+      (for {
+        console <- ZIO.service[TestConsole]
+        output  <- console.output
+        _       <- ZIO.debug(s"output: ${output.mkString("\n")}")
+      } yield ()).provide(zio.test.testEnvironment, zio.Scope.default)
+    )
+
     task.execute(_ => (), Array.empty)
 
     assertEquals("done contains summary", runner.done(), "foo\nDone")

@@ -7,7 +7,7 @@ object AMinimalSpec extends ZIOSpecDefault {
 
   override def spec = suite("ASpec")(
     test("test before delay") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
+      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(false))
     },
     test("test after delay") {
       Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
@@ -34,7 +34,6 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("MultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
-        //        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
         assertTrue(true)
       },
       test("fast test 2") {
@@ -80,18 +79,18 @@ object SlowMinimalSpec extends ZIOSpecDefault {
     ),
     suite("SMMedium")(
       test("SMM 1") {
-        Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
+        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
       test("SMM 2") {
-        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
+        Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       }
     ),
     suite("SMSlow")(
       test("SMS 1") {
-        Live.live(ZIO.sleep(4.second)).map(_ => assertTrue(true))
+        Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       },
       test("SMS 2") {
-        Live.live(ZIO.sleep(5.second)).map(_ => assertTrue(true))
+        Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
   )

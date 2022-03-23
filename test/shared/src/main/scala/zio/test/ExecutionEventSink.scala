@@ -36,7 +36,7 @@ object ExecutionEventSink {
 
           case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
             for {
-              // TODO Get result from this line and use in printOrQeue
+              // TODO Get result from this line and use in printOrQueue
               _ <- talkers.attemptToGetPrintingControl(id, ancestors)
               _ <- StreamingTestOutput.printOrQueue(
                      id,
