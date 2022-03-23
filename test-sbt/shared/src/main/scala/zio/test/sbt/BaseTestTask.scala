@@ -12,22 +12,7 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{
-  Chunk,
-  Clock,
-  Console,
-  Layer,
-  Random,
-  Runtime,
-  Scope,
-  System,
-  ULayer,
-  ZEnvironment,
-  ZIO,
-  ZIOAppArgs,
-  ZLayer,
-  ZTraceElement
-}
+import zio.{Chunk, Clock, Random, Runtime, Scope, System, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -53,14 +38,12 @@ abstract class BaseTestTask(
       ZIOAppArgs(Chunk.empty)
     )
 
-  private val consoleTestLogger: Layer[Nothing, TestLogger] = Console.live >>> TestLogger.fromConsole
-
   protected val sharedFilledTestlayer
     : ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
     argslayer +!+ (
       (zio.ZEnv.live ++ Scope.default) >>>
-        TestEnvironment.live
-    ) +!+ consoleTestLogger
+        TestEnvironment.live >+> TestLogger.fromConsole
+    )
   } +!+ Scope.default
 
   protected def constructLayer[Environment](
