@@ -32,6 +32,7 @@ object ExecutionEvent {
   }
 
   final case class RuntimeFailure[+E](
+    id: TestSectionId,
     labelsReversed: List[String],
     failure: TestFailure[E],
     ancestors: List[TestSectionId]

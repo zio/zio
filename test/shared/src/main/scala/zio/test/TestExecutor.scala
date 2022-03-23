@@ -58,7 +58,7 @@ object TestExecutor {
               case Spec.ScopedCase(managed) =>
                 managed
                   .map(loop(labels, _, exec, ancestors, sectionId))
-                  .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(labels, e._1, ancestors)))
+                  .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
 
               case Spec.MultipleCase(specs) =>
                 ZIO.uninterruptibleMask(restore =>

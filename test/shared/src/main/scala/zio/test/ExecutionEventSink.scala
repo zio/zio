@@ -47,7 +47,7 @@ object ExecutionEventSink {
             StreamingTestOutput.printOrFlush(id, ancestors) *>
               StreamingTestOutput.relinquishPrintingControl(id)
 
-          case ExecutionEvent.RuntimeFailure(labelsReversed, failure, ancestors) =>
+          case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
             ZIO.unit // TODO Decide how to report this
         }
 
