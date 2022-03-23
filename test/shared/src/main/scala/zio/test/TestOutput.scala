@@ -93,7 +93,7 @@ object TestOutput {
               currentOutput <- getAndRemoveSectionOutput(id)
               _ <- ZIO.foreachDiscard(currentOutput) { line =>
                      TestLogger.logLine(
-                       ReporterEventRenderer.render(line).mkString("\n") // TODO might need to shuffle this
+                       ReporterEventRenderer.render(line).mkString("\n")
                      )
                    }
             } yield ()

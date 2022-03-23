@@ -35,11 +35,6 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
       results <- runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
 
       hasFailures = results.fail > 0
-      // TODO What do we want to do here?
-      //      hasFailures = results.exists {
-      //                      case ExecutedSpec.TestCase(test, _) => test.isLeft
-      //                      case _                              => false
-      //                    }
       _ <- TestLogger
              .logLine(results.toString) // TODO Better formatting for Summary
              .when(testArgs.printSummary)

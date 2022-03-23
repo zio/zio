@@ -1,6 +1,6 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Status, Task, TaskDef, TestSelector}
+import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.render.ConsoleRenderer
 import zio.test.{
   AbstractRunnableSpec,
@@ -12,7 +12,7 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{Chunk, Clock, Random, Runtime, Scope, System, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Chunk, Clock, Random, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -33,14 +33,11 @@ abstract class BaseTestTask(
     } yield ()
   }
 
-  private val argslayer: ULayer[ZIOAppArgs] =
-    ZLayer.succeed(
-      ZIOAppArgs(Chunk.empty)
-    )
-
   protected val sharedFilledTestlayer
     : ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
-    argslayer +!+ (
+    ZLayer.succeed(
+      ZIOAppArgs(Chunk.empty)
+    ) +!+ (
       (zio.ZEnv.live ++ Scope.default) >>>
         TestEnvironment.live >+> TestLogger.fromConsole
     )
@@ -54,41 +51,11 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler, // TODO delete?
     spec: ZIOSpecAbstract
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
-
-    type SpecAndGenericEnvironment =
-      spec.Environment
-        with ZIOAppArgs
-        with TestEnvironment
-        with System
-        with Random
-        with Clock
-        with Scope
-        with TestLogger
-
-    val fullLayer: ZLayer[
-      Any,
-      Error,
-      SpecAndGenericEnvironment
-    ] =
-      constructLayer[spec.Environment](spec.layer)
-
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     (for {
+      _ <- ZIO.succeed("TODO pass this down through spec.runSpec to ExecutionEventSink: " + eventHandler)
       summary <- spec
                    .runSpec(FilteredSpec(spec.spec, args), args)
-      _ <- ZIO.attempt {
-             eventHandler.handle(
-               ZTestEvent(
-                 fullyQualifiedName = "zio.test.trickysituations.AMinimalSpec",
-                 new TestSelector("test name"),
-                 Status.Success,
-                 maybeThrowable = None,
-                 duration = 0L,
-                 ZioSpecFingerprint
-               )
-             )
-             println("ZZZ handled event")
-           }
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
       _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
       _ <- (if (summary.fail > 0)
@@ -96,9 +63,8 @@ abstract class BaseTestTask(
             else ZIO.unit)
     } yield ())
       .provideLayer(
-        fullLayer
+        constructLayer[spec.Environment](spec.layer)
       )
-  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {

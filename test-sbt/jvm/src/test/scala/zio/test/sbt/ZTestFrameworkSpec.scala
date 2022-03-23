@@ -2,6 +2,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.Assertion.equalTo
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
@@ -47,10 +48,10 @@ object ZTestFrameworkSpec {
     assert(
       reported.forall(event =>
         event match {
-          case ExecutionEvent.Test(_, _, _, _, duration, _) => duration > 0
-          case ExecutionEvent.RuntimeFailure(_, _, _, _)    => false
-          case ExecutionEvent.SectionStart(_, _, _)         => false
-          case ExecutionEvent.SectionEnd(_, _, _)           => false
+          case Test(_, _, _, _, duration, _) => duration > 0
+          case RuntimeFailure(_, _, _, _)    => false
+          case SectionStart(_, _, _)         => false
+          case SectionEnd(_, _, _)           => false
         }
       ),
       s"reported events should have positive durations: $reported"

@@ -9,12 +9,12 @@ import java.util.UUID
  *   Level of the spec nesting that you are at. Suites get new values, test
  *   cases inherit their suite's
  */
-// TODO use int instead of UUID
-case class SuiteId(id: UUID)
+case class SuiteId(id: Int)
 
 object SuiteId {
   val newRandom: ZIO[Random, Nothing, SuiteId] =
     for {
-      random <- zio.Random.nextUUID
+      // TODO  Consider counting up from 0, rather than completely random ints
+      random <- zio.Random.nextInt
     } yield SuiteId(random)
 }

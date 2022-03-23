@@ -13,17 +13,17 @@ object CleanCodePrinterSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
-  def spec =
+  def spec: ZSpec[Environment, Failure] =
     suite("AutoLayerSpec")(
       suite(".showTree") {
         test("prints trees for expressions") {
           import nested.{Service => Nested}
 
           Seq(
-            showTree(unaryFunction("hello")) -> """unaryFunction("hello")""",
-            showTree(regularVal) -> "regularVal",
-            showTree(`backtick enclosed`) -> "`backtick enclosed`",
-            showTree(Service.live) -> "Service.live",
+            showTree(unaryFunction("hello"))  -> """unaryFunction("hello")""",
+            showTree(regularVal)              -> "regularVal",
+            showTree(`backtick enclosed`)     -> "`backtick enclosed`",
+            showTree(Service.live)            -> "Service.live",
             showTree(Nested.live)             -> "Nested.live",
             showTree(AppliedObject.apply(10)) -> "AppliedObject(10)",
             showTree(AppliedObject.apply)     -> "AppliedObject",

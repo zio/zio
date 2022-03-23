@@ -9,6 +9,8 @@ trait ExecutionEventSink {
 }
 
 object ExecutionEventSink {
+  def getSummary: ZIO[ExecutionEventSink, Nothing, Summary] =
+    ZIO.serviceWithZIO[ExecutionEventSink](_.getSummary)
 
   def process(event: ExecutionEvent): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.serviceWithZIO[ExecutionEventSink](_.process(event))
