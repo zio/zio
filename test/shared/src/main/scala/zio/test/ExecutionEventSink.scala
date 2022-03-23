@@ -29,17 +29,17 @@ object ExecutionEventSink {
               StreamingTestOutput.printOrQueue(
                 sectionId,
                 ancestors,
-                SectionState(Chunk(testEvent), sectionId)
+                testEvent
               )
 
-          case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
+          case start @ ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
             for {
               // TODO Get result from this line and use in printOrQueue
               _ <- StreamingTestOutput.attemptToGetPrintingControl(id, ancestors)
               _ <- StreamingTestOutput.printOrQueue(
                      id,
                      ancestors,
-                     SectionHeader(labelsReversed, id)
+                     start
                    )
             } yield ()
 

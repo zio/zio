@@ -144,7 +144,7 @@ package object test extends CompileVariants {
    * A `TestReporter[E]` is capable of reporting test results with error type
    * `E`.
    */
-  type TestReporter[-E] = (Duration, ReporterEvent) => URIO[TestLogger, Unit]
+  type TestReporter[-E] = (Duration, ExecutionEvent) => URIO[TestLogger, Unit]
 
   object TestReporter {
 

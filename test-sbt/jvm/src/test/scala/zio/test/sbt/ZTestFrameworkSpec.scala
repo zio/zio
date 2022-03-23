@@ -38,7 +38,7 @@ object ZTestFrameworkSpec {
 
   def testReportDurations(): Unit = {
     val loggers  = Seq(new MockLogger)
-    val reported = ArrayBuffer[ReporterEvent]()
+    val reported = ArrayBuffer[ExecutionEvent]()
 
     loadAndExecute(timedSpecFQN, loggers = loggers)
 
@@ -47,9 +47,9 @@ object ZTestFrameworkSpec {
     assert(
       reported.forall(event =>
         event match {
-          case SectionState(results, _)   => results.forall((result: ExecutionEvent.Test[_]) => result.duration > 0)
-          case RuntimeFailure(_, _, _, _) => false
-          case SectionHeader(_, _)        => false
+          case ExecutionEvent.Test(_, _, _, _, duration, _) => duration > 0
+          case ExecutionEvent.RuntimeFailure(_, _, _, _)    => false
+          case ExecutionEvent.SectionStart(_, _, _)         => false
         }
       ),
       s"reported events should have positive durations: $reported"
