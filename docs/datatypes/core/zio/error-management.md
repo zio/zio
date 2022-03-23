@@ -674,8 +674,6 @@ val data: ZIO[Any, IOException, Array[Byte]] =
   }
 ```
 
-The `ZIO#catchSome` cannot eliminate the error type, although it can widen the error type to a broader class of errors. So unlike the `ZIO#catchAll` we are not required to provide every match case.
-
 #### Catching Defects
 
 Like catching failures, ZIO has two operators to catch _defects_: `ZIO#catchAllDefect` and `ZIO#catchSomeDefect`. Let's try the former one:
