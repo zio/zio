@@ -104,7 +104,7 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec)
-            .provide(sbtTestLayer)
+            .provide(sharedFilledTestlayer)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

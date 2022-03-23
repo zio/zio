@@ -27,7 +27,7 @@ import zio.test.{
   ZIOSpecAbstract,
   sbt
 }
-import zio.{Chunk, Clock, Exit, Layer, Random, Runtime, Scope, System, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Clock, Exit, Layer, Random, Runtime, Scope, System, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -98,31 +98,22 @@ sealed class ZTestTask(
     spec match {
       case NewSpecWrapper(zioSpec) => {
 
-        val argslayer: ULayer[ZIOAppArgs] =
-          ZLayer.succeed(
-            ZIOAppArgs(Chunk.empty)
-          )
-
-        val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment] =
-          zio.ZEnv.live >>> TestEnvironment.live
-
-        val layer: ZLayer[Scope, Error, zioSpec.Environment] =
-          (argslayer +!+ filledTestlayer) >>> zioSpec.layer.mapError(e => new Error(e.toString))
+        val layer: ZLayer[Any, Error, zioSpec.Environment] =
+          (sharedFilledTestlayer) >>> zioSpec.layer.mapError(e => new Error(e.toString))
 
         val fullLayer: Layer[
           Error,
-          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock with Scope
+          zioSpec.Environment with ZIOAppArgs with TestEnvironment with zio.Console with System with Random with Clock with Scope with TestLogger
         ] =
-          Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
+          layer +!+ sharedFilledTestlayer
 
-        val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
             for {
               _ <- zioSpec
                      .runSpec(FilteredSpec(zioSpec.spec, args), args)
                      .provideLayer(
-                       testLoggers +!+ fullLayer
+                       fullLayer
                      )
               // TODO Confirm if/how these events needs to be handled
               //    Check XML behavior
@@ -142,7 +133,7 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec)
-            .provide(sbtTestLayer)
+            .provide(sharedFilledTestlayer)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

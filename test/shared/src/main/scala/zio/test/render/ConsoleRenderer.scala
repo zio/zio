@@ -94,6 +94,6 @@ trait ConsoleRenderer extends TestRenderer {
     " " * (n * tabSize) + s
 
   def render(summary: Summary): String =
-    s""" ${summary.success}  tests passed  ${summary.fail}  tests failed ${summary.ignore}   tests ignored """
+    s""" ${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored."""
 }
 object ConsoleRenderer extends ConsoleRenderer

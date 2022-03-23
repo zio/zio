@@ -48,24 +48,25 @@ abstract class BaseTestTask(
     } yield ()
   }
 
+  private val argslayer: ULayer[ZIOAppArgs] =
+    ZLayer.succeed(
+      ZIOAppArgs(Chunk.empty)
+    )
+
+  private val consoleTestLogger: Layer[Nothing, TestLogger] = Console.live >>> TestLogger.fromConsole
+
+  protected val sharedFilledTestlayer
+    : ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
+    argslayer +!+ (
+      (zio.ZEnv.live ++ Scope.default) >>>
+        TestEnvironment.live
+    ) +!+ consoleTestLogger
+  } +!+ Scope.default
+
   protected def run(
     eventHandler: EventHandler, // TODO delete?
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
-    val argslayer: ULayer[ZIOAppArgs] =
-      ZLayer.succeed(
-        ZIOAppArgs(Chunk.empty)
-      )
-
-    val filledTestlayer: ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
-      argslayer +!+ (
-        (zio.ZEnv.live ++ Scope.default) >>>
-          TestEnvironment.live
-      ) +!+ consoleTestLogger
-    } +!+ Scope.default
-
-    val layer: ZLayer[Any, Error, spec.Environment] =
-      filledTestlayer >>> spec.layer.mapError(e => new Error(e.toString))
 
     type SpecAndGenericEnvironment =
       spec.Environment
@@ -77,19 +78,19 @@ abstract class BaseTestTask(
         with Scope
         with TestLogger
 
+    val layer: ZLayer[Any, Error, spec.Environment] =
+      sharedFilledTestlayer >>> spec.layer.mapError(e => new Error(e.toString))
+
     val fullLayer: ZLayer[
       Any,
       Error,
       SpecAndGenericEnvironment
     ] =
-      (layer +!+ filledTestlayer)
+      (layer +!+ sharedFilledTestlayer)
 
-    for {
+    (for {
       summary <- spec
                    .runSpec(FilteredSpec(spec.spec, args), args)
-                   .provideLayer(
-                     fullLayer
-                   )
       _ <- ZIO.attempt {
              eventHandler.handle(
                ZTestEvent(
@@ -104,18 +105,14 @@ abstract class BaseTestTask(
              println("ZZZ handled event")
            }
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-      _ <- TestLogger.logLine(ConsoleRenderer.render(summary)).provideLayer(consoleTestLogger)
+      _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
       _ <- (if (summary.fail > 0)
               ZIO.fail(new Exception("Failed tests"))
             else ZIO.unit)
-    } yield ()
-  }
-
-  private val consoleTestLogger: Layer[Nothing, TestLogger] = Console.live >>> TestLogger.fromConsole
-
-  protected val sbtTestLayer
-    : Layer[Nothing, TestLogger with Clock with StreamingTestOutput with ExecutionEventSink with Random] = {
-    Clock.live ++ (StreamingTestOutput.live >>> ExecutionEventSink.live) ++ Random.live ++ StreamingTestOutput.live ++ consoleTestLogger
+    } yield ())
+      .provideLayer(
+        fullLayer
+      )
   }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
@@ -125,13 +122,12 @@ abstract class BaseTestTask(
           Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec)
               .catchAll(e => ZIO.debug("Error while executing tests: " + e.getMessage))
-//              .catchAll(e => ZIO.debug("Error while executing tests: " + e.prettyPrint))
           }
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
             run(eventHandler, abstractRunnableSpec)
-              .provideLayer(sbtTestLayer)
+              .provideLayer(sharedFilledTestlayer)
               .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
           Array()
