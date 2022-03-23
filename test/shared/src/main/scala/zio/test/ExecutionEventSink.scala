@@ -24,7 +24,7 @@ object ExecutionEventSink {
         event match {
           case testEvent @ ExecutionEvent.Test(labelsReversed, test, annotations, ancestors, duration, sectionId) =>
             summary.update(
-              _.add(SectionState(Chunk(testEvent), sectionId))
+              _.add(testEvent)
             ) *>
               StreamingTestOutput.printOrQueue(
                 sectionId,

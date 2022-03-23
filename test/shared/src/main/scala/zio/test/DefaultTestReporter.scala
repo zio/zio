@@ -39,6 +39,7 @@ object DefaultTestReporter {
     TestLogger.logLine((rendered ++ stats).mkString("\n")) // Ensures 1 big string is reported per ExecutedSpec
   }
 
+  // TODO Delete
   def render(
     reporterEvent: ReporterEvent,
     includeCause: Boolean
@@ -151,6 +152,123 @@ object DefaultTestReporter {
           )
         }
       case RuntimeFailure(_, failure, _, _) =>
+        failure match {
+          case TestFailure.Assertion(_) => throw new NotImplementedError("Assertion failures are not supported")
+          case TestFailure.Runtime(_)   => throw new NotImplementedError("Runtime failures are not supported")
+        }
+    }
+  }
+
+  def render(
+              reporterEvent: ExecutionEvent,
+              includeCause: Boolean
+            )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
+    reporterEvent match {
+      case ExecutionEvent.SectionStart(labelsReversed, _, ancestors) =>
+        val depth = labelsReversed.length - 1
+        labelsReversed.reverse match {
+          case Nil => Seq.empty
+          case nonEmptyList =>
+            Seq(
+              ExecutionResult(
+                ResultType.Suite,
+                label = nonEmptyList.last,
+                // We no longer know if the suite has passed here, because the output is streamed
+                Status.Passed,
+                offset = depth * 2,
+                List(TestAnnotationMap.empty), // TODO Examine all results to get this
+                lines = List(fr(nonEmptyList.last).toLine)
+              )
+            )
+        }
+
+      case ExecutionEvent.Test(labels, results, annotations, _, _, _) =>
+          val initialDepth = labels.length - 1
+          Seq(ExecutionResult(
+            ResultType.Test,
+            labels.headOption.getOrElse(""),
+            results match {
+              case Left(_) => Status.Failed
+              case Right(value: TestSuccess) =>
+                value match {
+                  case TestSuccess.Succeeded(_) => Status.Passed
+                  case TestSuccess.Ignored      => Status.Ignored
+                }
+            },
+            initialDepth * 2,
+            List(annotations), {
+              val depth = labels.length
+              val label = labels.last
+
+              val renderedResult = results match {
+                case Right(TestSuccess.Succeeded(_)) =>
+                  Some(
+                    rendered(
+                      Test,
+                      label,
+                      Passed,
+                      depth,
+                      fr(labels.last).toLine
+                    )
+                  )
+                case Right(TestSuccess.Ignored) =>
+                  Some(
+                    rendered(
+                      Test,
+                      label,
+                      Ignored,
+                      depth,
+                      warn(label).toLine
+                    )
+                  )
+                case Left(TestFailure.Assertion(result)) =>
+                  result
+                    .fold[Option[TestResult]] {
+                      case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
+                      case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
+                        Trace
+                          .prune(trace, false)
+                          .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
+                    }(
+                      {
+                        case (Some(a), Some(b)) => Some(a && b)
+                        case (Some(a), None)    => Some(a)
+                        case (None, Some(b))    => Some(b)
+                        case _                  => None
+                      },
+                      {
+                        case (Some(a), Some(b)) => Some(a || b)
+                        case (Some(a), None)    => Some(a)
+                        case (None, Some(b))    => Some(b)
+                        case _                  => None
+                      },
+                      _.map(!_)
+                    )
+                    .map {
+                      _.fold(details =>
+                        rendered(
+                          Test,
+                          label,
+                          Failed,
+                          depth,
+                          renderFailure(label, depth, details).lines: _*
+                        )
+                      )(
+                        _ && _,
+                        _ || _,
+                        !_
+                      )
+                    }
+
+                case Left(TestFailure.Runtime(cause)) =>
+                  Some(
+                    renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
+                  )
+              }
+              renderedResult.map(r => r.lines).getOrElse(Nil)
+            }
+          ))
+      case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         failure match {
           case TestFailure.Assertion(_) => throw new NotImplementedError("Assertion failures are not supported")
           case TestFailure.Runtime(_)   => throw new NotImplementedError("Runtime failures are not supported")
