@@ -396,7 +396,7 @@ A ZIO value has a type parameter `E` which is the type of _declared errors_ it c
 
 Bringing abnormal situations from the domain of defects into that of `E` enables the compiler to help us keep a tab on error conditions throughout the application, at compile time. This helps ensure the handling of domain errors in domain-specific ways.
 
-2. **Unexpected Errors** — We handle unexpected errors by not reflecting them to the type system because there is no way we could do it, and it wouldn't provide any value if we could. At best as we can, we simply sandbox that to some well-defined area of the application.
+2. **Unexpected Errors** — We encode unexpected errors by not reflecting them to the type system because there is no way we could do it, and it wouldn't provide any value if we could. At best as we can, we simply sandbox that to some well-defined area of the application.
 
 Note that _defects_, can creep silently to higher levels in our application, and, if they get triggered at all, their handling might eventually be in more general ways.
 
@@ -408,6 +408,11 @@ So to summarize
 1. Unexpected errors are impossible to recover and they will eventually shut down the application but expected errors can be recovered by handling them.
 2. We do not type unexpected errors, but we type expected errors either explicitly or using general `Throwable` error type.
 3. Unexpected errors mostly is a sign of programming errors, but expected errors part of domain errors.
+4. Even though we haven't any clue on how to handle defects, we might still need to do some operation, before letting them crash the application. So in such a situation, we can [catch defects](#catching-defects) do following operations, and then rethrow them again:
+  - logging the defect to a log aggregator
+  - sending an email to alert developers
+  - displaying a nice "unexpected error" message to the user
+  - etc.
 
 ## Exceptional and Unexceptional Effects
 
