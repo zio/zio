@@ -7,16 +7,16 @@ trait StreamingTestOutput {
   def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    reporters: TestReporters
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
 
   def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    reporters: TestReporters,
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
 
+  def relinquishPrintingControl(sectionId: TestSectionId): ZIO[Any, Nothing, Unit]
+  def attemptToGetPrintingControl(sectionId: TestSectionId, ancestors: List[TestSectionId]): ZIO[Any, Nothing, Unit]
 }
 
 // Used as a baseline to compare against
@@ -25,20 +25,21 @@ case class BrokenStreamer() extends StreamingTestOutput {
   override def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    reporters: TestReporters
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.unit
 
   override def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    reporters: TestReporters,
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.debug(
       ReporterEventRenderer.render(reporterEvent)
     )
 
+  def relinquishPrintingControl(sectionId: TestSectionId): ZIO[Any, Nothing, Unit] = ZIO.unit
+
+  def attemptToGetPrintingControl(sectionId: TestSectionId, ancestors: List[TestSectionId]): ZIO[Any, Nothing, Unit] = ZIO.unit
 }
 
 object StreamingTestOutput {
@@ -50,23 +51,32 @@ object StreamingTestOutput {
   def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters
   ): ZIO[StreamingTestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
-    ZIO.serviceWithZIO[StreamingTestOutput](_.printOrFlush(id, ancestors, talkers))
+    ZIO.serviceWithZIO[StreamingTestOutput](_.printOrFlush(id, ancestors))
 
   def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters, // TODO Move TestReports into this class
     reporterEvent: ReporterEvent
   ): ZIO[StreamingTestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
-    ZIO.serviceWithZIO[StreamingTestOutput](_.printOrQueue(id, ancestors, talkers, reporterEvent))
+    ZIO.serviceWithZIO[StreamingTestOutput](_.printOrQueue(id, ancestors, reporterEvent))
 
+  def relinquishPrintingControl(
+                    id: TestSectionId,
+                  ): ZIO[StreamingTestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ZIO.serviceWithZIO[StreamingTestOutput](_.relinquishPrintingControl(id))
+
+  def attemptToGetPrintingControl(
+                                 id: TestSectionId,
+                                 ancestors: List[TestSectionId],
+                               ): ZIO[StreamingTestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ZIO.serviceWithZIO[StreamingTestOutput](_.attemptToGetPrintingControl(id, ancestors))
 }
 
 // TODO Move to separate file
 case class TestOutputTree(
-  output: Ref[Map[TestSectionId, Chunk[ReporterEvent]]]
+  output: Ref[Map[TestSectionId, Chunk[ReporterEvent]]],
+  talkers: TestReporters
 ) extends StreamingTestOutput {
 
   private def getAndRemoveSectionOutput(id: TestSectionId) =
@@ -77,12 +87,11 @@ case class TestOutputTree(
   def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    reporters: TestReporters
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     for {
       sectionOutput <- getAndRemoveSectionOutput(id)
       _ <-
-        reporters.printOrElse(
+        talkers.printOrElse(
           id,
           print = ZIO.foreachDiscard(sectionOutput) { subLine =>
             TestLogger.logLine(
@@ -106,13 +115,12 @@ case class TestOutputTree(
   def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    reporters: TestReporters,
     reporterEvent: ReporterEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     for {
       _ <- appendToSectionContents(id, Chunk(reporterEvent))
       _ <-
-        reporters.printOrElse(
+        talkers.printOrElse(
           id,
           for {
             currentOutput <- getAndRemoveSectionOutput(id)
@@ -138,12 +146,21 @@ case class TestOutputTree(
       case (_, Some(v))    => initial.updated(key, v)
     }
   }
+
+
+  def relinquishPrintingControl(sectionId: TestSectionId): ZIO[Any, Nothing, Unit] =
+    talkers.relinquishPrintingControl(sectionId)
+
+
+  def attemptToGetPrintingControl(sectionId: TestSectionId, ancestors: List[TestSectionId]): ZIO[Any, Nothing, Unit] =
+    talkers.attemptToGetPrintingControl(sectionId, ancestors)
 }
 
 object TestOutputTree {
 
   def make: ZIO[Any, Nothing, StreamingTestOutput] = for {
+    talkers <- TestReporters.make // TODO Use this everywhere
     output <- Ref.make[Map[TestSectionId, Chunk[ReporterEvent]]](Map.empty)
-  } yield TestOutputTree(output)
+  } yield TestOutputTree(output, talkers)
 
 }

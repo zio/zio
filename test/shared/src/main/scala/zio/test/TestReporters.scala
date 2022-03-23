@@ -35,7 +35,7 @@ case class TestReporters(testIds: Ref[List[TestSectionId]]) {
           fallback
     } yield ()
 
-  def relinquishPrintingControl(sectionId: TestSectionId) =
+  def relinquishPrintingControl(sectionId: TestSectionId): ZIO[Any, Nothing, Unit] =
     testIds.updateSome {
       case head :: tail if head == sectionId =>
         tail

@@ -16,7 +16,6 @@ object ExecutionEventSink {
   val ExecutionEventSinkLive =
     for {
       summary <- Ref.make[Summary](Summary(0, 0, 0, ""))
-      talkers <- TestReporters.make
     } yield new ExecutionEventSink {
 
       override def process(
@@ -30,25 +29,23 @@ object ExecutionEventSink {
               StreamingTestOutput.printOrQueue(
                 sectionId,
                 ancestors,
-                talkers,
                 SectionState(Chunk(testEvent), sectionId)
               )
 
           case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
             for {
               // TODO Get result from this line and use in printOrQueue
-              _ <- talkers.attemptToGetPrintingControl(id, ancestors)
+              _ <- StreamingTestOutput.attemptToGetPrintingControl(id, ancestors)
               _ <- StreamingTestOutput.printOrQueue(
                      id,
                      ancestors,
-                     talkers,
                      SectionHeader(labelsReversed, id)
                    )
             } yield ()
 
           case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
-            StreamingTestOutput.printOrFlush(id, ancestors, talkers) *>
-              talkers.relinquishPrintingControl(id)
+            StreamingTestOutput.printOrFlush(id, ancestors) *>
+              StreamingTestOutput.relinquishPrintingControl(id)
 
           case ExecutionEvent.RuntimeFailure(labelsReversed, failure, ancestors) =>
             ZIO.unit // TODO Decide how to report this
