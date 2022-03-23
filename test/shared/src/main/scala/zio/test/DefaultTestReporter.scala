@@ -17,7 +17,8 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.ExecutionResult.ResultType.{Suite, Test}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test}
+import zio.test.render.ExecutionResult.ResultType.Suite
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.{Fragment, Line, Message}
@@ -44,7 +45,7 @@ object DefaultTestReporter {
     includeCause: Boolean
   )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
     reporterEvent match {
-      case ExecutionEvent.SectionStart(labelsReversed, _, ancestors) =>
+      case SectionStart(labelsReversed, _, ancestors) =>
         val depth = labelsReversed.length - 1
         labelsReversed.reverse match {
           case Nil => Seq.empty
@@ -62,7 +63,7 @@ object DefaultTestReporter {
             )
         }
 
-      case ExecutionEvent.Test(labelsReversed, results, annotations, _, _, _) =>
+      case Test(labelsReversed, results, annotations, _, _, _) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         Seq(
@@ -86,7 +87,7 @@ object DefaultTestReporter {
                 case Right(TestSuccess.Succeeded(_)) =>
                   Some(
                     rendered(
-                      Test,
+                      ResultType.Test,
                       label,
                       Passed,
                       depth,
@@ -96,7 +97,7 @@ object DefaultTestReporter {
                 case Right(TestSuccess.Ignored) =>
                   Some(
                     rendered(
-                      Test,
+                      ResultType.Test,
                       label,
                       Ignored,
                       depth,
@@ -129,7 +130,7 @@ object DefaultTestReporter {
                     .map {
                       _.fold(details =>
                         rendered(
-                          Test,
+                          ResultType.Test,
                           label,
                           Failed,
                           depth,
@@ -156,6 +157,8 @@ object DefaultTestReporter {
           case TestFailure.Assertion(_) => throw new NotImplementedError("Assertion failures are not supported")
           case TestFailure.Runtime(_)   => throw new NotImplementedError("Runtime failures are not supported")
         }
+      case SectionEnd(_, _, _) =>
+        Nil
     }
   }
 
@@ -169,7 +172,9 @@ object DefaultTestReporter {
     rendered(Suite, label, Passed, offset, fr(label).toLine)
 
   def renderAssertFailure(result: TestResult, label: String, depth: Int): ExecutionResult =
-    result.fold(details => rendered(Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*))(
+    result.fold(details =>
+      rendered(ResultType.Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*)
+    )(
       _ && _,
       _ || _,
       !_
@@ -181,7 +186,7 @@ object DefaultTestReporter {
     val failureDetails =
       Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
 
-    rendered(Test, label, Failed, depth, failureDetails: _*)
+    rendered(ResultType.Test, label, Failed, depth, failureDetails: _*)
   }
 
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
@@ -279,7 +284,7 @@ object DefaultTestReporter {
       Message {
         details
           .fold(assertionResult =>
-            rendered(Test, label, Failed, 0, renderFailure(label, 0, assertionResult).lines: _*)
+            rendered(ResultType.Test, label, Failed, 0, renderFailure(label, 0, assertionResult).lines: _*)
           )(
             _ && _,
             _ || _,

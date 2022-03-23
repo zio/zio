@@ -16,8 +16,9 @@
 
 package zio.test
 
-import zio.{Chunk, ZTraceElement}
+import zio.ZTraceElement
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
 import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
@@ -57,24 +58,25 @@ object SummaryBuilder {
     executedSpec: ExecutionEvent
   )(pred: Either[TestFailure[_], TestSuccess] => Boolean): Int =
     executedSpec match {
-      case ExecutionEvent.Test(_, test, _, _, _, _) =>
+      case Test(_, test, _, _, _, _) =>
         if (pred(test)) 1 else 0
-      case ExecutionEvent.RuntimeFailure(_, _, _, _) =>
+      case RuntimeFailure(_, _, _, _) =>
         0
 
-      case ExecutionEvent.SectionStart(_, _, _) => 0
+      case SectionStart(_, _, _) => 0
+      case SectionEnd(_, _, _)   => 0
     }
 
   private def extractFailures[E](reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =
     reporterEvent match {
-      case ExecutionEvent.Test(_, test, _, _, _, _) =>
+      case Test(_, test, _, _, _, _) =>
         test match {
           case Left(_) =>
             Seq(reporterEvent)
           case _ =>
             Seq.empty
         }
-      case ExecutionEvent.RuntimeFailure(_, _, _, _) => Seq(reporterEvent)
-      case _                                         => Seq.empty
+      case RuntimeFailure(_, _, _, _) => Seq(reporterEvent)
+      case _                          => Seq.empty
     }
 }
