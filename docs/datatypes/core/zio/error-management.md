@@ -9,7 +9,7 @@ As well as providing first-class support for typed errors, ZIO has a variety of 
 
 We should consider three types of errors when writing ZIO applications:
 
-1. **Failures** are expected errors. We use `ZIO.fail` to model a failure. As they are expected, we know how to handle them. So we should handle these errors and prevent them from propagating throughout the call stack.
+1. **Failures** are expected errors. We use `ZIO.fail` to model failures. As they are expected, we know how to handle them. We should handle these errors and prevent them from propagating throughout the call stack.
 
 2. **Defects** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
     - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
@@ -19,7 +19,7 @@ We should consider three types of errors when writing ZIO applications:
 
 ### 1. Failures
 
-When writing ZIO application, we can model the failure, using the `ZIO.fail` constructor:
+When writing ZIO application, we can model a failure, using the `ZIO.fail` constructor:
 
 ```scala
 trait ZIO {
@@ -36,7 +36,7 @@ val f1: ZIO[Any, String, Nothing] = ZIO.fail("Oh uh!")
 val f2: ZIO[Any, String, Int]     = ZIO.succeed(5) *> ZIO.fail("Oh uh!")
 ```
 
-Let's try to run a failing effect and see what happens:
+Now, let's try to run a failing effect and see what happens:
 
 ```scala mdoc:compile-only
 import zio._
@@ -53,14 +53,14 @@ timestamp=2022-03-08T17:55:50.002161369Z level=ERROR thread=#zio-fiber-0 message
 	at <empty>.MainApp.run(MainApp.scala:4)"
 ```
 
-We can also model the failure using `Exception`:
+We can also model a failure using `Exception`:
 
 ```  
 val f2: ZIO[Any, Exception, Nothing] = 
   ZIO.fail(new Exception("Oh uh!"))
 ```
 
-Or we can model our failures using user-defined failure types (domain errors):
+Or using user-defined failure types (domain errors):
 
 ```
 case class NegativeNumberException(msg: String) extends Exception(msg)
@@ -95,7 +95,7 @@ val dyingEffect: ZIO[Any, Nothing, Nothing] =
   ZIO.die(new ArithmeticException("divide by zero"))
 ```
 
-The result is the creation of a ZIO effect whose error channel and success channel are both 'Nothing'. In other words, this effect cannot fail and does not produce anything. Instead, it is an effect describing a _defect_ or an _unexpected error_.
+The result is the creation of a ZIO effect whose error channel and success channel are both `Nothing`. In other words, this effect cannot fail and does not produce anything. Instead, it is an effect describing a _defect_ or an _unexpected error_.
 
 Let's see what happens if we run this effect:
 
@@ -107,7 +107,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-If we run this effect, the ZIO runtime will print the stack trace that belongs to this defect. So, here is the output:
+If we run this effect, ZIO runtime will print the stack trace that belongs to this defect. So, here is the output:
 
 ```scala
 timestamp=2022-02-16T13:02:44.057191215Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.ArithmeticException: divide by zero
@@ -137,7 +137,7 @@ def divide(a: Int, b: Int): ZIO[Any, ArithmeticException, Int] =
     ZIO.succeed(a / b)
 ```
 
-2. We can divide the first number by the second. In the case of zero for the second number, we use `ZIO.die` to kill the effect by sending a signal of `ArithmeticException` as the defect signal:
+2. We can divide the first number by the second. In the case of zero for the second number, we use `ZIO.die` to kill the effect by sending a signal of `ArithmeticException` as a defect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -156,12 +156,12 @@ def divide(a: Int, b: Int): ZIO[Any, ArithmeticException, Int]   // using ZIO.fa
 def divide(a: Int, b: Int): ZIO[Any, Nothing,             Int]   // using ZIO.die
 ```
 
-1. The first approach, models the _divide by zero_ error by _failing_ the effect. We call these failures _expected errors_or _typed error_.
+1. The first approach, models the _divide by zero_ error by _failing_ the effect. We call these failures _expected errors_ or _typed error_.
 2. While the second approach models the _divide by zero_ error by _dying_ the effect. We call these kinds of errors _unexpected errors_, _defects_ or _untyped errors_.
 
 We use the first method when we are handling errors as we expect them, and thus we know how to handle them. In contrast, the second method is used when we aren't expecting those errors in our domain, and we don't know how to handle them. Therefore, we use the _let it crash_ philosophy.
 
-In the second approach, we can see that the `divide` function indicates that it cannot fail. But, it doesn't mean that this function hasn't any defects. ZIO defects are not typed, so they cannot be seen in type parameters.
+In the second approach, we can see that the `divide` function indicates that it cannot fail because it's error channel is `Nothing`. However, it doesn't mean that this function hasn't any defects. ZIO defects are not typed, so they cannot be seen in type parameters.
 
 Note that to create an effect that will die, we shouldn't throw an exception inside the `ZIO.die` constructor, although it works. Instead, the idiomatic way of creating a dying effect is to provide a `Throwable` value into the `ZIO.die` constructor:
 
@@ -180,7 +180,9 @@ import zio._
 val defect3 = ZIO.succeed(throw new Exception("boom!"))
 ```
 
-Therefore, in the second approach of the `divide` function, we do not require to die the effect in case of the _dividing by zero_ because the JVM itself throws an `ArithmeticException` when the denominator is zero. When we import any code into the `ZIO` effect if any exception is thrown inside that code, will be translated to _ZIO defects_ by default. So the following program is the same as the previous example:
+Therefore, in the second approach of the `divide` function, we do not require to manually die the effect in case of the _dividing by zero_, because the JVM itself throws an `ArithmeticException` when the denominator is zero. 
+
+When we import any code into the `ZIO` effect, any exception is thrown inside that code will be translated to _ZIO defects_ by default. So the following program is the same as the previous example:
 
 ```scala mdoc:compile-only
 import zio._
@@ -189,7 +191,7 @@ def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
   ZIO.succeed(a / b)
 ```
 
-Another important note is that if we `map`/`flatMap` a ZIO effect and then accidentally throw an exception inside the map operation, that exception will be translated to the ZIO defect:
+Another important note is that if we `map`/`flatMap` a ZIO effect and then accidentally throw an exception inside the map operation, that exception will be translated to a ZIO defect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -200,7 +202,7 @@ val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
 
 ### 3. Fatal Errors
 
-In ZIO, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch this fatal error. At most, if the `RuntimeConfig.reportFatal` is enabled, the application will log the stack trace before interrupting the whole application.
+In ZIO, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch these fatal errors. At most, if the `RuntimeConfig.reportFatal` is enabled, the application will log the stack trace before interrupting the whole application.
 
 Here is an example of manually creating a fatal error. Although we are ignoring all expected and unexpected errors, the fatal error interrupts the whole application.
 
@@ -268,7 +270,7 @@ try {
 
 There are some issues with error handling using exceptions and `try`/`catch`/`finally` statement:
 
-1. **It lacks type safety on errors** — There is no way to know what errors can be thrown by looking the function signature. The only way to find out in which circumstance a method may throw an exception is to read and investigate its implementation. So the compiler cannot prevent us from type errors. It is also hard for a developer to read the documentation event through reading the documentation is not suffice as it may be obsolete, or it may don't reflect the exact exceptions.
+1. **It lacks type safety on errors** — There is no way to know what errors can be thrown by looking the function signature. The only way to find out in which circumstance a method may throw an exception is to read and investigate its implementation. So the compiler cannot prevent us from writing unsafe codes. It is also hard for a developer to read the documentation event through reading the documentation is not suffice as it may be obsolete, or it may don't reflect the exact exceptions.
 
 ```scala mdoc:invisible:reset
 
@@ -309,7 +311,7 @@ try {
 }
 ```
 
-When we are using typed errors we can have exhaustive checking support of the compiler. So, for example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
+When we are using typed errors we can have exhaustive checking support of the compiler. For example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
 
 ```scala mdoc
 validate(17).catchAll {
@@ -344,7 +346,7 @@ In the following example, we are going to show this behavior:
 // e2
 ```
 
-The above program just prints the `e2`, which is lossy. The `e2` is not the primary cause of failure.
+The above program just prints the `e2` while it is not the primary cause of failure. That is why we say the `try`/`catch` model is lossy.
 
 In ZIO, all the errors will still be reported. So even though we are only able to catch one error, the other ones will be reported which we have full control over them. They don't get lost.
 
@@ -425,11 +427,13 @@ So when we compose different effects together, at any point of the codebase we c
 For example, the `ZIO.acquireReleaseWith` API asks us to provide three different inputs: _require_, _release_, and _use_. The `release` parameter requires a function from `A` to `URIO[R, Any]`. So, if we put an exceptional effect, it will not compile:
 
 ```scala
-def acquireReleaseWith[R, E, A, B](
-  acquire: => ZIO[R, E, A],
-  release: A => URIO[R, Any],
-  use: A => ZIO[R, E, B]
-): ZIO[R, E, B]
+object ZIO {
+  def acquireReleaseWith[R, E, A, B](
+    acquire: => ZIO[R, E, A],
+    release: A => URIO[R, Any],
+    use: A => ZIO[R, E, B]
+  ): ZIO[R, E, B]
+}
 ```
 
 ## Typed Errors Don't Guarantee the Absence of Defects and Interruptions
@@ -456,7 +460,7 @@ def validateNonNegativeNumber(input: String): ZIO[Any, String, Int] =
   }
 ```
 
-Also, its underlying fiber can be interrupted without affecting the error channel:
+Also, its underlying fiber can be interrupted without affecting the type of the error channel:
 
 ```scala mdoc:compile-only
 import zio._
@@ -473,7 +477,7 @@ Therefore, if we run the `myApp` effect, it will be interrupted before it gets t
 
 ## Sequential and Parallel Errors
 
-A simple and regular ZIO application usually fails with one error, which is the first error encountered by the ZIO runtime.
+A simple and regular ZIO application usually fails with one error, which is the first error encountered by the ZIO runtime:
 
 ```scala mdoc:compile-only
 import zio._
@@ -554,8 +558,6 @@ If we want to catch and recover from all _typed error_ and effectfully attempt r
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]
-  
-  def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] 
 }
 ```
 
@@ -654,7 +656,15 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:8)"
 ```
 
-If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `catchSome` method:
+If we want to catch and recover from only some types of exceptions and effectfully attempt recovery, we can use the `ZIO#catchSome` method:
+
+```scala mdoc:compile-only
+trait ZIO[-R, +E, +A] {
+  def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] 
+}
+```
+
+In the following example, we are only catching failure of type `FileNotFoundException`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -668,7 +678,7 @@ val data: ZIO[Any, IOException, Array[Byte]] =
 
 #### Catching Defects
 
-Like catching failures, ZIO has two operators to catch _defects_: `ZIO#catchAllDefect` and `ZIO#catchSomeDefect`. 
+Like catching failures, ZIO has two operators to catch _defects_:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -678,7 +688,7 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
-Let's try the former one:
+Let's try the `ZIO#catchAllDefect` operator:
 
 ```scala mdoc:compile-only
 import zio._
@@ -696,9 +706,9 @@ ZIO.dieMessage("Boom!")
 
 We should note that using these operators, we can only recover from a dying effect, and it cannot recover from a failure or fiber interruption.
 
-A defect is an error that cannot be anticipated in advance, and there is no way to respond to it. Our rule of thumb is to not recover defects since we don't know about them. We let them crash the application.
+A defect is an error that cannot be anticipated in advance, and there is no way to respond to it. Our rule of thumb is to not recover defects since we don't know about them. We let them crash the application. Although, in some cases, we might need to reload a part of the application instead of killing the entire application. 
 
-Although, in some cases, we might need to reload a part of the application instead of killing the entire application. Assume we have written an application that can load plugins at runtime. During the runtime of the plugins, if a defect occurs, we don't want to crash the entire application; rather, we log all defects and then reload the plugin.
+Assume we have written an application that can load plugins at runtime. During the runtime of the plugins, if a defect occurs, we don't want to crash the entire application; rather, we log all defects and then reload the plugin.
 
 #### Catching Causes
 
@@ -813,7 +823,7 @@ val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").orElse(readFile("backup.data"))
 ```
 
-2. **`ZIO#orElseEither`**— This operator run the orginal effect, and if it run the specified effect and return the result as Either: 
+2. **`ZIO#orElseEither`**— If the original effect fails, this operator tries another effect, and as a result, returns either:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -1111,6 +1121,15 @@ timestamp=2022-02-24T11:05:40.241436257Z level=ERROR thread=#zio-fiber-0 message
 
 3. **`ZIO#foldTraceZIO`**— This version of fold, provide us the facility to access the trace info of the failure:
 
+```scala
+trait ZIO[-R, +E, +A] {
+  def foldTraceZIO[R1 <: R, E2, B](
+    failure: ((E, ZTrace)) => ZIO[R1, E2, B],
+    success: A => ZIO[R1, E2, B]
+  )(implicit ev: CanFail[E]): ZIO[R1, E2, B]
+}
+```
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -1206,7 +1225,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-4. **`ZIO#retryOrElseEither`**— This operator is almost the same as the **`ZIO#retryOrElse`** except it can return a different type for the fallback:
+4. **`ZIO#retryOrElseEither`**— This operator is almost the same as the **`ZIO#retryOrElse`** except it will return either result of the original or the fallback operation:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1824,7 +1843,15 @@ val r2 = parseInt("five")         // ZIO[Any, NumberFormatException, Int]
   .mapErrorCause(_.untraced)      // ZIO[Any, NumberFormatException, Int]
 ````
 
-2. **`ZIO#mapAttempt`**— Using operations that can throw exceptions inside of `ZIO#map` such as `effect.map(_.unsafeOpThatThrows)` will result in a defect (an unexceptional effect that will die).
+2. **`ZIO#mapAttempt`**— Using operations that can throw exceptions inside of `ZIO#map` such as `effect.map(_.unsafeOpThatThrows)` will result in a defect (an unexceptional effect that will die):
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def mapAttempt[B](f: A => B)(
+    implicit ev: E IsSubtypeOfError Throwable
+  ): ZIO[R, Throwable, B]
+}
+```
 
 In the following example, when we use the `ZIO#map` operation. So, if the `String#toInt` operation throws `NumberFormatException` it will be converted to a defect:
 
@@ -2160,7 +2187,7 @@ val effect2 =
 
 So what is the difference between `ZIO#absorb` and `ZIO#resurrect` operators?
 
-1. The `ZIO#absorb` can recover from both `Die` and `Interruption` causes. Using this operator we can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert all causes into a failure, throwing away all information about the cause of the error:
+The `ZIO#absorb` can recover from both `Die` and `Interruption` causes. Using this operator we can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert all causes into a failure, throwing away all information about the cause of the error:
 
 ```scala mdoc:compile-only
 import zio._
@@ -2187,7 +2214,7 @@ The output would be as below:
 application exited successfully: ()
 ```
 
-2. Whereas, the `ZIO#resurrect` will only recover from `Die` causes:
+Whereas, the `ZIO#resurrect` will only recover from `Die` causes:
 
 ```scala mdoc:compile-only
 import zio._
@@ -2250,7 +2277,7 @@ def parseInt(input: String): ZIO[Any, NumberFormatException, Int] =
 
 In this example, if the `input.toInt` throws any other exceptions other than `NumberFormatException`, e.g. `IndexOutOfBoundsException`, will be translated to the ZIO defect.
 
-2. **`ZIO#refineOrDie`**— The `ZIO#refineOrDie` is the more powerful version of the previous operator. Using this combinator instead of refining to one specific error type, we can refine to multiple error types using a partial function:
+2. **`ZIO#refineOrDie`**— It is the more powerful version of the previous operator. Instead of refining to one specific error type, we can refine to multiple error types using a partial function:
 
 ```scala mdoc:compile-only
 trait ZIO[-R, +E, +A] {
@@ -2318,8 +2345,8 @@ object MainApp extends ZIOAppDefault {
 
 1. **`ZIO#unrefineTo[E1 >: E]`**— This operator **broadens** the type of the error channel from `E` to the `E1` and embeds some defects into it. So it is going from some fiber failures back to errors and thus making the error type **larger**:
 
-```scala
-ZIO[-R, +E, +A] {
+```scala mdoc:compile-only
+trait ZIO[-R, +E, +A] {
   def unrefineTo[E1 >: E]: ZIO[R, E1, A]
 }
 ```
@@ -2336,7 +2363,7 @@ def parseInt(input: String): ZIO[Any, NumberFormatException, Int] =
 
 2. **`ZIO#unrefine`**— It is a more powerful version of the previous operator. It takes a partial function from `Throwable` to `E1` and converts those defects to recoverable errors:
 
-```scala
+```scala mdoc:compile-only
 trait ZIO[-R, +E, +A] {
   def unrefine[E1 >: E](pf: PartialFunction[Throwable, E1]): ZIO[R, E1, A]
 }
