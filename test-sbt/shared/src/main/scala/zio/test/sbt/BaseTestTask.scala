@@ -57,19 +57,32 @@ abstract class BaseTestTask(
         ZIOAppArgs(Chunk.empty)
       )
 
-    val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment with TestLogger with ZIOAppArgs] = {
-      argslayer +!+ (Scope.default >>>(zio.ZEnv.live ++ ZLayer.environment[Scope]) >>> TestEnvironment.live) +!+ consoleTestLogger
-    }
+    val filledTestlayer: ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
+      argslayer +!+ (
+        (zio.ZEnv.live ++ Scope.default) >>>
+          TestEnvironment.live
+      ) +!+ consoleTestLogger
+    } +!+ Scope.default
 
-    val layer: ZLayer[Scope, Error, spec.Environment] =
+    val layer: ZLayer[Any, Error, spec.Environment] =
       filledTestlayer >>> spec.layer.mapError(e => new Error(e.toString))
+
+    type SpecAndGenericEnvironment =
+      spec.Environment
+        with ZIOAppArgs
+        with TestEnvironment
+        with System
+        with Random
+        with Clock
+        with Scope
+        with TestLogger
 
     val fullLayer: ZLayer[
       Any,
       Error,
-      spec.Environment with ZIOAppArgs with TestEnvironment with Console with System with Random with Clock with Scope with TestLogger
+      SpecAndGenericEnvironment
     ] =
-      Scope.default >>> (layer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
+      (layer +!+ filledTestlayer)
 
     for {
       summary <- spec
