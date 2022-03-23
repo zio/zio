@@ -36,6 +36,7 @@ object ExecutionEventSink {
 
           case ExecutionEvent.SectionStart(labelsReversed, id, ancestors) =>
             for {
+              // TODO Get result from this line and use in printOrQeue
               _ <- talkers.attemptToGetPrintingControl(id, ancestors)
               _ <- StreamingTestOutput.printOrQueue(
                      id,
@@ -46,7 +47,7 @@ object ExecutionEventSink {
             } yield ()
 
           case ExecutionEvent.SectionEnd(labelsReversed, id, ancestors) =>
-            StreamingTestOutput.printOrSendOutputToParent(id, ancestors, talkers) *>
+            StreamingTestOutput.printOrFlush(id, ancestors, talkers) *>
               talkers.relinquishPrintingControl(id)
 
           case ExecutionEvent.RuntimeFailure(labelsReversed, failure, ancestors) =>

@@ -125,6 +125,7 @@ sealed class ZTestTask(
                        testLoggers +!+ fullLayer
                      )
               // TODO Confirm if/how these events needs to be handled
+              //    Check XML behavior
               //              events = ZTestEvent.from(taskDef.fullyQualifiedName(), taskDef.fingerprint())
               //              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
             } yield ()

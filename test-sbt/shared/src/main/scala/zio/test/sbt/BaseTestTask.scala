@@ -1,6 +1,6 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import sbt.testing.{EventHandler, Logger, Status, Task, TaskDef, TestSelector}
 import zio.test.render.ConsoleRenderer
 import zio.test.{
   AbstractRunnableSpec,
@@ -50,7 +50,7 @@ abstract class BaseTestTask(
   }
 
   protected def run(
-    eventHandler: EventHandler,
+    eventHandler: EventHandler, // TODO delete?
     spec: ZIOSpecAbstract,
     loggers: Array[Logger]
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
@@ -82,6 +82,19 @@ abstract class BaseTestTask(
                    .provideLayer(
                      testLoggers +!+ fullLayer
                    )
+      _ <- ZIO.attempt {
+             eventHandler.handle(
+               ZTestEvent(
+                 fullyQualifiedName = "zio.test.trickysituations.AMinimalSpec",
+                 new TestSelector("test name"),
+                 Status.Success,
+                 maybeThrowable = None,
+                 duration = 0L,
+                 ZioSpecFingerprint
+               )
+             )
+             println("ZZZ handled event")
+           }
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
       _ <- TestLogger.logLine(ConsoleRenderer.render(summary)).provideLayer(testLoggers)
       _ <- (if (summary.fail > 0)

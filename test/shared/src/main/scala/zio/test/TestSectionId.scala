@@ -9,6 +9,8 @@ import java.util.UUID
  *   Level of the spec nesting that you are at. Suites get new values, test
  *   cases inherit their suite's
  */
+// TODO rename
+// TODO use int instead of UUID
 case class TestSectionId(id: UUID)
 
 object TestSectionId {

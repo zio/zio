@@ -7,6 +7,7 @@ object TestReporters {
     Ref.make(List.empty[TestSectionId]).map(TestReporters(_))
 }
 
+// TODO better name than testIds
 case class TestReporters(testIds: Ref[List[TestSectionId]]) {
 
   def attemptToGetPrintingControl(sectionId: TestSectionId, ancestors: List[TestSectionId]): ZIO[Any, Nothing, Unit] =
@@ -14,8 +15,8 @@ case class TestReporters(testIds: Ref[List[TestSectionId]]) {
       case Nil =>
         List(sectionId)
 
-      case writers if ancestors.nonEmpty && writers.head == ancestors.head =>
-        sectionId :: writers
+      case reporters if ancestors.nonEmpty && reporters.head == ancestors.head =>
+        sectionId :: reporters
     }
 
   def printOrElse(
@@ -26,7 +27,7 @@ case class TestReporters(testIds: Ref[List[TestSectionId]]) {
     trace: ZTraceElement
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
     for {
-      initialTalker <- testIds.get.map(_.head)
+      initialTalker <- testIds.get.map(_.head) //
       _ <-
         if (initialTalker == id)
           print

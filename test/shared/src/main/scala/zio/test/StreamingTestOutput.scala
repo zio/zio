@@ -20,7 +20,8 @@ trait StreamingTestOutput {
 }
 
 // Used as a baseline to compare against
-case class DumbStreamer() extends StreamingTestOutput {
+// TODO Move to test dir
+case class BrokenStreamer() extends StreamingTestOutput {
   override def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
@@ -46,7 +47,7 @@ object StreamingTestOutput {
       TestOutputTree.make
     )
 
-  def printOrSendOutputToParent(
+  def printOrFlush(
     id: TestSectionId,
     ancestors: List[TestSectionId],
     talkers: TestReporters
@@ -56,13 +57,14 @@ object StreamingTestOutput {
   def printOrQueue(
     id: TestSectionId,
     ancestors: List[TestSectionId],
-    talkers: TestReporters,
+    talkers: TestReporters, // TODO Move TestReports into this class
     reporterEvent: ReporterEvent
   ): ZIO[StreamingTestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
     ZIO.serviceWithZIO[StreamingTestOutput](_.printOrQueue(id, ancestors, talkers, reporterEvent))
 
 }
 
+// TODO Move to separate file
 case class TestOutputTree(
   output: Ref[Map[TestSectionId, Chunk[ReporterEvent]]]
 ) extends StreamingTestOutput {
