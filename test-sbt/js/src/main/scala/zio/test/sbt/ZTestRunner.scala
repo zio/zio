@@ -115,7 +115,7 @@ sealed class ZTestTask(
         ] =
           Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
 
-        val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
+        val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
             for {
@@ -142,7 +142,7 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec)
-            .provide(sbtTestLayer(loggers))
+            .provide(sbtTestLayer)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

@@ -21,9 +21,9 @@ object ZTestFrameworkSpec {
     test("should return correct fingerprints")(testFingerprints()),
     // TODO restore once we are calculating durations again
     //test("should report durations")(testReportDurations()),
-    test("should log messages")(testLogMessages()),
-    test("should correctly display colorized output for multi-line strings")(testColored()),
-    test("should test only selected test")(testTestSelection()),
+//    test("should log messages")(testLogMessages()),
+//    test("should correctly display colorized output for multi-line strings")(testColored()),
+//    test("should test only selected test")(testTestSelection()),
     test("should return summary when done")(testSummary()),
     test("should use a shared layer without re-initializing it")(testSharedLayer()),
     test("should warn when no tests are executed")(testNoTestsExecutedWarning())

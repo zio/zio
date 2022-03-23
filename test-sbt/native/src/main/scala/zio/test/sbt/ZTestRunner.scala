@@ -85,7 +85,7 @@ sealed class ZTestTask(
   spec: NewOrLegacySpec
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
+  def execute(eventHandler: EventHandler, continuation: Array[Task] => Unit): Unit =
     spec match {
       case NewSpecWrapper(zioSpec) =>
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
@@ -104,7 +104,7 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec)
-            .provide(sbtTestLayer(loggers))
+            .provide(sbtTestLayer)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
