@@ -719,11 +719,12 @@ val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 
 ## Tapping
 
-Using `ZIO.tap` we can peak into a success value effectfully, without changing the returning value of the original effect:
+Using `ZIO.tap` we can peek into a success value and perform any effectful operation, without changing the returning value of the original effect:
 
 ```scala
 trait ZIO[-R, +E, +A] {
   def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapSome[R1 <: R, E1 >: E](f: PartialFunction[A, ZIO[R1, E1, Any]]): ZIO[R1, E1, A]
 }
 ```
 
