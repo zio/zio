@@ -23,7 +23,7 @@ import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
-  ): ZIO[StreamingTestOutput with TestLogger with ExecutionEventSink with Random, Nothing, Summary]
+  ): ZIO[TestOutput with TestLogger with ExecutionEventSink with Random, Nothing, Summary]
 
   def environment: ZLayer[Scope, Nothing, R]
 }
@@ -35,19 +35,19 @@ object TestExecutor {
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
-    ): ZIO[StreamingTestOutput with TestLogger with ExecutionEventSink with Random, Nothing, Summary] =
+    ): ZIO[TestOutput with TestLogger with ExecutionEventSink with Random, Nothing, Summary] =
       for {
         sink      <- ZIO.service[ExecutionEventSink]
-        topParent <- TestSectionId.newRandom
+        topParent <- SuiteId.newRandom
         _         <- sink.process(ExecutionEvent.SectionStart(List.empty, topParent, List.empty))
         _ <- {
           def loop(
             labels: List[String],
             spec: Spec[Scope, Annotated[TestFailure[E]], Annotated[TestSuccess]],
             exec: ExecutionStrategy,
-            ancestors: List[TestSectionId],
-            sectionId: TestSectionId
-          ): ZIO[StreamingTestOutput with TestLogger with ExecutionEventSink with Random with Scope, Nothing, Unit] =
+            ancestors: List[SuiteId],
+            sectionId: SuiteId
+          ): ZIO[TestOutput with TestLogger with ExecutionEventSink with Random with Scope, Nothing, Unit] =
             (spec.caseValue match {
               case Spec.ExecCase(exec, spec) =>
                 loop(labels, spec, exec, ancestors, sectionId)
@@ -63,7 +63,7 @@ object TestExecutor {
               case Spec.MultipleCase(specs) =>
                 ZIO.uninterruptibleMask(restore =>
                   for {
-                    newMultiSectionId <- TestSectionId.newRandom
+                    newMultiSectionId <- SuiteId.newRandom
                     newAncestors       = sectionId :: ancestors
                     _                 <- sink.process(ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors))
                     _ <-

@@ -4,7 +4,7 @@ import zio._
 import java.util.UUID
 
 object ExecutionEventSinkSpec extends ZIOSpecDefault {
-  val uuid = TestSectionId(UUID.randomUUID())
+  val uuid = SuiteId(UUID.randomUUID())
 
   override def spec = suite("ExecutionEventSinkSpec")(
     test("process single test") {
@@ -40,7 +40,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         List("add", "ConcurrentSetSpec"),
         Right(TestSuccess.Succeeded(BoolAlgebra.Value(()))),
         TestAnnotationMap.empty,
-        List(TestSectionId(UUID.fromString("44bcc3b1-68ff-4140-9dc2-fffbddb8c70f"))),
+        List(SuiteId(UUID.fromString("44bcc3b1-68ff-4140-9dc2-fffbddb8c70f"))),
         0L,
         uuid
       )
@@ -52,7 +52,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
       val startEvent =
         ExecutionEvent.SectionStart(
           labelsReversed = List("startLabel"),
-          id = TestSectionId(UUID.fromString("7f2ce7f5-2d66-496f-9270-6565f04d0d48")),
+          id = SuiteId(UUID.fromString("7f2ce7f5-2d66-496f-9270-6565f04d0d48")),
           ancestors = List.empty
         )
 
@@ -68,7 +68,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
       val endEvent =
         ExecutionEvent.SectionEnd(
           labelsReversed = List("startLabel"),
-          id = TestSectionId(UUID.fromString("7f2ce7f5-2d66-496f-9270-6565f04d0d48")),
+          id = SuiteId(UUID.fromString("7f2ce7f5-2d66-496f-9270-6565f04d0d48")),
           ancestors = List.empty
         )
       for {
@@ -81,7 +81,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
     Console.live,
     TestLogger.fromConsole,
     ExecutionEventSink.live,
-    StreamingTestOutput.live
+    TestOutput.live
   ) @@ TestAspect.ignore
   // TODO Rewrite these tests for the final Sink implementation
 

@@ -66,7 +66,7 @@ package object test extends CompileVariants {
       with TestRandom
       with TestSystem
       with ExecutionEventSink
-      with StreamingTestOutput
+      with TestOutput
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -81,8 +81,8 @@ package object test extends CompileVariants {
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
         TestSystem.default ++
-        (StreamingTestOutput.live >>> ExecutionEventSink.live) ++
-        StreamingTestOutput.live
+        (TestOutput.live >>> ExecutionEventSink.live) ++
+        TestOutput.live
 
     }
   }

@@ -50,7 +50,7 @@ object ReportingTestUtils {
         TestTestRunner(testEnvironment)
           .run(spec)
           .provideLayer(
-            TestLogger.fromConsole ++ TestClock.default ++ (StreamingTestOutput.live >>> ExecutionEventSink.live) ++ Random.live ++ StreamingTestOutput.live
+            TestLogger.fromConsole ++ TestClock.default ++ (TestOutput.live >>> ExecutionEventSink.live) ++ Random.live ++ TestOutput.live
           )
       output <- TestConsole.output
     } yield output.mkString
@@ -61,7 +61,7 @@ object ReportingTestUtils {
         TestTestRunner(testEnvironment)
           .run(spec)
           .provideLayer(
-            Scope.default >>> (TestLogger.fromConsole ++ TestClock.default ++ (StreamingTestOutput.live >>> ExecutionEventSink.live) ++ Random.live) ++ StreamingTestOutput.live
+            Scope.default >>> (TestLogger.fromConsole ++ TestClock.default ++ (TestOutput.live >>> ExecutionEventSink.live) ++ Random.live) ++ TestOutput.live
           )
     } yield summary.summary
 

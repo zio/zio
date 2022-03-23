@@ -1,43 +1,26 @@
 package zio.test
 
-import zio.{Ref, ZIO, ZTraceElement}
+import zio.{Ref, ZIO}
 
 object TestReporters {
   val make: ZIO[Any, Nothing, TestReporters] =
-    Ref.make(List.empty[TestSectionId]).map(TestReporters(_))
+    Ref.make(List.empty[SuiteId]).map(TestReporters(_))
 }
 
-// TODO better name than testIds
-case class TestReporters(testIds: Ref[List[TestSectionId]]) {
+case class TestReporters(reportersStack: Ref[List[SuiteId]]) {
 
-  def attemptToGetPrintingControl(sectionId: TestSectionId, ancestors: List[TestSectionId]): ZIO[Any, Nothing, Unit] =
-    testIds.updateSome {
+  def attemptToGetPrintingControl(id: SuiteId, ancestors: List[SuiteId]): ZIO[Any, Nothing, Boolean] =
+    reportersStack.updateSomeAndGet {
       case Nil =>
-        List(sectionId)
+        List(id)
 
       case reporters if ancestors.nonEmpty && reporters.head == ancestors.head =>
-        sectionId :: reporters
-    }
+        id :: reporters
+    }.map(_.head == id)
 
-  def printOrElse(
-    id: TestSectionId,
-    print: ZIO[ExecutionEventSink with TestLogger, Nothing, Unit],
-    fallback: ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
-  )(implicit
-    trace: ZTraceElement
-  ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
-    for {
-      initialTalker <- testIds.get.map(_.head) //
-      _ <-
-        if (initialTalker == id)
-          print
-        else
-          fallback
-    } yield ()
-
-  def relinquishPrintingControl(sectionId: TestSectionId): ZIO[Any, Nothing, Unit] =
-    testIds.updateSome {
-      case head :: tail if head == sectionId =>
+  def relinquishPrintingControl(id: SuiteId): ZIO[Any, Nothing, Unit] =
+    reportersStack.updateSome {
+      case currentReporter :: tail if currentReporter == id =>
         tail
     }
 

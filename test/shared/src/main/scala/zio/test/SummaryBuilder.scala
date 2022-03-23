@@ -23,7 +23,7 @@ import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
 
-  def buildSummary[E](reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
+  def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(reporterEvent) {
       case Right(TestSuccess.Succeeded(_)) => true
       case _                               => false
@@ -54,7 +54,7 @@ object SummaryBuilder {
 
   }
 
-  private def countTestResults[E](
+  private def countTestResults(
     executedSpec: ExecutionEvent
   )(pred: Either[TestFailure[_], TestSuccess] => Boolean): Int =
     executedSpec match {
@@ -67,7 +67,7 @@ object SummaryBuilder {
       case SectionEnd(_, _, _)   => 0
     }
 
-  private def extractFailures[E](reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =
+  private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =
     reporterEvent match {
       case Test(_, test, _, _, _, _) =>
         test match {

@@ -22,7 +22,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 final case class Summary(success: Int, fail: Int, ignore: Int, summary: String) {
   def total: Int = success + fail + ignore
 
-  // TODO Minimize this to just a Test, instead of all possible ExecutionEvents?
-  def add[E](executionEvent: ExecutionEvent)(implicit trace: ZTraceElement): Summary =
+  def add(executionEvent: ExecutionEvent)(implicit trace: ZTraceElement): Summary =
     SummaryBuilder.buildSummary(executionEvent, this)
 }
