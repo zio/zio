@@ -47,36 +47,6 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         _       <- ExecutionEventSink.process(event)
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.success == 1)
-    },
-    test("process section") {
-      val startEvent =
-        ExecutionEvent.SectionStart(
-          labelsReversed = List("startLabel"),
-          id = SuiteId(2),
-          ancestors = List.empty
-        )
-
-      val testEvent = ExecutionEvent.Test(
-        List("add", "ConcurrentSetSpec"),
-        Right(TestSuccess.Succeeded(BoolAlgebra.Value(()))),
-        TestAnnotationMap.empty,
-        ancestors = List(startEvent.id),
-        0L,
-        uuid
-      )
-
-      val endEvent =
-        ExecutionEvent.SectionEnd(
-          labelsReversed = List("startLabel"),
-          id = SuiteId(3),
-          ancestors = List.empty
-        )
-      for {
-        _       <- ExecutionEventSink.process(startEvent)
-        _       <- ExecutionEventSink.process(testEvent)
-        _       <- ExecutionEventSink.process(endEvent)
-        summary <- ExecutionEventSink.getSummary
-      } yield assertTrue(summary.success == 1)
     }
   ).provide(
     Console.live,
