@@ -314,7 +314,7 @@ private[mock] object MockableMacro {
                 class $serviceClassName extends $service {
                   ..$mocks
                 }
-                new $serviceClassName
+                (new $serviceClassName, rts)._1 //trick to make rts always used and avoid compilation warn when rts is not used inside mocks
               }
             }
 
