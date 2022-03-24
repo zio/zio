@@ -407,7 +407,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(actual)(equalTo(expected))
     },
     test("toArray for an empty Chunk of type String") {
-      assert(Chunk.empty.toArray[String])(equalTo(Array.empty[String]))
+      assert(Chunk.empty[String].toArray)(equalTo(Array.empty[String]))
     },
     test("to Array for an empty Chunk using filter") {
       assert(Chunk(1).filter(_ == 2).map(_.toString).toArray[String])(equalTo(Array.empty[String]))
@@ -421,7 +421,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("collect")(
       test("collect empty Chunk") {
-        assert(Chunk.empty.collect { case _ => 1 })(isEmpty)
+        assert(Chunk.empty[Nothing].collect { case _ => 1 })(isEmpty)
       },
       test("collect chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
@@ -430,7 +430,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectZIO")(
       test("collectZIO empty Chunk") {
-        assertM(Chunk.empty.collectZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
+        assertM(Chunk.empty[Nothing].collectZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       test("collectZIO chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[Int]](Gen.successes(intGen))
@@ -447,7 +447,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectWhile")(
       test("collectWhile empty Chunk") {
-        assert(Chunk.empty.collectWhile { case _ => 1 })(isEmpty)
+        assert(Chunk.empty[Nothing].collectWhile { case _ => 1 })(isEmpty)
       },
       test("collectWhile chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, Int](intGen)
@@ -458,7 +458,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectWhileZIO")(
       test("collectWhileZIO empty Chunk") {
-        assertM(Chunk.empty.collectWhileZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
+        assertM(Chunk.empty[Nothing].collectWhileZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       test("collectWhileZIO chunk") {
         val pfGen = Gen.partialFunction[Random with Sized, Int, UIO[Int]](Gen.successes(intGen))

@@ -18,9 +18,13 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[zio] trait ChunkFactory {
-  def apply[A](as: A*): Chunk[A]
-  def fill[A](n: Int)(elem: => A): Chunk[A]
+import scala.collection.{IterableFactory, IterableOnce}
+import scala.collection.mutable.Builder
+
+private[zio] trait ChunkFactory extends IterableFactory[Chunk] {
+
+  final def from[A](iterable: IterableOnce[A]): Chunk[A] =
+    Chunk.fromIterator(iterable.iterator)
 
   /**
    * Extracts the elements from a `Chunk`.
