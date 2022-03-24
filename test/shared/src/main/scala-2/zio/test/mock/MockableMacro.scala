@@ -314,6 +314,7 @@ private[mock] object MockableMacro {
                 class $serviceClassName extends $service {
                   ..$mocks
                 }
+                val _ = rts //trick to make rts always used and avoid compilation warn when rts is not used inside mocks
                 new $serviceClassName
               }
             }
