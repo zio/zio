@@ -20,8 +20,8 @@ case class TestReporters(reportersStack: Ref[List[SuiteId]]) {
 
   def relinquishPrintingControl(id: SuiteId): ZIO[Any, Nothing, Unit] =
     reportersStack.updateSome {
-      case currentReporter :: tail if currentReporter == id =>
-        tail
+      case currentReporter :: reporters if currentReporter == id =>
+        reporters
     }
 
 }

@@ -38,7 +38,7 @@ object TestOutput {
 
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
-    talkers: TestReporters
+    reporters: TestReporters
   ) extends TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
@@ -51,7 +51,7 @@ object TestOutput {
       ancestors: List[SuiteId]
     ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
       for {
-        suiteIsPrinting <- talkers.attemptToGetPrintingControl(id, ancestors)
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(id, ancestors)
         sectionOutput   <- getAndRemoveSectionOutput(id)
         _ <-
           if (suiteIsPrinting)
@@ -69,7 +69,7 @@ object TestOutput {
             }
           }
 
-        _ <- talkers.relinquishPrintingControl(id)
+        _ <- reporters.relinquishPrintingControl(id)
       } yield ()
 
     private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
@@ -86,17 +86,17 @@ object TestOutput {
     ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
       for {
         _               <- appendToSectionContents(id, Chunk(reporterEvent))
-        suiteIsPrinting <- talkers.attemptToGetPrintingControl(id, ancestors)
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(id, ancestors)
         _ <- ZIO.when(suiteIsPrinting)(
-            for {
-              currentOutput <- getAndRemoveSectionOutput(id)
-              _ <- ZIO.foreachDiscard(currentOutput) { line =>
-                TestLogger.logLine(
-                  ReporterEventRenderer.render(line).mkString("\n")
-                )
-              }
-            } yield ()
-          )
+               for {
+                 currentOutput <- getAndRemoveSectionOutput(id)
+                 _ <- ZIO.foreachDiscard(currentOutput) { line =>
+                        TestLogger.logLine(
+                          ReporterEventRenderer.render(line).mkString("\n")
+                        )
+                      }
+               } yield ()
+             )
       } yield ()
 
     // We need this helper to run on Scala 2.11

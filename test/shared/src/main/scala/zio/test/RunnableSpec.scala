@@ -36,7 +36,7 @@ abstract class RunnableSpec[R, E] extends AbstractRunnableSpec {
 
       hasFailures = results.fail > 0
       _ <- TestLogger
-             .logLine(results.toString) // TODO Better formatting for Summary
+             .logLine(ConsoleRenderer.render(results))
              .when(testArgs.printSummary)
     } yield if (hasFailures) 1 else 0
   }

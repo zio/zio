@@ -84,6 +84,5 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
     ExecutionEventSink.live,
     TestOutput.live
   )
-  // TODO Rewrite these tests for the final Sink implementation
 
 }

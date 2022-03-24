@@ -1,7 +1,6 @@
-package zio.test.trickysituations
+package zio.test
 
 import zio._
-import zio.test.{Live, ZIOSpecDefault, assertTrue}
 
 object AMinimalSpec extends ZIOSpecDefault {
 
@@ -55,7 +54,6 @@ object SmallMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("SmallMultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
-        //        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
         assertTrue(true)
       }
     ),

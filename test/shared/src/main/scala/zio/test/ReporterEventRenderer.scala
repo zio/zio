@@ -8,7 +8,5 @@ object ReporterEventRenderer {
     Chunk.fromIterable(
       ConsoleRenderer
         .render(DefaultTestReporter.render(executionEvent, false), TestAnnotationRenderer.timed)
-      // TODO decide whether to keep this available somewhere for debugging
-      //        .map(line => s"${reporterEvent.id.id.toString.take(4)} $line")
     )
 }

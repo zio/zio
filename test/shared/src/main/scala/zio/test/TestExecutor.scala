@@ -20,6 +20,10 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
 
+/**
+ * A `TestExecutor[R, E]` is capable of executing specs that require an
+ * environment `R` and may fail with an `E`.
+ */
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
