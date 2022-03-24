@@ -25,9 +25,9 @@ object ZTestFrameworkSpec {
 //    test("should log messages")(testLogMessages()),
 //    test("should correctly display colorized output for multi-line strings")(testColored()),
 //    test("should test only selected test")(testTestSelection()),
-    test("should return summary when done")(testSummary()),
-    test("should use a shared layer without re-initializing it")(testSharedLayer()),
-    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
+//    test("should return summary when done")(testSummary()),
+    test("should use a shared layer without re-initializing it")(testSharedLayer())
+//    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
