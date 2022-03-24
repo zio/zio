@@ -33,6 +33,12 @@ trait Scope extends Serializable { self =>
   def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
 
   /**
+   * Forks a new scope that is a child of this scope. The child scope will
+   * automatically be closed when this scope is closed.
+   */
+  def fork: UIO[Scope.Closeable]
+
+  /**
    * A simplified version of `addFinalizerWith` when the `finalizer` does not
    * depend on the `Exit` value that the scope is closed with.
    */
@@ -100,6 +106,8 @@ object Scope {
         ZIO.unit
       def close(exit: => Exit[Any, Any]): UIO[Unit] =
         ZIO.unit
+      def fork: UIO[Scope.Closeable] =
+        make
     }
 
   /**
@@ -121,6 +129,14 @@ object Scope {
           releaseMap.add(finalizer).unit
         def close(exit: => Exit[Any, Any]): UIO[Unit] =
           ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
+        def fork: UIO[Scope.Closeable] =
+          ZIO.uninterruptible {
+            for {
+              scope     <- Scope.make
+              finalizer <- releaseMap.add(scope.close(_))
+              _         <- scope.addFinalizerExit(finalizer)
+            } yield scope
+          }
       }
     }
 
