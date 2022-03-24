@@ -414,11 +414,11 @@ object legacy {
     onFailure: AuthError => Unit): Unit = ???
 }
 
-val login: IO[AuthError, User] =
-  IO.async[Any, AuthError, User] { callback =>
+val login: ZIO[Any, AuthError, User] =
+  ZIO.async[Any, AuthError, User] { callback =>
     legacy.login(
-      user => callback(IO.succeed(user)),
-      err  => callback(IO.fail(err))
+      user => callback(ZIO.succeed(user)),
+      err  => callback(ZIO.fail(err))
     )
   }
 ```
