@@ -1317,7 +1317,7 @@ val myApp =
 ```
 
 We should note that when we use the `ZIO#timeout` operator on the `myApp`, it doesn't return until one of the following situations happens:
-1. The original effect returns before the timeout elapses so the output will be `Some` of the produced value by the original effect.
+1. The original effect returns before the timeout elapses so the output will be `Some` of the produced value by the original effect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1441,7 +1441,7 @@ val r2: ZIO[Random with Clock, Nothing, Int] =
 
 ### 6. Sandboxing
 
-1. **`ZIO#sandbox`**— We know that a ZIO effect may fail due to a failure, a defect, a fiber interruption, or a combination of these causes. So a ZIO effect may contain more than one cause. Using the `ZIO#sandbox` operator, we can sandbox all errors of a ZIO application, whether the cause is a failure, defect, or a fiber interruption or combination of these. This operator exposes the full cause of a ZIO effect into the error channel:
+We know that a ZIO effect may fail due to a failure, a defect, a fiber interruption, or a combination of these causes. So a ZIO effect may contain more than one cause. Using the `ZIO#sandbox` operator, we can sandbox all errors of a ZIO application, whether the cause is a failure, defect, or a fiber interruption or combination of these. This operator exposes the full cause of a ZIO effect into the error channel:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -1495,7 +1495,7 @@ effect            // ZIO[Any, String, String]
   .unsandbox      // ZIO[Any, String, String]
 ```
 
-2. **`ZIO#sandboxWith`**— There is another version of sandbox called `ZIO#sandboxWith`. This operator helps us to sandbox, then catch all causes, and then unsandbox back:
+There is another version of sandbox called `ZIO#sandboxWith`. This operator helps us to sandbox, then catch all causes, and then unsandbox back:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -1538,7 +1538,7 @@ object MainApp extends ZIOAppDefault {
 
 Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach the first error and return immediately. So their policy on error management is to fail fast.
 
-In the following example, we can see that the `ZIO#zip` operator will fail as soon as it reaches the first failure. As a result, we only see the first error in the stack trace.
+In the following example, we can see that the `ZIO#zip` operator will fail as soon as it reaches the first failure. As a result, we only see the first error in the stack trace:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1599,7 +1599,7 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
-If any of the effecful operations doesn't fail, it results like the `zip` operator. Otherwise, when it reaches the first error it won't stop, instead, it will continue the zip operation until reach the final effect while combining:
+If any of effecful operations doesn't fail, it results like the `zip` operator. Otherwise, when it reaches the first error it won't stop, instead, it will continue the zip operation until reach the final effect while combining:
 
 ```scala mdoc:compile-only
 import zio._
@@ -3032,7 +3032,7 @@ timestamp=2022-02-18T06:36:25.984665171Z level=ERROR thread=#zio-fiber-0 message
 	at <empty>.MainApp.run(MainApp.scala:9)"
 ```
 
-The cause of this defect is also is a programming error, which means we haven't validated input when parsing it. So let's try to validate the input, and make sure that is it is a number. We know that if the entered input does not contain a parsable `Int` the `String#toInt` throws the `NumberFormatException` exception. As we want this exception to be typed, we import the `String#toInt` function using the `ZIO.attempt` constructor. Using this constructor the function signature would be as follows:
+The cause of this defect is also a programming error, which means we haven't validated input when parsing it. So let's try to validate the input, and make sure that it is a number. We know that if the entered input does not contain a parsable `Int` the `String#toInt` throws the `NumberFormatException` exception. As we want this exception to be typed, we import the `String#toInt` function using the `ZIO.attempt` constructor. Using this constructor the function signature would be as follows:
 
 ```scala mdoc:compile-only
 import zio._ 
