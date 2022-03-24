@@ -1066,7 +1066,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   /**
    * Returns the empty chunk.
    */
-  def empty[A]: Chunk[A] =
+  override def empty[A]: Chunk[A] =
     Empty
 
   /**
