@@ -1611,7 +1611,7 @@ object MainApp extends ZIOAppDefault {
   val f4 = ZIO.succeed(4) *> ZIO.fail("Oh error!")
   val f5 = ZIO.succeed(5).debug
 
-  val myApp: ZIO[Any, String, ((((Int, Int), Int), Int), Int)] =
+  val myApp: ZIO[Any, String, (Int, Int, Int)] =
     f1 validate f2 validate f3 validate f4 validate f5
 
   def run = myApp.cause.debug.uncause
