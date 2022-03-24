@@ -39,19 +39,48 @@ Using the `Cause` data structure described above, ZIO can capture all errors ins
 
 ## Cause Variations
 
-`Cause` has several variations which encode all the cases:
+The `Cause` has the following constructors in its companion object: 
 
-1. `Fail[+E](value: E)` contains the cause of expected failure of type `E`.
+```scala
+object Cause extends Serializable {
+  val empty: Cause[Nothing] = Empty
+  def die(defect: Throwable, trace: ZTrace = ZTrace.none): Cause[Nothing] = Die(defect, trace)
+  def fail[E](error: E, trace: ZTrace = ZTrace.none): Cause[E] = Fail(error, trace)
+  def interrupt(fiberId: FiberId, trace: ZTrace = ZTrace.none): Cause[Nothing] = Interrupt(fiberId, trace)
+  def stack[E](cause: Cause[E]): Cause[E] = Stackless(cause, false)
+  def stackless[E](cause: Cause[E]): Cause[E] = Stackless(cause, true)
+}
+```
 
-2. `Die(value: Throwable)` contains the cause of a defect or in other words, an unexpected failure of type `Throwable`. If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`.
+In this section, we will describe each of these causes. We will see how they can be created manually or how they will be automatically generated as the underlying error management data type of a ZIO application.
 
-3. `Interrupt(fiberId)` contains information of the fiber id that causes fiber interruption.
+1. `Cause.empty`— It creates an empty cause which indicates the lack of errors. Using `ZIO.failCause` we can create a ZIO effect that has an empty cause:
 
-4. `Traced(cause, trace)` stores stack traces and execution traces.
+```scala mdoc:compile-only
+import zio._
 
-5. `Meta(cause, data)`
+ZIO.failCause(Cause.empty).cause.debug
+// Empty
+```
 
-6. `Both(left, right)` & `Then(left, right)` store a composition of two parallel and sequential causes, respectively. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
+Also, we can use the `ZIO#cause` to uncover the underlying cause of an effect. For example, we know that the `ZIO.succeed(5)` has no errors. So, let's check that:
+
+```
+ZIO.succeed(5).cause.debug
+// Empty
+```
+
+2. `Fail[+E](value: E)`— contains the cause of expected failure of type `E`.
+
+3. `Die(value: Throwable)` contains the cause of a defect or in other words, an unexpected failure of type `Throwable`. If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`.
+
+4. `Interrupt(fiberId)` contains information of the fiber id that causes fiber interruption.
+
+5. `Traced(cause, trace)` stores stack traces and execution traces.
+
+6. `Meta(cause, data)`
+
+7. `Both(left, right)` & `Then(left, right)` store a composition of two parallel and sequential causes, respectively. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
     + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, then their causes are encoded with `Then`.
     + If we run two parallel fibers with `zipPar` and both of them fail, then their causes are encoded with `Both`.
 
