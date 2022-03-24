@@ -109,7 +109,7 @@ ZIO.failCause(Cause.die(new Throwable("Boom!"))).cause.debug
 // Die(java.lang.Throwable: Boom!,ZTrace(Runtime(2,1646479908),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
 ```
 
-If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`. Let's try to investigate some ZIO codes that will die:
+If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`. Let try to investigate some ZIO codes that will die:
 
 ```scala mdoc:compile-only
 import zio._
@@ -183,7 +183,7 @@ timestamp=2022-03-05T11:19:12.666418357Z level=ERROR thread=#zio-fiber-0 message
 
 ### Both
 
-When we are doing parallel computation, the effect can fail for more than one reason. So, the `Both` cause store composition of two parallel causes.
+When we are doing parallel computation, the effect can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. So, the `Both` cause store composition of two parallel causes.
 
 For example, if we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`:
 
@@ -211,24 +211,39 @@ at <empty>.MainApp.myApp(MainApp.scala:5)
 
 Other parallel operators are also the same, for example, ZIO encode the underlying cause of the `(ZIO.fail("Oh uh!") <&> ZIO.dieMessage("Boom!"))` with `Both` cause. 
 
-8. `Both(left, right)` & `Then(left, right)` store a composition of two parallel and sequential causes, respectively. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
-    + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, then their causes are encoded with `Then`.
-    + If we run two parallel fibers with `zipPar` and both of them fail, then their causes are encoded with `Both`.
-Let's try to create some of these causes:
+### Then
 
-```scala mdoc:silent
+ZIO uses `Then` cause to encode sequential errors. For example, if we perform ZIO's analog of `try-finally` (e.g. `ZIO#ensuring`), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`:
+
+```scala mdoc:compile-only
 import zio._
-for {
-  failExit <- ZIO.fail("Oh! Error!").exit
-  dieExit  <- ZIO.succeed(5 / 0).exit
-  thenExit <- ZIO.fail("first").ensuring(ZIO.die(throw new Exception("second"))).exit
-  bothExit <- ZIO.fail("first").zipPar(ZIO.die(throw new Exception("second"))).exit
-  fiber    <- ZIO.sleep(1.second).fork
-  _        <- fiber.interrupt
-  interruptionExit <- fiber.join.exit
-} yield ()
+
+val myApp = 
+  ZIO.fail("first")
+    .ensuring(ZIO.die(throw new Exception("second")))
+    
+myApp.cause.debug
+// Then(Fail(first,ZTrace(Runtime(2,1646486975),Chunk(<empty>.MainApp.myApp(MainApp.scala:4),<empty>.MainApp.myApp(MainApp.scala:5),<empty>.MainApp.run(MainApp.scala:7)))),Die(java.lang.Exception: second,ZTrace(Runtime(2,1646486975),Chunk(zio.internal.FiberContext.runUntil(FiberContext.scala:538),<empty>.MainApp.myApp(MainApp.scala:5),<empty>.MainApp.run(MainApp.scala:7)))))
 ```
 
+If we run the `myApp` effect, we can see the following stack trace:
+
+```scala
+timestamp=2022-03-05T13:30:17.335173071Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.String: first
+	at <empty>.MainApp.myApp(MainApp.scala:4)
+	at <empty>.MainApp.myApp(MainApp.scala:5)
+	Suppressed: java.lang.Exception: second
+		at MainApp$.$anonfun$myApp$3(MainApp.scala:5)
+		at zio.ZIO$.$anonfun$die$1(ZIO.scala:3384)
+		at zio.internal.FiberContext.runUntil(FiberContext.scala:255)
+		at zio.internal.FiberContext.run(FiberContext.scala:115)
+		at zio.internal.ZScheduler$$anon$1.run(ZScheduler.scala:151)
+		at zio.internal.FiberContext.runUntil(FiberContext.scala:538)
+		at <empty>.MainApp.myApp(MainApp.scala:5)"
+```
+
+As we can see in the above stack trace, the _first_ failure was suppressed by the _second_ defect.
+
 ## Lossless Error Model
-ZIO is very strict about preserving the full information related to a failure. ZIO captures all types of errors into the `Cause` data type. So its error model is lossless. It doesn't throw away any information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
+ZIO is very aggressive about preserving the full information related to a failure. ZIO capture all type of errors into the `Cause` data type. So its error model is lossless. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
 
