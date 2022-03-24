@@ -87,18 +87,16 @@ object TestOutput {
       for {
         _               <- appendToSectionContents(id, Chunk(reporterEvent))
         suiteIsPrinting <- talkers.attemptToGetPrintingControl(id, ancestors)
-        _ <-
-          if (suiteIsPrinting)
+        _ <- ZIO.when(suiteIsPrinting)(
             for {
               currentOutput <- getAndRemoveSectionOutput(id)
               _ <- ZIO.foreachDiscard(currentOutput) { line =>
-                     TestLogger.logLine(
-                       ReporterEventRenderer.render(line).mkString("\n")
-                     )
-                   }
+                TestLogger.logLine(
+                  ReporterEventRenderer.render(line).mkString("\n")
+                )
+              }
             } yield ()
-          else
-            ZIO.unit
+          )
       } yield ()
 
     // We need this helper to run on Scala 2.11
