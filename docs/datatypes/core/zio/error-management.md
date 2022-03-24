@@ -1813,7 +1813,7 @@ res.debug
 
 ## Error Channel Operations
 
-### map and flatMap on Error Channel
+### Map and FlatMap on the Error Channel
 
 Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
 
@@ -1843,17 +1843,20 @@ val r2 = parseInt("five")         // ZIO[Any, NumberFormatException, Int]
   .mapErrorCause(_.untraced)      // ZIO[Any, NumberFormatException, Int]
 ````
 
-2. **`ZIO#mapAttempt`**— Using operations that can throw exceptions inside of `ZIO#map` such as `effect.map(_.unsafeOpThatThrows)` will result in a defect (an unexceptional effect that will die):
+> _**Note:**_
+>
+> Note that mapping over an effect's success or error channel does not change the success or failure of the effect, in the same way that mapping over an `Either` does not change whether the `Either` is `Left` or `Right`.
+
+2. **`ZIO#mapAttempt`**— The `ZIO#mapAttempt` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects. So it converts an unchecked exception to a checked one by returning the `RIO` effect.
 
 ```scala
-trait ZIO[-R, +E, +A] {
-  def mapAttempt[B](f: A => B)(
-    implicit ev: E IsSubtypeOfError Throwable
-  ): ZIO[R, Throwable, B]
-}
+  trait ZIO[-R, +E, +A] {
+    def map[B](f: A => B): ZIO[R, E, B]
+    def mapAttempt[B](f: A => B): ZIO[R, Throwable, B]
+  }
 ```
 
-In the following example, when we use the `ZIO#map` operation. So, if the `String#toInt` operation throws `NumberFormatException` it will be converted to a defect:
+Using operations that can throw exceptions inside of `ZIO#map` such as `effect.map(_.unsafeOpThatThrows)` will result in a defect (an unexceptional effect that will die). In the following example, when we use the `ZIO#map` operation. So, if the `String#toInt` operation throws `NumberFormatException` it will be converted to a defect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1884,7 +1887,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-In the previous example, if we enter a non-integer number, e.g. "five", it will die because of a `NumberFormatException` defect:
+Converting literal "five" String to Int by calling `toInt` is a side effecting operation because it will throw `NumberFormatException` exception. So in the previous example, if we enter a non-integer number, e.g. "five", it will die because of a `NumberFormatException` defect:
 
 ```scala
 Please enter a number: five
@@ -1908,14 +1911,7 @@ timestamp=2022-03-17T14:01:33.323639073Z level=ERROR thread=#zio-fiber-0 message
 	at <empty>.MainApp.myApp(MainApp.scala:9)"
 ```
 
-We can see that the error channel of `myApp` is typed as `Nothing`, so it's not an exceptional error. If we want typed effects, this behavior is not intended. So instead of `ZIO#map` we can use the `mapAttempt` combinator which is a safe map operator that translates all thrown exceptions into typed exceptional effect:
-
-```scala
-trait ZIO[-R, +E, +A] {
-  def map[B](f: A => B): ZIO[R, E, B]
-  def mapAttempt[B](f: A => B): ZIO[R, Throwable, B]
-}
-```
+We can see that the error channel of `myApp` is typed as `Nothing`, so it's not an exceptional error. If we want typed effects, this behavior is not intended. So instead of `ZIO#map` we can use the `mapAttempt` combinator which is a safe map operator that translates all thrown exceptions into typed exceptional effect.
 
 To prevent converting exceptions to defects, we can use `ZIO#mapAttempt` which converts any exceptions to exceptional effects:
 
@@ -2451,7 +2447,7 @@ object MainApp extends ZIOAppDefault {
 
 ### Converting Option on Values to Option on Errors and Vice Versa
 
-We can extract a value from a Some using `ZIO.some` and then we can unsome it again using `ZIO#unsome`:
+We can extract a value from a Some using `ZIO#some` and then we can unsome it again using `ZIO#unsome`:
 
 ```scala
 ZIO.attempt(Option("something")) // ZIO[Any, Throwable, Option[String]]
@@ -2611,9 +2607,46 @@ nextRandomEven // ZIO[Random, String, Option[Int]]
 ```
 
 Sometimes instead of converting optional values to optional errors, we can perform one of the following operations:
-- Failing the original operation (`ZIO#someOrFail` and `ZIO#someOrFailException`)
-- Succeeding with an alternate value (`ZIO#someOrElse`)
-- Running an alternative ZIO effect (`ZIO#someOrElseZIO`)
+
+1. **`ZIO#someOrElse`**— Extract the optional value if it is not empty or return the given default:
+
+```scala mdoc:compile-only
+import zio._
+
+val getEnv: ZIO[Any, Nothing, Option[String]] = ???
+
+val result: ZIO[Any, Nothing, String] =
+  getEnv.someOrElse("development")
+```
+
+2. **`ZIO#someOrElseZIO`**— Like the `ZIO#someOrElse` but the effectful version:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Config
+
+val list: List[Config] = ???
+
+val getCurrentConfig: ZIO[Any, Nothing, Option[Config]] = ZIO.succeed(list.headOption)
+val getRemoteConfig : ZIO[Any, Throwable, Config]       = ZIO.attempt(new Config {})
+
+val config: ZIO[Any, Throwable, Config] =
+  getCurrentConfig.someOrElseZIO(getRemoteConfig)
+```
+
+3. **`ZIO#someOrFail`**— It converts the ZIO effect of an optional value to an exceptional effect:
+
+```scala mdoc:compile-only
+import zio._
+
+def head(list: List[Int]): ZIO[Any, NoSuchElementException, Int] =
+  ZIO
+    .succeed(list.headOption)
+    .someOrFail(new NoSuchElementException("empty list"))
+```
+
+In the above example, we can also use the `ZIO#someOrFailException` which will directly convert the unexceptional effect to the exceptional effect with the error type of `NoSuchElementException`.
 
 ### Uncovering the Underlying Cause of an Effect
 

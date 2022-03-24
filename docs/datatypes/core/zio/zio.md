@@ -45,10 +45,6 @@ In this section we explore some of the common ways to create ZIO effects from va
 
 ### Success Values
 
-| Function  | Input Type | Output Type |
-|-----------|------------|-------------|
-| `succeed` | `A`        | `UIO[A]`    |
-
 Using the `ZIO.succeed` method, we can create an effect that succeeds with the specified value:
 
 ```scala mdoc:compile-only
@@ -448,71 +444,6 @@ val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 
-## Operations
-
-1. **`ZIO#someOrElse`**— Extract the optional value if it is not empty or return the given default:
-
-```scala mdoc:compile-only
-import zio._
-
-val getEnv: ZIO[Any, Nothing, Option[String]] = ???
-
-val result: ZIO[Any, Nothing, String] =
-  getEnv.someOrElse("development")
-```
-
-2. **`ZIO#someOrElseZIO`**— Like the `ZIO#someOrElse` but the effectful version:
-
-```scala mdoc:compile-only
-import zio._
-
-trait Config
-
-val list: List[Config] = ???
-
-val getCurrentConfig: ZIO[Any, Nothing, Option[Config]] = ZIO.succeed(list.headOption)
-val getRemoteConfig : ZIO[Any, Throwable, Config]       = ZIO.attempt(new Config {})
-
-val config: ZIO[Any, Throwable, Config] =
-  getCurrentConfig.someOrElseZIO(getRemoteConfig)
-```
-
-3. **`ZIO#someOrFail`**— It converts the ZIO effect of an optional value to an exceptional effect:
-
-```scala mdoc:compile-only
-import zio._
-
-def head(list: List[Int]): ZIO[Any, NoSuchElementException, Int] =
-  ZIO
-    .succeed(list.headOption)
-    .someOrFail(new NoSuchElementException("empty list"))
-```
-
-In the above example, we can also use the `ZIO#someOrFailException` which will directly convert the unexceptional effect to the exceptional effect with the error type of `NoSuchElementException`.
-
-## Transform `Option` and `Either` values
-
-It's typical that you work with `Option` and `Either` values inside your application. You either fetch a record from the database which might be there or not (`Option`) or parse a file which might return decode errors `Either`. ZIO has already functions built-in to transform these values into `ZIO` values.
-
-### Either
-
-|from|to|transform|code|
-|--|--|--|--|
-|`Either[B, A]`|`ZIO[Any, E, A]`|`ifLeft: B => E`|`ZIO.fromEither(from).mapError(ifLeft)`
-|`ZIO[R, E, Either[B, A]]`|`ZIO[R, E, A]`|`ifLeft: B => E`|`from.flatMap(ZIO.fromEither(_).mapError(ifLeft))`
-|`ZIO[R, E, Either[E, A]]`|`ZIO[R, E, A]`|-|`from.rightOrFail`
-|`ZIO[R, E, Either[B, A]]`|`ZIO[R, E, A]`|`f: B => E`|`from.rightOrFailWith(f)`
-|`ZIO[R, E, Either[A, E]]`|`ZIO[R, E, A]`|-|`from.leftOrFail`
-|`ZIO[R, E, Either[A, B]]`|`ZIO[R, E, A]`|`f: B => E`|`from.leftOrFailWith(f)`
-|`ZIO[R, Throwable, Either[Throwable, A]]`|`ZIO[R, Throwable, A]`|-|`from.absolve`
-
-### Option
-
-|from|to|transform|code|
-|--|--|--|--|
-|`Option[A]`|`ZIO[Any, E, A]`|`ifEmpty: E`|`ZIO.fromOption(from).orElseFail(ifEmpty)`
-|`ZIO[R, E, Option[A]]`|`ZIO[R, E, A]`|`ifEmpty: E`|`from.someOrFail(ifEmpty)`
-
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
@@ -692,30 +623,6 @@ import zio._
 val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
 
-### mapError
-We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`.  This lets us transform the failure values of effects:
-
-```scala mdoc:compile-only
-val mappedError: IO[Exception, String] = 
-  IO.fail("No no!").mapError(msg => new Exception(msg))
-```
-
-> _**Note:**_
->
-> Note that mapping over an effect's success or error channel does not change the success or failure of the effect, in the same way that mapping over an `Either` does not change whether the `Either` is `Left` or `Right`.
-
-### mapAttempt
-`mapAttempt` returns an effect whose success is mapped by the specified side-effecting `f` function, translating any thrown exceptions into typed failed effects.
-
-Converting literal "Five" String to Int by calling `toInt` is side-effecting because it throws a `NumberFormatException` exception:
-
-```scala mdoc:compile-only
-import zio._
-
-val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
-```   
-
-`mapAttempt` converts an unchecked exception to a checked one by returning the `RIO` effect.
 
 ## Tapping
 
