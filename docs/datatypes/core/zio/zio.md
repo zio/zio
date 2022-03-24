@@ -24,12 +24,10 @@ The `ZIO[R, E, A]` data type has three type parameters:
 
 In the following example, the `readLine` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
-```scala mdoc:invisible
+```scala mdoc:compile-only
 import zio._
 import java.io.IOException
-```
 
-```scala mdoc:silent
 val readLine: ZIO[Console, IOException, String] =
   ZIO.serviceWithZIO(_.readLine)
 ```
@@ -53,13 +51,17 @@ In this section we explore some of the common ways to create ZIO effects from va
 
 Using the `ZIO.succeed` method, we can create an effect that succeeds with the specified value:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val s1 = ZIO.succeed(42)
 ```
 
 We can also use methods in the companion objects of the `ZIO` type aliases:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val s2: Task[Int] = Task.succeed(42)
 ```
 
@@ -71,7 +73,7 @@ val s2: Task[Int] = Task.succeed(42)
 
 Using the `ZIO.fail` method, we can create an effect that models failure:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 
 val f1 = ZIO.fail("Uh oh!")
@@ -81,7 +83,9 @@ For the `ZIO` data type, there is no restriction on the error type. We may use s
 
 Many applications will model failures with classes that extend `Throwable` or `Exception`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val f2 = Task.fail(new Exception("Uh oh!"))
 ```
 
@@ -102,16 +106,24 @@ ZIO contains several constructors which help us to convert various data types in
 | `getOrFailUnit` | `Option[A]`              | `IO[Unit, A]`            |
 | `getOrFailWith` | `e:=> E, v:=> Option[A]` | `IO[E, A]`               |
 
-An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
+1. **ZIO.fromOption**— An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
 ```scala mdoc:silent
+import zio._
+
 val zoption: IO[Option[Nothing], Int] = ZIO.fromOption(Some(2))
 ```
 
 The error type of the resulting effect is `Option[Nothing]`, which provides no information on why the value is not there. We can change the `Option[Nothing]` into a more specific error type using `ZIO#mapError`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 We can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`):
@@ -120,7 +132,9 @@ We can also readily compose it with other operators while preserving the optiona
 trait Team
 ```
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val maybeId: IO[Option[Nothing], String] = ZIO.fromOption(Some("abc123"))
 def getUser(userId: String): IO[Throwable, Option[User]] = ???
 def getTeam(teamId: String): IO[Throwable, Team] = ???
@@ -143,7 +157,9 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
 
 An `Either` can be converted into a ZIO effect using `ZIO.fromEither`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val zeither = ZIO.fromEither(Right("Success!"))
 ```
 
@@ -157,7 +173,8 @@ The error type of the resulting effect will be whatever type the `Left` case has
 
 A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import scala.util.Try
 
 val ztry = ZIO.fromTry(Try(42 / 0))
@@ -176,7 +193,8 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import scala.concurrent.Future
 
 lazy val future = Future.successful("Hello!")
@@ -198,13 +216,9 @@ The error type of the resulting effect will always be `Throwable`, because `Futu
 
 A `Promise` can be converted into a ZIO effect using `ZIO.fromPromiseScala`:
 
-```scala mdoc:invisible
-import scala.util.{Success, Failure}
-import zio.Fiber
-```
-
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
+import scala.util._
 
 val func: String => String = s => s.toUpperCase
 for {
@@ -229,7 +243,9 @@ for {
 
 A `Fiber` can be converted into a ZIO effect using `ZIO.fromFiber`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val io: IO[Nothing, String] = ZIO.fromFiber(Fiber.succeed("Hello from Fiber!"))
 ```
 
@@ -248,7 +264,8 @@ These functions can be used to wrap procedural code, allowing us to seamlessly u
 
 A synchronous side-effect can be converted into a ZIO effect using `ZIO.attempt`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import scala.io.StdIn
 
 val getLine: Task[String] =
@@ -259,7 +276,9 @@ The error type of the resulting effect will always be `Throwable`, because side-
 
 If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.succeed`:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 def printLine(line: String): UIO[Unit] =
   ZIO.succeed(println(line))
 
@@ -271,11 +290,12 @@ We should be careful when using `ZIO.succeed`—when in doubt about whether or n
 
 If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import java.io.IOException
 
 val printLine2: IO[IOException, String] =
-  ZIO.attempt(StdIn.readLine()).refineToOrDie[IOException]
+  ZIO.attempt(scala.io.StdIn.readLine()).refineToOrDie[IOException]
 ```
 
 ##### Blocking Synchronous Side-Effects
@@ -294,7 +314,8 @@ ZIO provides the `zio.blocking` package, which can be used to safely convert suc
 
 A blocking side-effect can be converted directly into a ZIO effect blocking with the `attemptBlocking` method:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 
 val sleeping =
   ZIO.attemptBlocking(Thread.sleep(Long.MaxValue))
@@ -306,9 +327,9 @@ Blocking side-effects can be interrupted by invoking `Thread.interrupt` using th
 
 Some blocking side-effects can only be interrupted by invoking a cancellation effect. We can convert these side-effects using the `attemptBlockingCancelable` method:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import java.net.ServerSocket
-import zio.UIO
 
 def accept(l: ServerSocket) =
   ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
@@ -316,7 +337,8 @@ def accept(l: ServerSocket) =
 
 If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
@@ -347,6 +369,8 @@ trait AuthError
 ```
 
 ```scala mdoc:silent
+import zio._
+
 object legacy {
   def login(
     onSuccess: User => Unit,
@@ -375,7 +399,10 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+import java.io.IOException
+
 val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
@@ -413,6 +440,7 @@ In the following example, we create 20 blocking tasks to run parallel on the pri
 
 ```scala mdoc:silent
 import zio._
+
 def blockingTask(n: Int): URIO[Console, Unit] =
   Console.printLine(s"running blocking task number $n").orDie *>
     ZIO.succeed(Thread.sleep(3000)) *>
@@ -433,9 +461,15 @@ The `blocking` operator takes a ZIO effect and return another effect that is goi
 val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(t)))
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
 Also, we can directly import a synchronous effect that does blocking IO into ZIO effect by using `attemptBlocking`:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+import zio._
+
 def blockingTask(n: Int) = ZIO.attemptBlocking {
   do {
     println(s"Running blocking task number $n on dedicated blocking thread pool")
@@ -450,7 +484,7 @@ By default, when we convert a blocking operation into the ZIO effects using `att
 
 Let's create a blocking effect from an endless loop:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 import zio._
 
 for {
@@ -475,7 +509,9 @@ When we interrupt this loop after one second, it will still not stop. It will on
 
 Instead, we should use `attemptBlockingInterrupt` to create interruptible blocking effects:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+import zio._
+
 for {
   _ <- Console.printLine("Starting a blocking operation")
   fiber <- ZIO.attemptBlockingInterrupt {
@@ -506,8 +542,10 @@ Some blocking operations do not respect `Thread#interrupt` by swallowing `Interr
 
 The following `BlockingService` will not be interrupted in case of `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent
+import zio._
 import java.util.concurrent.atomic.AtomicReference
+
 final case class BlockingService() {
   private val released = new AtomicReference(false)
 
@@ -531,7 +569,9 @@ final case class BlockingService() {
 
 So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `attemptBlockingCancelable`. This method takes a `cancel` effect which is responsible to signal the blocking code to close itself when ZIO interruption occurs:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+import zio._
+
 val myApp =
   for {
     service <- ZIO.attempt(BlockingService())
@@ -550,8 +590,10 @@ val myApp =
 
 Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close that using `ServerSocket#close` method:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
 import java.net.{Socket, ServerSocket}
+import zio._
+
 def accept(ss: ServerSocket): Task[Socket] =
   ZIO.attemptBlockingCancelable(ss.accept())(UIO.succeed(ss.close()))
 ```
@@ -561,8 +603,8 @@ def accept(ss: ServerSocket): Task[Socket] =
 ### map
 We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets us transform values produced by actions into other values.
 
-```scala mdoc:silent
-import zio.{ UIO, IO }
+```scala mdoc:compile-only
+import zio._
 
 val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ```
@@ -570,7 +612,7 @@ val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
 ### mapError
 We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` method with a function `E => E2`.  This lets us transform the failure values of effects:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 val mappedError: IO[Exception, String] = 
   IO.fail("No no!").mapError(msg => new Exception(msg))
 ```
@@ -584,7 +626,9 @@ val mappedError: IO[Exception, String] =
 
 Converting literal "Five" String to Int by calling `toInt` is side-effecting because it throws a `NumberFormatException` exception:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 ```   
 
@@ -594,7 +638,9 @@ val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 
 We can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
   IO.succeed(list.map(_ + 1))
 }
@@ -606,7 +652,9 @@ In _any_ chain of effects, the first failure will short-circuit the whole chain,
 
 Because the `ZIO` data type supports both `flatMap` and `map`, we can use Scala's _for comprehensions_ to build sequential effects:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val program = 
   for {
     _    <- Console.printLine("Hello! What is your name?")
@@ -621,7 +669,9 @@ _For comprehensions_ provide a more procedural syntax for composing chains of ef
 
 We can combine two effects into a single effect with the `zip` method. The resulting effect succeeds with a tuple that contains the success values of both effects:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val zipped: UIO[(String, Int)] = 
   ZIO.succeed("4").zip(ZIO.succeed(2))
 ```
@@ -634,14 +684,18 @@ In any `zip` operation, if either the left or right-hand sides fail, then the co
 
 Sometimes, when the success value of an effect is not useful (for example, it is `Unit`), it can be more convenient to use the `zipLeft` or `zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val zipRight1 = 
   Console.printLine("What is your name?").zipRight(Console.readLine)
 ```
 
 The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val zipRight2 = 
   Console.printLine("What is your name?") *>
   Console.readLine
@@ -672,7 +726,9 @@ If the fail-fast behavior is not desired, potentially failing effects can be fir
 
 ZIO lets us race multiple effects in parallel, returning the first successful result:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   winner <- IO.succeed("Hello").race(IO.succeed("Goodbye"))
 } yield winner
@@ -693,7 +749,9 @@ The problem with the `try` / `finally` construct is that it only applies to sync
 
 Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing:
 
-```scala mdoc
+```scala mdoc:compile-only
+import zio._
+
 val finalizer = 
   UIO.succeed(println("Finalizing!"))
 
@@ -709,7 +767,9 @@ Unlike `try` / `finally`, `ensuring` works across all types of effects, includin
 
 Here is another example of ensuring that our clean-up action is called before our effect is done:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 import zio.Task
 var i: Int = 0
 val action: Task[String] =
@@ -766,11 +826,8 @@ Acquire release is a built-in primitive that let us safely acquire and release r
 
 Acquire release consist of an *acquire* action, a *utilize* action (which uses the acquired resource), and a *release* action.
 
-```scala mdoc:silent
-import zio.{ UIO, IO }
-```
-
 ```scala mdoc:invisible
+import zio._
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
@@ -779,7 +836,9 @@ def decodeData(f: File): IO[IOException, Unit] = IO.unit
 def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 ```
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val groupedFileData: IO[IOException, Unit] = openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
@@ -817,6 +876,10 @@ object Main extends ZIOAppDefault {
 }
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
 ## ZIO Aspect
 
 There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs.
@@ -832,7 +895,9 @@ To increase the modularity of our applications, we can separate cross-cutting co
 
 The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and convert it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+import zio._
+
 val myApp: ZIO[Any, Throwable, String] =
   ZIO.attempt("Hello!") @@ ZIOAspect.debug
 ```
@@ -844,6 +909,8 @@ As we see, the `debug` aspect doesn't change the return type of our effect, but 
 To compose multiple aspects, we can use `@@` operator:
 
 ```scala mdoc:compile-only
+import zio._
+
 def download(url: String): ZIO[Any, Throwable, Chunk[Byte]] = ZIO.succeed(???)
 
 ZIO.foreachPar(List("zio.dev", "google.com")) { url =>
