@@ -23,7 +23,7 @@ object ClockSpec extends ZIOBaseSpec {
       val zioEuropeAmsterdamClock = Clock.ClockJava(europeAmsterdamFixedClock)
       val zioAmericaPhoenixClock  = Clock.ClockJava(americaPhoenixFixedClock)
       assertM(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.instant, zioAmericaPhoenixClock.instant)))(
-        isDistinct
+        not(isDistinct)
       )
     },
     test("should output a offsetDateTime matching to timezone from java.time.Clock") {
