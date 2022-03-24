@@ -49,7 +49,7 @@ abstract class BaseTestTask(
     (sharedFilledTestlayer >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer
 
   protected def run(
-    eventHandler: EventHandler, // TODO delete?
+    eventHandler: EventHandler,
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     (for {
@@ -72,7 +72,6 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec)
-              .catchAll(e => ZIO.debug("Error while executing tests: " + e.getMessage))
           }
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>
