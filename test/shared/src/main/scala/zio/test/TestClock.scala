@@ -146,14 +146,17 @@ object TestClock extends Serializable {
     def instant(implicit trace: ZTraceElement): UIO[Instant] =
       clockState.get.map(data => toInstant(data.duration))
 
-    override def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+    /**
+     * Constructs a `java.time.Clock` backed by the `Clock` service.
+     */
+    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
 
       final case class JavaClock(clockState: Ref.Atomic[TestClock.Data], zoneId: ZoneId) extends java.time.Clock {
         def getZone(): ZoneId =
           zoneId
         def instant(): Instant =
           toInstant(clockState.unsafeGet.duration)
-        def withZone(zoneId: ZoneId): JavaClock =
+        override def withZone(zoneId: ZoneId): JavaClock =
           copy(zoneId = zoneId)
       }
 
