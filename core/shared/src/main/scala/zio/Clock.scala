@@ -22,10 +22,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
 
 import java.lang.{System => JSystem}
-import java.time.{Instant, LocalDateTime, OffsetDateTime}
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
-trait Clock extends Serializable {
+trait Clock extends Serializable { self =>
 
   def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]
 
@@ -68,6 +68,20 @@ trait Clock extends Serializable {
 
       Schedule.Driver(next, last, reset, state)
     }
+
+  def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+
+    final case class JavaClock(runtime: Runtime[Any], zoneId: ZoneId) extends java.time.Clock {
+      def getZone(): ZoneId =
+        zoneId
+      def instant(): Instant =
+        runtime.unsafeRun(self.instant)
+      def withZone(zoneId: ZoneId): JavaClock =
+        copy(zoneId = zoneId)
+    }
+
+    ZIO.runtime[Any].map(JavaClock(_, ZoneId.systemDefault))
+  }
 
   final def repeat[R, R1 <: R, E, A, B](zio: => ZIO[R, E, A])(schedule: => Schedule[R1, A, B])(implicit
     trace: ZTraceElement
@@ -211,6 +225,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
       }
     def instant(implicit trace: ZTraceElement): UIO[Instant] =
       ZIO.succeed(clock.instant())
+    override def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] =
+      ZIO.succeed(clock)
     def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
       ZIO.succeed(LocalDateTime.now(clock))
     def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
@@ -242,6 +258,20 @@ object Clock extends ClockPlatformSpecific with Serializable {
           }
         }
       }
+
+    override def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+
+      final case class JavaClock(zoneId: ZoneId) extends java.time.Clock {
+        def getZone(): ZoneId =
+          zoneId
+        def instant(): Instant =
+          Instant.now
+        def withZone(zoneId: ZoneId): JavaClock =
+          copy(zoneId = zoneId)
+      }
+
+      ZIO.succeed(JavaClock(ZoneId.systemDefault))
+    }
 
     def nanoTime(implicit trace: ZTraceElement): UIO[Long] = IO.succeed(JSystem.nanoTime)
 
@@ -286,6 +316,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
   def instant(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.Instant] =
     ZIO.serviceWithZIO(_.instant)
+
+  /**
+   * Constructs a `java.time.Clock` backed by the `Clock` service.
+   */
+  def javaClock(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.Clock] =
+    ZIO.serviceWithZIO(_.javaClock)
 
   def localDateTime(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.LocalDateTime] =
     ZIO.serviceWithZIO(_.localDateTime)
