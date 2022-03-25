@@ -2980,7 +2980,7 @@ ZIO Logging calculates and records the running duration of the span and includes
 [info] timestamp=2021-10-06T07:29:57.816775631Z level=INFO thread=#2 message="The job is done!" myspan=1013ms file=ZIOLoggingExample.scala line=8 class=zio.examples.ZIOLoggingExample$ method=run
 ```
 
-## Example
+## Examples
 
 Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
 
