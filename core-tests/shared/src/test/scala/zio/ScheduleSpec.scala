@@ -531,31 +531,43 @@ object ScheduleSpec extends ZIOBaseSpec {
         res <- ref.get
       } yield assert(res)(equalTo(8))
     },
-    testM("Reset after some inactivity") {
+    suite("Reset")(
+      testM("after some inactivity") {
 
-      def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Clock, String, Unit] =
-        ref
-          .updateAndGet(_ + 1)
-          .flatMap(retries =>
-            // the 5th retry will fail after 10 seconds to let the schedule reset
-            if (retries == 5) latch.succeed(()) *> io(ref, latch).delay(10.seconds)
-            // the 10th retry will succeed, which is only possible if the schedule was reset
-            else if (retries == 10) UIO.unit
-            else ZIO.fail("Boom")
-          )
+        def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Clock, String, Unit] =
+          ref
+            .updateAndGet(_ + 1)
+            .flatMap(retries =>
+              // the 5th retry will fail after 10 seconds to let the schedule reset
+              if (retries == 5) latch.succeed(()) *> io(ref, latch).delay(10.seconds)
+              // the 10th retry will succeed, which is only possible if the schedule was reset
+              else if (retries == 10) UIO.unit
+              else ZIO.fail("Boom")
+            )
 
-      assertM {
-        for {
-          retriesCounter <- Ref.make(-1)
-          latch          <- Promise.make[Nothing, Unit]
-          fiber          <- io(retriesCounter, latch).retry(Schedule.recurs(5).resetAfter(5.seconds)).fork
-          _              <- latch.await
-          _              <- TestClock.adjust(10.seconds)
-          _              <- fiber.join
-          retries        <- retriesCounter.get
-        } yield retries
-      }(equalTo(10))
-    },
+        assertM {
+          for {
+            retriesCounter <- Ref.make(-1)
+            latch          <- Promise.make[Nothing, Unit]
+            fiber          <- io(retriesCounter, latch).retry(Schedule.recurs(5).resetAfter(5.seconds)).fork
+            _              <- latch.await
+            _              <- TestClock.adjust(10.seconds)
+            _              <- fiber.join
+            retries        <- retriesCounter.get
+          } yield retries
+        }(equalTo(10))
+      },
+      testM("should be able to reset the schedule multiple times") {
+        val inputs   = Iterable.range(0, 7)
+        val schedule = Schedule.recurs(3).resetWhen(_ == 2)
+        assertM(run(schedule)(inputs))(equalTo(Chunk[Long](0, 1, 0, 1, 0, 1, 0)))
+      },
+      testM("should evaluate the predicate starting from the second iteration after reset") {
+        val inputs   = Iterable.range(0, 7)
+        val schedule = Schedule.recurs(3).resetWhen(_ => true)
+        assertM(run(schedule)(inputs))(equalTo(Chunk[Long](0, 0, 0, 0, 0, 0, 0)))
+      }
+    ),
     testM("union of two schedules should continue as long as either wants to continue") {
       val schedule = Schedule.recurWhile[Boolean](_ == true) || Schedule.fixed(1.second)
       assertM(run(schedule >>> Schedule.elapsed)(List(true, false, false, false, false)))(
