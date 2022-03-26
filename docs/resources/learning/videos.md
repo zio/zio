@@ -41,7 +41,7 @@ title:  "Videos"
 - [Atomically { Delete Your Actors }](https://www.youtube.com/watch?v=d6WWmia0BPM) by John De Goes and Wiem Zine El Abidine (April 2019)
 - [ZIO Queue](https://www.youtube.com/watch?v=lBYkLc-j7Vo) by Wiem Zine El Abidine (January 2019)
 - [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
-- [ZIO WORLD - ZHub](https://www.youtube.com/watch?v=v7Ontn7jZt8) by Adam Fraser (March 2020) — In this presentation, Adam Fraser introduced a hyper-fast async concurrent hub and showed how ZIO Queue and ZIO Hub are radically faster than alternatives.
+- [ZIO WORLD - Hub](https://www.youtube.com/watch?v=v7Ontn7jZt8) by Adam Fraser (March 2020) — In this presentation, Adam Fraser introduced a hyper-fast async concurrent hub and showed how ZIO Queue and ZIO Hub are radically faster than alternatives.
 
 ## ZIO STM
 - [Declarative Concurrency with ZIO STM](https://www.youtube.com/watch?v=MEH7hQmGK5M) by Dejan Mijic (June 2020)

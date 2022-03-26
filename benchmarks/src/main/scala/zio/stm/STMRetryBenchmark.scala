@@ -23,7 +23,7 @@ class STMRetryBenchmark {
   @Setup(Level.Trial)
   def setup(): Unit = {
     val data       = (1 to Size).toList
-    val ref        = ZTRef.unsafeMake(data)
+    val ref        = TRef.unsafeMake(data)
     val n          = JRuntime.getRuntime().availableProcessors() - 1
     val updateHead = ref.update(list => 0 :: list.tail).commit.forever
 

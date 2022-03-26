@@ -1,5 +1,6 @@
-package zio
+package zio.managed
 
+import zio._
 import zio.test.Assertion._
 import zio.test._
 

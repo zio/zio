@@ -1,7 +1,8 @@
-package zio
+package zio.managed
 
+import zio._
 import zio.Exit.Failure
-import zio.ZManaged.ReleaseMap
+import zio.managed.ZManaged.ReleaseMap
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
@@ -1274,19 +1275,6 @@ object ZManagedSpec extends ZIOBaseSpec {
         } yield assert(res)(isNone)
       }
     ),
-    suite("toLayerMany")(
-      test("converts a managed effect to a layer") {
-        val managed = ZManaged {
-          Scope.make.flatMap { scope =>
-            ZEnv.live.build.provideSomeEnvironment[ZEnv](_ ++ [Scope] ZEnvironment(scope)).map(r => (scope.close(_), r))
-          }
-        }
-        val layer = managed.toLayerEnvironment
-        val zio1  = ZIO.environment[ZEnv]
-        val zio2  = zio1.provideLayer(layer)
-        assertM(zio2)(anything)
-      }
-    ),
     suite("withEarlyRelease")(
       test("Provides a canceler that can be used to eagerly evaluate the finalizer") {
         for {
@@ -1861,7 +1849,26 @@ object ZManagedSpec extends ZIOBaseSpec {
         lazy val _                           = expected
         assertCompletes
       }
-    )
+    ),
+    test("scoped") {
+      for {
+        startLatch <- Promise.make[Nothing, Unit]
+        endLatch   <- Promise.make[Nothing, Unit]
+        release    <- Ref.make(false)
+        managed = ZManaged.fromReservation(
+                    Reservation(
+                      acquire = startLatch.succeed(()) *> ZIO.never,
+                      release = _ => release.set(true) *> endLatch.succeed(())
+                    )
+                  )
+        scoped = managed.scoped
+        fiber <- ZIO.scoped(scoped).fork
+        _     <- startLatch.await
+        _     <- fiber.interrupt
+        _     <- endLatch.await
+        res   <- release.get
+      } yield assertTrue(res)
+    }
   )
 
   val ExampleError = new Throwable("Oh noes!")

@@ -96,6 +96,7 @@ object ZTestTask {
     disectTask(taskDef, testClassLoader) match {
       case NewSpecWrapper(zioSpec) =>
         new ZTestTaskNew(taskDef, testClassLoader, sendSummary, args, zioSpec)
+
       case LegacySpecWrapper(abstractRunnableSpec) =>
         new ZTestTaskLegacy(taskDef, testClassLoader, sendSummary, args, abstractRunnableSpec)
     }

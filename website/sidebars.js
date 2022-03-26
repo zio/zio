@@ -84,8 +84,6 @@ module.exports = {
                     type: "category",
                     label: "Mutable References",
                     items: [
-                        "datatypes/concurrency/zref",
-                        "datatypes/concurrency/zrefsynchronized",
                         "datatypes/concurrency/ref",
                         "datatypes/concurrency/refsynchronized",
                     ]
@@ -112,7 +110,7 @@ module.exports = {
                 "datatypes/stm/tqueue",
                 "datatypes/stm/treentrantlock",
                 "datatypes/stm/tsemaphore",
-                "datatypes/stm/zthub",
+                "datatypes/stm/thub",
             ]
         },
     ],

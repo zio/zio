@@ -48,6 +48,21 @@ trait Console extends Serializable {
 
   @deprecated("use `readLine`", "2.0.0")
   def getStrLn(implicit trace: ZTraceElement): IO[IOException, String] = readLine
+
+  private[zio] def unsafePrint(line: Any): Unit =
+    Runtime.default.unsafeRun(print(line)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafePrintError(line: Any): Unit =
+    Runtime.default.unsafeRun(printError(line)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafePrintLine(line: Any): Unit =
+    Runtime.default.unsafeRun(printLine(line)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafePrintLineError(line: Any): Unit =
+    Runtime.default.unsafeRun(printLineError(line)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeReadLine(): String =
+    Runtime.default.unsafeRun(readLine(ZTraceElement.empty))(ZTraceElement.empty)
 }
 
 object Console extends Serializable {
@@ -60,28 +75,45 @@ object Console extends Serializable {
 
   object ConsoleLive extends Console {
 
-    def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] = print(SConsole.out)(line)
+    def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+      ZIO.attemptBlockingIO(unsafePrint(line))
 
-    def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] = print(SConsole.err)(line)
+    def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+      ZIO.attemptBlockingIO(unsafePrintError(line))
 
-    def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] = printLine(SConsole.out)(line)
+    def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+      ZIO.attemptBlockingIO(unsafePrintLine(line))
 
     def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      printLine(SConsole.err)(line)
+      ZIO.attemptBlockingIO(unsafePrintLineError(line))
 
     def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
-      IO.attemptBlockingInterrupt {
-        val line = StdIn.readLine()
+      ZIO.attemptBlockingInterrupt(unsafeReadLine()).refineToOrDie[IOException]
 
-        if (line ne null) line
-        else throw new EOFException("There is no more input left to read")
-      }.refineToOrDie[IOException]
+    override private[zio] def unsafePrint(line: Any): Unit =
+      print(SConsole.out)(line)
 
-    private def print(stream: => PrintStream)(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      IO.attemptBlockingIO(SConsole.withOut(stream)(SConsole.print(line)))
+    override private[zio] def unsafePrintError(line: Any): Unit =
+      print(SConsole.err)(line)
 
-    private def printLine(stream: => PrintStream)(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      IO.attemptBlockingIO(SConsole.withOut(stream)(SConsole.println(line)))
+    override private[zio] def unsafePrintLine(line: Any): Unit =
+      printLine(SConsole.out)(line)
+
+    override private[zio] def unsafePrintLineError(line: Any): Unit =
+      printLine(SConsole.err)(line)
+
+    override private[zio] def unsafeReadLine(): String = {
+      val line = StdIn.readLine()
+
+      if (line ne null) line
+      else throw new EOFException("There is no more input left to read")
+    }
+
+    private def print(stream: => PrintStream)(line: => Any): Unit =
+      SConsole.withOut(stream)(SConsole.print(line))
+
+    private def printLine(stream: => PrintStream)(line: => Any): Unit =
+      SConsole.withOut(stream)(SConsole.println(line))
   }
 
   // Accessor Methods

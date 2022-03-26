@@ -250,7 +250,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertWithChunkCoordination(List(Chunk(1), Chunk(2), Chunk(3))) { c =>
               for {
                 fib <- ZStream
-                         .fromQueue(c.queue.map(Take(_)))
+                         .fromQueue(c.queue)
+                         .map(Take(_))
                          .tap(_ => c.proceed)
                          .flattenTake
                          .aggregateAsyncWithin(ZSink.last[Int], Schedule.fixed(200.millis))
@@ -3389,7 +3390,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               elements <- stream.runCollect
               done     <- ref.get
             } yield assertTrue(elements == Chunk(1, 1, 2, 3, 5, 8) && done == 20)
-          } @@ flaky, // TODO check why this is failing periodically in 2.11
+          } @@ flaky,
           test("sink that is done before stream") {
             for {
               ref      <- Ref.make(0)
@@ -4481,29 +4482,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertCompletes
           },
           test("ChunkHub") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
-            trait B
-            lazy val chunkHub: ZHub[RA, RB, EA, EB, A, Chunk[B]] = ???
-            lazy val actual                                      = ZStream.from(chunkHub)
-            lazy val expected: ZStream[RB, EB, B]                = actual
-            lazy val _                                           = expected
+            lazy val chunkHub: Hub[Chunk[A]]            = ???
+            lazy val actual                             = ZStream.from(chunkHub)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("ChunkQueue") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
-            trait B
-            lazy val chunkQueue: ZQueue[RA, RB, EA, EB, A, Chunk[B]] = ???
-            lazy val actual                                          = ZStream.from(chunkQueue)
-            lazy val expected: ZStream[RB, EB, B]                    = actual
-            lazy val _                                               = expected
+            lazy val chunkQueue: Queue[Chunk[A]]        = ???
+            lazy val actual                             = ZStream.from(chunkQueue)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("Chunks") {
@@ -4515,16 +4506,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertCompletes
           },
           test("Hub") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
-            trait B
-            lazy val hub: ZHub[RA, RB, EA, EB, A, B] = ???
-            lazy val actual                          = ZStream.from(hub)
-            lazy val expected: ZStream[RB, EB, B]    = actual
-            lazy val _                               = expected
+            lazy val hub: Hub[A]                        = ???
+            lazy val actual                             = ZStream.from(hub)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("Iterable") {
@@ -4586,16 +4572,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertCompletes
           },
           test("Queue") {
-            trait RA
-            trait RB
-            trait EA
-            trait EB
             trait A
-            trait B
-            lazy val queue: ZQueue[RA, RB, EA, EB, A, B] = ???
-            lazy val actual                              = ZStream.from(queue)
-            lazy val expected: ZStream[RB, EB, B]        = actual
-            lazy val _                                   = expected
+            lazy val queue: Queue[A]                    = ???
+            lazy val actual                             = ZStream.from(queue)
+            lazy val expected: ZStream[Any, Nothing, A] = actual
+            lazy val _                                  = expected
             assertCompletes
           },
           test("Schedule") {

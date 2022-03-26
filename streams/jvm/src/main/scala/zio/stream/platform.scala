@@ -116,7 +116,7 @@ trait ZStreamPlatformSpecificConstructors {
                  case FiberFailure(c) if c.isInterrupted =>
                }
              }
-        done <- ZRef.make(false)
+        done <- Ref.make(false)
         pull = done.get.flatMap {
                  if (_)
                    Pull.end

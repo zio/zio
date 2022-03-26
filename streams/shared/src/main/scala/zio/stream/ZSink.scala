@@ -379,7 +379,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z2] = {
     val scoped =
       for {
-        hub   <- ZHub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
+        hub   <- Hub.bounded[Either[Exit[Nothing, Any], Chunk[In1]]](capacity)
         c1    <- ZChannel.fromHubScoped(hub)
         c2    <- ZChannel.fromHubScoped(hub)
         reader = ZChannel.toHub[Nothing, Any, Chunk[In1]](hub)
@@ -1467,36 +1467,36 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * Create a sink which enqueues each element into the specified queue.
    */
-  def fromQueue[R, E, I](queue: => ZEnqueue[R, E, I])(implicit trace: ZTraceElement): ZSink[R, E, I, Nothing, Unit] =
+  def fromQueue[I](queue: => Enqueue[I])(implicit trace: ZTraceElement): ZSink[Any, Nothing, I, Nothing, Unit] =
     ZSink.unwrap(ZIO.succeed(queue).map(queue => foreachChunk(queue.offerAll)))
 
   /**
    * Create a sink which enqueues each element into the specified queue. The
    * queue will be shutdown once the stream is closed.
    */
-  def fromQueueWithShutdown[R, E, I](queue: => ZQueue[R, Nothing, E, Any, I, Any])(implicit
+  def fromQueueWithShutdown[I](queue: => Enqueue[I])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, Nothing, Unit] =
+  ): ZSink[Any, Nothing, I, Nothing, Unit] =
     ZSink.unwrapScoped(
-      ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[R, E, I](_))
+      ZIO.acquireRelease(ZIO.succeedNow(queue))(_.shutdown).map(fromQueue[I](_))
     )
 
   /**
    * Create a sink which publishes each element to the specified hub.
    */
-  def fromHub[R, E, I](hub: => ZHub[R, Nothing, E, Any, I, Any])(implicit
+  def fromHub[I](hub: => Hub[I])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, Nothing, Unit] =
-    fromQueue(hub.toQueue)
+  ): ZSink[Any, Nothing, I, Nothing, Unit] =
+    fromQueue(hub)
 
   /**
    * Create a sink which publishes each element to the specified hub. The hub
    * will be shutdown once the stream is closed.
    */
-  def fromHubWithShutdown[R, E, I](hub: => ZHub[R, Nothing, E, Any, I, Any])(implicit
+  def fromHubWithShutdown[I](hub: => Hub[I])(implicit
     trace: ZTraceElement
-  ): ZSink[R, E, I, Nothing, Unit] =
-    fromQueueWithShutdown(hub.toQueue)
+  ): ZSink[Any, Nothing, I, Nothing, Unit] =
+    fromQueueWithShutdown(hub)
 
   /**
    * Creates a sink halting with a specified cause.
@@ -1546,7 +1546,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Retrieves the log annotations associated with the current scope.
    */
   def logAnnotations(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Map[String, String]] =
-    ZSink.fromZIO(ZFiberRef.currentLogAnnotations.get)
+    ZSink.fromZIO(FiberRef.currentLogAnnotations.get)
 
   /**
    * Logs the specified message at the debug log level.

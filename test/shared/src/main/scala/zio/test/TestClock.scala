@@ -126,31 +126,31 @@ object TestClock extends Serializable {
      * Returns the current clock time as an `OffsetDateTime`.
      */
     def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
-      clockState.get.map(data => toDateTime(data.duration, data.timeZone))
+      ZIO.succeed(unsafeCurrentDateTime())
 
     /**
      * Returns the current clock time in the specified time unit.
      */
     def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
-      clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
+      ZIO.succeed(unsafeCurrentTime(unit))
 
     /**
      * Returns the current clock time in nanoseconds.
      */
     def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
-      clockState.get.map(_.duration.toNanos)
+      ZIO.succeed(unsafeNanoTime())
 
     /**
      * Returns the current clock time as an `Instant`.
      */
     def instant(implicit trace: ZTraceElement): UIO[Instant] =
-      clockState.get.map(data => toInstant(data.duration))
+      ZIO.succeed(unsafeInstant())
 
     /**
      * Returns the current clock time as a `LocalDateTime`.
      */
     def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
-      clockState.get.map(data => toLocalDateTime(data.duration, data.timeZone))
+      ZIO.succeed(unsafeLocalDateTime())
 
     /**
      * Saves the `TestClock`'s current state in an effect which, when run, will
@@ -215,6 +215,25 @@ object TestClock extends Serializable {
      */
     def timeZone(implicit trace: ZTraceElement): UIO[ZoneId] =
       clockState.get.map(_.timeZone)
+
+    override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
+      unit.convert(clockState.unsafeGet.duration.toMillis, TimeUnit.MILLISECONDS)
+
+    override private[zio] def unsafeCurrentDateTime(): OffsetDateTime = {
+      val data = clockState.unsafeGet
+      toDateTime(data.duration, data.timeZone)
+    }
+
+    override private[zio] def unsafeInstant(): Instant =
+      toInstant(clockState.unsafeGet.duration)
+
+    override private[zio] def unsafeLocalDateTime(): LocalDateTime = {
+      val data = clockState.unsafeGet
+      toLocalDateTime(data.duration, data.timeZone)
+    }
+
+    override private[zio] def unsafeNanoTime(): Long =
+      clockState.unsafeGet.duration.toNanos
 
     /**
      * Cancels the warning message that is displayed if a test is advancing the

@@ -1501,7 +1501,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): IO[E, A] =
-    ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -2614,19 +2614,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * finalizer to the current scope. This effect will be run uninterruptibly and
    * the finalizer will be run when the scope is closed.
    */
-  final def withFinalizer[R1 <: R](finalizer: => URIO[R1, Any])(implicit
+  final def withFinalizer[R1 <: R](finalizer: A => URIO[R1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
-    withFinalizerExit(_ => finalizer)
+    ZIO.acquireRelease(self)(finalizer)
 
   /**
    * A more powerful variant of `withFinalizer` that allows the finalizer to
    * depend on the `Exit` value that the scope is closed with.
    */
-  final def withFinalizerExit[R1 <: R](finalizer: Exit[Any, Any] => URIO[R1, Any])(implicit
+  final def withFinalizerExit[R1 <: R](finalizer: (A, Exit[Any, Any]) => URIO[R1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
-    ZIO.acquireReleaseExit[R1, E, A](self)((_, exit) => finalizer(exit))
+    ZIO.acquireReleaseExit(self)(finalizer)
 
   /**
    * Runs this effect with the specified maximum number of fibers for parallel
@@ -2800,18 +2800,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * The `acquire` and `release` effects will be run uninterruptibly.
    */
-  def acquireRelease[R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any])(implicit
+  def acquireRelease[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  ): ZIO[R1 with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
   /**
    * A more powerful variant of `acquireRelease` that allows the `release`
    * effect to depend on the `Exit` value specified when the scope is closed.
    */
-  def acquireReleaseExit[R, E, A](acquire: => ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(
-    implicit trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  def acquireReleaseExit[R, R1 <: R, E, A](
+    acquire: => ZIO[R, E, A]
+  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1 with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
   /**
@@ -2822,9 +2824,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * what finalization, if any, needs to be performed (e.g. by examining in
    * memory state).
    */
-  def acquireReleaseInterruptible[R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R, Nothing, Any])(implicit
+  def acquireReleaseInterruptible[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  ): ZIO[R1 with Scope, E, A] =
     acquireReleaseInterruptibleExit(acquire)(_ => release)
 
   /**
@@ -2832,9 +2834,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `release` effect to depend on the `Exit` value specified when the scope is
    * closed.
    */
-  def acquireReleaseInterruptibleExit[R, E, A](acquire: => ZIO[R, E, A])(
-    release: Exit[Any, Any] => ZIO[R, Nothing, Any]
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+  def acquireReleaseInterruptibleExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
+    release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
+  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E, A] =
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
@@ -3686,7 +3688,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the whole environment of the effect.
    */
   def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
-    ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
+    ZIO.suspendSucceed(FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
    * Accesses the environment of the effect.
@@ -4636,7 +4638,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the log annotations associated with the current scope.
    */
   def logAnnotations(implicit trace: ZTraceElement): UIO[Map[String, String]] =
-    ZFiberRef.currentLogAnnotations.get
+    FiberRef.currentLogAnnotations.get
 
   /**
    * Logs the specified message at the debug log level.
@@ -5289,6 +5291,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeed(Some(a))
 
   /**
+   * Provides a stateful ZIO workflow with its initial state, resulting in a
+   * workflow that is ready to be run.
+   *
+   * {{{
+   * ZIO.stateful(0) {
+   *   for {
+   *       _     <- ZIO.updateState[Int](_ + 1)
+   *       state <- ZIO.getState[Int]
+   *     } yield assertTrue(state == 1)
+   *   }
+   * }}}
+   */
+  def stateful[R]: StatefulPartiallyApplied[R] =
+    new StatefulPartiallyApplied[R]
+
+  /**
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: => A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] =
@@ -5707,6 +5725,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       acquireReleaseWith(io)(a => ZIO.succeed(a.close()))(use)
 
     /**
+     * Like `withFinalizer, add a finalizer from AutoClosable.
+     */
+    def withFinalizerAuto(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+      ZIO.acquireRelease(io)(a => ZIO.succeed(a.close()))
+
+    /**
      * Like `bracket`, safely wraps a use and release of a resource. This
      * resource will get automatically closed, because it implements
      * `AutoCloseable`.
@@ -5891,9 +5915,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
       ZIO.suspendSucceed {
-        ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
+        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }
     }
+  }
+
+  final class StatefulPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[S, E, A](
+      s: S
+    )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[R, E, A] =
+      ZState.make(s).flatMap { state =>
+        zio.provideSomeEnvironment[R](_.union[ZState[S]](ZEnvironment(state)))
+      }
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
@@ -6466,7 +6499,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefGetAll[R, E, A](
-    val make: Map[ZFiberRef.Runtime[_], Any] => ZIO[R, E, A],
+    val make: Map[FiberRef[_], Any] => ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
@@ -6476,7 +6509,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefModify[A, B](
-    val fiberRef: FiberRef.Runtime[A],
+    val fiberRef: FiberRef[A],
     val f: A => (B, A),
     val trace: ZTraceElement
   ) extends UIO[B] {
@@ -6488,7 +6521,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class FiberRefLocally[V, R, E, A](
     val localValue: V,
-    val fiberRef: FiberRef.Runtime[V],
+    val fiberRef: FiberRef[V],
     val zio: ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
@@ -6499,7 +6532,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefDelete(
-    val fiberRef: FiberRef.Runtime[_],
+    val fiberRef: FiberRef[_],
     val trace: ZTraceElement
   ) extends UIO[Unit] {
     def unsafeLog: () => String =
@@ -6509,7 +6542,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefWith[R, E, A, B](
-    val fiberRef: FiberRef.Runtime[A],
+    val fiberRef: FiberRef[A],
     val f: A => ZIO[R, E, B],
     val trace: ZTraceElement
   ) extends ZIO[R, E, B] {
@@ -6587,7 +6620,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val cause: Cause[Any],
     val overrideLogLevel: Option[LogLevel],
     val trace: ZTraceElement,
-    val overrideRef1: FiberRef.Runtime[_] = null,
+    val overrideRef1: FiberRef[_] = null,
     val overrideValue1: AnyRef = null
   ) extends ZIO[Any, Nothing, Unit] {
     def unsafeLog: () => String =
