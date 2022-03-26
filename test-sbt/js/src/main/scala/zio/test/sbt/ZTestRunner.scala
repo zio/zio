@@ -112,7 +112,7 @@ sealed class ZTestTask(
                      .provideLayer(
                        fullLayer
                      )
-              // TODO Confirm if/how these events needs to be handled
+              // TODO Confirm if/how these events needs to be handled in #6481
               //    Check XML behavior
               //              events = ZTestEvent.from(taskDef.fullyQualifiedName(), taskDef.fingerprint())
               //              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))

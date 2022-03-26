@@ -20,7 +20,7 @@ object ZTestFrameworkSpec {
 
   def tests: Seq[Try[Unit]] = Seq(
     test("should return correct fingerprints")(testFingerprints()),
-    // TODO restore once we are calculating durations again
+    // TODO restore once we are calculating durations again. Fix for #6482
     //test("should report durations")(testReportDurations()),
 //    test("should log messages")(testLogMessages()),
 //    test("should correctly display colorized output for multi-line strings")(testColored()),
@@ -87,8 +87,6 @@ object ZTestFrameworkSpec {
           s"${reset("info:")}     ${yellow("-")} ${yellow("ignored test")}"
         )
       )
-    // We can't do this assertion anymore with the streaming approach
-    //          s"${reset("info:")} ${red("- some suite")} - ignored: 1",
     }
   }
 
@@ -142,7 +140,6 @@ object ZTestFrameworkSpec {
   def numberedTest(specIdx: Int, suiteIdx: Int, testIdx: Int) =
     zio.test.test(s"spec $specIdx suite $suiteIdx test $testIdx") {
       assertCompletes
-//      randomFailure
     }
 
   lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName

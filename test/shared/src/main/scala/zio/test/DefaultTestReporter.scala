@@ -28,7 +28,7 @@ import zio.{Cause, _}
 import java.util.regex.Pattern
 import scala.annotation.tailrec
 
-// TODO Needs to be re-written or simply dropped for new streaming behavior
+// TODO Needs to be re-written or simply dropped for new streaming behavior. #6484
 object DefaultTestReporter {
   def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
     trace: ZTraceElement

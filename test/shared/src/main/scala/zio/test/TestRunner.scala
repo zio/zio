@@ -53,7 +53,7 @@ final case class TestRunner[R, E](
     trace: ZTraceElement
   ): URIO[TestOutput with TestLogger with Clock with ExecutionEventSink with Random, Summary] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
-      // TODO Why is duration 0 here?
+      // TODO Why is duration 0 here? Resolve for #6482
       ZIO.succeed(summary)
     }
 

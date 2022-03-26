@@ -53,7 +53,7 @@ abstract class BaseTestTask(
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     (for {
-      _ <- ZIO.succeed("TODO pass this down through spec.runSpec to ExecutionEventSink: " + eventHandler)
+      _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
       summary <- spec
                    .runSpec(FilteredSpec(spec.spec, args), args)
       _ <- sendSummary.provideEnvironment(ZEnvironment(summary))

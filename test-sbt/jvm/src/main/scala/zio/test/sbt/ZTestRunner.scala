@@ -128,7 +128,7 @@ abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 
-case class MergedSpec(spec: ZTestTaskNew, merges: Int)
+case class MergedSpec(spec: ZTestTaskNew)
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
@@ -149,13 +149,12 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
                         existingNewTestTask.spec.sendSummary,
                         existingNewTestTask.spec.args,
                         existingNewTestTask.spec.newSpec <> taskNew.newSpec
-                      ),
-                      existingNewTestTask.merges + 1
+                      )
                     ) :: otherTasks,
                     legacyTests
                   )
                 case _ =>
-                  (List(MergedSpec(taskNew, 1)), legacyTests)
+                  (List(MergedSpec(taskNew)), legacyTests)
               }
             case other =>
               throw new RuntimeException("Other case: " + other)
