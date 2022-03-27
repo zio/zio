@@ -1100,7 +1100,9 @@ private[zio] final class FiberContext[E, A](
   private[zio] def unsafeSetRef[A](fiberRef: FiberRef[A], value: A): Unit = {
     val oldState = fiberRefLocals.get
     val oldStack = oldState.get(fiberRef).getOrElse(List.empty)
-    val newStack = if (oldStack.isEmpty) ::((fiberId, value), Nil) else ::((fiberId, value), oldStack.tail)
+    val newStack =
+      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
+      else ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
     val newState = oldState.updated(fiberRef, newStack)
     if (!fiberRefLocals.compareAndSet(oldState, newState))
       unsafeSetRef(fiberRef, value)
