@@ -107,8 +107,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       spec
         .runSpec(
           instrumented,
-          TestArgs.empty,
-          ZIO.unit
+          TestArgs.empty
         )
         .provide(
           Scope.default >>> (ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope]),

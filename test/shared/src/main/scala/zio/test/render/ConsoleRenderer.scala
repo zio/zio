@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
-import zio.test.{ConsoleUtils, TestAnnotation, TestAnnotationMap, TestAnnotationRenderer}
+import zio.test.{ConsoleUtils, Summary, TestAnnotation, TestAnnotationMap, TestAnnotationRenderer}
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -91,5 +91,8 @@ trait ConsoleRenderer extends TestRenderer {
 
   private def renderOffset(n: Int)(s: String) =
     " " * (n * tabSize) + s
+
+  def render(summary: Summary): String =
+    s""" ${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored."""
 }
 object ConsoleRenderer extends ConsoleRenderer
