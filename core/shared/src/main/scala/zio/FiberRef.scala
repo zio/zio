@@ -89,9 +89,10 @@ trait FiberRef[A] extends Serializable { self =>
   def combine(first: Patch, second: Patch): Patch
 
   /**
-   * Applies a patch to a value to produce a new value.
+   * Applies a patch to an old value to produce a new value that is equal to the
+   * old value with the updates described by the patch.
    */
-  def patch(patch: Patch)(value: Value): Value
+  def patch(patch: Patch)(oldValue: Value): Value
 
   /**
    * The initial patch that is applied to the value of the `FiberRef` when a new
@@ -365,8 +366,8 @@ object FiberRef {
         fork0
       def initial: Value =
         initialValue0
-      def patch(patch: Patch)(value: Value): Value =
-        patch0(patch)(value)
+      def patch(patch: Patch)(oldValue: Value): Value =
+        patch0(patch)(oldValue)
     }
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
