@@ -128,9 +128,6 @@ final class ZEnvironment[+R] private (
         }
     }
 
-  private def unsafeRemove(tag: LightTypeTag): ZEnvironment[R] =
-    new ZEnvironment(map - tag, index)
-
   private def unsafeUpdate[A >: R](tag: LightTypeTag, f: A => A): ZEnvironment[R] =
     unsafeAdd[A](tag, f(unsafeGet(tag)))
 
@@ -251,7 +248,7 @@ object ZEnvironment {
           case AddService(service, tag) :: patches   => loop(environment.unsafeAdd(tag, service), patches)
           case AndThen(first, second) :: patches     => loop(environment, erase(first) :: erase(second) :: patches)
           case Empty() :: patches                    => loop(environment, patches)
-          case RemoveService(tag) :: patches         => loop(environment.unsafeRemove(tag), patches)
+          case RemoveService(tag) :: patches         => loop(environment, patches)
           case UpdateService(update, tag) :: patches => loop(environment.unsafeUpdate(tag, update), patches)
           case Nil                                   => environment
         }
