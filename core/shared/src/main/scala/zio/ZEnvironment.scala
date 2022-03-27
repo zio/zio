@@ -18,6 +18,8 @@ package zio
 
 import izumi.reflect.macrortti.LightTypeTag
 
+import scala.annotation.tailrec
+
 final class ZEnvironment[+R] private (
   private val map: Map[LightTypeTag, (Any, Int)],
   private val index: Int,
@@ -31,7 +33,7 @@ final class ZEnvironment[+R] private (
    * Adds a service to the environment.
    */
   def add[A](a: A)(implicit tag: Tag[A]): ZEnvironment[R with A] =
-    new ZEnvironment(self.map + (tag.tag -> (a -> index)), index + 1)
+    unsafeAdd[A](tag.tag, a)
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] => self.map == that.map
@@ -102,6 +104,9 @@ final class ZEnvironment[+R] private (
       self.index + that.index
     )
 
+  private def unsafeAdd[A](tag: LightTypeTag, a: A): ZEnvironment[R with A] =
+    new ZEnvironment(self.map + (tag -> (a -> index)), index + 1)
+
   def unsafeGet[A](tag: LightTypeTag): A =
     self.cache.get(tag) match {
       case Some(a) => a.asInstanceOf[A]
@@ -122,6 +127,12 @@ final class ZEnvironment[+R] private (
           service
         }
     }
+
+  private def unsafeRemove(tag: LightTypeTag): ZEnvironment[R] =
+    new ZEnvironment(map - tag, index)
+
+  private def unsafeUpdate[A >: R](tag: LightTypeTag, f: A => A): ZEnvironment[R] =
+    unsafeAdd[A](tag, f(unsafeGet(tag)))
 
   def upcast[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
     new ZEnvironment(map, index)
@@ -220,6 +231,81 @@ object ZEnvironment {
       Random.RandomLive,
       System.SystemLive
     )
+
+  /**
+   * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
+   * to a `ZEnvironment[Out]` as a data structure. This allows combining updates
+   * to different services in the environment in a compositional way.
+   */
+  sealed trait Patch[-In, +Out] { self =>
+    import Patch._
+
+    /**
+     * Applies an update to the environment to produce a new environment.
+     */
+    def apply(environment: ZEnvironment[In]): ZEnvironment[Out] = {
+
+      @tailrec
+      def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
+        patches match {
+          case AddService(service, tag) :: patches   => loop(environment.unsafeAdd(tag, service), patches)
+          case AndThen(first, second) :: patches     => loop(environment, first :: second :: patches)
+          case Empty() :: patches                    => loop(environment, patches)
+          case RemoveService(tag) :: patches         => loop(environment.unsafeRemove(tag), patches)
+          case UpdateService(update, tag) :: patches => loop(environment.unsafeUpdate(tag, update), patches)
+          case Nil                                   => environment
+        }
+
+      loop(environment, List(self.asInstanceOf[Patch[Any, Any]])).asInstanceOf[ZEnvironment[Out]]
+    }
+
+    /**
+     * Combines two patches to produce a new patch that describes applying the
+     * updates from this patch and then the updates from the specified patch.
+     */
+    def combine[Out2](that: Patch[Out, Out2]): Patch[In, Out2] =
+      AndThen(self, that)
+  }
+
+  object Patch {
+
+    /**
+     * An empty patch which returns the environment unchanged.
+     */
+    def empty[A]: Patch[A, A] =
+      Empty()
+
+    /**
+     * Constructs a patch that describes the updates necessary to transform the
+     * specified old environment into the specified new environment.
+     */
+    def fromDiff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
+      val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
+      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, Any], Patch[In, Out])](
+        oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
+      ) { case ((map, patch), (tag, (newService, _))) =>
+        map.get(tag) match {
+          case Some((oldService, _)) =>
+            if (oldService == newService) map - tag -> patch
+            else map - tag                          -> patch.combine(UpdateService((_: Any) => newService, tag))
+          case None =>
+            map - tag -> patch.combine(AddService(newService, tag))
+        }
+      }
+      missingServices.foldLeft(patch) { case (patch, (tag, _)) =>
+        patch.combine(RemoveService(tag))
+      }
+    }
+
+    private final case class AddService[Env, Service](service: Service, tag: LightTypeTag)
+        extends Patch[Env, Env with Service]
+    private final case class AndThen[In, Out, Out2](first: Patch[In, Out], second: Patch[Out, Out2])
+        extends Patch[In, Out2]
+    private final case class Empty[Env]()                                   extends Patch[Env, Env]
+    private final case class RemoveService[Env, Service](tag: LightTypeTag) extends Patch[Env with Service, Env]
+    private final case class UpdateService[Env, Service](update: Service => Service, tag: LightTypeTag)
+        extends Patch[Env with Service, Env with Service]
+  }
 
   private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
     implicitly[EnvironmentTag[AnyRef]]

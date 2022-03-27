@@ -6499,7 +6499,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefGetAll[R, E, A](
-    val make: Map[FiberRef[_], Any] => ZIO[R, E, A],
+    val make: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] => ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =

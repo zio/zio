@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * This allows safely propagating `FiberRef` values across fiber boundaries, for
  * example between an asynchronous producer and consumer.
  */
-final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]) { self =>
+final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]) { self =>
 
   /**
    * Returns a set of each `FiberRef` in this collection.
@@ -36,7 +36,7 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]
    * values if it exists or `None` otherwise.
    */
   def get[A](fiberRef: FiberRef[A]): Option[A] =
-    fiberRefLocals.get(fiberRef).map(_.asInstanceOf[A])
+    fiberRefLocals.get(fiberRef).map(_.head._2.asInstanceOf[A])
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
@@ -57,6 +57,6 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]
 
 object FiberRefs {
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], Any]): FiberRefs =
+  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
     new FiberRefs(fiberRefLocals)
 }

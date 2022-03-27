@@ -360,7 +360,26 @@ object FiberRefSpec extends ZIOBaseSpec {
           value2   <- ZIO.succeed(handle.get())
         } yield assert((value1, value2))(equalTo((initial, initial)))
       }
-    )
+    ),
+    test("makeEnvironment") {
+      for {
+        testClock   <- ZIO.service[TestClock]
+        testConsole <- ZIO.service[TestConsole]
+        testRandom  <- ZIO.service[TestRandom]
+        testSystem  <- ZIO.service[TestSystem]
+        fiberRef    <- FiberRef.makeEnvironment(ZEnv.Services.live)
+        _           <- fiberRef.update(_.add(testClock))
+        left        <- fiberRef.update(_.add(testConsole)).fork
+        right       <- fiberRef.update(_.add(testRandom)).fork
+        _           <- left.join
+        _           <- right.join
+        _           <- fiberRef.update(_.add(testSystem))
+        environment <- fiberRef.get
+      } yield assertTrue(environment.get[Clock] == testClock) &&
+        assertTrue(environment.get[Console] == testConsole) &&
+        assertTrue(environment.get[Random] == testRandom) &&
+        assertTrue(environment.get[System] == testSystem)
+    } @@ TestAspect.nonFlaky
   ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
 }
 
