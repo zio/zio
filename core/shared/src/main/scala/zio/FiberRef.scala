@@ -268,7 +268,7 @@ trait FiberRef[A] extends Serializable { self =>
 
 object FiberRef {
 
-  type Full[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
+  type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
   lazy val currentLogLevel: FiberRef[LogLevel] =
     FiberRef.unsafeMake(LogLevel.Info)
@@ -300,7 +300,7 @@ object FiberRef {
    */
   def makeEnvironment[A](initial: => ZEnvironment[A])(implicit
     trace: ZTraceElement
-  ): UIO[FiberRef.Full[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
+  ): UIO[FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
     ZIO.succeed(unsafeMakeEnvironment(initial))
 
   /**
@@ -314,7 +314,7 @@ object FiberRef {
     combine: (Patch, Patch) => Patch,
     patch: Patch => Value => Value,
     fork: Patch
-  )(implicit trace: ZTraceElement): UIO[FiberRef.Full[Value, Patch]] =
+  )(implicit trace: ZTraceElement): UIO[FiberRef.WithPatch[Value, Patch]] =
     ZIO.suspendSucceed {
       val ref = unsafeMakePatch(initial, diff, combine, patch, fork)
 
@@ -336,7 +336,7 @@ object FiberRef {
 
   private[zio] def unsafeMakeEnvironment[A](
     initial: ZEnvironment[A]
-  ): FiberRef.Full[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
+  ): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
     unsafeMakePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
       initial,
       ZEnvironment.Patch.fromDiff,
@@ -351,7 +351,7 @@ object FiberRef {
     combinePatch0: (Patch0, Patch0) => Patch0,
     patch0: Patch0 => Value0 => Value0,
     fork0: Patch0
-  ): FiberRef.Full[Value0, Patch0] =
+  ): FiberRef.WithPatch[Value0, Patch0] =
     new FiberRef[Value0] {
       type Patch = Patch0
       def combine(first: Patch, second: Patch): Patch =
@@ -372,6 +372,6 @@ object FiberRef {
   private[zio] val currentExecutor: FiberRef[Option[zio.Executor]] =
     FiberRef.unsafeMake(None)
 
-  private[zio] val currentEnvironment: FiberRef.Full[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
+  private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
 }
