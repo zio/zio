@@ -276,7 +276,7 @@ object ZEnvironment {
      * Constructs a patch that describes the updates necessary to transform the
      * specified old environment into the specified new environment.
      */
-    def fromDiff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
+    def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
       val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
       val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, Any], Patch[In, Out])](
         oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]

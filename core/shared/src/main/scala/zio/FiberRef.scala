@@ -343,7 +343,7 @@ object FiberRef {
   ): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
     unsafeMakePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
       initial,
-      ZEnvironment.Patch.fromDiff,
+      ZEnvironment.Patch.diff,
       _ combine _,
       patch => value => patch(value),
       ZEnvironment.Patch.empty
