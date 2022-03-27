@@ -18,6 +18,7 @@ package zio.test
 
 import zio._
 import zio.internal.Platform
+import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.TestRenderer
 
@@ -31,8 +32,14 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: Layer[Nothing, TestLogger with Clock] =
-    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(ZTraceElement.empty)) ++ Clock.live
+  bootstrap: Layer[Nothing, TestOutput with TestLogger with Clock with ExecutionEventSink with Random] = {
+
+    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(
+      ZTraceElement.empty
+    )) ++ Clock.live ++ TestOutput.live ++ (TestOutput.live >>> ExecutionEventSink.live)(
+      ZTraceElement.empty
+    ) ++ Random.live
+  }
 ) { self =>
 
   lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty, runtimeConfig)
@@ -40,9 +47,14 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: ZSpec[R, E])(implicit trace: ZTraceElement): URIO[TestLogger with Clock, ExecutedSpec[E]] =
-    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, results) =>
-      reporter(duration, results).as(results)
+  def run(
+    spec: ZSpec[R, E]
+  )(implicit
+    trace: ZTraceElement
+  ): URIO[TestOutput with TestLogger with Clock with ExecutionEventSink with Random, Summary] =
+    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
+      // TODO Why is duration 0 here? Resolve for #6482
+      ZIO.succeed(summary)
     }
 
   /**
@@ -50,7 +62,7 @@ final case class TestRunner[R, E](
    */
   def unsafeRun(
     spec: ZSpec[R, E]
-  )(implicit trace: ZTraceElement): ExecutedSpec[E] =
+  )(implicit trace: ZTraceElement): Unit =
     runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
   /**
@@ -59,10 +71,10 @@ final case class TestRunner[R, E](
   def unsafeRunAsync(
     spec: ZSpec[R, E]
   )(
-    k: ExecutedSpec[E] => Unit
+    k: => Unit
   )(implicit trace: ZTraceElement): Unit =
     runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
-      case Exit.Success(v) => k(v)
+      case Exit.Success(v) => k
       case Exit.Failure(c) => throw FiberFailure(c)
     }
 
@@ -71,8 +83,8 @@ final case class TestRunner[R, E](
    */
   def unsafeRunSync(
     spec: ZSpec[R, E]
-  )(implicit trace: ZTraceElement): Exit[Nothing, ExecutedSpec[E]] =
-    runtime.unsafeRunSync(run(spec).provideLayer(bootstrap))
+  )(implicit trace: ZTraceElement): Exit[Nothing, Unit] =
+    runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the platform

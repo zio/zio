@@ -21,6 +21,7 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.UUID
+import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 import scala.math.{log, sqrt}
 
@@ -95,7 +96,7 @@ object TestRandom extends Serializable {
    * Adapted from @gzmo work in Scala.js
    * (https://github.com/scala-js/scala-js/pull/780)
    */
-  final case class Test(randomState: Ref[Data], bufferState: Ref[Buffer]) extends Random with TestRandom {
+  final case class Test(randomState: Ref.Atomic[Data], bufferState: Ref.Atomic[Buffer]) extends Random with TestRandom {
 
     /**
      * Clears the buffer of booleans.
@@ -236,21 +237,21 @@ object TestRandom extends Serializable {
      * pseudo-random boolean.
      */
     def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean] =
-      getOrElse(bufferedBoolean)(randomBoolean)
+      ZIO.succeed(unsafeNextBoolean())
 
     /**
      * Takes a chunk of bytes from the buffer if one exists or else generates a
      * pseudo-random chunk of bytes of the specified length.
      */
     def nextBytes(length: => Int)(implicit trace: ZTraceElement): UIO[Chunk[Byte]] =
-      getOrElse(bufferedBytes)(randomBytes(length))
+      ZIO.succeed(unsafeNextBytes(length))
 
     /**
      * Takes a double from the buffer if one exists or else generates a
      * pseudo-random, uniformly distributed double between 0.0 and 1.0.
      */
     def nextDouble(implicit trace: ZTraceElement): UIO[Double] =
-      getOrElse(bufferedDouble)(randomDouble)
+      ZIO.succeed(unsafeNextDouble())
 
     /**
      * Takes a double from the buffer if one exists or else generates a
@@ -259,21 +260,21 @@ object TestRandom extends Serializable {
     def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
       trace: ZTraceElement
     ): UIO[Double] =
-      getOrElse(bufferedDouble)(randomDoubleBetween(minInclusive, maxExclusive))
+      ZIO.succeed(unsafeNextDoubleBetween(minInclusive, maxExclusive))
 
     /**
      * Takes a float from the buffer if one exists or else generates a
      * pseudo-random, uniformly distributed float between 0.0 and 1.0.
      */
     def nextFloat(implicit trace: ZTraceElement): UIO[Float] =
-      getOrElse(bufferedFloat)(randomFloat)
+      ZIO.succeed(unsafeNextFloat())
 
     /**
      * Takes a float from the buffer if one exists or else generates a
      * pseudo-random float in the specified range.
      */
     def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: ZTraceElement): UIO[Float] =
-      getOrElse(bufferedFloat)(randomFloatBetween(minInclusive, maxExclusive))
+      ZIO.succeed(unsafeNextFloatBetween(minInclusive, maxExclusive))
 
     /**
      * Takes a double from the buffer if one exists or else generates a
@@ -281,21 +282,21 @@ object TestRandom extends Serializable {
      * standard deviation 1.0.
      */
     def nextGaussian(implicit trace: ZTraceElement): UIO[Double] =
-      getOrElse(bufferedDouble)(randomGaussian)
+      ZIO.succeed(unsafeNextGaussian())
 
     /**
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer.
      */
     def nextInt(implicit trace: ZTraceElement): UIO[Int] =
-      getOrElse(bufferedInt)(randomInt)
+      ZIO.succeed(unsafeNextInt())
 
     /**
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer in the specified range.
      */
     def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: ZTraceElement): UIO[Int] =
-      getOrElse(bufferedInt)(randomIntBetween(minInclusive, maxExclusive))
+      ZIO.succeed(unsafeNextIntBetween(minInclusive, maxExclusive))
 
     /**
      * Takes an integer from the buffer if one exists or else generates a
@@ -303,21 +304,21 @@ object TestRandom extends Serializable {
      * (exclusive).
      */
     def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): UIO[Int] =
-      getOrElse(bufferedInt)(randomIntBounded(n))
+      ZIO.succeed(unsafeNextIntBounded(n))
 
     /**
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long.
      */
     def nextLong(implicit trace: ZTraceElement): UIO[Long] =
-      getOrElse(bufferedLong)(randomLong)
+      ZIO.succeed(unsafeNextLong())
 
     /**
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long in the specified range.
      */
     def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: ZTraceElement): UIO[Long] =
-      getOrElse(bufferedLong)(randomLongBetween(minInclusive, maxExclusive))
+      ZIO.succeed(unsafeNextLongBetween(minInclusive, maxExclusive))
 
     /**
      * Takes a long from the buffer if one exists or else generates a
@@ -325,28 +326,28 @@ object TestRandom extends Serializable {
      * (exclusive).
      */
     def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long] =
-      getOrElse(bufferedLong)(randomLongBounded(n))
+      ZIO.succeed(unsafeNextLongBounded(n))
 
     /**
      * Takes a character from the buffer if one exists or else generates a
      * pseudo-random character from the ASCII range 33-126.
      */
     def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char] =
-      getOrElse(bufferedChar)(randomPrintableChar)
+      ZIO.succeed(unsafeNextPrintableChar())
 
     /**
      * Takes a string from the buffer if one exists or else generates a
      * pseudo-random string of the specified length.
      */
     def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] =
-      getOrElse(bufferedString)(randomString(length))
+      ZIO.succeed(unsafeNextString(length))
 
     /**
      * Takes a UUID from the buffer if one exists or else generates a
      * pseudo-random UUID.
      */
     def nextUUID(implicit trace: ZTraceElement): UIO[UUID] =
-      getOrElse(bufferedUUID)(Random.nextUUIDWith(nextLong))
+      ZIO.succeed(unsafeNextUUID())
 
     /**
      * Saves the `TestRandom`'s current state in an effect which, when run, will
@@ -362,12 +363,7 @@ object TestRandom extends Serializable {
      * Sets the seed of this `TestRandom` to the specified value.
      */
     def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
-      randomState.set {
-        val newSeed = (seed ^ 0x5deece66dL) & ((1L << 48) - 1)
-        val seed1   = (newSeed >>> 24).toInt
-        val seed2   = newSeed.toInt & ((1 << 24) - 1)
-        Data(seed1, seed2, Queue.empty)
-      }
+      ZIO.succeed(unsafeSetSeed(seed))
 
     /**
      * Randomly shuffles the specified list.
@@ -375,7 +371,68 @@ object TestRandom extends Serializable {
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       list: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
-      Random.shuffleWith(randomIntBounded, list)
+      ZIO.succeed(unsafeShuffle(list))
+
+    override private[zio] def unsafeNextBoolean(): Boolean =
+      getOrElse(bufferedBoolean)(randomBoolean)
+
+    override private[zio] def unsafeNextBytes(length: Int): Chunk[Byte] =
+      getOrElse(bufferedBytes)(randomBytes(length))
+
+    override private[zio] def unsafeNextDouble(): Double =
+      getOrElse(bufferedDouble)(randomDouble)
+
+    override private[zio] def unsafeNextDoubleBetween(minInclusive: Double, maxExclusive: Double): Double =
+      getOrElse(bufferedDouble)(randomDoubleBetween(minInclusive, maxExclusive))
+
+    override private[zio] def unsafeNextFloat(): Float =
+      getOrElse(bufferedFloat)(randomFloat)
+
+    override private[zio] def unsafeNextFloatBetween(minInclusive: Float, maxExclusive: Float): Float =
+      getOrElse(bufferedFloat)(randomFloatBetween(minInclusive, maxExclusive))
+
+    override private[zio] def unsafeNextGaussian(): Double =
+      getOrElse(bufferedDouble)(randomGaussian)
+
+    override private[zio] def unsafeNextInt(): Int =
+      getOrElse(bufferedInt)(randomInt)
+
+    override private[zio] def unsafeNextIntBetween(minInclusive: Int, maxExclusive: Int): Int =
+      getOrElse(bufferedInt)(randomIntBetween(minInclusive, maxExclusive))
+
+    override private[zio] def unsafeNextIntBounded(n: Int): Int =
+      getOrElse(bufferedInt)(randomIntBounded(n))
+
+    override private[zio] def unsafeNextLong(): Long =
+      getOrElse(bufferedLong)(randomLong)
+
+    override private[zio] def unsafeNextLongBetween(minInclusive: Long, maxExclusive: Long): Long =
+      getOrElse(bufferedLong)(randomLongBetween(minInclusive, maxExclusive))
+
+    override private[zio] def unsafeNextLongBounded(n: Long): Long =
+      getOrElse(bufferedLong)(randomLongBounded(n))
+
+    override private[zio] def unsafeNextPrintableChar(): Char =
+      getOrElse(bufferedChar)(randomPrintableChar)
+
+    override private[zio] def unsafeNextString(length: Int): String =
+      getOrElse(bufferedString)(randomString(length))
+
+    override private[zio] def unsafeNextUUID(): UUID =
+      getOrElse(bufferedUUID)(Random.nextUUIDWith(() => unsafeNextLong()))
+
+    override private[zio] def unsafeSetSeed(seed: Long): Unit =
+      randomState.unsafeSet {
+        val newSeed = (seed ^ 0x5deece66dL) & ((1L << 48) - 1)
+        val seed1   = (newSeed >>> 24).toInt
+        val seed2   = newSeed.toInt & ((1 << 24) - 1)
+        Data(seed1, seed2, Queue.empty)
+      }
+
+    override private[zio] def unsafeShuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(
+      implicit bf: BuildFrom[Collection[A], A, Collection[A]]
+    ): Collection[A] =
+      Random.shuffleWith(randomIntBounded, collection)
 
     private def bufferedBoolean(buffer: Buffer): (Option[Boolean], Buffer) =
       (
@@ -431,10 +488,8 @@ object TestRandom extends Serializable {
         buffer.copy(uuids = buffer.uuids.drop(1))
       )
 
-    private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: UIO[A])(implicit
-      trace: ZTraceElement
-    ): UIO[A] =
-      bufferState.modify(buffer).flatMap(_.fold(random)(UIO.succeedNow))
+    private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: => A): A =
+      bufferState.unsafeModify(buffer).getOrElse(random)
 
     @inline
     private def leastSignificantBits(x: Double): Int =
@@ -444,8 +499,8 @@ object TestRandom extends Serializable {
     private def mostSignificantBits(x: Double): Int =
       toInt(x / (1 << 24).toDouble)
 
-    private def randomBits(bits: Int)(implicit trace: ZTraceElement): UIO[Int] =
-      randomState.modify { data =>
+    private def randomBits(bits: Int): Int =
+      randomState.unsafeModify { data =>
         val multiplier  = 0x5deece66dL
         val multiplier1 = (multiplier >>> 24).toInt
         val multiplier2 = multiplier.toInt & ((1 << 24) - 1)
@@ -457,109 +512,109 @@ object TestRandom extends Serializable {
         (result >>> (32 - bits), Data(newSeed1, newSeed2, data.nextNextGaussians))
       }
 
-    private def randomBoolean(implicit trace: ZTraceElement): UIO[Boolean] =
-      randomBits(1).map(_ != 0)
+    private def randomBoolean: Boolean =
+      randomBits(1) != 0
 
-    private def randomBytes(length: Int)(implicit trace: ZTraceElement): UIO[Chunk[Byte]] = {
+    private def randomBytes(length: Int): Chunk[Byte] = {
       //  Our RNG generates 32 bit integers so to maximize efficiency we want to
       //  pull 8 bit bytes from the current integer until it is exhausted
       //  before generating another random integer
-      def loop(i: Int, rnd: UIO[Int], n: Int, acc: UIO[List[Byte]]): UIO[List[Byte]] =
+      @tailrec
+      def loop(i: Int, rnd: () => Int, n: Int, acc: List[Byte]): List[Byte] =
         if (i == length)
-          acc.map(_.reverse)
-        else if (n > 0)
-          rnd.flatMap(rnd => loop(i + 1, UIO.succeedNow(rnd >> 8), n - 1, acc.map(rnd.toByte :: _)))
-        else
-          loop(i, nextInt, (length - i) min 4, acc)
+          acc.reverse
+        else if (n > 0) {
+          val r = rnd()
+          loop(i + 1, () => r >> 8, n - 1, r.toByte :: acc)
+        } else
+          loop(i, () => randomInt, (length - i) min 4, acc)
 
-      loop(0, randomInt, length min 4, UIO.succeedNow(List.empty[Byte])).map(Chunk.fromIterable)
+      Chunk.fromIterable(loop(0, () => randomInt, length min 4, List.empty))
     }
 
-    private def randomDouble(implicit trace: ZTraceElement): UIO[Double] =
-      for {
-        i1 <- randomBits(26)
-        i2 <- randomBits(27)
-      } yield ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
+    private def randomDouble: Double = {
+      val i1 = randomBits(26)
+      val i2 = randomBits(27)
+      ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
+    }
 
-    private def randomDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit
-      trace: ZTraceElement
-    ): UIO[Double] =
-      Random.nextDoubleBetweenWith(minInclusive, maxExclusive)(randomDouble)
+    private def randomDoubleBetween(minInclusive: Double, maxExclusive: Double): Double =
+      Random.nextDoubleBetweenWith(minInclusive, maxExclusive)(() => randomDouble)
 
-    private def randomFloat(implicit trace: ZTraceElement): UIO[Float] =
-      randomBits(24).map(i => (i.toDouble / (1 << 24).toDouble).toFloat)
+    private def randomFloat: Float =
+      (randomBits(24).toDouble / (1 << 24).toDouble).toFloat
 
-    private def randomFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit
-      trace: ZTraceElement
-    ): UIO[Float] =
-      Random.nextFloatBetweenWith(minInclusive, maxExclusive)(randomFloat)
+    private def randomFloatBetween(minInclusive: Float, maxExclusive: Float): Float =
+      Random.nextFloatBetweenWith(minInclusive, maxExclusive)(() => randomFloat)
 
-    private def randomGaussian(implicit trace: ZTraceElement): UIO[Double] =
+    private def randomGaussian: Double =
       //  The Box-Muller transform generates two normally distributed random
       //  doubles, so we store the second double in a queue and check the
       //  queue before computing a new pair of values to avoid wasted work.
-      randomState.modify { case Data(seed1, seed2, queue) =>
+      randomState.unsafeModify { case Data(seed1, seed2, queue) =>
         queue.dequeueOption.fold((Option.empty[Double], Data(seed1, seed2, queue))) { case (d, queue) =>
           (Some(d), Data(seed1, seed2, queue))
         }
-      }.flatMap {
-        case Some(nextNextGaussian) => UIO.succeedNow(nextNextGaussian)
+      } match {
+        case Some(nextNextGaussian) => nextNextGaussian
         case None =>
-          def loop: UIO[(Double, Double, Double)] =
-            randomDouble.zip(randomDouble).flatMap { case (d1, d2) =>
-              val x      = 2 * d1 - 1
-              val y      = 2 * d2 - 1
-              val radius = x * x + y * y
-              if (radius >= 1 || radius == 0) loop else UIO.succeedNow((x, y, radius))
-            }
-          loop.flatMap { case (x, y, radius) =>
-            val c = sqrt(-2 * log(radius) / radius)
-            randomState.modify { case Data(seed1, seed2, queue) =>
-              (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
-            }
+          @tailrec
+          def loop: (Double, Double, Double) = {
+            val d1     = randomDouble
+            val d2     = randomDouble
+            val x      = 2 * d1 - 1
+            val y      = 2 * d2 - 1
+            val radius = x * x + y * y
+            if (radius >= 1 || radius == 0) loop else (x, y, radius)
+          }
+          loop match {
+            case (x, y, radius) =>
+              val c = sqrt(-2 * log(radius) / radius)
+              randomState.unsafeModify { case Data(seed1, seed2, queue) =>
+                (x * c, Data(seed1, seed2, queue.enqueue(y * c)))
+              }
           }
       }
 
-    private def randomInt(implicit trace: ZTraceElement): UIO[Int] =
+    private def randomInt: Int =
       randomBits(32)
 
-    private def randomIntBounded(n: Int)(implicit trace: ZTraceElement): UIO[Int] =
+    private def randomIntBounded(n: Int): Int =
       if (n <= 0)
-        UIO.die(new IllegalArgumentException("n must be positive"))
+        throw new IllegalArgumentException("n must be positive")
       else if ((n & -n) == n)
-        randomBits(31).map(_ >> Integer.numberOfLeadingZeros(n))
+        randomBits(31) >> Integer.numberOfLeadingZeros(n)
       else {
-        def loop: UIO[Int] =
-          randomBits(31).flatMap { i =>
-            val value = i % n
-            if (i - value + (n - 1) < 0) loop
-            else UIO.succeedNow(value)
-          }
+        @tailrec
+        def loop: Int = {
+          val i     = randomBits(31)
+          val value = i % n
+          if (i - value + (n - 1) < 0) loop
+          else value
+        }
         loop
       }
 
-    private def randomIntBetween(minInclusive: Int, maxExclusive: Int)(implicit trace: ZTraceElement): UIO[Int] =
-      Random.nextIntBetweenWith(minInclusive, maxExclusive)(randomInt, randomIntBounded)
+    private def randomIntBetween(minInclusive: Int, maxExclusive: Int): Int =
+      Random.nextIntBetweenWith(minInclusive, maxExclusive)(() => randomInt, randomIntBounded)
 
-    private def randomLong(implicit trace: ZTraceElement): UIO[Long] =
-      for {
-        i1 <- randomBits(32)
-        i2 <- randomBits(32)
-      } yield (i1.toLong << 32) + i2
-
-    private def randomLongBounded(n: Long)(implicit trace: ZTraceElement): UIO[Long] =
-      Random.nextLongBoundedWith(n)(randomLong)
-
-    private def randomLongBetween(minInclusive: Long, maxExclusive: Long)(implicit trace: ZTraceElement): UIO[Long] =
-      Random.nextLongBetweenWith(minInclusive, maxExclusive)(randomLong, randomLongBounded)
-
-    private def randomPrintableChar(implicit trace: ZTraceElement): UIO[Char] =
-      randomIntBounded(127 - 33).map(i => (i + 33).toChar)
-
-    private def randomString(length: Int)(implicit trace: ZTraceElement): UIO[String] = {
-      val safeChar = randomIntBounded(0xd800 - 1).map(i => (i + 1).toChar)
-      UIO.collectAll(List.fill(length)(safeChar)).map(_.mkString)
+    private def randomLong: Long = {
+      val i1 = randomBits(32)
+      val i2 = randomBits(32)
+      (i1.toLong << 32) + i2
     }
+
+    private def randomLongBounded(n: Long): Long =
+      Random.nextLongBoundedWith(n)(() => randomLong)
+
+    private def randomLongBetween(minInclusive: Long, maxExclusive: Long): Long =
+      Random.nextLongBetweenWith(minInclusive, maxExclusive)(() => randomLong, randomLongBounded)
+
+    private def randomPrintableChar: Char =
+      (randomIntBounded(127 - 33) + 33).toChar
+
+    private def randomString(length: Int): String =
+      List.fill(length)((randomIntBounded(0xd800 - 1) + 1).toChar).mkString
 
     @inline
     private def toInt(x: Double): Int =
@@ -721,8 +776,8 @@ object TestRandom extends Serializable {
     implicit val trace = Tracer.newTrace
     ZLayer {
       for {
-        data   <- Ref.make(data)
-        buffer <- Ref.make(Buffer())
+        data   <- ZIO.succeed(Ref.unsafeMake(data))
+        buffer <- ZIO.succeed(Ref.unsafeMake(Buffer()))
         test    = Test(data, buffer)
       } yield test
     }
@@ -752,8 +807,8 @@ object TestRandom extends Serializable {
    */
   def makeTest(data: Data)(implicit trace: ZTraceElement): UIO[Test] =
     for {
-      data   <- Ref.make(data)
-      buffer <- Ref.make(Buffer())
+      data   <- ZIO.succeed(Ref.unsafeMake(data))
+      buffer <- ZIO.succeed(Ref.unsafeMake(Buffer()))
     } yield Test(data, buffer)
 
   /**

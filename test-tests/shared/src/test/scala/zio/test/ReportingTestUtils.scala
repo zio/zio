@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.render.TestRenderer
-import zio.{Cause, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Cause, Random, Scope, ZIO, ZLayer, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -46,21 +46,24 @@ object ReportingTestUtils {
     spec: ZSpec[TestEnvironment, String]
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
-      _ <- TestTestRunner(testEnvironment)
-             .run(spec)
-             .provideLayer(TestLogger.fromConsole ++ TestClock.default)
+      _ <-
+        TestTestRunner(testEnvironment)
+          .run(spec)
+          .provideLayer(
+            TestLogger.fromConsole ++ TestClock.default ++ (TestOutput.live >+> ExecutionEventSink.live) ++ Random.live
+          )
       output <- TestConsole.output
     } yield output.mkString
 
   def runSummary(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
-      results <- TestTestRunner(testEnvironment)
-                   .run(spec)
-                   .provideLayer(
-                     Scope.default >>> (TestLogger.fromConsole ++ TestClock.default +!+ ZLayer.environment[Scope])
-                   )
-      actualSummary = SummaryBuilder.buildSummary(results)
-    } yield actualSummary.summary
+      summary <-
+        TestTestRunner(testEnvironment)
+          .run(spec)
+          .provideLayer(
+            Scope.default >>> (TestLogger.fromConsole ++ TestClock.default ++ (TestOutput.live >+> ExecutionEventSink.live) ++ Random.live)
+          )
+    } yield summary.summary
 
   private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment])(implicit
     trace: ZTraceElement
