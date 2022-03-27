@@ -249,7 +249,7 @@ object ZEnvironment {
       def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
         patches match {
           case AddService(service, tag) :: patches   => loop(environment.unsafeAdd(tag, service), patches)
-          case AndThen(first, second) :: patches     => loop(environment, first :: second :: patches)
+          case AndThen(first, second) :: patches     => loop(environment, erase(first) :: erase(second) :: patches)
           case Empty() :: patches                    => loop(environment, patches)
           case RemoveService(tag) :: patches         => loop(environment.unsafeRemove(tag), patches)
           case UpdateService(update, tag) :: patches => loop(environment.unsafeUpdate(tag, update), patches)
@@ -288,7 +288,7 @@ object ZEnvironment {
           case Some((oldService, _)) =>
             if (oldService == newService) map - tag -> patch
             else map - tag                          -> patch.combine(UpdateService((_: Any) => newService, tag))
-          case None =>
+          case _ =>
             map - tag -> patch.combine(AddService(newService, tag))
         }
       }
@@ -305,6 +305,9 @@ object ZEnvironment {
     private final case class RemoveService[Env, Service](tag: LightTypeTag) extends Patch[Env with Service, Env]
     private final case class UpdateService[Env, Service](update: Service => Service, tag: LightTypeTag)
         extends Patch[Env with Service, Env with Service]
+
+    private def erase[In, Out](patch: Patch[In, Out]): Patch[Any, Any] =
+      patch.asInstanceOf[Patch[Any, Any]]
   }
 
   private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
