@@ -21,8 +21,7 @@ When we write stateful applications, we need some mechanism to manage our state.
 
 
 ## Operations
-The `Ref` has lots of operations. Here we are going to introduce the most important and common ones. Also, note that `Ref` is a type alias for `ZRef`. `ZRef` has many type parameters. Basically, all of these type parameters on `ZRef` are useful for the more advanced operators. So as a not advanced user, don't worry about them.
-
+The `Ref` has lots of operations. Here we are going to introduce the most important and common ones.
 ### make
 `Ref` is never empty and it always contains something. We can create `Ref` by providing the initial value to the `make`,  which is a constructor of the `Ref` data type. We should pass an **immutable value** of type `A` to the constructor, and it returns an `UIO[Ref[A]]` value:
 
@@ -322,27 +321,3 @@ val party = for {
 ```
 
 It goes without saying you should take a look at ZIO's own `Semaphore`, it does all this and more without wasting all those CPU cycles while waiting.
-
-## Polymorphic `Ref`s
-
-`Ref[A]` is actually a type alias for `ZRef[Nothing, Nothing, A, A]`. The type signature of `ZRef` is:
-
-```scala mdoc:silent
-trait ZRef[+EA, +EB, -A, +B]
-```
-
-A `ZRef` is a polymorphic, purely functional description of a mutable reference. The fundamental operations of a `ZRef` are `set` and `get`. `set` takes a value of type `A` and sets the reference to a new value, potentially failing with an error of type `EA`. `get` gets the current value of the reference and returns a value of type `B`, potentially failing with an error of type `EB`.
-
-When the error and value types of the `ZRef` are unified, that is, it is a `ZRef[E, E, A, A]`, the `ZRef` also supports atomic `modify` and `update` operations as discussed above.
-
-A simple use case is passing out read-only or write-only views of a reference:
-
-```scala mdoc:silent
-for {
-  ref       <- Ref.make(false)
-  readOnly  = ref.readOnly
-  writeOnly = ref.writeOnly
-  _         <- writeOnly.set(true)
-  value     <- readOnly.get
-} yield value
-```

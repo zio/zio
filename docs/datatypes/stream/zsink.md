@@ -336,7 +336,7 @@ A queue has a finite or infinite buffer size, so they are useful in situations w
 ```scala mdoc:silent:nest
 val myApp: IO[IOException, Unit] =
   for {
-    queue    <- ZQueue.bounded[Int](32)
+    queue    <- Queue.bounded[Int](32)
     producer <- ZStream
       .iterate(1)(_ + 1)
       .fixed(200.millis)
@@ -349,7 +349,7 @@ val myApp: IO[IOException, Unit] =
 
 ### From Hub
 
-`Hub` is an asynchronous data type in which publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `ZHub` and returns a `ZSink` which publishes each element to that `ZHub`.
+`Hub` is an asynchronous data type in which publisher can publish their messages to that and subscribers can subscribe to take messages from the `Hub`. The `ZSink.fromHub` takes a `Hub` and returns a `ZSink` which publishes each element to that `Hub`.
 
 In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
 
@@ -357,7 +357,7 @@ In the following example, the `sink` consumes elements of the `producer` stream 
 val myApp: ZIO[Any, IOException, Unit] =
   for {
     promise <- Promise.make[Nothing, Unit]
-    hub <- ZHub.bounded[Int](1)
+    hub <- Hub.bounded[Int](1)
     sink <- ZIO.succeed(ZSink.fromHub(hub))
     producer <- ZStream.iterate(0)(_ + 1).fixed(1.seconds).run(sink).fork
     consumers <- ZIO.scoped {

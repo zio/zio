@@ -382,7 +382,7 @@ trait Runtime[+R] {
       runtimeConfig,
       StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
-        Map(ZFiberRef.currentEnvironment -> environment.asInstanceOf[AnyRef])
+        Map(FiberRef.currentEnvironment -> environment.asInstanceOf[AnyRef])
       ),
       children
     )

@@ -23,6 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A default runnable spec that provides testable versions of all of the modules
  * in ZIO (Clock, Random, etc).
  */
+@deprecated("Use ZIOSpecDefault instead", "2.0.0")
 abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
 
   override def aspects: List[TestAspectAtLeastR[TestEnvironment]] =
@@ -37,7 +38,9 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
    */
   private[zio] override def runSpec(
     spec: ZSpec[Environment, Failure]
-  )(implicit trace: ZTraceElement): URIO[TestLogger, ExecutedSpec[Failure]] =
+  )(implicit
+    trace: ZTraceElement
+  ): URIO[TestOutput with TestLogger with ExecutionEventSink, Summary] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 
   /**

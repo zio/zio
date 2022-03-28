@@ -29,23 +29,22 @@ import scala.util.{Failure, Success}
 import izumi.reflect.macrortti.LightTypeTag
 
 /**
- * A `ZIO[R, E, A]` value is an immutable value that lazily describes a workflow
- * or job. The workflow requires some environment `R`, and may fail with an
- * error of type `E`, or succeed with a value of type `A`.
+ * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
+ * describes an async, concurrent workflow. In order to be executed, the
+ * workflow requires a value of type `ZEnvironment[R]`, and when executed, the
+ * workflow will either produce a failure of type `E`, or a success of type `A`.
  *
- * These lazy workflows, referred to as _effects_, can be informally thought of
- * as functions in the form:
+ * ZIO effects may informally be thought of as functions of the following form:
  *
  * {{{
- * R => Either[E, A]
+ * ZEnvironment[R] => Either[E, A]
  * }}}
  *
  * ZIO effects model resourceful interaction with the outside world, including
  * synchronous, asynchronous, concurrent, and parallel interaction.
  *
- * ZIO effects use a fiber-based concurrency model, with built-in support for
- * scheduling, fine-grained interruption, structured concurrency, and high
- * scalability.
+ * The async and concurrent operations of ZIO effects are powered by fibers,
+ * which are lightweight, green threads that enable high scalability.
  *
  * To run an effect, you need a `Runtime`, which is capable of executing
  * effects. Runtimes bundle a thread pool together with the environment that
@@ -55,7 +54,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   self =>
 
   /**
-   * Syntax for adding aspects.
+   * Returns a new effect that applies the specified aspect to this effect.
+   * Aspects are "transformers" that modify the behavior of their input in some
+   * well-defined way (for example, adding a timeout).
    */
   final def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
     aspect: => ZIOAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
@@ -619,8 +620,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(v => pf.applyOrElse[A, ZIO[R1, E1, B]](v, _ => ZIO.fail(e)))
 
   /**
-   * Returns a new workflow that will not supervise any fibers forked by this
-   * workflow.
+   * Returns a new effect that will not supervise any fibers forked by this
+   * effect.
    */
   final def daemonChildren(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.suspendSucceed(new ZIO.OverrideForkScope(self, Some(FiberScope.global), trace))
@@ -1008,8 +1009,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.Fork(self, None, trace)
 
   /**
-   * Forks the workflow in the specified scope. The fiber will be interrupted
-   * when the scope is closed.
+   * Forks the effect in the specified scope. The fiber will be interrupted when
+   * the scope is closed.
    */
   final def forkIn(scope: => Scope)(implicit trace: ZTraceElement): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
@@ -1038,7 +1039,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def forkScoped(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).fork.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
+      restore(self).forkDaemon.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
     }
 
   /**
@@ -1092,6 +1093,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def ignore(implicit trace: ZTraceElement): URIO[R, Unit] =
     self.fold(ZIO.unitFn, ZIO.unitFn)
+
+  /**
+   * Returns a new effect that ignores the success or failure of this effect,
+   * but which also logs failures at the Debug level, just in case the failure
+   * turns out to be important.
+   */
+  final def ignoreLogged(implicit trace: ZTraceElement): URIO[R, Unit] =
+    self.foldCause(
+      cause =>
+        ZIO.logLevel(LogLevel.Debug) {
+          ZIO.logCause("An error was silently ignored because it is not anticipated to be useful", cause)
+        },
+      ZIO.unitFn
+    )
 
   /**
    * Returns a new effect that will not succeed with its value before first
@@ -1465,7 +1480,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): IO[E, A] =
-    ZFiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
@@ -2034,6 +2049,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     trace: ZTraceElement
   ): ZIO[R1, E, B] =
     scheduleFrom(())(schedule)
+
+  /**
+   * Runs this effect according to the specified schedule in a new fiber
+   * attached to the global scope
+   */
+  final def scheduleBackground[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1 with Scope, E, Fiber.Runtime[Any, B]] =
+    ZIO.acquireRelease(ZIO.interruptible(self.schedule(schedule)).forkDaemon)(_.interrupt)
 
   /**
    * Runs this effect according to the specified schedule starting from the
@@ -2611,23 +2635,23 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.whenZIO(p)(self)
 
   /**
-   * Treats this workflow as the acquisition of a resource and adds the
-   * specified finalizer to the current scope. This workflow will be run
-   * uninterruptibly and the finalizer will be run when the scope is closed.
+   * Treats this effect as the acquisition of a resource and adds the specified
+   * finalizer to the current scope. This effect will be run uninterruptibly and
+   * the finalizer will be run when the scope is closed.
    */
-  final def withFinalizer[R1 <: R](finalizer: => URIO[R1, Any])(implicit
+  final def withFinalizer[R1 <: R](finalizer: A => URIO[R1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
-    withFinalizerExit(_ => finalizer)
+    ZIO.acquireRelease(self)(finalizer)
 
   /**
    * A more powerful variant of `withFinalizer` that allows the finalizer to
    * depend on the `Exit` value that the scope is closed with.
    */
-  final def withFinalizerExit[R1 <: R](finalizer: Exit[Any, Any] => URIO[R1, Any])(implicit
+  final def withFinalizerExit[R1 <: R](finalizer: (A, Exit[Any, Any]) => URIO[R1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E, A] =
-    ZIO.acquireReleaseExit[R1, E, A](self)((_, exit) => finalizer(exit))
+    ZIO.acquireReleaseExit(self)(finalizer)
 
   /**
    * Runs this effect with the specified maximum number of fibers for parallel
@@ -2794,48 +2818,50 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     environmentWithZIO
 
   /**
-   * Constructs a scoped resource from an `acquire` and `release` workflow. If
+   * Constructs a scoped resource from an `acquire` and `release` effect. If
    * `acquire` successfully completes execution then `release` will be added to
-   * the finalizers associated with the scope of this workflow and is guaranteed
+   * the finalizers associated with the scope of this effect and is guaranteed
    * to be run when the scope is closed.
    *
-   * The `acquire` and `release` workflows will be run uninterruptibly.
+   * The `acquire` and `release` effects will be run uninterruptibly.
    */
-  def acquireRelease[R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R, Nothing, Any])(implicit
+  def acquireRelease[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  ): ZIO[R1 with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
   /**
    * A more powerful variant of `acquireRelease` that allows the `release`
-   * workflow to depend on the `Exit` value specified when the scope is closed.
+   * effect to depend on the `Exit` value specified when the scope is closed.
    */
-  def acquireReleaseExit[R, E, A](acquire: => ZIO[R, E, A])(release: (A, Exit[Any, Any]) => ZIO[R, Nothing, Any])(
-    implicit trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  def acquireReleaseExit[R, R1 <: R, E, A](
+    acquire: => ZIO[R, E, A]
+  )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1 with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
   /**
-   * A variant of `acquireRelease` that allows the `acquire` workflow to be
-   * interruptible. Since the `acquire` workflow could be interrupted after
-   * partially acquiring resources, the `release` workflow is not allowed to
+   * A variant of `acquireRelease` that allows the `acquire` effect to be
+   * interruptible. Since the `acquire` effect could be interrupted after
+   * partially acquiring resources, the `release` effect is not allowed to
    * access the resource produced by `acquire` and must independently determine
    * what finalization, if any, needs to be performed (e.g. by examining in
    * memory state).
    */
-  def acquireReleaseInterruptible[R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R, Nothing, Any])(implicit
+  def acquireReleaseInterruptible[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Scope, E, A] =
+  ): ZIO[R1 with Scope, E, A] =
     acquireReleaseInterruptibleExit(acquire)(_ => release)
 
   /**
    * A more powerful variant of `acquireReleaseInterruptible` that allows the
-   * `release` workflow to depend on the `Exit` value specified when the scope
-   * is closed.
+   * `release` effect to depend on the `Exit` value specified when the scope is
+   * closed.
    */
-  def acquireReleaseInterruptibleExit[R, E, A](acquire: => ZIO[R, E, A])(
-    release: Exit[Any, Any] => ZIO[R, Nothing, Any]
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+  def acquireReleaseInterruptibleExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
+    release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
+  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E, A] =
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
@@ -2920,7 +2946,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     )
 
   /**
-   * Adds a finalizer to the scope of this workflow. The finalizer is guaranteed
+   * Adds a finalizer to the scope of this effect. The finalizer is guaranteed
    * to be run when the scope is closed.
    */
   def addFinalizer[R](finalizer: => URIO[R, Any])(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Any] =
@@ -3713,7 +3739,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Accesses the whole environment of the effect.
    */
   def environment[R](implicit trace: ZTraceElement): URIO[R, ZEnvironment[R]] =
-    ZIO.suspendSucceed(ZFiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
+    ZIO.suspendSucceed(FiberRef.currentEnvironment.get.asInstanceOf[URIO[R, ZEnvironment[R]]])
 
   /**
    * Accesses the environment of the effect.
@@ -4663,7 +4689,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the log annotations associated with the current scope.
    */
   def logAnnotations(implicit trace: ZTraceElement): UIO[Map[String, String]] =
-    ZFiberRef.currentLogAnnotations.get
+    FiberRef.currentLogAnnotations.get
 
   /**
    * Logs the specified message at the debug log level.
@@ -5196,8 +5222,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.service[Scope]
 
   /**
-   * Scopes all resources uses in this workflow to the lifetime of the workflow,
-   * ensuring that their finalizers are run as soon as this workflow completes
+   * Scopes all resources uses in this effect to the lifetime of the effect,
+   * ensuring that their finalizers are run as soon as this effect completes
    * execution, whether by success, failure, or interruption.
    *
    * {{{
@@ -5210,7 +5236,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ScopedPartiallyApplied[R]
 
   /**
-   * Accesses the current scope and uses it to perform the specified workflow.
+   * Accesses the current scope and uses it to perform the specified effect.
    */
   def scopeWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
     ZIO.serviceWithZIO[Scope](f)
@@ -5327,6 +5353,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def some[A](a: => A)(implicit trace: ZTraceElement): UIO[Option[A]] =
     succeed(Some(a))
+
+  /**
+   * Provides a stateful ZIO workflow with its initial state, resulting in a
+   * workflow that is ready to be run.
+   *
+   * {{{
+   * ZIO.stateful(0) {
+   *   for {
+   *       _     <- ZIO.updateState[Int](_ + 1)
+   *       state <- ZIO.getState[Int]
+   *     } yield assertTrue(state == 1)
+   *   }
+   * }}}
+   */
+  def stateful[R]: StatefulPartiallyApplied[R] =
+    new StatefulPartiallyApplied[R]
 
   /**
    * Returns an effect that models success with the specified value.
@@ -5760,6 +5802,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       acquireReleaseWith(io)(a => ZIO.succeed(a.close()))(use)
 
     /**
+     * Like `withFinalizer, add a finalizer from AutoClosable.
+     */
+    def withFinalizerAuto(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
+      ZIO.acquireRelease(io)(a => ZIO.succeed(a.close()))
+
+    /**
      * Like `bracket`, safely wraps a use and release of a resource. This
      * resource will get automatically closed, because it implements
      * `AutoCloseable`.
@@ -5944,9 +5992,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
       ZIO.suspendSucceed {
-        ZFiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
+        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
       }
     }
+  }
+
+  final class StatefulPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[S, E, A](
+      s: S
+    )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[R, E, A] =
+      ZState.make(s).flatMap { state =>
+        zio.provideSomeEnvironment[R](_.union[ZState[S]](ZEnvironment(state)))
+      }
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
@@ -6519,7 +6576,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefGetAll[R, E, A](
-    val make: Map[ZFiberRef.Runtime[_], Any] => ZIO[R, E, A],
+    val make: Map[FiberRef[_], Any] => ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
@@ -6529,7 +6586,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefModify[A, B](
-    val fiberRef: FiberRef.Runtime[A],
+    val fiberRef: FiberRef[A],
     val f: A => (B, A),
     val trace: ZTraceElement
   ) extends UIO[B] {
@@ -6541,7 +6598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   private[zio] final class FiberRefLocally[V, R, E, A](
     val localValue: V,
-    val fiberRef: FiberRef.Runtime[V],
+    val fiberRef: FiberRef[V],
     val zio: ZIO[R, E, A],
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
@@ -6552,7 +6609,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefDelete(
-    val fiberRef: FiberRef.Runtime[_],
+    val fiberRef: FiberRef[_],
     val trace: ZTraceElement
   ) extends UIO[Unit] {
     def unsafeLog: () => String =
@@ -6562,7 +6619,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class FiberRefWith[R, E, A, B](
-    val fiberRef: FiberRef.Runtime[A],
+    val fiberRef: FiberRef[A],
     val f: A => ZIO[R, E, B],
     val trace: ZTraceElement
   ) extends ZIO[R, E, B] {
@@ -6640,7 +6697,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val cause: Cause[Any],
     val overrideLogLevel: Option[LogLevel],
     val trace: ZTraceElement,
-    val overrideRef1: FiberRef.Runtime[_] = null,
+    val overrideRef1: FiberRef[_] = null,
     val overrideValue1: AnyRef = null
   ) extends ZIO[Any, Nothing, Unit] {
     def unsafeLog: () => String =

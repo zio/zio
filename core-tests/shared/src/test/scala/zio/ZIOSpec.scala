@@ -168,7 +168,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("acquireReleaseExitWith beast mode error handling") {
         val releaseDied: Throwable = new RuntimeException("release died")
         for {
-          released <- ZRef.make(false)
+          released <- Ref.make(false)
           exit <- ZIO
                     .acquireReleaseExitWith[Any, String, Int, Int](
                       ZIO.succeed(42),

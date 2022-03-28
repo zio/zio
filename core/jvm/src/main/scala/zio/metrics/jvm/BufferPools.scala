@@ -17,7 +17,7 @@ final case class BufferPools(
 
 object BufferPools {
   @silent("JavaConverters")
-  val live: ZLayer[JvmMetricsSchedule, Throwable, BufferPools] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, Reloadable[BufferPools]] =
     ZLayer.scoped {
       for {
         bufferPoolMXBeans <- ZIO.attempt(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala)
@@ -50,10 +50,9 @@ object BufferPools {
                                 })
 
         schedule <- ZIO.service[JvmMetricsSchedule]
-        _        <- bufferPoolUsedBytes.launch(schedule.value)
-        _        <- bufferPoolCapacityBytes.launch(schedule.value)
-        _        <- bufferPoolUsedBuffers.launch(schedule.value)
-        // TODO: periodically update the list of pools
+        _        <- bufferPoolUsedBytes.launch(schedule.updateMetrics)
+        _        <- bufferPoolCapacityBytes.launch(schedule.updateMetrics)
+        _        <- bufferPoolUsedBuffers.launch(schedule.updateMetrics)
       } yield BufferPools(bufferPoolUsedBytes, bufferPoolCapacityBytes, bufferPoolUsedBuffers)
-    }
+    }.reloadableAutoFromConfig[JvmMetricsSchedule](config => config.get.reloadDynamicMetrics)
 }

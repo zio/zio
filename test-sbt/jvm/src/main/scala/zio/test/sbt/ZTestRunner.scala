@@ -96,6 +96,7 @@ object ZTestTask {
     disectTask(taskDef, testClassLoader) match {
       case NewSpecWrapper(zioSpec) =>
         new ZTestTaskNew(taskDef, testClassLoader, sendSummary, args, zioSpec)
+
       case LegacySpecWrapper(abstractRunnableSpec) =>
         new ZTestTaskLegacy(taskDef, testClassLoader, sendSummary, args, abstractRunnableSpec)
     }
@@ -128,7 +129,7 @@ abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 
-case class MergedSpec(spec: ZTestTaskNew, merges: Int)
+case class MergedSpec(spec: ZTestTaskNew)
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
@@ -141,32 +142,20 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
             case taskNew: ZTestTaskNew =>
               newTests match {
                 case existingNewTestTask :: otherTasks =>
-                  if (existingNewTestTask.merges < 1) {
-                    (
-                      MergedSpec(
-                        new ZTestTaskNew(
-                          existingNewTestTask.spec.taskDef,
-                          existingNewTestTask.spec.testClassLoader,
-                          existingNewTestTask.spec.sendSummary zip taskNew.sendSummary,
-                          existingNewTestTask.spec.args,
-                          existingNewTestTask.spec.newSpec <> taskNew.newSpec
-                        ),
-                        existingNewTestTask.merges + 1
-                      ) :: otherTasks,
-                      legacyTests
-                    )
-                  } else {
-                    (
-                      MergedSpec(
-                        taskNew,
-                        1
-                      ) :: existingNewTestTask :: otherTasks,
-                      legacyTests
-                    )
-                  }
-
+                  (
+                    MergedSpec(
+                      new ZTestTaskNew(
+                        existingNewTestTask.spec.taskDef,
+                        existingNewTestTask.spec.testClassLoader,
+                        existingNewTestTask.spec.sendSummary,
+                        existingNewTestTask.spec.args,
+                        existingNewTestTask.spec.newSpec <> taskNew.newSpec
+                      )
+                    ) :: otherTasks,
+                    legacyTests
+                  )
                 case _ =>
-                  (List(MergedSpec(taskNew, 1)), legacyTests)
+                  (List(MergedSpec(taskNew)), legacyTests)
               }
             case other =>
               throw new RuntimeException("Other case: " + other)

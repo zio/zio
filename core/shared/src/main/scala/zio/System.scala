@@ -46,6 +46,33 @@ trait System extends Serializable {
   def propertyOrOption(prop: => String, alt: => Option[String])(implicit
     trace: ZTraceElement
   ): IO[Throwable, Option[String]]
+
+  private[zio] def unsafeEnv(variable: String): Option[String] =
+    Runtime.default.unsafeRun(env(variable)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeEnvOrElse(variable: String, alt: => String): String =
+    Runtime.default.unsafeRun(envOrElse(variable, alt)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String]): Option[String] =
+    Runtime.default.unsafeRun(envOrOption(variable, alt)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeEnvs(): Map[String, String] =
+    Runtime.default.unsafeRun(envs(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeLineSeparator(): String =
+    Runtime.default.unsafeRun(lineSeparator(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeProperties(): Map[String, String] =
+    Runtime.default.unsafeRun(properties(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafeProperty(prop: String): Option[String] =
+    Runtime.default.unsafeRun(property(prop)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafePropertyOrElse(prop: String, alt: => String): String =
+    Runtime.default.unsafeRun(propertyOrElse(prop, alt)(ZTraceElement.empty))(ZTraceElement.empty)
+
+  private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String]): Option[String] =
+    Runtime.default.unsafeRun(propertyOrOption(prop, alt)(ZTraceElement.empty))(ZTraceElement.empty)
 }
 
 object System extends Serializable {
@@ -62,59 +89,81 @@ object System extends Serializable {
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
-      IO.attempt(Option(JSystem.getenv(variable))).refineToOrDie[SecurityException]
+      IO.attempt(unsafeEnv(variable)).refineToOrDie[SecurityException]
 
     def envOrElse(variable: => String, alt: => String)(implicit trace: ZTraceElement): IO[SecurityException, String] =
-      envOrElseWith(variable, alt)(env(_))
+      IO.attempt(unsafeEnvOrElse(variable, alt)).refineToOrDie[SecurityException]
 
     def envOrOption(variable: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
     ): IO[SecurityException, Option[String]] =
-      envOrOptionWith(variable, alt)(env(_))
+      IO.attempt(unsafeEnvOrOption(variable, alt)).refineToOrDie[SecurityException]
 
-    @silent("JavaConverters")
     def envs(implicit trace: ZTraceElement): IO[SecurityException, Map[String, String]] =
-      IO.attempt(JSystem.getenv.asScala.toMap).refineToOrDie[SecurityException]
+      IO.attempt(unsafeEnvs()).refineToOrDie[SecurityException]
 
     def lineSeparator(implicit trace: ZTraceElement): UIO[String] =
-      IO.succeed(JSystem.lineSeparator)
+      IO.succeed(unsafeLineSeparator())
 
-    @silent("JavaConverters")
     def properties(implicit trace: ZTraceElement): IO[Throwable, Map[String, String]] =
-      IO.attempt(JSystem.getProperties.asScala.toMap)
+      IO.attempt(unsafeProperties())
 
     def property(prop: => String)(implicit trace: ZTraceElement): IO[Throwable, Option[String]] =
-      IO.attempt(Option(JSystem.getProperty(prop)))
+      IO.attempt(unsafeProperty(prop))
 
     def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): IO[Throwable, String] =
-      propertyOrElseWith(prop, alt)(property(_))
+      IO.attempt(unsafePropertyOrElse(prop, alt))
 
     def propertyOrOption(prop: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
     ): IO[Throwable, Option[String]] =
-      propertyOrOptionWith(prop, alt)(property(_))
+      IO.attempt(unsafePropertyOrOption(prop, alt))
 
+    override private[zio] def unsafeEnv(variable: String): Option[String] =
+      Option(JSystem.getenv(variable))
+
+    override private[zio] def unsafeEnvOrElse(variable: String, alt: => String): String =
+      envOrElseWith(variable, alt)(unsafeEnv)
+
+    override private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String]): Option[String] =
+      envOrOptionWith(variable, alt)(unsafeEnv)
+
+    @silent("JavaConverters")
+    override private[zio] def unsafeEnvs(): Map[String, String] =
+      JSystem.getenv.asScala.toMap
+
+    override private[zio] def unsafeLineSeparator(): String =
+      JSystem.lineSeparator
+
+    @silent("JavaConverters")
+    override private[zio] def unsafeProperties(): Map[String, String] =
+      JSystem.getProperties.asScala.toMap
+
+    override private[zio] def unsafeProperty(prop: String): Option[String] =
+      Option(JSystem.getProperty(prop))
+
+    override private[zio] def unsafePropertyOrElse(prop: String, alt: => String): String =
+      propertyOrElseWith(prop, alt)(unsafeProperty)
+
+    override private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String]): Option[String] =
+      propertyOrOptionWith(prop, alt)(unsafeProperty)
   }
 
-  private[zio] def envOrElseWith(variable: => String, alt: => String)(
-    env: String => IO[SecurityException, Option[String]]
-  )(implicit trace: ZTraceElement): IO[SecurityException, String] =
-    env(variable).map(_.getOrElse(alt))
+  private[zio] def envOrElseWith(variable: String, alt: => String)(env: String => Option[String]): String =
+    env(variable).getOrElse(alt)
 
-  private[zio] def envOrOptionWith(variable: => String, alt: => Option[String])(
-    env: String => IO[SecurityException, Option[String]]
-  )(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
-    env(variable).map(_.orElse(alt))
+  private[zio] def envOrOptionWith(variable: String, alt: => Option[String])(
+    env: String => Option[String]
+  ): Option[String] =
+    env(variable).orElse(alt)
 
-  private[zio] def propertyOrElseWith(prop: => String, alt: => String)(
-    property: String => IO[Throwable, Option[String]]
-  )(implicit trace: ZTraceElement): IO[Throwable, String] =
-    property(prop).map(_.getOrElse(alt))
+  private[zio] def propertyOrElseWith(prop: String, alt: => String)(property: String => Option[String]): String =
+    property(prop).getOrElse(alt)
 
-  private[zio] def propertyOrOptionWith(prop: => String, alt: => Option[String])(
-    property: String => IO[Throwable, Option[String]]
-  )(implicit trace: ZTraceElement): IO[Throwable, Option[String]] =
-    property(prop).map(_.orElse(alt))
+  private[zio] def propertyOrOptionWith(prop: String, alt: => Option[String])(
+    property: String => Option[String]
+  ): Option[String] =
+    property(prop).orElse(alt)
 
   /**
    * Retrieves the value of an environment variable.

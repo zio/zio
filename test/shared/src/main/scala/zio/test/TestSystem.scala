@@ -48,20 +48,20 @@ trait TestSystem extends System with Restorable {
 
 object TestSystem extends Serializable {
 
-  final case class Test(systemState: Ref[TestSystem.Data]) extends System with TestSystem {
+  final case class Test(systemState: Ref.Atomic[TestSystem.Data]) extends System with TestSystem {
 
     /**
      * Returns the specified environment variable if it exists.
      */
     def env(variable: => String)(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
-      systemState.get.map(_.envs.get(variable))
+      ZIO.succeed(unsafeEnv(variable))
 
     /**
      * Returns the specified environment variable if it exists or else the
      * specified fallback value.
      */
     def envOrElse(variable: => String, alt: => String)(implicit trace: ZTraceElement): IO[SecurityException, String] =
-      System.envOrElseWith(variable, alt)(env(_))
+      ZIO.succeed(unsafeEnvOrElse(variable, alt))
 
     /**
      * Returns the specified environment variable if it exists or else the
@@ -70,32 +70,32 @@ object TestSystem extends Serializable {
     def envOrOption(variable: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
     ): IO[SecurityException, Option[String]] =
-      System.envOrOptionWith(variable, alt)(env(_))
+      ZIO.succeed(unsafeEnvOrOption(variable, alt))
 
     def envs(implicit trace: ZTraceElement): ZIO[Any, SecurityException, Map[String, String]] =
-      systemState.get.map(_.envs)
+      ZIO.succeed(unsafeEnvs())
 
     /**
      * Returns the system line separator.
      */
     def lineSeparator(implicit trace: ZTraceElement): UIO[String] =
-      systemState.get.map(_.lineSeparator)
+      ZIO.succeed(unsafeLineSeparator())
 
     def properties(implicit trace: ZTraceElement): ZIO[Any, Throwable, Map[String, String]] =
-      systemState.get.map(_.properties)
+      ZIO.succeed(unsafeProperties())
 
     /**
      * Returns the specified system property if it exists.
      */
     def property(prop: => String)(implicit trace: ZTraceElement): IO[Throwable, Option[String]] =
-      systemState.get.map(_.properties.get(prop))
+      ZIO.succeed(unsafeProperty(prop))
 
     /**
      * Returns the specified system property if it exists or else the specified
      * fallback value.
      */
     def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): IO[Throwable, String] =
-      System.propertyOrElseWith(prop, alt)(property(_))
+      ZIO.succeed(unsafePropertyOrElse(prop, alt))
 
     /**
      * Returns the specified system property if it exists or else the specified
@@ -104,7 +104,7 @@ object TestSystem extends Serializable {
     def propertyOrOption(prop: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
     ): IO[Throwable, Option[String]] =
-      System.propertyOrOptionWith(prop, alt)(property(_))
+      ZIO.succeed(unsafePropertyOrOption(prop, alt))
 
     /**
      * Adds the specified name and value to the mapping of environment variables
@@ -147,6 +147,33 @@ object TestSystem extends Serializable {
       for {
         systemData <- systemState.get
       } yield systemState.set(systemData)
+
+    override private[zio] def unsafeEnv(variable: String): Option[String] =
+      systemState.unsafeGet.envs.get(variable)
+
+    override private[zio] def unsafeEnvOrElse(variable: String, alt: => String): String =
+      System.envOrElseWith(variable, alt)(unsafeEnv)
+
+    override private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String]): Option[String] =
+      System.envOrOptionWith(variable, alt)(unsafeEnv)
+
+    override private[zio] def unsafeEnvs(): Map[String, String] =
+      systemState.unsafeGet.envs
+
+    override private[zio] def unsafeLineSeparator(): String =
+      systemState.unsafeGet.lineSeparator
+
+    override private[zio] def unsafeProperties(): Map[String, String] =
+      systemState.unsafeGet.properties
+
+    override private[zio] def unsafeProperty(prop: String): Option[String] =
+      systemState.unsafeGet.properties.get(prop)
+
+    override private[zio] def unsafePropertyOrElse(prop: String, alt: => String): String =
+      System.propertyOrElseWith(prop, alt)(unsafeProperty)
+
+    override private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String]): Option[String] =
+      System.propertyOrOptionWith(prop, alt)(unsafeProperty)
   }
 
   /**
@@ -165,7 +192,7 @@ object TestSystem extends Serializable {
     implicit val trace: ZTraceElement = Tracer.newTrace
     ZLayer.scoped {
       for {
-        ref <- Ref.make(data)
+        ref <- ZIO.succeed(Ref.unsafeMake(data))
         test = Test(ref)
         _   <- ZEnv.system.locallyScoped(test)
       } yield test

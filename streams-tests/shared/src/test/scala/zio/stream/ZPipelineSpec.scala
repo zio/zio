@@ -9,6 +9,30 @@ import scala.io.Source
 object ZPipelineSpec extends ZIOBaseSpec {
   def spec =
     suite("ZPipelineSpec")(
+      suite("groupAdjacentBy")(
+        test("groups elements across chunks") {
+          ZStream
+            .fromChunks(Chunk(10, 20), Chunk(30, 11, 21), Chunk(19, 42, 62, 13), Chunk(54, 32), Chunk(92))
+            .via(ZPipeline.groupAdjacentBy(i => i.toString.last))
+            .map(_._2)
+            .runCollect
+            .map(res =>
+              assert(res)(
+                equalTo(
+                  Chunk(
+                    NonEmptyChunk(10, 20, 30),
+                    NonEmptyChunk(11, 21),
+                    NonEmptyChunk(19),
+                    NonEmptyChunk(42, 62),
+                    NonEmptyChunk(13),
+                    NonEmptyChunk(54),
+                    NonEmptyChunk(32, 92)
+                  )
+                )
+              )
+            )
+        }
+      ),
       suite("utf8Encode")(
         test("encode chunks") {
           ZStream

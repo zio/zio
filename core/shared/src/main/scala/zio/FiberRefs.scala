@@ -23,26 +23,26 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * This allows safely propagating `FiberRef` values across fiber boundaries, for
  * example between an asynchronous producer and consumer.
  */
-final class FiberRefs private (private val fiberRefLocals: Map[FiberRef.Runtime[_], Any]) { self =>
+final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]) { self =>
 
   /**
    * Returns a set of each `FiberRef` in this collection.
    */
-  def fiberRefs: Set[FiberRef.Runtime[_]] =
+  def fiberRefs: Set[FiberRef[_]] =
     fiberRefLocals.keySet
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
    * values if it exists or `None` otherwise.
    */
-  def get[A](fiberRef: FiberRef.Runtime[A]): Option[A] =
+  def get[A](fiberRef: FiberRef[A]): Option[A] =
     fiberRefLocals.get(fiberRef).map(_.asInstanceOf[A])
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
    * values if it exists or the `initial` value of the `FiberRef` otherwise.
    */
-  def getOrDefault[A](fiberRef: FiberRef.Runtime[A]): A =
+  def getOrDefault[A](fiberRef: FiberRef[A]): A =
     get(fiberRef).getOrElse(fiberRef.initial)
 
   /**
@@ -51,12 +51,12 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef.Runtime[
    */
   def setAll(implicit trace: ZTraceElement): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
-      fiberRef.asInstanceOf[FiberRef.Runtime[Any]].set(getOrDefault(fiberRef))
+      fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
     }
 }
 
 object FiberRefs {
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef.Runtime[_], Any]): FiberRefs =
+  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], Any]): FiberRefs =
     new FiberRefs(fiberRefLocals)
 }

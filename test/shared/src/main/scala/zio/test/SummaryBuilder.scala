@@ -16,48 +16,67 @@
 
 package zio.test
 
-import zio.{Chunk, ZTraceElement}
+import zio.ZTraceElement
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
 import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
-  def buildSummary[E](executedSpec: ExecutedSpec[E])(implicit trace: ZTraceElement): Summary = {
-    val success = countTestResults(executedSpec) {
+
+  def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
+    val success = countTestResults(reporterEvent) {
       case Right(TestSuccess.Succeeded(_)) => true
       case _                               => false
     }
-    val fail = countTestResults(executedSpec)(_.isLeft)
-    val ignore = countTestResults(executedSpec) {
+    val fail = countTestResults(reporterEvent) {
+      case Right(_) => false
+      case _        => true
+    }
+    val ignore = countTestResults(reporterEvent) {
       case Right(TestSuccess.Ignored) => true
       case _                          => false
     }
-    val failures = extractFailures(executedSpec)
-    val rendered = ConsoleRenderer
-      .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
-      .mkString("\n")
-    Summary(success, fail, ignore, rendered)
+    val failures = extractFailures(reporterEvent)
+
+    val rendered =
+      //      TODO Check impact of hard-coded false here
+      ConsoleRenderer
+        .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
+        .mkString("\n")
+
+    val newSummaryPiece = Summary(success, fail, ignore, rendered)
+    Summary(
+      oldSummary.success + newSummaryPiece.success,
+      oldSummary.fail + newSummaryPiece.fail,
+      oldSummary.ignore + newSummaryPiece.ignore,
+      oldSummary.summary + newSummaryPiece.summary
+    )
+
   }
 
-  private def countTestResults[E](
-    executedSpec: ExecutedSpec[E]
-  )(pred: Either[TestFailure[E], TestSuccess] => Boolean): Int =
-    executedSpec.fold[Int] { c =>
-      c match {
-        case ExecutedSpec.LabeledCase(_, count) => count
-        case ExecutedSpec.MultipleCase(counts)  => counts.sum
-        case ExecutedSpec.TestCase(test, _)     => if (pred(test)) 1 else 0
-      }
+  private def countTestResults(
+    executedSpec: ExecutionEvent
+  )(pred: Either[TestFailure[_], TestSuccess] => Boolean): Int =
+    executedSpec match {
+      case Test(_, test, _, _, _, _) =>
+        if (pred(test)) 1 else 0
+      case RuntimeFailure(_, _, _, _) =>
+        0
+
+      case SectionStart(_, _, _) => 0
+      case SectionEnd(_, _, _)   => 0
     }
 
-  private def extractFailures[E](executedSpec: ExecutedSpec[E]): Seq[ExecutedSpec[E]] =
-    executedSpec.fold[Seq[ExecutedSpec[E]]] { c =>
-      c match {
-        case ExecutedSpec.LabeledCase(label, specs) =>
-          specs.map(spec => ExecutedSpec.labeled(label, spec))
-        case ExecutedSpec.MultipleCase(specs) =>
-          val newSpecs = specs.flatMap(Chunk.fromIterable)
-          if (newSpecs.nonEmpty) Seq(ExecutedSpec(ExecutedSpec.MultipleCase(newSpecs))) else Seq.empty
-        case c @ ExecutedSpec.TestCase(test, _) => if (test.isLeft) Seq(ExecutedSpec(c)) else Seq.empty
-      }
+  private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =
+    reporterEvent match {
+      case Test(_, test, _, _, _, _) =>
+        test match {
+          case Left(_) =>
+            Seq(reporterEvent)
+          case _ =>
+            Seq.empty
+        }
+      case RuntimeFailure(_, _, _, _) => Seq(reporterEvent)
+      case _                          => Seq.empty
     }
 }

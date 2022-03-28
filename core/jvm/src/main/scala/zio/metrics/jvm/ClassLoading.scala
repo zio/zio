@@ -39,9 +39,9 @@ object ClassLoading {
           )
 
         schedule <- ZIO.service[JvmMetricsSchedule]
-        _        <- loadedClassCount.launch(schedule.value)
-        _        <- totalLoadedClassCount.launch(schedule.value)
-        _        <- unloadedClassCount.launch(schedule.value)
+        _        <- loadedClassCount.launch(schedule.updateMetrics)
+        _        <- totalLoadedClassCount.launch(schedule.updateMetrics)
+        _        <- unloadedClassCount.launch(schedule.updateMetrics)
       } yield ClassLoading(loadedClassCount, totalLoadedClassCount, unloadedClassCount)
     }
 }

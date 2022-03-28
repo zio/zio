@@ -73,7 +73,7 @@ trait TestConsole extends Console with Restorable {
 object TestConsole extends Serializable {
 
   case class Test(
-    consoleState: Ref[TestConsole.Data],
+    consoleState: Ref.Atomic[TestConsole.Data],
     live: Live,
     debugState: FiberRef[Boolean]
   ) extends Console
@@ -112,14 +112,7 @@ object TestConsole extends Serializable {
      * with an `EOFException`.
      */
     def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
-      for {
-        input <- consoleState.get.flatMap(d =>
-                   ZIO
-                     .fromOption(d.input.headOption)
-                     .orElseFail(new EOFException("There is no more input left to read"))
-                 )
-        _ <- consoleState.update(data => Data(data.input.tail, data.output, data.errOutput))
-      } yield input
+      ZIO.attempt(unsafeReadLine()).refineToOrDie[IOException]
 
     /**
      * Returns the contents of the output buffer. The first value written to the
@@ -139,35 +132,31 @@ object TestConsole extends Serializable {
      * Writes the specified string to the output buffer.
      */
     override def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ line.toString, data.errOutput)
-      } *> live.provide(Console.print(line)).whenZIO(debugState.get).unit
+      ZIO.succeed(unsafePrint(line)) *>
+        live.provide(Console.print(line)).whenZIO(debugState.get).unit
 
     /**
      * Writes the specified string to the error buffer.
      */
     override def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output, data.errOutput :+ line.toString)
-      } *> live.provide(Console.printError(line)).whenZIO(debugState.get).unit
+      ZIO.succeed(unsafePrintError(line)) *>
+        live.provide(Console.printError(line)).whenZIO(debugState.get).unit
 
     /**
      * Writes the specified string to the output buffer followed by a newline
      * character.
      */
     override def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output :+ s"$line\n", data.errOutput)
-      } *> live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
+      ZIO.succeed(unsafePrintLine(line)) *>
+        live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
 
     /**
      * Writes the specified string to the error buffer followed by a newline
      * character.
      */
     override def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-      consoleState.update { data =>
-        Data(data.input, data.output, data.errOutput :+ s"$line\n")
-      } *> live.provide(Console.printLineError(line)).whenZIO(debugState.get).unit
+      ZIO.succeed(unsafePrintLineError(line)) *>
+        live.provide(Console.printLineError(line)).whenZIO(debugState.get).unit
 
     /**
      * Saves the `TestConsole`'s current state in an effect which, when run,
@@ -185,6 +174,37 @@ object TestConsole extends Serializable {
      */
     def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       debugState.locally(false)(zio)
+
+    override private[zio] def unsafePrint(line: Any): Unit =
+      consoleState.unsafeUpdate { data =>
+        Data(data.input, data.output :+ line.toString, data.errOutput)
+      }
+
+    override private[zio] def unsafePrintError(line: Any): Unit =
+      consoleState.unsafeUpdate { data =>
+        Data(data.input, data.output, data.errOutput :+ line.toString)
+      }
+
+    override private[zio] def unsafePrintLine(line: Any): Unit =
+      consoleState.unsafeUpdate { data =>
+        Data(data.input, data.output :+ s"$line\n", data.errOutput)
+      }
+
+    override private[zio] def unsafePrintLineError(line: Any): Unit =
+      consoleState.unsafeUpdate { data =>
+        Data(data.input, data.output, data.errOutput :+ s"$line\n")
+      }
+
+    override private[zio] def unsafeReadLine(): String =
+      consoleState.unsafeModify { data =>
+        data.input match {
+          case head :: tail =>
+            head -> Data(tail, data.output, data.errOutput)
+          case Nil =>
+            throw new EOFException("There is no more input left to read")
+
+        }
+      }
   }
 
   /**
@@ -197,7 +217,7 @@ object TestConsole extends Serializable {
     ZLayer.scoped {
       for {
         live     <- ZIO.service[Live]
-        ref      <- Ref.make(data)
+        ref      <- ZIO.succeed(Ref.unsafeMake(data))
         debugRef <- FiberRef.make(debug)
         test      = Test(ref, live, debugRef)
         _        <- ZEnv.console.locallyScoped(test)

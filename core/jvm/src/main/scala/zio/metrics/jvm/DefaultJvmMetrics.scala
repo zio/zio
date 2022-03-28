@@ -28,7 +28,9 @@ trait DefaultJvmMetrics {
   lazy val live: ZLayer[
     Any,
     Throwable,
-    BufferPools with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard with Thread with VersionInfo
+    Reloadable[
+      BufferPools
+    ] with ClassLoading with GarbageCollector with MemoryAllocation with MemoryPools with Standard with Thread with VersionInfo
   ] =
     jvmMetricsSchedule >>>
       (BufferPools.live ++

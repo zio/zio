@@ -27,6 +27,16 @@ object TestingSupport {
   def assertEquals(what: String, actual: => Any, expected: Any): Unit =
     assert(actual == expected, s"$what:\n  expected: `$expected`\n  actual  : `$actual`")
 
+  /*
+   * Now that we don't guarantee order of output within a suite, we can't assertEquals on
+   * an entire tree of Spec output
+   */
+  def assertContains(what: String, actual: => Seq[String], expected: Seq[String]): Unit = {
+    val splitByNewLines = actual.flatMap(_.split("\n"))
+    val msg             = s"""$what:\nexpected to contain:\n${expected.mkString("\n")}\nactual:\n${actual.mkString("\n")}"""
+    assert(splitByNewLines.sliding(expected.size).contains(expected), msg)
+  }
+
   def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"
   lazy val red: String => String                 = colored(Console.RED) _
   lazy val green: String => String               = colored(Console.GREEN) _

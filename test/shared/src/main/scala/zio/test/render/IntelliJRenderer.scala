@@ -5,7 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Message
-import zio.test.{TestAnnotation, TestAnnotationRenderer}
+import zio.test.{Summary, TestAnnotation, TestAnnotationRenderer}
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -70,6 +70,9 @@ trait IntelliJRenderer extends TestRenderer {
       case annotations :: _ => locationRenderer.run(Nil, annotations).mkString
       case Nil              => ""
     }
+
+  def render(summary: Summary): String =
+    s""" ${summary.success}  tests passed  ${summary.fail}  tests failed ${summary.ignore}   tests ignored """
 }
 object IntelliJRenderer extends IntelliJRenderer {
   private type Graph[A] = Map[Int, List[Node[A]]]

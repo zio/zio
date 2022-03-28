@@ -27,7 +27,7 @@ import zio.test.{
   ZIOSpecAbstract,
   sbt
 }
-import zio.{Chunk, Exit, Layer, Runtime, Scope, ULayer, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs}
 
 import scala.collection.mutable
 
@@ -98,34 +98,24 @@ sealed class ZTestTask(
     spec match {
       case NewSpecWrapper(zioSpec) => {
 
-        val argslayer: ULayer[ZIOAppArgs] =
-          ZLayer.succeed(
-            ZIOAppArgs(Chunk.empty)
-          )
-
-        val filledTestlayer: ZLayer[Scope, Nothing, TestEnvironment] =
-          zio.ZEnv.live >>> TestEnvironment.live
-
-        val layer: ZLayer[Scope, Error, zioSpec.Environment] =
-          (argslayer +!+ filledTestlayer) >>> zioSpec.layer.mapError(e => new Error(e.toString))
-
         val fullLayer: Layer[
           Error,
-          zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope
+          zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
         ] =
-          Scope.default >>> (layer +!+ argslayer +!+ filledTestlayer +!+ ZLayer.environment[Scope])
+          constructLayer[zioSpec.Environment](zioSpec.layer)
 
-        val testLoggers: Layer[Nothing, TestLogger] = sbtTestLayer(loggers)
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
             for {
-              spec <- zioSpec
-                        .runSpec(FilteredSpec(zioSpec.spec, args), args, sendSummary)
-                        .provideLayer(
-                          testLoggers +!+ fullLayer
-                        )
-              events = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
-              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
+              _ <- zioSpec
+                     .runSpec(FilteredSpec(zioSpec.spec, args), args)
+                     .provideLayer(
+                       fullLayer
+                     )
+              // TODO Confirm if/how these events needs to be handled in #6481
+              //    Check XML behavior
+              //              events = ZTestEvent.from(taskDef.fullyQualifiedName(), taskDef.fingerprint())
+              //              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
             } yield ()
           logic
             .onError(e => ZIO.succeed(println(e.prettyPrint)))
@@ -140,7 +130,7 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec)
-            .provide(sbtTestLayer(loggers))
+            .provide(sharedFilledTestlayer)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

@@ -89,14 +89,13 @@ object Thread {
           )
 
         schedule <- ZIO.service[JvmMetricsSchedule]
-        _        <- threadsCurrent.launch(schedule.value)
-        _        <- threadsDaemon.launch(schedule.value)
-        _        <- threadsPeak.launch(schedule.value)
-        _        <- threadsStartedTotal.launch(schedule.value)
-        _        <- threadsDeadlocked.launch(schedule.value)
-        _        <- threadsDeadlockedMonitor.launch(schedule.value)
-        _        <- ZIO.acquireRelease(refreshThreadStateCounts(threadMXBean).repeat(schedule.value).forkDaemon)(_.interrupt)
-
+        _        <- threadsCurrent.launch(schedule.updateMetrics)
+        _        <- threadsDaemon.launch(schedule.updateMetrics)
+        _        <- threadsPeak.launch(schedule.updateMetrics)
+        _        <- threadsStartedTotal.launch(schedule.updateMetrics)
+        _        <- threadsDeadlocked.launch(schedule.updateMetrics)
+        _        <- threadsDeadlockedMonitor.launch(schedule.updateMetrics)
+        _        <- refreshThreadStateCounts(threadMXBean).scheduleBackground(schedule.updateMetrics)
       } yield Thread(
         threadsCurrent,
         threadsDaemon,

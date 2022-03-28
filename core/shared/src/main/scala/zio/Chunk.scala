@@ -1058,16 +1058,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   /**
-   * Returns the empty chunk.
-   */
-  val empty: Chunk[Nothing] =
-    Empty
-
-  /**
    * Returns a chunk from a number of values.
    */
   override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
+
+  /**
+   * Returns the empty chunk.
+   */
+  override def empty[A]: Chunk[A] =
+    Empty
 
   /**
    * Returns a chunk backed by an array.
@@ -1203,6 +1203,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
       builder.result()
     }
+
+  def newBuilder[A]: ChunkBuilder[A] =
+    ChunkBuilder.make()
 
   /**
    * Returns a singleton chunk, eagerly evaluated.

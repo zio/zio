@@ -971,7 +971,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ZManaged.unsandbox(f(self.sandbox))
 
   def scoped(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
-    ZIO.acquireReleaseExit(self.zio) { case ((finalizer, _), exit) => finalizer(exit) }.map(_._2)
+    for {
+      scope      <- ZIO.scope
+      releaseMap <- ZManaged.ReleaseMap.make
+      _          <- scope.addFinalizerExit(releaseMap.releaseAll(_, ExecutionStrategy.Sequential))
+      tuple      <- ZManaged.currentReleaseMap.locally(releaseMap)(zio)
+      (_, a)      = tuple
+    } yield a
 
   /**
    * Converts an option on values into an option on errors.
@@ -2686,7 +2692,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    * Retrieves current log annotations.
    */
   def logAnnotations(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Map[String, String]] =
-    ZManaged.fromZIO(ZFiberRef.currentLogAnnotations.get)
+    ZManaged.fromZIO(FiberRef.currentLogAnnotations.get)
 
   /**
    * Logs the specified message at the debug log level.

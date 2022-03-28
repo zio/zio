@@ -38,16 +38,16 @@ object ZEnv {
     Clock.live ++ Console.live ++ System.live ++ Random.live
 
   val clock: FiberRef[Clock] =
-    ZFiberRef.unsafeMake(Clock.ClockLive)
+    FiberRef.unsafeMake(Clock.ClockLive)
 
   val console: FiberRef[Console] =
-    ZFiberRef.unsafeMake(Console.ConsoleLive)
+    FiberRef.unsafeMake(Console.ConsoleLive)
 
   val random: FiberRef[Random] =
-    ZFiberRef.unsafeMake(Random.RandomLive)
+    FiberRef.unsafeMake(Random.RandomLive)
 
   val system: FiberRef[System] =
-    ZFiberRef.unsafeMake(System.SystemLive)
+    FiberRef.unsafeMake(System.SystemLive)
 
   def locally[R, E, A](clock: Clock, console: Console, random: Random, system: System)(
     zio: ZIO[R, E, A]
