@@ -375,6 +375,115 @@ val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 
+## Control Flows
+
+Although we have access to built-in scala control flow structures, ZIO has several control flow combinators. In this section, we are going to introduce different ways of controlling flows in ZIO applications.
+
+### If Expressions and Operators
+
+When working with ZIO values, we can also work with built-in scala if-then-else expressions:
+
+````scala mdoc:compile-only
+import zio._
+
+def validateWeightOption(weight: Double): ZIO[Any, Nothing, Option[Double]] =
+  if (weight >= 0)
+    ZIO.some(weight)
+  else
+    ZIO.none
+````
+
+Also, we can encode invalid inputs using the error channel:
+
+```scala mdoc:compile-only
+import zio._
+
+def validateWeightOrFail(weight: Double): ZIO[Any, String, Double] =
+  if (weight >= 0)
+    ZIO.succeed(weight)
+  else
+    ZIO.fail(s"negative input: $weight")
+```
+
+Even if the input has side effects, we can use `ZIO#flatMap` to access the raw value and write the if-then-else expression:
+
+```scala mdoc:compile-only
+import zio._
+
+def validateWeightOrFailZIO[R](weight: ZIO[R, Nothing, Double]): ZIO[R, String, Double] =
+  weight.flatMap { w =>
+    if (w >= 0)
+      ZIO.succeed(w)
+    else
+      ZIO.fail(s"negative input: $w")
+  }
+```
+
+We can also use ZIO's combinators that are the moral equivalent to these expressions:
+
+1. **`ZIO.when`/`ZIO#when`**— Instead of `if (p) expression` we can use the `ZIO.when` or `ZIO#when` operator:
+
+```scala mdoc:compile-only
+import zio._
+
+def validateWeightOption(weight: Double): ZIO[Any, Nothing, Option[Double]] =
+  ZIO.when(weight > 0)(ZIO.succeed(weight))
+```
+
+If the predicate is effectful, we can use `ZIO.whenZIO` or `ZIO#whenZIO` operators.
+
+For example, the following function creates a random option of int value:
+
+```scala mdoc:compile-only
+import zio._
+
+def randomIntOption: ZIO[Random, Nothing, Option[Int]] =
+  Random.nextInt.whenZIO(Random.nextBoolean)
+```
+
+Another nice variant of the `when` operator is `ZIO.whenCase` and also the `ZIO.whenCaseZIO`. Using these operators, we can run an effect when our provided effectful `PartialFunction` matches the given raw or effectful input. The important note regarding this operator is that it is safe, so it will do nothing if the value does not match.
+
+Let's try to write a game, which asks users to choose which game to play:
+
+```scala mdoc:compile-only
+def minesweeper(level: String)     = ZIO.attempt(???)
+def ticTacToe                      = ZIO.attempt(???)
+def snake(rows: Int, columns: Int) = ZIO.attempt(???)
+
+def myApp = 
+  ZIO.whenCaseZIO {
+    (Console.print(
+      "Please choose one game (minesweeper, snake, tictactoe)? "
+    ) *> Console.readLine).orDie
+  } {
+    case "minesweeper" =>
+      Console.print(
+        "Please enter the level of the game (easy/hard/medium)?"
+      ) *> Console.readLine.flatMap(minesweeper)
+    case "snake" =>
+      Console.printLine(
+        "Please enter the size of the game: "
+      ) *> Console.readLine.mapAttempt(_.toInt).flatMap(n => snake(n, n))
+    case "tictactoe" => ticTacToe
+  }
+```
+
+2. **`ZIO.unless`/`ZIO#unless`**— These operators are like `when` operators, but they are moral equivalent for the `if (!p) expression` construct.
+
+3. **`ZIO#ifZIO`**— This operator takes an _effectful predicate_, if that predicate is evaluated to true, it will run the `onTrue` effect, otherwise it will run the `onFalse` effect.
+
+Let's try to write a simple virtual flip function:
+
+```scala mdoc:compile-only
+import zio._
+
+def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
+  ZIO.ifZIO(Random.nextBoolean)(
+    onTrue = Console.printLine("Head"),
+    onFalse = Console.printLine("Tail")
+  )
+```
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
