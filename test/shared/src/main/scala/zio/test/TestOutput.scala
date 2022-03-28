@@ -84,9 +84,9 @@ object TestOutput {
         _ <- ZIO.when(suiteIsPrinting)(
                for {
                  currentOutput <- getAndRemoveSectionOutput(id)
-                 _ <- ZIO.foreachDiscard(currentOutput) { line =>
+                 _ <- ZIO.foreachDiscard(currentOutput) { event =>
                         TestLogger.logLine(
-                          ReporterEventRenderer.render(line).mkString("\n")
+                          ReporterEventRenderer.render(event).mkString("\n")
                         )
                       }
                } yield ()
