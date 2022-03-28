@@ -22,16 +22,18 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
 
 import java.lang.{System => JSystem}
-import java.time.{Instant, LocalDateTime, OffsetDateTime}
+import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
-trait Clock extends Serializable {
+trait Clock extends Serializable { self =>
 
   def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]
 
   def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime]
 
   def instant(implicit trace: ZTraceElement): UIO[java.time.Instant]
+
+  def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock]
 
   def localDateTime(implicit trace: ZTraceElement): UIO[java.time.LocalDateTime]
 
@@ -215,6 +217,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(unsafeCurrentTime(unit))
     def instant(implicit trace: ZTraceElement): UIO[Instant] =
       ZIO.succeed(unsafeInstant())
+    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] =
+      ZIO.succeed(clock)
     def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
       ZIO.succeed(unsafeLocalDateTime())
     def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
@@ -271,6 +275,20 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
 
+    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+
+      final case class JavaClock(zoneId: ZoneId) extends java.time.Clock {
+        def getZone(): ZoneId =
+          zoneId
+        def instant(): Instant =
+          Instant.now
+        override def withZone(zoneId: ZoneId): JavaClock =
+          copy(zoneId = zoneId)
+      }
+
+      ZIO.succeed(JavaClock(ZoneId.systemDefault))
+    }
+
     override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long = {
       val inst = unsafeInstant()
       // A nicer solution without loss of precision or range would be
@@ -319,6 +337,12 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
   def instant(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.Instant] =
     ZIO.serviceWithZIO(_.instant)
+
+  /**
+   * Constructs a `java.time.Clock` backed by the `Clock` service.
+   */
+  def javaClock(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.Clock] =
+    ZIO.serviceWithZIO(_.javaClock)
 
   def localDateTime(implicit trace: ZTraceElement): ZIO[Clock, Nothing, java.time.LocalDateTime] =
     ZIO.serviceWithZIO(_.localDateTime)

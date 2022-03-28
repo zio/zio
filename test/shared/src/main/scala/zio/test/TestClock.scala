@@ -147,6 +147,23 @@ object TestClock extends Serializable {
       ZIO.succeed(unsafeInstant())
 
     /**
+     * Constructs a `java.time.Clock` backed by the `Clock` service.
+     */
+    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+
+      final case class JavaClock(clockState: Ref.Atomic[TestClock.Data], zoneId: ZoneId) extends java.time.Clock {
+        def getZone(): ZoneId =
+          zoneId
+        def instant(): Instant =
+          toInstant(clockState.unsafeGet.duration)
+        override def withZone(zoneId: ZoneId): JavaClock =
+          copy(zoneId = zoneId)
+      }
+
+      clockState.get.map(data => JavaClock(clockState, data.timeZone))
+    }
+
+    /**
      * Returns the current clock time as a `LocalDateTime`.
      */
     def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
