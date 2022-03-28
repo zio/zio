@@ -4332,7 +4332,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effect.
    */
   def getFiberRefs(implicit trace: ZTraceElement): UIO[FiberRefs] =
-    new ZIO.FiberRefGetAll(fiberRefLocals => ZIO.succeedNow(FiberRefs(fiberRefLocals)), trace)
+    new ZIO.FiberRefModifyAll((_, fiberRefs) => (fiberRefs, fiberRefs), trace)
 
   /**
    * Lifts an Option into a ZIO, if the option is not defined it fails with
@@ -5451,6 +5451,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.Shift(null, trace)
 
   /**
+   * Updates the `FiberRef` values for the fiber running this effect using the
+   * specified function.
+   */
+  def updateFiberRefs(f: (FiberId.Runtime, FiberRefs) => FiberRefs)(implicit trace: ZTraceElement): UIO[Unit] =
+    new ZIO.FiberRefModifyAll((fiberId, fiberRefs) => ((), f(fiberId, fiberRefs)), trace)
+
+  /**
    * Updates a state in the environment with the specified function.
    */
   def updateState[S: EnvironmentTag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
@@ -6327,7 +6334,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val GetForkScope           = 22
     final val OverrideForkScope      = 23
     final val Logged                 = 24
-    final val FiberRefGetAll         = 25
+    final val FiberRefModifyAll      = 25
     final val FiberRefLocally        = 26
     final val FiberRefDelete         = 27
     final val FiberRefWith           = 28
@@ -6498,14 +6505,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Yield
   }
 
-  private[zio] final class FiberRefGetAll[R, E, A](
-    val make: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] => ZIO[R, E, A],
+  private[zio] final class FiberRefModifyAll[A](
+    val f: (FiberId.Runtime, FiberRefs) => (A, FiberRefs),
     val trace: ZTraceElement
-  ) extends ZIO[R, E, A] {
+  ) extends UIO[A] {
     def unsafeLog: () => String =
-      () => s"FiberRefGetAll at ${trace}"
+      () => s"FiberRefModifyAll at ${trace}"
 
-    override def tag = Tags.FiberRefGetAll
+    override def tag = Tags.FiberRefModifyAll
   }
 
   private[zio] final class FiberRefModify[A, B](

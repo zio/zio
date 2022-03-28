@@ -94,57 +94,12 @@ private[zio] final class FiberContext[E, A](
   final def id: FiberId.Runtime = fiberId
 
   final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.suspendSucceed {
-    val childFiberRefs = fiberRefLocals.get
+    val childFiberRefs = FiberRefs(fiberRefLocals.get)
 
-    if (childFiberRefs.isEmpty) UIO.unit
+    if (childFiberRefs.fiberRefLocals.isEmpty) UIO.unit
     else
-      ZIO.getFiberRefs.flatMap { parentFiberRefs =>
-        ZIO.foreachDiscard(childFiberRefs) { case (fiberRef, childStack) =>
-          val ref         = fiberRef.asInstanceOf[FiberRef[Any]]
-          val parentStack = parentFiberRefs.fiberRefLocals.get(ref).getOrElse(List.empty)
-
-          def combine[A](
-            fiberRef: FiberRef[A]
-          )(parentStack: List[(FiberId.Runtime, A)], childStack: ::[(FiberId.Runtime, A)]): List[A] = {
-
-            @tailrec
-            def loop[A](
-              parentStack: List[(FiberId.Runtime, A)],
-              childStack: List[(FiberId.Runtime, A)],
-              lastParentValue: A,
-              lastChildValue: A
-            ): List[A] =
-              (parentStack, childStack) match {
-                case ((parentId, parentValue) :: parentStack, (childId, childValue) :: childStack) =>
-                  if (parentId == childId)
-                    loop(parentStack, childStack, parentValue, childValue)
-                  else if (parentId.id < childId.id)
-                    lastParentValue :: lastChildValue :: childValue :: childStack.map(_._2)
-                  else
-                    lastChildValue :: childValue :: childStack.map(_._2)
-                case _ =>
-                  lastChildValue :: childStack.map(_._2)
-              }
-
-            loop(parentStack.reverse, childStack.reverse, fiberRef.initial, fiberRef.initial)
-          }
-
-          val values = combine(ref)(parentStack, childStack)
-
-          val patches =
-            values.tail
-              .foldLeft(values.head -> List.empty[ref.Patch]) { case ((oldValue, patches), newValue) =>
-                (newValue, ref.diff(oldValue, newValue) :: patches)
-              }
-              ._2
-              .reverse
-
-          if (patches.isEmpty) UIO.unit
-          else {
-            val patch = patches.reduce(ref.combine)
-            ref.update(ref.patch(patch))
-          }
-        }
+      ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
+        parentFiberRefs.join(parentFiberId)(childFiberRefs)
       }
   }
 
@@ -430,10 +385,13 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = unsafeNextEffect(unsafeCaptureTrace(zio.trace :: Nil))
 
-                  case ZIO.Tags.FiberRefGetAll =>
-                    val zio = curZio.asInstanceOf[ZIO.FiberRefGetAll[Any, Any, Any]]
+                  case ZIO.Tags.FiberRefModifyAll =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefModifyAll[Any]]
 
-                    curZio = zio.make(fiberRefLocals.get)
+                    val (result, newValue) = zio.f(fiberId, FiberRefs(fiberRefLocals.get))
+                    fiberRefLocals.set(newValue.fiberRefLocals)
+
+                    curZio = unsafeNextEffect(result)
 
                   case ZIO.Tags.FiberRefModify =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
