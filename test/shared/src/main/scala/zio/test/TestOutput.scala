@@ -4,6 +4,7 @@ import zio.{Chunk, Ref, ZIO, ZLayer}
 
 trait TestOutput {
 
+  // TODO I think these can just be one method that takes an `ExecutionEvent`
   def printOrFlush(
     id: SuiteId,
     ancestors: List[SuiteId]
@@ -72,13 +73,6 @@ object TestOutput {
         _ <- reporters.relinquishPrintingControl(id)
       } yield ()
 
-    private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
-      output.update { outputNow =>
-        updatedWith(outputNow, id)(previousSectionOutput =>
-          Some(previousSectionOutput.map(old => old ++ content).getOrElse(content))
-        )
-      }
-
     def printOrQueue(
       id: SuiteId,
       ancestors: List[SuiteId],
@@ -98,6 +92,13 @@ object TestOutput {
                } yield ()
              )
       } yield ()
+
+    private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
+      output.update { outputNow =>
+        updatedWith(outputNow, id)(previousSectionOutput =>
+          Some(previousSectionOutput.map(old => old ++ content).getOrElse(content))
+        )
+      }
 
     // We need this helper to run on Scala 2.11
     private def updatedWith(initial: Map[SuiteId, Chunk[ExecutionEvent]], key: SuiteId)(
