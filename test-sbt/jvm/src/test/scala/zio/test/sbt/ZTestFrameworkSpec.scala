@@ -27,8 +27,7 @@ object ZTestFrameworkSpec {
 //    test("should test only selected test")(testTestSelection()),
 //    test("should return summary when done")(testSummary()),
     test("should use a shared layer without re-initializing it")(testSharedLayer())
-//    test("should warn when no tests are executed")(testNoTestsExecutedWarning()),
-//    test("should ensure that output is not interleaved")(???)
+//    test("should warn when no tests are executed")(testNoTestsExecutedWarning())
   )
 
   def testFingerprints(): Unit = {
