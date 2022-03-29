@@ -63,7 +63,7 @@ val samples: URIO[Sized, List[Int]] =
   sizedInts.runCollectN(5).debug
 ```
 
-The return type requires _Random_ and _Sized_ services. Therefore, to run this effect, we need to provide these two services. As the `ZEnv` has the _Random_ service, we only need to provide the `Sized` implementation:
+The return type require the _Sized_ service. Therefore, to run this effect, we need to provide this service:
 
 ```scala mdoc:silent:nest
 zio.Runtime.default.unsafeRun(
@@ -79,12 +79,6 @@ type TestEnvironment =
   Annotations
     with Live
     with Sized
-    with TestClock
-    with TestConfig
-    with TestConsole
-    with TestRandom
-    with TestSystem
-    with ZEnv
 ```
 
 So when we test a property with ZIO Test, all the required services will be provided to the ZIO Test Runner:
