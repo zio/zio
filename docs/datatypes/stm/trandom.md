@@ -25,5 +25,5 @@ val myApp = TRandom.nextInt.commit
 ```
 
 ```scala mdoc:silent:nest
-myApp.provide(ZLayer.succeed(Random.RandomLive) >>> TRandom.live)
+myApp.provide(Random.live >>> TRandom.live)
 ```
