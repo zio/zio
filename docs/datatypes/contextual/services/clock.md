@@ -14,8 +14,8 @@ import java.time.DateTimeException
 ```
 
 ```scala mdoc:silent
-val inMilliseconds: URIO[Clock, Long] = Clock.currentTime(TimeUnit.MILLISECONDS)
-val inDays:        URIO[Clock, Long] = Clock.currentTime(TimeUnit.DAYS)
+val inMilliseconds: UIO[Long] = Clock.currentTime(TimeUnit.MILLISECONDS)
+val inDays:        UIO[Long] = Clock.currentTime(TimeUnit.DAYS)
 ```
 
 To get current date time in the current timezone the `currentDateTime` function returns a ZIO effect containing `OffsetDateTime`.

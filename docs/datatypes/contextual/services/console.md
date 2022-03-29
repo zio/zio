@@ -7,11 +7,11 @@ The Console service contains simple I/O operations for reading/writing strings f
 
 | Function        | Input Type        | Output Type                         |
 |-----------------|-------------------|-------------------------------------|
-| `print`         | `line: => String` | `URIO[Any, Unit]`               |
-| `printError`    | `line: => String` | `URIO[Any, Unit]`               |
-| `printLine`     | `line: => String` | `URIO[Any, Unit]`               |
-| `printLineError`| `line: => String` | `URIO[Any, Unit]`               |
-| `readLine`      |                   | `ZIO[Any, IOException, String]` |
+| `print`         | `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `printError`    | `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `printLine`     | `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `printLineError`| `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `readLine`      |                   | `ZIO[Any, IOException, String]`     |
 
 All functions of the Console service are effectful, this means they are just descriptions of reading/writing from/to the console. 
 
@@ -34,4 +34,4 @@ object MyHelloApp extends ZIOAppDefault {
 }
 ```
 
-Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Any, IOException, Unit]`, it means to run `program` we need the `Console` service as an environment, it may fail due to failure of `readLine` and it will produce `Unit` value.
+Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Any, IOException, Unit]`, it means to run `program` we do not need any environment, it may fail due to failure of `readLine` and it will produce `Unit` value.

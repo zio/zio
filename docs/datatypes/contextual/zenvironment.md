@@ -48,50 +48,23 @@ For example, the `ZIO[Console & Random, Throwable, String]` can be thought of as
 
 We can eliminate the environment of `ZIO[R, E, A]` by providing `ZEnvironment[R]` to that effect. 
 
-Let's see an example:
-
-```scala mdoc:compile-only
-import zio._
-import java.io.IOException
-
-val originalEffect: ZIO[Any, IOException, Unit] =
-  for {
-    uuid <- Random.nextUUID
-    _ <- Console.printLine(s"next random UUID: $uuid")
-  } yield ()
-```
-
-By providing `ZEnvironment[Console & Random]` we can eliminate the environment of the `originalEffect`:
-
-```scala
-val eliminatedEffect: IO[IOException, Unit] =
-  originalEffect.provideEnvironment(
-    ZEnvironment(
-      ConsoleLive,
-      RandomLive
-    ) 
-  )
-```
-
 Also, we can access the **whole** environment using `ZIO.environment`:
 
 ```scala mdoc:compile-only
 import zio._ 
-import zio.Console.ConsoleLive
 import java.io.IOException
 
 case class AppConfig(poolSize: Int)
 
-val myApp: ZIO[AppConfig & Console, IOException, Unit] =
-  ZIO.environment[AppConfig & Console].flatMap { env =>
-    val console = env.get[Console]
+val myApp: ZIO[AppConfig, IOException, Unit] =
+  ZIO.environment[AppConfig].flatMap { env =>
     val config  = env.get[AppConfig]
-    console.printLine(s"Application started with config: $config")
+    Console.printLine(s"Application started with config: $config")
   }
 
 val eliminated: IO[IOException, Unit] =
   myApp.provideEnvironment(
-    ZEnvironment(AppConfig(poolSize = 10)) ++ ZEnvironment(ConsoleLive)
+    ZEnvironment(AppConfig(poolSize = 10))
   )
 ```
 
