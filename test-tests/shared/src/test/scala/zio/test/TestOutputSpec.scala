@@ -1,7 +1,7 @@
 package zio.test
 import zio.Scope
-
 import zio._
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart}
 
 case class TestEntity(
   id: SuiteId,
@@ -60,13 +60,30 @@ object TestOutputSpec extends ZIOSpecDefault {
   val allEntities = List(parent, child1, child2, grandchild4, grandchild5, grandChild6, grandChild7)
 
   override def spec: ZSpec[TestEnvironment with Scope, Any] = suite("TestOutputSpec")(
-    test("TestOutput.run") {
+//    test("TestOutput.run") {
+//      for {
+//        _           <- ZIO.debug("Family tree: " + allEntities)
+//        testConsole <- ZIO.service[TestConsole]
+//        _           <- printOrQueue(child1, Success, List("success"))
+//        _           <- printOrQueue(child1, Failure, List("failure"))
+//        _           <- printOrQueue(child2, Failure, List("queuedMessage"))
+//        output      <- testConsole.output
+//        _           <- ZIO.debug(output)
+//      } yield outputContainsAllOf(output, "success", "failure") &&
+//        outputContainsNoneOf(output, "queuedMessage")
+//    },
+
+    test("nested events") {
       for {
-        _           <- ZIO.debug("Family tree: " + allEntities)
         testConsole <- ZIO.service[TestConsole]
-        _           <- printOrQueue(child1, Success, List("success"))
-        _           <- printOrQueue(child1, Failure, List("failure"))
-        _           <- printOrQueue(child2, Failure, List("queuedMessage"))
+        testOutput <- ZIO.service[TestOutput]
+        _ <- sectionStart(parent)
+        _ <- sectionStart(child1)
+        _ <- testOutput.print(successfulTest(child1.id, List("success")))
+        _ <- testOutput.print(failedTest(child1.id, List("failure")))
+        _ <- testOutput.print(failedTest(child2.id, List("queuedMessage")))
+        _ <- sectionEnd(child1, 0)
+        _ <- sectionEnd(parent, 0)
         output      <- testConsole.output
         _           <- ZIO.debug(output)
       } yield outputContainsAllOf(output, "success", "failure") &&
@@ -86,16 +103,30 @@ object TestOutputSpec extends ZIOSpecDefault {
   case object Success extends TestStatus
   case object Failure extends TestStatus
 
-  def printOrQueue(testEntity: TestEntity, testStatus: TestStatus, labels: List[String]) =
+  private def sectionStart(testEntity: TestEntity) =
     for {
       testOutput <- ZIO.service[TestOutput]
       _ <- testOutput.print(
-             testStatus match {
-               case Success => successfulTest(testEntity.id, "TestOutputSpec" :: labels)
-               case Failure => failedTest(testEntity.id, "TestOutputSpec" :: labels)
-             }
-           )
+        SectionStart(
+          List("section: " + testEntity.id.id),
+          testEntity.id,
+          testEntity.ancestors,
+        )
+      )
     } yield ()
+
+  private def sectionEnd(testEntity: TestEntity, depth: Int) =
+    for {
+      testOutput <- ZIO.service[TestOutput]
+      _ <- testOutput.print(
+        SectionEnd(
+          List("section: " + testEntity.id.id),
+          testEntity.id,
+          testEntity.ancestors,
+        )
+      )
+    } yield ()
+
 
   private def successfulTest(suiteId: SuiteId, labels: List[String], ancestors: List[SuiteId] = List.empty) =
     ExecutionEvent.Test(

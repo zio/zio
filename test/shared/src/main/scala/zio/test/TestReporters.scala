@@ -12,9 +12,11 @@ case class TestReporters(reportersStack: Ref[List[SuiteId]]) {
   def attemptToGetPrintingControl(id: SuiteId, ancestors: List[SuiteId]): ZIO[Any, Nothing, Boolean] =
     reportersStack.updateSomeAndGet {
       case Nil =>
+        println("No reporters yet. Selecting: " + id)
         List(id)
 
       case reporters if ancestors.nonEmpty && reporters.head == ancestors.head =>
+        println("Getting control from parent. Child id: " + id)
         id :: reporters
     }.map(_.head == id)
 
