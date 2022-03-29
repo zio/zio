@@ -5,37 +5,37 @@ title: "Introduction"
 
 ## Overview
 
-Most of the time, in concurrent programming we have a single state that we need to read and update that concurrently. When we have multiple fibers reading or writing to the same memory location we encounter the race condition. The main goal in every concurrent program is to have a consistent view of states among all threads.
+Most of the time in concurrent programming we have a single state that we need to read and update concurrently. When we have multiple fibers reading or writing to the same memory location we encounter the race condition. The main goal in every concurrent program is to have a consistent view of states among all threads.
 
-There is two major concurrency model which tries to solve this problem:
+There are two major concurrency models which try to solve this problem:
 
 1. **Shared State** — In this model, all threads communicate with each other by sharing the same memory location.
 
 2. **Message Passing (Distributed State)** — This model provides primitives for sending and receiving messages, and the state is distributed. Each thread of execution has its own state. 
 
-The _Shared Memory_ model has two main solutions:
+The _Shared State_ model has two main solutions:
 
-1. **Lock-Based** — In the locking model, the general primitives for synchronization are ـlocksـ, that control access to critical sections. When a thread wants to modify the critical section, it acquires the lock and says I'm the only thread that is allowed to modify the state right now, after it's work finished it unlocks the critical section and says I'm done, all other threads can modify this memory section.
+1. **Lock-based** — In the locking model, the general primitives for synchronization are _locks_ that control access to critical sections. When a thread wants to modify the critical section, it acquires the lock and says _I'm the only thread that is allowed to modify the state right now_, and after its work finished it unlocks the critical section and says _I'm done, any other thread can modify this memory section_.
 
 2. **Non-blocking** — Non-blocking algorithms usually use hardware-intrinsic atomic operations like `compare-and-swap` (CAS), without using any locks. This method follows an optimistic design with a transactional memory mechanism to roll back in conflict situations.
 
-## Implication of Locking Mechanism
+## Implications of Locking Mechanism
 
-There are lots of drawback with lock-based concurrency:
+There are several drawbacks with lock-based concurrency:
 
-1. Incorrect use of locks can lead to deadlock. We need to care about the locking orders. If we don't place the locks in the right order, we may encounter a deadlock situation.
+1. Incorrect use of locks can lead to deadlocks. We need to care about the locking orders. If we don't place the locks in the right order, we may encounter a deadlock situation.
 
-2. Identifying the critical section of a code that is vulnerable to race conditions is overwhelming. We should always care about them and remember to lock everywhere it's required.
+2. Identifying the critical section of code that is vulnerable to race conditions is overwhelming. We should always care about them and remember to lock everywhere it's required.
 
 3. It makes our software design very sophisticated to become scalable and reliable. It doesn't scale with program size and complexity.
 
 4. To prevent missing the releasing of the acquired locks, we should always care about exceptions and error handling inside locking sections. 
 
-5. The locking mechanism violates the encapsulation property of our pieces of programs. So systems that build with locking mechanism are difficult to compose without knowing about their internals.
+5. The locking mechanism violates the encapsulation property of the pieces of our programs. So systems that are built on a locking mechanism are difficult to compose without knowing about their internals.
 
 ## Lock-free Concurrency Model
 
-As the lock-oriented programming does not compose and has lots of drawbacks, ZIO uses a _lock-free concurrency model_ which is a variation of non-blocking algorithms. The magic behind all of ZIO concurrency primitives is that they use CAS (_compare-and-set_) operation. 
+As the lock-oriented programming does not compose and has lots of drawbacks, ZIO uses a _lock-free concurrency model_ which is a variation of non-blocking algorithms. The magic behind all of ZIO concurrency primitives is that they use the CAS (_compare-and-set_) operation. 
 
 Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
 
@@ -64,21 +64,21 @@ The idea behind the `modify` is that a variable is only updated if it still has 
 
 ## Advantage of Using ZIO Concurrency
 
-Here we are going to enumerate some points that why the ZIO concurrency model helps us to do our job well:
+Let's point out the key properties of the ZIO concurrency model:
 
-1. **Composable** — Due to the use of the lock-free concurrency model, ZIO brings us a composable concurrent primitive and lots of great combinators in a declarative style.
+1. **Composable** — Due to the use of the lock-free concurrency model, ZIO brings us composable concurrency primitives and lots of great combinators in a declarative style.
 
-> **Note:** `Ref` and `Promise` and subsequently all other ZIO concurrent primitives that are on top of these two basic primitives **are not transactionally composable**.
+> **Note:** `Ref` and `Promise` and subsequently all other ZIO concurrency primitives that are on top of these two basic primitives **are not _transactionally_ composable**.
 >
-> We cannot do transactional changes across two or more such concurrent primitives. They are susceptible to race conditions and deadlocks. **So don't use them if you need to perform an atomic operation on top of a composed sequence of multiple state-changing operations. use [`STM`](../stm/index.md) instead**. 
+> We cannot do transactional changes across two or more of such concurrency primitives. They are susceptible to race conditions and deadlocks. **So don't use them if you need to perform an atomic operation on top of a composed sequence of multiple state-changing operations. In such a case use [`STM`](../stm/index.md) instead**. 
 
 2. **Non-blocking** — All of the ZIO primitives are a hundred percent asynchronous and nonblocking.
 
 3. **Resource Safety** — ZIO concurrency model comes with strong guarantees of resource safety. If any interruption occurs in between concurrent operations, it won't leak any resource. So it allows us to write compositional operators like timeout and racing without worrying about any leaks.
 
-## Concurrent Primitives
+## Concurrency Primitives
 
-Let's take a quick look at ZIO concurrent primitives, what are they and why they exist.
+Let's take a quick look at ZIO concurrency primitives, what they are and why they exist.
 
 ### Basic Operations
 

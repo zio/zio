@@ -23,9 +23,9 @@ A `Queue` can be bounded (with a limited capacity) or unbounded.
 
 There are several strategies to process new values when the queue is full:
 
-- The default `bounded` queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item;
-- A `dropping` queue will drop new items when the queue is full;
-- A `sliding` queue will drop old items when the queue is full.
+- The default `bounded` queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item
+- A `dropping` queue will drop new items when the queue is full
+- A `sliding` queue will drop old items when the queue is full
 
 To create a back-pressured bounded queue:
 ```scala mdoc:silent
@@ -139,7 +139,7 @@ val takeFromShutdownQueue: UIO[Unit] = for {
 } yield ()
 ```
 
-You can use `awaitShutdown` to execute an effect when the queue is shut down. This will wait until the queue is shut down. If the queue is already shutdown, it will resume right away.
+You can use `awaitShutdown` to execute an effect when the queue is shut down. This will wait until the queue is shut down. If the queue is already shut down, it will resume right away.
 
 ```scala mdoc:silent
 val awaitShutdown: UIO[Unit] = for {
