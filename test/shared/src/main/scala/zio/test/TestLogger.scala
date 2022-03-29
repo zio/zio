@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, UIO, URIO, ZEnv, ZIO, ZLayer, ZTraceElement}
+import zio.{Console, UIO, URIO, ZIO, ZLayer, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait TestLogger extends Serializable {
