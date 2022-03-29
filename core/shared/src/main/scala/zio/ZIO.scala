@@ -2036,12 +2036,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
   /**
    * Runs this effect according to the specified schedule in a new fiber
-   * attached to the global scope
+   * attached to the current scope.
    */
   final def scheduleBackground[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Clock with Scope, E, Fiber.Runtime[Any, B]] =
-    ZIO.acquireRelease(ZIO.interruptible(self.schedule(schedule)).forkDaemon)(_.interrupt)
+    self.schedule(schedule).forkScoped
 
   /**
    * Runs this effect according to the specified schedule starting from the
