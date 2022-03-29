@@ -210,17 +210,6 @@ object ZEnvironment {
   lazy val empty: ZEnvironment[Any] =
     new ZEnvironment[AnyRef](Map.empty, 0, Map(taggedTagType(TaggedAnyRef) -> (())))
 
-  /**
-   * The default ZIO environment.
-   */
-  lazy val default: ZEnvironment[Clock with Console with Random with System] =
-    ZEnvironment[Clock, Console, Random, System](
-      Clock.ClockLive,
-      Console.ConsoleLive,
-      Random.RandomLive,
-      System.SystemLive
-    )
-
   private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
     implicitly[EnvironmentTag[AnyRef]]
 }

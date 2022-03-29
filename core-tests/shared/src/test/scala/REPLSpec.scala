@@ -10,9 +10,9 @@ object REPLSpec extends ZIOSpecDefault {
       import zio._
       import zio.Console._
       @silent("never used")
-      implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]) {
+      implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
         def unsafeRun: A =
-          Runtime.default.unsafeRun(io.provideLayer(ZEnv.live))
+          Runtime.default.unsafeRun(io)
       }
       assertCompletes
     }
