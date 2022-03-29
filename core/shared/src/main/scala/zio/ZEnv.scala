@@ -37,28 +37,6 @@ object ZEnv {
   val live: Layer[Nothing, ZEnv] =
     Clock.live ++ Console.live ++ System.live ++ Random.live
 
-  val clock: FiberRef[Clock] =
-    FiberRef.unsafeMake(Clock.ClockLive)
-
-  val console: FiberRef[Console] =
-    FiberRef.unsafeMake(Console.ConsoleLive)
-
-  val random: FiberRef[Random] =
-    FiberRef.unsafeMake(Random.RandomLive)
-
-  val system: FiberRef[System] =
-    FiberRef.unsafeMake(System.SystemLive)
-
-  def locally[R, E, A](clock: Clock, console: Console, random: Random, system: System)(
-    zio: ZIO[R, E, A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.scoped[R] {
-      for {
-        _ <- ZEnv.clock.locallyScoped(clock)
-        _ <- ZEnv.console.locallyScoped(console)
-        _ <- ZEnv.random.locallyScoped(random)
-        _ <- ZEnv.system.locallyScoped(system)
-        a <- zio
-      } yield a
-    }
+  val services: FiberRef[ZEnvironment[ZEnv]] =
+    FiberRef.unsafeMake(Services.live)
 }

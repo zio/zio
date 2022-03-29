@@ -3195,7 +3195,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def clockWith[R, E, A](f: Clock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.clock.get.flatMap(f)
+    ZEnv.services.getWith(services => f(services.get[Clock]))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -3503,7 +3503,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def consoleWith[R, E, A](f: Console => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.console.get.flatMap(f)
+    ZEnv.services.getWith(services => f(services.get[Console]))
 
   /**
    * Prints the specified message to the console for debugging purposes.
@@ -5094,7 +5094,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def randomWith[R, E, A](f: Random => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.random.get.flatMap(f)
+    ZEnv.services.getWith(services => f(services.get[Random]))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -5449,7 +5449,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def systemWith[R, E, A](f: System => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.system.get.flatMap(f)
+    ZEnv.services.getWith(services => f(services.get[System]))
 
   /**
    * Capture ZIO trace at the current point

@@ -26,7 +26,7 @@ trait TestLogger extends Serializable {
 object TestLogger {
 
   def fromConsole(implicit trace: ZTraceElement): ZLayer[Any, Nothing, TestLogger] =
-    ZEnv.console.get.map { console =>
+    ZIO.console.map { console =>
       new TestLogger {
         def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = console.printLine(line).orDie
       }

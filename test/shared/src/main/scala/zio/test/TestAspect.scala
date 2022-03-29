@@ -982,8 +982,9 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            clock <- live(ZEnv.clock.get)
-            _     <- ZEnv.clock.locallyScoped(clock)
+            services <- ZEnv.services.get
+            clock    <- live(ZIO.clock)
+            _        <- ZEnv.services.locallyScoped(services.add(clock))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -995,8 +996,9 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            console <- live(ZEnv.console.get)
-            _       <- ZEnv.console.locallyScoped(console)
+            services <- ZEnv.services.get
+            console  <- live(ZIO.console)
+            _        <- ZEnv.services.locallyScoped(services.add(console))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1017,8 +1019,9 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            random <- live(ZEnv.random.get)
-            _      <- ZEnv.random.locallyScoped(random)
+            services <- ZEnv.services.get
+            random   <- live(ZIO.random)
+            _        <- ZEnv.services.locallyScoped(services.add(random))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1030,8 +1033,9 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            system <- live(ZEnv.system.get)
-            _      <- ZEnv.system.locallyScoped(system)
+            services <- ZEnv.services.get
+            system   <- live(ZIO.system)
+            _        <- ZEnv.services.locallyScoped(services.add(system))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)

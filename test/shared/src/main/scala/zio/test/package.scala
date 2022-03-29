@@ -104,7 +104,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.clock.get.flatMap {
+    ZIO.clockWith {
       case testClock: TestClock => f(testClock)
       case _                    => ZIO.dieMessage("Defect: TestClock is missing")
     }
@@ -120,7 +120,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.console.get.flatMap {
+    ZIO.consoleWith {
       case testConsole: TestConsole => f(testConsole)
       case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
     }
@@ -136,7 +136,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.random.get.flatMap {
+    ZIO.randomWith {
       case testRandom: TestRandom => f(testRandom)
       case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
     }
@@ -152,7 +152,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZEnv.system.get.flatMap {
+    ZIO.systemWith {
       case testSystem: TestSystem => f(testSystem)
       case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
     }
