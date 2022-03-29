@@ -658,7 +658,7 @@ object TestAspect extends TimeoutVariants {
    * to its starting state after the test is run. Note that this is only useful
    * when repeating tests.
    */
-  def restore[R0 <: Restorable](restorable: UIO[Restorable])(implicit tag: Tag[R0]): TestAspectPoly =
+  def restore(restorable: UIO[Restorable]): TestAspectPoly =
     aroundWith(restorable.flatMap(_.save(ZTraceElement.empty))(ZTraceElement.empty))(restore => restore)
 
   /**
@@ -977,28 +977,16 @@ object TestAspect extends TimeoutVariants {
    */
   val windows: TestAspectAtLeastR[Annotations] = os(_.isWindows)
 
+  /**
+   * An aspect that runs tests with the live clock service.
+   */
   lazy val withLiveClock: TestAspectAtLeastR[Live] =
     new TestAspectAtLeastR[Live] {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            services <- ZEnv.services.get
             clock    <- live(ZIO.clock)
-            _        <- ZEnv.services.locallyScoped(services.add(clock))
-          } yield ()
-        }
-        spec.provideSomeLayer[R](layer)
-      }
-    }
-
-  lazy val withLiveConsole: TestAspectAtLeastR[Live] =
-    new TestAspectAtLeastR[Live] {
-      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
-        val layer = ZLayer.scoped {
-          for {
-            services <- ZEnv.services.get
-            console  <- live(ZIO.console)
-            _        <- ZEnv.services.locallyScoped(services.add(console))
+            _        <- ZEnv.services.locallyScoped(_.add(clock))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1006,7 +994,23 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that runs tests with the live environment.
+   * An aspect that runs tests with the live console service.
+   */
+  lazy val withLiveConsole: TestAspectAtLeastR[Live] =
+    new TestAspectAtLeastR[Live] {
+      def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
+        val layer = ZLayer.scoped {
+          for {
+            console  <- live(ZIO.console)
+            _        <- ZEnv.services.locallyScopedWith(_.add(console))
+          } yield ()
+        }
+        spec.provideSomeLayer[R](layer)
+      }
+    }
+
+  /**
+   * An aspect that runs tests with the live default ZIO services.
    */
   lazy val withLiveEnvironment: TestAspectAtLeastR[Live] =
     withLiveClock >>>
@@ -1014,28 +1018,32 @@ object TestAspect extends TimeoutVariants {
       withLiveRandom >>>
       withLiveSystem
 
+  /**
+   * An aspect that runs tests with the live random service.
+   */
   lazy val withLiveRandom: TestAspectAtLeastR[Live] =
     new TestAspectAtLeastR[Live] {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            services <- ZEnv.services.get
             random   <- live(ZIO.random)
-            _        <- ZEnv.services.locallyScoped(services.add(random))
+            _        <- ZEnv.services.locallyScopedWith(_.add(random))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
       }
     }
 
+  /**
+   * An aspect that runs tests with the live system service.
+   */
   lazy val withLiveSystem: TestAspectAtLeastR[Live] =
     new TestAspectAtLeastR[Live] {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            services <- ZEnv.services.get
             system   <- live(ZIO.system)
-            _        <- ZEnv.services.locallyScoped(services.add(system))
+            _        <- ZEnv.services.locallyScopedWith(_.add(system))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)

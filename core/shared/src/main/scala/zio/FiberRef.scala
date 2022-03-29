@@ -115,16 +115,32 @@ final class FiberRef[A] private[zio] (
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
-  def locally[R, E, B](value: A)(use: ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
-    new ZIO.FiberRefLocally(value, self, use, trace)
+  def locally[R, E, B](value: A)(zio: ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+    new ZIO.FiberRefLocally(value, self, zio, trace)
 
   /**
-   * Returns a scoped effect that sets the value associated with the curent
+   * Returns an `IO` that runs with `f` applied to the current fiber.
+   *
+   * Guarantees that fiber data is properly restored via `acquireRelease`.
+   */
+  def locallyWith[R, E, B](f: A => A)(zio: ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+    getWith(a => locally(f(a))(zio))
+
+  /**
+   * Returns a scoped workflow that sets the value associated with the curent
    * fiber to the specified value and restores it to its original value when the
    * scope is closed.
    */
   def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
     ZIO.acquireRelease(get.flatMap(old => set(value).as(old)))(set).unit
+
+  /**
+   * Returns a scoped workflow that updates the value associated with the
+   * current fiber using the specified function and restores it to its original
+   * value when the scope is closed.
+   */
+  def locallyScopedWith(f: A => A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    getWith(a => locallyScoped(f(a))(trace))
 
   /**
    * Atomically modifies the `FiberRef` with the specified function, which
