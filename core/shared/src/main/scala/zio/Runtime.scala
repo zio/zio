@@ -478,9 +478,8 @@ object Runtime {
 
   /**
    * The default [[Runtime]] for most ZIO applications. This runtime is
-   * configured with the default environment, containing standard services, as
-   * well as the default runtime configuration, which is optimized for typical
-   * ZIO applications.
+   * configured with the the default runtime configuration, which is optimized
+   * for typical ZIO applications.
    */
   lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.default)
 
