@@ -855,11 +855,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   * val managed: ZManaged[Logging with Database, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * val managed2 = managed.provideSomeLayer[Database](loggingLayer)
    * }}}
    */
   final def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =

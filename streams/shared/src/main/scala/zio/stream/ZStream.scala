@@ -2707,11 +2707,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val stream: ZStream[Clock with Random, Nothing, Unit] = ???
+   * val stream: ZStream[Logging with Database, Nothing, Unit] = ???
    *
-   * val stream2 = stream.provideSomeLayer[Random](clockLayer)
+   * val stream2 = stream.provideSomeLayer[Database](loggingLayer)
    * }}}
    */
   final def provideSomeLayer[R0]: ZStream.ProvideSomeLayer[R0, R, E, A] =
