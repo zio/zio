@@ -2,6 +2,27 @@ package zio.test
 
 import zio.{Chunk, Ref, ZIO, ZLayer}
 
+trait ExecutionEventPrinter {
+  def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit]
+}
+
+object ExecutionEventPrinter {
+  def live: ZLayer[Any, Nothing, ExecutionEventPrinter] =
+    ZLayer.succeed(Live)
+
+  def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter with TestLogger, Nothing, Unit] = {
+    ZIO.serviceWithZIO[ExecutionEventPrinter](_.print(event))
+  }
+
+  object Live extends ExecutionEventPrinter {
+    override def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit] = {
+      TestLogger.logLine(
+        ReporterEventRenderer.render(event).mkString("\n")
+      )
+    }
+  }
+}
+
 trait TestOutput {
 
   /**
@@ -10,7 +31,7 @@ trait TestOutput {
    */
   def print(
     executionEvent: ExecutionEvent
-  ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
+  ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit]
 }
 
 object TestOutput {
@@ -19,9 +40,18 @@ object TestOutput {
       TestOutputLive.make
     )
 
+  /**
+   * Guarantees:
+   * - Everything at or below a specific suite level will be printed contiguously
+   * - Everything will be printed, as long as required SectionEnd events have been passed in
+   *
+   * Not guaranteed:
+   * - Ordering within a suite
+   *
+   */
   def print(
     executionEvent: ExecutionEvent
-  ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
+  ): ZIO[TestOutput with ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
     ZIO.serviceWithZIO[TestOutput](_.print(executionEvent))
 
   case class TestOutputLive(
@@ -36,7 +66,7 @@ object TestOutput {
 
     def print(
       executionEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
       executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
@@ -46,9 +76,10 @@ object TestOutput {
 
     private def printOrFlush(
       end: ExecutionEvent.SectionEnd
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
       for {
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
+        _               <- appendToSectionContents(end.id, Chunk(end))
         sectionOutput   <- getAndRemoveSectionOutput(end.id)
         _ <-
           if (suiteIsPrinting)
@@ -67,9 +98,9 @@ object TestOutput {
 
     private def printOrQueue(
       reporterEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
       for {
-        _ <- ZIO.debug("printOrQueue.reporterEvent: " + reporterEvent)
+//        _ <- ZIO.debug("printOrQueue.reporterEvent: " + reporterEvent)
         _               <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(reporterEvent.id, reporterEvent.ancestors)
         _ <- ZIO.when(suiteIsPrinting)(
@@ -82,9 +113,7 @@ object TestOutput {
 
     private def printToConsole(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
-        TestLogger.logLine(
-          ReporterEventRenderer.render(event).mkString("\n")
-        )
+        ExecutionEventPrinter.print(event)
       }
 
     private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =

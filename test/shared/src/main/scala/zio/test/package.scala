@@ -66,6 +66,7 @@ package object test extends CompileVariants {
       with TestRandom
       with TestSystem
       with ExecutionEventSink
+      with ExecutionEventPrinter
       with TestOutput
 
   object TestEnvironment {
@@ -82,7 +83,8 @@ package object test extends CompileVariants {
         TestRandom.deterministic ++
         TestSystem.default ++
         (TestOutput.live >>> ExecutionEventSink.live) ++
-        TestOutput.live
+        TestOutput.live ++
+        ExecutionEventPrinter.live
 
     }
   }

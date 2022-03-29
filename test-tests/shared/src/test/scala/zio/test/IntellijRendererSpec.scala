@@ -194,7 +194,7 @@ object IntelliJRenderUtils {
         IntelliJTestRunner(testEnvironment)
           .run(spec)
           .provideLayer[Nothing, TestEnvironment with Scope](
-            TestLogger.fromConsole ++ TestClock.default ++ (TestOutput.live >+> ExecutionEventSink.live) ++ Random.live
+            TestLogger.fromConsole ++ TestClock.default ++ (TestOutput.live >+> ExecutionEventSink.live) ++ Random.live ++ ExecutionEventPrinter.live
           )
       output <- TestConsole.output
     } yield output.mkString

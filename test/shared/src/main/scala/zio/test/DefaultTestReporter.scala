@@ -46,7 +46,8 @@ object DefaultTestReporter {
   )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
     reporterEvent match {
       case SectionStart(labelsReversed, _, ancestors) =>
-        val depth = labelsReversed.length - 1
+        val depth = ancestors.length
+        println("Ancestors of start event: " + ancestors.mkString("-"))
         labelsReversed.reverse match {
           case Nil => Seq.empty
           case nonEmptyList =>
