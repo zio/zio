@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.test.ExecutionEvent.RuntimeFailure
 import zio.{Ref, UIO, ZIO, ZLayer}
 
 trait ExecutionEventSink {
