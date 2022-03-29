@@ -1,16 +1,18 @@
 package zio.test
 
-import zio._
+import zio.{IO, ZEnv, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * The `Live` trait provides access to the "live" environment from within the
- * test environment for effects such as printing test results to the console or
- * timing out tests where it is necessary to access the real environment.
+ * The `Live` trait provides access to the "live" default ZIO services from
+ * within ZIO Test for workflows such as printing test results to the console or
+ * timing out tests where it is necessary to access the real implementations of
+ * these services.
  *
- * The easiest way to access the "live" environment is to use the `live` method
- * with an effect that would otherwise access the test environment.
+ * The easiest way to access the "live" services is to use the `live` method
+ * with a workflow that would otherwise use the test version of the default ZIO
+ * services.
  *
  * {{{
  * import zio.Clock
@@ -19,10 +21,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * val realTime = live(Clock.nanoTime)
  * }}}
  *
- * The `withLive` method can be used to apply a transformation to an effect with
- * the live environment while ensuring that the effect itself still runs with
- * the test environment, for example to time out a test. Both of these methods
- * are re-exported in the `environment` package for easy availability.
+ * The `withLive` method can be used to apply a transformation to a workflow
+ * with the live services while ensuring that the workflow itself still runs
+ * with the test services, for example to time out a test. Both of these methods
+ * are re-exported in the ZIO Test package object for easy availability.
  */
 trait Live {
   def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
@@ -32,9 +34,9 @@ object Live {
 
   /**
    * Constructs a new `Live` service that implements the `Live` interface. This
-   * typically should not be necessary as `TestEnvironment` provides access to
-   * live versions of all the standard ZIO environment types but could be useful
-   * if you are mixing in interfaces to create your own environment type.
+   * typically should not be necessary as the `TestEnvironment` already includes
+   * the `Live` service but could be useful if you are mixing in interfaces to
+   * create your own environment type.
    */
   val default: ZLayer[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
@@ -49,15 +51,14 @@ object Live {
   }
 
   /**
-   * Provides an effect with the "live" environment.
+   * Provides a workflow with the "live" default ZIO services.
    */
   def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Live, E, A] =
     ZIO.serviceWithZIO[Live](_.provide(zio))
 
   /**
-   * Provides a transformation function with access to the live environment
-   * while ensuring that the effect itself is provided with the test
-   * environment.
+   * Runs a transformation function with the live default ZIO services while
+   * ensuring that the workflow itself is run with the test services.
    */
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
