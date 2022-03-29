@@ -79,8 +79,8 @@ val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 **ZSink.timed** — A sink that executes the stream and times its execution:
 
 ```scala mdoc:silent
-val timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.timed
-val stream: ZIO[Clock, Nothing, Long] =
+val timed: ZSink[Any, Nothing, Any, Nothing, Duration] = ZSink.timed
+val stream: ZIO[Any, Nothing, Long] =
   ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
 // Result: 10
 ```
