@@ -220,8 +220,7 @@ object TestConsole extends Serializable {
         ref      <- ZIO.succeed(Ref.unsafeMake(data))
         debugRef <- FiberRef.make(debug)
         test      = Test(ref, live, debugRef)
-        services <- ZEnv.services.get
-        _        <- ZEnv.services.locallyScoped(services.add(test))
+        _        <- ZEnv.services.locallyScopedWith(_.add(test))
       } yield test
     }
 
