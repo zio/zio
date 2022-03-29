@@ -985,8 +985,8 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            clock    <- live(ZIO.clock)
-            _        <- ZEnv.services.locallyScopedWith(_.add(clock))
+            clock <- live(ZIO.clock)
+            _     <- ZEnv.services.locallyScopedWith(_.add(clock))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1001,8 +1001,8 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            console  <- live(ZIO.console)
-            _        <- ZEnv.services.locallyScopedWith(_.add(console))
+            console <- live(ZIO.console)
+            _       <- ZEnv.services.locallyScopedWith(_.add(console))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1026,8 +1026,8 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            random   <- live(ZIO.random)
-            _        <- ZEnv.services.locallyScopedWith(_.add(random))
+            random <- live(ZIO.random)
+            _      <- ZEnv.services.locallyScopedWith(_.add(random))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1042,8 +1042,8 @@ object TestAspect extends TimeoutVariants {
       def some[R <: Live, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] = {
         val layer = ZLayer.scoped {
           for {
-            system   <- live(ZIO.system)
-            _        <- ZEnv.services.locallyScopedWith(_.add(system))
+            system <- live(ZIO.system)
+            _      <- ZEnv.services.locallyScopedWith(_.add(system))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)

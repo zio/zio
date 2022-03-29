@@ -192,9 +192,9 @@ object TestSystem extends Serializable {
     implicit val trace: ZTraceElement = Tracer.newTrace
     ZLayer.scoped {
       for {
-        ref      <- ZIO.succeed(Ref.unsafeMake(data))
-        test      = Test(ref)
-        _        <- ZEnv.services.locallyScopedWith(_.add(test))
+        ref <- ZIO.succeed(Ref.unsafeMake(data))
+        test = Test(ref)
+        _   <- ZEnv.services.locallyScopedWith(_.add(test))
       } yield test
     }
   }

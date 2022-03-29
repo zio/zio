@@ -776,10 +776,10 @@ object TestRandom extends Serializable {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
       for {
-        data     <- ZIO.succeed(Ref.unsafeMake(data))
-        buffer   <- ZIO.succeed(Ref.unsafeMake(Buffer()))
-        test      = Test(data, buffer)
-        _        <- ZEnv.services.locallyScopedWith(_.add(test))
+        data   <- ZIO.succeed(Ref.unsafeMake(data))
+        buffer <- ZIO.succeed(Ref.unsafeMake(Buffer()))
+        test    = Test(data, buffer)
+        _      <- ZEnv.services.locallyScopedWith(_.add(test))
       } yield test
     }
   }
