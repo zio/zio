@@ -342,7 +342,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  def asciiString(implicit trace: ZTraceElement): Gen[Any with Sized, String] =
+  def asciiString(implicit trace: ZTraceElement): Gen[Sized, String] =
     Gen.string(Gen.asciiChar)
 
   /**

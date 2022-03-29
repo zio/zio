@@ -11,13 +11,13 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
   implicit val eventOrdering: Ordering[Event] =
     Ordering.by(_.time)
 
-  val genEvent: Gen[Any with Sized, Event] =
+  val genEvent: Gen[Sized, Event] =
     for {
       time        <- Gen.int(-10, 10)
       description <- Gen.alphaNumericString
     } yield Event(time, description)
 
-  val genEvents: Gen[Any with Sized, Chunk[Event]] =
+  val genEvents: Gen[Sized, Chunk[Event]] =
     Gen.chunkOf(genEvent)
 
   val genPredicate: Gen[Any, Event => Boolean] =
