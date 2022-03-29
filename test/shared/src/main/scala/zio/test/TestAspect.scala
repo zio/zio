@@ -986,7 +986,7 @@ object TestAspect extends TimeoutVariants {
         val layer = ZLayer.scoped {
           for {
             clock    <- live(ZIO.clock)
-            _        <- ZEnv.services.locallyScoped(_.add(clock))
+            _        <- ZEnv.services.locallyScopedWith(_.add(clock))
           } yield ()
         }
         spec.provideSomeLayer[R](layer)

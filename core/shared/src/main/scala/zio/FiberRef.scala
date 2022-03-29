@@ -111,7 +111,7 @@ final class FiberRef[A] private[zio] (
     initial
 
   /**
-   * Returns an `IO` that runs with `value` bound to the current fiber.
+   * Returns a `ZIO` that runs with `value` bound to the current fiber.
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
@@ -119,7 +119,7 @@ final class FiberRef[A] private[zio] (
     new ZIO.FiberRefLocally(value, self, zio, trace)
 
   /**
-   * Returns an `IO` that runs with `f` applied to the current fiber.
+   * Returns a `ZIO` that runs with `f` applied to the current fiber.
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
