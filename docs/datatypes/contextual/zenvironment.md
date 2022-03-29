@@ -101,14 +101,6 @@ val eliminated: IO[IOException, Unit] =
 
 ## Creation
 
-To create the default ZIO environment:
-
-```scala mdoc:compile-only
-import zio._
-
-val default: ZEnvironment[ZEnv] = ZEnvironment.default 
-```
-
 To create an empty ZIO environment:
 
 ```scala mdoc:compile-only
@@ -135,8 +127,8 @@ import zio._
 
 case class AppConfig(host: String, port: Int)
 
-val app: ZEnvironment[ZEnv & AppConfig] =
-  ZEnvironment.default ++ ZEnvironment(AppConfig("localhost", 8080))
+val app: ZEnvironment[AppConfig] =
+  ZEnvironment.empty ++ ZEnvironment(AppConfig("localhost", 8080))
 ```
 
 To **add** a service to an environment:
@@ -146,15 +138,21 @@ import zio._
 
 case class AppConfig(host: String, port: Int)
 
-val app: ZEnvironment[ZEnv & AppConfig] =
-  ZEnvironment.default.add(AppConfig("localhost", 8080))
+val app: ZEnvironment[AppConfig] =
+  ZEnvironment.empty.add(AppConfig("localhost", 8080))
 ```
 
 To retrieve a service from the environment, we use `get` method:
 
 ```scala mdoc:compile-only
 import zio._
-val console: Console = ZEnvironment.default.get[Console] 
+
+case class AppConfig(host: String, port: Int)
+
+val app: ZEnvironment[AppConfig] =
+  ZEnvironment.empty.add(AppConfig("localhost", 8080))
+
+val appConfig: AppConfig = app.get[AppConfig] 
 ```
 
 ## Providing Multiple Instance of the Same Interface

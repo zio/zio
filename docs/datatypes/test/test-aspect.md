@@ -533,9 +533,9 @@ import java.util.concurrent.TimeUnit
 suite("clock suite")(
   test("adjusting clock") {
     for {
-      clock <- ZEnv.clock.get
-      _ <- TestClock.adjust(1.second)
-      time <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
+      clock <- ZIO.clock
+      _     <- TestClock.adjust(1.second)
+      time  <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
     } yield assertTrue(time == 1)
   } @@ repeat5
 )
@@ -564,9 +564,9 @@ import java.util.concurrent.TimeUnit
 suite("clock suite")(
   test("adjusting clock") {
     for {
-      clock <- ZEnv.clock.get
-      _ <- TestClock.adjust(1.second)
-      time <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
+      clock <- ZIO.clock
+      _     <- TestClock.adjust(1.second)
+      time  <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
     } yield assertTrue(time == 1)
   } @@ TestAspect.restoreTestClock @@ repeat5
 )
