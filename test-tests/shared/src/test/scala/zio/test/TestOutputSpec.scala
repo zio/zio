@@ -79,11 +79,13 @@ object TestOutputSpec extends ZIOSpecDefault {
         testOutput <- ZIO.service[TestOutput]
         _ <- sectionStart(parent)
         _ <- sectionStart(child1)
+        _ <- sectionStart(child2)
         _ <- testOutput.print(successfulTest(child1.id, List("success")))
         _ <- testOutput.print(failedTest(child1.id, List("failure")))
         _ <- testOutput.print(failedTest(child2.id, List("queuedMessage")))
-        _ <- sectionEnd(child1, 0)
-        _ <- sectionEnd(parent, 0)
+        _ <- sectionEnd(child2)
+        _ <- sectionEnd(child1)
+//        _ <- sectionEnd(parent)
         output      <- testConsole.output
         _           <- ZIO.debug(output)
       } yield outputContainsAllOf(output, "success", "failure") &&
@@ -115,7 +117,7 @@ object TestOutputSpec extends ZIOSpecDefault {
       )
     } yield ()
 
-  private def sectionEnd(testEntity: TestEntity, depth: Int) =
+  private def sectionEnd(testEntity: TestEntity) =
     for {
       testOutput <- ZIO.service[TestOutput]
       _ <- testOutput.print(
