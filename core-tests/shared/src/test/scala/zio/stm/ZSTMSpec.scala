@@ -1232,7 +1232,7 @@ object ZSTMSpec extends ZIOBaseSpec {
   class UnpureBarrier {
     private var isOpen = false
     def open(): Unit   = isOpen = true
-    def await: URIO[Any, Unit] =
+    def await: UIO[Any] =
       ZIO
         .suspend(ZIO.attempt(if (isOpen) () else throw new Exception()))
         .eventually

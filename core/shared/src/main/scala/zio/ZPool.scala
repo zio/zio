@@ -343,7 +343,7 @@ object ZPool {
      */
     case object None extends Strategy[Any, Any, Any] {
       type State = Unit
-      def initial(implicit trace: ZTraceElement): URIO[Any, Unit] =
+      def initial(implicit trace: ZTraceElement): UIO[Any] =
         ZIO.unit
       def track(state: Unit)(attempted: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.unit

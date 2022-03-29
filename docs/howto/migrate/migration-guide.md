@@ -1075,7 +1075,7 @@ import zio._
 
 object MainApp extends ZIOAppDefault {
 
-  val needsClockAndRandomAndConsole: URIO[Any, Unit] =
+  val needsClockAndRandomAndConsole: UIO[Unit] =
     for {
       uuid <- Random.nextUUID
       date <- Clock.localDateTime
