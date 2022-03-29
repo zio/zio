@@ -4064,6 +4064,15 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .either
             )(isLeft(equalTo("Ouch")))
+          },
+          test("zipWith dies if one of the streams throws an exception") {
+            assertM(
+              ZStream(1)
+                .flatMap(_ => ZStream.succeed(throw new Exception("outch")))
+                .zip(ZStream(1))
+                .runCollect
+                .exit
+            )(dies(anything))
           }
         ),
         suite("zipAllWith")(
