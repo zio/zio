@@ -484,6 +484,122 @@ def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
   )
 ```
 
+### Loops
+
+ZIO provides some loop combinators that helps us avoid the need to write explicit recursions:
+
+1. **`ZIO.loop`/`ZIO.loopDiscard`**— It takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
+
+```scala
+object ZIO {
+  def loop[R, E, A, S](
+    initial: => S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, A]): ZIO[R, E, List[A]]
+  
+  def loopDiscard[R, E, S](
+    initial: => S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any]): ZIO[R, E, Unit]
+```
+
+The `ZIO#loop` collects all intermediate states in a list and returns it finally, while the `loopDiscard` discards all results.
+
+We can think of `ZIO#loop` as a moral equivalent of the following while loop:
+
+```scala
+var s  = initial
+var as = List.empty[A]
+
+while (cont(s)) {
+  as = body(s) :: as
+  s  = inc(s)
+}
+
+as.reverse
+```
+
+Let's try some examples:
+
+```scala mdoc:compile-only
+import zio._
+
+val r1: ZIO[Any, Nothing, List[Int]] =
+  ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n)).debug
+// List(1, 2, 3, 4, 5)
+
+val r2: ZIO[Any, Nothing, List[Int]] =
+  ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n * 2))
+// List(2, 4, 6, 8, 10)
+
+val r3: ZIO[Console, IOException, List[Unit]] =
+  ZIO.loop(1)(_ <= 5, _ + 1) { index =>
+    Console.printLine(s"Currently at index $index")
+  }.debug
+// Currently at index 1
+// Currently at index 2
+// Currently at index 3
+// Currently at index 4
+// Currently at index 5
+// List((), (), (), (), ())
+
+val r4: ZIO[Console, IOException, Unit] =
+  ZIO.loopDiscard(1)(_ <= 5, _ + 1) { index =>
+    Console.printLine(s"Currently at index $index")
+  }.debug
+// Currently at index 1
+// Currently at index 2
+// Currently at index 3
+// Currently at index 4
+// Currently at index 5
+// ()
+
+val r5: ZIO[Console, IOException, List[(Int, String)]] =
+  Console.printLine("Please enter three name: ") *>
+    ZIO.loop(1)(_ <= 3, _ + 1) { n =>
+      Console.print(s"$n. ") *>
+        Console.readLine.map(name => (n, name))
+    }
+// Please enter all names: 
+// 1. John
+// 2. Jane
+// 3. Joe
+// List((1,John), (2,Jane), (3,Joe))
+```
+
+2. **`ZIO.iterate`**— To iterate with the given effectful operation we can use this combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
+
+```scala
+object ZIO {
+  def iterate[R, E, S](
+    initial: => S
+  )(cont: S => Boolean)(body: S => ZIO[R, E, S]): ZIO[R, E, S]
+}
+```
+
+This operator is a moral equivalent of the following while loop:
+
+```scala
+var s = initial
+while (cont(s)) {
+  s = body(s)
+}
+s
+```
+
+Let's try some examples:
+
+```scala mdoc:compile-only
+import zio._
+
+val r1 = ZIO.iterate(1)(_ <= 5)(s => ZIO.succeed(s + 1)).debug
+// 6
+
+val r2 = ZIO.iterate(1)(_ <= 5)(s => ZIO.succeed(s * 2).debug).debug("result")
+// 2
+// 4
+// 8
+// result: 8
+```
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
