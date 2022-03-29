@@ -486,7 +486,7 @@ def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
 
 ### Loops
 
-ZIO provides some loop combinators that helps us avoid the need to write explicit recursions:
+ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. 
 
 1. **`ZIO.loop`/`ZIO.loopDiscard`**— It takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
 
@@ -563,6 +563,24 @@ val r5: ZIO[Console, IOException, List[(Int, String)]] =
 // 2. Jane
 // 3. Joe
 // List((1,John), (2,Jane), (3,Joe))
+
+val r6: ZIO[Console, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
+    ZIO.iterate((List.empty[String], true, 1))(_._2) { case (names, _, i) =>
+      Console.print(s"$i. ") *> Console.readLine.map {
+        case "exit" => (names, false, i + 1)
+        case name   => (names.appended(name), true, i + 1)
+      }
+    }
+    .map(_._1)
+    .debug
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
 ```
 
 2. **`ZIO.iterate`**— To iterate with the given effectful operation we can use this combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
