@@ -501,6 +501,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     ZLayer.failCause(Cause.die(t))
 
   /**
+   * A layer that does not produce any services.
+   */
+  val empty: ZLayer[Any, Nothing, Any] =
+    ZLayer.Scoped(ZIO.succeedNow(ZEnvironment.empty))
+
+  /**
    * Constructs a layer that fails with the specified error.
    */
   def fail[E](e: E)(implicit trace: ZTraceElement): Layer[E, Nothing] =
