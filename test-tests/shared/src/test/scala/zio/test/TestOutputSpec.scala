@@ -70,8 +70,6 @@ object TestOutputSpec extends ZIOSpecDefault {
     for {
       testOutput <-  ZIO.service[TestOutput]
       _ <- testOutput.printOrQueue(
-        testEntity.id,
-        testEntity.ancestors,
         testStatus match {
           case Success => successfulTest(testEntity.id, "TestOutputSpec" :: labels)
           case Failure => failedTest(testEntity.id,  "TestOutputSpec" :: labels)

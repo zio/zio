@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.test.ExecutionEvent.RuntimeFailure
 import zio.{Ref, UIO, ZIO, ZLayer}
 
 trait ExecutionEventSink {
@@ -24,28 +25,24 @@ object ExecutionEventSink {
         event: ExecutionEvent
       ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
         event match {
-          case testEvent @ ExecutionEvent.Test(_, _, _, ancestors, _, sectionId) =>
+          case testEvent: ExecutionEvent.Test[_] =>
             summary.update(
               _.add(testEvent)
             ) *>
               TestOutput.printOrQueue(
-                sectionId,
-                ancestors,
                 testEvent
               )
 
-          case start @ ExecutionEvent.SectionStart(_, id, ancestors) =>
+          case start: ExecutionEvent.SectionStart =>
             TestOutput.printOrQueue(
-              id,
-              ancestors,
               start
             )
 
-          case ExecutionEvent.SectionEnd(_, id, ancestors) =>
-            TestOutput.printOrFlush(id, ancestors)
+          case end: ExecutionEvent.SectionEnd =>
+            TestOutput.printOrFlush(end)
 
-          case runtimeFailure @ ExecutionEvent.RuntimeFailure(id, _, _, ancestors) =>
-            TestOutput.printOrQueue(id, ancestors, runtimeFailure)
+          case runtimeFailure: RuntimeFailure[_] =>
+            TestOutput.printOrQueue(runtimeFailure)
         }
 
       override def getSummary: UIO[Summary] = summary.get
