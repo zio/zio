@@ -1,5 +1,6 @@
 ---
 id: stm
+slug: stm.md
 title: "STM"
 ---
 

@@ -8,10 +8,10 @@ A `Semaphore` datatype which allows synchronization between fibers with the `wit
 
 ## Operations
 
-For example a synchronization of asynchronous tasks can 
-be done via acquiring and releasing a semaphore with given number of permits it can spend.
-When the acquire operation cannot be performed, due to insufficient `permits` value in the semaphore, such task 
-is placed in internal suspended fibers queue and will be awaken when `permits` value is sufficient:
+For example, a synchronization of asynchronous tasks can 
+be done via acquiring and releasing a semaphore with a given number of permits it can spend.
+When the acquire operation cannot be performed due to no more available `permits` in the semaphore, such task 
+is semantically blocked, until the `permits` value is large enough again:
 
 ```scala mdoc:silent
 import java.util.concurrent.TimeUnit
@@ -41,8 +41,8 @@ val program = for {
 } yield ()
 ```
 
-As the binary semaphore is a special case of counting semaphore 
-we can acquire and release any value, regarding semaphore's permits:
+As the binary semaphore is a special case of a counting semaphore, 
+we can acquire and release any number of `permits`:
 
 ```scala mdoc:silent
 val semTaskN = (sem: Semaphore) => for {
@@ -50,4 +50,4 @@ val semTaskN = (sem: Semaphore) => for {
 } yield ()
 ```
 
-The guarantee of `withPermit` (and its corresponding counting version `withPermits`) is that acquisition will be followed by equivalent release, regardless of whether the task succeeds, fails, or is interrupted.
+The guarantee of `withPermit` (and its corresponding counting version `withPermits`) is that each acquisition will be followed by the equivalent number of releases, regardless of whether the task succeeds, fails, or is interrupted.

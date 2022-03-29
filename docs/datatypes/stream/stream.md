@@ -1,5 +1,6 @@
 ---
 id: stream
+slug: stream.md
 title: "Stream"
 ---
 
