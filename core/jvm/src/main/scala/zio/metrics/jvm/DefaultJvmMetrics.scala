@@ -11,13 +11,8 @@ trait DefaultJvmMetrics {
   protected def jvmMetricsSchedule: ULayer[JvmMetricsSchedule]
 
   /** A ZIO application that periodically updates the JVM metrics */
-  lazy val app: ZIOApp = new ZIOApp {
-    private implicit val trace: ZTraceElement     = Tracer.newTrace
-    override val tag: EnvironmentTag[Environment] = EnvironmentTag[Environment]
-    override type Environment = Any
-    override val layer: ZLayer[ZIOAppArgs, Any, Environment] = {
-      live
-    }
+  lazy val app: ZIOAppDefault = new ZIOAppDefault {
+    override val layer: ZLayer[ZIOAppArgs, Any, Any] = live
     override def run: ZIO[Environment with ZIOAppArgs, Any, Any] = ZIO.unit
   }
 
