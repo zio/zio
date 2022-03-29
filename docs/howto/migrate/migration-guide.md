@@ -1331,7 +1331,7 @@ ZIO 2.x:
 ```scala mdoc:silent:nest
 import zio._
 
-val myApp: ZIO[Console, Nothing, Unit] =
+val myApp: ZIO[Any, Nothing, Unit] =
   for {
     semaphore <- Semaphore.make(4)
     available <- ZIO.foreach((1 to 10).toList) { _ =>

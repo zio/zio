@@ -54,57 +54,6 @@ type ZIO[R, E, A] = R => Either[E, A]
 
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
-For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
-
-```scala mdoc:silent
-import zio._
-
-import java.io.IOException
-
-val effect: ZIO[Any, IOException, Unit] = 
-  Console.printLine("Hello, World!")
-```
-
-So when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
-
-```scala mdoc:compile-only
-val mainApp: ZIO[Any, IOException, Unit] = effect
-```
-
-```scala mdoc:invisible:reset
-
-```
-
-Finally, to run our application we can put our `mainApp` inside the `run` method:
-
-```scala mdoc:compile-only
-import zio._
-import zio.Console._
-import java.io.IOException
-
-object MainApp extends ZIOAppDefault {
-  val effect: ZIO[Any, IOException, Unit] = printLine("Hello, World!")
-  val mainApp: ZIO[Any, IOException, Unit] = effect
-
-  def run = mainApp
-}
-```
-
-Sometimes an effect needs more than one environmental service, it doesn't matter, in these cases, we can provide all dependencies all together:
-
-```scala mdoc:compile-only
-import zio._
-
-import java.io.IOException
-
-val effect: ZIO[Any, IOException, Unit] = for {
-  r <- Random.nextInt
-  _ <- Console.printLine(s"random number: $r")
-} yield ()
-
-val mainApp: ZIO[Any, IOException, Unit] = effect
-```
-
 We don't need to provide live layers for built-in services (Layers will be discussed later on this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (`Clock`, `Console`, `System`, `Random`, and `Blocking`). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only

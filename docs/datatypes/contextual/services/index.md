@@ -10,12 +10,6 @@ ZIO already provides four build-in services:
 3. **[Random](random.md)** — Provides utilities to generate random numbers.
 4. **[System](system.md)** — Contains several useful functions related to system environments and properties.
 
-The `ZEnv` is a type alias for all of these services:
-
-```scala
-type ZEnv = Clock & Console & System & Random
-```
-
 When we use these services we don't need to provide their corresponding environment explicitly. ZIO provides built-in live version of ZIO services to our effects, so we do not need to provide them manually.
 
 ```scala mdoc:compile-only
