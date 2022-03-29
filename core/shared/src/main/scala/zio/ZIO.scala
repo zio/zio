@@ -1516,11 +1516,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val zio: ZIO[Clock with Random, Nothing, Unit] = ???
+   * val zio: ZIO[Logging with Database, Nothing, Unit] = ???
    *
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val zio2 = zio.provideSomeLayer[Random](clockLayer)
+   * val zio2 = zio.provideSomeLayer[Database](loggingLayer)
    * }}}
    */
   final def provideSomeLayer[R0]: ZIO.ProvideSomeLayer[R0, R, E, A] =
@@ -2312,7 +2312,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     timedWith(Clock.nanoTime)
 
   /**
-   * A more powerful variation of `timed` that allows specifying the Clock.
+   * A more powerful variation of `timed` that allows specifying the workflow
+   * that will be used to calculate the current time.
    */
   final def timedWith[R1 <: R, E1 >: E](nanoTime: => ZIO[R1, E1, Long])(implicit
     trace: ZTraceElement
