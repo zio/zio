@@ -49,7 +49,7 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
     ),
     test("standalone 1") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
-    },
+    }
   ) @@ TestAspect.ignore
 }
 

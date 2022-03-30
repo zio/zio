@@ -10,16 +10,14 @@ object ExecutionEventPrinter {
   def live: ZLayer[Any, Nothing, ExecutionEventPrinter] =
     ZLayer.succeed(Live)
 
-  def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter with TestLogger, Nothing, Unit] = {
+  def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter with TestLogger, Nothing, Unit] =
     ZIO.serviceWithZIO[ExecutionEventPrinter](_.print(event))
-  }
 
   object Live extends ExecutionEventPrinter {
-    override def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit] = {
+    override def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit] =
       TestLogger.logLine(
         ReporterEventRenderer.render(event).mkString("\n")
       )
-    }
   }
 }
 
@@ -42,12 +40,13 @@ object TestOutput {
 
   /**
    * Guarantees:
-   * - Everything at or below a specific suite level will be printed contiguously
-   * - Everything will be printed, as long as required SectionEnd events have been passed in
+   *   - Everything at or below a specific suite level will be printed
+   *     contiguously
+   *   - Everything will be printed, as long as required SectionEnd events have
+   *     been passed in
    *
    * Not guaranteed:
-   * - Ordering within a suite
-   *
+   *   - Ordering within a suite
    */
   def print(
     executionEvent: ExecutionEvent

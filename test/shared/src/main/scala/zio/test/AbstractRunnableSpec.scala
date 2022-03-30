@@ -52,7 +52,10 @@ abstract class AbstractRunnableSpec {
     spec: ZSpec[Environment, Failure]
   )(implicit
     trace: ZTraceElement
-  ): URIO[TestOutput with TestLogger with Clock with ExecutionEventSink with ExecutionEventPrinter with Random, Summary] =
+  ): URIO[
+    TestOutput with TestLogger with Clock with ExecutionEventSink with ExecutionEventPrinter with Random,
+    Summary
+  ] =
     runner.run(aspects.foldLeft(spec)(_ @@ _))
 
   /**
