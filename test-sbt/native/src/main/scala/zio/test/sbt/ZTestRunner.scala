@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
-import zio.{Chunk, Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -91,7 +91,7 @@ sealed class ZTestTask(
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
           ZIO.scoped {
             zioSpec.run
-              .provideLayer(ZLayer.succeed(ZIOAppArgs(Chunk.empty)) ++ zio.ZEnv.live ++ ZLayer.environment[Scope])
+              .provideLayer(ZIOAppArgs.empty ++ zio.ZEnv.live ++ ZLayer.environment[Scope])
               .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
         } { exit =>
