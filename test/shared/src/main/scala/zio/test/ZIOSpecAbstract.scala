@@ -55,7 +55,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         self.layer +!+ that.layer
 
       override def runSpec: ZIO[
-        Environment with TestEnvironment with ZIOAppArgs with TestOutput with TestLogger with Scope,
+        Environment with TestEnvironment with ZIOAppArgs with Scope,
         Any,
         Any
       ] =
@@ -73,7 +73,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     }
 
   protected def runSpec: ZIO[
-    Environment with TestEnvironment with ZIOAppArgs with TestOutput with TestLogger with ExecutionEventSink with Scope,
+    Environment with TestEnvironment with ZIOAppArgs with Scope,
     Any,
     Any
   ] = {
@@ -112,14 +112,14 @@ abstract class ZIOSpecAbstract extends ZIOApp {
 
   private[zio] def runSpec(
     spec: ZSpec[
-      Environment with TestEnvironment with ZIOAppArgs with TestOutput with TestLogger with Clock with Scope with ExecutionEventSink,
+      Environment with TestEnvironment with ZIOAppArgs with Clock with Scope,
       Any
     ],
     testArgs: TestArgs
   )(implicit
     trace: ZTraceElement
   ): URIO[
-    Environment with TestEnvironment with ZIOAppArgs with TestOutput with TestLogger with Scope with ExecutionEventSink,
+    Environment with TestEnvironment with ZIOAppArgs with Scope,
     Summary
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
@@ -127,7 +127,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     for {
       runtime <-
         ZIO.runtime[
-          Environment with TestEnvironment with ZIOAppArgs with TestOutput with TestLogger with ExecutionEventSink with Scope
+          Environment with TestEnvironment with ZIOAppArgs with Scope
         ]
       environment   = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
@@ -135,7 +135,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         TestRunner(
           TestExecutor
             .default[
-              Environment with TestEnvironment with ZIOAppArgs with TestOutput with TestLogger with Scope with ExecutionEventSink,
+              Environment with TestEnvironment with ZIOAppArgs with Scope,
               Any
             ](
               ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment)

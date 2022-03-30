@@ -9,7 +9,6 @@ import zio.test.{
   TestArgs,
   TestEnvironment,
   TestLogger,
-  TestOutput,
   ZIOSpecAbstract
 }
 import zio.{Clock, Random, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
@@ -26,7 +25,7 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
   ): ZIO[
-    TestLogger with Clock with TestOutput with ExecutionEventSink with Random,
+    TestLogger with Clock with ExecutionEventSink with Random,
     Throwable,
     Unit
   ] = {

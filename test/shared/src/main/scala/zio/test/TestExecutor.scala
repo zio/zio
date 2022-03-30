@@ -27,20 +27,20 @@ import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
-  ): ZIO[TestOutput with ExecutionEventSink with Random, Nothing, Summary]
+  ): ZIO[ExecutionEventSink with Random, Nothing, Summary]
 
   def environment: ZLayer[Scope, Nothing, R]
 }
 
 object TestExecutor {
 
-  def default[R <: Annotations, E](
+  def default[R <: Annotations with ExecutionEventSink, E](
     env: ZLayer[Scope, Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
     ): ZIO[
-      TestOutput with ExecutionEventSink with Random,
+      ExecutionEventSink with Random,
       Nothing,
       Summary
     ] =
@@ -56,7 +56,7 @@ object TestExecutor {
             ancestors: List[SuiteId],
             sectionId: SuiteId
           ): ZIO[
-            TestOutput with ExecutionEventSink with Random with Scope,
+            Random with Scope,
             Nothing,
             Unit
           ] =

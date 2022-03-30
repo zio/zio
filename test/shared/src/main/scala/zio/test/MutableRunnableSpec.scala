@@ -168,7 +168,7 @@ class MutableRunnableSpec[R: Tag](
   )(implicit
     trace: ZTraceElement
   ): URIO[
-    TestOutput with TestLogger with Clock with ExecutionEventSink with Random,
+    Clock with ExecutionEventSink with Random,
     Summary
   ] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)

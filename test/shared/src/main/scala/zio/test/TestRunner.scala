@@ -58,7 +58,7 @@ final case class TestRunner[R, E](
   )(implicit
     trace: ZTraceElement
   ): URIO[
-    TestOutput with TestLogger with Clock with ExecutionEventSink with Random,
+    Clock with ExecutionEventSink with Random,
     Summary
   ] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>

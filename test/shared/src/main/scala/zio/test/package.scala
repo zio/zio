@@ -66,8 +66,6 @@ package object test extends CompileVariants {
       with TestRandom
       with TestSystem
       with ExecutionEventSink
-      with ExecutionEventPrinter
-      with TestOutput
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
