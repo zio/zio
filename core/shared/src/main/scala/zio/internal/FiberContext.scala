@@ -91,19 +91,15 @@ private[zio] final class FiberContext[E, A](
       if (unsafeEvalOn(effect)) ZIO.unit else orElse.unit
     }
 
-  final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] =
-    ZIO.succeed(unsafeGetRef(ref))
-
   final def id: FiberId.Runtime = fiberId
 
   final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = UIO.suspendSucceed {
-    val locals = fiberRefLocals.get
+    val childFiberRefs = FiberRefs(fiberRefLocals.get)
 
-    if (locals.isEmpty) UIO.unit
+    if (childFiberRefs.fiberRefLocals.isEmpty) UIO.unit
     else
-      UIO.foreachDiscard(locals) { case (fiberRef, value) =>
-        val ref = fiberRef.asInstanceOf[FiberRef[Any]]
-        ref.update(old => ref.join(old, value))
+      ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
+        parentFiberRefs.join(parentFiberId)(childFiberRefs)
       }
   }
 
@@ -389,10 +385,13 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = unsafeNextEffect(unsafeCaptureTrace(zio.trace :: Nil))
 
-                  case ZIO.Tags.FiberRefGetAll =>
-                    val zio = curZio.asInstanceOf[ZIO.FiberRefGetAll[Any, Any, Any]]
+                  case ZIO.Tags.FiberRefModifyAll =>
+                    val zio = curZio.asInstanceOf[ZIO.FiberRefModifyAll[Any]]
 
-                    curZio = zio.make(fiberRefLocals.get)
+                    val (result, newValue) = zio.f(fiberId, FiberRefs(fiberRefLocals.get))
+                    fiberRefLocals.set(newValue.fiberRefLocals)
+
+                    curZio = unsafeNextEffect(result)
 
                   case ZIO.Tags.FiberRefModify =>
                     val zio = curZio.asInstanceOf[ZIO.FiberRefModify[Any, Any]]
@@ -722,13 +721,15 @@ private[zio] final class FiberContext[E, A](
     zio: IO[E, A],
     forkScope: Option[FiberScope] = None
   )(implicit trace: ZTraceElement): FiberContext[E, A] = {
-    val childFiberRefLocals: Map[FiberRef[_], AnyRef] = fiberRefLocals.get.transform { case (fiberRef, value) =>
-      fiberRef.fork(value.asInstanceOf[fiberRef.ValueType]).asInstanceOf[AnyRef]
-    }
+    val childId = FiberId.unsafeMake(trace)
+
+    val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
+      fiberRefLocals.get.transform { case (fiberRef, stack) =>
+        ::(childId -> fiberRef.patch(fiberRef.fork)(stack.head._2.asInstanceOf[fiberRef.Value]), stack)
+      }
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
-    val childId       = FiberId.unsafeMake(trace)
     val grandChildren = Platform.newWeakSet[FiberContext[_, _]]()
 
     val childContext = new FiberContext[E, A](
@@ -770,7 +771,10 @@ private[zio] final class FiberContext[E, A](
     unsafeGetRef(currentExecutor).getOrElse(runtimeConfig.executor)
 
   private[zio] final def unsafeGetRef[A](fiberRef: FiberRef[A]): A =
-    fiberRefLocals.get.get(fiberRef).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)
+    fiberRefLocals.get.get(fiberRef).map(_.head._2).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)
+
+  private[zio] def unsafeGetRefs(fiberRefLocals: FiberRefLocals): Map[FiberRef[_], Any] =
+    fiberRefLocals.get.transform { case (fiberRef, stack) => fiberRef -> stack.head }
 
   private def unsafeInterruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = {
     val interruptedCause = Cause.interrupt(fiberId)
@@ -842,7 +846,9 @@ private[zio] final class FiberContext[E, A](
     val spans       = unsafeGetRef(FiberRef.currentLogSpan)
     val annotations = unsafeGetRef(FiberRef.currentLogAnnotations)
 
-    runtimeConfig.logger(trace, fiberId, logLevel, message, Cause.empty, fiberRefLocals.get, spans, annotations)
+    val contextMap = unsafeGetRefs(fiberRefLocals)
+
+    runtimeConfig.logger(trace, fiberId, logLevel, message, Cause.empty, contextMap, spans, annotations)
   }
 
   private def unsafeLog(
@@ -864,11 +870,11 @@ private[zio] final class FiberContext[E, A](
 
     val contextMap =
       if (overrideRef1 ne null) {
-        val map = fiberRefLocals.get
+        val map = unsafeGetRefs(fiberRefLocals)
 
         if (overrideValue1 eq null) map - overrideRef1
         else map.updated(overrideRef1, overrideValue1)
-      } else fiberRefLocals.get
+      } else unsafeGetRefs(fiberRefLocals)
 
     runtimeConfig.logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
   }
@@ -1051,8 +1057,12 @@ private[zio] final class FiberContext[E, A](
   @tailrec
   private[zio] def unsafeSetRef[A](fiberRef: FiberRef[A], value: A): Unit = {
     val oldState = fiberRefLocals.get
-
-    if (!fiberRefLocals.compareAndSet(oldState, oldState.updated(fiberRef, value.asInstanceOf[AnyRef])))
+    val oldStack = oldState.get(fiberRef).getOrElse(List.empty)
+    val newStack =
+      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
+      else ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+    val newState = oldState.updated(fiberRef, newStack)
+    if (!fiberRefLocals.compareAndSet(oldState, newState))
       unsafeSetRef(fiberRef, value)
     else ()
   }
@@ -1290,7 +1300,7 @@ private[zio] object FiberContext {
     final case class Registered(asyncCanceler: ZIO[Any, Any, Any]) extends CancelerState
   }
 
-  type FiberRefLocals = AtomicReference[Map[FiberRef[_], AnyRef]]
+  type FiberRefLocals = AtomicReference[Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]]
 
   val catastrophicFailure: AtomicBoolean =
     new AtomicBoolean(false)
