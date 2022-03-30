@@ -50,7 +50,7 @@ object ExecutionEventSink {
     ZLayer.fromZIO(
       for {
         testOutput <- ZIO.service[TestOutput]
-        sink <- ExecutionEventSinkLive(testOutput)
+        sink       <- ExecutionEventSinkLive(testOutput)
       } yield sink
     )
 }

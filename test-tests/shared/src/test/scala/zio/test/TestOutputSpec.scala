@@ -73,8 +73,6 @@ object TestOutputSpec extends ZIOSpecDefault {
           End(child1)
         )
       for {
-        fakePrinter  <- ZIO.service[ExecutionEventPrinter]
-        _            <- ZIO.debug("Printer: " + fakePrinter)
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
       } yield assertTrue(
@@ -104,7 +102,6 @@ object TestOutputSpec extends ZIOSpecDefault {
       for {
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
-        _            <- ZIO.debug(outputEvents.mkString("\n"))
       } yield assertTrue(
         outputEvents ==
           List(
