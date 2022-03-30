@@ -25,7 +25,7 @@ abstract class BaseTestTask(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
   ): ZIO[
-    TestLogger with Clock with ExecutionEventSink with Random,
+    Clock with ExecutionEventSink with Random,
     Throwable,
     Unit
   ] = {

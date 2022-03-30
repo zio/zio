@@ -34,17 +34,15 @@ final case class TestRunner[R, E](
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
   bootstrap: Layer[
     Nothing,
-    TestOutput with TestLogger with Clock with ExecutionEventSink with Random
+    TestLogger with Clock with ExecutionEventSink with Random
   ] = {
     implicit val emptyTracer = ZTraceElement.empty
-    val printerLayer: ZLayer[Any, Nothing, ExecutionEventPrinter] =
-      (Console.live.to(TestLogger.fromConsole) >>> ExecutionEventPrinter.live)
+    val printerLayer =
+      Console.live.to(TestLogger.fromConsole)
 
-    val sinkLayer = ((printerLayer >>> TestOutput.live)(ZTraceElement.empty) >+> ExecutionEventSink.live)
+    val sinkLayer = ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
 
-    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(
-      ZTraceElement.empty
-    )) ++ Clock.live ++ sinkLayer ++ Random.live
+    Clock.live ++ (printerLayer >+> sinkLayer) ++ Random.live
   }
 ) { self =>
 

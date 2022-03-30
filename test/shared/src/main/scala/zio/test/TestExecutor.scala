@@ -34,7 +34,7 @@ abstract class TestExecutor[+R, E] {
 
 object TestExecutor {
 
-  def default[R <: Annotations with ExecutionEventSink, E](
+  def default[R <: Annotations, E](
     env: ZLayer[Scope, Nothing, R]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
