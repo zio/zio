@@ -65,50 +65,36 @@ object TestOutput {
 
     def print(
       executionEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
-      executionEvent match {
-        case end: ExecutionEvent.SectionEnd =>
-          printOrFlush(end)
-        case other =>
-          printOrQueue(other)
-      }
-
-    private def printOrFlush(
-      end: ExecutionEvent.SectionEnd
-    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
+    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] = {
       for {
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
-        _               <- appendToSectionContents(end.id, Chunk(end))
-        sectionOutput   <- getAndRemoveSectionOutput(end.id)
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(executionEvent.id, executionEvent.ancestors)
+        _               <- appendToSectionContents(executionEvent.id, Chunk(executionEvent))
+        sectionOutput   <- getAndRemoveSectionOutput(executionEvent.id)
         _ <-
-          if (suiteIsPrinting)
-            printToConsole(sectionOutput)
-          else {
-            end.ancestors.headOption match {
-              case Some(parentId) =>
-                appendToSectionContents(parentId, sectionOutput)
-              case None =>
-                ZIO.dieMessage("Suite tried to send its output to a nonexistent parent")
-            }
+          executionEvent match {
+            case _: ExecutionEvent.SectionEnd =>
+              for {
+                _ <-
+                  if (suiteIsPrinting)
+                    printToConsole(sectionOutput)
+                  else {
+                    executionEvent.ancestors.headOption match {
+                      case Some(parentId) =>
+                        appendToSectionContents(parentId, sectionOutput)
+                      case None =>
+                        ZIO.dieMessage("Suite tried to send its output to a nonexistent parent")
+                    }
+                  }
+                _ <- reporters.relinquishPrintingControl(executionEvent.id)
+              } yield ()
+            case _ =>
+                if(suiteIsPrinting)
+                  printToConsole(sectionOutput)
+                else
+                  appendToSectionContents(executionEvent.id, sectionOutput) // TODO More
           }
-
-        _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
-
-    private def printOrQueue(
-      reporterEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
-      for {
-//        _ <- ZIO.debug("printOrQueue.reporterEvent: " + reporterEvent)
-        _               <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(reporterEvent.id, reporterEvent.ancestors)
-        _ <- ZIO.when(suiteIsPrinting)(
-               for {
-                 currentOutput <- getAndRemoveSectionOutput(reporterEvent.id)
-                 _             <- printToConsole(currentOutput)
-               } yield ()
-             )
-      } yield ()
+    }
 
     private def printToConsole(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
