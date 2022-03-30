@@ -45,7 +45,7 @@ object TestOutputSpec extends ZIOSpecDefault {
   val allEntities = List(parent, child1, child2, child1child1, child1child2, child2child1, child2child2)
 
   class ExecutionEventHolder(events: Ref[List[ExecutionEvent]]) extends ExecutionEventPrinter {
-    override def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit] =
+    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
       events.update(_ :+ event)
 
     def getEvents: ZIO[TestLogger, Nothing, List[ExecutionEvent]] =
@@ -102,6 +102,7 @@ object TestOutputSpec extends ZIOSpecDefault {
       for {
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
+        _ <- ZIO.debug(outputEvents.mkString("\n"))
       } yield assertTrue(
         outputEvents ==
           List(

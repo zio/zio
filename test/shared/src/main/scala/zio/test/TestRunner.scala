@@ -41,7 +41,9 @@ final case class TestRunner[R, E](
       ZTraceElement.empty
     )) ++ Clock.live ++ TestOutput.live ++ (TestOutput.live >>> ExecutionEventSink.live)(
       ZTraceElement.empty
-    ) ++ Random.live ++ ExecutionEventPrinter.live
+    ) ++ Random.live ++ (((Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(
+      ZTraceElement.empty
+    )) >>> ExecutionEventPrinter.live)(ZTraceElement.empty) )
   }
 ) { self =>
 

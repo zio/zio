@@ -84,7 +84,7 @@ package object test extends CompileVariants {
         TestSystem.default ++
         (TestOutput.live >>> ExecutionEventSink.live) ++
         TestOutput.live ++
-        ExecutionEventPrinter.live
+        TestLogger.fromConsole.map(testLogger => ZEnvironment(new ExecutionEventPrinter.Live(testLogger.get)))
 
     }
   }

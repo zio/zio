@@ -3,19 +3,22 @@ package zio.test
 import zio.{Chunk, Ref, ZIO, ZLayer}
 
 trait ExecutionEventPrinter {
-  def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit]
+  def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit]
 }
 
 object ExecutionEventPrinter {
-  def live: ZLayer[Any, Nothing, ExecutionEventPrinter] =
-    ZLayer.succeed(Live)
+  val live: ZLayer[TestLogger, Nothing, ExecutionEventPrinter] = {
+    ZLayer.fromZIO(for {
+      testLogger <- ZIO.service[TestLogger]
+    } yield new Live(testLogger))
+  }
 
-  def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter with TestLogger, Nothing, Unit] =
+  def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter, Nothing, Unit] =
     ZIO.serviceWithZIO[ExecutionEventPrinter](_.print(event))
 
-  object Live extends ExecutionEventPrinter {
-    override def print(event: ExecutionEvent): ZIO[TestLogger, Nothing, Unit] =
-      TestLogger.logLine(
+  class Live(logger: TestLogger) extends ExecutionEventPrinter {
+    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
+      logger.logLine(
         ReporterEventRenderer.render(event).mkString("\n")
       )
   }
