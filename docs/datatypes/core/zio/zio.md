@@ -554,17 +554,16 @@ val r4: ZIO[Console, IOException, Unit] =
 // Currently at index 5
 // ()
 
-val r5: ZIO[Console, IOException, List[(Int, String)]] =
-  Console.printLine("Please enter three name: ") *>
+val r5: ZIO[Console, IOException, List[String]] =
+  Console.printLine("Please enter three names: ") *>
     ZIO.loop(1)(_ <= 3, _ + 1) { n =>
-      Console.print(s"$n. ") *>
-        Console.readLine.map(name => (n, name))
+      Console.print(s"$n. ") *> Console.readLine
     }.debug
-// Please enter all names: 
+// Please enter three names: 
 // 1. John
 // 2. Jane
 // 3. Joe
-// List((1,John), (2,Jane), (3,Joe))
+// List(John, Jane, Joe)
 ```
 
 2. **`ZIO.iterate`**— To iterate with the given effectful operation we can use this combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
@@ -652,6 +651,21 @@ def getNames: ZIO[Console, IOException, List[String]] =
 // List(John, Jane, Joe)
 ```
 
+Note that, in several cases, we can avoid these low-level operators and instead use the high-level ones. For example, let's try to rewrite the `r5` with `ZIO.foreach`:
+
+```scala mdoc:compile-only
+import zio._
+
+Console.printLine("Please enter three names:") *>
+  ZIO.foreach(1 to 3) { index =>
+    Console.print(s"$index. ") *> Console.readLine
+  }.debug
+// Please enter three names:
+// 1. John
+// 2. Jane
+// 3. Joe
+// Vector(John, Jane, Joe)
+```
 
 ## Blocking Operations
 
