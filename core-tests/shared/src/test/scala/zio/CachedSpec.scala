@@ -1,7 +1,6 @@
 package zio
 
 import zio.test._
-import zio.test.TestAspect._
 
 object CachedSpec extends ZIOBaseSpec {
   def spec = suite("CachedSpec")(
@@ -20,7 +19,7 @@ object CachedSpec extends ZIOBaseSpec {
         value1 <- cached.get
         value2 <- ref.set(1) *> TestClock.adjust(10.seconds) *> cached.get
       } yield assertTrue(value1 == 0) && assertTrue(value2 == 1)
-    } @@ timeout(10.seconds),
+    },
     test("failed refresh doesn't affect cached value") {
       for {
         ref    <- Ref.make[Either[String, Int]](Right(0))
