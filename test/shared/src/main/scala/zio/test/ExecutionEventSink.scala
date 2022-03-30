@@ -24,28 +24,18 @@ object ExecutionEventSink {
         event: ExecutionEvent
       ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
         event match {
-          case testEvent @ ExecutionEvent.Test(_, _, _, ancestors, _, sectionId) =>
+          case testEvent: ExecutionEvent.Test[_] =>
             summary.update(
               _.add(testEvent)
             ) *>
-              TestOutput.printOrQueue(
-                sectionId,
-                ancestors,
+              TestOutput.print(
                 testEvent
               )
 
-          case start @ ExecutionEvent.SectionStart(_, id, ancestors) =>
-            TestOutput.printOrQueue(
-              id,
-              ancestors,
-              start
+          case otherEvents =>
+            TestOutput.print(
+              otherEvents
             )
-
-          case ExecutionEvent.SectionEnd(_, id, ancestors) =>
-            TestOutput.printOrFlush(id, ancestors)
-
-          case runtimeFailure @ ExecutionEvent.RuntimeFailure(id, _, _, ancestors) =>
-            TestOutput.printOrQueue(id, ancestors, runtimeFailure)
         }
 
       override def getSummary: UIO[Summary] = summary.get
