@@ -6,7 +6,10 @@ import zio.test.ExecutionEvent.{SectionEnd, SectionStart}
 case class TestEntity(
   id: SuiteId,
   ancestors: List[SuiteId]
-)
+) {
+  def child(newId: Int): TestEntity =
+    TestEntity(SuiteId(newId), id :: ancestors)
+}
 
 object TestOutputSpec extends ZIOSpecDefault {
   /*
@@ -22,40 +25,22 @@ object TestOutputSpec extends ZIOSpecDefault {
   )
 
   private val child1 =
-    TestEntity(
-      SuiteId(2),
-      List(parent.id)
-    )
+    parent.child(2)
 
   private val child2 =
-    TestEntity(
-      SuiteId(3),
-      List(parent.id)
-    )
+    parent.child(3)
 
   private val child1child1 =
-    TestEntity(
-      SuiteId(4),
-      List(child1.id, parent.id)
-    )
+    child1.child(4)
 
   private val child1child2 =
-    TestEntity(
-      SuiteId(5),
-      List(child1.id, parent.id)
-    )
+    child1.child(5)
 
   private val child2child1 =
-    TestEntity(
-      SuiteId(6),
-      List(child2.id, parent.id)
-    )
+    child2.child(6)
 
   private val child2child2 =
-    TestEntity(
-      SuiteId(7),
-      List(child2.id, parent.id)
-    )
+    child2.child(7)
 
   val allEntities = List(parent, child1, child2, child1child1, child1child2, child2child1, child2child2)
 
@@ -165,7 +150,6 @@ object TestOutputSpec extends ZIOSpecDefault {
           )
       )
     },
-
     test("more complex mix of suites and individual tests") {
       val events =
         List(
