@@ -2,16 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.test.render.ConsoleRenderer
-import zio.test.{
-  AbstractRunnableSpec,
-  ExecutionEventSink,
-  FilteredSpec,
-  TestOutput,
-  TestArgs,
-  TestEnvironment,
-  TestLogger,
-  ZIOSpecAbstract
-}
+import zio.test.{AbstractRunnableSpec, ExecutionEventPrinter, ExecutionEventSink, FilteredSpec, TestArgs, TestEnvironment, TestLogger, TestOutput, ZIOSpecAbstract}
 import zio.{Clock, Random, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
