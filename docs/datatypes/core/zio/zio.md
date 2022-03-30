@@ -488,57 +488,7 @@ def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
 
 ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. 
 
-Assume we want to take many names from the user using the terminal. We don't know how many names the user is going to enter. We can ask the user to write "exit" when all inputs are finished. To write such an application, we can use recursion like below:
-
-```scala mdoc:compile-only
-import zio._
-
-def getNames: ZIO[Console, IOException, List[String]] =
-  Console.print("Please enter all names") *>
-    Console.printLine(" (enter \"exit\" to indicate end of the list):") *> {
-      def loop(
-          names: List[String]
-      ): ZIO[Console, IOException, List[String]] = {
-        Console.print(s"${names.length + 1}. ") *> Console.readLine
-          .flatMap {
-            case "exit" => ZIO.succeed(names)
-            case name   => loop(names.appended(name))
-          }
-      }
-      loop(List.empty[String])
-    }
-// Please enter all names (enter "exit" to indicate end of the list):
-// 1. John
-// 2. Jane
-// 3. Joe
-// 4. exit
-// List(John, Jane, Joe)
-```
-
-Instead of manually writing recursions, we can rely on well-tested ZIO combinators. So let's rewrite this application using the `ZIO.iterate` operator:
-
-```scala mdoc:compile-only
-def getNames: ZIO[Console, IOException, List[String]] =
-  Console.print("Please enter all names") *>
-    Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
-    ZIO.iterate((List.empty[String], true))(_._2) { case (names, _) =>
-      Console.print(s"${names.length + 1}. ") *> 
-        Console.readLine.map {
-          case "exit" => (names, false)
-          case name   => (names.appended(name), true)
-        }
-    }
-    .map(_._1)
-    .debug
-// Please enter all names (enter "exit" to indicate end of the list):
-// 1. John
-// 2. Jane
-// 3. Joe
-// 4. exit
-// List(John, Jane, Joe)
-```
-
-Now, it is time to go deep into each of these operators:
+Now let's go deep into each of these operators:
 
 1. **`ZIO.loop`/`ZIO.loopDiscard`**— It takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
 
@@ -651,6 +601,57 @@ val r2 = ZIO.iterate(1)(_ <= 5)(s => ZIO.succeed(s * 2).debug).debug("result")
 // 8
 // result: 8
 ```
+
+Here's another example. Assume we want to take many names from the user using the terminal. We don't know how many names the user is going to enter. We can ask the user to write "exit" when all inputs are finished. To write such an application, we can use recursion like below:
+
+```scala mdoc:compile-only
+import zio._
+
+def getNames: ZIO[Console, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *> {
+      def loop(
+          names: List[String]
+      ): ZIO[Console, IOException, List[String]] = {
+        Console.print(s"${names.length + 1}. ") *> Console.readLine
+          .flatMap {
+            case "exit" => ZIO.succeed(names)
+            case name   => loop(names.appended(name))
+          }
+      }
+      loop(List.empty[String])
+    }
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
+```
+
+Instead of manually writing recursions, we can rely on well-tested ZIO combinators. So let's rewrite this application using the `ZIO.iterate` operator:
+
+```scala mdoc:compile-only
+def getNames: ZIO[Console, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
+    ZIO.iterate((List.empty[String], true))(_._2) { case (names, _) =>
+      Console.print(s"${names.length + 1}. ") *> 
+        Console.readLine.map {
+          case "exit" => (names, false)
+          case name   => (names.appended(name), true)
+        }
+    }
+    .map(_._1)
+    .debug
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
+```
+
 
 ## Blocking Operations
 
