@@ -4,7 +4,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, ignore, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -2526,7 +2526,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .exit
                 .map(_.isInterrupted)
             )(equalTo(false))
-          } @@ ignore,
+          },
           test("interrupts pending tasks when one of the tasks fails") {
             for {
               interrupted <- Ref.make(0)
