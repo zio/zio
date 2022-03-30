@@ -4,17 +4,13 @@ import zio.{Chunk, Ref, ZIO, ZLayer}
 
 trait TestOutput {
 
-  def printOrFlush(
-    id: SuiteId,
-    ancestors: List[SuiteId]
+  /**
+   * Does not necessarily print immediately. Might queue for later, sensible
+   * output.
+   */
+  def print(
+    executionEvent: ExecutionEvent
   ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
-
-  def printOrQueue(
-    id: SuiteId,
-    ancestors: List[SuiteId],
-    reporterEvent: ExecutionEvent
-  ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
-
 }
 
 object TestOutput {
@@ -23,18 +19,10 @@ object TestOutput {
       TestOutputLive.make
     )
 
-  def printOrFlush(
-    id: SuiteId,
-    ancestors: List[SuiteId]
+  def print(
+    executionEvent: ExecutionEvent
   ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
-    ZIO.serviceWithZIO[TestOutput](_.printOrFlush(id, ancestors))
-
-  def printOrQueue(
-    id: SuiteId,
-    ancestors: List[SuiteId],
-    reporterEvent: ExecutionEvent
-  ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
-    ZIO.serviceWithZIO[TestOutput](_.printOrQueue(id, ancestors, reporterEvent))
+    ZIO.serviceWithZIO[TestOutput](_.print(executionEvent))
 
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
@@ -46,22 +34,27 @@ object TestOutput {
         .getAndUpdate(initial => updatedWith(initial, id)(_ => None))
         .map(_.getOrElse(id, Chunk.empty))
 
-    def printOrFlush(
-      id: SuiteId,
-      ancestors: List[SuiteId]
+    def print(
+      executionEvent: ExecutionEvent
+    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+      executionEvent match {
+        case end: ExecutionEvent.SectionEnd =>
+          printOrFlush(end)
+        case other =>
+          printOrQueue(other)
+      }
+
+    private def printOrFlush(
+      end: ExecutionEvent.SectionEnd
     ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
       for {
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(id, ancestors)
-        sectionOutput   <- getAndRemoveSectionOutput(id)
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
+        sectionOutput   <- getAndRemoveSectionOutput(end.id)
         _ <-
           if (suiteIsPrinting)
-            ZIO.foreachDiscard(sectionOutput) { subLine =>
-              TestLogger.logLine(
-                ReporterEventRenderer.render(subLine).mkString("\n")
-              )
-            }
+            printToConsole(sectionOutput)
           else {
-            ancestors.headOption match {
+            end.ancestors.headOption match {
               case Some(parentId) =>
                 appendToSectionContents(parentId, sectionOutput)
               case None =>
@@ -69,8 +62,29 @@ object TestOutput {
             }
           }
 
-        _ <- reporters.relinquishPrintingControl(id)
+        _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
+
+    private def printOrQueue(
+      reporterEvent: ExecutionEvent
+    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+      for {
+        _               <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(reporterEvent.id, reporterEvent.ancestors)
+        _ <- ZIO.when(suiteIsPrinting)(
+               for {
+                 currentOutput <- getAndRemoveSectionOutput(reporterEvent.id)
+                 _             <- printToConsole(currentOutput)
+               } yield ()
+             )
+      } yield ()
+
+    private def printToConsole(events: Chunk[ExecutionEvent]) =
+      ZIO.foreachDiscard(events) { event =>
+        TestLogger.logLine(
+          ReporterEventRenderer.render(event).mkString("\n")
+        )
+      }
 
     private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
       output.update { outputNow =>
@@ -78,26 +92,6 @@ object TestOutput {
           Some(previousSectionOutput.map(old => old ++ content).getOrElse(content))
         )
       }
-
-    def printOrQueue(
-      id: SuiteId,
-      ancestors: List[SuiteId],
-      reporterEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
-      for {
-        _               <- appendToSectionContents(id, Chunk(reporterEvent))
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(id, ancestors)
-        _ <- ZIO.when(suiteIsPrinting)(
-               for {
-                 currentOutput <- getAndRemoveSectionOutput(id)
-                 _ <- ZIO.foreachDiscard(currentOutput) { line =>
-                        TestLogger.logLine(
-                          ReporterEventRenderer.render(line).mkString("\n")
-                        )
-                      }
-               } yield ()
-             )
-      } yield ()
 
     // We need this helper to run on Scala 2.11
     private def updatedWith(initial: Map[SuiteId, Chunk[ExecutionEvent]], key: SuiteId)(

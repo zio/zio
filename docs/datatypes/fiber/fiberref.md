@@ -42,12 +42,12 @@ for {
 
 Let's go back to the `FiberRef`s analog called `ThreadLocal` and see how it works. If we have thread `A` with its `ThreadLocal` and thread `A` creates a new thread, let's call it thread `B`. When thread `A` sends thread `B` the same `ThreadLocal` then what value does thread `B` see inside the `ThreadLocal`? Well, it sees the default value of the `ThreadLocal`. It does not see `A`s value of the `ThreadLocal`. So in other words, `ThreadLocal`s do not propagate their values across the sort of graph of threads so when one thread creates another, the `ThreadLocal` value is not propagated from parent to child.
 
-`FiberRefs` improve on that model quite dramatically. Basically, whenever a child's fiber is created from its parent, the `FiberRef` value of parent fiber propagated to its child fiber.
+`FiberRef`s improve on that model quite dramatically. Basically, whenever a child's fiber is created from its parent, the `FiberRef` value of parent fiber propagated to its child fiber.
 
 ### Copy-on-Fork 
-`FiberRef[A]` has *copy-on-fork* semantics for `ZIO#fork`. This essentially means that a child `Fiber` starts with `FiberRef` values of its parent. When the child set a new value of `FiberRef`, the change is visible only to the child itself. The parent fiber still has its own value.
+`FiberRef[A]` has *copy-on-fork* semantics for `ZIO#fork`. This essentially means that a child `Fiber` starts with `FiberRef` values of its parent. When the child sets a new value of `FiberRef`, the change is visible only to the child itself. The parent fiber still has its own value.
 
-So if we create a `FiberRef` and, we set its value to `5`, and we pass this `FiberRef` to a child fiber, it sees the value `5`. If the child fiber modifies the value `5` to `6`, the parent fiber can't see that change. So the child fiber gets its own copy of the `FiberRef`, and it can modify it locally. Those changes will not affect the parent fiber:
+So if we create a `FiberRef` and set its value to `5`, and we pass this `FiberRef` to a child fiber, it sees the value `5`. If the child fiber modifies the value from `5` to `6`, the parent fiber can't see that change. So the child fiber gets its own copy of the `FiberRef`, and it can modify it locally. Those changes will not affect the parent fiber:
 
 ```scala mdoc:silent
 for {
@@ -61,7 +61,11 @@ for {
 } yield assert(parentValue == 5 && childValue == 6)
 ```
 
-### join Semantic
+## Merging Back
+
+ZIO does not only support to propagate `FiberRef` values from parents to childs, but also to fetch back these values into the current fiber. This section describes multiple variants for doing so.
+
+### join
 If we `join` a fiber then its `FiberRef` is merged back into the parent fiber:
 
 ```scala mdoc:silent
@@ -73,11 +77,11 @@ for {
 } yield assert(parentValue == 6)
 ```
 
-So if we `fork` a fiber and that child fiber modifies a bunch of `FiberRef`s and then later we join it, we get those modifications merged back into the parent fiber. So that's the semantic model of ZIO on `join`. 
+So if we `fork` a fiber and that child fiber modifies a bunch of `FiberRef`s and then later we `join` it, we get those modifications merged back into the parent fiber. So that's the semantic model of ZIO on `join`. 
 
-Each fiber has its `FiberRef` and modifying it locally. So when they do their job and `join` their parent, how do they get merged?  By default, the last child fiber will win, the last fiber which is going to `join` will override the parent's `FiberRef` value.
+Each fiber has its own `FiberRef` and can modify it locally. So when multiple child fibers `join` their parent, how do they get merged? By default, the last child fiber will win, the last fiber which is going to `join` will override the parent's `FiberRef` value.
 
-As we can see, `child1` is the last fiber, so its value which is `6`, gets merged back into its parent:
+As we can see, `child1` is the last fiber, so its value, which is `6`, gets merged back into its parent:
 
 ```scala mdoc:silent
 for {
@@ -90,8 +94,8 @@ for {
 } yield assert(parentValue == 6)
 ```
 
-### Custom Merge
-Furthermore we can customize how, if at all, the value will be update when a fiber is forked and how values will be combined when a fiber is merged. To do this you specify the desired behavior during `FiberRef#make`:
+### join with Custom Merge
+Furthermore, we can customize how, if at all, the value will be initialized when a fiber is forked and how values will be combined when a fiber is merged. To do this you specify the desired behavior during `FiberRef#make`:
 ```scala mdoc:silent
 for {
   fiberRef <- FiberRef.make(initial = 0, join = math.max)
@@ -102,8 +106,8 @@ for {
 } yield assert(value == 2)
 ```
 
-### await semantic
-Important to note that `await`, has no such properties, so `await` waits for the child fiber to finish and gives us its value as an `Exit`:
+### await
+It is important to note that `await` has no such merge behavior. So `await` waits for the child fiber to finish and gives us its value as an `Exit`, without ever merging any `FiberRef` values back into the parent:
 
 ```scala mdoc:silent
 for {
@@ -114,7 +118,7 @@ for {
 } yield assert(parentValue == 5)
 ```
 
-`Join` has higher-level semantics that `await` because it will fail if the child fiber failed, and it will also merge back its value to its parent.
+`join` has higher-level semantics than `await` because it will fail if the child fiber failed, it will interrupt if the child is interrupted, and it will also merge back its value to its parent.
 
 ### inheritRefs
 We can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritRefs` method:
@@ -130,26 +134,26 @@ for {
 } yield v == 10
 ```
 
-Note that `inheritRefs` is automatically called on `join`. This effectively means that both of the following effects behave identically:
+Note that `inheritRefs` is automatically called on `join`. However, `join` will wait for merging the *final* values, while `inheritRefs` will merge the *current* values and then continue:
 
 ```scala mdoc:silent
 val withJoin =
-  for {
-    fiberRef <- FiberRef.make[Int](0)
-    fiber    <- fiberRef.set(10).fork
-    _        <- fiber.join
-    v        <- fiberRef.get
-  } yield assert(v == 10)
+    for {
+        fiberRef <- FiberRef.make[Int](0)
+        fiber    <- (fiberRef.set(10) *> fiberRef.set(20).delay(2.seconds)).fork
+        _        <- fiber.join  // wait for fiber's end and copy final result 20 into fiberRef
+        v        <- fiberRef.get
+    } yield assert(v == 20)
 ```
 
 ```scala mdoc:silent
 val withoutJoin =
-  for {
-    fiberRef <- FiberRef.make[Int](0)
-    fiber    <- fiberRef.set(10).fork
-    _        <- fiber.inheritRefs
-    v        <- fiberRef.get
-  } yield assert(v == 10)
+    for {
+        fiberRef <- FiberRef.make[Int](0)
+        fiber    <- (fiberRef.set(10) *> fiberRef.set(20).delay(2.seconds)).fork
+        _        <- fiber.inheritRefs.delay(1.second) // copy intermediate result 10 into fiberRef and continue
+        v        <- fiberRef.get
+    } yield assert(v == 10)
 ```
 
 ## Memory Safety

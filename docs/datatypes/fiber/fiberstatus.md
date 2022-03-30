@@ -3,9 +3,9 @@ id: fiberstatus
 title: "Fiber.Status"
 ---
 
-`Fiber.Status` describe the current status of a [Fiber](fiber.md).
+`Fiber.Status` describes the current status of a [Fiber](fiber.md).
 
-Each fiber can be in one of the following statues:
+Each fiber can be in one of the following status:
 - Done
 - Finishing
 - Running

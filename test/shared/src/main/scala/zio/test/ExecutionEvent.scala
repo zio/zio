@@ -40,4 +40,7 @@ object ExecutionEvent {
 
 }
 
-sealed trait ExecutionEvent
+sealed trait ExecutionEvent {
+  val id: SuiteId
+  val ancestors: List[SuiteId]
+}

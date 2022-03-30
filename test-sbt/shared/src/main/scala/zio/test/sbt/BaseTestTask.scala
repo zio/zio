@@ -12,7 +12,7 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{Chunk, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -35,9 +35,7 @@ abstract class BaseTestTask(
 
   protected val sharedFilledTestlayer
     : ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
-    ZLayer.succeed(
-      ZIOAppArgs(Chunk.empty)
-    ) +!+ (
+    ZIOAppArgs.empty +!+ (
       (zio.ZEnv.live ++ Scope.default) >>>
         TestEnvironment.live >+> TestLogger.fromConsole
     )
