@@ -488,6 +488,58 @@ def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
 
 ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. 
 
+Assume we want to take many names from the user using the terminal. We don't know how many names the user is going to enter. We can ask the user to write "exit" when all inputs are finished. To write such an application, we can use recursion like below:
+
+```scala mdoc:compile-only
+import zio._
+
+def getNames: ZIO[Console, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *> {
+      def loop(
+          names: List[String]
+      ): ZIO[Console, IOException, List[String]] = {
+        Console.print(s"${names.length + 1}. ") *> Console.readLine
+          .flatMap {
+            case "exit" => ZIO.succeed(names)
+            case name   => loop(names.appended(name))
+          }
+      }
+      loop(List.empty[String])
+    }
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
+```
+
+Instead of manually writing recursions, we can rely on well-tested ZIO combinators. So let's rewrite this application using the `ZIO.iterate` operator:
+
+```scala mdoc:compile-only
+def getNames: ZIO[Console, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
+    ZIO.iterate((List.empty[String], true))(_._2) { case (names, _) =>
+      Console.print(s"${names.length + 1}. ") *> 
+        Console.readLine.map {
+          case "exit" => (names, false)
+          case name   => (names.appended(name), true)
+        }
+    }
+    .map(_._1)
+    .debug
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
+```
+
+Now, it is time to go deep into each of these operators:
+
 1. **`ZIO.loop`/`ZIO.loopDiscard`**— It takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
 
 ```scala
@@ -527,7 +579,7 @@ val r1: ZIO[Any, Nothing, List[Int]] =
 // List(1, 2, 3, 4, 5)
 
 val r2: ZIO[Any, Nothing, List[Int]] =
-  ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n * 2))
+  ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n * 2)).debug
 // List(2, 4, 6, 8, 10)
 
 val r3: ZIO[Console, IOException, List[Unit]] =
@@ -557,30 +609,12 @@ val r5: ZIO[Console, IOException, List[(Int, String)]] =
     ZIO.loop(1)(_ <= 3, _ + 1) { n =>
       Console.print(s"$n. ") *>
         Console.readLine.map(name => (n, name))
-    }
+    }.debug
 // Please enter all names: 
 // 1. John
 // 2. Jane
 // 3. Joe
 // List((1,John), (2,Jane), (3,Joe))
-
-val r6: ZIO[Console, IOException, List[String]] =
-  Console.print("Please enter all names") *>
-    Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
-    ZIO.iterate((List.empty[String], true, 1))(_._2) { case (names, _, i) =>
-      Console.print(s"$i. ") *> Console.readLine.map {
-        case "exit" => (names, false, i + 1)
-        case name   => (names.appended(name), true, i + 1)
-      }
-    }
-    .map(_._1)
-    .debug
-// Please enter all names (enter "exit" to indicate end of the list):
-// 1. John
-// 2. Jane
-// 3. Joe
-// 4. exit
-// List(John, Jane, Joe)
 ```
 
 2. **`ZIO.iterate`**— To iterate with the given effectful operation we can use this combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
