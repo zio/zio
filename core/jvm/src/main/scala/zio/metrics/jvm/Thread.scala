@@ -95,7 +95,7 @@ object Thread {
         _        <- threadsStartedTotal.launch(schedule.updateMetrics)
         _        <- threadsDeadlocked.launch(schedule.updateMetrics)
         _        <- threadsDeadlockedMonitor.launch(schedule.updateMetrics)
-        _        <- refreshThreadStateCounts(threadMXBean).scheduleBackground(schedule.updateMetrics)
+        _        <- refreshThreadStateCounts(threadMXBean).scheduleFork(schedule.updateMetrics)
       } yield Thread(
         threadsCurrent,
         threadsDaemon,

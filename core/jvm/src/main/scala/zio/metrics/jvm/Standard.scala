@@ -132,7 +132,7 @@ object Standard {
         _        <- maxFdCount.launch(schedule.updateMetrics).when(getMaxFileDescriptorCount.isAvailable)
         _ <-
           collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize)
-            .scheduleBackground(schedule.updateMetrics)
+            .scheduleFork(schedule.updateMetrics)
             .when(isLinux)
 
       } yield Standard(
