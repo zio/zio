@@ -52,12 +52,53 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * Here `value` will be 2 as the value in the joined fiber is lower and we
  * specified `max` as our combining function.
  */
-final class FiberRef[A] private[zio] (
-  private[zio] val initial: A,
-  private[zio] val fork: A => A,
-  private[zio] val join: (A, A) => A
-) extends Serializable { self =>
-  type ValueType = A
+trait FiberRef[A] extends Serializable { self =>
+
+  /**
+   * The type of the value of the `FiberRef`.
+   */
+  type Value = A
+
+  /**
+   * The type of the patch that describes updates to the value of the
+   * `FiberRef`. In the simple case this will just be a function that sets the
+   * value of the `FiberRef`. In more complex cases this will describe an update
+   * to a piece of a whole value, allowing updates to the value by different
+   * fibers to be combined in a compositional way when those fibers are joined.
+   */
+  type Patch
+
+  /**
+   * The initial value of the `FiberRef`.
+   */
+  def initial: Value
+
+  /**
+   * Constructs a patch describing the updates to a value from an old value and
+   * a new value.
+   */
+  def diff(oldValue: Value, newValue: Value): Patch
+
+  /**
+   * Combines two patches to produce a new patch that describes the updates of
+   * the first patch and then the updates of the second patch. The combine
+   * operation should be associative. In addition, if the combine operation is
+   * commutative then joining multiple fibers concurrently will result in
+   * deterministic `FiberRef` values.
+   */
+  def combine(first: Patch, second: Patch): Patch
+
+  /**
+   * Applies a patch to an old value to produce a new value that is equal to the
+   * old value with the updates described by the patch.
+   */
+  def patch(patch: Patch)(oldValue: Value): Value
+
+  /**
+   * The initial patch that is applied to the value of the `FiberRef` when a new
+   * fiber is forked.
+   */
+  def fork: Patch
 
   def delete(implicit trace: ZTraceElement): UIO[Unit] =
     new ZIO.FiberRefDelete(self, trace)
@@ -227,7 +268,7 @@ final class FiberRef[A] private[zio] (
           val fiberContext = Fiber._currentFiber.get()
 
           if (fiberContext eq null) super.get()
-          else fiberContext.fiberRefLocals.get.getOrElse(self, super.get()).asInstanceOf[A]
+          else Option(fiberContext.unsafeGetRef(self)).getOrElse(super.get())
         }
 
         override def set(a: A): Unit = {
@@ -253,6 +294,8 @@ final class FiberRef[A] private[zio] (
 
 object FiberRef {
 
+  type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
+
   lazy val currentLogLevel: FiberRef[LogLevel] =
     FiberRef.unsafeMake(LogLevel.Info)
 
@@ -276,19 +319,85 @@ object FiberRef {
       ref.update(identity(_)).as(ref)
     }
 
+  /**
+   * Creates a new `FiberRef` with specified initial value of the
+   * `ZEnvironment`, using `ZEnvironment.Patch` to combine updates to the
+   * `ZEnvironment` in a compositional way.
+   */
+  def makeEnvironment[A](initial: => ZEnvironment[A])(implicit
+    trace: ZTraceElement
+  ): UIO[FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
+    ZIO.succeed(unsafeMakeEnvironment(initial))
+
+  /**
+   * Creates a new `FiberRef` with the specified initial value, using the
+   * specified patch type to combine updates to the value in a compositional
+   * way.
+   */
+  def makePatch[Value, Patch](
+    initial: Value,
+    diff: (Value, Value) => Patch,
+    combine: (Patch, Patch) => Patch,
+    patch: Patch => Value => Value,
+    fork: Patch
+  )(implicit trace: ZTraceElement): UIO[FiberRef.WithPatch[Value, Patch]] =
+    ZIO.suspendSucceed {
+      val ref = unsafeMakePatch(initial, diff, combine, patch, fork)
+
+      ref.update(identity(_)).as(ref)
+    }
+
   private[zio] def unsafeMake[A](
     initial: A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
   ): FiberRef[A] =
-    new FiberRef[A](initial, fork, join)
+    unsafeMakePatch[A, A => A](
+      initial,
+      (_, newValue) => _ => newValue,
+      (first, second) => value => second(first(value)),
+      patch => value => join(value, patch(value)),
+      fork
+    )
+
+  private[zio] def unsafeMakeEnvironment[A](
+    initial: ZEnvironment[A]
+  ): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
+    unsafeMakePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
+      initial,
+      ZEnvironment.Patch.diff,
+      _ combine _,
+      patch => value => patch(value),
+      ZEnvironment.Patch.empty
+    )
+
+  private[zio] def unsafeMakePatch[Value0, Patch0](
+    initialValue0: Value0,
+    diff0: (Value0, Value0) => Patch0,
+    combinePatch0: (Patch0, Patch0) => Patch0,
+    patch0: Patch0 => Value0 => Value0,
+    fork0: Patch0
+  ): FiberRef.WithPatch[Value0, Patch0] =
+    new FiberRef[Value0] {
+      type Patch = Patch0
+      def combine(first: Patch, second: Patch): Patch =
+        combinePatch0(first, second)
+      def diff(oldValue: Value, newValue: Value): Patch =
+        diff0(oldValue, newValue)
+      def fork: Patch =
+        fork0
+      def initial: Value =
+        initialValue0
+      def patch(patch: Patch)(oldValue: Value): Value =
+        patch0(patch)(oldValue)
+    }
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
-    FiberRef.unsafeMake(None, _ => None, (a, _) => a)
+    FiberRef.unsafeMake(None, _ => None)
 
   private[zio] val currentExecutor: FiberRef[Option[zio.Executor]] =
-    FiberRef.unsafeMake(None, a => a, (a, _) => a)
+    FiberRef.unsafeMake(None)
 
-  private[zio] val currentEnvironment: FiberRef[ZEnvironment[Any]] =
-    FiberRef.unsafeMake(ZEnvironment.empty, a => a, (a, _) => a)
+  private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
+    FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
 }

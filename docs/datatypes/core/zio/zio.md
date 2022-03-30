@@ -962,7 +962,11 @@ object Main extends ZIOAppDefault {
     ZIO.succeed(is.close())
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.attempt(println(new String(is.readAllBytes(), StandardCharsets.UTF_8)))
+    Task.attempt {
+      val buffer = new Array[Byte](len.toInt)
+      is.read(buffer)
+      println(new String(buffer, StandardCharsets.UTF_8))
+    }
 
   // myAcquireRelease is just a value. Won't execute anything here until interpreted
   val myAcquireRelease: Task[Unit] = for {

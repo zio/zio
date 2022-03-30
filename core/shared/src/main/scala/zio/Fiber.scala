@@ -144,12 +144,6 @@ sealed abstract class Fiber[+E, +A] { self =>
     }
 
   /**
-   * Gets the value of the fiber ref for this fiber, or the initial value of the
-   * fiber ref, if the fiber is not storing the ref.
-   */
-  def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A]
-
-  /**
    * The identity of the fiber.
    */
   def id: FiberId
@@ -249,7 +243,6 @@ sealed abstract class Fiber[+E, +A] { self =>
         self.await.flatMap(_.foreach(f))
 
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = self.children
-      final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A]       = self.getRef(ref)
 
       def id: FiberId = self.id
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] =
@@ -284,12 +277,6 @@ sealed abstract class Fiber[+E, +A] { self =>
         }
 
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = self.children
-
-      final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] =
-        for {
-          first  <- self.getRef(ref)
-          second <- that.getRef(ref)
-        } yield if (first == ref.initial) second else first
 
       final def id: FiberId = self.id <> that.id
 
@@ -459,9 +446,6 @@ sealed abstract class Fiber[+E, +A] { self =>
         self.await.flatMap(IO.done(_)).zipWithPar(that.await.flatMap(IO.done(_)))(f).exit
 
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = self.children
-
-      final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] =
-        (self.getRef(ref) zipWith that.getRef(ref))(ref.join(_, _))
 
       final def id: FiberId = self.id <> that.id
 
@@ -674,9 +658,6 @@ object Fiber extends FiberPlatformSpecific {
         IO.foreachPar(fibers)(_.await.flatMap(IO.done(_))).exit
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
         ZIO.foreachPar(Chunk.fromIterable(fibers))(_.children).map(_.flatten)
-      def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] =
-        UIO.foldLeft(fibers)(ref.initial)((a, fiber) => fiber.getRef(ref).map(ref.join(a, _)))
-
       final def id: FiberId = fibers.foldLeft(FiberId.None: FiberId)(_ <> _.id)
 
       def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] =
@@ -712,7 +693,6 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[E, A] {
       final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]]                    = IO.succeedNow(exit)
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = IO.succeedNow(Chunk.empty)
-      final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A]       = ZIO.succeed(ref.initial)
       final def id: FiberId                                                              = FiberId.None
       final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = IO.succeedNow(exit)
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                    = IO.unit
@@ -788,8 +768,6 @@ object Fiber extends FiberPlatformSpecific {
       final def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] = Task.fromFuture(_ => ftr).exit
 
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
-
-      final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] = ZIO.succeed(ref.initial)
 
       final def id: FiberId = FiberId.None
 
@@ -883,7 +861,6 @@ object Fiber extends FiberPlatformSpecific {
     new Fiber.Synthetic[Nothing, Nothing] {
       final def await(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]]                    = ZIO.never
       final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]]             = ZIO.succeedNow(Chunk.empty)
-      final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A]                   = ZIO.succeed(ref.initial)
       final def id: FiberId                                                                          = FiberId.None
       final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Nothing, Nothing]] = ZIO.never
       final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit]                                = ZIO.unit

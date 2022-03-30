@@ -18,12 +18,14 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import scala.annotation.tailrec
+
 /**
  * `FiberRefs` is a data type that represents a collection of `FiberRef` values.
  * This allows safely propagating `FiberRef` values across fiber boundaries, for
  * example between an asynchronous producer and consumer.
  */
-final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]) { self =>
+final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]) { self =>
 
   /**
    * Returns a set of each `FiberRef` in this collection.
@@ -36,7 +38,7 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]
    * values if it exists or `None` otherwise.
    */
   def get[A](fiberRef: FiberRef[A]): Option[A] =
-    fiberRefLocals.get(fiberRef).map(_.asInstanceOf[A])
+    fiberRefLocals.get(fiberRef).map(_.head._2.asInstanceOf[A])
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
@@ -53,10 +55,73 @@ final class FiberRefs private (private val fiberRefLocals: Map[FiberRef[_], Any]
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
     }
+
+  private[zio] def join(fiberId: FiberId.Runtime)(that: FiberRefs): FiberRefs = {
+    val parentFiberRefs = self.fiberRefLocals
+    val childFiberRefs  = that.fiberRefLocals
+
+    val fiberRefLocals = childFiberRefs.foldLeft(parentFiberRefs) { case (parentFiberRefs, (fiberRef, childStack)) =>
+      val ref         = fiberRef.asInstanceOf[FiberRef[Any]]
+      val parentStack = parentFiberRefs.get(ref).getOrElse(List.empty)
+
+      def combine[A](
+        fiberRef: FiberRef[A]
+      )(parentStack: List[(FiberId.Runtime, A)], childStack: ::[(FiberId.Runtime, A)]): List[A] = {
+
+        @tailrec
+        def loop[A](
+          parentStack: List[(FiberId.Runtime, A)],
+          childStack: List[(FiberId.Runtime, A)],
+          lastParentValue: A,
+          lastChildValue: A
+        ): List[A] =
+          (parentStack, childStack) match {
+            case ((parentId, parentValue) :: parentStack, (childId, childValue) :: childStack) =>
+              if (parentId == childId)
+                loop(parentStack, childStack, parentValue, childValue)
+              else if (parentId.id < childId.id)
+                lastParentValue :: lastChildValue :: childValue :: childStack.map(_._2)
+              else
+                lastChildValue :: childValue :: childStack.map(_._2)
+            case _ =>
+              lastChildValue :: childStack.map(_._2)
+          }
+
+        loop(parentStack.reverse, childStack.reverse, fiberRef.initial, fiberRef.initial)
+      }
+
+      val values = combine(ref)(parentStack, childStack)
+
+      val patches =
+        values.tail
+          .foldLeft(values.head -> List.empty[ref.Patch]) { case ((oldValue, patches), newValue) =>
+            (newValue, ref.diff(oldValue, newValue) :: patches)
+          }
+          ._2
+          .reverse
+
+      if (patches.isEmpty) parentFiberRefs
+      else {
+        val patch = patches.reduce(ref.combine)
+        val newStack = parentStack match {
+          case (fiberId, oldValue) :: tail => Some(::((fiberId, ref.patch(patch)(oldValue)), tail))
+          case Nil                         => None
+        }
+
+        newStack match {
+          case Some(newStack) => parentFiberRefs + (ref -> newStack)
+          case None           => parentFiberRefs
+        }
+
+      }
+    }
+
+    FiberRefs(fiberRefLocals)
+  }
 }
 
 object FiberRefs {
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], Any]): FiberRefs =
+  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
     new FiberRefs(fiberRefLocals)
 }

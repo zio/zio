@@ -457,21 +457,35 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that only runs a test if the specified optional environment
+   * variable satisfies the specified assertion.
+   */
+  def ifEnvOption(env: String)(assertion: Option[String] => Boolean): TestAspectAtLeastR[Live with Annotations] =
+    new TestAspectAtLeastR[Live with Annotations] {
+      def some[R <: Live with Annotations, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
+        spec.whenZIO(Live.live(System.env(env)).orDie.map(assertion))
+    }
+
+  /**
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
    */
   def ifEnv(env: String)(assertion: String => Boolean): TestAspectAtLeastR[Live with Annotations] =
-    new TestAspectAtLeastR[Live with Annotations] {
-      def some[R <: Live with Annotations, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
-        spec.whenZIO(Live.live(System.env(env)).orDie.map(_.fold(false)(assertion)))
-    }
+    ifEnvOption(env)(_.fold(false)(assertion))
 
   /**
    * An aspect that only runs a test if the specified environment variable is
    * set.
    */
   def ifEnvSet(env: String): TestAspectAtLeastR[Live with Annotations] =
-    ifEnv(env)(_ => true)
+    ifEnvOption(env)(_.nonEmpty)
+
+  /**
+   * An aspect that only runs a test if the specified environment variable is
+   * not set.
+   */
+  def ifEnvNotSet(env: String): TestAspectAtLeastR[Live with Annotations] =
+    ifEnvOption(env)(_.isEmpty)
 
   /**
    * An aspect that only runs a test if the specified Java property satisfies
