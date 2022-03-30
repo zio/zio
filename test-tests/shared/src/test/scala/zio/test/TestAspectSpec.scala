@@ -163,6 +163,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("ifEnvNotSet ignores a test if environment variable is set") {
       assert(true)(isFalse)
     } @@ ifEnvNotSet("PATH") @@ jvmOnly,
+    test("ifPropOption runs a test if property satisfies assertion") {
+      assert(true)(isTrue)
+    } @@ ifPropOption("qwerty")(_ => true) @@ success @@ jvmOnly,
+    test("ifPropOption ignores a test if property does not satisfy assertion") {
+      assert(true)(isFalse)
+    } @@ ifPropOption("qwerty")(_ => false) @@ jvmOnly,
     test("ifProp runs a test if property satisfies assertion") {
       assert(true)(isTrue)
     } @@ ifProp("java.vm.name")(_.contains("VM")) @@ success @@ jvmOnly,
@@ -178,6 +184,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("ifPropSet ignores a test if property is not set") {
       assert(true)(isFalse)
     } @@ ifPropSet("qwerty") @@ jvmOnly,
+    test("ifPropNotSet runs a test if property is not set") {
+      assert(true)(isTrue)
+    } @@ ifPropNotSet("qwerty") @@ success @@ jvmOnly,
+    test("ifPropNotSet ignores a test if property is set") {
+      assert(true)(isFalse)
+    } @@ ifPropNotSet("java.vm.name") @@ jvmOnly,
     test("js applies test aspect only on ScalaJS") {
       for {
         ref    <- Ref.make(false)
