@@ -91,7 +91,7 @@ sealed class ZTestTask(
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
           ZIO.scoped {
             zioSpec.run
-              .provideLayer(ZIOAppArgs.empty ++ zio.ZEnv.live ++ ZLayer.environment[Scope])
+              .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
               .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
         } { exit =>
