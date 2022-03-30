@@ -53,7 +53,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
     TestLogger.fromConsole,
     ExecutionEventSink.live,
     TestOutput.live,
-    ExecutionEventPrinter.live // TODO test version that just accumulates
+    ExecutionEventPrinter.live
   )
 
 }
