@@ -26,6 +26,7 @@ import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import scala.collection.mutable.PriorityQueue
 import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
@@ -2341,7 +2342,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
-    new ZStream(self.channel.concatMap(ZChannel.writeChunk(_)).mapOutZIOPar[R1, E1, A2](n)(f).mapOut(Chunk.single))
+    self.zipWithIndex.mapZIOParUnordered[R1, E1, (A2, Long)](n) { case (a, i) => f(a).map(_ -> i) }.ordered
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -2492,6 +2493,42 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           if (descriptor.isLocked) ZIO.shift(descriptor.executor)
           else ZIO.unshift
         }
+    }
+
+  /**
+   * Converts an unordered stream where each element is zipped with its index
+   * into an ordered stream.
+   */
+  final def ordered[A1](implicit ev: A <:< (A1, Long), trace: ZTraceElement): ZStream[R, E, A1] =
+    ZStream.suspend {
+      val ord           = Ordering.by[(A1, Long), Long](_._2).reverse
+      val priorityQueue = PriorityQueue[(A1, Long)]()(ord)
+      var n             = 0L
+
+      lazy val reader: ZChannel[Any, E, Chunk[A], Any, E, Chunk[A1], Any] =
+        ZChannel.readWithCause(
+          as => {
+            priorityQueue ++= as.asInstanceOf[Chunk[(A1, Long)]]
+            val builder = ChunkBuilder.make[A1]()
+            var loop    = true
+            while (loop) {
+              priorityQueue.headOption match {
+                case Some((a, i)) if i == n =>
+                  priorityQueue.dequeue()
+                  builder += a
+                  n += 1
+                case _ =>
+                  loop = false
+              }
+            }
+            val chunk = builder.result()
+            ZChannel.write(chunk) *> reader
+          },
+          e => ZChannel.failCause(e),
+          _ => ZChannel.unit
+        )
+
+      new ZStream(self.channel >>> reader)
     }
 
   /**
