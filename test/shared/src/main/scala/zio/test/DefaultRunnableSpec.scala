@@ -41,7 +41,7 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
   )(implicit
     trace: ZTraceElement
   ): URIO[
-    TestOutput with TestLogger with Clock with ExecutionEventSink with ExecutionEventPrinter with Random,
+    TestOutput with TestLogger with Clock with ExecutionEventSink with Random,
     Summary
   ] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)

@@ -82,9 +82,9 @@ package object test extends CompileVariants {
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
         TestSystem.default ++
-        (TestOutput.live >>> ExecutionEventSink.live) ++
-        TestOutput.live ++
-        TestLogger.fromConsole.map(testLogger => ZEnvironment(new ExecutionEventPrinter.Live(testLogger.get)))
+        (TestLogger.fromConsole.map(testLogger =>
+          ZEnvironment(new ExecutionEventPrinter.Live(testLogger.get))
+        ) >+> TestOutput.live >+> ExecutionEventSink.live)
 
     }
   }

@@ -32,13 +32,16 @@ trait TestOutput {
    */
   def print(
     executionEvent: ExecutionEvent
-  ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit]
+  ): ZIO[Any, Nothing, Unit]
 }
 
 object TestOutput {
-  val live: ZLayer[Any, Nothing, TestOutput] =
+  val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
-      TestOutputLive.make
+      for {
+        executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
+        outputLive            <- TestOutputLive.make(executionEventPrinter)
+      } yield outputLive
     )
 
   /**
@@ -53,12 +56,13 @@ object TestOutput {
    */
   def print(
     executionEvent: ExecutionEvent
-  ): ZIO[TestOutput with ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] =
+  ): ZIO[TestOutput, Nothing, Unit] =
     ZIO.serviceWithZIO[TestOutput](_.print(executionEvent))
 
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
-    reporters: TestReporters
+    reporters: TestReporters,
+    executionEventPrinter: ExecutionEventPrinter
   ) extends TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
@@ -68,7 +72,7 @@ object TestOutput {
 
     def print(
       executionEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with ExecutionEventPrinter with TestLogger, Nothing, Unit] = {
+    ): ZIO[Any, Nothing, Unit] =
       for {
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(executionEvent.id, executionEvent.ancestors)
         _               <- appendToSectionContents(executionEvent.id, Chunk(executionEvent))
@@ -91,17 +95,16 @@ object TestOutput {
                 _ <- reporters.relinquishPrintingControl(executionEvent.id)
               } yield ()
             case _ =>
-                if(suiteIsPrinting)
-                  printToConsole(sectionOutput)
-                else
-                  appendToSectionContents(executionEvent.id, sectionOutput) // TODO More
+              if (suiteIsPrinting)
+                printToConsole(sectionOutput)
+              else
+                appendToSectionContents(executionEvent.id, sectionOutput) // TODO More
           }
       } yield ()
-    }
 
     private def printToConsole(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
-        ExecutionEventPrinter.print(event)
+        executionEventPrinter.print(event)
       }
 
     private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
@@ -128,10 +131,10 @@ object TestOutput {
 
   object TestOutputLive {
 
-    def make: ZIO[Any, Nothing, TestOutput] = for {
+    def make(executionEventPrinter: ExecutionEventPrinter): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
-    } yield TestOutputLive(output, talkers)
+    } yield TestOutputLive(output, talkers, executionEventPrinter)
 
   }
 }

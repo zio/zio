@@ -48,7 +48,7 @@ object TestOutputSpec extends ZIOSpecDefault {
     override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
       events.update(_ :+ event)
 
-    def getEvents: ZIO[TestLogger, Nothing, List[ExecutionEvent]] =
+    def getEvents: ZIO[Any, Nothing, List[ExecutionEvent]] =
       events.get
   }
 
@@ -57,7 +57,7 @@ object TestOutputSpec extends ZIOSpecDefault {
       output <- Ref.make[List[ExecutionEvent]](List.empty)
     } yield new ExecutionEventHolder(output)
 
-  val fakePrinterLayer = ZLayer.fromZIO(makeFakePrinter)
+  val fakePrinterLayer: ZLayer[Any, Nothing, ExecutionEventHolder] = ZLayer.fromZIO(makeFakePrinter)
 
   override def spec: ZSpec[TestEnvironment with Scope, Any] = suite("TestOutputSpec")(
     test("nested events without flushing") {
@@ -73,6 +73,8 @@ object TestOutputSpec extends ZIOSpecDefault {
           End(child1)
         )
       for {
+        fakePrinter  <- ZIO.service[ExecutionEventPrinter]
+        _            <- ZIO.debug("Printer: " + fakePrinter)
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
       } yield assertTrue(
@@ -102,7 +104,7 @@ object TestOutputSpec extends ZIOSpecDefault {
       for {
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
-        _ <- ZIO.debug(outputEvents.mkString("\n"))
+        _            <- ZIO.debug(outputEvents.mkString("\n"))
       } yield assertTrue(
         outputEvents ==
           List(
@@ -198,9 +200,7 @@ object TestOutputSpec extends ZIOSpecDefault {
           )
       )
     }
-  ).provideSome[
-    TestConsole with TestOutput
-  ](ExecutionEventSink.live, TestLogger.fromConsole, fakePrinterLayer)
+  ).provide(fakePrinterLayer >+> TestOutput.live)
 
   private def Start(testEntity: TestEntity) =
     SectionStart(
