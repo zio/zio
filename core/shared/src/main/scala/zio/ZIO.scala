@@ -6009,8 +6009,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[S, E, A](
       s: S
     )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[R, E, A] =
-      ZState.make(s).flatMap { state =>
-        zio.provideSomeEnvironment[R](_.union[ZState[S]](ZEnvironment(state)))
+      ZIO.scoped[R] {
+        ZState.make(s).flatMap { state =>
+          zio.provideSomeEnvironment[R](_.union[ZState[S]](ZEnvironment(state)))
+        }
       }
   }
 

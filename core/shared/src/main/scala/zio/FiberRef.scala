@@ -312,11 +312,15 @@ object FiberRef {
     initial: => A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
-  )(implicit trace: ZTraceElement): UIO[FiberRef[A]] =
-    ZIO.suspendSucceed {
-      val ref = unsafeMake(initial, fork, join)
+  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef[A]] =
+    ZIO.acquireRelease {
+      ZIO.suspendSucceed {
+        val ref = unsafeMake(initial, fork, join)
 
-      ref.update(identity(_)).as(ref)
+        ref.update(identity(_)).as(ref)
+      }
+    } { ref =>
+      ref.delete
     }
 
   /**

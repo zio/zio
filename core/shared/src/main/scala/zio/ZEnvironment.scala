@@ -269,11 +269,11 @@ object ZEnvironment {
       val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
       val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, Any], Patch[In, Out])](
         oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
-      ) { case ((map, patch), (tag, (newService, _))) =>
+      ) { case ((map, patch), (tag, (newService, newIndex))) =>
         map.get(tag) match {
-          case Some((oldService, _)) =>
-            if (oldService == newService) map - tag -> patch
-            else map - tag                          -> patch.combine(UpdateService((_: Any) => newService, tag))
+          case Some((oldService, oldIndex)) =>
+            if (oldService == newService && oldIndex == newIndex) map - tag -> patch
+            else map - tag                                                  -> patch.combine(UpdateService((_: Any) => newService, tag))
           case _ =>
             map - tag -> patch.combine(AddService(newService, tag))
         }

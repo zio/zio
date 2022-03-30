@@ -40,13 +40,13 @@ class FiberRefBenchmarks {
   def createFiberRefsAndYield(): Unit =
     createFiberRefsAndYield(BenchmarkUtil)
 
-  private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {
+  private def justYield(runtime: Runtime[Scope]) = runtime.unsafeRun {
     for {
       _ <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
     } yield ()
   }
 
-  private def createFiberRefsAndYield(runtime: Runtime[Any]) = runtime.unsafeRun {
+  private def createFiberRefsAndYield(runtime: Runtime[Scope]) = runtime.unsafeRun {
     for {
       fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
       _         <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
@@ -55,7 +55,7 @@ class FiberRefBenchmarks {
     } yield ()
   }
 
-  private def createUpdateAndRead(runtime: Runtime[Any]) = runtime.unsafeRun {
+  private def createUpdateAndRead(runtime: Runtime[Scope]) = runtime.unsafeRun {
     for {
       fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
       values1   <- ZIO.foreachPar(fiberRefs)(ref => ref.update(-_) *> ref.get)

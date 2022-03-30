@@ -16,7 +16,7 @@ object Sized {
     live(100)(ZTraceElement.empty)
 
   def live(size: Int)(implicit trace: ZTraceElement): Layer[Nothing, Sized] =
-    ZLayer.fromZIO(FiberRef.make(size).map { fiberRef =>
+    ZLayer.scoped(FiberRef.make(size).map { fiberRef =>
       new Sized {
         def size(implicit trace: ZTraceElement): UIO[Int] =
           fiberRef.get
@@ -41,4 +41,7 @@ object Sized {
 
   def withSizeGen[R <: Sized, A](size: Int)(gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
     Gen.fromZIO(ZIO.service[Sized]).flatMap(_.withSizeGen(size)(gen))
+
+  lazy val currentSize: FiberRef[Int] =
+    FiberRef.unsafeMake(100)
 }

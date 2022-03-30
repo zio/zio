@@ -14,6 +14,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           for {
             runtime                 <- ZIO.runtime[Any]
             ref                     <- Ref.make[List[Long]](List.empty)
+            clock                   <- ZIO.clock
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
             _ <- ZIO.succeed {
@@ -21,8 +22,8 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
-                           ZIO.sleep(2.seconds) *>
-                             Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                           clock.sleep(2.seconds) *>
+                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
                      },
                      3,
@@ -38,6 +39,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           for {
             runtime                 <- ZIO.runtime[Any]
             ref                     <- Ref.make[List[Long]](List.empty)
+            clock                   <- ZIO.clock
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
             _ <- ZIO.succeed {
@@ -45,8 +47,8 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
-                           ZIO.sleep(5.seconds) *>
-                             Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                           clock.sleep(5.seconds) *>
+                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
                      },
                      3,
@@ -62,6 +64,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           for {
             runtime                 <- ZIO.runtime[Any]
             ref                     <- Ref.make[List[Long]](List.empty)
+            clock                   <- ZIO.clock
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
             _ <- ZIO.succeed {
@@ -69,8 +72,8 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                      new Runnable {
                        def run(): Unit =
                          runtime.unsafeRun {
-                           ZIO.sleep(2.seconds) *>
-                             Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                           clock.sleep(2.seconds) *>
+                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                          }
                      },
                      3,
@@ -86,6 +89,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
           for {
             runtime                 <- ZIO.runtime[Any]
             ref                     <- Ref.make[List[Long]](List.empty)
+            clock                   <- ZIO.clock
             scheduler               <- ZIO.blocking(Clock.scheduler)
             scheduledExecutorService = scheduler.asScheduledExecutorService
             future <- ZIO.succeed {
@@ -93,8 +97,8 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                           new Runnable {
                             def run(): Unit =
                               runtime.unsafeRun {
-                                ZIO.sleep(2.seconds) *>
-                                  Clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                                clock.sleep(2.seconds) *>
+                                  clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
                               }
                           },
                           3,
