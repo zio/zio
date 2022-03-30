@@ -26,4 +26,10 @@ object ZIOAppArgs {
 
   def getArgs(implicit trace: ZTraceElement): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIO.serviceWith(_.getArgs)
+
+  /**
+   * Use when your App does not need to access the command-line arguments.
+   */
+  val empty: ULayer[ZIOAppArgs] = ZLayer.succeed(ZIOAppArgs(Chunk.empty))(Tag[ZIOAppArgs], ZTraceElement.empty)
+
 }
