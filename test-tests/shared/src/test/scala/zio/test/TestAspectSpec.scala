@@ -136,6 +136,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("flaky retries a test with a limit") {
       assert(true)(isFalse)
     } @@ flaky @@ failing,
+    test("ifEnvOption runs a test if environment variable satisfies assertion") {
+      assert(true)(isTrue)
+    } @@ ifEnvOption("QWERTY")(_ => true) @@ success @@ jvmOnly,
+    test("ifEnvOption ignores a test if environment variable does not satisfy assertion") {
+      assert(true)(isFalse)
+    } @@ ifEnvOption("QWERTY")(_ => false) @@ jvmOnly,
     test("ifEnv runs a test if environment variable satisfies assertion") {
       assert(true)(isTrue)
     } @@ ifEnv("PATH")(_.contains("bin")) @@ success @@ jvmOnly,
@@ -151,6 +157,12 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("ifEnvSet ignores a test if environment variable is not set") {
       assert(true)(isFalse)
     } @@ ifEnvSet("QWERTY") @@ jvmOnly,
+    test("ifEnvNotSet runs a test if environment variable is not set") {
+      assert(true)(isTrue)
+    } @@ ifEnvNotSet("QWERTY") @@ success @@ jvmOnly,
+    test("ifEnvNotSet ignores a test if environment variable is set") {
+      assert(true)(isFalse)
+    } @@ ifEnvNotSet("PATH") @@ jvmOnly,
     test("ifProp runs a test if property satisfies assertion") {
       assert(true)(isTrue)
     } @@ ifProp("java.vm.name")(_.contains("VM")) @@ success @@ jvmOnly,
