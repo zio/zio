@@ -7,7 +7,7 @@ trait ExecutionEventSink {
 
   def process(
     event: ExecutionEvent
-  ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit]
+  ): ZIO[Any, Nothing, Unit]
 }
 
 object ExecutionEventSink {
@@ -16,28 +16,28 @@ object ExecutionEventSink {
 
   def process(
     event: ExecutionEvent
-  ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
+  ): ZIO[ExecutionEventSink, Nothing, Unit] =
     ZIO.serviceWithZIO[ExecutionEventSink](_.process(event))
 
-  val ExecutionEventSinkLive: ZIO[Any, Nothing, ExecutionEventSink] =
+  def ExecutionEventSinkLive(testOutput: TestOutput): ZIO[Any, Nothing, ExecutionEventSink] =
     for {
       summary <- Ref.make[Summary](Summary(0, 0, 0, ""))
     } yield new ExecutionEventSink {
 
       override def process(
         event: ExecutionEvent
-      ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
+      ): ZIO[Any, Nothing, Unit] =
         event match {
           case testEvent: ExecutionEvent.Test[_] =>
             summary.update(
               _.add(testEvent)
             ) *>
-              TestOutput.print(
+              testOutput.print(
                 testEvent
               )
 
           case otherEvents =>
-            TestOutput.print(
+            testOutput.print(
               otherEvents
             )
         }
@@ -48,6 +48,9 @@ object ExecutionEventSink {
 
   val live: ZLayer[TestOutput, Nothing, ExecutionEventSink] =
     ZLayer.fromZIO(
-      ExecutionEventSinkLive
+      for {
+        testOutput <- ZIO.service[TestOutput]
+        sink <- ExecutionEventSinkLive(testOutput)
+      } yield sink
     )
 }
