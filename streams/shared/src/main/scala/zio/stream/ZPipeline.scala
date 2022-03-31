@@ -71,7 +71,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](
   def >>>[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
   )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In, Out2] =
-    new ZPipeline(self.channel.pipeToOrFail(that.channel))
+    ZPipeline(self.channel.pipeToOrFail(that.channel))
 
   /**
    * Compose this transducer with a sink, resulting in a sink that processes
@@ -91,7 +91,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](
   def <<<[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In2, Out] =
-    ZPipeline.suspend(new ZPipeline(that.channel.pipeToOrFail(self.channel)))
+    ZPipeline.suspend(ZPipeline(that.channel.pipeToOrFail(self.channel)))
 
   /**
    * A named version of the `>>>` operator.
@@ -111,17 +111,6 @@ final case class ZPipeline[-Env, +Err, -In, +Out](
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
-
-  /**
-   * A shorter version of [[ZPipeline.identity]], which can facilitate more
-   * compact definition of pipelines.
-   *
-   * {{{
-   * ZPipeline[Int] >>> ZPipeline.filter(_ % 2 != 0)
-   * }}}
-   */
-  def apply[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
-    identity[In]
 
   def branchAfter[Env, Err, In, Out](
     n: => Int
@@ -156,14 +145,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           (_: Any) => ZChannel.unit
         )
 
-      new ZPipeline(collecting(Chunk.empty))
+      ZPipeline(collecting(Chunk.empty))
     }
 
   /**
    * Creates a pipeline that exposes the chunk structure of the stream.
    */
   def chunks[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Chunk[In]] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(Chunk.single))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(Chunk.single))
 
   /**
    * Creates a pipeline that collects elements with the specified partial
@@ -174,7 +163,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * }}}
    */
   def collect[In, Out](f: PartialFunction[In, Out])(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.collect(f)))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.collect(f)))
 
   /**
    * Creates a pipeline that drops n elements.
@@ -196,7 +185,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             (_: Any) => ZChannel.unit
           )
 
-      new ZPipeline(loop(n))
+      ZPipeline(loop(n))
     }
 
   /**
@@ -231,7 +220,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
         out => ZChannel.succeedNow(out)
       )
 
-    new ZPipeline(dropWhile(f))
+    ZPipeline(dropWhile(f))
   }
 
   /**
@@ -239,7 +228,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * predicate.
    */
   def filter[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.filter(f)))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.filter(f)))
 
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
@@ -274,7 +263,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           }
       )
 
-    new ZPipeline(chunkAdjacent(None))
+    ZPipeline(chunkAdjacent(None))
   }
 
   /**
@@ -283,7 +272,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def fromChannel[Env, Err, In, Out](
     channel: => ZChannel[Env, Nothing, Chunk[In], Any, Err, Chunk[Out], Any]
   ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(channel)
+    ZPipeline(channel)
 
   /**
    * Creates a pipeline from a chunk processing function.
@@ -307,7 +296,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.unwrapScoped[Env](push.map(pull))
 
-    new ZPipeline(channel)
+    ZPipeline(channel)
   }
 
   /**
@@ -317,7 +306,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def fromSink[Env, Err, In, Out](
     sink: => ZSink[Env, Err, In, In, Out]
   )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
+    ZPipeline(
       ZChannel.suspend {
         val leftovers: AtomicReference[Chunk[Chunk[In]]] = new AtomicReference(Chunk.empty)
         val upstreamDone: AtomicBoolean                  = new AtomicBoolean(false)
@@ -375,7 +364,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * The identity pipeline, which does not modify streams in any way.
    */
   def identity[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.identity)
+    ZPipeline(ZChannel.identity)
 
   def iso_8859_1Decode(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, String] =
     textDecodeUsing(StandardCharsets.ISO_8859_1)
@@ -387,7 +376,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that maps elements with the specified function.
    */
   def map[In, Out](f: In => Out)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
-    new ZPipeline(ZChannel.identity.mapOut(_.map(f)))
+    ZPipeline(ZChannel.identity.mapOut(_.map(f)))
 
   /**
    * Creates a pipeline that statefully maps elements with the specified
@@ -430,7 +419,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           (_: Any) => ZChannel.unit
         )
 
-      new ZPipeline(accumulator(s))
+      ZPipeline(accumulator(s))
     }
 
   /**
@@ -441,7 +430,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapChunks[In, Out](
     f: Chunk[In] => Chunk[Out]
   )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(f))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(f))
 
   /**
    * Creates a pipeline that maps chunks of elements with the specified effect.
@@ -450,7 +439,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapChunksZIO[Env, Err, In, Out](
     f: Chunk[In] => ZIO[Env, Err, Chunk[Out]]
   )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(f))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(f))
 
   /**
    * Creates a pipeline that maps elements with the specified effectful
@@ -459,13 +448,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def mapZIO[Env, Err, In, Out](f: In => ZIO[Env, Err, Out])(implicit
     trace: ZTraceElement
   ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(_.mapZIO(f)))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(_.mapZIO(f)))
 
   /**
    * Emits the provided chunk before emitting any other value.
    */
   def prepend[In](values: => Chunk[In])(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.write(values) *> ZChannel.identity)
+    ZPipeline(ZChannel.write(values) *> ZChannel.identity)
 
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
@@ -504,7 +493,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       )
 
     val target = n
-    new ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
+    ZPipeline(ZChannel.suspend(process(new ZStream.Rechunker(target), target)))
   }
 
   /**
@@ -520,7 +509,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     s: => Out
   )(f: (Out, In) => ZIO[Env, Err, Out])(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
-      new ZPipeline(
+      ZPipeline(
         ZChannel.write(Chunk.single(s)) *>
           mapAccumZIO[Env, Err, In, Out, Out](s)((s, a) => f(s, a).map(s => (s, s))).channel
       )
@@ -578,7 +567,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               case None        => ZChannel.succeed(done)
             }
         )
-      new ZPipeline(next(None, 0))
+      ZPipeline(next(None, 0))
     }
 
   /**
@@ -647,14 +636,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           }
       )
 
-    new ZPipeline(next(None, wasSplitCRLF = false))
+    ZPipeline(next(None, wasSplitCRLF = false))
   }
 
   /**
    * Lazily constructs a pipeline.
    */
   def suspend[Env, Err, In, Out](pipeline: => ZPipeline[Env, Err, In, Out]): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(ZChannel.suspend(pipeline.channel))
+    ZPipeline(ZChannel.suspend(pipeline.channel))
 
   /**
    * Creates a pipeline that takes n elements.
@@ -678,7 +667,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.succeed(_)
           )
 
-      new ZPipeline(
+      ZPipeline(
         if (0 < n)
           loop(n)
         else
@@ -705,7 +694,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           ZChannel.succeed(_)
         )
 
-    new ZPipeline(loop)
+    ZPipeline(loop)
   }
 
   /**
@@ -727,14 +716,14 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           ZChannel.succeed(_)
         )
 
-    new ZPipeline(loop)
+    ZPipeline(loop)
   }
 
   /**
    * Creates a pipeline that submerges chunks into the structure of the stream.
    */
   def unchunks[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Chunk[In], In] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[Chunk[In]], Any].mapOut(_.flatten))
+    ZPipeline(ZChannel.identity[Nothing, Chunk[Chunk[In]], Any].mapOut(_.flatten))
 
   def usASCIIDecode(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, String] =
     textDecodeUsing(StandardCharsets.US_ASCII)
@@ -891,7 +880,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           done = _ => ZChannel.unit
         )
 
-      new ZPipeline(transform(charset))
+      ZPipeline(transform(charset))
     }
 
   private def utfDecodeDetectingBom(
@@ -937,7 +926,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             }
         )
 
-      new ZPipeline(lookingForBom(Chunk.empty, bomSize))
+      ZPipeline(lookingForBom(Chunk.empty, bomSize))
     }
 
   private def utf8DecodeNoBom(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, String] = {
@@ -1013,7 +1002,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
             ZChannel.write(stringChunkFrom(buffer))
       )
 
-    new ZPipeline(readThenTransduce(emptyByteChunk))
+    ZPipeline(readThenTransduce(emptyByteChunk))
   }
 
   private def utfDecodeFixedLength(charset: => Charset, fixedLength: => Int)(implicit
@@ -1070,7 +1059,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
               ZChannel.write(stringChunkFrom(buffer, charset))
         )
 
-      new ZPipeline(readThenTransduce(emptyByteChunk, charset, fixedLength))
+      ZPipeline(readThenTransduce(emptyByteChunk, charset, fixedLength))
     }
 
   private def utfEncodeFor(
@@ -1097,6 +1086,6 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           done = _ => ZChannel.unit
         )
 
-      new ZPipeline(ZChannel.write(bom) *> transform)
+      ZPipeline(ZChannel.write(bom) *> transform)
     }
 }
