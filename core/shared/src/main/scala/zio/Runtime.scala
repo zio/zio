@@ -384,7 +384,7 @@ trait Runtime[+R] {
       new java.util.concurrent.atomic.AtomicReference(
         Map(
           FiberRef.currentEnvironment -> ::(fiberId -> environment, Nil),
-          ZEnv.services -> ::(fiberId -> ZEnv.Services.live, Nil)
+          ZEnv.services               -> ::(fiberId -> ZEnv.Services.live, Nil)
         )
       ),
       children

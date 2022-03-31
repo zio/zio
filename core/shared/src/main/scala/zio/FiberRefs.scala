@@ -109,9 +109,9 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
         }
 
         newStack match {
-           case Some(newStack) => parentFiberRefs + (ref -> newStack)
-           case None           => parentFiberRefs
-         }
+          case Some(newStack) => parentFiberRefs + (ref -> newStack)
+          case None           => parentFiberRefs
+        }
 
       }
     }
