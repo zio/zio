@@ -1,7 +1,5 @@
 package zio.test
 
-import zio._
-
 object ExecutionEventSinkSpec extends ZIOSpecDefault {
   val uuid = SuiteId(0)
 
@@ -49,7 +47,6 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
       } yield assertTrue(summary.success == 1)
     }
   ).provide(
-    Console.live,
     TestLogger.fromConsole,
     ExecutionEventSink.live,
     TestOutput.live,

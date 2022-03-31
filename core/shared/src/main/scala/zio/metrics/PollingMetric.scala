@@ -52,17 +52,8 @@ trait PollingMetric[-R, +E, +Out] { self =>
    */
   final def launch[R1 <: R, B](schedule: Schedule[R1, Out, B])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Clock with Scope, Nothing, Fiber[E, B]] =
-    ZIO.acquireRelease((pollAndUpdate *> metric.value).repeat(schedule).forkDaemon)(_.interrupt)
-
-  /**
-   * Returns an effect that will launch the polling metric in a background
-   * fiber, using the specified schedule and the specified clock.
-   */
-  final def launchUsing[R1 <: R, B](schedule: Schedule[R1, Out, B], clock: Clock)(implicit
-    trace: ZTraceElement
   ): ZIO[R1 with Scope, Nothing, Fiber[E, B]] =
-    ZIO.acquireRelease(clock.repeat(pollAndUpdate *> metric.value)(schedule).forkDaemon)(_.interrupt)
+    ZIO.acquireRelease((pollAndUpdate *> metric.value).repeat(schedule).forkDaemon)(_.interrupt)
 
   /**
    * An effect that polls a value that may be fed to the metric.
@@ -81,23 +72,6 @@ trait PollingMetric[-R, +E, +Out] { self =>
    */
   final def retry[R1 <: R, E1 >: E](
     policy: Schedule[R1, E1, Any]
-  ): PollingMetric.Full[Type, In, R1 with Clock, E1, Out] =
-    new PollingMetric[R1 with Clock, E1, Out] {
-      type Type = self.Type
-      type In   = self.In
-
-      def metric = self.metric
-
-      def poll(implicit trace: ZTraceElement) = self.poll.retry(policy)
-    }
-
-  /**
-   * Returns a new polling metric whose poll function will be retried with the
-   * specified retry policy using the specified clock.
-   */
-  final def retryUsing[R1 <: R, E1 >: E](
-    policy: Schedule[R1, E1, Any],
-    clock: Clock
   ): PollingMetric.Full[Type, In, R1, E1, Out] =
     new PollingMetric[R1, E1, Out] {
       type Type = self.Type
@@ -105,7 +79,7 @@ trait PollingMetric[-R, +E, +Out] { self =>
 
       def metric = self.metric
 
-      def poll(implicit trace: ZTraceElement) = clock.retry(self.poll)(policy)
+      def poll(implicit trace: ZTraceElement) = self.poll.retry(policy)
     }
 
   /**

@@ -382,7 +382,10 @@ trait Runtime[+R] {
       runtimeConfig,
       StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
-        Map(FiberRef.currentEnvironment -> ::(fiberId -> environment, Nil))
+        Map(
+          FiberRef.currentEnvironment -> ::(fiberId -> environment, Nil),
+          ZEnv.services               -> ::(fiberId -> ZEnv.Services.live, Nil)
+        )
       ),
       children
     )
@@ -478,11 +481,10 @@ object Runtime {
 
   /**
    * The default [[Runtime]] for most ZIO applications. This runtime is
-   * configured with the default environment, containing standard services, as
-   * well as the default runtime configuration, which is optimized for typical
-   * ZIO applications.
+   * configured with the the default runtime configuration, which is optimized
+   * for typical ZIO applications.
    */
-  lazy val default: Runtime[ZEnv] = Runtime(ZEnvironment.default, RuntimeConfig.default)
+  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.default)
 
   /**
    * The global [[Runtime]], which piggybacks atop the global execution context
@@ -490,7 +492,7 @@ object Runtime {
    * recommended, unless the intention is to avoid creating any thread pools or
    * other resources.
    */
-  lazy val global: Runtime[ZEnv] = Runtime(ZEnvironment.default, RuntimeConfig.global)
+  lazy val global: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.global)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be

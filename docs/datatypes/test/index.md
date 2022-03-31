@@ -80,7 +80,7 @@ import java.io.IOException
 import HelloWorld._
 
 object HelloWorld {
-  def sayHello: ZIO[Console, IOException, Unit] =
+  def sayHello: ZIO[Any, IOException, Unit] =
     Console.printLine("Hello, World!")
 }
 
@@ -197,14 +197,14 @@ import zio.test.magnolia._
 
 case class Point(x: Double, y: Double)
 
-val genPoint: Gen[Random with Sized, Point] = DeriveGen[Point]
+val genPoint: Gen[Sized, Point] = DeriveGen[Point]
  
 sealed trait Color
 case object Red   extends Color
 case object Green extends Color
 case object Blue  extends Color
  
-val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+val genColor: Gen[Sized, Color] = DeriveGen[Color]
 ```
 
 ### Results Reporting

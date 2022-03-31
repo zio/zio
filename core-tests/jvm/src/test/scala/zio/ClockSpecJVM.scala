@@ -1,6 +1,7 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 import java.time.Instant
@@ -8,9 +9,7 @@ import java.util.concurrent.TimeUnit
 
 object ClockSpecJVM extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations with TestConfig with ZTestEnv with Live with Annotations, TestFailure[
-    Any
-  ], TestSuccess] =
+  def spec =
     suite("ClockSpec")(
       test("currentTime has microsecond resolution on JRE >= 9") {
         val unit = TimeUnit.MICROSECONDS
@@ -19,7 +18,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.foreach(1 to 1000)(_ => UIO.unit) // just pass some time
           b <- Clock.currentTime(unit)
         } yield assert((b - a) % 1000)(not(equalTo(0L)))
-      }.provideLayer(Clock.live)
+      } @@ withLiveClock
       // We might actually have measured exactly one millisecond. In that case we can simply retry.
         @@ TestAspect.flaky
         // This test should only run on JRE >= 9, which is when microsecond precision was introduced.
@@ -32,7 +31,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
           time   <- Clock.currentTime(unit).map(TimeUnit.MILLISECONDS.convert(_, unit))
           finish <- ZIO.succeed(Instant.now).map(_.toEpochMilli)
         } yield assert(time)(isGreaterThanEqualTo(start) && isLessThanEqualTo(finish))
-      }.provideLayer(Clock.live)
+      } @@ withLiveClock
         @@ TestAspect.nonFlaky
     )
 }

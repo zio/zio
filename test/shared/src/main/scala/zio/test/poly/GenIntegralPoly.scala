@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Random, ZTraceElement}
+import zio.ZTraceElement
 
 /**
  * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
@@ -34,7 +34,7 @@ object GenIntegralPoly {
    * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and
    * `Integral` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A], num: Integral[A]): GenIntegralPoly =
+  def apply[A](gen: Gen[Sized, A], num: Integral[A]): GenIntegralPoly =
     new GenIntegralPoly {
       type T = A
       val genT = gen
@@ -58,7 +58,7 @@ object GenIntegralPoly {
    * A generator of polymorphic values constrainted to have an `Integral`
    * instance.
    */
-  def genIntegralPoly(implicit trace: ZTraceElement): Gen[Random, GenIntegralPoly] =
+  def genIntegralPoly(implicit trace: ZTraceElement): Gen[Any, GenIntegralPoly] =
     Gen.elements(byte, char, int, long, short)
 
   /**

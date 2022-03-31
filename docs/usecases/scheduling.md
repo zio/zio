@@ -74,7 +74,7 @@ import zio.Console._
 import API._
 
 object ScheduleApp extends scala.App {
-  implicit val rt: Runtime[Clock with Console] = Runtime.default
+  implicit val rt: Runtime[Any] = Runtime.default
 
   rt.unsafeRun(makeRequest.retry(ScheduleUtil.schedule).foldZIO(
     ex => printLine("Exception Failed"),

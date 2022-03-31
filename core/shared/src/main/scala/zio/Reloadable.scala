@@ -57,8 +57,8 @@ object Reloadable {
    */
   def auto[In, E, Out: Tag](layer: ZLayer[In, E, Out], schedule: Schedule[In, Any, Any])(implicit
     trace: ZTraceElement
-  ): ZLayer[In with Clock, E, Reloadable[Out]] =
-    ZLayer.scoped[In with Clock] {
+  ): ZLayer[In, E, Reloadable[Out]] =
+    ZLayer.scoped[In] {
       for {
         env       <- manual(layer).build
         reloadable = env.get[Reloadable[Out]]
@@ -78,8 +78,8 @@ object Reloadable {
     scheduleFromConfig: ZEnvironment[In] => Schedule[In, Any, Any]
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[In with Clock, E, Reloadable[Out]] =
-    ZLayer.scoped[In with Clock] {
+  ): ZLayer[In, E, Reloadable[Out]] =
+    ZLayer.scoped[In] {
       for {
         in        <- ZIO.environment[In]
         schedule   = scheduleFromConfig(in)

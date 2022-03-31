@@ -43,23 +43,6 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    */
   def makeSome[R0, R]: MakeSomePartiallyApplied[R0, R] =
     new MakeSomePartiallyApplied[R0, R]
-
-  /**
-   * Automatically constructs a layer for the provided type `R`, leaving a
-   * remainder `ZEnv`. This will satisfy all transitive `ZEnv` requirements with
-   * `ZEnv.any`, allowing them to be provided later.
-   *
-   * {{{
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
-   *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val layer : ZLayer[ZEnv, Nothing, OldLady] = ZLayer.makeCustom[OldLady](oldLadyLayer, flyLayer)
-   * }}}
-   */
-  def makeCustom[R]: MakeCustomPartiallyApplied[R] =
-    new MakeCustomPartiallyApplied[R]
-
 }
 
 private[zio] final class MakePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
@@ -76,13 +59,4 @@ private[zio] final class MakeSomePartiallyApplied[R0, R](
     layer: ZLayer[_, E, _]*
   )(implicit dummyKRemainder: DummyK[R0], dummyK: DummyK[R]): ZLayer[R0, E, R] =
     macro ZLayerMakeMacros.makeSomeImpl[E, R0, R]
-}
-
-private[zio] final class MakeCustomPartiallyApplied[R](
-  val dummy: Boolean = true
-) extends AnyVal {
-  def apply[E](
-    layer: ZLayer[_, E, _]*
-  )(implicit dummyK: DummyK[R]): ZLayer[ZEnv, E, R] =
-    macro ZLayerMakeMacros.makeCustomImpl[E, R]
 }

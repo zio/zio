@@ -13,7 +13,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
 
   final case class Person(name: String, age: Int)
 
-  val genPerson: Gen[Random with Sized, Person] = DeriveGen[Person]
+  val genPerson: Gen[Sized, Person] = DeriveGen[Person]
 
   sealed trait Color
 
@@ -23,7 +23,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
     case object Blue  extends Color
   }
 
-  val genColor: Gen[Random with Sized, Color] = DeriveGen[Color]
+  val genColor: Gen[Sized, Color] = DeriveGen[Color]
 
   sealed trait NonEmptyList[+A] { self =>
     def foldLeft[S](s: S)(f: (S, A) => S): S =
@@ -42,7 +42,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
     implicit def deriveGen[A: DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
   }
 
-  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Random with Sized, NonEmptyList[A]] =
+  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Sized, NonEmptyList[A]] =
     DeriveGen[NonEmptyList[A]]
 
   def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes

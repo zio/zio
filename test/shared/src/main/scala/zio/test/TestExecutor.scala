@@ -18,7 +18,7 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
+import zio.{ExecutionStrategy, ZIO, ZTraceElement}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -27,7 +27,7 @@ import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
-  ): ZIO[ExecutionEventSink with Random, Nothing, Summary]
+  ): UIO[Summary]
 
   def environment: ZLayer[Scope, Nothing, R]
 }
@@ -35,16 +35,15 @@ abstract class TestExecutor[+R, E] {
 object TestExecutor {
 
   def default[R <: Annotations, E](
-    env: ZLayer[Scope, Nothing, R]
+    env: ZLayer[Scope, Nothing, R],
+    sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
-    ): ZIO[
-      ExecutionEventSink with Random,
-      Nothing,
+    ): UIO[
       Summary
     ] =
-      for {
+      (for {
         sink      <- ZIO.service[ExecutionEventSink]
         topParent <- SuiteId.newRandom
         _         <- sink.process(ExecutionEvent.SectionStart(List.empty, topParent, List.empty))
@@ -55,11 +54,7 @@ object TestExecutor {
             exec: ExecutionStrategy,
             ancestors: List[SuiteId],
             sectionId: SuiteId
-          ): ZIO[
-            Random with Scope,
-            Nothing,
-            Unit
-          ] =
+          ): ZIO[Scope, Nothing, Unit] =
             (spec.caseValue match {
               case Spec.ExecCase(exec, spec) =>
                 loop(labels, spec, exec, ancestors, sectionId)
@@ -114,7 +109,7 @@ object TestExecutor {
              )
 
         summary <- sink.getSummary
-      } yield summary
+      } yield summary).provideLayer(sinkLayer)
 
     val environment = env
 

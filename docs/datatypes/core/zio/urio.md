@@ -21,20 +21,6 @@ type URIO[-R, +A] = ZIO[R, Nothing, A]
 
 So `URIO` is equal to a `ZIO` that requires `R` and cannot fail (because in Scala the `Nothing` type has no inhabitant, so we can't create an instance of type `Nothing`). It succeeds with `A`.
 
-In the following example, the type of `printLine` is `URIO[Console, Unit]`, which means that it requires `Console` service as an environment, and it succeeds with `Unit` value:
-
-```scala mdoc:invisible:reset
-import zio._
-import zio.Console._
-
-import java.io.IOException
-```
-
-```scala mdoc:silent
-def printLine(line: => String): ZIO[Console, IOException, Unit] =
-  ZIO.serviceWith(_.printLine(line))
-```
-
 > **Note:** _Principle of The Least Power_
 >
 > The `ZIO` data type is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On other hand, the type aliases are a way of subtyping and specializing the `ZIO` type, specific for a less powerful workflow. 

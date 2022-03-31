@@ -48,7 +48,7 @@ object MemoryPools {
     )
 
   @silent("JavaConverters")
-  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, MemoryPools] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] =
     ZLayer.scoped {
       for {
         memoryMXBean <- ZIO.attempt(ManagementFactory.getMemoryMXBean)

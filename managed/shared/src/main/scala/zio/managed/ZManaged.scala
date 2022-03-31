@@ -810,27 +810,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     }
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a managed effect that only depends on the `ZEnv`.
-   *
-   * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
-   *
-   * val managed: ZManaged[ZEnv with Logging, Nothing, Unit] = ???
-   *
-   * val managed2 = managed.provideCustomLayer(loggingLayer)
-   * }}}
-   */
-  final def provideCustomLayer[E1 >: E, R1](
-    layer: => ZLayer[ZEnv, E1, R1]
-  )(implicit
-    ev: ZEnv with R1 <:< R,
-    tagged: EnvironmentTag[R1],
-    trace: ZTraceElement
-  ): ZManaged[ZEnv, E1, A] =
-    provideSomeLayer[ZEnv](layer)
-
-  /**
    * Provides the `ZManaged` effect with its required environment, which
    * eliminates its dependency on `R`.
    */
@@ -876,11 +855,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val managed: ZManaged[Clock with Random, Nothing, Unit] = ???
+   * val managed: ZManaged[Logging with Database, Nothing, Unit] = ???
    *
-   * val managed2 = managed.provideSomeLayer[Random](clockLayer)
+   * val managed2 = managed.provideSomeLayer[Database](loggingLayer)
    * }}}
    */
   final def provideSomeLayer[R0]: ZManaged.ProvideSomeLayer[R0, R, E, A] =
@@ -963,7 +942,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    */
   def retry[R1 <: R, S](
     policy: => Schedule[R1, E, S]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1 with Clock, E, A] =
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZManaged[R1, E, A] =
     ZManaged(zio.retry(policy))
 
   /**
@@ -1140,7 +1119,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * Returns a new effect that executes this one and times the acquisition of
    * the resource.
    */
-  def timed(implicit trace: ZTraceElement): ZManaged[R with Clock, E, (Duration, A)] =
+  def timed(implicit trace: ZTraceElement): ZManaged[R, E, (Duration, A)] =
     ZManaged {
       self.zio.timed.map { case (duration, (fin, a)) =>
         (fin, (duration, a))
@@ -1154,7 +1133,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * action will be run on a new fiber. `Some` will be returned if acquisition
    * and reservation complete in time
    */
-  def timeout(d: => Duration)(implicit trace: ZTraceElement): ZManaged[R with Clock, E, Option[A]] =
+  def timeout(d: => Duration)(implicit trace: ZTraceElement): ZManaged[R, E, Option[A]] =
     ZManaged {
       ZIO.uninterruptibleMask { restore =>
         for {

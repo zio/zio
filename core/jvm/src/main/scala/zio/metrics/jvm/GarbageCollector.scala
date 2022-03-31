@@ -14,7 +14,7 @@ final case class GarbageCollector(
 
 object GarbageCollector {
   @silent("JavaConverters")
-  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, GarbageCollector] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, GarbageCollector] =
     ZLayer.scoped {
       for {
         gcMXBeans <- ZIO.attempt(ManagementFactory.getGarbageCollectorMXBeans.asScala)

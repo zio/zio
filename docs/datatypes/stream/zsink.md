@@ -79,8 +79,8 @@ val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 **ZSink.timed** — A sink that executes the stream and times its execution:
 
 ```scala mdoc:silent
-val timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.timed
-val stream: ZIO[Clock, Nothing, Long] =
+val timed: ZSink[Any, Nothing, Any, Nothing, Duration] = ZSink.timed
+val stream: ZIO[Any, Nothing, Long] =
   ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
 // Result: 10
 ```
@@ -88,9 +88,9 @@ val stream: ZIO[Clock, Nothing, Long] =
 **ZSink.foreach** — A sink that executes the provided effectful function for every element fed to it:
 
 ```scala mdoc:silent:nest
-val printer: ZSink[Console, IOException, Int, Int, Unit] =
+val printer: ZSink[Any, IOException, Int, Int, Unit] =
   ZSink.foreach((i: Int) => printLine(i))
-val stream : ZIO[Console, IOException, Unit]             =
+val stream : ZIO[Any, IOException, Unit]             =
   ZStream(1, 2, 3, 4, 5).run(printer)
 ```
 
@@ -334,7 +334,7 @@ ZStream("Application", "Error", "Logs")
 A queue has a finite or infinite buffer size, so they are useful in situations where we need to consume streams as fast as we can, and then do some batching operations on consumed messages. By using `ZSink.fromQueue` we can create a sink that is backed by a queue; it enqueues each element into the specified queue:
 
 ```scala mdoc:silent:nest
-val myApp: ZIO[Console with Clock, IOException, Unit] =
+val myApp: IO[IOException, Unit] =
   for {
     queue    <- Queue.bounded[Int](32)
     producer <- ZStream
@@ -354,7 +354,7 @@ val myApp: ZIO[Console with Clock, IOException, Unit] =
 In the following example, the `sink` consumes elements of the `producer` stream and publishes them to the `hub`. We have two consumers that are subscribed to that hub and they are taking its elements forever:
 
 ```scala mdoc:silent:nest
-val myApp: ZIO[Console with Clock, IOException, Unit] =
+val myApp: ZIO[Any, IOException, Unit] =
   for {
     promise <- Promise.make[Nothing, Unit]
     hub <- Hub.bounded[Int](1)

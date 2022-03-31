@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 object FiberRefSpecJvm extends ZIOBaseSpec {
 
-  def spec: Spec[Environment, TestFailure[Any], TestSuccess] = suite("FiberRefSpecJvm")(
+  def spec = suite("FiberRefSpecJvm")(
     test("unsafe handles behave properly if fiber specific data cannot be accessed") {
       for {
         fiberRef <- FiberRef.make(initial)

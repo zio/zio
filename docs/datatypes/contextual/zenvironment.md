@@ -48,50 +48,23 @@ For example, the `ZIO[Console & Random, Throwable, String]` can be thought of as
 
 We can eliminate the environment of `ZIO[R, E, A]` by providing `ZEnvironment[R]` to that effect. 
 
-Let's see an example:
-
-```scala mdoc:compile-only
-import zio._
-import java.io.IOException
-
-val originalEffect: ZIO[Console & Random, IOException, Unit] =
-  for {
-    uuid <- Random.nextUUID
-    _ <- Console.printLine(s"next random UUID: $uuid")
-  } yield ()
-```
-
-By providing `ZEnvironment[Console & Random]` we can eliminate the environment of the `originalEffect`:
-
-```scala
-val eliminatedEffect: IO[IOException, Unit] =
-  originalEffect.provideEnvironment(
-    ZEnvironment(
-      ConsoleLive,
-      RandomLive
-    ) 
-  )
-```
-
 Also, we can access the **whole** environment using `ZIO.environment`:
 
 ```scala mdoc:compile-only
 import zio._ 
-import zio.Console.ConsoleLive
 import java.io.IOException
 
 case class AppConfig(poolSize: Int)
 
-val myApp: ZIO[AppConfig & Console, IOException, Unit] =
-  ZIO.environment[AppConfig & Console].flatMap { env =>
-    val console = env.get[Console]
+val myApp: ZIO[AppConfig, IOException, Unit] =
+  ZIO.environment[AppConfig].flatMap { env =>
     val config  = env.get[AppConfig]
-    console.printLine(s"Application started with config: $config")
+    Console.printLine(s"Application started with config: $config")
   }
 
 val eliminated: IO[IOException, Unit] =
   myApp.provideEnvironment(
-    ZEnvironment(AppConfig(poolSize = 10)) ++ ZEnvironment(ConsoleLive)
+    ZEnvironment(AppConfig(poolSize = 10))
   )
 ```
 
@@ -100,14 +73,6 @@ val eliminated: IO[IOException, Unit] =
 > In most cases, we do not require using `ZIO.environment` to access the whole environment or the `ZIO#provideEnvironment` to provide effect dependencies. Therefore, most of the time, we use `ZIO.service*` and other `ZIO#provide*` methods to access a specific service from the environment or provide services to a ZIO effect.
 
 ## Creation
-
-To create the default ZIO environment:
-
-```scala mdoc:compile-only
-import zio._
-
-val default: ZEnvironment[ZEnv] = ZEnvironment.default 
-```
 
 To create an empty ZIO environment:
 
@@ -135,8 +100,8 @@ import zio._
 
 case class AppConfig(host: String, port: Int)
 
-val app: ZEnvironment[ZEnv & AppConfig] =
-  ZEnvironment.default ++ ZEnvironment(AppConfig("localhost", 8080))
+val app: ZEnvironment[AppConfig] =
+  ZEnvironment.empty ++ ZEnvironment(AppConfig("localhost", 8080))
 ```
 
 To **add** a service to an environment:
@@ -146,15 +111,21 @@ import zio._
 
 case class AppConfig(host: String, port: Int)
 
-val app: ZEnvironment[ZEnv & AppConfig] =
-  ZEnvironment.default.add(AppConfig("localhost", 8080))
+val app: ZEnvironment[AppConfig] =
+  ZEnvironment.empty.add(AppConfig("localhost", 8080))
 ```
 
 To retrieve a service from the environment, we use `get` method:
 
 ```scala mdoc:compile-only
 import zio._
-val console: Console = ZEnvironment.default.get[Console] 
+
+case class AppConfig(host: String, port: Int)
+
+val app: ZEnvironment[AppConfig] =
+  ZEnvironment.empty.add(AppConfig("localhost", 8080))
+
+val appConfig: AppConfig = app.get[AppConfig] 
 ```
 
 ## Providing Multiple Instance of the Same Interface
@@ -205,7 +176,7 @@ import zio._
 
 object MultipleConfigExample extends ZIOAppDefault {
 
-  val myApp: ZIO[Map[String, AppConfig] & System, String, Unit] = for {
+  val myApp: ZIO[Map[String, AppConfig], String, Unit] = for {
     env <- System.env("APP_ENV")
       .flatMap(x => ZIO.fromOption(x))
       .orElseFail("The environment variable APP_ENV cannot be found.")
@@ -216,7 +187,7 @@ object MultipleConfigExample extends ZIOAppDefault {
   } yield ()
 
   def run =
-    myApp.provideCustom(AppConfig.layer)
+    myApp.provide(AppConfig.layer)
 
 }
 ```
@@ -273,6 +244,6 @@ object MultipleDatabaseExample extends ZIOAppDefault {
     _ <- persistent.add("key2", "value2".getBytes(StandardCharsets.UTF_8))
   } yield ()
 
-  def run = myApp.provideCustomLayer(Database.layer)
+  def run = myApp.provideLayer(Database.layer)
 }
 ```

@@ -1,17 +1,10 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import zio.IO
 import zio.test.render.ConsoleRenderer
-import zio.test.{
-  AbstractRunnableSpec,
-  ExecutionEventSink,
-  FilteredSpec,
-  TestArgs,
-  TestEnvironment,
-  TestLogger,
-  ZIOSpecAbstract
-}
-import zio.{Clock, Random, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.test.{AbstractRunnableSpec, FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.{Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -24,8 +17,7 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
-  ): ZIO[
-    Clock with ExecutionEventSink with Random,
+  ): IO[
     Throwable,
     Unit
   ] = {

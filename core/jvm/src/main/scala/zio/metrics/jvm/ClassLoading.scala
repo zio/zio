@@ -12,7 +12,7 @@ final case class ClassLoading(
 )
 
 object ClassLoading {
-  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, ClassLoading] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, ClassLoading] =
     ZLayer.scoped {
       for {
         classLoadingMXBean <- ZIO.attempt(ManagementFactory.getPlatformMXBean(classOf[ClassLoadingMXBean]))

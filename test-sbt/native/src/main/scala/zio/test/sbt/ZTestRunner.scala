@@ -91,7 +91,7 @@ sealed class ZTestTask(
         Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
           ZIO.scoped {
             zioSpec.run
-              .provideLayer(ZIOAppArgs.empty ++ zio.ZEnv.live ++ ZLayer.environment[Scope])
+              .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
               .onError(e => ZIO.succeed(println(e.prettyPrint)))
           }
         } { exit =>
@@ -104,7 +104,6 @@ sealed class ZTestTask(
       case LegacySpecWrapper(abstractRunnableSpec) =>
         Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
           run(eventHandler, abstractRunnableSpec)
-            .provide(sharedFilledTestlayer)
         } { exit =>
           exit match {
             case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)

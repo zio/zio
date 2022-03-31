@@ -38,11 +38,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 trait ZIOAppDefault extends ZIOApp {
 
-  type Environment = ZEnv
+  type Environment = Any
 
-  val layer: ZLayer[ZIOAppArgs with Scope, Any, ZEnv] = ZEnv.live
+  val layer: ZLayer[ZIOAppArgs with Scope, Any, Any] = ZLayer.empty
 
-  val tag: EnvironmentTag[ZEnv] = EnvironmentTag[ZEnv]
+  val tag: EnvironmentTag[Any] = EnvironmentTag[Any]
 
 }
 
@@ -53,7 +53,7 @@ object ZIOAppDefault {
    * of the program, as well as a hook into the ZIO runtime configuration.
    */
   def apply(
-    run0: ZIO[ZEnv with ZIOAppArgs, Any, Any],
+    run0: ZIO[ZIOAppArgs, Any, Any],
     hook0: RuntimeConfigAspect
   ): ZIOAppDefault =
     new ZIOAppDefault {
@@ -65,6 +65,6 @@ object ZIOAppDefault {
    * Creates a [[ZIOAppDefault]] from an effect, using the unmodified default
    * runtime's configuration.
    */
-  def fromZIO(run0: ZIO[ZEnv with ZIOAppArgs, Any, Any]): ZIOAppDefault =
+  def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any]): ZIOAppDefault =
     ZIOAppDefault(run0, RuntimeConfigAspect.identity)
 }

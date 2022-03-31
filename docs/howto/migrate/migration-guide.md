@@ -131,13 +131,13 @@ import zio._
 case class Config(url: String, port: Int)
 
 object ConfigExample extends ZIOAppDefault {
-  val app: ZIO[Console with Config, Nothing, Unit] = for {
+  val app: ZIO[Config, Nothing, Unit] = for {
     config <- ZIO.service[Config]
     _      <- Console.printLine(s"application config: $config").orDie
   } yield ()
     
   def run = 
-    app.provideSomeEnvironment[Console](_ ++ ZEnvironment(Config("localhost", 8080)))
+    app.provideEnvironment(ZEnvironment(Config("localhost", 8080)))
 }
 ```
 
@@ -611,7 +611,7 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: URLayer[Console with Clock, Logging] =
+  val layer: ZLayer[Any, Nothing, Logging] =
     (LoggingLive(_, _)).toLayer[Logging]
 }
 ```
@@ -875,29 +875,6 @@ val app: ZIO[Console, Nothing, Unit] =
   )
 ```
 
-In ZIO 1.x, the `ZIO#provideCustomLayer` takes the part of the environment that is not part of `ZEnv` and gives us an effect that only depends on the `ZEnv`:
-
-```scala mdoc:silent:nest
-val app: ZIO[zio.ZEnv, Nothing, Unit] = 
-  myApp.provideCustomLayer(
-    ((Logging.live ++ Database.live ++ (Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
-      ((Logging.live ++ Database.live) >>> UserRepo.live)
-  )
-```
-
-In ZIO 2.x, the `ZIO#provideCustom` does the similar but for the injection:
-
-```scala mdoc:silent:nest
-val app: ZIO[zio.ZEnv, Nothing, Unit] =
-  myApp.provideCustom(
-    Logging.live,
-    DocRepo.live,
-    Database.live,
-    BlobStorage.live,
-    UserRepo.live
-  )
-```
-
 > Note:
 > 
 > In ZIO 2.x, the `ZIO#provide` method—and all its variants `ZIO#provideSome`, `ZIO#provideCustom`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and all its variants `ZIO#provideSomeLayer`, `ZIO#provideCustomLayer`—is useful for low-level and custom cases like.
@@ -1093,12 +1070,12 @@ In this example, by applying the `fooLayer` to the `fooWithBarWithBaz` effect it
 
 Furthermore, we can compose multiple layers together and then eliminate services from the environmental effects:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 
 object MainApp extends ZIOAppDefault {
 
-  val needsClockAndRandomAndConsole: URIO[Console with Clock with Random, Unit] =
+  val needsClockAndRandomAndConsole: UIO[Unit] =
     for {
       uuid <- Random.nextUUID
       date <- Clock.localDateTime
@@ -1354,7 +1331,7 @@ ZIO 2.x:
 ```scala mdoc:silent:nest
 import zio._
 
-val myApp: ZIO[Console, Nothing, Unit] =
+val myApp: ZIO[Any, Nothing, Unit] =
   for {
     semaphore <- Semaphore.make(4)
     available <- ZIO.foreach((1 to 10).toList) { _ =>
@@ -1666,9 +1643,7 @@ case class JournalLoggerLive(clock: Clock, journal: Journal) extends Logger {
   override def log(line: String): UIO[Unit] = {
     for {
       current <- clock.currentDateTime
-      _       <- clock.retry(
-                   journal.append(s"$current--$line")
-                )(Schedule.exponential(2.seconds)).orDie
+      _       <- journal.append(s"$current--$line").retry(Schedule.exponential(2.seconds)).orDie
     } yield ()
   }
 }
@@ -1745,7 +1720,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.provideCustom(ZState.makeLayer(MyState(0)))
+  def run = app.provide(ZState.initial(MyState(0)))
 }
 ```
 
@@ -1927,14 +1902,14 @@ import zio._
 
 object TracingExample extends ZIOAppDefault {
 
-  def doSomething(input: Int): ZIO[Console, String, Unit] =
+  def doSomething(input: Int): ZIO[Any, String, Unit] =
     for {
       _ <- Console.printLine(s"Do something $input").orDie
       _ <- ZIO.fail("Boom!") // line number 8
       _ <- Console.printLine("Finished my job").orDie
     } yield ()
 
-  def myApp: ZIO[Console, String, Unit] =
+  def myApp: ZIO[Any, String, Unit] =
     for {
       _ <- Console.printLine("Hello!").orDie
       _ <- doSomething(5)   // line number 15

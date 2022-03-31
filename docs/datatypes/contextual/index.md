@@ -54,57 +54,6 @@ type ZIO[R, E, A] = R => Either[E, A]
 
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
-For example, when we have `ZIO[Console, Nothing, Unit]`, this shows that to run this effect we need to provide an implementation of the `Console` service:
-
-```scala mdoc:silent
-import zio._
-
-import java.io.IOException
-
-val effect: ZIO[Console, IOException, Unit] = 
-  Console.printLine("Hello, World!")
-```
-
-So when we provide a live version of `Console` service to our `effect`, it will be converted to an effect that doesn't require any environmental service:
-
-```scala mdoc:compile-only
-val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live)
-```
-
-```scala mdoc:invisible:reset
-
-```
-
-Finally, to run our application we can put our `mainApp` inside the `run` method:
-
-```scala mdoc:compile-only
-import zio._
-import zio.Console._
-import java.io.IOException
-
-object MainApp extends ZIOAppDefault {
-  val effect: ZIO[Console, IOException, Unit] = printLine("Hello, World!")
-  val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live)
-
-  def run = mainApp
-}
-```
-
-Sometimes an effect needs more than one environmental service, it doesn't matter, in these cases, we can provide all dependencies all together:
-
-```scala mdoc:compile-only
-import zio._
-
-import java.io.IOException
-
-val effect: ZIO[Console & Random, IOException, Unit] = for {
-  r <- Random.nextInt
-  _ <- Console.printLine(s"random number: $r")
-} yield ()
-
-val mainApp: ZIO[Any, IOException, Unit] = effect.provide(Console.live, Random.live)
-```
-
 We don't need to provide live layers for built-in services (Layers will be discussed later on this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (`Clock`, `Console`, `System`, `Random`, and `Blocking`). So we can run the above `effect` as follows:
 
 ```scala mdoc:compile-only
@@ -113,7 +62,7 @@ import zio._
 object MainApp extends ZIOAppDefault {
   def run = effect
   
-  val effect: ZIO[Console & Random, Nothing, Unit] = for {
+  val effect: ZIO[Any, Nothing, Unit] = for {
     r <- Random.nextInt
     _ <- Console.printLine(s"random number: $r").orDie
   } yield ()
@@ -546,8 +495,13 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 
 ```scala mdoc:silent
 object LoggingLive {
-  val layer: URLayer[Console & Clock, Logging] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val layer: URLayer[Any, Logging] =
+    ZLayer {
+      for {
+        console <- ZIO.console
+        clock   <- ZIO.clock
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
 
@@ -555,7 +509,7 @@ Note that the previous step is syntactic sugar of writing the layer directly in 
 
 ```scala
 object LoggingLive {
-  val layer: ZLayer[Clock & Console, Nothing, Logging] =
+  val layer: ZLayer[Any, Nothing, Logging] =
     ZLayer {
       for {
         console <- ZIO.service[Console]
@@ -582,7 +536,7 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging & Console, IOException, Unit] =
+  val app: ZIO[Logging, IOException, Unit] =
     for {
       _    <- Logging.log("Application Started!")
       _    <- Console.print("Enter your name:")
@@ -591,7 +545,7 @@ object MainApp extends ZIOAppDefault {
       _    <- Logging.log("Application Exited!")
     } yield ()
 
-  def run = app.provideCustom(LoggingLive.layer)
+  def run = app.provide(LoggingLive.layer)
 }
 ```
 
@@ -1064,7 +1018,7 @@ So the following service definition is wrong because the `Console` and `Clock` s
 ```scala mdoc:compile-only
 import zio._
 trait Logging {
-  def log(line: String): ZIO[Console & Clock, Nothing, Unit]
+  def log(line: String): ZIO[Any, Nothing, Unit]
 }
 ```
 
@@ -1112,16 +1066,16 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging & Console, IOException, Unit] =
+  val app: ZIO[Logging, IOException, Unit] =
     for {
       _    <- ZIO.serviceWithZIO[Logging](_.log("Application Started!"))
-      _    <- ZIO.serviceWithZIO[Console](_.print("Enter your name: "))
-      name <- ZIO.serviceWithZIO[Console](_.readLine)
-      _    <- ZIO.serviceWithZIO[Console](_.printLine(s"Hello, $name!"))
+      _    <- Console.print("Enter your name: ")
+      name <- Console.readLine
+      _    <- Console.printLine(s"Hello, $name!")
       _    <- ZIO.serviceWithZIO[Logging](_.log("Application Exited!"))
     } yield ()
 
-  def run = app.provideCustom(LoggingLive.layer)
+  def run = app.provide(LoggingLive.layer)
 }
 ```
 
@@ -1211,7 +1165,7 @@ object MainWebApp extends ZIOAppDefault {
     _ <- HttpServer.serve(map, "localhost", 8080)
   } yield ()
 
-  def run = myApp.provideCustomLayer(HttpServerLive.layer)
+  def run = myApp.provideLayer(HttpServerLive.layer)
 
 }
 ```
@@ -1263,9 +1217,10 @@ object MainDatabaseApp extends ZIOAppDefault {
       }
     } yield ()
 
-  def run = myApp.provideCustomLayer(DatabaseLive.layer)
+  def run = myApp.provideLayer(DatabaseLive.layer)
 
 }
 ```
 
 So while it's better to err on the side of "don't put things into the environment of service interface", there are cases where it's acceptable.
+

@@ -3,7 +3,7 @@ package zio.internal
 import zio.test.Assertion.equalTo
 import zio.test._
 import zio.test.TestAspect._
-import zio.{Random, ZIOBaseSpec}
+import zio.ZIOBaseSpec
 
 object StackSpec extends ZIOBaseSpec {
 
@@ -87,6 +87,6 @@ object StackSpec extends ZIOBaseSpec {
   case object True  extends Boolean
   case object False extends Boolean
 
-  val gen: Gen[Random with Sized, List[Boolean]] =
+  val gen: Gen[Sized, List[Boolean]] =
     Gen.large(n => Gen.listOfN(n)(Gen.elements(True, False)))
 }

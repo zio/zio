@@ -116,27 +116,6 @@ object AutoWireSpec extends ZIOBaseSpec {
             )
           } @@ TestAspect.exceptScala3
         ),
-        suite("provideCustom")(
-          test("automatically constructs a layer, leaving off ZEnv") {
-            val stringLayer = Console.readLine.orDie.toLayer
-            val program: ZIO[Random with String, Nothing, String] =
-              ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
-            val provided = TestConsole.feedLines("Your Lucky Number is:") *>
-              program.provideCustom(stringLayer)
-
-            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
-          }
-        ),
-        suite("provideSome")(
-          test("automatically constructs a layer, leaving off some environment") {
-            val stringLayer = Console.readLine.orDie.toLayer
-            val program     = ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
-            val provided = TestConsole.feedLines("Your Lucky Number is:") *>
-              program.provideSome[Random with Console](stringLayer)
-
-            assertM(provided)(equalTo("Your Lucky Number is: -1295463240"))
-          }
-        ),
         suite("`ZLayer.make`")(
           test("automatically constructs a layer") {
             val doubleLayer = ZLayer.succeed(100.1)

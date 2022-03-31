@@ -52,22 +52,22 @@ In the following example, we are creating a sized generator, which generates int
 import zio._
 import zio.test._
 
-val sizedInts: Gen[Random with Sized, Int] = 
+val sizedInts: Gen[Sized, Int] = 
   Gen.sized(Gen.int(0, _))
 ```
 
 To generate some sample values, we can use `Gen#runCollectN` operator on that:
 
 ```scala mdoc:silent:nest
-val samples: URIO[Random with Sized, List[Int]] = 
+val samples: URIO[Sized, List[Int]] = 
   sizedInts.runCollectN(5).debug
 ```
 
-The return type requires _Random_ and _Sized_ services. Therefore, to run this effect, we need to provide these two services. As the `ZEnv` has the _Random_ service, we only need to provide the `Sized` implementation:
+The return type require the _Sized_ service. Therefore, to run this effect, we need to provide this service:
 
 ```scala mdoc:silent:nest
 zio.Runtime.default.unsafeRun(
-  samples.provideCustom(Sized.live(100)) 
+  samples.provide(Sized.live(100)) 
 )
 // Sample Output: List(34, 44, 89, 14, 15)
 ```
@@ -79,12 +79,6 @@ type TestEnvironment =
   Annotations
     with Live
     with Sized
-    with TestClock
-    with TestConfig
-    with TestConsole
-    with TestRandom
-    with TestSystem
-    with ZEnv
 ```
 
 So when we test a property with ZIO Test, all the required services will be provided to the ZIO Test Runner:

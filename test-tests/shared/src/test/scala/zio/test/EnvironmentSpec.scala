@@ -45,12 +45,6 @@ object EnvironmentSpec extends ZIOBaseSpec {
         j <- Random.nextInt
       } yield !assert(i)(equalTo(j))
     },
-    test("Random is deterministic") {
-      for {
-        i <- Random.nextInt.provideLayer(testEnvironment)
-        j <- Random.nextInt.provideLayer(testEnvironment)
-      } yield assert(i)(equalTo(j))
-    },
     test("System returns an environment variable when it is set") {
       for {
         _   <- TestSystem.putEnv("k1", "v1")
@@ -68,11 +62,6 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _       <- TestSystem.setLineSeparator(",")
         lineSep <- System.lineSeparator
       } yield assert(lineSep)(equalTo(","))
-    },
-    test("clock service can be overwritten") {
-      val withLiveClock = TestEnvironment.live ++ Clock.live
-      val time          = Clock.nanoTime.provideLayer(withLiveClock)
-      assertM(time)(isGreaterThan(0L))
-    } @@ nonFlaky
+    }
   )
 }

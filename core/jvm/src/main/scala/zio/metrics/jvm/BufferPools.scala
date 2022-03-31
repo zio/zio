@@ -17,7 +17,7 @@ final case class BufferPools(
 
 object BufferPools {
   @silent("JavaConverters")
-  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, Reloadable[BufferPools]] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, Reloadable[BufferPools]] =
     ZLayer.scoped {
       for {
         bufferPoolMXBeans <- ZIO.attempt(ManagementFactory.getPlatformMXBeans(classOf[BufferPoolMXBean]).asScala)

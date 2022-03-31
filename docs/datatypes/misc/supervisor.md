@@ -83,7 +83,7 @@ object SupervisorExample extends ZIOAppDefault {
     _ <- Console.printLine(s"number of fibers: $length")
   } yield ()
 
-  def fib(n: Int): ZIO[Clock, Nothing, Int] =
+  def fib(n: Int): ZIO[Any, Nothing, Int] =
     if (n <= 1) {
       ZIO.succeed(1)
     } else {

@@ -3,8 +3,6 @@ package zio
 import zio.test._
 import zio.test.Assertion._
 
-import java.time.DateTimeException
-
 object ClockSpec extends ZIOBaseSpec {
 
   val someFixedInstant = java.time.Instant.parse("2021-11-13T03:42:09.343835Z")
@@ -13,7 +11,7 @@ object ClockSpec extends ZIOBaseSpec {
   val americaPhoenixFixedClock =
     java.time.Clock.fixed(someFixedInstant, java.time.ZoneId.of("America/Phoenix")) // 8 hours earlier than Amsterdam
 
-  def spec: Spec[Clock, TestFailure[DateTimeException], TestSuccess] = suite("ClockSpec")(
+  def spec = suite("ClockSpec")(
     test("currentDateTime does not throw a DateTimeException") {
       for {
         _ <- Clock.currentDateTime

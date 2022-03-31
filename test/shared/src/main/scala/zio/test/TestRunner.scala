@@ -32,10 +32,7 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: Layer[
-    Nothing,
-    TestLogger with Clock with ExecutionEventSink with Random
-  ] = {
+  bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
     implicit val emptyTracer = ZTraceElement.empty
     val printerLayer =
       Console.live.to(TestLogger.fromConsole)
@@ -55,8 +52,7 @@ final case class TestRunner[R, E](
     spec: ZSpec[R, E]
   )(implicit
     trace: ZTraceElement
-  ): URIO[
-    Clock with ExecutionEventSink with Random,
+  ): UIO[
     Summary
   ] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
@@ -114,6 +110,6 @@ final case class TestRunner[R, E](
 
   private[test] def buildRuntime(implicit
     trace: ZTraceElement
-  ): ZIO[Scope, Nothing, Runtime[TestLogger with Clock]] =
+  ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
     bootstrap.toRuntime(runtimeConfig)
 }

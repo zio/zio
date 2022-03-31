@@ -837,19 +837,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Provide(() => env, self)
 
   /**
-   * Provides the part of the environment that is not part of the `ZEnv`,
-   * leaving a channel that only depends on the `ZEnv`.
-   */
-  def provideCustomLayer[OutErr1 >: OutErr, Env1](
-    layer: => ZLayer[ZEnv, OutErr1, Env1]
-  )(implicit
-    ev: ZEnv with Env1 <:< Env,
-    tagged: EnvironmentTag[Env1],
-    trace: ZTraceElement
-  ): ZChannel[ZEnv, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
-    provideSomeLayer[ZEnv](layer)
-
-  /**
    * Provides a layer to the channel, which translates it to another level.
    */
   final def provideLayer[OutErr1 >: OutErr, Env0](

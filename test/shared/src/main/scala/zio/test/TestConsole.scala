@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZIO, ZLayer, ZTraceElement}
+import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZEnv, ZIO, ZLayer, ZTraceElement}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -214,12 +214,13 @@ object TestConsole extends Serializable {
   def make(data: Data, debug: Boolean = true)(implicit
     trace: ZTraceElement
   ): ZLayer[Live, Nothing, TestConsole] =
-    ZLayer {
+    ZLayer.scoped {
       for {
         live     <- ZIO.service[Live]
         ref      <- ZIO.succeed(Ref.unsafeMake(data))
         debugRef <- FiberRef.make(debug)
         test      = Test(ref, live, debugRef)
+        _        <- ZEnv.services.locallyScopedWith(_.add(test))
       } yield test
     }
 
@@ -236,15 +237,15 @@ object TestConsole extends Serializable {
    * Accesses a `TestConsole` instance in the environment and clears the input
    * buffer.
    */
-  def clearInput(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWithZIO(_.clearInput)
+  def clearInput(implicit trace: ZTraceElement): UIO[Unit] =
+    testConsoleWith(_.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
-  def clearOutput(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWithZIO(_.clearOutput)
+  def clearOutput(implicit trace: ZTraceElement): UIO[Unit] =
+    testConsoleWith(_.clearOutput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
@@ -252,45 +253,45 @@ object TestConsole extends Serializable {
    * rendered to standard output in addition to being written to the output
    * buffer.
    */
-  def debug[R <: TestConsole, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWithZIO[TestConsole](_.debug(zio))
+  def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    testConsoleWith(_.debug(zio))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
-  def feedLines(lines: String*)(implicit trace: ZTraceElement): URIO[TestConsole, Unit] =
-    ZIO.serviceWithZIO(_.feedLines(lines: _*))
+  def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+    testConsoleWith(_.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
-  def output(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.serviceWithZIO(_.output)
+  def output(implicit trace: ZTraceElement): UIO[Vector[String]] =
+    testConsoleWith(_.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
-  def outputErr(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, Vector[String]] =
-    ZIO.serviceWithZIO(_.outputErr)
+  def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]] =
+    testConsoleWith(_.outputErr)
 
   /**
    * Accesses a `TestConsole` instance in the environment and saves the console
    * state in an effect which, when run, will restore the `TestConsole` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): ZIO[TestConsole, Nothing, UIO[Unit]] =
-    ZIO.serviceWithZIO(_.save)
+  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    testConsoleWith(_.save)
 
   /**
    * Accesses a `TestConsole` instance in the environment and runs the specified
    * effect with the `TestConsole` set to silent mode, so that console output is
    * only written to the output buffer and not rendered to standard output.
    */
-  def silent[R <: TestConsole, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.serviceWithZIO[TestConsole](_.silent(zio))
+  def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    testConsoleWith(_.silent(zio))
 
   /**
    * The state of the `TestConsole`.

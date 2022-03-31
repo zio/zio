@@ -21,26 +21,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * The entry point for a purely-functional application on the JVM.
- *
- * {{{
- * import zio.ZApp
- * import zio.Console._
- *
- * object MyApp extends ZApp[Console] {
- *
- *   def environment: Console = ConsoleLive
- *
- *   final def run(args: List[String]) =
- *     myAppLogic.exitCode
- *
- *   def myAppLogic =
- *     for {
- *       _ <- printLine("Hello! What is your name?")
- *       n <- readLine
- *       _ <- printLine("Hello, " + n + ", good to meet you!")
- *     } yield ()
- * }
- * }}}
  */
 @deprecated("Use zio.ZIOApp", "2.0.0")
 trait ZApp[R] extends ZBootstrapRuntime[R] {

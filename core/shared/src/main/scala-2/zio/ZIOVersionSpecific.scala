@@ -21,24 +21,6 @@ import zio.internal.macros.LayerMacros
 private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
   /**
-   * Automatically constructs the part of the environment that is not part of
-   * the `ZEnv`, leaving an effect that only depends on the `ZEnv`. This will
-   * also satisfy transitive `ZEnv` requirements with `ZEnv.any`, allowing them
-   * to be provided later.
-   *
-   * {{{
-   * val zio: ZIO[OldLady with Console, Nothing, Unit] = ???
-   * val oldLadyLayer: ZLayer[Fly, Nothing, OldLady] = ???
-   * val flyLayer: ZLayer[Blocking, Nothing, Fly] = ???
-   *
-   * // The ZEnv you use later will provide both Blocking to flyLayer and Console to zio
-   * val zio2 : ZIO[ZEnv, Nothing, Unit] = zio.provideCustom(oldLadyLayer, flyLayer)
-   * }}}
-   */
-  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[ZEnv, E1, A] =
-    macro LayerMacros.provideCustomImpl[ZIO, ZEnv, R, E1, A]
-
-  /**
    * Splits the environment into two parts, assembling one part using the
    * specified layer and leaving the remainder `R0`.
    *
@@ -61,7 +43,7 @@ private[zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class ProvideSomeLayerPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+final class ProvideSomeLayerPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
 
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]

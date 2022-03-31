@@ -22,7 +22,7 @@ The `ZIO[R, E, A]` data type has three type parameters:
  - **`E` - Failure Type**. The effect may fail with a value of type `E`. Some applications will use `Throwable`. If this type parameter is `Nothing`, it means the effect cannot fail, because there are no values of type `Nothing`.
  - **`A` - Success Type**. The effect may succeed with a value of type `A`. If this type parameter is `Unit`, it means the effect produces no useful information, while if it is `Nothing`, it means the effect runs forever (or until failure).
 
-In the following example, the `readLine` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
+In the following example, the `readLine` function does not require any services, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
 ```scala mdoc:invisible
 import zio._
@@ -30,8 +30,8 @@ import java.io.IOException
 ```
 
 ```scala mdoc:silent
-val readLine: ZIO[Console, IOException, String] =
-  ZIO.serviceWithZIO(_.readLine)
+val readLine: ZIO[Any, IOException, String] =
+  Console.readLine
 ```
 
 `ZIO` values are immutable, and all `ZIO` functions produce new `ZIO` values, enabling `ZIO` to be reasoned about and used like any ordinary Scala immutable data structure.
@@ -371,7 +371,7 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
 ```scala mdoc:silent
-val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
+val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 
@@ -385,7 +385,7 @@ In the following example, we create 20 blocking tasks to run parallel on the pri
 
 ```scala mdoc:silent
 import zio._
-def blockingTask(n: Int): URIO[Console, Unit] =
+def blockingTask(n: Int): UIO[Unit] =
   Console.printLine(s"running blocking task number $n").orDie *>
     ZIO.succeed(Thread.sleep(3000)) *>
     blockingTask(n)
@@ -803,10 +803,10 @@ val urls: UIO[Content] =
 
 | Function            | Input Type                                                           | Output Type                            |
 |---------------------|----------------------------------------------------------------------|----------------------------------------|
-| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1 with Clock, E, A]`             |
+| `retry`             | `Schedule[R1, E, S]`                                                 | `ZIO[R1, E, A]`             |
 | `retryN`            | `n: Int`                                                             | `ZIO[R, E, A]`                         |
-| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1 with Clock, E1, A1]`           |
-| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1 with Clock, E1, Either[B, A]]` |
+| `retryOrElse`       | `policy: Schedule[R1, E, S], orElse: (E, S) => ZIO[R1, E1, A1]`      | `ZIO[R1, E1, A1]`           |
+| `retryOrElseEither` | `schedule: Schedule[R1, E, Out], orElse: (E, Out) => ZIO[R1, E1, B]` | `ZIO[R1, E1, Either[B, A]]` |
 | `retryUntil`        | `E => Boolean`                                                       | `ZIO[R, E, A]`                         |
 | `retryUntilEquals`  | `E1`                                                                 | `ZIO[R, E1, A]`                        |
 | `retryUntilZIO`     | `E => URIO[R1, Boolean]`                                             | `ZIO[R1, E, A]`                        |
@@ -821,7 +821,7 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a new effect that will retry the first effect if it fails according to the specified policy:
 
 ```scala mdoc:silent
-val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 

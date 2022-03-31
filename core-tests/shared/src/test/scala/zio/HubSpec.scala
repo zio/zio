@@ -4,7 +4,7 @@ import zio.test.Assertion._
 import zio.test._
 object HubSpec extends ZIOBaseSpec {
 
-  val smallInt: Gen[Random with Sized, Int] =
+  val smallInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_), 1)
 
   def spec = suite("HubSpec")(

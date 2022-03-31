@@ -7,11 +7,11 @@ The Console service contains simple I/O operations for reading/writing strings f
 
 | Function        | Input Type        | Output Type                         |
 |-----------------|-------------------|-------------------------------------|
-| `print`         | `line: => String` | `URIO[Console, Unit]`               |
-| `printError`    | `line: => String` | `URIO[Console, Unit]`               |
-| `printLine`     | `line: => String` | `URIO[Console, Unit]`               |
-| `printLineError`| `line: => String` | `URIO[Console, Unit]`               |
-| `readLine`      |                   | `ZIO[Console, IOException, String]` |
+| `print`         | `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `printError`    | `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `printLine`     | `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `printLineError`| `line: => String` | `ZIO[Any, IOException, Unit]`       |
+| `readLine`      |                   | `ZIO[Any, IOException, String]`     |
 
 All functions of the Console service are effectful, this means they are just descriptions of reading/writing from/to the console. 
 
@@ -24,7 +24,7 @@ import zio._
 import zio.Console._
 
 object MyHelloApp extends ZIOAppDefault {
-  val program: ZIO[Console, IOException, Unit] = for {
+  val program: ZIO[Any, IOException, Unit] = for {
     _    <- printLine("Hello, what is you name?")
     name <- readLine
     _    <- printLine(s"Hello $name, welcome to ZIO!")
@@ -34,4 +34,4 @@ object MyHelloApp extends ZIOAppDefault {
 }
 ```
 
-Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Console, IOException, Unit]`, it means to run `program` we need the `Console` service as an environment, it may fail due to failure of `readLine` and it will produce `Unit` value.
+Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Any, IOException, Unit]`, it means to run `program` we do not need any environment, it may fail due to failure of `readLine` and it will produce `Unit` value.

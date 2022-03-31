@@ -36,4 +36,10 @@ object ZEnv {
 
   val live: Layer[Nothing, ZEnv] =
     Clock.live ++ Console.live ++ System.live ++ Random.live
+
+  /**
+   * The default ZIO services.
+   */
+  val services: FiberRef.WithPatch[ZEnvironment[ZEnv], ZEnvironment.Patch[ZEnv, ZEnv]] =
+    FiberRef.unsafeMakeEnvironment(Services.live)
 }

@@ -95,8 +95,8 @@ object ZPool {
    */
   def make[R, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
     trace: ZTraceElement
-  ): ZIO[R with Clock with Scope, Nothing, ZPool[E, A]] =
-    makeWith[R, Clock, E, A](get, range)(Strategy.TimeToLive(timeToLive))
+  ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
+    makeWith[R, Any, E, A](get, range)(Strategy.TimeToLive(timeToLive))
 
   /**
    * A more powerful variant of `make` that allows specifying a `Strategy` that
@@ -342,12 +342,12 @@ object ZPool {
      * nothing to do.
      */
     case object None extends Strategy[Any, Any, Any] {
-      type State = Unit
-      def initial(implicit trace: ZTraceElement): URIO[Any, Unit] =
+      type State = Any
+      def initial(implicit trace: ZTraceElement): UIO[Any] =
         ZIO.unit
-      def track(state: Unit)(attempted: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
+      def track(state: Any)(attempted: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.unit
-      def run(state: Unit, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+      def run(state: Any, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.unit
     }
 
@@ -355,11 +355,11 @@ object ZPool {
      * A strategy that shrinks the pool down to its minimum size if items in the
      * pool have not been used for the specified duration.
      */
-    final case class TimeToLive(timeToLive: Duration) extends Strategy[Clock, Any, Any] {
+    final case class TimeToLive(timeToLive: Duration) extends Strategy[Any, Any, Any] {
       type State = (Clock, Ref[java.time.Instant])
-      def initial(implicit trace: ZTraceElement): URIO[Clock, State] =
+      def initial(implicit trace: ZTraceElement): UIO[State] =
         for {
-          clock <- ZIO.service[Clock]
+          clock <- ZIO.clock
           now   <- Clock.instant
           ref   <- Ref.make(now)
         } yield (clock, ref)
