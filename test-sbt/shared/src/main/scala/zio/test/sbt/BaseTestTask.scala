@@ -6,7 +6,6 @@ import zio.test.{
   AbstractRunnableSpec,
   ExecutionEventSink,
   FilteredSpec,
-  TestOutput,
   TestArgs,
   TestEnvironment,
   TestLogger,
@@ -25,7 +24,11 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
-  ): ZIO[TestLogger with Clock with TestOutput with ExecutionEventSink with Random, Throwable, Unit] = {
+  ): ZIO[
+    Clock with ExecutionEventSink with Random,
+    Throwable,
+    Unit
+  ] = {
     assert(eventHandler != null)
     for {
       summary <- spec.runSpec(FilteredSpec(spec.spec, args))

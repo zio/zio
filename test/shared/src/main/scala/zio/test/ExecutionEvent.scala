@@ -10,7 +10,7 @@ object ExecutionEvent {
     duration: Long = 0L,
     id: SuiteId
   ) extends ExecutionEvent {
-    def labels: List[String] = labelsReversed.reverse
+    val labels: List[String] = labelsReversed.reverse
   }
 
   final case class SectionStart(
@@ -18,7 +18,7 @@ object ExecutionEvent {
     id: SuiteId,
     ancestors: List[SuiteId]
   ) extends ExecutionEvent {
-    def labels: List[String] = labelsReversed.reverse
+    val labels: List[String] = labelsReversed.reverse
   }
 
   final case class SectionEnd(
@@ -26,7 +26,7 @@ object ExecutionEvent {
     id: SuiteId,
     ancestors: List[SuiteId]
   ) extends ExecutionEvent {
-    def labels: List[String] = labelsReversed.reverse
+    val labels: List[String] = labelsReversed.reverse
   }
 
   final case class RuntimeFailure[+E](
@@ -35,7 +35,7 @@ object ExecutionEvent {
     failure: TestFailure[E],
     ancestors: List[SuiteId]
   ) extends ExecutionEvent {
-    def labels: List[String] = labelsReversed.reverse
+    val labels: List[String] = labelsReversed.reverse
   }
 
 }
@@ -43,4 +43,5 @@ object ExecutionEvent {
 sealed trait ExecutionEvent {
   val id: SuiteId
   val ancestors: List[SuiteId]
+  val labels: List[String]
 }

@@ -52,7 +52,8 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
     Console.live,
     TestLogger.fromConsole,
     ExecutionEventSink.live,
-    TestOutput.live
+    TestOutput.live,
+    ExecutionEventPrinter.live
   )
 
 }

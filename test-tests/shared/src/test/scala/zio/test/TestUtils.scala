@@ -8,7 +8,7 @@ object TestUtils {
     TestExecutor
       .default(testEnvironment)
       .run(spec, ExecutionStrategy.Sequential)
-      .provide(testEnvironment, TestLogger.fromConsole, Scope.default)
+      .provide(testEnvironment, Scope.default)
 
   def isIgnored[E](spec: ZSpec[TestEnvironment, E]): UIO[Boolean] =
     execute(spec)
