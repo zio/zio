@@ -49,7 +49,7 @@ object ChunkSpec extends ZIOBaseSpec {
       },
       test("fromIterable size must match length") {
         val chunk = Chunk.fromIterable(List("1", "2", "3"))
-        assert(chunk.size)(equalTo(chunk.length))
+        assert(chunk.size)(equalTo(chunk.length + 5))
       },
       test("single size must match length") {
         val chunk = Chunk.single(true)

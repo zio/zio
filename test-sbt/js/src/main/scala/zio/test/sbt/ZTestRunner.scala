@@ -107,15 +107,25 @@ sealed class ZTestTask(
         Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
           val logic =
             for {
-              _ <- zioSpec
-                     .runSpec(FilteredSpec(zioSpec.spec, args), args)
-                     .provideLayer(
-                       fullLayer
-                     )
+              summary <- zioSpec
+                           .runSpec(FilteredSpec(zioSpec.spec, args), args)
+                           .provideLayer(
+                             fullLayer
+                           )
               // TODO Confirm if/how these events needs to be handled in #6481
               //    Check XML behavior
-              //              events = ZTestEvent.from(taskDef.fullyQualifiedName(), taskDef.fingerprint())
-              //              _     <- ZIO.foreach(events)(e => ZIO.attempt(eventHandler.handle(e)))
+              _ <- ZIO.when(summary.fail > 0) {
+                     val event = ZTestEvent(
+                       taskDef.fullyQualifiedName(),
+                       taskDef.selectors().head,
+                       Status.Failure,
+                       None,
+                       0L,
+                       taskDef.fingerprint()
+                     )
+                     ZIO.attempt(eventHandler.handle(event)) *>
+                       ZIO.fail(summary.summary)
+                   }
             } yield ()
           logic
             .onError(e => ZIO.succeed(println(e.prettyPrint)))

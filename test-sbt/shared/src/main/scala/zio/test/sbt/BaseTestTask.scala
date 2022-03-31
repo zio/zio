@@ -65,6 +65,7 @@ abstract class BaseTestTask(
         case NewSpecWrapper(zioSpec) =>
           Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec)
+              .tapError(e => ZIO.succeed(println(e.getMessage)))
           }
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>

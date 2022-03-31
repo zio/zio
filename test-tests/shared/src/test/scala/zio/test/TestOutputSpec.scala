@@ -84,7 +84,7 @@ object TestOutputSpec extends ZIOSpecDefault {
             Test(child1),
             End(child1)
           )
-      )
+      ) && sane(outputEvents)
     },
     test("nested events with flushing") {
       val events =
@@ -115,7 +115,7 @@ object TestOutputSpec extends ZIOSpecDefault {
             End(child2),
             End(parent)
           )
-      )
+      ) && sane(outputEvents)
     },
     test("mix of suites and individual tests") {
       val events =
@@ -148,7 +148,7 @@ object TestOutputSpec extends ZIOSpecDefault {
             End(child1),
             End(parent)
           )
-      )
+      ) && sane(outputEvents)
     },
     test("more complex mix of suites and individual tests") {
       val events =
@@ -198,6 +198,65 @@ object TestOutputSpec extends ZIOSpecDefault {
       )
     }
   ).provide(fakePrinterLayer >+> TestOutput.live)
+
+  def sane(events: Seq[ExecutionEvent]): Assert = {
+    type CompleteSuites   = List[SuiteId]
+    type ActiveSuiteStack = List[SuiteId]
+    case class InvalidEvent(event: ExecutionEvent, reason: String)
+
+    case class ProcessingState(
+      completeSuites: CompleteSuites,
+      activeSuiteStack: ActiveSuiteStack
+    )
+    object ProcessingState {
+      def empty: ProcessingState = ProcessingState(Nil, Nil)
+    }
+
+    def process(event: ExecutionEvent, state: ProcessingState): Either[InvalidEvent, ProcessingState] = {
+      val eventCanStartPrinting =
+        state.activeSuiteStack.isEmpty || (event.ancestors.nonEmpty && event.ancestors.head == state.activeSuiteStack.head)
+
+      if (state.completeSuites.contains(event.id)) {
+        Left(InvalidEvent(event, "Suite is already complete. Should not see any more events for this suite."))
+      } else if (eventCanStartPrinting) {
+        event match {
+          case start: SectionStart =>
+            Right(state.copy(activeSuiteStack = start.id :: state.activeSuiteStack))
+          case end: SectionEnd =>
+            Left(InvalidEvent(end, "Cannot end before ever starting"))
+          case _ =>
+            Right(state)
+        }
+      } else if (event.id == state.activeSuiteStack.head) {
+        event match {
+          case start: SectionStart =>
+            Left(InvalidEvent(start, "SectionStart event with active suite stack."))
+          case end: SectionEnd =>
+            Right(
+              state.copy(
+                activeSuiteStack = state.activeSuiteStack.tail,
+                completeSuites = end.id :: state.completeSuites
+              )
+            )
+          case _ =>
+            Right(state)
+        }
+      } else {
+        Left(InvalidEvent(event, "Event is not in active suite stack"))
+      }
+    }
+
+    val result: Either[InvalidEvent, ProcessingState] =
+      events.foldLeft[Either[InvalidEvent, ProcessingState]](Right(ProcessingState.empty)) {
+        case (failure @ Left(_), _) =>
+          failure
+        case (Right(state), event) =>
+          process(event, state)
+      }
+
+    assertTrue(result.isRight)
+
+  }
 
   private def Start(testEntity: TestEntity) =
     SectionStart(
