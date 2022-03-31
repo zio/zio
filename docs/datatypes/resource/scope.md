@@ -115,7 +115,7 @@ import zio.stream._
 
 def lines(name: => String): ZStream[Any, IOException, String] =
   ZStream.scoped(source(name)).flatMap { source =>
-    ZStream.fromIteratorSucceed(source.getLines())
+    ZStream.fromIterator(source.getLines()).refineToOrDie[IOException]
   }
 ```
 

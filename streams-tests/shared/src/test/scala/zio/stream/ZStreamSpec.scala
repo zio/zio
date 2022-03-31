@@ -4539,11 +4539,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
           }
         },
-        test("fromIteratorSucceed") {
-          check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-            assertM(ZStream.fromIteratorSucceed(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
-          }
-        },
         test("fromBlockingIterator") {
           check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { chunk =>
             assertM(ZStream.blocking(ZStream.fromIterator(chunk.iterator)).runCollect)(equalTo(chunk))

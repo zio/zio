@@ -1597,19 +1597,21 @@ final case class ZStream[-R, +E, +A](channel: ZChannel[R, Any, Any, Any, E, Chun
    * Consumes all elements of the stream, passing them to the specified
    * callback.
    */
+  @deprecated("use runForEach", "2.0.0")
   def runForeachChunk[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Unit] =
-    run(ZSink.foreachChunk(f))
+    chunks.runForeach(f)
 
   /**
    * Like [[ZStream#runForeachChunk]], but returns a scoped `ZIO` so the
    * finalization order can be controlled.
    */
+  @deprecated("use runForEachScoped", "2.0.0")
   def runForeachChunkScoped[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, E1, Unit] =
-    runScoped(ZSink.foreachChunk(f))
+    chunks.runForeachScoped(f)
 
   /**
    * Like [[ZStream#foreach]], but returns a scoped `ZIO` so the finalization
@@ -4887,6 +4889,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an iterator
    */
+  @deprecated("use fromIterator", "2.0.0")
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, A] =
@@ -4968,6 +4971,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java iterator
    */
+  @deprecated("use fromJavaIterator", "2.0.0")
   def fromJavaIteratorSucceed[A](
     iterator: => java.util.Iterator[A]
   )(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
