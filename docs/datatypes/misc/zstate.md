@@ -11,7 +11,7 @@ Let's try a simple example of using `ZState`:
 import java.io.IOException
 import zio._
 
-val myApp: ZIO[Any, IOException, Unit] =
+val myApp: ZIO[Scope, IOException, Unit] =
   for {
     counter <- ZState.make(0)
     _ <- counter.update(_ + 1)
