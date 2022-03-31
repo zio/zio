@@ -7,22 +7,6 @@ title: "ZState"
 
 Let's try a simple example of using `ZState`:
 
-```scala mdoc:silent:nest
-import java.io.IOException
-import zio._
-
-val myApp: ZIO[ZState[Int], IOException, Unit] =
-  for {
-    counter <- ZIO.service[ZState[Int]]
-    _ <- counter.update(_ + 1)
-    _ <- counter.update(_ + 2)
-    state <- counter.get
-    _ <- Console.printLine(s"current state: $state")
-  } yield ()
-```
-
-The idiomatic way to work with `ZState` is as part of the environment using operators defined on `ZIO`. So instead of creating `ZState` directly using `ZState.make` constructor, we can access the `ZState` from the environment, and finally, provide proper layer using `ZState.makeLayer` constructor:
-
 ```scala mdoc:compile-only
 import zio._
 
@@ -37,14 +21,17 @@ object ZStateExample extends zio.ZIOAppDefault {
     _ <- Console.printLine(s"current state: $state")
   } yield ()
 
-  def run = myApp.provide(ZState.initial(0))
+  def run = ZIO.stateful(0)(myApp)
 }
 ```
+
+The idiomatic way to work with `ZState` is as part of the environment using operators defined on `ZIO` to access the `ZState` from the environment, and finally, allocate the initial state using the `ZIO.stateful` operator.
 
 Because we typically use `ZState` as part of the environment, it is recommended to define our own state type `S` such as `MyState` rather than using a type such as `Int` to avoid the risk of ambiguity:
 
 ```scala mdoc:compile-only
 import zio._
+
 import java.io.IOException
 
 final case class MyState(counter: Int)
@@ -60,13 +47,17 @@ object ZStateExample extends zio.ZIOAppDefault {
       _ <- Console.printLine(s"Current state: $state")
     } yield ()
 
-  def run = myApp.provide(ZState.initial(MyState(0)))
+  def run = ZIO.stateful(MyState(0))(myApp)
 }
 ```
 
 The `ZIO` data type also has some helper methods to work with `ZState` as the environment of `ZIO` effect such as `ZIO.updateState`, `ZIO.getState`, and `ZIO.getStateWith`:
 
 ```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
 final case class MyState(counter: Int)
 
 val myApp: ZIO[ZState[MyState], IOException, Int] =
@@ -105,7 +96,7 @@ object ZStateExample extends ZIOAppDefault {
   } yield ()
 
   def run =
-    myApp.provide(ZState.initial(MyState(0)))
+    ZIO.stateful(MyState(0))(myApp)
 }
 ```
 
