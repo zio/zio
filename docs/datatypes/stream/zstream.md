@@ -208,16 +208,6 @@ The error type of the `register` function is optional, so by setting the error t
 
 Iterators are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. 
 
-**ZStream.fromIteratorSucceed** — We can convert an iterator that does not throw exception to `ZStream` by using `ZStream.fromIteratorSucceed`:
-
-```scala mdoc:silent:nest
-val s1: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
-val s2: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.range(1, 4))
-val s3: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.continually(0))
-```
-
-Also, there is another constructor called **`ZStream.fromIterator`** that creates a stream from an iterator which may throw an exception.
-
 **ZStream.fromIteratorZIO** — If we have an effectful Iterator that may throw Exception, we can use `fromIteratorZIO` to convert that to the ZIO Stream:
 
 ```scala mdoc:silent:nest
@@ -248,7 +238,7 @@ def fromJavaStream[A](stream: => java.util.stream.Stream[A]): ZStream[Any, Throw
   ZStream.fromJavaIterator(stream.iterator())
 ```
 
-Similarly, `ZStream` has `ZStream.fromJavaIteratorSucceed`, `ZStream.fromJavaIteratorZIO` and `ZStream.fromJavaIteratorScoped` constructors.
+Similarly, `ZStream` has `ZStream.fromJavaIteratorZIO` and `ZStream.fromJavaIteratorScoped` constructors.
 
 ### From Iterables
 

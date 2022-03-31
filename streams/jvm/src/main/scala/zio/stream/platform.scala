@@ -412,6 +412,7 @@ trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
+  @deprecated("use fromJavaStreamZIO", "2.0.0")
   final def fromJavaStreamSucceed[R, A](stream: => java.util.stream.Stream[A])(implicit
     trace: ZTraceElement
   ): ZStream[R, Nothing, A] =
