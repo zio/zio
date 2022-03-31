@@ -313,15 +313,7 @@ object FiberRef {
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef[A]] =
-    ZIO.acquireRelease {
-      ZIO.suspendSucceed {
-        val ref = unsafeMake(initial, fork, join)
-
-        ref.update(identity(_)).as(ref)
-      }
-    } { ref =>
-      ref.delete
-    }
+    makeWith(unsafeMake(initial, fork, join))
 
   /**
    * Creates a new `FiberRef` with specified initial value of the
@@ -330,8 +322,8 @@ object FiberRef {
    */
   def makeEnvironment[A](initial: => ZEnvironment[A])(implicit
     trace: ZTraceElement
-  ): UIO[FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
-    ZIO.succeed(unsafeMakeEnvironment(initial))
+  ): ZIO[Scope, Nothing, FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
+    makeWith(unsafeMakeEnvironment(initial))
 
   /**
    * Creates a new `FiberRef` with the specified initial value, using the
@@ -344,18 +336,14 @@ object FiberRef {
     combine: (Patch, Patch) => Patch,
     patch: Patch => Value => Value,
     fork: Patch
-  )(implicit trace: ZTraceElement): UIO[FiberRef.WithPatch[Value, Patch]] =
-    ZIO.suspendSucceed {
-      val ref = unsafeMakePatch(initial, diff, combine, patch, fork)
-
-      ref.update(identity(_)).as(ref)
-    }
+  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
+    makeWith(unsafeMakePatch(initial, diff, combine, patch, fork))
 
   private[zio] def unsafeMake[A](
     initial: A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
-  ): FiberRef[A] =
+  ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
       initial,
       (_, newValue) => _ => newValue,
@@ -404,4 +392,9 @@ object FiberRef {
 
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
+
+  private def makeWith[Value, Patch](
+    ref: => FiberRef.WithPatch[Value, Patch]
+  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
+    ZIO.acquireRelease(ZIO.succeed(ref).tap(_.update(identity)))(_.delete)
 }
