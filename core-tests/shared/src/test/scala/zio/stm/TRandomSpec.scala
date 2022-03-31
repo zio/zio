@@ -46,27 +46,27 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideCustomLayer(TRandom.live)
+  ).provideCustomLayer(Random.live >>> TRandom.live)
 
-  val genDoubles: Gen[Random, (Double, Double)] =
+  val genDoubles: Gen[Any, (Double, Double)] =
     for {
       a <- Gen.double
       b <- Gen.double if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genFloats: Gen[Random, (Float, Float)] =
+  val genFloats: Gen[Any, (Float, Float)] =
     for {
       a <- Gen.float
       b <- Gen.float if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genInts: Gen[Random, (Int, Int)] =
+  val genInts: Gen[Any, (Int, Int)] =
     for {
       a <- Gen.int
       b <- Gen.int if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genLongs: Gen[Random, (Long, Long)] =
+  val genLongs: Gen[Any, (Long, Long)] =
     for {
       a <- Gen.long
       b <- Gen.long if a != b

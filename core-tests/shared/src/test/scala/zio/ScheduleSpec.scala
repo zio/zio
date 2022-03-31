@@ -91,7 +91,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       val failed = (for {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).repeat(Schedule.recurs(42))
-      } yield ()).foldZIO[Clock, Int, String](
+      } yield ()).foldZIO[Any, Int, String](
         err => IO.succeed(err),
         _ => IO.succeed("it should not be a success at all")
       )
@@ -156,7 +156,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retry(Schedule.recurs(0))
         } yield i)
-          .foldZIO[Clock, Int, String](
+          .foldZIO[Any, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -175,7 +175,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         val retried = (for {
           ref <- Ref.make(0)
           _   <- alwaysFail(ref).retry(Schedule.once)
-        } yield ()).foldZIO[Clock, Int, String](
+        } yield ()).foldZIO[Any, Int, String](
           err => IO.succeed(err),
           _ => IO.succeed("A failure was expected")
         )
@@ -280,7 +280,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
         } yield i)
-          .foldZIO[Clock, Int, String](
+          .foldZIO[Any, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -298,7 +298,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
         } yield i)
-          .foldZIO[Clock, Int, String](
+          .foldZIO[Any, Int, String](
             err => IO.succeed(err),
             _ => IO.succeed("it should not be a success")
           )
@@ -493,7 +493,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     //   } yield result
     // },
     test("Retry type parameters should infer correctly") {
-      def foo[O](v: O): ZIO[Clock, Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
+      def foo[O](v: O): ZIO[Any, Error, Either[ScheduleFailure, ScheduleSuccess[O]]] =
         ZIO
           .fromFuture(_ => Future.successful(v))
           .foldZIO(
@@ -527,7 +527,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     },
     test("Reset after some inactivity") {
 
-      def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Clock, String, Unit] =
+      def io(ref: Ref[Int], latch: Promise[Nothing, Unit]): ZIO[Any, String, Unit] =
         ref
           .updateAndGet(_ + 1)
           .flatMap(retries =>
@@ -620,7 +620,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
   val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")
 
-  def repeat[B](schedule: Schedule[Any, Int, B]): ZIO[Clock, Nothing, B] =
+  def repeat[B](schedule: Schedule[Any, Int, B]): ZIO[Any, Nothing, B] =
     for {
       ref <- Ref.make(0)
       res <- ref.updateAndGet(_ + 1).repeat(schedule)
@@ -629,7 +629,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   /**
    * Run a schedule using the provided input and collect all outputs
    */
-  def run[R <: TestClock, A, B](
+  def run[R, A, B](
     schedule: Schedule[R, A, B]
   )(input: Iterable[A]): ZIO[R, Nothing, Chunk[B]] =
     run {
@@ -650,7 +650,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       }
     }
 
-  def run[R <: TestClock, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
+  def run[R, E, A](effect: ZIO[R, E, A]): ZIO[R, E, A] =
     for {
       fiber  <- effect.fork
       _      <- TestClock.setTime(Duration.Infinity)
@@ -680,7 +680,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     loop(schedule.initial, inputs, Nil)
   }
 
-  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Clock, Nothing, TestResult] =
+  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any, Nothing, TestResult] =
     assertM(repeat(schedule))(equalTo(expected))
 
   /**

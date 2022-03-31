@@ -18,7 +18,7 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
+import zio.{ExecutionStrategy, ZIO, ZTraceElement}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -27,7 +27,7 @@ import zio.{ExecutionStrategy, Random, ZIO, ZTraceElement}
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
-  ): ZIO[ExecutionEventSink with Random, Nothing, Summary]
+  ): ZIO[ExecutionEventSink, Nothing, Summary]
 
   def environment: ZLayer[Scope, Nothing, R]
 }
@@ -39,11 +39,7 @@ object TestExecutor {
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
-    ): ZIO[
-      ExecutionEventSink with Random,
-      Nothing,
-      Summary
-    ] =
+    ): ZIO[ExecutionEventSink, Nothing, Summary] =
       for {
         sink      <- ZIO.service[ExecutionEventSink]
         topParent <- SuiteId.newRandom
@@ -55,11 +51,7 @@ object TestExecutor {
             exec: ExecutionStrategy,
             ancestors: List[SuiteId],
             sectionId: SuiteId
-          ): ZIO[
-            Random with Scope,
-            Nothing,
-            Unit
-          ] =
+          ): ZIO[Scope, Nothing, Unit] =
             (spec.caseValue match {
               case Spec.ExecCase(exec, spec) =>
                 loop(labels, spec, exec, ancestors, sectionId)

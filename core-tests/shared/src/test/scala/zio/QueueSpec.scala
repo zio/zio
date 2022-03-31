@@ -778,6 +778,6 @@ object QueueSpecUtil {
   def waitForSize[A](queue: Queue[A], size: Int): URIO[Live, Int] =
     waitForValue(queue.size, size)
 
-  val smallInt: Gen[Random with Sized, Int] =
+  val smallInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_), 1)
 }

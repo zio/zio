@@ -23,10 +23,10 @@ object AutoWireSpec extends ZIOBaseSpec {
               } yield str.length + double.toInt
             }
           test("automatically constructs a layer") {
-            val program = ZIO.environment[ZEnv] *> ZIO.service[Int]
+            val program = ZIO.service[Int]
             assertM(program)(equalTo(128))
           }
-            .provideCustom(doubleLayer, stringLayer, intLayer)
+            .provide(doubleLayer, stringLayer, intLayer)
         },
         test("reports missing top-level dependencies") {
           val program: URIO[String with Int, String] = ZIO.succeed("test")
@@ -111,7 +111,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           def add(int: Int): UIO[Int] = ref.getAndUpdate(_ + int)
         }
 
-        val addOne: ZIO[IntService with Random, Nothing, Int] =
+        val addOne: ZIO[IntService, Nothing, Int] =
           ZIO
             .service[IntService]
             .zip(Random.nextIntBounded(2))
@@ -128,50 +128,8 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 3")(assertM(addOne)(equalTo(2))),
             test("test 4")(assertM(addOne)(equalTo(3)))
           )
-        ).provideCustomShared(refLayer) @@ TestAspect.sequential
-      } @@ TestAspect.exceptScala3,
-      suite(".provideSomeShared") {
-        val addOne =
-          ZIO.service[Ref[Int]].zip(Random.nextIntBounded(2)).flatMap { case (ref, int) => ref.getAndUpdate(_ + int) }
-        val refLayer = Ref.make(1).toLayer
-
-        suite("layers are shared between tests and suites")(
-          suite("suite 1")(
-            test("test 1")(assertM(addOne)(equalTo(1))),
-            test("test 2")(assertM(addOne)(equalTo(2)))
-          ),
-          suite("suite 2")(
-            test("test 3")(assertM(addOne)(equalTo(2))),
-            test("test 4")(assertM(addOne)(equalTo(3)))
-          )
-        ).provideSomeShared[Random](refLayer) @@ TestAspect.sequential
-      },
-      suite(".provideSome")(
-        test("automatically constructs a layer, leaving off TestEnvironment") {
-          for {
-            result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
-          } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.provideSome[Random](ZLayer.succeed("Your Lucky Number is")),
-        test("gives precedence to provided layers") {
-          Console.printLine("Hello") *>
-            Random.nextInt.map { i =>
-              assertTrue(i == 1094383425)
-            }
-        }.provideSome[Console](TestRandom.make(TestRandom.Data(10, 10)))
-      ),
-      suite(".provideCustom")(
-        test("automatically constructs a layer, leaving off TestEnvironment") {
-          for {
-            result <- ZIO.service[String].zipWith(Random.nextInt)((str, int) => s"$str $int")
-          } yield assertTrue(result == "Your Lucky Number is -1295463240")
-        }.provideCustom(ZLayer.succeed("Your Lucky Number is")),
-        test("gives precedence to provided layers") {
-          Console.printLine("Hello") *>
-            Random.nextInt.map { i =>
-              assertTrue(i == 1094383425)
-            }
-        }.provideCustom(TestRandom.make(TestRandom.Data(10, 10)))
-      ) @@ TestAspect.exceptScala3
+        ).provideShared(refLayer) @@ TestAspect.sequential
+      } @@ TestAspect.exceptScala3
     )
 
   object TestLayer {

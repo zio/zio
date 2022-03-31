@@ -44,7 +44,7 @@ object Cached {
    */
   def auto[R, Error, Resource](acquire: ZIO[R, Error, Resource], policy: Schedule[Any, Any, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R with Clock with Scope, Nothing, Cached[Error, Resource]] =
+  ): ZIO[R with Scope, Nothing, Cached[Error, Resource]] =
     for {
       manual <- manual(acquire)
       _      <- ZIO.acquireRelease(ZIO.interruptible(manual.refresh.schedule(policy)).forkDaemon)(_.interrupt)

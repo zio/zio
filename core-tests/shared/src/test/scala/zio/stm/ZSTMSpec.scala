@@ -1232,7 +1232,7 @@ object ZSTMSpec extends ZIOBaseSpec {
   class UnpureBarrier {
     private var isOpen = false
     def open(): Unit   = isOpen = true
-    def await: URIO[Any, Unit] =
+    def await: UIO[Any] =
       ZIO
         .suspend(ZIO.attempt(if (isOpen) () else throw new Exception()))
         .eventually
@@ -1240,7 +1240,7 @@ object ZSTMSpec extends ZIOBaseSpec {
 
   def liveClockSleep(d: Duration): ZIO[Live, Nothing, Unit] = Live.live(ZIO.sleep(d))
 
-  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Clock, Nothing, Int] =
+  def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Any, Nothing, Int] =
     STM
       .atomically(for {
         v <- tvar.get
@@ -1254,7 +1254,7 @@ object ZSTMSpec extends ZIOBaseSpec {
     tvar1: TRef[Int],
     tvar2: TRef[Int],
     tvar3: TRef[Int]
-  ): ZIO[Clock, Nothing, Int] =
+  ): ZIO[Any, Nothing, Int] =
     STM
       .atomically(for {
         v1 <- tvar1.get

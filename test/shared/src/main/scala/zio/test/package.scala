@@ -56,16 +56,7 @@ package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
 
-  type TestEnvironment =
-    Annotations
-      with Live
-      with Sized
-      with TestClock
-      with TestConfig
-      with TestConsole
-      with TestRandom
-      with TestSystem
-      with ExecutionEventSink
+  type TestEnvironment = Annotations with Live with Sized with TestConfig with ExecutionEventSink
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -97,8 +88,72 @@ package object test extends CompileVariants {
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[E, A](zio: ZIO[ZEnv, E, A])(implicit trace: ZTraceElement): ZIO[Live, E, A] =
+  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     Live.live(zio)
+
+  /**
+   * Retrieves the `TestClock` service for this test.
+   */
+  def testClock(implicit trace: ZTraceElement): UIO[TestClock] =
+    testClockWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestClock` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.clockWith {
+      case testClock: TestClock => f(testClock)
+      case _                    => ZIO.dieMessage("Defect: TestClock is missing")
+    }
+
+  /**
+   * Retrieves the `TestConsole` service for this test.
+   */
+  def testConsole(implicit trace: ZTraceElement): UIO[TestConsole] =
+    testConsoleWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestConsole` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.consoleWith {
+      case testConsole: TestConsole => f(testConsole)
+      case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
+    }
+
+  /**
+   * Retrieves the `TestRandom` service for this test.
+   */
+  def testRandom(implicit trace: ZTraceElement): UIO[TestRandom] =
+    testRandomWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestRandom` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.randomWith {
+      case testRandom: TestRandom => f(testRandom)
+      case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
+    }
+
+  /**
+   * Retrieves the `TestSystem` service for this test.
+   */
+  def testSystem(implicit trace: ZTraceElement): UIO[TestSystem] =
+    testSystemWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestSystem` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.systemWith {
+      case testSystem: TestSystem => f(testSystem)
+      case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
+    }
 
   /**
    * Transforms this effect with the specified function. The test environment
@@ -111,9 +166,9 @@ package object test extends CompileVariants {
    *   withLive(test)(_.timeout(duration))
    * }}}
    */
-  def withLive[R, E, E1, A, B](
+  def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: IO[E, A] => ZIO[ZEnv, E1, B])(implicit trace: ZTraceElement): ZIO[R with Live, E1, B] =
+  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R with Live, E1, B] =
     Live.withLive(zio)(f)
 
   /**
@@ -151,13 +206,6 @@ package object test extends CompileVariants {
      */
     val silent: TestReporter[Any] = (_, _) => ZIO.unit
   }
-
-  /**
-   * A `ZRTestEnv` is an alias for all ZIO provided
-   * [[zio.test.Restorable Restorable]]
-   * [[zio.test.TestEnvironment TestEnvironment]] objects
-   */
-  type ZTestEnv = TestClock with TestConsole with TestRandom with TestSystem
 
   /**
    * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and

@@ -41,7 +41,7 @@ object Thread {
            }
     } yield ()
 
-  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, Thread] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, Thread] =
     ZLayer.scoped {
       for {
         threadMXBean <- ZIO.attempt(ManagementFactory.getThreadMXBean)

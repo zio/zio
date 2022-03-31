@@ -38,12 +38,12 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
-  final def run: ZIO[ZEnv with ZIOAppArgs with Scope, Any, Any] = {
+  final def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
     implicit val trace = Tracer.newTrace
 
-    runSpec.provideSomeLayer[ZEnv with ZIOAppArgs with Scope](
-      ZLayer
-        .environment[ZEnv with ZIOAppArgs with Scope] +!+ (TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
+    runSpec.provideSomeLayer[ZIOAppArgs with Scope](
+      ZLayer.environment[ZIOAppArgs with Scope] +!+
+        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
     )
   }
 
@@ -111,10 +111,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     }
 
   private[zio] def runSpec(
-    spec: ZSpec[
-      Environment with TestEnvironment with ZIOAppArgs with Clock with Scope,
-      Any
-    ],
+    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs
   )(implicit
     trace: ZTraceElement

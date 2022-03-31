@@ -231,7 +231,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * Retries constructing this layer according to the specified schedule.
    */
-  final def retry[RIn1 <: RIn with Clock](
+  final def retry[RIn1 <: RIn](
     schedule: Schedule[RIn1, E, Any]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] = {
     import Schedule.Decision._
@@ -499,6 +499,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   final def die(t: Throwable)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Nothing] =
     ZLayer.failCause(Cause.die(t))
+
+  /**
+   * A layer that does not produce any services.
+   */
+  val empty: ZLayer[Any, Nothing, Any] =
+    ZLayer.Scoped(ZIO.succeedNow(ZEnvironment.empty))
 
   /**
    * Constructs a layer that fails with the specified error.
@@ -4040,7 +4046,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def reloadableAuto(schedule: Schedule[RIn, Any, Any])(implicit
       tagOut: Tag[ROut],
       trace: ZTraceElement
-    ): ZLayer[RIn with Clock, E, Reloadable[ROut]] =
+    ): ZLayer[RIn, E, Reloadable[ROut]] =
       Reloadable.auto(self, schedule)
 
     /**
@@ -4051,7 +4057,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       implicit
       tagOut: Tag[ROut],
       trace: ZTraceElement
-    ): ZLayer[RIn with RIn2 with Clock, E, Reloadable[ROut]] =
+    ): ZLayer[RIn with RIn2, E, Reloadable[ROut]] =
       Reloadable.autoFromConfig(self, scheduleFromConfig)
 
     /**

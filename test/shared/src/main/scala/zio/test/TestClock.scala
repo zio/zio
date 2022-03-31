@@ -421,6 +421,7 @@ object TestClock extends Serializable {
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)
+        _                     <- ZEnv.services.locallyScopedWith(_.add(test))
         _                     <- ZIO.addFinalizer(test.warningDone *> test.suspendedWarningDone)
       } yield test
     }
@@ -436,37 +437,37 @@ object TestClock extends Serializable {
    * by the specified duration, running any actions scheduled for on or before
    * the new time in order.
    */
-  def adjust(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.serviceWithZIO(_.adjust(duration))
+  def adjust(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    testClockWith(_.adjust(duration))
 
   def adjustWith[R, E, A](duration: => Duration)(zio: ZIO[R, E, A])(implicit
     trace: ZTraceElement
-  ): ZIO[R with TestClock, E, A] =
-    ZIO.serviceWithZIO[TestClock](_.adjustWith(duration)(zio))
+  ): ZIO[R, E, A] =
+    testClockWith(_.adjustWith(duration)(zio))
 
   /**
    * Accesses a `TestClock` instance in the environment and saves the clock
    * state in an effect which, when run, will restore the `TestClock` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): ZIO[TestClock, Nothing, UIO[Unit]] =
-    ZIO.serviceWithZIO(_.save)
+  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    testClockWith(_.save)
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
    * to the specified `OffsetDateTime`, running any actions scheduled for on or
    * before the new time in order.
    */
-  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.serviceWithZIO(_.setDateTime(dateTime))
+  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit] =
+    testClockWith(_.setDateTime(dateTime))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
    * to the specified time in terms of duration since the epoch, running any
    * actions scheduled for on or before the new time in order.
    */
-  def setTime(duration: => Duration)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.serviceWithZIO(_.setTime(duration))
+  def setTime(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    testClockWith(_.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone
@@ -474,22 +475,22 @@ object TestClock extends Serializable {
    * the epoch will not be altered and no scheduled actions will be run as a
    * result of this effect.
    */
-  def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): URIO[TestClock, Unit] =
-    ZIO.serviceWithZIO(_.setTimeZone(zone))
+  def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): UIO[Unit] =
+    testClockWith(_.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
-  def sleeps(implicit trace: ZTraceElement): ZIO[TestClock, Nothing, List[Duration]] =
-    ZIO.serviceWithZIO(_.sleeps)
+  def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]] =
+    testClockWith(_.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
-  def timeZone(implicit trace: ZTraceElement): URIO[TestClock, ZoneId] =
-    ZIO.serviceWithZIO(_.timeZone)
+  def timeZone(implicit trace: ZTraceElement): UIO[ZoneId] =
+    testClockWith(_.timeZone)
 
   /**
    * `Data` represents the state of the `TestClock`, including the clock time

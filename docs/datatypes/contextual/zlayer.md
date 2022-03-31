@@ -160,7 +160,7 @@ case class UserRepositoryLive(xa: Transactor) extends UserRepository {
 Assume we have written a scoped `UserRepository`:
 
 ```scala mdoc:silent:nest
-def scoped: ZIO[Console with Scope, Throwable, UserRepository] = 
+def scoped: ZIO[Scope, Throwable, UserRepository] = 
   for {
     cfg <- dbConfig
     _   <- initializeDb(cfg)
@@ -171,7 +171,7 @@ def scoped: ZIO[Console with Scope, Throwable, UserRepository] =
 We can convert that to `ZLayer` with `ZLayer.apply`:
 
 ```scala mdoc:nest
-val usersLayer : ZLayer[Console, Throwable, UserRepository] =
+val usersLayer : ZLayer[Any, Throwable, UserRepository] =
   ZLayer.scoped(scoped)
 ```
 
@@ -233,7 +233,13 @@ def loggingLive(console: Console, clock: Clock): Logging =
 We can convert the `loggingLive` function to the `ZLayer` using `toLayer` extension method on functions:
 
 ```scala mdoc:compile-only
-val layer: ZLayer[Console & Clock, Nothing, Logging] = (loggingLive _).toLayer
+val layer: ZLayer[Any, Nothing, Logging] =
+  ZLayer {
+    for {
+      console <- ZIO.console
+      clock   <- ZIO.clock
+    } yield LoggingLive(console, clock)
+  }
 ```
 
 This is the same method we use in Service Pattern:
@@ -250,15 +256,26 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: ZLayer[Console & Clock, Nothing, Logging] = (LoggingLive.apply _).toLayer
+  val layer: ZLayer[Any, Nothing, Logging] =
+    ZLayer {
+      for {
+        console <- ZIO.console
+        clock   <- ZIO.clock
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
 
 Other than the `toLayer` extension method, we can create a layer using `ZLayer.fromFunction` directly:
 
 ```scala mdoc:silent
-val layer: ZLayer[Console & Clock, Nothing, Logging] =
-  ZLayer.fromFunction(x => LoggingLive(x.get[Console], x.get[Clock]))
+val layer: ZLayer[Any, Nothing, Logging] =
+  ZLayer {
+    for {
+      console <- ZIO.console
+      clock   <- ZIO.clock
+    } yield LoggingLive(console, clock)
+  }
 ```
 
 ```scala mdoc:invisible:reset
@@ -480,19 +497,19 @@ case class AppConfig(poolSize: Int)
 
 object MainApp extends ZIOAppDefault {
 
-  val myApp: ZIO[Console & AppConfig, IOException, Unit] =
+  val myApp: ZIO[AppConfig, IOException, Unit] =
     for {
       config <- ZIO.service[AppConfig]
       _ <- Console.printLine(s"Application config after the update operation: $config")
     } yield ()
 
 
-  val appLayers: ZLayer[Any, Nothing, AppConfig & Console] =
+  val appLayers: ZLayer[Any, Nothing, AppConfig] =
     ZIO.succeed(AppConfig(5))
       .debug("Application config initialized")
       .toLayer ++ Console.live
 
-  val updatedConfig: ZLayer[Any, Nothing, AppConfig & Console] =
+  val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers.update[AppConfig](c =>
       c.copy(poolSize = c.poolSize + 10)
     )
@@ -527,19 +544,19 @@ case class AppConfig(poolSize: Int)
 
 object MainApp extends ZIOAppDefault {
 
-  val myApp: ZIO[Console & AppConfig, IOException, Unit] =
+  val myApp: ZIO[AppConfig, IOException, Unit] =
     for {
       config <- ZIO.service[AppConfig]
       _      <- Console.printLine(s"Application config after the update operation: $config")
     } yield ()
 
 
-  val appLayers: ZLayer[Any, Nothing, AppConfig & Console] =
+  val appLayers: ZLayer[Any, Nothing, AppConfig] =
     ZIO.succeed(AppConfig(5))
       .debug("Application config initialized")
       .toLayer ++ Console.live
 
-  val updatedConfig: ZLayer[Any, Nothing, AppConfig & Console] =
+  val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers ++ ZLayer.succeed(AppConfig(8))
 
   def run = myApp.provide(updatedConfig)
@@ -621,7 +638,7 @@ import zio._
 
 import java.io.IOException
 
-val myApp: ZIO[Console with Cake, IOException, Unit] = for {
+val myApp: ZIO[Cake, IOException, Unit] = for {
   cake <- ZIO.service[Cake]
   _    <- Console.printLine(s"Yay! I baked a cake with flour and chocolate: $cake")
 } yield ()
@@ -720,7 +737,6 @@ object MainApp extends ZIOAppDefault {
   def run =
     myApp.provide(
       Cake.live,
-      Console.live,
       Chocolate.live,
       Flour.live,
       Spoon.live  
@@ -737,8 +753,7 @@ import zio._
 
 object MainApp extends ZIOAppDefault {
 
-  val layers: ULayer[Console with Cake] =
-    Console.live ++
+  val layers: ULayer[Cake] =
       (((Spoon.live >>> Chocolate.live) ++ (Spoon.live >>> Flour.live)) >>> Cake.live)
 
   def run = myApp.provideLayer(layers)
@@ -790,20 +805,6 @@ val cakeLayer: ZLayer[Spoon, Nothing, Cake] =
   )
 ```
 
-3. **ZLayer.makeCustom[R]** — Automatically constructs a layer for the provided type `R`, leaving a remainder `ZEnv`:
-
-```scala mdoc:compile-only
-import zio._
-
-val cakeLayer: ZLayer[ZEnv, Nothing, Console & Random & Cake] =
-  ZLayer.makeCustom[Console & Random & Cake](
-    Cake.live,
-    Chocolate.live,
-    Flour.live,
-    Spoon.live
-  )
-```
-
 ### ZLayer Debugging
 
 To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.tree` and `ZLayer.Debug.mermaid`. 
@@ -820,7 +821,6 @@ object MainApp extends ZIOAppDefault {
       Chocolate.live,
       Flour.live,
       Spoon.live,
-      Console.live,
       ZLayer.Debug.tree
     )
 }
@@ -830,8 +830,6 @@ The following debug messages will be generated by the compiler:
 
 ```
 [info]   ZLayer Wiring Graph
-[info]
-[info] ◉ Console.live
 [info]
 [info] ◉ Cake.live
 [info] ├─◑ Chocolate.live
@@ -845,8 +843,6 @@ If we use the `ZLayer.Debug.mermaid` layer, it will generate the following debug
 
 ```
 [info]   ZLayer Wiring Graph  
-[info] 
-[info] ◉ Console.live
 [info] 
 [info] ◉ Cake.live
 [info] ├─◑ Chocolate.live
@@ -926,7 +922,7 @@ import zio.Clock._
 import zio.Console._
 import zio.Random._
 
-val myApp: ZIO[Random & Console & Clock, Nothing, Unit] = for {
+val myApp: ZIO[Any, Nothing, Unit] = for {
   random  <- nextInt 
   _       <- printLine(s"A random number: $random").orDie
   current <- currentDateTime
@@ -938,7 +934,7 @@ We provide implementations of `Random`, `Console` and `Clock` services to the `m
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp.provide(Random.live, Console.live, Clock.live)
+  myApp
 ```
 
 As we see, the type of our effect converted from `ZIO[Random & Console & Clock, Nothing, Unit]` which requires three services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
@@ -950,8 +946,8 @@ Sometimes we have written a program, and we don't want to provide all its requir
 In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
 
 ```scala
-val mainEffectSome: ZIO[Random & Clock, Nothing, Unit] = 
-  myApp.provideSome[Random & Clock](Console.live)
+val mainEffectSome: ZIO[Any, Nothing, Unit] = 
+  myApp
 ```
 
 > **Note:**
@@ -989,7 +985,7 @@ object LoggingLive {
   }
 }
 
-val myApp: ZIO[Logging & Console & Clock, Nothing, Unit] = for {
+val myApp: ZIO[Logging, Nothing, Unit] = for {
   _       <- Logging.log("Application Started!")
   current <- Clock.currentDateTime
   _       <- Console.printLine(s"Current Data Time: $current").orDie
@@ -1001,7 +997,7 @@ This program uses two ZIO built-in services, `Console` and `Clock`. We don't nee
 By using `ZIO#provideCustom` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
 
 ```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provideCustom(LoggingLive.layer)
+val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provide(LoggingLive.layer)
 ```
 
 ## Environment Scope
@@ -1266,8 +1262,6 @@ object MainApp extends ZIOAppDefault {
 
   val httpServer: ZLayer[Any, Nothing, HttpServer] =
     ZLayer.make[HttpServer](
-      Console.live,
-      System.live,
       JsonParserLive.layer,
       TemplateEngineLive.layer 
     )
@@ -1415,7 +1409,7 @@ object BLive {
 
 object MainApp extends ZIOAppDefault {
 
-  val program: ZIO[Console & Clock & B, IOException, Unit] =
+  val program: ZIO[B, IOException, Unit] =
     for {
       _ <- Console.printLine(s"Welcome to ZIO!")
       _ <- Clock.sleep(1.second)
@@ -1423,7 +1417,7 @@ object MainApp extends ZIOAppDefault {
       _ <- Console.printLine(r)
     } yield ()
 
-  def run = program.provideCustom(ALive.layer, BLive.layer)
+  def run = program.provide(ALive.layer, BLive.layer)
 
 }
 

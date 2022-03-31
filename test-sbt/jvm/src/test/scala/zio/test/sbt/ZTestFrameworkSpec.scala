@@ -202,11 +202,11 @@ object ZTestFrameworkSpec {
 
     // TODO Figure out how to get correct TestConsole instance in this non-ZIO realm.
     zio.Runtime.default.unsafeRun(
-      (for {
-        console <- ZIO.service[TestConsole]
+      for {
+        console <- testConsole
         output  <- console.output
         _       <- ZIO.debug(s"output: ${output.mkString("\n")}")
-      } yield ()).provide(zio.test.testEnvironment, zio.Scope.default)
+      } yield ()
     )
 
     task.execute(_ => (), Array.empty)

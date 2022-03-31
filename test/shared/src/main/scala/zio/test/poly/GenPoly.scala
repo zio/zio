@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Random, ZTraceElement}
+import zio.ZTraceElement
 
 /**
  * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some
@@ -52,21 +52,21 @@ import zio.{Random, ZTraceElement}
  * Using it we can define polymorphic generators for expressions:
  *
  * {{{
- * def genValue(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+ * def genValue(t: GenPoly): Gen[Sized, Expr[t.T]] =
  *   t.genT.map(Value(_))
  *
- * def genMapping(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+ * def genMapping(t: GenPoly): Gen[Sized, Expr[t.T]] =
  *   Gen.suspend {
  *     GenPoly.genPoly.flatMap { t0 =>
  *       genExpr(t0).flatMap { expr =>
- *         val genFunction: Gen[Random with Sized, t0.T => t.T] = Gen.function(t.genT)
- *         val genExpr1: Gen[Random with Sized, Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
+ *         val genFunction: Gen[Sized, t0.T => t.T] = Gen.function(t.genT)
+ *         val genExpr1: Gen[Sized, Expr[t.T]]      = genFunction.map(f => Mapping(expr, f))
  *         genExpr1
  *       }
  *     }
  *   }
  *
- * def genExpr(t: GenPoly): Gen[Random with Sized, Expr[t.T]] =
+ * def genExpr(t: GenPoly): Gen[Sized, Expr[t.T]] =
  *   Gen.oneOf(genMapping(t), genValue(t))
  * }}}
  *
@@ -91,7 +91,7 @@ import zio.{Random, ZTraceElement}
  */
 trait GenPoly {
   type T
-  val genT: Gen[Random with Sized, T]
+  val genT: Gen[Sized, T]
 }
 
 object GenPoly {
@@ -100,7 +100,7 @@ object GenPoly {
    * Constructs an instance of `TypeWith` using the specified value,
    * existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Random with Sized, A]): GenPoly =
+  def apply[A](gen: Gen[Sized, A]): GenPoly =
     new GenPoly {
       type T = A
       val genT = gen
@@ -138,7 +138,7 @@ object GenPoly {
   def float(implicit trace: ZTraceElement): GenPoly =
     GenFractionalPoly.float
 
-  def genPoly(implicit trace: ZTraceElement): Gen[Random, GenPoly] =
+  def genPoly(implicit trace: ZTraceElement): Gen[Any, GenPoly] =
     GenOrderingPoly.genOrderingPoly
 
   /**

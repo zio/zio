@@ -702,7 +702,7 @@ object Fiber extends FiberPlatformSpecific {
   /**
    * Dumps all fibers to the console.
    */
-  def dumpAll(implicit trace: ZTraceElement): ZIO[Console, IOException, Unit] =
+  def dumpAll(implicit trace: ZTraceElement): ZIO[Any, IOException, Unit] =
     dumpAllWith { dump =>
       dump.prettyPrint.flatMap(Console.printError(_))
     }

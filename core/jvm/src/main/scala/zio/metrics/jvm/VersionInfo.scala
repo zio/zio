@@ -20,7 +20,7 @@ object VersionInfo {
       )
       .fromConst(1.0)
 
-  private def reportVersions()(implicit trace: ZTraceElement): ZIO[System, Throwable, VersionInfo] =
+  private def reportVersions()(implicit trace: ZTraceElement): ZIO[Any, Throwable, VersionInfo] =
     for {
       version <- System.propertyOrElse("java.runtime.version", "unknown")
       vendor  <- System.propertyOrElse("java.vm.vendor", "unknown")
@@ -28,5 +28,5 @@ object VersionInfo {
       _       <- jvmInfo(version, vendor, runtime).set(())
     } yield VersionInfo(version, vendor, runtime)
 
-  val live: ZLayer[System, Throwable, VersionInfo] = ZLayer(reportVersions())
+  val live: ZLayer[Any, Throwable, VersionInfo] = ZLayer(reportVersions())
 }

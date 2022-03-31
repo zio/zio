@@ -11,7 +11,7 @@ import zio.test.{
   TestLogger,
   ZIOSpecAbstract
 }
-import zio.{Clock, Random, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -24,11 +24,7 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: AbstractRunnableSpec
-  ): ZIO[
-    Clock with ExecutionEventSink with Random,
-    Throwable,
-    Unit
-  ] = {
+  ): ZIO[ExecutionEventSink, Throwable, Unit] = {
     assert(eventHandler != null)
     for {
       summary <- spec.runSpec(FilteredSpec(spec.spec, args))

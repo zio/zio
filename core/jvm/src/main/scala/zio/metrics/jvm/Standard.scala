@@ -85,7 +85,7 @@ object Standard {
       }
     }
 
-  val live: ZLayer[Clock with JvmMetricsSchedule, Throwable, Standard] =
+  val live: ZLayer[JvmMetricsSchedule, Throwable, Standard] =
     ZLayer.scoped {
       for {
         runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean)

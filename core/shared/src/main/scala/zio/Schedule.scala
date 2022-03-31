@@ -460,8 +460,31 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a driver that can be used to step the schedule, appropriately
    * handling sleeping.
    */
-  def driver(implicit trace: ZTraceElement): URIO[Clock, Schedule.Driver[self.State, Env, In, Out]] =
-    Clock.driver(self)
+  def driver(implicit trace: ZTraceElement): UIO[Schedule.Driver[self.State, Env, In, Out]] =
+    Ref.make[(Option[Out], self.State)]((None, self.initial)).map { ref =>
+      val next = (in: In) =>
+        for {
+          state <- ref.get.map(_._2)
+          now   <- Clock.currentDateTime
+          dec   <- self.step(now, in, state)
+          v <- dec match {
+                 case (state, out, Done) => ref.set((Some(out), state)) *> ZIO.fail(None)
+                 case (state, out, Continue(interval)) =>
+                   ref.set((Some(out), state)) *> ZIO.sleep(Duration.fromInterval(now, interval.start)) as out
+               }
+        } yield v
+
+      val last = ref.get.flatMap {
+        case (None, _)    => ZIO.fail(new NoSuchElementException("There is no value left"))
+        case (Some(b), _) => ZIO.succeed(b)
+      }
+
+      val reset = ref.set((None, self.initial))
+
+      val state = ref.get.map(_._2)
+
+      Schedule.Driver(next, last, reset, state)
+    }
 
   /**
    * A named alias for `||`.
@@ -617,7 +640,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns a new schedule that randomly modifies the size of the intervals of
    * this schedule.
    */
-  def jittered(implicit trace: ZTraceElement): Schedule.WithState[self.State, Env with Random, In, Out] =
+  def jittered(implicit trace: ZTraceElement): Schedule.WithState[self.State, Env, In, Out] =
     jittered(0.8, 1.2)
 
   /**
@@ -629,8 +652,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def jittered(min: Double, max: Double)(implicit
     trace: ZTraceElement
-  ): Schedule.WithState[self.State, Env with Random, In, Out] =
-    delayedZIO[Env with Random] { duration =>
+  ): Schedule.WithState[self.State, Env, In, Out] =
+    delayedZIO[Env] { duration =>
       Random.nextDouble.map { random =>
         val d        = duration.toNanos
         val jittered = d * min * (1 - random) + d * max * random

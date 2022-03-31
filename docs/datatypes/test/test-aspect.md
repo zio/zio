@@ -446,10 +446,6 @@ test("a test that will only pass on a specified failure") {
 }
 ```
 
-## Providing Layers
-
-When we use some services in our tests, we need to provide the implementation layer of that service to our tests. ZIO Test has multiple test aspects for providing layers such as `provide`, `provideCustom`, `provideEnvironment`, `provideSome` and `provideSomeEnvironment`. We can choose one of them depending on our needs.
-
 ## Repeat and Retry
 
 There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:
@@ -514,9 +510,9 @@ import zio._
 import zio.test._
 import zio.test.TestAspect._
 
-def repeat5[R0 <: ZTestEnv with Live] =
-  new PerTest[Nothing, R0, Nothing, Nothing] {
-    override def perTest[R <: R0, E](test: ZIO[R, TestFailure[E], TestSuccess])(
+def repeat5 =
+  new PerTest[Nothing, Any, Nothing, Any] {
+    override def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(
       implicit trace: ZTraceElement
     ): ZIO[R, TestFailure[E], TestSuccess] =
       test.repeatN(5)
@@ -533,9 +529,9 @@ import java.util.concurrent.TimeUnit
 suite("clock suite")(
   test("adjusting clock") {
     for {
-      clock <- ZIO.service[Clock]
-      _ <- TestClock.adjust(1.second)
-      time <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
+      clock <- ZIO.clock
+      _     <- TestClock.adjust(1.second)
+      time  <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
     } yield assertTrue(time == 1)
   } @@ repeat5
 )
@@ -564,9 +560,9 @@ import java.util.concurrent.TimeUnit
 suite("clock suite")(
   test("adjusting clock") {
     for {
-      clock <- ZIO.service[Clock]
-      _ <- TestClock.adjust(1.second)
-      time <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
+      clock <- ZIO.clock
+      _     <- TestClock.adjust(1.second)
+      time  <- clock.currentTime(TimeUnit.SECONDS).debug("current time")
     } yield assertTrue(time == 1)
   } @@ TestAspect.restoreTestClock @@ repeat5
 )

@@ -96,7 +96,7 @@ Here is a scenario where we use a `Promise` to hand over a value between two `Fi
 ```scala mdoc:silent
 import java.io.IOException
 
-val program: ZIO[Console with Clock, IOException, Unit] = 
+val program: ZIO[Any, IOException, Unit] = 
   for {
     promise         <-  Promise.make[Nothing, String]
     sendHelloWorld  =   (IO.succeed("hello world") <* ZIO.sleep(1.second)).flatMap(promise.succeed)

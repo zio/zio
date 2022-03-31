@@ -19,6 +19,6 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 @deprecated("Use zio.Runtime", "2.0.0")
-trait BootstrapRuntime extends ZBootstrapRuntime[ZEnv] {
-  def environment: ZEnvironment[ZEnv] = ZEnvironment.default
+trait BootstrapRuntime extends ZBootstrapRuntime[Any] {
+  def environment: ZEnvironment[Any] = ZEnvironment.empty
 }

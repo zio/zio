@@ -4,16 +4,16 @@ import zio._
 import zio.test.{Gen, GenZIO, Sized}
 
 object ZStreamGen extends GenZIO {
-  def tinyListOf[R <: Random, A](g: Gen[R, A]): Gen[R, List[A]] =
+  def tinyListOf[R, A](g: Gen[R, A]): Gen[R, List[A]] =
     Gen.listOfBounded(0, 5)(g)
 
-  def tinyChunkOf[R <: Random, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
+  def tinyChunkOf[R, A](g: Gen[R, A]): Gen[R, Chunk[A]] =
     Gen.chunkOfBounded(0, 5)(g)
 
-  def streamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
+  def streamGen[R, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
     Gen.oneOf(failingStreamGen(a, max), pureStreamGen(a, max))
 
-  def pureStreamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, Nothing, A]] =
+  def pureStreamGen[R, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, Nothing, A]] =
     max match {
       case 0 => Gen.const(ZStream.empty)
       case n =>
@@ -26,7 +26,7 @@ object ZStreamGen extends GenZIO {
         )
     }
 
-  def failingStreamGen[R <: Random, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
+  def failingStreamGen[R, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
     max match {
       case 0 => Gen.const(ZStream.fromZIO(IO.fail("fail-case")))
       case _ =>
@@ -46,10 +46,10 @@ object ZStreamGen extends GenZIO {
   def nPulls[R, E, A](pull: ZIO[R, Option[E], A], n: Int): ZIO[R, Nothing, Iterable[Either[Option[E], A]]] =
     ZIO.foreach(1 to n)(_ => pull.either)
 
-  val streamOfInts: Gen[Random with Sized, ZStream[Any, String, Int]] =
+  val streamOfInts: Gen[Sized, ZStream[Any, String, Int]] =
     Gen.bounded(0, 5)(streamGen(Gen.int, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
-  val pureStreamOfInts: Gen[Random with Sized, ZStream[Any, Nothing, Int]] =
+  val pureStreamOfInts: Gen[Sized, ZStream[Any, Nothing, Int]] =
     Gen.bounded(0, 5)(pureStreamGen(Gen.int, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
   def injectEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =
@@ -58,9 +58,9 @@ object ZStreamGen extends GenZIO {
       else Chunk.empty
     }
 
-  def splitChunks[A](chunks: Chunk[Chunk[A]]): Gen[Random with Sized, Chunk[Chunk[A]]] = {
+  def splitChunks[A](chunks: Chunk[Chunk[A]]): Gen[Sized, Chunk[Chunk[A]]] = {
 
-    def split(chunks: Chunk[Chunk[A]]): Gen[Random, Chunk[Chunk[A]]] =
+    def split(chunks: Chunk[Chunk[A]]): Gen[Any, Chunk[Chunk[A]]] =
       for {
         i     <- Gen.int(0, chunks.length - 1 max 0)
         chunk  = chunks(i)

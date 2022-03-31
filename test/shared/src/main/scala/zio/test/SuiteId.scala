@@ -12,7 +12,7 @@ import java.util.UUID
 case class SuiteId(id: Int)
 
 object SuiteId {
-  val newRandom: ZIO[Random, Nothing, SuiteId] =
+  val newRandom: ZIO[Any, Nothing, SuiteId] =
     for {
       // TODO  Consider counting up from 0, rather than completely random ints
       random <- zio.Random.nextInt

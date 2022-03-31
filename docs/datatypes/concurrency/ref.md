@@ -158,7 +158,7 @@ The above snippet doesn't behave deterministically. This program sometimes print
 // Safe State Management
 object CountRequests extends ZIOAppDefault {
 
-  def request(counter: Ref[Int]): ZIO[Console, Nothing, Unit] = {
+  def request(counter: Ref[Int]): ZIO[Any, Nothing, Unit] = {
     for {
       _ <- counter.update(_ + 1)
       reqNumber <- counter.get

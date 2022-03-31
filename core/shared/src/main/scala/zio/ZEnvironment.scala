@@ -219,17 +219,6 @@ object ZEnvironment {
     new ZEnvironment[AnyRef](Map.empty, 0, Map(taggedTagType(TaggedAnyRef) -> (())))
 
   /**
-   * The default ZIO environment.
-   */
-  lazy val default: ZEnvironment[Clock with Console with Random with System] =
-    ZEnvironment[Clock, Console, Random, System](
-      Clock.ClockLive,
-      Console.ConsoleLive,
-      Random.RandomLive,
-      System.SystemLive
-    )
-
-  /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
    * to a `ZEnvironment[Out]` as a data structure. This allows combining updates
    * to different services in the environment in a compositional way.
@@ -278,13 +267,15 @@ object ZEnvironment {
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
       val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
-      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, Any], Patch[In, Out])](
+      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
         oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
-      ) { case ((map, patch), (tag, (newService, _))) =>
+      ) { case ((map, patch), (tag, (newService, newIndex))) =>
         map.get(tag) match {
-          case Some((oldService, _)) =>
-            if (oldService == newService) map - tag -> patch
-            else map - tag                          -> patch.combine(UpdateService((_: Any) => newService, tag))
+          case Some((oldService, oldIndex)) =>
+            if (oldService == newService && oldIndex == newIndex)
+              map - tag -> patch
+            else
+              map - tag -> patch.combine(UpdateService((_: Any) => newService, tag))
           case _ =>
             map - tag -> patch.combine(AddService(newService, tag))
         }

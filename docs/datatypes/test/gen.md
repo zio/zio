@@ -32,7 +32,7 @@ Let's create an `Int` generator:
 import zio._
 import zio.test._
 
-val intGen: Gen[Random, Int] = Gen.int
+val intGen: Gen[Any, Int] = Gen.int
 ```
 
 ### Character Generators
@@ -169,7 +169,7 @@ The `Gen.suspend` constructs a generator lazily. This is useful to avoid infinit
 The `unfoldGen` takes the initial state and depending on the previous state, it determines what will be the next generated value:
 
 ```scala
-def unfoldGen[R <: Random with Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]]
+def unfoldGen[R <: Sized, S, A](s: S)(f: S => Gen[R, (S, A)]): Gen[R, List[A]]
 ```
 
 Assume we want to test the built-in scala stack (`scala.collection.mutable.Stack`). One way to do that is to create an acceptable series of push and pop commands, and then check that the stack doesn't throw any exception by executing these commands:
@@ -180,9 +180,9 @@ case object Pop                    extends Command
 final case class Push(value: Char) extends Command
 
 val genPop:  Gen[Any, Command]    = Gen.const(Pop)
-def genPush: Gen[Random, Command] = Gen.alphaChar.map(Push)
+def genPush: Gen[Any, Command] = Gen.alphaChar.map(Push)
 
-val genCommands: Gen[Random with Sized, List[Command]] =
+val genCommands: Gen[Sized, List[Command]] =
   Gen.unfoldGen(0) { n =>
     if (n <= 0)
       genPush.map(command => (n + 1, command))
@@ -216,13 +216,13 @@ test("unfoldGen") {
 1. `Gen.fromZIO`
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random, Int] = Gen.fromZIO(Random.nextInt) 
+  val gen: Gen[Any, Int] = Gen.fromZIO(Random.nextInt) 
   ```
   
 2. `Gen.fromZIOSample`
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random, Int] =
+  val gen: Gen[Any, Int] =
     Gen.fromZIOSample(
       Random.nextInt.map(Sample.shrinkIntegral(0))
     )
@@ -233,13 +233,13 @@ test("unfoldGen") {
 3. `Gen.fromRandom` — Constructs a generator from a function that uses randomness:
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random, Int] = Gen.fromRandom(_.nextInt) 
+  val gen: Gen[Any, Int] = Gen.fromRandom(_.nextInt) 
   ```
   
 4. `Gen.fromRandomSample` — Constructs a generator from a function that uses randomness to produce a sample:
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random, Int] =
+  val gen: Gen[Any, Int] =
     Gen.fromRandomSample(
       _.nextIntBounded(20).map(Sample.shrinkIntegral(0))
     )
@@ -330,7 +330,7 @@ We want to test the following property:
 To test this property, we have an input of type `(Int, Int) => Int`. So we need a Function2 generator of integers:
 
 ```scala mdoc:silent
-val func2: Gen[Random, (Int, Int) => Int] = Gen.function2(Gen.int)
+val func2: Gen[Any, (Int, Int) => Int] = Gen.function2(Gen.int)
 ```
 
 Now we can test this property:
@@ -355,25 +355,25 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 1. Successful effects (`Gen.successes`):
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random, UIO[Int]] = Gen.successes(Gen.int(-10, 10))
+  val gen: Gen[Any, UIO[Int]] = Gen.successes(Gen.int(-10, 10))
   ```
 
 2. Failed effects (`Gen.failures`):
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random with Sized, IO[String, Nothing]] = Gen.failures(Gen.string)
+  val gen: Gen[Sized, IO[String, Nothing]] = Gen.failures(Gen.string)
   ```
 
 3. Died effects (`Gen.died`):
 
   ```scala mdoc:compile-only
-  val gen: Gen[Random, UIO[Nothing]] = Gen.died(Gen.throwable)
+  val gen: Gen[Any, UIO[Nothing]] = Gen.died(Gen.throwable)
   ```
 
 4. Cause values (`Gen.causes`):
 
   ```scala mdoc:compile-only
-  val causes: Gen[Random with Sized, Cause[String]] = 
+  val causes: Gen[Sized, Cause[String]] = 
     Gen.causes(Gen.string, Gen.throwable)
   ```
   
@@ -390,24 +390,24 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
   By using `Gen.chaned` or `Gen.chanedN` generator, we can create generators of chained effects:
 
   ```scala mdoc:compile-only
-  val chained : Gen[Random with Sized, ZIO[Any, Nothing, Int]] = 
+  val chained : Gen[Sized, ZIO[Any, Nothing, Int]] = 
     Gen.chained(Gen.successes(Gen.int))
     
-  val chainedN: Gen[Random, ZIO[Any, Nothing, Int]] = 
+  val chainedN: Gen[Any, ZIO[Any, Nothing, Int]] = 
     Gen.chainedN(5)(Gen.successes(Gen.int))
   ```
 
 6. Concurrent effects (`Gen.concurrent`): A generator of effects that are the result of applying concurrency combinators to the specified effect that are guaranteed not to change its value.
 
   ```scala mdoc:compile-only
-  val random  : Gen[Random, UIO[Int]] = Gen.successes(Gen.int).flatMap(Gen.concurrent)
+  val random  : Gen[Any, UIO[Int]] = Gen.successes(Gen.int).flatMap(Gen.concurrent)
   val constant: Gen[Any, UIO[Int]]    = Gen.concurrent(ZIO(3))
   ```
   
 7. Parallel effects (`Gen.parallel`): A generator of effects that are the result of applying parallelism combinators to the specified effect that are guaranteed not to change its value.
 
   ```scala mdoc:compile-only
-  val random: Gen[Random with Sized, UIO[String]] =
+  val random: Gen[Sized, UIO[String]] =
     Gen.successes(Gen.string).flatMap(Gen.parallel)
     
   val constant: Gen[Any, UIO[String]] =
@@ -419,7 +419,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 1. tuples — We can combine generators using for-comprehension syntax and tuples:
 
   ```scala mdoc:compile-only
-  val tuples: Gen[Random, (Int, Double)] =
+  val tuples: Gen[Any, (Int, Double)] =
     for {
       a <- Gen.int
       b <- Gen.double
@@ -441,15 +441,15 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 4. `Gen.option` — A generator of _optional_ values:
 
   ```scala mdoc:compile-only
-  val intOptions: Gen[Random, Option[Int]] = Gen.option(Gen.int)
-  val someInts:   Gen[Random, Option[Int]] = Gen.some(Gen.int)
+  val intOptions: Gen[Any, Option[Int]] = Gen.option(Gen.int)
+  val someInts:   Gen[Any, Option[Int]] = Gen.some(Gen.int)
   val nons:       Gen[Any, Option[Nothing]]     = Gen.none
   ```
 
 3. `Gen.either` — A generator of _either_ values:
 
   ```scala mdoc:compile-only
-  val char: Gen[Random, Either[Char, Char]] =
+  val char: Gen[Any, Either[Char, Char]] =
     Gen.either(Gen.numericChar, Gen.alphaChar)
   ```
 
@@ -546,7 +546,7 @@ There are also three sized generators, named _small_, _medium_ and _large_, that
 To run a generator, we can call `runCollect` operation:
 
 ```scala mdoc:silent:nest
-val ints: ZIO[Random, Nothing, List[Int]] = intGen.runCollect.debug
+val ints: ZIO[Any, Nothing, List[Int]] = intGen.runCollect.debug
 // Output: List(-2090696713)
 ```
 

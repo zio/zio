@@ -48,35 +48,28 @@ object RandomSpec extends ZIOBaseSpec {
       check(Gen.fromZIO(Live.live(Random.nextUUID))) { uuid =>
         assert(uuid.variant)(equalTo(2))
       }
-    },
-    test("scalaRandom") {
-      val layer  = ZLayer.fromZIO(ZIO.succeed(new scala.util.Random)) >>> Random.scalaRandom
-      val sample = ZIO.replicateZIO(5)((Random.setSeed(91) *> Random.nextInt).provideSomeLayer(layer.fresh))
-      for {
-        values <- ZIO.collectAllPar(ZIO.replicate(5)(sample))
-      } yield assertTrue(values.toSet.size == 1)
     }
   )
 
-  val genDoubles: Gen[Random, (Double, Double)] =
+  val genDoubles: Gen[Any, (Double, Double)] =
     for {
       a <- Gen.double
       b <- Gen.double if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genFloats: Gen[Random, (Float, Float)] =
+  val genFloats: Gen[Any, (Float, Float)] =
     for {
       a <- Gen.float
       b <- Gen.float if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genInts: Gen[Random, (Int, Int)] =
+  val genInts: Gen[Any, (Int, Int)] =
     for {
       a <- Gen.int
       b <- Gen.int if a != b
     } yield if (b > a) (a, b) else (b, a)
 
-  val genLongs: Gen[Random, (Long, Long)] =
+  val genLongs: Gen[Any, (Long, Long)] =
     for {
       a <- Gen.long
       b <- Gen.long if a != b

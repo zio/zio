@@ -60,7 +60,7 @@ Just like the `ZIO` data type, the `Spec` requires an environment of type `R`. W
 
 ### Using Standard Test Services
 
-All standard test services are located at the `zio.test.environment` package. They are test implementation of standard ZIO services. The use of these test services enables us to test functionality that depends on printing to or reading from a console, randomness, timings, and, also the system properties.
+All standard test services are located at the `zio.test` package. They are test implementation of standard ZIO services. The use of these test services enables us to test functionality that depends on printing to or reading from a console, randomness, timings, and, also the system properties.
 
 Let's see how we can test the `sayHello` function, which uses the `Console` service:
 
@@ -71,7 +71,7 @@ import zio.test.Assertion._
 
 import java.io.IOException
 
-def sayHello: ZIO[Console, IOException, Unit] =
+def sayHello: ZIO[Any, IOException, Unit] =
   Console.printLine("Hello, World!")
 
 suite("HelloWorldSpec")(

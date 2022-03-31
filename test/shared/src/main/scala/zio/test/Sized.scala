@@ -16,7 +16,7 @@ object Sized {
     live(100)(ZTraceElement.empty)
 
   def live(size: Int)(implicit trace: ZTraceElement): Layer[Nothing, Sized] =
-    ZLayer.fromZIO(FiberRef.make(size).map { fiberRef =>
+    ZLayer.scoped(FiberRef.make(size).map { fiberRef =>
       new Sized {
         def size(implicit trace: ZTraceElement): UIO[Int] =
           fiberRef.get

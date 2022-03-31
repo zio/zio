@@ -95,7 +95,7 @@ object BuildHelper {
     """|import zio._
        |import zio.Console._
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[Any, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io) }
     """.stripMargin
   }
 
@@ -106,7 +106,7 @@ object BuildHelper {
        |import 
        |import zio.stream._
        |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[ZEnv, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io.provide(ZEnv.live)) }
+       |implicit class RunSyntax[A](io: ZIO[Any, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io) }
     """.stripMargin
   }
 

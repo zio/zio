@@ -2,7 +2,7 @@ package zio.test
 
 import org.openjdk.jmh.annotations._
 import zio.BenchmarkUtil._
-import zio.{Random, ZIO, ZTraceElement}
+import zio.{ZIO, ZTraceElement}
 
 import java.util.concurrent.TimeUnit
 
@@ -17,8 +17,8 @@ class GenBenchmark {
   @Param(Array("100"))
   var count: Long = _
 
-  var listOfNEffect: ZIO[Random, Nothing, Unit] = _
-  var causesEffect: ZIO[Random, Nothing, Unit]  = _
+  var listOfNEffect: ZIO[Any, Nothing, Unit] = _
+  var causesEffect: ZIO[Any, Nothing, Unit]  = _
 
   @Setup
   def setup(): Unit = {

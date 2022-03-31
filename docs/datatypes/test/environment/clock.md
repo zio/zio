@@ -5,7 +5,7 @@ title: "TestClock"
 
 In most cases we want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for this. 
 
-ZIO exposes a `TestClock` in `TestEnvironment` that can control the time. We can deterministically and efficiently **test effects involving the passage of time** without actually having to wait for the full amount of time to pass.
+ZIO exposes a `TestClock` that can control the time. We can deterministically and efficiently **test effects involving the passage of time** without actually having to wait for the full amount of time to pass.
 
 Calls to `sleep` and methods derived from it will semantically block until the clock time is set/adjusted to on or after the time the effect is scheduled to run.
 
@@ -120,7 +120,7 @@ trait LoggingService {
   def log(msg: String): ZIO[Any, Exception, Unit]
 }
 
-val schedulingLayer: ZLayer[Clock with LoggingService, Nothing, SchedulingService] =
+val schedulingLayer: ZLayer[LoggingService, Nothing, SchedulingService] =
   ZLayer.fromFunction { env =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
@@ -135,7 +135,7 @@ test("One can control time for failing effects too") {
     override def log(msg: String): ZIO[Any, Exception, Unit] = ZIO.fail(new Exception("BOOM"))
   })
 
-  val partialLayer = (Clock.any ++ failingLogger) >>> schedulingLayer
+  val layer = failingLogger >>> schedulingLayer
 
   val testCase =
     for {
@@ -145,15 +145,11 @@ test("One can control time for failing effects too") {
       readRef <- promise.await
       result <- result.join
     } yield assertTrue((1 == readRef) && result.isFailure)
-  testCase.provideSomeLayer[TestEnvironment](partialLayer)
+  testCase.provideLayer(layer)
 }
 ```
 
 In this case, we want to test an effect with dependencies that can potentially fail with an error. To do this we need to run the effect and use assertions that expect an `Exit` value.
-
-Because we are providing dependencies to the test we need to provide everything expected by our test case and leave the test environment behind using `.provideSomeLayer[TestEnvironment]`.
-
-Keep in mind we do not provide any implementation of the `Clock` because doing will make force `SchedulingService` to use it, while the clock we need here is the `TestClock` provided by the test environment.
 
 ### Example 4
 
