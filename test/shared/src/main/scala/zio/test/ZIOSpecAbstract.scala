@@ -42,10 +42,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     implicit val trace = Tracer.newTrace
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
-      ZLayer
-        .environment[
-          ZIOAppArgs with Scope
-        ] +!+ (zio.ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
+      ZLayer.environment[ZIOAppArgs with Scope] +!+
+        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
     )
   }
 
