@@ -56,7 +56,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
   self =>
 
-  final def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
+  def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
     trace: ZTraceElement
   ): ZStream[Env1, Err1, Out] =
     ZStream.suspend(stream).pipeThroughChannelOrFail(channel)
@@ -66,7 +66,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothin
    * transformation of this pipeline, and then applying the transformation of
    * the specified pipeline.
    */
-  final def >>>[Env1 <: Env, Err1 >: Err, Out2](
+  def >>>[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
   )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In, Out2] =
     new ZPipeline(self.channel.pipeToOrFail(that.channel))
@@ -76,7 +76,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothin
    * elements by piping them through this transducer and piping the results into
    * the sink.
    */
-  final def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
+  def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
     trace: ZTraceElement
   ): ZSink[Env1, Err1, In, Leftover, Out2] =
     new ZSink(self.channel.pipeToOrFail(that.channel))
@@ -86,7 +86,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothin
    * transformation of the specified pipeline, and then applying the
    * transformation of this pipeline.
    */
-  final def <<<[Env1 <: Env, Err1 >: Err, In2](
+  def <<<[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In2, Out] =
     ZPipeline.suspend(new ZPipeline(that.channel.pipeToOrFail(self.channel)))
@@ -94,7 +94,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothin
   /**
    * A named version of the `>>>` operator.
    */
-  final def andThen[Env1 <: Env, Err1 >: Err, Out2](
+  def andThen[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
   )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In, Out2] =
     self >>> that
@@ -102,7 +102,7 @@ final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothin
   /**
    * A named version of the `<<<` operator.
    */
-  final def compose[Env1 <: Env, Err1 >: Err, In2](
+  def compose[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In2, Out] =
     self <<< that
