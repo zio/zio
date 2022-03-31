@@ -30,7 +30,7 @@ package object zio
 
   type ZEnv = Clock with Console with System with Random
 
-  private[zio] type Callback[E, A] = Exit[E, A] => Any
+  type ZNothing <: Nothing
 
   type Canceler[-R] = URIO[R, Any]
 
@@ -78,4 +78,6 @@ package object zio
   object IsNotIntersection extends IsNotIntersectionVersionSpecific {
     def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
+
+  private[zio] type Callback[E, A] = Exit[E, A] => Any
 }
