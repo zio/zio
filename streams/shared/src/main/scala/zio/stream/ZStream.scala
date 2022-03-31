@@ -1658,8 +1658,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Submerges the chunks carried by this stream into the stream's structure,
    * while still preserving them.
    */
+  @deprecated("use unchunks", "2.0.0")
   def flattenChunks[A1](implicit ev: A <:< Chunk[A1], trace: ZTraceElement): ZStream[R, E, A1] =
-    new ZStream(self.channel.mapOut(_.flatten))
+    unchunks
 
   /**
    * Flattens [[Exit]] values. `Exit.Failure` values translate to stream
@@ -1713,7 +1714,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * while still preserving them.
    */
   def flattenIterables[A1](implicit ev: A <:< Iterable[A1], trace: ZTraceElement): ZStream[R, E, A1] =
-    map(a => Chunk.fromIterable(ev(a))).flattenChunks
+    map(a => Chunk.fromIterable(ev(a))).unchunks
 
   /**
    * Flattens a stream of streams into a stream by executing a non-deterministic
@@ -1739,7 +1740,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * by failing with `None`.
    */
   final def flattenTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1], trace: ZTraceElement): ZStream[R, E1, A1] =
-    map(_.exit).flattenExitOption[E1, Chunk[A1]].flattenChunks
+    map(_.exit).flattenExitOption[E1, Chunk[A1]].unchunks
 
   /**
    * More powerful version of [[ZStream.groupByKey]]
@@ -3799,6 +3800,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     sink: => ZSink[R1, E1, A1, A1, Z]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Z] =
     self >>> ZPipeline.fromSink(sink)
+
+  /**
+   * Submerges the chunks carried by this stream into the stream's structure,
+   * while still preserving them.
+   */
+  def unchunks[A1](implicit ev: A <:< Chunk[A1], trace: ZTraceElement): ZStream[R, E, A1] =
+    new ZStream(self.channel.mapOut(_.flatten))
 
   /**
    * Updates a service in the environment of this effect.

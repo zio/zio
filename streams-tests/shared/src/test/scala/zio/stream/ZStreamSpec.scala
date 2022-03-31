@@ -2003,7 +2003,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               val stream = ZStream
                 .fromQueue(c.queue)
                 .collectWhileSuccess
-                .flattenChunks
+                .unchunks
                 .groupedWithin(10, 2.seconds)
                 .tap(_ => c.proceed)
 
@@ -2032,7 +2032,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 fiber <- ZStream
                            .fromQueue(c.queue)
                            .collectWhileSuccess
-                           .flattenChunks
+                           .unchunks
                            .tap(_ => c.proceed)
                            .groupedWithin(10, 3.seconds)
                            .tap(chunk => ref.update(_ + chunk.size) *> latch.offer(()))
@@ -3202,7 +3202,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("consecutive delimiter yields empty Chunk") {
             val input         = ZStream.apply(Chunk(1, 2), Chunk(1), Chunk(2, 1, 2, 3, 1, 2), Chunk(1, 2))
             val splitSequence = Chunk(1, 2)
-            assertM(input.flattenChunks.splitOnChunk(splitSequence).map(_.size).runCollect)(
+            assertM(input.unchunks.splitOnChunk(splitSequence).map(_.size).runCollect)(
               equalTo(Chunk(0, 0, 0, 1, 0))
             )
           },
@@ -3601,7 +3601,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .fromQueue(c.queue)
                          .tap(_ => c.proceed)
                          .flatMap(ex => ZStream.fromZIOOption(ZIO.done(ex)))
-                         .flattenChunks
+                         .unchunks
                          .debounce(200.millis)
                          .interruptWhen(ZIO.never)
                          .take(1)
@@ -3696,7 +3696,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                   fiber <- ZStream
                              .fromQueue(c.queue)
                              .collectWhileSuccess
-                             .flattenChunks
+                             .unchunks
                              .timeoutTo(2.seconds)(ZStream.succeed(4))
                              .tap(_ => c.proceed)
                              .runCollect
@@ -4153,7 +4153,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream
                 .unfold(0)(n => Some((if (n < 3) Chunk.empty else Chunk.single(2), n + 1)))
-                .flattenChunks
+                .unchunks
                 .forever
                 .zipWithLatest(ZStream(1).forever)((_, x) => x)
                 .take(3)
@@ -4737,7 +4737,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 fiber <- ZStream
                            .fromQueue(c.queue)
                            .collectWhileSuccess
-                           .flattenChunks
+                           .unchunks
                            .tap(_ => c.proceed)
                            .runCollect
                            .fork
