@@ -307,6 +307,16 @@ object ZEnvironment {
       patch.asInstanceOf[Patch[Any, Any]]
   }
 
+  /**
+   * Extension methods for ZEnvironment of an R that is a single type (no
+   * intersection type), which is checked by there being a Tag[R] available.
+   */
+  implicit final class SingleEnvOps[R: Tag](private val self: ZEnvironment[R]) {
+
+    /** Maps the single type of this environment through the given function */
+    def map[ROut: Tag](f: R => ROut) = ZEnvironment(f(self.get))
+  }
+
   private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
     implicitly[EnvironmentTag[AnyRef]]
 }
