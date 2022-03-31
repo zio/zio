@@ -167,6 +167,8 @@ class MutableRunnableSpec[R: Tag](
     spec: ZSpec[Environment, Failure]
   )(implicit
     trace: ZTraceElement
-  ): URIO[ExecutionEventSink, Summary] =
+  ): UIO[
+    Summary
+  ] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 }

@@ -52,7 +52,9 @@ final case class TestRunner[R, E](
     spec: ZSpec[R, E]
   )(implicit
     trace: ZTraceElement
-  ): URIO[ExecutionEventSink, Summary] =
+  ): UIO[
+    Summary
+  ] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
       // TODO Why is duration 0 here? Resolve for #6482
       ZIO.succeed(summary)

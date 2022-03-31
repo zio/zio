@@ -40,7 +40,9 @@ abstract class DefaultRunnableSpec extends RunnableSpec[TestEnvironment, Any] {
     spec: ZSpec[Environment, Failure]
   )(implicit
     trace: ZTraceElement
-  ): URIO[ExecutionEventSink, Summary] =
+  ): UIO[
+    Summary
+  ] =
     runner.run(aspects.foldLeft(spec)(_ @@ _) @@ TestAspect.fibers)
 
   /**
