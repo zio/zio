@@ -2,7 +2,7 @@ package zio
 
 import zio.internal.macros.LayerMacros
 
-trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
+private [zio] trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
   /**
    * Splits the environment into two parts, assembling one part using the
@@ -17,7 +17,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
    * }}}
    */
   def provideSome[R0] =
-    new provideSomePartiallyApplied[R0, R, E, A](self)
+    new ProvideSomePartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZIO effect, which
@@ -28,7 +28,7 @@ trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 }
 
-private final class provideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
+final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
     ${LayerMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
 }
