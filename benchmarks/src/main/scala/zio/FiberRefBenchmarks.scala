@@ -40,29 +40,33 @@ class FiberRefBenchmarks {
   def createFiberRefsAndYield(): Unit =
     createFiberRefsAndYield(BenchmarkUtil)
 
-  private def justYield(runtime: Runtime[Scope]) = runtime.unsafeRun {
+  private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {
       _ <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
     } yield ()
   }
 
-  private def createFiberRefsAndYield(runtime: Runtime[Scope]) = runtime.unsafeRun {
-    for {
-      fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
-      _         <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
-      values    <- ZIO.foreachPar(fiberRefs)(_.get)
-      _         <- verify(values == 1.to(n))(s"Got $values")
-    } yield ()
+  private def createFiberRefsAndYield(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
+        _         <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
+        values    <- ZIO.foreachPar(fiberRefs)(_.get)
+        _         <- verify(values == 1.to(n))(s"Got $values")
+      } yield ()
+    }
   }
 
-  private def createUpdateAndRead(runtime: Runtime[Scope]) = runtime.unsafeRun {
-    for {
-      fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
-      values1   <- ZIO.foreachPar(fiberRefs)(ref => ref.update(-_) *> ref.get)
-      values2   <- ZIO.foreachPar(fiberRefs)(_.get)
-      _ <- verify(values1.forall(_ < 0) && values1.size == values2.size)(
-             s"Got \nvalues1: $values1, \nvalues2: $values2"
-           )
-    } yield ()
+  private def createUpdateAndRead(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.make(i))
+        values1   <- ZIO.foreachPar(fiberRefs)(ref => ref.update(-_) *> ref.get)
+        values2   <- ZIO.foreachPar(fiberRefs)(_.get)
+        _ <- verify(values1.forall(_ < 0) && values1.size == values2.size)(
+               s"Got \nvalues1: $values1, \nvalues2: $values2"
+             )
+      } yield ()
+    }
   }
 }
