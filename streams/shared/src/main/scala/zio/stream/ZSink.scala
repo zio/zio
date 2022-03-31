@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
 
-class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]) extends AnyVal {
+final case class ZSink[-R, +E, -In, +L, +Z](channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]) {
   self =>
 
   /**

@@ -53,7 +53,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
  * However, the companion object has lots of other pipeline constructors based
  * on the methods of stream.
  */
-class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
+final case class ZPipeline[-Env, +Err, -In, +Out](channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
   self =>
 
   final def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
