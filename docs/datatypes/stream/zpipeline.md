@@ -125,7 +125,7 @@ def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStrea
 import zio.stream.compression._
 
 ZStream
-  .fromFileString("file.txt")
+  .fromFileName("file.txt")
   .via(
     ZPipeline.gzip(
       bufferSize = 64 * 1024,
@@ -135,7 +135,7 @@ ZStream
     )
   )
   .run(
-    ZSink.fromFileString("file.gz")
+    ZSink.fromFileName("file.gz")
   )
 ```
 
@@ -222,7 +222,7 @@ We can compose pipelines in two ways:
 ```scala mdoc:silent:nest
 val lines: ZStream[Any, Throwable, String] =
   ZStream
-    .fromFileString("file.txt")
+    .fromFileName("file.txt")
     .via(
       ZPipeline.utf8Decode >>> ZPipeline.splitLines
     )
@@ -233,13 +233,13 @@ val lines: ZStream[Any, Throwable, String] =
 ```scala mdoc:silent:nest
 val refine: ZIO[Any, Throwable, Long] =
   ZStream
-    .fromFileString("file.txt")
+    .fromFileName("file.txt")
     .via(
       ZPipeline.utf8Decode >>> ZPipeline.splitLines >>> ZPipeline.filter[String](_.contains('₿'))
     )
     .run(
       ZSink
-        .fromFileString("file.refined.txt")
+        .fromFileName("file.refined.txt")
         .contramapChunks[String](
           _.flatMap(line => (line + System.lineSeparator()).getBytes())
         )

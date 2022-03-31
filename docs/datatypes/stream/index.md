@@ -184,7 +184,7 @@ for (line <- FileUtils.readFileToString(new File("file.txt")).split('\n'))
 The only problem here is that if we run this code with a file that is very large which is bigger than our memory, that is not going to work. Instead, we can reach the same functionality, by using the stream API:
 
 ```scala mdoc:silent:nest
-ZStream.fromFileString("file.txt")
+ZStream.fromFileName("file.txt")
   .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
   .foreach(printLine(_))
 ```

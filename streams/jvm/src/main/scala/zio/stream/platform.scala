@@ -245,7 +245,7 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream of bytes from a file at the specified path represented by
    * a string.
    */
-  final def fromFileString(name: => String, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
+  final def fromFileName(name: => String, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Throwable, Byte] =
     ZStream
@@ -646,7 +646,7 @@ trait ZSinkPlatformSpecificConstructors {
    * consumes byte chunks and writes them to the `File`. The sink will yield
    * count of bytes written.
    */
-  final def fromFileString(
+  final def fromFileName(
     name: => String,
     position: => Long = 0L,
     options: => Set[OpenOption] = Set(WRITE, TRUNCATE_EXISTING, CREATE)
