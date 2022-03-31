@@ -1,14 +1,16 @@
 package zio.test
 
-import zio.{ExecutionStrategy, Scope, UIO}
+import zio.{Console, ExecutionStrategy, UIO}
 
 object TestUtils {
 
   def execute[E](spec: ZSpec[TestEnvironment, E]): UIO[Summary] =
     TestExecutor
-      .default(testEnvironment)
+      .default(
+        testEnvironment,
+        (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+      )
       .run(spec, ExecutionStrategy.Sequential)
-      .provide(testEnvironment, Scope.default)
 
   def isIgnored[E](spec: ZSpec[TestEnvironment, E]): UIO[Boolean] =
     execute(spec)

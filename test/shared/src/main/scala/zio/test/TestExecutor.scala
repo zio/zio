@@ -27,7 +27,7 @@ import zio.{ExecutionStrategy, ZIO, ZTraceElement}
 abstract class TestExecutor[+R, E] {
   def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
-  ): ZIO[ExecutionEventSink, Nothing, Summary]
+  ): UIO[Summary]
 
   def environment: ZLayer[Scope, Nothing, R]
 }
@@ -35,12 +35,15 @@ abstract class TestExecutor[+R, E] {
 object TestExecutor {
 
   def default[R <: Annotations, E](
-    env: ZLayer[Scope, Nothing, R]
+    env: ZLayer[Scope, Nothing, R],
+    sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
-    ): ZIO[ExecutionEventSink, Nothing, Summary] =
-      for {
+    ): UIO[
+      Summary
+    ] =
+      (for {
         sink      <- ZIO.service[ExecutionEventSink]
         topParent <- SuiteId.newRandom
         _         <- sink.process(ExecutionEvent.SectionStart(List.empty, topParent, List.empty))
@@ -106,7 +109,7 @@ object TestExecutor {
              )
 
         summary <- sink.getSummary
-      } yield summary
+      } yield summary).provideLayer(sinkLayer)
 
     val environment = env
 

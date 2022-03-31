@@ -135,7 +135,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
               Environment with TestEnvironment with ZIOAppArgs with Scope,
               Any
             ](
-              ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment)
+              ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment),
+              (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
             ),
           runtimeConfig
         )

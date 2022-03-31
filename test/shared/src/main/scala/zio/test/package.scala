@@ -56,7 +56,7 @@ package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
 
-  type TestEnvironment = Annotations with Live with Sized with TestConfig with ExecutionEventSink
+  type TestEnvironment = Annotations with Live with Sized with TestConfig
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -70,8 +70,7 @@ package object test extends CompileVariants {
         TestConfig.live(100, 100, 200, 1000) ++
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
-        TestSystem.default ++
-        (TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        TestSystem.default
 
     }
   }
@@ -834,8 +833,15 @@ package object test extends CompileVariants {
   /**
    * A `Runner` that provides a default testable environment.
    */
-  val defaultTestRunner: TestRunner[TestEnvironment, Any] =
-    TestRunner(TestExecutor.default(testEnvironment))
+  val defaultTestRunner: TestRunner[TestEnvironment, Any] = {
+    implicit val trace = ZTraceElement.empty
+    TestRunner(
+      TestExecutor.default(
+        testEnvironment,
+        Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+      )
+    )
+  }
 
   /**
    * Creates a failed test result with the specified runtime cause.
