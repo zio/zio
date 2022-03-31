@@ -158,6 +158,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Creates a pipeline that exposes the chunk structure of the stream.
+   */
+  def chunks[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Chunk[In]] =
+    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(Chunk.single))
+
+  /**
    * Creates a pipeline that collects elements with the specified partial
    * function.
    *
@@ -429,6 +435,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that maps chunks of elements with the specified
    * function.
    */
+  @deprecated("use map", "2.0.0")
   def mapChunks[In, Out](
     f: Chunk[In] => Chunk[Out]
   )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
@@ -437,6 +444,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Creates a pipeline that maps chunks of elements with the specified effect.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapChunksZIO[Env, Err, In, Out](
     f: Chunk[In] => ZIO[Env, Err, Chunk[Out]]
   )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
@@ -717,6 +725,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
     new ZPipeline(loop)
   }
+
+  /**
+   * Creates a pipeline that submerges chunks into the structure of the stream.
+   */
+  def unchunks[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Chunk[In], In] =
+    new ZPipeline(ZChannel.identity[Nothing, Chunk[Chunk[In]], Any].mapOut(_.flatten))
 
   def usASCIIDecode(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, Byte, String] =
     textDecodeUsing(StandardCharsets.US_ASCII)

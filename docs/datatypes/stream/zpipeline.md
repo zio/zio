@@ -31,7 +31,7 @@ By using `ZPipeline.map` we convert a function into a pipeline. Let's create a p
 ```scala mdoc:silent:nest
 val chars = 
  ZPipeline.map[String, Chunk[Char]](s => Chunk.fromArray(s.toArray)) >>>
-   ZPipeline.mapChunks[Chunk[Char], Char](_.flatten)
+   ZPipeline.unchunks[Char]
 ```
 
 There is also a `ZPipeline.mapZIO` which is an effectful version of this constructor.
