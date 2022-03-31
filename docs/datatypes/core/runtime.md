@@ -65,22 +65,15 @@ We don't usually use this method to run our effects. One of the use cases of thi
 
 ## Default Runtime
 
-ZIO contains a default runtime called `Runtime.default`, configured with the `ZEnv` (the default ZIO environment) and a default `RuntimeConfig` designed to work well for mainstream usage. It is already implemented as below:
+ZIO contains a default runtime called `Runtime.default`, configured with a default `RuntimeConfig` designed to work well for mainstream usage. It is already implemented as below:
 
 ```scala
 object Runtime {
-  lazy val default: Runtime[ZEnv] = Runtime(ZEnv.Services.live, RuntimeConfig.default)
+  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.default)
 }
 ```
 
-The default runtime includes a default `RuntimeConfig` which contains minimum capabilities to bootstrap execution of ZIO tasks and live (production) versions of all ZIO built-in services. The default ZIO environment (`ZEnv`) for the `JS` platform includes `Clock`, `Console`, `System`, `Random`; and the `JVM` platform also has a `Blocking` service:
-
-```scala
-// Default JS environment
-type ZEnv = Clock with Console with System with Random
-
-// Default JVM environment
-type ZEnv = Clock with Console with System with Random with Blocking
+The default runtime includes a default `RuntimeConfig` which contains minimum capabilities to bootstrap execution of ZIO tasks.
 ```
 
 We can easily access the default `Runtime` to run an effect:
