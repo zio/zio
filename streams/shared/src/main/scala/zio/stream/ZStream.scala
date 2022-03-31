@@ -435,6 +435,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
+  @deprecated("use buffer", "2.0.0")
   final def bufferChunks(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueue(capacity)
     new ZStream(
@@ -462,6 +463,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
+  @deprecated("use bufferDropping", "2.0.0")
   final def bufferChunksDropping(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue =
       ZIO.acquireRelease(Queue.dropping[(Take[E, A], Promise[Nothing, Unit])](capacity))(_.shutdown)
@@ -475,6 +477,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
+  @deprecated("use bufferSliding", "2.0.0")
   final def bufferChunksSliding(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue =
       ZIO.acquireRelease(Queue.sliding[(Take[E, A], Promise[Nothing, Unit])](capacity))(_.shutdown)
