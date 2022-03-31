@@ -267,13 +267,15 @@ object ZEnvironment {
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] = {
       val sorted = newValue.map.toList.sortBy { case (_, (_, index)) => index }
-      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, Any], Patch[In, Out])](
+      val (missingServices, patch) = sorted.foldLeft[(Map[LightTypeTag, (Any, Int)], Patch[In, Out])](
         oldValue.map -> Patch.Empty().asInstanceOf[Patch[In, Out]]
       ) { case ((map, patch), (tag, (newService, newIndex))) =>
         map.get(tag) match {
           case Some((oldService, oldIndex)) =>
-            if (oldService == newService && oldIndex == newIndex) map - tag -> patch
-            else map - tag                                                  -> patch.combine(UpdateService((_: Any) => newService, tag))
+            if (oldService == newService && oldIndex == newIndex)
+              map - tag -> patch
+            else
+              map - tag -> patch.combine(UpdateService((_: Any) => newService, tag))
           case _ =>
             map - tag -> patch.combine(AddService(newService, tag))
         }
