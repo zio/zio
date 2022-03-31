@@ -146,12 +146,6 @@ trait FiberRef[A] extends Serializable { self =>
     new ZIO.FiberRefWith(self, f, trace)
 
   /**
-   * Returns the initial value or error.
-   */
-  def initialValue: A =
-    initial
-
-  /**
    * Returns a `ZIO` that runs with `value` bound to the current fiber.
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
