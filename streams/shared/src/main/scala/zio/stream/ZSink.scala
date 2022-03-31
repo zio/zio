@@ -27,14 +27,6 @@ final case class ZSink[-R, +E, -In, +L, +Z](channel: ZChannel[R, ZNothing, Chunk
   self =>
 
   /**
-   * Operator alias for [[race]].
-   */
-  def |[R1 <: R, E1 >: E, In1 <: In, L1 >: L, Z1 >: Z](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
-    race(that)
-
-  /**
    * Operator alias for [[zip]].
    */
   def <*>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
