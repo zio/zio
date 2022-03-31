@@ -41,6 +41,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     val count      = new LongAdder
     val sum        = new DoubleAdder
     val size       = bounds.length
+    val minMax     = new AtomicMinMax()
 
     bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
 
@@ -61,6 +62,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       values.getAndIncrement(from)
       count.increment()
       sum.add(value)
+      minMax.update(value)
       ()
     }
 
@@ -78,7 +80,13 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       builder.result()
     }
 
-    MetricHook(update, () => MetricState.Histogram(getBuckets(), count.longValue(), sum.doubleValue()))
+    MetricHook(
+      update,
+      { () =>
+        val (min, max) = minMax.get()
+        MetricState.Histogram(getBuckets(), count.longValue(), min, max, sum.doubleValue())
+      }
+    )
   }
 
   def summary(key: MetricKey.Summary): MetricHook.Summary = {
@@ -88,6 +96,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     val head   = new AtomicInteger(0)
     val count  = new LongAdder
     val sum    = new DoubleAdder
+    val minMax = new AtomicMinMax()
 
     val sortedQuantiles: Chunk[Double] = quantiles.sorted(DoubleOrdering)
 
@@ -130,20 +139,26 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
         values.set(target, tuple)
       }
 
+      val value = tuple._1
       count.increment()
-      sum.add(tuple._1)
+      sum.add(value)
+      minMax.update(value)
       ()
     }
 
     MetricHook(
       observe(_),
-      () =>
+      { () =>
+        val (min, max) = minMax.get()
         MetricState.Summary(
           error,
           snapshot(java.time.Instant.now()),
           getCount(),
+          min,
+          max,
           getSum()
         )
+      }
     )
   }
 
@@ -174,5 +189,20 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     }
 
     MetricHook(update, () => MetricState.Frequency(snapshot()))
+  }
+
+  private final class AtomicMinMax {
+    private val minMax = new AtomicReference(Option.empty[(Double, Double)])
+
+    def get(): (Double, Double) = minMax.get().getOrElse(0.0 -> 0.0)
+
+    def update(value: Double): Unit =
+      minMax.updateAndGet {
+        case minMax @ Some((min, max)) =>
+          if (value < min) Some((value, max))
+          else if (value > max) Some((min, value))
+          else minMax
+        case None => Some((value, value))
+      }
   }
 }
