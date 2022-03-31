@@ -1480,7 +1480,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: ZTraceElement): IO[E, A] =
-    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locallyWith(_.unionAll(r))(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.

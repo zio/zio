@@ -44,7 +44,7 @@ object Live {
       .environmentWith[ZEnv] { zenv =>
         new Live {
           def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-            ZEnv.services.locally(zenv)(zio)
+            ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
         }
       }
       .toLayer
