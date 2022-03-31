@@ -1725,8 +1725,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             )(fails(equalTo(e)))
           } @@ zioTag(errors)
         ),
-        test("flattenIterables")(check(tinyListOf(tinyListOf(Gen.int))) { lists =>
-          assertM(ZStream.fromIterable(lists).flattenIterables.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))
+        test("flattenIterable")(check(tinyListOf(tinyListOf(Gen.int))) { lists =>
+          assertM(ZStream.fromIterable(lists).flattenIterable.runCollect)(equalTo(Chunk.fromIterable(lists.flatten)))
         }),
         suite("flattenTake")(
           test("happy path")(check(tinyListOf(Gen.chunkOf(Gen.int))) { chunks =>

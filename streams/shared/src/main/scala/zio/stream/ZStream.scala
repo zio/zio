@@ -140,6 +140,68 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     aggregateWithin(sink, Schedule.recurs(0))
 
   /**
+   * Aggregates elements of this stream using the provided sink for as long as
+   * the downstream operators on the stream are busy.
+   *
+   * This operator divides the stream into two asynchronous "islands". Operators
+   * upstream of this operator run on one fiber, while downstream operators run
+   * on another. Whenever the downstream fiber is busy processing elements, the
+   * upstream fiber will feed elements into the sink until it signals
+   * completion.
+   *
+   * Any sink can be used here, but see [[ZSink.foldWeightedM]] and
+   * [[ZSink.foldUntilM]] for sinks that cover the common usecases.
+   */
+  @deprecated("use aggregate", "2.0.0")
+  final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
+    sink: => ZSink[R1, E1, A1, A1, B]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
+    aggregate(sink)
+
+  /**
+   * Like `aggregateWithinEither`, but only returns the `Right` results.
+   *
+   * @param sink
+   *   used for the aggregation
+   * @param schedule
+   *   signalling for when to stop the aggregation
+   * @return
+   *   `ZStream[R1 with Clock, E2, B]`
+   */
+  @deprecated("use aggregateWithin", "2.0.0")
+  final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B](
+    sink: => ZSink[R1, E1, A1, A1, B],
+    schedule: => Schedule[R1, Option[B], Any]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
+    aggregateWithin(sink, schedule)
+
+  /**
+   * Aggregates elements using the provided sink until it completes, or until
+   * the delay signalled by the schedule has passed.
+   *
+   * This operator divides the stream into two asynchronous islands. Operators
+   * upstream of this operator run on one fiber, while downstream operators run
+   * on another. Elements will be aggregated by the sink until the downstream
+   * fiber pulls the aggregated value, or until the schedule's delay has passed.
+   *
+   * Aggregated elements will be fed into the schedule to determine the delays
+   * between pulls.
+   *
+   * @param sink
+   *   used for the aggregation
+   * @param schedule
+   *   signalling for when to stop the aggregation
+   * @return
+   *   `ZStream[R1 with Clock, E2, Either[C, B]]`
+   */
+  @deprecated("use aggregateWithinEither", "2.0.0")
+  def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
+    sink: => ZSink[R1, E1, A1, A1, B],
+    schedule: => Schedule[R1, Option[B], C]
+  )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, Either[C, B]] =
+    aggregateWithinEither(sink, schedule)
+
+  /**
    * Like `aggregateWithinEither`, but only returns the `Right` results.
    *
    * @param sink
@@ -1722,8 +1784,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Submerges the iterables carried by this stream into the stream's structure,
    * while still preserving them.
    */
-  def flattenIterables[A1](implicit ev: A <:< Iterable[A1], trace: ZTraceElement): ZStream[R, E, A1] =
+  def flattenIterable[A1](implicit ev: A <:< Iterable[A1], trace: ZTraceElement): ZStream[R, E, A1] =
     map(a => Chunk.fromIterable(ev(a))).unchunks
+
+  /**
+   * Submerges the iterables carried by this stream into the stream's structure,
+   * while still preserving them.
+   */
+  @deprecated("use flattenIterable", "2.0.0")
+  def flattenIterables[A1](implicit ev: A <:< Iterable[A1], trace: ZTraceElement): ZStream[R, E, A1] =
+    flattenIterable
 
   /**
    * Flattens a stream of streams into a stream by executing a non-deterministic
