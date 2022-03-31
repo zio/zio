@@ -667,6 +667,63 @@ Console.printLine("Please enter three names:") *>
 // Vector(John, Jane, Joe)
 ```
 
+### try/catch/finally
+
+When working with resources, just like the scala's `try`/`catch`/`finally` construct, in ZIO we have a similar operator called `acquireRelease` and also `ensuring`. We discussed them in more detail in the [resource management section](#resource-management). But, for now, we want to focus on their control flow behaviors.
+
+Let's learn about the `ZIO.acquireReleaseWith` operator. This operator takes three effects:
+1. **`acquire`** an effect that describes the resource acquisition
+2. **`release`** an effect that describes the release of the resource
+3. **`use`** an effect that describes resource usage
+
+```scala mdoc:compile-only
+ZIO.acquireReleaseWith(
+  acquire = ???,
+  release = ???,
+  use       = ???
+)
+```
+
+This operator guarantees us that if the _resource acquisition (acquire)_  the _release_ effect will be executed whether the _use_ effect succeeded or not:
+
+```scala mdoc:compile-only
+import zio._
+
+def wordCount(fileName: String): ZIO[Any, Throwable, Int] = {
+  def openFile(name: => String): ZIO[Any, IOException, Source] =
+    ZIO.attemptBlockingIO(Source.fromFile(name))
+
+  def closeFile(source: => Source): ZIO[Any, Nothing, Unit] =
+    ZIO.succeedBlocking(source.close())
+
+  def wordCount(source: => Source): ZIO[Any, Throwable, Int] =
+    ZIO.attemptBlocking(source.getLines().length)
+
+  ZIO.acquireReleaseWith(
+    acquire = openFile(fileName),
+    release = (s: Source) => closeFile(s),
+    use     = (s: Source) => wordCount(s)
+  )
+}
+```
+
+Let's try a simple `acquireRelease` workflow to see how its control flow works:
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  def run =
+    ZIO.acquireReleaseWith(
+      acquire = ZIO.succeed("resource").tap(r => ZIO.debug(s"$r acquired")),
+      release = (i: String) => ZIO.debug(s"$i released"),
+      use = (i: String) => ZIO.debug(s"start using $i")
+    )
+}
+// Output:
+// resource acquired
+// start using resource
+// resource released
+```
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
