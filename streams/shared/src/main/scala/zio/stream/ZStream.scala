@@ -134,13 +134,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Any sink can be used here, but see [[ZSink.foldWeightedM]] and
    * [[ZSink.foldUntilM]] for sinks that cover the common usecases.
    */
-  final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
+  final def aggregate[R1 <: R, E1 >: E, A1 >: A, B](
     sink: => ZSink[R1, E1, A1, A1, B]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
-    aggregateAsyncWithin(sink, Schedule.recurs(0))
+    aggregateWithin(sink, Schedule.recurs(0))
 
   /**
-   * Like `aggregateAsyncWithinEither`, but only returns the `Right` results.
+   * Like `aggregateWithinEither`, but only returns the `Right` results.
    *
    * @param sink
    *   used for the aggregation
@@ -149,11 +149,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @return
    *   `ZStream[R1 with Clock, E2, B]`
    */
-  final def aggregateAsyncWithin[R1 <: R, E1 >: E, A1 >: A, B](
+  final def aggregateWithin[R1 <: R, E1 >: E, A1 >: A, B](
     sink: => ZSink[R1, E1, A1, A1, B],
     schedule: => Schedule[R1, Option[B], Any]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, B] =
-    aggregateAsyncWithinEither(sink, schedule).collect { case Right(v) =>
+    aggregateWithinEither(sink, schedule).collect { case Right(v) =>
       v
     }
 
@@ -176,7 +176,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @return
    *   `ZStream[R1 with Clock, E2, Either[C, B]]`
    */
-  def aggregateAsyncWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
+  def aggregateWithinEither[R1 <: R, E1 >: E, A1 >: A, B, C](
     sink: => ZSink[R1, E1, A1, A1, B],
     schedule: => Schedule[R1, Option[B], C]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E1, Either[C, B]] = {
@@ -1810,7 +1810,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   def groupedWithin(chunkSize: => Int, within: => Duration)(implicit
     trace: ZTraceElement
   ): ZStream[R with Clock, E, Chunk[A]] =
-    aggregateAsyncWithin(ZSink.collectAllN[A](chunkSize), Schedule.spaced(within))
+    aggregateWithin(ZSink.collectAllN[A](chunkSize), Schedule.spaced(within))
 
   /**
    * Halts the evaluation of this stream when the provided IO completes. The

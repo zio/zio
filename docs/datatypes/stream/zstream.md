@@ -1589,14 +1589,14 @@ Elements are grouped into Chunks of 5 elements and then processed in a batch way
 
 #### Asynchronous Aggregation
 
-Asynchronous aggregations, aggregate elements of upstream as long as the downstream operators are busy. To apply an asynchronous aggregation to the stream, we can use `ZStream#aggregateAsync`, `ZStream#aggregateAsyncWithin`, and `ZStream#aggregateAsyncWithinEither` operations.
+Asynchronous aggregations, aggregate elements of upstream as long as the downstream operators are busy. To apply an asynchronous aggregation to the stream, we can use `ZStream#aggregate`, `ZStream#aggregateWithin`, and `ZStream#aggregateWithinEither` operations.
 
 
-For example, consider `source.aggregateAsync(ZSink.collectAllN[Nothing, Int](5)).mapZIO(processChunks)`. Whenever the downstream (`mapZIO(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregateAsync` will emit when downstream pulls:
+For example, consider `source.aggregate(ZSink.collectAllN[Nothing, Int](5)).mapZIO(processChunks)`. Whenever the downstream (`mapZIO(processChunks)`) is ready for consumption and pulls the upstream, the transducer `(ZTransducer.collectAllN(5))` will flush out its buffer, regardless of whether the `collectAllN` buffered all its 5 elements or not. So the `ZStream#aggregate` will emit when downstream pulls:
 
 ```scala mdoc:silent:nest
 val myApp = 
-  source.aggregateAsync(ZSink.collectAllN[Int](5)).run(sink)
+  source.aggregate(ZSink.collectAllN[Int](5)).run(sink)
 ```
 
 Let's see one output of running this program:
@@ -1624,18 +1624,18 @@ Processing batch of events: Chunk(10,11)
 Processing batch of events: Chunk(12)
 ```
 
-The `ZStream#aggregateAsyncWithin` is another aggregator which takes a scheduler. This scheduler will consume all events produced by the given transducer. So the `aggregateAsyncWithin` will emit when the transducer emits or when the scheduler expires:
+The `ZStream#aggregateWithin` is another aggregator which takes a scheduler. This scheduler will consume all events produced by the given transducer. So the `aggregateWithin` will emit when the transducer emits or when the scheduler expires:
 
 ```scala
 abstract class ZStream[-R, +E, +O] {
-  final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
+  final def aggregateWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
   )(implicit trace: ZTraceElement): ZStream[R1 with Clock, E2, B] = ???
 }
 ```
 
-When we are doing I/O, batching is very important. With ZIO streams, we can create user-defined batches. It is pretty easy to do that with the `ZStream#aggregateAsyncWithin` operator. Let's see the below snippet code:
+When we are doing I/O, batching is very important. With ZIO streams, we can create user-defined batches. It is pretty easy to do that with the `ZStream#aggregateWithin` operator. Let's see the below snippet code:
 
 ```scala mdoc:invisible
 case class Record()
@@ -1643,7 +1643,7 @@ val dataStream: ZStream[Any, Nothing, Record] = ZStream.repeat(Record())
 ```
 
 ```scala mdoc:silent:nest
-dataStream.aggregateAsyncWithin(
+dataStream.aggregateWithin(
    ZSink.collectAllN[Record](2000),
    Schedule.fixed(30.seconds)
  )
@@ -1661,7 +1661,7 @@ val schedule: Schedule[Clock with Random, Option[Chunk[Record]], Long] =
     Schedule.fixed(5.seconds).jittered.whileInput[Option[Chunk[Record]]](_.getOrElse(Chunk.empty).length >= 1000)
     
 dataStream
-  .aggregateAsyncWithin(ZSink.collectAllN[Record](2000), schedule)
+  .aggregateWithin(ZSink.collectAllN[Record](2000), schedule)
 ```
 
 ## Scheduling

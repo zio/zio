@@ -46,10 +46,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(res1)(fails(equalTo(s))) && assert(res2)(fails(equalTo(s)))
           })
         ) @@ TestAspect.jvmOnly, // This is horrendously slow on Scala.js for some reason
-        suite("aggregateAsync")(
+        suite("aggregate")(
           test("simple example") {
             ZStream(1, 1, 1, 1)
-              .aggregateAsync(ZSink.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc))
+              .aggregate(ZSink.foldUntil(List[Int](), 3)((acc, el: Int) => el :: acc))
               .runCollect
               .map { result =>
                 assert(result.toList.flatten)(equalTo(List(1, 1, 1, 1))) &&
@@ -60,7 +60,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1, 1, 1)
-                .aggregateAsync(ZSink.die(e))
+                .aggregate(ZSink.die(e))
                 .runCollect
                 .exit
             )(dies(equalTo(e)))
@@ -69,7 +69,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1)
-                .aggregateAsync(ZSink.foldLeftZIO(Nil)((_, _: Any) => ZIO.die(e)))
+                .aggregate(ZSink.foldLeftZIO(Nil)((_, _: Any) => ZIO.die(e)))
                 .runCollect
                 .exit
             )(dies(equalTo(e)))
@@ -84,7 +84,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          (latch.succeed(()) *> ZIO.infinity)
                            .onInterrupt(cancelled.set(true))
                      }
-              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
+              fiber  <- ZStream(1, 1, 2).aggregate(sink).runCollect.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -98,7 +98,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                        (latch.succeed(()) *> ZIO.infinity)
                          .onInterrupt(cancelled.set(true))
                      }
-              fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
+              fiber  <- ZStream(1, 1, 2).aggregate(sink).runCollect.fork
               _      <- latch.await
               _      <- fiber.interrupt
               result <- cancelled.get
@@ -108,7 +108,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val data = List(1, 2, 2, 3, 2, 3)
             assertM(
               ZStream(data: _*)
-                .aggregateAsync(
+                .aggregate(
                   ZSink.foldWeighted(List[Int]())((_, x: Int) => x.toLong, 4)((acc, el) => el :: acc)
                 )
                 .map(_.reverse)
@@ -119,7 +119,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("issue 6395") {
             assertM(
               ZStream(1, 2, 3)
-                .aggregateAsync(ZSink.collectAllN[Int](2))
+                .aggregate(ZSink.collectAllN[Int](2))
                 .runCollect
             )(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
           }
@@ -153,11 +153,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3).transduce(t).runCollect.either)(isLeft(equalTo(fail)))
           }
         ),
-        suite("aggregateAsyncWithinEither")(
+        suite("aggregateWithinEither")(
           test("simple example") {
             assertM(
               ZStream(1, 1, 1, 1, 2, 2)
-                .aggregateAsyncWithinEither(
+                .aggregateWithinEither(
                   ZSink
                     .fold((List[Int](), true))(_._2) { (acc, el: Int) =>
                       if (el == 1) (el :: acc._1, true)
@@ -178,7 +178,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _ <- ZStream
                      .range(1, 10)
                      .tap(i => ZIO.fail("BOOM!").when(i == 6) *> queue.offer(i))
-                     .aggregateAsyncWithin(
+                     .aggregateWithin(
                        ZSink.foldUntil[Int, Unit]((), 5)((_, _: Int) => ()),
                        Schedule.forever
                      )
@@ -192,7 +192,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val e = new RuntimeException("Boom")
             assertM(
               ZStream(1, 1, 1, 1)
-                .aggregateAsyncWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
+                .aggregateWithinEither(ZSink.die(e), Schedule.spaced(30.minutes))
                 .runCollect
                 .exit
             )(dies(equalTo(e)))
@@ -202,7 +202,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             assertM(
               ZStream(1, 1)
-                .aggregateAsyncWithinEither(
+                .aggregateWithinEither(
                   ZSink.foldZIO[Any, Nothing, Int, List[Int]](List[Int]())(_ => true)((_, _) => ZIO.die(e)),
                   Schedule.spaced(30.minutes)
                 )
@@ -221,7 +221,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                            .onInterrupt(cancelled.set(true))
                      }
               fiber <- ZStream(1, 1, 2)
-                         .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
+                         .aggregateWithinEither(sink, Schedule.spaced(30.minutes))
                          .runCollect
                          .fork
               _      <- latch.await
@@ -238,7 +238,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .onInterrupt(cancelled.set(true))
                      }
               fiber <- ZStream(1, 1, 2)
-                         .aggregateAsyncWithinEither(sink, Schedule.spaced(30.minutes))
+                         .aggregateWithinEither(sink, Schedule.spaced(30.minutes))
                          .runCollect
                          .fork
               _      <- latch.await
@@ -254,7 +254,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                          .map(Take(_))
                          .tap(_ => c.proceed)
                          .flattenTake
-                         .aggregateAsyncWithin(ZSink.last[Int], Schedule.fixed(200.millis))
+                         .aggregateWithin(ZSink.last[Int], Schedule.fixed(200.millis))
                          .interruptWhen(ZIO.never)
                          .take(2)
                          .runCollect
@@ -269,7 +269,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               for {
                 f <- (ZStream(data: _*)
-                       .aggregateAsyncWithinEither(
+                       .aggregateWithinEither(
                          ZSink
                            .foldWeighted(List[Int]())((_, i: Int) => i.toLong, 4)((acc, el) => el :: acc)
                            .map(_.reverse),
