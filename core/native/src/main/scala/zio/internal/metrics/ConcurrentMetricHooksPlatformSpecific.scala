@@ -150,6 +150,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
           error,
           snapshot(java.time.Instant.now()),
           getCount(),
+          min,
+          max,
           getSum()
         )
       }
