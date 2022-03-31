@@ -41,7 +41,4 @@ object Sized {
 
   def withSizeGen[R <: Sized, A](size: Int)(gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
     Gen.fromZIO(ZIO.service[Sized]).flatMap(_.withSizeGen(size)(gen))
-
-  lazy val currentSize: FiberRef[Int] =
-    FiberRef.unsafeMake(100)
 }
