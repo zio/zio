@@ -104,11 +104,14 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
       else {
         val patch = patches.reduce(ref.combine)
         val newStack = parentStack match {
-          case (fiberId, oldValue) :: tail => ::((fiberId, ref.patch(patch)(oldValue)), tail)
-          case Nil                         => ::((fiberId, ref.patch(patch)(ref.initial)), Nil)
+          case (fiberId, oldValue) :: tail => Some(::((fiberId, ref.patch(patch)(oldValue)), tail))
+          case Nil                         => None
         }
 
-        parentFiberRefs + (ref -> newStack)
+        newStack match {
+           case Some(newStack) => parentFiberRefs + (ref -> newStack)
+           case None           => parentFiberRefs
+         }
 
       }
     }
