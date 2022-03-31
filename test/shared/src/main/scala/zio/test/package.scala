@@ -56,8 +56,7 @@ package object test extends CompileVariants {
   type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
   type AssertResult  = BoolAlgebra[AssertionValue]
 
-  type TestEnvironment =
-    Annotations with Live with Sized with TestConfig with ExecutionEventSink with TestOutput
+  type TestEnvironment = Annotations with Live with Sized with TestConfig with ExecutionEventSink
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
@@ -72,8 +71,7 @@ package object test extends CompileVariants {
         (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
         TestSystem.default ++
-        (TestOutput.live >>> ExecutionEventSink.live) ++
-        TestOutput.live
+        (TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
 
     }
   }

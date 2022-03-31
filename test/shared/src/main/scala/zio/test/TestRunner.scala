@@ -32,13 +32,14 @@ final case class TestRunner[R, E](
   runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] =
     DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
-  bootstrap: Layer[Nothing, TestOutput with TestLogger with ExecutionEventSink] = {
+  bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
+    implicit val emptyTracer = ZTraceElement.empty
+    val printerLayer =
+      Console.live.to(TestLogger.fromConsole)
 
-    (Console.live.to(TestLogger.fromConsole(ZTraceElement.empty))(
-      ZTraceElement.empty
-    )) ++ Clock.live ++ TestOutput.live ++ (TestOutput.live >>> ExecutionEventSink.live)(
-      ZTraceElement.empty
-    ) ++ Random.live
+    val sinkLayer = ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+
+    Clock.live ++ (printerLayer >+> sinkLayer) ++ Random.live
   }
 ) { self =>
 
@@ -51,7 +52,7 @@ final case class TestRunner[R, E](
     spec: ZSpec[R, E]
   )(implicit
     trace: ZTraceElement
-  ): URIO[TestOutput with TestLogger with ExecutionEventSink, Summary] =
+  ): URIO[ExecutionEventSink, Summary] =
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
       // TODO Why is duration 0 here? Resolve for #6482
       ZIO.succeed(summary)

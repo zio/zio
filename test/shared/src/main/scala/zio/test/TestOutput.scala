@@ -10,23 +10,37 @@ trait TestOutput {
    */
   def print(
     executionEvent: ExecutionEvent
-  ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit]
+  ): ZIO[Any, Nothing, Unit]
 }
 
 object TestOutput {
-  val live: ZLayer[Any, Nothing, TestOutput] =
+  val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
-      TestOutputLive.make
+      for {
+        executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
+        outputLive            <- TestOutputLive.make(executionEventPrinter)
+      } yield outputLive
     )
 
+  /**
+   * Guarantees:
+   *   - Everything at or below a specific suite level will be printed
+   *     contiguously
+   *   - Everything will be printed, as long as required SectionEnd events have
+   *     been passed in
+   *
+   * Not guaranteed:
+   *   - Ordering within a suite
+   */
   def print(
     executionEvent: ExecutionEvent
-  ): ZIO[TestOutput with ExecutionEventSink with TestLogger, Nothing, Unit] =
+  ): ZIO[TestOutput, Nothing, Unit] =
     ZIO.serviceWithZIO[TestOutput](_.print(executionEvent))
 
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
-    reporters: TestReporters
+    reporters: TestReporters,
+    executionEventPrinter: ExecutionEventPrinter
   ) extends TestOutput {
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
@@ -36,7 +50,7 @@ object TestOutput {
 
     def print(
       executionEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ): ZIO[Any, Nothing, Unit] =
       executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
@@ -46,10 +60,10 @@ object TestOutput {
 
     private def printOrFlush(
       end: ExecutionEvent.SectionEnd
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ): ZIO[Any, Nothing, Unit] =
       for {
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
-        sectionOutput   <- getAndRemoveSectionOutput(end.id)
+        sectionOutput   <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
         _ <-
           if (suiteIsPrinting)
             printToConsole(sectionOutput)
@@ -67,7 +81,7 @@ object TestOutput {
 
     private def printOrQueue(
       reporterEvent: ExecutionEvent
-    ): ZIO[ExecutionEventSink with TestLogger, Nothing, Unit] =
+    ): ZIO[Any, Nothing, Unit] =
       for {
         _               <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(reporterEvent.id, reporterEvent.ancestors)
@@ -81,9 +95,7 @@ object TestOutput {
 
     private def printToConsole(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
-        TestLogger.logLine(
-          ReporterEventRenderer.render(event).mkString("\n")
-        )
+        executionEventPrinter.print(event)
       }
 
     private def appendToSectionContents(id: SuiteId, content: Chunk[ExecutionEvent]) =
@@ -110,10 +122,10 @@ object TestOutput {
 
   object TestOutputLive {
 
-    def make: ZIO[Any, Nothing, TestOutput] = for {
+    def make(executionEventPrinter: ExecutionEventPrinter): ZIO[Any, Nothing, TestOutput] = for {
       talkers <- TestReporters.make
       output  <- Ref.make[Map[SuiteId, Chunk[ExecutionEvent]]](Map.empty)
-    } yield TestOutputLive(output, talkers)
+    } yield TestOutputLive(output, talkers, executionEventPrinter)
 
   }
 }
