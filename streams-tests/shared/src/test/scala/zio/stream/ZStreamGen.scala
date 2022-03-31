@@ -53,9 +53,11 @@ object ZStreamGen extends GenZIO {
     Gen.bounded(0, 5)(pureStreamGen(Gen.int, _)).zipWith(Gen.function(Gen.boolean))(injectEmptyChunks)
 
   def injectEmptyChunks[R, E, A](stream: ZStream[R, E, A], predicate: Chunk[A] => Boolean): ZStream[R, E, A] =
-    stream.mapChunks { chunk =>
-      if (predicate(chunk)) chunk
-      else Chunk.empty
+    stream.chunksWith { stream =>
+      stream.map { chunk =>
+        if (predicate(chunk)) chunk
+        else Chunk.empty
+      }
     }
 
   def splitChunks[A](chunks: Chunk[Chunk[A]]): Gen[Random with Sized, Chunk[Chunk[A]]] = {

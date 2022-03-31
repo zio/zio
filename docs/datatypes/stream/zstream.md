@@ -740,19 +740,6 @@ def getUrls: Task[List[URL]] = Task.succeed(???)
 
 val pages = ZStream.fromIterableZIO(getUrls).mapZIOPar(8)(fetchUrl)  
 ```
-    
-**mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
-
-```scala mdoc:silent
-val chunked = 
-  ZStream
-    .fromChunks(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6, 7, 8, 9))
-
-val stream = chunked.mapChunks(x => x.tail)
-
-// Input:  1, 2, 3, 4, 5, 6, 7, 8, 9
-// Output:    2, 3,    5,    7, 8, 9
-```
 
 If our transformation is effectful we can use `mapChunkM` combinator.
 
@@ -786,9 +773,7 @@ val numbers: UStream[Int] =
 // Output: 1, 2, 3, 4, 5, 6
 ```
 
-The effectful version of `mapConcat` is `mapConcatM`. 
-
-`ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
+The effectful version of `mapConcat` is `mapConcatZIO`. 
 
 **as** — The `ZStream#as` method maps the success values of this stream to the specified constant value.
 

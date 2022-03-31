@@ -729,7 +729,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               (ZStream
                 .range(1, 10, 2))
-                .mapChunks(c => Chunk[Int](c.sum))
+                .chunksWith(_.map(c => Chunk[Int](c.sum)))
                 .runCollect
             )(equalTo(Chunk(1 + 2, 3 + 4, 5 + 6, 7 + 8, 9)))
           }
@@ -1733,7 +1733,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(
               ZStream
                 .fromChunks(chunks: _*)
-                .mapChunks(chunk => Chunk.single(Take.chunk(chunk)))
+                .chunksWith(_.map(chunk => Chunk.single(Take.chunk(chunk))))
                 .flattenTake
                 .runCollect
             )(equalTo(chunks.fold(Chunk.empty)(_ ++ _)))
@@ -2403,31 +2403,8 @@ object ZStreamSpec extends ZIOBaseSpec {
             res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
           } yield assert(res1)(equalTo(res2))
         }),
-        test("mapConcatChunk")(check(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.int))) { (s, f) =>
-          for {
-            res1 <- s.mapConcatChunk(f).runCollect
-            res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
-          } yield assert(res1)(equalTo(res2))
-        }),
-        suite("mapConcatChunkM")(
-          test("mapConcatChunkM happy path") {
-            check(pureStreamOfInts, Gen.function(Gen.chunkOf(Gen.int))) { (s, f) =>
-              for {
-                res1 <- s.mapConcatChunkZIO(b => UIO.succeedNow(f(b))).runCollect
-                res2 <- s.runCollect.map(_.flatMap(v => f(v).toSeq))
-              } yield assert(res1)(equalTo(res2))
-            }
-          },
-          test("mapConcatChunkM error") {
-            ZStream(1, 2, 3)
-              .mapConcatChunkZIO(_ => IO.fail("Ouch"))
-              .runCollect
-              .either
-              .map(assert(_)(equalTo(Left("Ouch"))))
-          }
-        ),
-        suite("mapConcatM")(
-          test("mapConcatM happy path") {
+        suite("mapConcatZIO")(
+          test("mapConcatZIO happy path") {
             check(pureStreamOfInts, Gen.function(Gen.listOf(Gen.int))) { (s, f) =>
               for {
                 res1 <- s.mapConcatZIO(b => UIO.succeedNow(f(b))).runCollect
@@ -2435,7 +2412,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield assert(res1)(equalTo(res2))
             }
           },
-          test("mapConcatM error") {
+          test("mapConcatZIO error") {
             ZStream(1, 2, 3)
               .mapConcatZIO(_ => IO.fail("Ouch"))
               .runCollect
@@ -3341,10 +3318,10 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("takeWhile doesn't stop when hitting an empty chunk (#4272)") {
             ZStream
               .fromChunks(Chunk(1), Chunk(2), Chunk(3))
-              .mapChunks(_.flatMap {
+              .chunksWith(_.map(_.flatMap {
                 case 2 => Chunk()
                 case x => Chunk(x)
-              })
+              }))
               .takeWhile(_ != 4)
               .runCollect
               .map(assert(_)(hasSameElements(List(1, 3))))
@@ -4395,7 +4372,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               ZStream
                 .fromChunks(chunk: _*)
                 .rechunk(n)
-                .mapChunks(ch => Chunk(ch))
+                .chunks
                 .runCollect
             )(equalTo(expected))
           }
@@ -4753,7 +4730,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
               result <- ZStream
                           .fromQueue(queue, maxChunkSize = 2)
-                          .mapChunks(Chunk.single)
+                          .chunks
                           .take(3)
                           .runCollect
             } yield result)(forall(hasSize(isLessThanEqualTo(2))))

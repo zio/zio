@@ -711,7 +711,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * elements.
    */
   def chunks(implicit trace: ZTraceElement): ZStream[R, E, Chunk[A]] =
-    mapChunks(Chunk.single)
+    new ZStream(self.channel.mapOut(Chunk.single))
 
   /**
    * Performs the specified stream transformation with the chunk structure of
@@ -726,7 +726,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Performs a filter and map in a single step.
    */
   final def collect[B](f: PartialFunction[A, B])(implicit trace: ZTraceElement): ZStream[R, E, B] =
-    mapChunks(_.collect(f))
+    chunksWith(_.map(_.collect(f)))
 
   /**
    * Filters any `Right` values.
@@ -1334,7 +1334,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Filters the elements emitted by this stream using the provided function.
    */
   final def filter(f: A => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    mapChunks(_.filter(f))
+    chunksWith(_.map(_.filter(f)))
 
   /**
    * Finds the first element emitted by this stream that satisfies the provided
@@ -2271,8 +2271,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Transforms the chunks emitted by this stream.
    */
+  @deprecated("use map", "2.0.0")
   def mapChunks[A2](f: Chunk[A] => Chunk[A2])(implicit trace: ZTraceElement): ZStream[R, E, A2] =
-    new ZStream(channel.mapOut(f))
+    chunksWith(_.map(f))
 
   /**
    * Effectfully transforms the chunks emitted by this stream.
@@ -2286,30 +2287,32 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Effectfully transforms the chunks emitted by this stream.
    */
+  @deprecated("use mapZIO", "2.0.0")
   def mapChunksZIO[R1 <: R, E1 >: E, A2](f: Chunk[A] => ZIO[R1, E1, Chunk[A2]])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
-    new ZStream(channel.mapOutZIO(f))
+    chunksWith(_.mapZIO(f))
 
   /**
    * Maps each element to an iterable, and flattens the iterables into the
    * output of this stream.
    */
   def mapConcat[A2](f: A => Iterable[A2])(implicit trace: ZTraceElement): ZStream[R, E, A2] =
-    mapConcatChunk(a => Chunk.fromIterable(f(a)))
+    chunksWith(_.map(_.flatMap(f)))
 
   /**
    * Maps each element to a chunk, and flattens the chunks into the output of
    * this stream.
    */
+  @deprecated("use mapConcat", "2.0.0")
   def mapConcatChunk[A2](f: A => Chunk[A2])(implicit trace: ZTraceElement): ZStream[R, E, A2] =
-    mapChunks(_.flatMap(f))
+    mapConcat(f)
 
   /**
    * Effectfully maps each element to a chunk, and flattens the chunks into the
    * output of this stream.
    */
-  @deprecated("use mapConcatChunkZIO", "2.0.0")
+  @deprecated("use mapConcatZIO", "2.0.0")
   final def mapConcatChunkM[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Chunk[A2]])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
@@ -2319,10 +2322,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Effectfully maps each element to a chunk, and flattens the chunks into the
    * output of this stream.
    */
+  @deprecated("use mapConcatZIO", "2.0.0")
   final def mapConcatChunkZIO[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Chunk[A2]])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
-    mapZIO(f).mapConcatChunk(identity)
+    mapZIO(f).mapConcat(identity)
 
   /**
    * Effectfully maps each element to an iterable, and flattens the iterables
@@ -2341,7 +2345,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def mapConcatZIO[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Iterable[A2]])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
-    mapZIO(a => f(a).map(Chunk.fromIterable(_))).mapConcatChunk(identity)
+    mapZIO(a => f(a).map(Chunk.fromIterable(_))).mapConcat(identity)
 
   /**
    * Transforms the errors emitted by this stream using `f`.
