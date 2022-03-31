@@ -13,40 +13,41 @@ private object Inflate {
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.scoped {
+    ZChannel.unwrapScoped {
       ZIO
         .acquireRelease(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>
           ZIO.succeed(inflater.end())
         }
-    } { case (buffer, inflater) =>
-      lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-        ZChannel.readWithCause(
-          chunk =>
-            ZChannel.fromZIO {
-              ZIO.attempt {
-                inflater.setInput(chunk.toArray)
-                pullAllOutput(inflater, buffer, chunk)
-              }.refineOrDie { case e: DataFormatException =>
-                CompressionException(e)
-              }
-            }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-          ZChannel.failCause(_),
-          done =>
-            ZChannel.fromZIO {
-              ZIO.attempt {
-                if (inflater.finished()) {
-                  inflater.reset()
-                  Chunk.empty
-                } else {
-                  throw CompressionException("Inflater is not finished when input stream completed")
-                }
-              }.refineOrDie { case e: DataFormatException =>
-                CompressionException(e)
-              }
-            }.flatMap(chunk => ZChannel.write(chunk).as(done))
-        )
+        .map { case (buffer, inflater) =>
+          lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+            ZChannel.readWithCause(
+              chunk =>
+                ZChannel.fromZIO {
+                  ZIO.attempt {
+                    inflater.setInput(chunk.toArray)
+                    pullAllOutput(inflater, buffer, chunk)
+                  }.refineOrDie { case e: DataFormatException =>
+                    CompressionException(e)
+                  }
+                }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+              ZChannel.failCause(_),
+              done =>
+                ZChannel.fromZIO {
+                  ZIO.attempt {
+                    if (inflater.finished()) {
+                      inflater.reset()
+                      Chunk.empty
+                    } else {
+                      throw CompressionException("Inflater is not finished when input stream completed")
+                    }
+                  }.refineOrDie { case e: DataFormatException =>
+                    CompressionException(e)
+                  }
+                }.flatMap(chunk => ZChannel.write(chunk).as(done))
+            )
 
-      loop
+          loop
+        }
     }
 
   // Pulls all available output from the inflater.

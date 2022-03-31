@@ -16,7 +16,7 @@ private object Deflate {
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.scoped {
+    ZChannel.unwrapScoped {
       ZIO
         .acquireRelease(ZIO.succeed {
           val deflater = new Deflater(level.jValue, noWrap)
@@ -25,28 +25,29 @@ private object Deflate {
         }) { case (deflater, _) =>
           ZIO.succeed(deflater.end())
         }
-    } {
-      case (deflater, buffer) => {
+        .map {
+          case (deflater, buffer) => {
 
-        lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-          ZChannel.readWithCause(
-            chunk =>
-              ZChannel.succeed {
-                deflater.setInput(chunk.toArray)
-                pullOutput(deflater, buffer, flushMode)
-              }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.failCause(_),
-            done =>
-              ZChannel.succeed {
-                deflater.finish()
-                val out = pullOutput(deflater, buffer, flushMode)
-                deflater.reset()
-                out
-              }.flatMap(chunk => ZChannel.write(chunk).as(done))
-          )
+            lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+              ZChannel.readWithCause(
+                chunk =>
+                  ZChannel.succeed {
+                    deflater.setInput(chunk.toArray)
+                    pullOutput(deflater, buffer, flushMode)
+                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+                ZChannel.failCause(_),
+                done =>
+                  ZChannel.succeed {
+                    deflater.finish()
+                    val out = pullOutput(deflater, buffer, flushMode)
+                    deflater.reset()
+                    out
+                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
+              )
 
-        loop
-      }
+            loop
+          }
+        }
     }
 
   private def pullOutput(deflater: Deflater, buffer: Array[Byte], flushMode: FlushMode): Chunk[Byte] = {

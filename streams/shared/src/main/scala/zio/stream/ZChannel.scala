@@ -711,7 +711,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    ZChannel.scoped[Env1] {
+    ZChannel.unwrapScoped[Env1] {
       ZIO.withChildren { getChildren =>
         for {
           _           <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
@@ -744,20 +744,20 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                  .interruptible
                  .forkScoped
         } yield queue
-      }
-    } { queue =>
-      lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
-        ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
-          queue.take.flatten.foldCause(
-            ZChannel.failCause(_),
-            {
-              case Left(outDone)  => ZChannel.succeedNow(outDone)
-              case Right(outElem) => ZChannel.write(outElem) *> consumer
-            }
-          )
-        }
+      }.map { queue =>
+        lazy val consumer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
+          ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
+            queue.take.flatten.foldCause(
+              ZChannel.failCause(_),
+              {
+                case Left(outDone)  => ZChannel.succeedNow(outDone)
+                case Right(outElem) => ZChannel.write(outElem) *> consumer
+              }
+            )
+          }
 
-      consumer
+        consumer
+      }
     }
 
   def mergeOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
@@ -855,7 +855,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def provideLayer[OutErr1 >: OutErr, Env0](
     layer: => ZLayer[Env0, OutErr1, Env]
   )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
-    ZChannel.scoped[Env0](layer.build)(env => self.provideEnvironment(env))
+    ZChannel.unwrapScoped[Env0](layer.build.map(env => self.provideEnvironment(env)))
 
   /**
    * Provides the channel with the single service it requires. If the channel
@@ -1429,11 +1429,8 @@ object ZChannel {
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
-  def scoped[Env]: ScopedPartiallyApplied[Env] =
-    new ScopedPartiallyApplied[Env]
-
-  def scopedOut[R]: ScopedOutPartiallyApplied[R] =
-    new ScopedOutPartiallyApplied[R]
+  def scoped[R]: ScopedPartiallyApplied[R] =
+    new ScopedPartiallyApplied[R]
 
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -1495,7 +1492,7 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    scoped[Env] {
+    unwrapScoped[Env] {
       ZIO.withChildren { getChildren =>
         for {
           n             <- ZIO.succeed(n)
@@ -1577,20 +1574,20 @@ object ZChannel {
                  .repeatWhileEquals(true)
                  .forkScoped
         } yield queue
-      }
-    } { queue =>
-      lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
-        unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
-          queue.take.flatten.foldCause(
-            cause => failCause(cause),
-            {
-              case Left(outDone)  => succeedNow(outDone)
-              case Right(outElem) => write(outElem) *> consumer
-            }
-          )
-        }
+      }.map { queue =>
+        lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
+          unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
+            queue.take.flatten.foldCause(
+              cause => failCause(cause),
+              {
+                case Left(outDone)  => succeedNow(outDone)
+                case Right(outElem) => write(outElem) *> consumer
+              }
+            )
+          }
 
-      consumer
+        consumer
+      }
     }
 
   def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
@@ -1684,7 +1681,7 @@ object ZChannel {
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-    ZChannel.scoped(hub.subscribe)(fromQueue(_))
+    ZChannel.unwrapScoped(hub.subscribe.map(fromQueue(_)))
 
   def fromHubScoped[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
@@ -1834,20 +1831,7 @@ object ZChannel {
         .provideLayer(ZLayer.environment[Env0] ++ layer)
   }
 
-  final class ScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
-    def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone, A](zio: => ZIO[Scope with Env, OutErr, A])(
-      use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-    )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-      acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Scope.Closeable, OutElem, OutDone] {
-        Scope.make
-      } { (scope, exit) =>
-        scope.close(exit)
-      } { scope =>
-        ZChannel.fromZIO(scope.extend[Env](zio)).flatMap(use)
-      }
-  }
-
-  final class ScopedOutPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](
       zio: => ZIO[Scope with R, E, A]
     )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
@@ -1908,7 +1892,7 @@ object ZChannel {
     )(implicit
       trace: ZTraceElement
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-      ZChannel.concatAllWith(scopedOut[Env](channel))((d, _) => d, (d, _) => d)
+      ZChannel.concatAllWith(scoped[Env](channel))((d, _) => d, (d, _) => d)
   }
 
   final class UpdateService[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](

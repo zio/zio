@@ -1994,12 +1994,12 @@ package object managed extends ZManagedCompatPlatformSpecific {
     def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZManaged[Env, OutErr, A])(
       use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
     )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-      ZChannel.scoped[Env](m.scoped)(use)
+      ZChannel.unwrapScoped[Env](m.scoped.map(use))
 
     def managedOut[R, E, A](
       m: => ZManaged[R, E, A]
     )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
-      ZChannel.scopedOut[R](m.scoped)
+      ZChannel.scoped[R](m.scoped)
 
     def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       channel: => ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]

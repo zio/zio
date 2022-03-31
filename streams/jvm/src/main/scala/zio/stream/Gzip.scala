@@ -11,30 +11,31 @@ private object Gzip {
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
   )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.scoped {
+    ZChannel.unwrapScoped {
       ZIO
         .acquireRelease(
           Gzipper.make(bufferSize, level, strategy, flushMode)
         ) { gzipper =>
           ZIO.succeed(gzipper.close())
         }
-    } {
-      case gzipper => {
+        .map {
+          case gzipper => {
 
-        lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-          ZChannel.readWithCause(
-            chunk =>
-              ZChannel.fromZIO {
-                gzipper.onChunk(chunk)
-              }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.failCause(_),
-            done =>
-              ZChannel.fromZIO {
-                gzipper.onNone
-              }.flatMap(chunk => ZChannel.write(chunk).as(done))
-          )
+            lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+              ZChannel.readWithCause(
+                chunk =>
+                  ZChannel.fromZIO {
+                    gzipper.onChunk(chunk)
+                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+                ZChannel.failCause(_),
+                done =>
+                  ZChannel.fromZIO {
+                    gzipper.onNone
+                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
+              )
 
-        loop
-      }
+            loop
+          }
+        }
     }
 }
