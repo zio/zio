@@ -87,7 +87,7 @@ object TestExecutor {
                     staticAnnotations: TestAnnotationMap
                   ) =>
                 for {
-                  result <- test.either
+                  result                  <- test.either
                   (testEvent, annotations) = extract(result)
                   _ <-
                     sink.process(
