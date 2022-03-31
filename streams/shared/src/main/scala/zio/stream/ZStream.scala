@@ -652,6 +652,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     mapChunks(Chunk.single)
 
   /**
+   * Performs the specified stream transformation with the chunk structure of
+   * the stream exposed.
+   */
+  def chunksWith[R1, E1, A1](f: ZStream[R, E, Chunk[A]] => ZStream[R1, E1, Chunk[A1]])(implicit
+    trace: ZTraceElement
+  ): ZStream[R1, E1, A1] =
+    f(self.chunks).unchunks
+
+  /**
    * Performs a filter and map in a single step.
    */
   final def collect[B](f: PartialFunction[A, B])(implicit trace: ZTraceElement): ZStream[R, E, B] =
