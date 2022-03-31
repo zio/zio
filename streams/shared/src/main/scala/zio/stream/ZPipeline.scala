@@ -530,9 +530,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Splits strings on a delimiter.
    */
   def splitOn(delimiter: => String)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, String, String] =
-    ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
-      ZPipeline.splitOnChunk[Char](Chunk.fromArray(delimiter.toArray)) >>>
-      ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
+    ZPipeline.map[String, Chunk[Char]](string => Chunk.fromArray(string.toArray)) >>>
+      ZPipeline.unchunks[Char] >>>
+      ZPipeline.splitOnChunk(Chunk.fromArray(delimiter.toArray)) >>>
+      ZPipeline.chunks[Char] >>>
+      ZPipeline.map[Chunk[Char], String](chunk => chunk.mkString(""))
 
   /**
    * Splits strings on a delimiter.
