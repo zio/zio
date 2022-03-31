@@ -350,7 +350,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.pipeTo(drainer)
   }
 
-  def embedInput[InErr2, InElem2, InDone2](input: AsyncInputProducer[InErr2, InElem2, InDone2])(implicit
+  private def embedInput[InErr2, InElem2, InDone2](input: AsyncInputProducer[InErr2, InElem2, InDone2])(implicit
     noInputErrors: Any <:< InErr,
     noInputElements: Any <:< InElem,
     noInputDone: Any <:< InDone,
@@ -1675,7 +1675,7 @@ object ZChannel {
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
 
-  def fromInput[Err, Elem, Done](
+  private def fromInput[Err, Elem, Done](
     input: => AsyncInputConsumer[Err, Elem, Done]
   )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.suspend {
