@@ -11,9 +11,9 @@ Let's try a simple example of using `ZState`:
 import java.io.IOException
 import zio._
 
-val myApp: ZIO[Scope, IOException, Unit] =
+val myApp: ZIO[ZState[Int], IOException, Unit] =
   for {
-    counter <- ZState.make(0)
+    counter <- ZIO.service[ZState[Int]]
     _ <- counter.update(_ + 1)
     _ <- counter.update(_ + 2)
     state <- counter.get
@@ -37,7 +37,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _ <- Console.printLine(s"current state: $state")
   } yield ()
 
-  def run = myApp.provide(ZState.makeLayer(0))
+  def run = myApp.provide(ZState.initial(0))
 }
 ```
 
@@ -60,7 +60,7 @@ object ZStateExample extends zio.ZIOAppDefault {
       _ <- Console.printLine(s"Current state: $state")
     } yield ()
 
-  def run = myApp.provide(ZState.makeLayer(MyState(0)))
+  def run = myApp.provide(ZState.initial(MyState(0)))
 }
 ```
 
@@ -105,9 +105,7 @@ object ZStateExample extends ZIOAppDefault {
   } yield ()
 
   def run =
-    myApp.provide(
-      ZState.makeLayer(MyState(0))
-    )
+    myApp.provide(ZState.initial(MyState(0)))
 }
 ```
 

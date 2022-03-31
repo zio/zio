@@ -36,9 +36,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * recommended to define your own state type `S` such as `MyState` above rather
  * than using a type such as `Int` to avoid the risk of ambiguity.
  *
- * To run an effect that depends on some state, create the initial state with
- * the `make` constructor and then use `toLayer` to convert it into a service
- * builder that you can provide along with your application's other services.
+ * To run a stateful workflow, use the `ZIO.stateful` operator to allocate the
+ * initial state.
  */
 sealed trait ZState[S] {
 
@@ -61,11 +60,13 @@ sealed trait ZState[S] {
 object ZState {
 
   /**
-   * Creates an initial state with the specified value.
+   * A layer that allocates the initial state of a stateful workflow.
    */
-  def make[S](s: => S)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZState[S]] =
-    FiberRef.make(s).map { fiberRef =>
-      new ZState[S] {
+  def initial[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
+    ZLayer.scoped {
+      for {
+        fiberRef <- FiberRef.make(s)
+      } yield new ZState[S] {
         def get(implicit trace: ZTraceElement): UIO[S] =
           fiberRef.get
         def set(s: S)(implicit trace: ZTraceElement): UIO[Unit] =
@@ -74,10 +75,4 @@ object ZState {
           fiberRef.update(f)
       }
     }
-
-  /**
-   * Creates a layer that outputs an initial state with the specified value.
-   */
-  def makeLayer[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
-    ZLayer.scoped(make(s))
 }

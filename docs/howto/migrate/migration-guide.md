@@ -1720,7 +1720,7 @@ object ZStateExample extends zio.ZIOAppDefault {
     _     <- Console.printLine(count)
   } yield count
 
-  def run = app.provide(ZState.makeLayer(MyState(0)))
+  def run = app.provide(ZState.initial(MyState(0)))
 }
 ```
 
