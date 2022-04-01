@@ -144,6 +144,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       summary <-
         runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
     } yield summary
-  }.onInterrupt(ZIO.debug("ZIOSpecAbstract.runSpec interrupted"))
+  }
 
 }

@@ -1,10 +1,12 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.IO
+import zio.{CancelableFuture, IO, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
 import zio.test.{AbstractRunnableSpec, FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -57,17 +59,21 @@ abstract class BaseTestTask(
     } yield ())
       .provideLayer(
         constructLayer[spec.Environment](spec.layer)
-      ).onInterrupt(ZIO.debug("BaseTestTask.run: interrupt"))
+      )
 
-  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
+  override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+    var resOutter: CancelableFuture[Unit] = null
     try {
       spec match {
         case NewSpecWrapper(zioSpec) =>
-          Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
-            run(eventHandler, zioSpec)
-              .tapError(e => ZIO.succeed(println(e.getMessage)))
-              .onInterrupt(ZIO.debug("BaseTestTask.execute: interrupt"))
-          }
+          val res: CancelableFuture[Unit] =
+            Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunToFuture {
+              run(eventHandler, zioSpec)
+                .tapError(e => ZIO.succeed(println(e.getMessage)))
+            }
+
+          resOutter = res
+          Await.result(res, 10.hours)
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
@@ -79,10 +85,11 @@ abstract class BaseTestTask(
       }
     } catch {
       case t: Throwable =>
-        println("trying to interrupt the tests")
+        if (resOutter != null) resOutter.cancel()
         t.printStackTrace()
         throw t
     }
+  }
 
   override def tags(): Array[String] = Array.empty
 }
