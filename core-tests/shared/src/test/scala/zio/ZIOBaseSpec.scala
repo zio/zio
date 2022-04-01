@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 trait ZIOBaseSpec extends ZIOSpecDefault {
   override def aspects: Chunk[TestAspectAtLeastR[Live]] =
     if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
-    else Chunk(TestAspect.timeout(120.seconds))
+    else Chunk(TestAspect.timeout(120.seconds), TestAspect.sequential)
 
   sealed trait ZIOTag {
     val value: String

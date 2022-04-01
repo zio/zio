@@ -72,7 +72,8 @@ object TestOutput {
               case Some(parentId) =>
                 appendToSectionContents(parentId, sectionOutput)
               case None =>
-                ZIO.dieMessage("Suite tried to send its output to a nonexistent parent")
+                // TODO If we can't find cause of failure in CI, unsafely print to console instead of failing
+                ZIO.dieMessage("Suite tried to send its output to a nonexistent parent. ExecutionEvent: " + end)
             }
           }
 
