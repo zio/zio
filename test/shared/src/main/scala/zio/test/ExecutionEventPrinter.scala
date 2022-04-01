@@ -17,9 +17,15 @@ object ExecutionEventPrinter {
     ZIO.serviceWithZIO[ExecutionEventPrinter](_.print(event))
 
   class Live(logger: TestLogger) extends ExecutionEventPrinter {
-    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] =
-      logger.logLine(
-        ReporterEventRenderer.render(event).mkString("\n")
-      )
+    override def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit] = {
+      val rendered = ReporterEventRenderer.render(event)
+      ZIO
+        .when(rendered.nonEmpty)(
+          logger.logLine(
+            rendered.mkString("\n")
+          )
+        )
+        .unit
+    }
   }
 }
