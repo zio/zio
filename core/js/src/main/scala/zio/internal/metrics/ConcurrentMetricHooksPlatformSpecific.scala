@@ -62,7 +62,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       count += 1
       sum += value
       if (value < min) min = value
-      if (value > max) min = value
+      if (value > max) max = value
       ()
     }
 
@@ -82,8 +82,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
     MetricHook(
       update,
-      () =>
-        MetricState.Histogram(getBuckets(), count, min, max, sum)
+      () => MetricState.Histogram(getBuckets(), count, min, max, sum)
     )
   }
 
@@ -144,13 +143,13 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       count += 1
       sum += value
       if (value < min) min = value
-      if (value > max) min = value
+      if (value > max) max = value
       ()
     }
 
     MetricHook(
       t => observe(t._1, t._2),
-      { () =>
+      () =>
         MetricState.Summary(
           error,
           snapshot(java.time.Instant.now()),
@@ -159,7 +158,6 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
           getMax(),
           getSum()
         )
-      }
     )
   }
 
