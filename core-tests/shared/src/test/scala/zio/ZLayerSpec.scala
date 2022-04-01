@@ -49,14 +49,14 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       test("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ((i: Int) => i.toString).toLayer
+        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction[Int, String](_.get.toString)
 
         testSize(layer, 1)
       },
       test("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (((i: Int) => i.toString).toLayer ++
-            ((i: Int) => i % 2 == 0).toLayer)
+          (ZLayer.fromFunction[Int, String](_.get.toString) ++
+            ZLayer.fromFunction[Int, Boolean](_.get % 2 == 0))
 
         testSize(layer, 2)
       },
@@ -251,7 +251,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         case class A(name: String, value: Int)
         case class B(name: String)
         val l1: Layer[Nothing, A]          = ZLayer.succeed(A("name", 1))
-        val l2: ZLayer[String, Nothing, B] = (B.apply _).toLayer
+        val l2: ZLayer[String, Nothing, B] = ZLayer.fromFunction(env => B(env.get))
         val live: Layer[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
         assertM(ZIO.service[B].provide(live))(equalTo(B("name")))
       },
@@ -285,7 +285,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       test("passthrough") {
         val layer: ZLayer[Int, Nothing, String] =
-          ((_: Int).toString).toLayer
+          ZLayer.fromFunction[Int, String](_.get.toString)
         val live: ZLayer[Any, Nothing, Int with String] =
           ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
@@ -399,7 +399,14 @@ object ZLayerSpec extends ZIOBaseSpec {
         final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
           def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
         }
-        val fooBuilder    = (FooService.apply _).toLayer
+        val fooBuilder =
+          ZLayer {
+            for {
+              ref     <- ZIO.service[Ref[Int]]
+              string  <- ZIO.service[String]
+              boolean <- ZIO.service[Boolean]
+            } yield FooService(ref, string, boolean)
+          }
         val provideRefInt = Ref.make(10).toLayer
 
         val needsStringAndBoolean = provideRefInt >>> fooBuilder
@@ -419,7 +426,14 @@ object ZLayerSpec extends ZIOBaseSpec {
         final case class FooService(ref: Ref[Int], string: String, boolean: Boolean) {
           def get: UIO[(Int, String, Boolean)] = ref.get.map(i => (i, string, boolean))
         }
-        val fooBuilder    = (FooService.apply _).toLayer
+        val fooBuilder =
+          ZLayer {
+            for {
+              ref     <- ZIO.service[Ref[Int]]
+              string  <- ZIO.service[String]
+              boolean <- ZIO.service[Boolean]
+            } yield FooService(ref, string, boolean)
+          }
         val provideRefInt = Ref.make(10).toLayer
 
         val needsStringAndBoolean = provideRefInt >+> fooBuilder
@@ -453,13 +467,13 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("caching values in dependencies") {
         case class Config(value: Int)
         case class A(value: Int)
-        val aLayer = ((conf: Config) => A(conf.value)).toLayer
+        val aLayer = ZLayer.fromFunction[Config, A](env => A(env.get.value))
 
         case class B(value: Int)
-        val bLayer = ((a: A) => B(a.value)).toLayer
+        val bLayer = ZLayer.fromFunction[A, B](env => B(env.get.value))
 
         case class C(value: Int)
-        val cLayer = ((a: A) => C(a.value)).toLayer
+        val cLayer = ZLayer.fromFunction[A, C](env => C(env.get.value))
 
         val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
         val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer

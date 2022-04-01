@@ -1095,9 +1095,22 @@ trait C
 case class BLive(a: A) extends B
 case class CLive(a: A) extends C
 
-val a: ZLayer[Any, Nothing, A] = ZIO.succeed(new A {}).debug("initialized").toLayer
-val b: ZLayer[A,   Nothing, B] = (BLive.apply _).toLayer[B]
-val c: ZLayer[A,   Nothing, C] = (CLive.apply _).toLayer[C]
+val a: ZLayer[Any, Nothing, A] =
+  ZIO.succeed(new A {}).debug("initialized").toLayer
+
+val b: ZLayer[A, Nothing, B] =
+  ZLayer {
+    for {
+      a <- ZIO.service[A]
+    } yield BLive(a)
+  }
+
+val c: ZLayer[A, Nothing, C] =
+  ZLayer {
+    for {
+      a <- ZIO.service[A]
+    } yield CLive(a)
+  }
 ```
 
 Although both `b` and `c` layers require the `a` layer, the `a` layer is instantiated only once. It is shared with both `b` and `c`:
@@ -1457,7 +1470,12 @@ case class UserRepoLive(cache: Cache, database: Database) extends UserRepo {
 
 object UserRepoLive {
   val layer: URLayer[Cache & Database, UserRepo] =
-    (UserRepoLive.apply _).toLayer
+    ZLayer {
+      for {
+        cache    <- ZIO.service[Cache]
+        database <- ZIO.service[Database]
+      } yield UserRepoLive(cache, database)
+    }
 }
 
 trait Database
@@ -1466,7 +1484,7 @@ case class DatabaseLive() extends Database
 
 object DatabaseLive {
   val layer: ZLayer[Any, Nothing, Database] =
-    (DatabaseLive.apply _).toLayer
+    ZLayer.succeed(DatabaseLive())
 }
 
 trait Cache {
@@ -1531,7 +1549,12 @@ case class DocumentRepoLive(cache: Cache, blobStorage: BlobStorage) extends Docu
 
 object DocumentRepoLive {
   val layer: ZLayer[Cache & BlobStorage, Nothing, DocumentRepo] =
-    (DocumentRepoLive.apply _).toLayer
+    ZLayer {
+      for {
+        cache       <- ZIO.service[Cache]
+        blobStorage <- ZIO.service[BlobStorage]
+      } yield DocumentRepoLive(cache, blobStorage)
+    }
 }
 
 trait BlobStorage {
@@ -1544,7 +1567,7 @@ case class BlobStorageLive() extends BlobStorage {
 
 object BlobStorageLive {
   val layer: URLayer[Any, BlobStorage] =
-    (BlobStorageLive.apply _).toLayer
+    ZLayer.succeed(BlobStorageLive())
 }
 ```
 

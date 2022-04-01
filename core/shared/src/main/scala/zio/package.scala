@@ -23,7 +23,6 @@ import scala.reflect.ClassTag
 package object zio
     extends BuildFromCompat
     with EitherCompat
-    with FunctionToLayerSyntax
     with IntersectionTypeCompat
     with VersionSpecific
     with DurationModule {
