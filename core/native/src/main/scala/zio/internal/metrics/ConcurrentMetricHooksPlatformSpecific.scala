@@ -82,8 +82,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
     MetricHook(
       update,
-      () =>
-        MetricState.Histogram(getBuckets(), count, min, max, sum)
+      () => MetricState.Histogram(getBuckets(), count, min, max, sum)
     )
   }
 
