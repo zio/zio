@@ -58,7 +58,7 @@ final case class TestRunner[R, E](
     executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
       // TODO Why is duration 0 here? Resolve for #6482
       ZIO.succeed(summary)
-    }
+    }.onInterrupt(ZIO.debug("TestRunner interrupted"))
 
   /**
    * An unsafe, synchronous run of the specified spec.

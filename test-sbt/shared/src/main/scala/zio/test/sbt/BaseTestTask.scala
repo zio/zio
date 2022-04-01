@@ -57,7 +57,7 @@ abstract class BaseTestTask(
     } yield ())
       .provideLayer(
         constructLayer[spec.Environment](spec.layer)
-      )
+      ).onInterrupt(ZIO.debug("BaseTestTask.run: interrupt"))
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] =
     try {
@@ -66,6 +66,7 @@ abstract class BaseTestTask(
           Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRun {
             run(eventHandler, zioSpec)
               .tapError(e => ZIO.succeed(println(e.getMessage)))
+              .onInterrupt(ZIO.debug("BaseTestTask.execute: interrupt"))
           }
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>
@@ -78,6 +79,7 @@ abstract class BaseTestTask(
       }
     } catch {
       case t: Throwable =>
+        println("trying to interrupt the tests")
         t.printStackTrace()
         throw t
     }

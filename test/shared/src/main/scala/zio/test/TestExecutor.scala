@@ -80,7 +80,7 @@ object TestExecutor {
                           sink.process(ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors))
                         )
                   } yield ()
-                )
+                ).onInterrupt(ZIO.debug("I'm being interrupted in the mask!"))
               case Spec.TestCase(
                     test,
                     staticAnnotations: TestAnnotationMap
@@ -101,11 +101,11 @@ object TestExecutor {
               .provideLayer(environment)
           ZIO.scoped {
             loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-          }
+          }.onInterrupt(ZIO.debug("I'm being interrupted"))
         }
 
         summary <- sink.getSummary
-      } yield summary).provideLayer(sinkLayer)
+      } yield summary).provideLayer(sinkLayer).onInterrupt(ZIO.debug("I'm being interrupted"))
 
     val environment = env
 
