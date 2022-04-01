@@ -30,7 +30,7 @@ import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
 import scala.annotation.tailrec
 
-private trait ZStreamPlatformSpecificConstructors {
+private[stream] trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
   /**
@@ -604,7 +604,7 @@ private trait ZStreamPlatformSpecificConstructors {
   }
 }
 
-private trait ZSinkPlatformSpecificConstructors {
+private[stream] trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
@@ -757,7 +757,7 @@ private trait ZSinkPlatformSpecificConstructors {
 
 }
 
-private trait ZPipelinePlatformSpecificConstructors {
+private[stream] trait ZPipelinePlatformSpecificConstructors {
   def deflate(
     bufferSize: => Int = 64 * 1024,
     noWrap: => Boolean = false,
