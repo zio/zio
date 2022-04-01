@@ -31,7 +31,7 @@ sealed trait Semaphore {
   /**
    * Returns the number of available permits.
    */
-  def available: UIO[Long]
+  def available(implicit trace: ZTraceElement): UIO[Long]
 
   /**
    * Executes the specified workflow, acquiring a permit immediately before the
@@ -70,7 +70,7 @@ object Semaphore {
     for {
       semaphore <- TSemaphore.makeCommit(permits)
     } yield new Semaphore {
-      def available: UIO[Long] =
+      def available(implicit trace: ZTraceElement): UIO[Long] =
         semaphore.available.commit
       def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         semaphore.withPermit(zio)
