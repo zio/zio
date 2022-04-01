@@ -1138,7 +1138,7 @@ case class HttpServerLive() extends HttpServer {
 }
 
 object HttpServerLive {
-  val layer: URLayer[Any, HttpServer] = (HttpServerLive.apply _).toLayer[HttpServer]
+  val layer: URLayer[Any, HttpServer] = ZLayer.succeed(HttpServerLive())
 }
 
 object MainWebApp extends ZIOAppDefault {
@@ -1200,7 +1200,7 @@ case class DatabaseLive() extends Database {
 }
 
 object DatabaseLive {
-  val layer = (DatabaseLive.apply _).toLayer[Database]
+  val layer = ZLayer.succeed(DatabaseLive())
 }
 
 object MainDatabaseApp extends ZIOAppDefault {

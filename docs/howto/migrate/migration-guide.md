@@ -568,7 +568,7 @@ After running the effect on the specified runtime configuration, it will restore
 
 ## ZLayer
 
-### Functions to Layers
+### Constructing Layers
 
 In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
 
@@ -599,7 +599,7 @@ ZIO 2.x deprecates all `ZLayer.fromService*` functions:
 | `ZLayer.fromServiceManyM`        | `toLayer` |
 | `ZLayer.fromServicesManyM`       | `toLayer` |
 
-Instead, it provides the `toLayer` extension methods for functions:
+Instead, we use a for comprehension:
 
 ```scala
 case class LoggingLive(console: Console, clock: Clock) extends Logging {
@@ -611,12 +611,15 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: ZLayer[Any, Nothing, Logging] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val layer: ZLayer[Clock with Console, Nothing, Logging] =
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+        clock   <- ZIO.service[Clock]
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
-
-Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
 
 ### Accessing a Service from the Environment
 
@@ -721,28 +724,47 @@ case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobSt
 
 object Logging {
   val live: URLayer[Console, Logging] =
-    LoggerImpl.toLayer[Logging]
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+      } yield LoggerImpl(console)
+    }
 }
 
 object Database {
   val live: URLayer[Any, Database] =
-    DatabaseImp.toLayer[Database]
+    ZLayer.succeed(DatabaseImp())
 }
 
 object UserRepo {
   val live: URLayer[Logging with Database, UserRepo] =
-    (UserRepoImpl(_, _)).toLayer[UserRepo]
+    ZLayer {
+      for {
+        logging  <- ZIO.service[Logging]
+        database <- ZIO.service[Database]
+      } yield UserRepoImpl(logging, database)
+    }
 }
 
 
 object BlobStorage {
   val live: URLayer[Logging, BlobStorage] =
-    BlobStorageImpl.toLayer[BlobStorage]
+    ZLayer {
+      for {
+        logging <- ZIO.service[Logging]
+      } yield BlobStorageImpl(logging)
+    }
 }
 
 object DocRepo {
   val live: URLayer[Logging with Database with BlobStorage, DocRepo] =
-    (DocRepoImpl(_, _, _)).toLayer[DocRepo]
+    ZLayer {
+      for {
+        logging     <- ZIO.service[Logging]
+        database    <- ZIO.service[Database]
+        blobStorage <- ZIO.service[BlobStorage]
+      } yield DocRepoImpl(logging, database, blobStorage)
+    }
 }
   
 val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
@@ -1015,7 +1037,12 @@ case class LoggerLive(console: Console) extends Logger {
 }
 
 object LoggerLive {
-  val layer = (LoggerLive.apply _).toLayer[Logger]
+  val layer =
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+      } yield LoggerLive(console)
+    }
 }
 
 object MainApp extends ZIOAppDefault {
@@ -1169,7 +1196,12 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 // Converting the Service Implementation into the ZLayer
 object LoggingLive {
   val layer: URLayer[Console with Clock, Logging] =
-    (LoggingLive(_, _)).toLayer[Logging]
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+        clock   <- ZIO.service[Clock]
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
 
@@ -1179,54 +1211,7 @@ As we see, we have the following changes:
 
 2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
-    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
-
-    > **_Note:_**
-    > 
-    > When implementing a service that doesn't have any dependency, our code might not compile:
-    > ```scala
-    > case class LoggingLive() extends Logging {
-    >   override def log(line: String): UIO[Unit] =
-    >     ZIO.attempt(println(line)).orDie
-    > }
-    > 
-    > object LoggingLive {
-    >   val layer: URLayer[Any, Logging] = LoggingLive().toLayer
-    > }
-    >``` 
-    > Compiler Error:
-    > ```
-    > value toLayer is not a member of LoggingLive
-    > val layer: URLayer[Any, Logging] = LoggingLive().toLayer
-    > ```
-    > The problem here is that the companion object won't automatically extend `() => Logging`. So the workaround is doing that manually:
-    > ```scala
-    > object LoggingLive extends (() => Logging) {
-    >   val layer: URLayer[Any, Logging] = LoggingLive.toLayer
-    > }
-    > ```
-    > Or we can just write the `val layer: URLayer[Any, Logging] = (() => Logging).toLayer` to fix that.
- 
-    > **_Note:_**
-    > 
-    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` and then implement the service and call `toLayer` on it:
-    > ```scala mdoc:silent:nest
-    > object LoggingLive {
-    >   val layer: ZLayer[Clock with Console, Nothing, Logging] =
-    >     ZLayer {
-    >       for {
-    >         console <- ZIO.service[Console]
-    >         clock   <- ZIO.service[Clock]
-    >       } yield new Logging {
-    >         override def log(line: String): UIO[Unit] =
-    >           for {
-    >             time <- clock.currentDateTime
-    >             _    <- console.printLine(s"$time--$line").orDie
-    >           } yield ()
-    >       }
-    >     }
-    > }
-    > ```
+    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we use a for comprehension.
 
 3. **Separated Interface** — In the _Service Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
