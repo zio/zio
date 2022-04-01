@@ -189,11 +189,11 @@ object MetricSpec extends ZIOBaseSpec {
           state.sum > 3.9,
           state.sum <= elapsed,
           state.min >= 1.0,
-          state.min < 2.0,
+          state.min < state.max,
           state.max >= 3.0,
-          state.max < 4.0
+          state.max < elapsed
         )
-      } @@ withLiveClock,
+      } @@ withLiveClock @@ flaky,
       test("observeHistogram") {
         val h = Metric
           .histogram("h4", Histogram.Boundaries.linear(0, 1.0, 10))
