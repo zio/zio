@@ -528,7 +528,7 @@ object MainApp extends scala.App {
 
 In this example, we wrote a recursive function that prints numbers from 1 to 3. While the last effort doesn't use a mutable variable, it's not a pure solution. We have a `println` statement inside our solution, calling this function is not pure so the whole solution is not pure. We know that we can model effectful functions using the ZIO effect system. So let's try rewrite that using ZIO:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import java.io.IOException
 
@@ -546,7 +546,7 @@ object MainApp extends ZIOAppDefault {
 
 ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. Let's rewrite the last solution using `ZIO.loopDiscard`:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 
 import java.io.IOException
