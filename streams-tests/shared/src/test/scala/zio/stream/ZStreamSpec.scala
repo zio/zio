@@ -3474,7 +3474,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               value <- ref.get
             } yield assert(value)(equalTo(true))
           }
-        ) @@ TestAspect.timeout(15.seconds),
+        ) @@ TestAspect.timeout(40.seconds),
         suite("timeout")(
           test("succeed") {
             assertM(

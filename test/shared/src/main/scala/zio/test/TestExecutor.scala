@@ -46,7 +46,6 @@ object TestExecutor {
       (for {
         sink      <- ZIO.service[ExecutionEventSink]
         topParent <- SuiteId.newRandom
-        _         <- sink.process(ExecutionEvent.SectionStart(List.empty, topParent, List.empty))
         _ <- {
           def loop(
             labels: List[String],
@@ -104,9 +103,6 @@ object TestExecutor {
             loop(List.empty, scopedSpec, defExec, List.empty, topParent)
           }
         }
-        _ <- sink.process(
-               ExecutionEvent.SectionEnd(List.empty, topParent, List.empty)
-             )
 
         summary <- sink.getSummary
       } yield summary).provideLayer(sinkLayer)
