@@ -486,9 +486,81 @@ def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
 
 ### Loops
 
-ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. 
+In imperative scala code base, sometime we may use `while(condition) { statement }` or `do { statement } while (condition)` structs to perform loops:
 
-Now let's go deep into each of these operators:
+```scala mdoc:compile-only
+object MainApp extends scala.App {
+  def printNumbers(from: Int, to: Int): Unit = {
+    var i = from
+    while (i <= to) {
+      println(s"$i")
+      i = i + 1
+    }
+  }
+  
+  printNumbers(1, 3)
+}
+// 1
+// 2
+// 3
+```
+
+But in functional scala, we tend to not use mutable variable. So to have a loop, we would like to use recursions. Let's rewrite the previous example, using recursion:
+
+```scala mdoc:compile-only
+import scala.annotation.tailrec
+
+object MainApp extends scala.App {
+  @tailrec
+  def printNumbers(from: Int, to: Int): Unit = {
+    if (from <= to) {
+      println(s"$from")
+      printNumbers(from + 1, to)
+    } else ()
+  }
+  
+  printNumbers(1, 3)
+}
+// 1
+// 2
+// 3
+```
+
+In this example, we wrote a recursive function that prints numbers from 1 to 3. While the last effort doesn't use a mutable variable, it's not a pure solution. We have a `println` statement inside our solution, calling this function is not pure so the whole solution is not pure. We know that we can model effectful functions using the ZIO effect system. So let's try rewrite that using ZIO:
+
+```scala mdoc:compile-only
+import zio._
+import java.io.IOException
+
+object MainApp extends ZIOAppDefault {
+  def printNumbers(from: Int, to: Int): ZIO[Console, IOException, Unit] = {
+    if (from <= to)
+      Console.printLine(s"$from") *>
+        printNumbers(from + 1, to)
+    else ZIO.unit
+  }
+
+  def run = printNumbers(1, 5)
+}
+```
+
+ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. Let's rewrite the last solution using `ZIO.loopDiscard`:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+object MainApp extends ZIOAppDefault {
+  def printNumbers(from: Int, to: Int): ZIO[Console, IOException, Unit] = {
+    ZIO.loopDiscard(from)(_ <= to, _ + 1)(i => Console.printLine(i))
+  }
+
+  def run = printNumbers(1, 3)
+}
+```
+
+After this very short introduction to writing loops in functional scala, now let us go deep into ZIO specific combinators for writing loops:
 
 1. **`ZIO.loop`/`ZIO.loopDiscard`**— It takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
 
