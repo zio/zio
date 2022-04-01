@@ -220,10 +220,14 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   }
 
   /**
-    * Scala's `Double` implemenntation does not play nicely with Java's `AtomicReference.compareAndSwap` as
-    * s`compareAndSwap` uses Java's `==` reference equality when it performs an equality check.  This means 
+    * Scala's `Double` implementation does not play nicely with Java's `AtomicReference.compareAndSwap` as
+    * `compareAndSwap` uses Java's `==` reference equality when it performs an equality check.  This means 
     * that even if two Scala `Double`s have the same value, they will still fail `compareAndSwap` as they 
-    * will most likely be two, distinct object references. Thus, `compareAndSwap` will.
+    * will most likely be two, distinct object references. Thus, `compareAndSwap` will fail.
+    * 
+    * This `AtomicDouble` implementation is a workaround for this issue that is backed by an `AtomicLong` instead
+    * of an `AtomicReference` in which the Double's bits are stored as a Long value. This approach also reduces boxing and 
+    * unboxing overhead that can be incurred with `AtomicReference`.
     * 
     */
   private final class AtomicDouble private (private val ref: AtomicLong) {
