@@ -330,7 +330,7 @@ def safeDownload(url: String) =
 | `async`          | `(ZIO[R, E, A] => Unit) => Any`                               | `ZIO[R, E, A]` |
 | `asyncZIO`       | `(ZIO[R, E, A] => Unit) => ZIO[R, E, Any]`                    | `ZIO[R, E, A]` |
 | `asyncMaybe`     | `(ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]]`              | `ZIO[R, E, A]` |
-| `asyncInterrupt` | `(ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]]` | `ZIO[R, E, A]` |
+| `asyncInterrupt` | `(ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]]` | `ZIO[R, E, A]` |
 
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.async`:
 

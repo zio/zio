@@ -50,7 +50,7 @@ final class Promise[E, A] private (
   def await(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.asyncInterrupt[Any, E, A](
       k => {
-        var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
+        var result = null.asInstanceOf[Either[UIO[Any], IO[E, A]]]
         var retry  = true
 
         while (retry) {
@@ -194,7 +194,7 @@ final class Promise[E, A] private (
    */
   def succeed(a: A)(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: ZTraceElement): Canceler[Any] = IO.succeed {
+  private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: ZTraceElement): UIO[Any] = IO.succeed {
     var retry = true
 
     while (retry) {

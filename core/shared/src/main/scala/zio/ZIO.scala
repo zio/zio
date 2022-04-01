@@ -3012,7 +3012,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * provide better diagnostics.
    */
   def asyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.suspendSucceed(new Async(register, blockingOn, trace))
@@ -3598,7 +3598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: ZTraceElement): ZIO[R, E, A] =
     asyncInterrupt(register, blockingOn)
@@ -6489,7 +6489,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class Async[R, E, A](
-    val register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    val register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     val blockingOn: FiberId,
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
