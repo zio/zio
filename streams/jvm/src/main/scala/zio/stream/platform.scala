@@ -57,7 +57,7 @@ trait ZStreamPlatformSpecificConstructors {
    * be used to signal the end of the stream, by setting it to `None`.
    */
   def asyncInterrupt[R, E, A](
-    register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Either[URIO[R, Any], ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.unwrapScoped[R](for {
@@ -200,7 +200,7 @@ trait ZStreamPlatformSpecificConstructors {
    */
   @deprecated("use asyncInterrupt", "2.0.0")
   def effectAsyncInterrupt[R, E, A](
-    register: ZStream.Emit[R, E, A, Unit] => Either[Canceler[R], ZStream[R, E, A]],
+    register: ZStream.Emit[R, E, A, Unit] => Either[URIO[R, Any], ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncInterrupt(register, outputBuffer)
