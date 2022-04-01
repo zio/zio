@@ -14,9 +14,9 @@ object SerializableSpec extends ZIOBaseSpec {
       val n = 20L
       for {
         semaphore   <- Semaphore.make(n)
-        count       <- semaphore.available.commit
+        count       <- semaphore.available
         returnSem   <- serializeAndBack(semaphore)
-        returnCount <- returnSem.available.commit
+        returnCount <- returnSem.available
       } yield assert(returnCount)(equalTo(count))
     },
     test("Clock is serializable") {

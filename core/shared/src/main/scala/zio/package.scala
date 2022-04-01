@@ -54,8 +54,6 @@ package object zio
   type RefM[A] = Ref.Synchronized[A]
   val RefM: Ref.Synchronized.type = Ref.Synchronized
 
-  type Semaphore = stm.TSemaphore
-
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
 
   trait Tag[A] extends EnvironmentTag[A] {
