@@ -1207,7 +1207,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     builder.result()
   }
- 
+
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
     else {
