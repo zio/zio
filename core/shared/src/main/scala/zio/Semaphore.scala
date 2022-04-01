@@ -26,7 +26,7 @@ import zio.stm.TSemaphore
  * in the acquiring fiber being suspended until the specified number of permits
  * become available.
  */
-sealed trait Semaphore {
+sealed trait Semaphore extends Serializable {
 
   /**
    * Returns the number of available permits.
