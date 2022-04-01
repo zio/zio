@@ -1280,6 +1280,42 @@ Here is list of other deprecated methods:
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
 
+## Scopes
+
+The concept of scopes has been implicit in ZIO since before ZIO 1.0, including in `ZManaged`, `FiberRef`, interruptibility, and thread pool shifting. In each of these cases we "do something" at the beginning of the scope (e.g. acquire a resource, set a `FiberRef`, change the interruptibility of the thread pool) and "do something else" (release the resource, restore the `FiberRef`, restore the interruptibility or thread pool) at the end of the scope.
+
+However, scopes have not been first-class values, which has required the use of other data types such as `ZManaged` to represent this concept. That creates a number of issues. `ZManaged` is "one more" data type that people have to learn. Code is duplicated in `ZManaged` and at the same time `ZManaged` does not have some of the operators that are available on `ZIO`. Finally, there is a loss of compositional power because `ZIO` and `ZManaged` values do not compose without converting all values to `ZManaged`, and operators that accept a `ZIO` value cannot work with a `ZManaged`.
+
+ZIO 2.x addresses this by introducing the concept of a Scope as a first class value:
+
+```scala
+trait Scope {
+  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
+  def close(exit: Exit[Any, Any]): UIO[Unit]
+}
+```
+
+That is, a `Scope` is something that we can add finalizers to and eventually close, running all of the finalizers in the scope.
+
+In combination with the environment, we can use `Scope` to represent resources.
+
+```scala
+def file(name: String): ZIO[Scope, IOException, File] =
+  ???
+```
+
+The file workflow requires a `Scope` to be run and its implementation will add a finalizer to the scope that will close the file.
+
+This allows us to work with the resource and compose it with other resources, much like we do with `ZManaged`. Then, when we are ready to close the scope we use `ZIO.scoped` to provide the scope and eliminate it from the environment, much the same way we do with `use` on `ZManaged`.
+
+```scala
+ZIO.scoped {
+  openFile(name).flatMap(file => useFile(file))
+}
+```  
+
+The `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. The `ZManaged` data type is moved to a separate module that users can depend on for backward compatibility.
+
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
