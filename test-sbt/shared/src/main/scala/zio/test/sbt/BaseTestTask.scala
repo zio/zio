@@ -6,7 +6,7 @@ import zio.test.render.ConsoleRenderer
 import zio.test.{AbstractRunnableSpec, FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
 
 import scala.concurrent.Await
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.Duration
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -73,7 +73,7 @@ abstract class BaseTestTask(
             }
 
           resOutter = res
-          Await.result(res, 10.hours)
+          Await.result(res, Duration.Inf)
           Array()
         case LegacySpecWrapper(abstractRunnableSpec) =>
           Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
