@@ -32,8 +32,6 @@ package object zio
 
   private[zio] type Callback[E, A] = Exit[E, A] => Any
 
-  type Canceler[-R] = URIO[R, Any]
-
   type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
   type Task[+A]     = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
   type RIO[-R, +A]  = ZIO[R, Throwable, A]   // Succeed with an `A`, may fail with `Throwable`, requires an `R`.
