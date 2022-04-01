@@ -158,7 +158,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(1.0) @@ h
           _     <- ZIO.succeed(3.0) @@ h
           state <- h.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("direct observe") {
         val h = Metric.histogram("h2", Histogram.Boundaries.linear(0, 1.0, 10)).tagged(labels1)
@@ -167,7 +167,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- h.update(1.0)
           _     <- h.update(3.0)
           state <- h.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("observeDurations") {
         val h =
@@ -187,9 +187,13 @@ object MetricSpec extends ZIOBaseSpec {
         } yield assertTrue(
           state.count == 2L,
           state.sum > 3.9,
-          state.sum <= elapsed
+          state.sum <= elapsed,
+          state.min >= 1.0,
+          state.min < state.max,
+          state.max >= 3.0,
+          state.max < elapsed
         )
-      } @@ withLiveClock,
+      } @@ withLiveClock @@ flaky,
       test("observeHistogram") {
         val h = Metric
           .histogram("h4", Histogram.Boundaries.linear(0, 1.0, 10))
@@ -201,7 +205,9 @@ object MetricSpec extends ZIOBaseSpec {
           state <- h.value
         } yield assertTrue(
           state.count == 2L,
-          state.sum == 4.0
+          state.sum == 4.0,
+          state.min == 1.0,
+          state.max == 3.0
         )
       },
       test("observeHistogramWith") {
@@ -214,7 +220,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed("x") @@ h
           _     <- ZIO.succeed("xyz") @@ h
           state <- h.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("observeHistogramWith + taggedWith") {
         val boundaries = Histogram.Boundaries.linear(0, 1.0, 10)
@@ -245,7 +251,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(1.0) @@ s
           _     <- ZIO.succeed(3.0) @@ s
           state <- s.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("direct observe") {
         val s = Metric
@@ -256,7 +262,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- s.update(1.0)
           _     <- s.update(3.0)
           state <- s.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("observeSummary") {
         val s = Metric
@@ -267,7 +273,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(1.0) @@ s
           _     <- ZIO.succeed(3.0) @@ s
           state <- s.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("observeSummaryWith") {
         val s = Metric
@@ -279,7 +285,7 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed("x") @@ s
           _     <- ZIO.succeed("xyz") @@ s
           state <- s.value
-        } yield assertTrue(state.count == 2L, state.sum == 4.0)
+        } yield assertTrue(state.count == 2L, state.sum == 4.0, state.min == 1.0, state.max == 3.0)
       },
       test("observeSummaryWith + taggedWith") {
         val s0 = Metric
