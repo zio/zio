@@ -1170,6 +1170,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
+   * Performs the specified operation while "zoomed in" on the `Left` case of an
+   * `Either`.
+   */
+  final def leftWith[R1, E1, A1, B, B1, C, C1](
+    f: ZIO[R, Either[E, C], B] => ZIO[R1, Either[E1, C1], B1]
+  )(implicit ev: A IsSubtypeOfOutput Either[B, C], trace: ZTraceElement): ZIO[R1, E1, Either[B1, C1]] =
+    f(self.left).unleft
+
+  /**
    * Returns an effect which is guaranteed to be executed on the specified
    * executor. The specified effect will always run on the specified executor,
    * even in the presence of asynchronous boundaries.
@@ -2006,6 +2015,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
+   * Performs the specified operation while "zoomed in" on the `Right` case of
+   * an `Either`.
+   */
+  final def rightWith[R1, E1, A1, B, B1, C, C1](
+    f: ZIO[R, Either[B, E], C] => ZIO[R1, Either[B1, E1], C1]
+  )(implicit ev: A IsSubtypeOfOutput Either[B, C], trace: ZTraceElement): ZIO[R1, E1, Either[B1, C1]] =
+    f(self.right).unright
+
+  /**
    * Returns an effect that semantically runs the effect on a fiber, producing
    * an [[zio.Exit]] for the completion value of the fiber.
    */
@@ -2085,6 +2103,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       e => ZIO.fail(Some(e)),
       a => ev(a).fold[ZIO[R, Option[E], B]](ZIO.fail(Option.empty[E]))(ZIO.succeedNow)
     )
+
+  /**
+   * Perfoms the specified operation while "zoomed in" on the `Some` case of an
+   * `Option`.
+   */
+  final def someWith[R1, E1, A1, B, B1](
+    f: ZIO[R, Option[E], B] => ZIO[R1, Option[E1], B1]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZIO[R1, E1, Option[B1]] =
+    f(self.some).unsome
 
   /**
    * Extracts the optional value, or returns the given 'default'.
