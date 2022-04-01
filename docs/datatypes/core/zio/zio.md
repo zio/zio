@@ -437,7 +437,7 @@ For example, the following function creates a random option of int value:
 ```scala mdoc:compile-only
 import zio._
 
-def randomIntOption: ZIO[Random, Nothing, Option[Int]] =
+def randomIntOption: ZIO[Any, Nothing, Option[Int]] =
   Random.nextInt.whenZIO(Random.nextBoolean)
 ```
 
@@ -477,7 +477,7 @@ Let's try to write a simple virtual flip function:
 ```scala mdoc:compile-only
 import zio._
 
-def flipTheCoin: ZIO[Console with Random, IOException, Unit] =
+def flipTheCoin: ZIO[Any, IOException, Unit] =
   ZIO.ifZIO(Random.nextBoolean)(
     onTrue = Console.printLine("Head"),
     onFalse = Console.printLine("Tail")
@@ -533,7 +533,7 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  def printNumbers(from: Int, to: Int): ZIO[Console, IOException, Unit] = {
+  def printNumbers(from: Int, to: Int): ZIO[Any, IOException, Unit] = {
     if (from <= to)
       Console.printLine(s"$from") *>
         printNumbers(from + 1, to)
@@ -552,7 +552,7 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  def printNumbers(from: Int, to: Int): ZIO[Console, IOException, Unit] = {
+  def printNumbers(from: Int, to: Int): ZIO[Any, IOException, Unit] = {
     ZIO.loopDiscard(from)(_ <= to, _ + 1)(i => Console.printLine(i))
   }
 
@@ -604,7 +604,7 @@ val r2: ZIO[Any, Nothing, List[Int]] =
   ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n * 2)).debug
 // List(2, 4, 6, 8, 10)
 
-val r3: ZIO[Console, IOException, List[Unit]] =
+val r3: ZIO[Any, IOException, List[Unit]] =
   ZIO.loop(1)(_ <= 5, _ + 1) { index =>
     Console.printLine(s"Currently at index $index")
   }.debug
@@ -615,7 +615,7 @@ val r3: ZIO[Console, IOException, List[Unit]] =
 // Currently at index 5
 // List((), (), (), (), ())
 
-val r4: ZIO[Console, IOException, Unit] =
+val r4: ZIO[Any, IOException, Unit] =
   ZIO.loopDiscard(1)(_ <= 5, _ + 1) { index =>
     Console.printLine(s"Currently at index $index")
   }.debug
@@ -626,7 +626,7 @@ val r4: ZIO[Console, IOException, Unit] =
 // Currently at index 5
 // ()
 
-val r5: ZIO[Console, IOException, List[String]] =
+val r5: ZIO[Any, IOException, List[String]] =
   Console.printLine("Please enter three names: ") *>
     ZIO.loop(1)(_ <= 3, _ + 1) { n =>
       Console.print(s"$n. ") *> Console.readLine
@@ -678,12 +678,12 @@ Here's another example. Assume we want to take many names from the user using th
 ```scala mdoc:compile-only
 import zio._
 
-def getNames: ZIO[Console, IOException, List[String]] =
+def getNames: ZIO[Any, IOException, List[String]] =
   Console.print("Please enter all names") *>
     Console.printLine(" (enter \"exit\" to indicate end of the list):") *> {
       def loop(
           names: List[String]
-      ): ZIO[Console, IOException, List[String]] = {
+      ): ZIO[Any, IOException, List[String]] = {
         Console.print(s"${names.length + 1}. ") *> Console.readLine
           .flatMap {
             case "exit" => ZIO.succeed(names)
@@ -703,7 +703,7 @@ def getNames: ZIO[Console, IOException, List[String]] =
 Instead of manually writing recursions, we can rely on well-tested ZIO combinators. So let's rewrite this application using the `ZIO.iterate` operator:
 
 ```scala mdoc:compile-only
-def getNames: ZIO[Console, IOException, List[String]] =
+def getNames: ZIO[Any, IOException, List[String]] =
   Console.print("Please enter all names") *>
     Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
     ZIO.iterate((List.empty[String], true))(_._2) { case (names, _) =>
