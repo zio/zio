@@ -507,11 +507,21 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       def unifyFail(fail: Cause.Fail[E]): Unified =
         Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
 
-      def unifyDie(die: Cause.Die): Unified = {
-        val extra =
-          if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
+      def unifyDie(die: Cause.Die): List[Unified] = {
 
-        Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+        @tailrec
+        def loop(die: Cause.Die, result: List[Unified]): List[Unified] = {
+          val extra =
+            if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
+
+          val unified =
+            Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+
+          if (die.value.getCause eq null) unified :: result
+          else loop(Cause.Die(die.value.getCause, ZTrace.none), unified :: result)
+        }
+
+        loop(die, Nil)
       }
 
       def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
@@ -528,7 +538,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
         case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
         case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
-        case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
+        case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) ::: result)
         case (cause @ Interrupt(_, _)) :: more =>
           loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
       }
