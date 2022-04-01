@@ -39,7 +39,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     var count      = 0L
     var sum        = 0.0
     var size       = bounds.length
-    val minMax     = new MinMax
+    var min        = Double.MaxValue
+    var max        = Double.MinValue
 
     bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
 
@@ -60,7 +61,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       values(from) = values(from) + 1
       count += 1
       sum += value
-      minMax.update(value)
+      if (value < min) min = value
+      if (value > max) min = value
       ()
     }
 
@@ -80,10 +82,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
     MetricHook(
       update,
-      { () =>
-        val (min, max) = minMax.get()
+      () =>
         MetricState.Histogram(getBuckets(), count, min, max, sum)
-      }
     )
   }
 
@@ -94,11 +94,16 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     var head   = 0
     var count  = 0L
     var sum    = 0.0
-    val minMax = new MinMax
+    var min    = Double.MaxValue
+    var max    = Double.MinValue
 
     val sortedQuantiles: Chunk[Double] = quantiles.sorted(DoubleOrdering)
 
     def getCount(): Long = count
+
+    def getMin(): Double = min
+
+    def getMax(): Double = max
 
     def getSum(): Double = sum
 
@@ -138,20 +143,20 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
       count += 1
       sum += value
-      minMax.update(value)
+      if (value < min) min = value
+      if (value > max) min = value
       ()
     }
 
     MetricHook(
       t => observe(t._1, t._2),
       { () =>
-        val (min, max) = minMax.get()
         MetricState.Summary(
           error,
           snapshot(java.time.Instant.now()),
           getCount(),
-          min,
-          max,
+          getMin(),
+          getMax(),
           getSum()
         )
       }
@@ -181,20 +186,5 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     }
 
     MetricHook(update, () => MetricState.Frequency(snapshot()))
-  }
-
-  private final class MinMax {
-    private var minMax = Option.empty[(Double, Double)]
-
-    def get(): (Double, Double) = minMax.getOrElse(0.0 -> 0.0)
-
-    def update(value: Double): Unit =
-      minMax = minMax match {
-        case minMax @ Some((min, max)) =>
-          if (value < min) Some((value, max))
-          else if (value > max) Some((min, value))
-          else minMax
-        case None => Some((value, value))
-      }
   }
 }
