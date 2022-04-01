@@ -81,7 +81,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     MetricHook(
       update,
       { () =>
-        val (min, max) = minMax.get
+        val (min, max) = minMax.get()
         MetricState.Histogram(getBuckets(), count, min, max, sum)
       }
     )
@@ -145,7 +145,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     MetricHook(
       t => observe(t._1, t._2),
       { () =>
-        val (min, max) = minMax.get
+        val (min, max) = minMax.get()
         MetricState.Summary(
           error,
           snapshot(java.time.Instant.now()),
