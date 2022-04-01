@@ -22,14 +22,14 @@ The `ZIO[R, E, A]` data type has three type parameters:
  - **`E` - Failure Type**. The effect may fail with a value of type `E`. Some applications will use `Throwable`. If this type parameter is `Nothing`, it means the effect cannot fail, because there are no values of type `Nothing`.
  - **`A` - Success Type**. The effect may succeed with a value of type `A`. If this type parameter is `Unit`, it means the effect produces no useful information, while if it is `Nothing`, it means the effect runs forever (or until failure).
 
-In the following example, the `readLine` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
+In the following example, the `readLine` function does not require any services, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
 ```scala mdoc:compile-only
 import zio._
 import java.io.IOException
 
-val readLine: ZIO[Console, IOException, String] =
-  ZIO.serviceWithZIO(_.readLine)
+val readLine: ZIO[Any, IOException, String] =
+  Console.readLine
 ```
 
 `ZIO` values are immutable, and all `ZIO` functions produce new `ZIO` values, enabling `ZIO` to be reasoned about and used like any ordinary Scala immutable data structure.
@@ -440,7 +440,7 @@ A `RIO[R, A]` effect can be suspended using `suspend` function:
 import zio._
 import java.io.IOException
 
-val suspendedEffect: RIO[Any, ZIO[Console, IOException, Unit]] =
+val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
 ```
 
@@ -455,7 +455,7 @@ In the following example, we create 20 blocking tasks to run parallel on the pri
 ```scala mdoc:silent
 import zio._
 
-def blockingTask(n: Int): URIO[Console, Unit] =
+def blockingTask(n: Int): UIO[Unit] =
   Console.printLine(s"running blocking task number $n").orDie *>
     ZIO.succeed(Thread.sleep(3000)) *>
     blockingTask(n)
@@ -644,7 +644,7 @@ object MainApp extends ZIOAppDefault {
   def isPrime(n: Int): Boolean =
     if (n <= 1) false else (2 until n).forall(i => n % i != 0)
 
-  val myApp: ZIO[Console with Random, IOException, Unit] =
+  val myApp: ZIO[Any, IOException, Unit] =
     for {
       ref <- Ref.make(List.empty[Int])
       prime <-
@@ -894,7 +894,11 @@ object Main extends ZIOAppDefault {
     ZIO.succeed(is.close())
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.attempt(println(new String(is.readAllBytes(), StandardCharsets.UTF_8)))
+    Task.attempt {
+      val buffer = new Array[Byte](len.toInt)
+      is.read(buffer)
+      println(new String(buffer, StandardCharsets.UTF_8))
+    }
 
   // myAcquireRelease is just a value. Won't execute anything here until interpreted
   val myAcquireRelease: Task[Unit] = for {

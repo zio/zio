@@ -1070,7 +1070,7 @@ import zio._
 
 val exceptionalEffect: ZIO[Any, Throwable, Unit] = ???
 
-val myApp: ZIO[Console, IOException, Unit] =
+val myApp: ZIO[Any, IOException, Unit] =
   exceptionalEffect.foldCauseZIO(
     failure = {
       case Cause.Fail(value, _)        => Console.printLine(s"failure: $value")
@@ -1092,7 +1092,7 @@ import java.io.IOException
 object MainApp extends ZIOAppDefault {
   val exceptionalEffect: ZIO[Any, Throwable, Unit] = ZIO.interrupt
 
-  val myApp: ZIO[Console, IOException, Unit] =
+  val myApp: ZIO[Any, IOException, Unit] =
     exceptionalEffect.foldCauseZIO(
       failure = {
         case Cause.Fail(value, _) => ZIO.debug(s"failure: $value")
@@ -1163,7 +1163,7 @@ There are a number of useful methods on the ZIO data type for retrying failed ef
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def retry[R1 <: R, S](policy: => Schedule[R1, E, S]): ZIO[R1 with Clock, E, A]
+  def retry[R1 <: R, S](policy: => Schedule[R1, E, S]): ZIO[R1, E, A]
 }
 ```
 
@@ -1172,7 +1172,7 @@ In this example, we try to read from a file. If we fail to do that, it will try 
 ```scala mdoc:compile-only
 import zio._
 
-val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] = 
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
@@ -1191,7 +1191,7 @@ trait ZIO[-R, +E, +A] {
   def retryOrElse[R1 <: R, A1 >: A, S, E1](
     policy: => Schedule[R1, E, S],
     orElse: (E, S) => ZIO[R1, E1, A1]
-  ): ZIO[R1 with Clock, E1, A1] =
+  ): ZIO[R1, E1, A1] =
 }
 ```
 
@@ -1236,9 +1236,9 @@ trait RemoteConfig
 def readLocalConfig: ZIO[Any, Throwable, LocalConfig] = ???
 def readRemoteConfig: ZIO[Any, Throwable, RemoteConfig] = ???
 
-val result: ZIO[Clock, Throwable, Either[RemoteConfig, LocalConfig]] =
+val result: ZIO[Any, Throwable, Either[RemoteConfig, LocalConfig]] =
   readLocalConfig.retryOrElseEither(
-    schedule = Schedule.fibonacci(1.seconds),
+    schedule0 = Schedule.fibonacci(1.seconds),
     orElse = (_, _: Duration) => readRemoteConfig
   )
 ```
@@ -1413,16 +1413,16 @@ By using this technique, the original effect will be interrupted in the backgrou
 ```scala mdoc:silent
 import zio._
 
-val delayedNextInt: ZIO[Random with Clock, Nothing, Int] =
+val delayedNextInt: ZIO[Any, Nothing, Int] =
   Random.nextIntBounded(10).delay(2.second)
 
-val r1: ZIO[Random with Clock, Nothing, Option[Int]] =
+val r1: ZIO[Any, Nothing, Option[Int]] =
   delayedNextInt.timeoutTo(None)(Some(_))(1.seconds)
   
-val r2: ZIO[Random with Clock, Nothing, Either[String, Int]] =
+val r2: ZIO[Any, Nothing, Either[String, Int]] =
   delayedNextInt.timeoutTo(Left("timeout"))(Right(_))(1.seconds)
   
-val r3: ZIO[Random with Clock, Nothing, Int] =
+val r3: ZIO[Any, Nothing, Int] =
   delayedNextInt.timeoutTo(-1)(identity)(1.seconds)
 ```
 
@@ -1432,10 +1432,10 @@ val r3: ZIO[Random with Clock, Nothing, Int] =
 import zio._
 import scala.concurrent.TimeoutException
 
-val r1: ZIO[Random with Clock, TimeoutException, Int] =
+val r1: ZIO[Any, TimeoutException, Int] =
   delayedNextInt.timeoutFail(new TimeoutException)(1.second)
 
-val r2: ZIO[Random with Clock, Nothing, Int] =
+val r2: ZIO[Any, Nothing, Int] =
   delayedNextInt.timeoutFailCause(Cause.die(new Error("timeout")))(1.second)
 ```
 
@@ -1861,7 +1861,7 @@ Using operations that can throw exceptions inside of `ZIO#map` such as `effect.m
 ```scala mdoc:compile-only
 import zio._
 
-val result: ZIO[Console, Nothing, Int] =
+val result: ZIO[Any, Nothing, Int] =
   Console.readLine.orDie.map(_.toInt)
 ```
 
@@ -1871,7 +1871,7 @@ As a result, when the map operation is unsafe, it may lead to buggy programs tha
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  val myApp: ZIO[Console, Nothing, Unit] =
+  val myApp: ZIO[Any, Nothing, Unit] =
     Console.print("Please enter a number: ").orDie *>
       Console.readLine.orDie
         .map(_.toInt)
@@ -1918,7 +1918,7 @@ To prevent converting exceptions to defects, we can use `ZIO#mapAttempt` which c
 ```scala mdoc:compile-only
 import zio._
 
-val result: ZIO[Console, Throwable, Int] =
+val result: ZIO[Any, Throwable, Int] =
   Console.readLine.orDie.mapAttempt(_.toInt)
 ```
 
@@ -1928,7 +1928,7 @@ Having typed errors helps us to catch errors explicitly and handle them in the r
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  val myApp: ZIO[Console, Nothing, Unit] =
+  val myApp: ZIO[Any, Nothing, Unit] =
     Console.print("Please enter a number: ").orDie *>
       Console.readLine.orDie
         .mapAttempt(_.toInt)
@@ -1961,7 +1961,7 @@ Here is a simple example:
 ```scala mdoc:compile-only
 import zio._
 
-val result: ZIO[Console, String, Int] =
+val result: ZIO[Any, String, Int] =
   Console.readLine.orDie.mapAttempt(_.toInt).mapBoth(
     _ => "non-integer input",
     n => Math.abs(n)
@@ -1990,7 +1990,7 @@ object MainApp extends ZIOAppDefault {
   def findPrimeBetween(
       minInclusive: Int,
       maxExclusive: Int
-  ): ZIO[Random, List[String], Int] =
+  ): ZIO[Any, List[String], Int] =
     for {
       errors <- Ref.make(List.empty[String])
       number <- Random
@@ -2003,7 +2003,7 @@ object MainApp extends ZIOAppDefault {
         .retryUntil(_.length >= 5)
     } yield number
 
-  val myApp: ZIO[Console with Random, Nothing, Unit] =
+  val myApp: ZIO[Any, Nothing, Unit] =
     findPrimeBetween(1000, 10000)
       .flatMap(prime => Console.printLine(s"found a prime number: $prime").orDie)
       .catchAll { (errors: List[String]) =>
@@ -2027,26 +2027,26 @@ ZIO has a variety of operators that can filter values on the success channel bas
 ```scala mdoc:compile-only
 import zio._
 
-def getNumber: ZIO[Console, Nothing, Int] =
+def getNumber: ZIO[Any, Nothing, Int] =
   (Console.print("Please enter a non-negative number: ") *>
     Console.readLine.mapAttempt(_.toInt))
     .retryUntil(!_.isInstanceOf[NumberFormatException]).orDie
 
-val r1: ZIO[Random, String, Int] =
+val r1: ZIO[Any, String, Int] =
   Random.nextInt.filterOrFail(_ >= 0)("random number is negative")
   
-val r2: ZIO[Random, Nothing, Int] =
+val r2: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrDie(_ >= 0)(
     new IllegalArgumentException("random number is negative")
   )
   
-val r3: ZIO[Random, Nothing, Int] =
+val r3: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrDieMessage(_ >= 0)("random number is negative")
   
-val r4: ZIO[Console with Random, Nothing, Int] =
+val r4: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrElse(_ >= 0)(getNumber)
   
-val r5: ZIO[Random, Nothing, Int] =
+val r5: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrElseWith(_ >= 0)(x => ZIO.succeed(-x))
 ```
 
@@ -2071,7 +2071,7 @@ Let's try an example:
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  val myApp: ZIO[Console, NumberFormatException, Int] =
+  val myApp: ZIO[Any, NumberFormatException, Int] =
     Console.readLine
       .mapAttempt(_.toInt)
       .refineToOrDie[NumberFormatException]
@@ -2112,7 +2112,7 @@ This method is useful for recovering from `ZIO` effects that may fail:
 import zio._
 import java.io.IOException
 
-val myApp: ZIO[Console, IOException, Unit] =
+val myApp: ZIO[Any, IOException, Unit] =
   for {
     _ <- Console.print("Please enter your age: ")
     age <- Console.readLine.map(_.toInt)
@@ -2322,13 +2322,13 @@ In the following example, we excluded the `BazError` from recoverable errors, so
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  def effect(i: String): ZIO[Random, String, Nothing] = {
+  def effect(i: String): ZIO[Any, String, Nothing] = {
     if (i == "foo") ZIO.fail("FooError")
     else if (i == "bar") ZIO.fail("BarError")
     else ZIO.fail("BazError")
   }
 
-  val refined: ZIO[Random, String, Nothing] =
+  val refined: ZIO[Any, String, Nothing] =
     effect("baz").refineOrDieWith {
       case "FooError" | "BarError" => "Oh Uh!"
     }(e => new Throwable(e))
@@ -2429,13 +2429,13 @@ object MainApp extends ZIOAppDefault {
   case class Foo(msg: String) extends Exception(msg)
   case class Bar(msg: String) extends Exception(msg)
 
-  val effect: ZIO[Random, Foo, Nothing] =
+  val effect: ZIO[Any, Foo, Nothing] =
     ZIO.ifZIO(Random.nextBoolean)(
       onTrue = ZIO.fail(Foo("Oh uh!")),
       onFalse = ZIO.die(Bar("Boom!"))
     )
 
-  val unrefined: ZIO[Random, String, Nothing] =
+  val unrefined: ZIO[Any, String, Nothing] =
     effect
       .unrefineWith {
         case e: Bar => e.getMessage
@@ -2548,7 +2548,7 @@ If the `PartialFunction` matches, it will reject that success value and convert 
 ```scala mdoc:compile-only
 import zio._
 
-val myApp: ZIO[Random, String, Int] =
+val myApp: ZIO[Any, String, Int] =
   Random
     .nextIntBounded(20)
     .reject {
@@ -2583,7 +2583,7 @@ Assume we have the following effect:
 ```scala mdoc:silent
 import zio._
 
-val nextRandomEven: ZIO[Random, String, Option[Int]] =
+val nextRandomEven: ZIO[Any, String, Option[Int]] =
   Random.nextInt
     .reject {
       case n if n < 0 => s"$n is negative!"
@@ -2597,9 +2597,9 @@ val nextRandomEven: ZIO[Random, String, Option[Int]] =
 Now we can convert this effect which is optional on the success channel to an effect that is optional on the error channel using the `ZIO#some` operator and also the `ZIO#unsome` to reverse this conversion.
 
 ```scala mdoc:compile-only
-nextRandomEven // ZIO[Random, String, Option[Int]] 
-  .some        // ZIO[Random, Option[String], Int] 
-  .unsome      // ZIO[Random, String, Option[Int]]
+nextRandomEven // ZIO[Any, String, Option[Int]] 
+  .some        // ZIO[Any, Option[String], Int] 
+  .unsome      // ZIO[Any, String, Option[Int]]
 ```
 
 ```scala mdoc:invisible:reset
@@ -2790,8 +2790,8 @@ For example, in the following example, we don't want to handle the `IOException`
 ```scala mdoc:compile-only
 import zio._
 
-Console.printLine("Hello, World") // ZIO[Console, IOException, Unit]
-  .orDie                          // ZIO[Console, Nothing, Unit]
+Console.printLine("Hello, World") // ZIO[Any, IOException, Unit]
+  .orDie                          // ZIO[Any, Nothing, Unit]
 ```
 
 If we have an effect that fails for some `Throwable` we can pick certain recoverable errors out of that, and then we can just let the rest of them kill the fiber that is running that effect. The ZIO effect has a method called `ZIO#refineOrDie` that allows us to do that.
@@ -2814,7 +2814,7 @@ val url = new URL("https://zio.dev")
 ```scala mdoc:compile-only
 import zio._
 
-val response: ZIO[Clock, Nothing, Response] =
+val response: ZIO[Any, Nothing, Response] =
   ZIO
     .attemptBlocking(
       httpClient.fetchUrl(url)
@@ -2824,8 +2824,8 @@ val response: ZIO[Clock, Nothing, Response] =
     } // ZIO[Any, TemporaryUnavailable, Response]
     .retry(
       Schedule.fibonacci(1.second)
-    ) // ZIO[Clock, TemporaryUnavailable, Response]
-    .orDie // ZIO[Clock, Nothing, Response]
+    ) // ZIO[Any, TemporaryUnavailable, Response]
+    .orDie // ZIO[Any, Nothing, Response]
 ```
 
 In this example, we are importing the `fetchUrl` which is a blocking operation into a `ZIO` value. We know that in case of a service outage it will throw the `TemporaryUnavailable` exception. This is an expected error, so we want that to be typed. We are going to reflect that in the error type. We only expect it, so we know how to recover from it.
@@ -2997,7 +2997,7 @@ object MainApp extends ZIOAppDefault {
       _ <- Console.printLine(s"a / b: $r")
     } yield ()
     
-  def readNumber(msg: String): ZIO[Console, IOException, Int] =
+  def readNumber(msg: String): ZIO[Any, IOException, Int] =
     Console.print(msg) *> Console.readLine.map(_.toInt)
 
   def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
@@ -3043,7 +3043,7 @@ object MainApp extends ZIOAppDefault {
       _ <- Console.printLine(s"a / b: $r")
     } yield ()
 
-  def readNumber(msg: String): ZIO[Console, IOException, Int] =
+  def readNumber(msg: String): ZIO[Any, IOException, Int] =
     Console.print(msg) *> Console.readLine.map(_.toInt)
 
   def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] = ZIO.succeed(a / b)
@@ -3114,7 +3114,7 @@ object MainApp extends ZIOAppDefault {
   def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
     ZIO.attempt(input.toInt).refineToOrDie[NumberFormatException]
 
-  def readNumber(msg: String): ZIO[Console, IOException, Int] =
+  def readNumber(msg: String): ZIO[Any, IOException, Int] =
     (Console.print(msg) *> Console.readLine.flatMap(parseInput))
       .retryUntil(!_.isInstanceOf[NumberFormatException])
       .refineToOrDie[IOException]
