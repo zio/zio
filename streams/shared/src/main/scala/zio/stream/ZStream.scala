@@ -710,9 +710,9 @@ final case class ZStream[-R, +E, +A](channel: ZChannel[R, Any, Any, Any, E, Chun
   /**
    * Performs the specified operation with the channel underlying this stream.
    */
-  def channelWith[R1, E1, A1](f: ZChannel[R, E, Chunk[A], Any, E1, Chunk[A1], Unit])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A1] =
+  def channelWith[R1, E1, A1](
+    f: ZChannel[R, Any, Any, Any, E, Chunk[A], Any] => ZChannel[R1, Any, Any, Any, E1, Chunk[A1], Any]
+  )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
     ZStream(f(self.channel))
 
   /**
