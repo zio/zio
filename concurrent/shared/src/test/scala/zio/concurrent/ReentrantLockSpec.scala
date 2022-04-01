@@ -51,7 +51,7 @@ object ReentrantLockSpec extends DefaultRunnableSpec {
           waiters2 <- lock.queueLength
           cnt      <- ref.get
         } yield assert(waiters1)(equalTo(2)) && assert(waiters2)(equalTo(0)) && assert(cnt)(equalTo(10))
-      },
+      } @@ flaky,
       testM("Fairness assigns lock to fibers in order") {
         val f1 = (x: Int) => x * 2
         val f2 = (x: Int) => x - 10
