@@ -3,7 +3,6 @@ package zio.stm
 import org.openjdk.jcstress.annotations._
 import org.openjdk.jcstress.infra.results.{II_Result, I_Result}
 import zio._
-import zio.stm._
 
 object ZSTMConcurrencyTests {
 
