@@ -142,7 +142,6 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
       count += 1
       sum += value
-      minMax.update(value)
       if (value < min) min = value
       if (value > max) max = value
       ()
