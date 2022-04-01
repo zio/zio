@@ -2245,6 +2245,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Like [[ZStream#runForeachChunk]], but returns a scoped `ZIO` so the
      * finalization order can be controlled.
      */
+    @deprecated("use runForeachManaged", "2.0.0")
     final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
       trace: ZTraceElement
     ): ZManaged[R1, E1, Unit] =

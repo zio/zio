@@ -333,6 +333,7 @@ final case class ZStream[-R, +E, +A](channel: ZChannel[R, Any, Any, Any, E, Chun
    * Reads the first n values from the stream and uses them to choose the
    * pipeline that will be used for the remainder of the stream.
    */
+  @deprecated("use via", "2.0.0")
   def branchAfter[R1 <: R, E1 >: E, B](
     n: Int
   )(f: Chunk[A] => ZPipeline[R1, E1, A, B])(implicit trace: ZTraceElement): ZStream[R1, E1, B] =
