@@ -71,6 +71,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         EnvironmentTag[Environment]
       }
 
+      override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
+        Chunk.empty
     }
 
   protected def runSpec: ZIO[
