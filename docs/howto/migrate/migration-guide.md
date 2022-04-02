@@ -1316,6 +1316,80 @@ ZIO.scoped {
 
 The `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. The `ZManaged` data type is moved to a separate module that users can depend on for backward compatibility.
 
+For example, assume we have written the following `transfer` function in ZIO 1.x:
+
+```scala
+import zio._
+import zio.blocking._
+
+import java.io._
+
+def close(resource: Closeable): URIO[Blocking, Unit] =
+  effectBlockingIO(resource.close()).orDie
+
+def is(file: String): ZManaged[Blocking, IOException, FileInputStream] =
+  ZManaged.make(effectBlockingIO(new FileInputStream(file)))(close)
+
+def os(file: String): ZManaged[Blocking, IOException, FileOutputStream] =
+  ZManaged.make(effectBlockingIO(new FileOutputStream(file)))(close)
+
+def copy(
+    from: FileInputStream,
+    to: FileOutputStream
+): ZIO[Blocking, IOException, Unit] =
+  effectBlockingIO {
+    val buf = new Array[Byte](1024)
+    var length = 0
+    length = from.read(buf)
+
+    while (length > 0) {
+      to.write(buf, 0, length)
+      length = from.read(buf)
+    }
+  }
+
+def transfer(from: String, to: String): ZIO[Blocking, IOException, Unit] = {
+  val resource = for {
+    from <- is(from)
+    to   <- os(to)
+    _    <- copy(from, to).toManaged_
+  } yield ()
+  resource.useNow
+}
+```
+
+As of ZIO 2.x, we should rewrite it as follows:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io._
+
+def close(resource: Closeable): UIO[Unit] =
+  ZIO.attempt(resource.close()).orDie
+
+def is(file: String): ZIO[Scope, IOException, FileInputStream] =
+  ZIO.acquireRelease(ZIO.attemptBlockingIO(new FileInputStream(file)))(close)
+
+def os(file: String): ZIO[Scope, IOException, FileOutputStream] =
+  ZIO.acquireRelease(ZIO.attemptBlockingIO(new FileOutputStream(file)))(close)
+
+def copy(
+    from: FileInputStream,
+    to: FileOutputStream
+): IO[IOException, Unit] =
+  ZIO.attemptBlockingIO(???)
+
+def transfer(from: String, to: String): IO[Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      from <- is(from)
+      to   <- os(to)
+      _    <- copy(from, to)
+    } yield ()
+  }
+```
+
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
