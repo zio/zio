@@ -230,13 +230,6 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Effectually maps over the value the fiber computes.
    */
-  @deprecated("use mapZIO", "2.0.0")
-  final def mapM[E1 >: E, B](f: A => IO[E1, B]): Fiber.Synthetic[E1, B] =
-    mapZIO(f)
-
-  /**
-   * Effectually maps over the value the fiber computes.
-   */
   final def mapZIO[E1 >: E, B](f: A => IO[E1, B]): Fiber.Synthetic[E1, B] =
     new Fiber.Synthetic[E1, B] {
       final def await(implicit trace: ZTraceElement): UIO[Exit[E1, B]] =
@@ -597,15 +590,6 @@ object Fiber extends FiberPlatformSpecific {
       FiberRenderer.prettyPrint(self)
   }
 
-  /**
-   * The identity of a Fiber, described by the time it began life, and a
-   * monotonically increasing sequence number generated from an atomic counter.
-   */
-  @deprecated("use FiberId", "2.0.0")
-  type Id = FiberId
-  @deprecated("use FiberId", "2.0.0")
-  val Id = FiberId
-
   sealed trait Status {
     def isInterrupting: Boolean
 
@@ -736,22 +720,6 @@ object Fiber extends FiberPlatformSpecific {
     done(Exit.failCause(cause))
 
   /**
-   * Lifts an [[zio.IO]] into a `Fiber`.
-   *
-   * @param io
-   *   `IO[E, A]` to turn into a `Fiber`
-   * @tparam E
-   *   error type
-   * @tparam A
-   *   type of the fiber
-   * @return
-   *   `UIO[Fiber[E, A]]`
-   */
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[E, A](io: IO[E, A])(implicit trace: ZTraceElement): UIO[Fiber.Synthetic[E, A]] =
-    fromZIO(io)
-
-  /**
    * Returns a `Fiber` that is backed by the specified `Future`.
    *
    * @param thunk
@@ -799,13 +767,6 @@ object Fiber extends FiberPlatformSpecific {
    */
   def fromZIO[E, A](io: IO[E, A])(implicit trace: ZTraceElement): UIO[Fiber.Synthetic[E, A]] =
     io.exit.map(done(_))
-
-  /**
-   * Creates a `Fiber` that is halted with the specified cause.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: Cause[E])(implicit trace: ZTraceElement): Fiber.Synthetic[E, Nothing] =
-    failCause(cause)
 
   /**
    * Interrupts all fibers, awaiting their interruption.

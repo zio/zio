@@ -267,22 +267,6 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that applies the specified aspect on Dotty.
-   */
-  @deprecated("use scala3", "2.0.0")
-  def dotty[LowerR, UpperR, LowerE, UpperE](
-    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
-  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
-    scala3(that)
-
-  /**
-   * An aspect that only runs tests on Dotty.
-   */
-  @deprecated("use scala3Only", "2.0.0")
-  val dottyOnly: TestAspectAtLeastR[Annotations] =
-    scala3Only
-
-  /**
    * An aspect that retries a test until success, without limit.
    */
   val eventually: TestAspectPoly = {
@@ -294,13 +278,6 @@ object TestAspect extends TimeoutVariants {
     }
     restoreTestEnvironment >>> eventually
   }
-
-  /**
-   * An aspect that runs tests on all versions except Dotty.
-   */
-  @deprecated("use exceptScala3", "2.0.0")
-  val exceptDotty: TestAspectAtLeastR[Annotations] =
-    exceptScala3
 
   /**
    * An aspect that runs tests on all platforms except ScalaJS.

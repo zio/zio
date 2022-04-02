@@ -25,12 +25,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 object TestVersion {
 
   /**
-   * Returns whether the current Scala version is Dotty.
-   */
-  @deprecated("use isScala3", "2.0.0")
-  val isDotty: Boolean = false
-
-  /**
    * Returns whether the current Scala version is Scala 2.
    */
   val isScala2: Boolean = true

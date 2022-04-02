@@ -21,14 +21,6 @@ import zio.stm.ZSTM
 
 package object internal {
 
-  @deprecated("use Executor", "2.0.0")
-  type Executor = zio.Executor
-  @deprecated("use Executor", "2.0.0")
-  val Executor = zio.Executor
-
-  @deprecated("use RuntimeConfig", "2.0.0")
-  type Platform = RuntimeConfig
-
   /**
    * Returns an effect that models success with the specified value.
    */

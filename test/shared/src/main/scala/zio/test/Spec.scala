@@ -76,19 +76,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     }
 
   /**
-   * Returns a new spec with remapped errors and tests.
-   */
-  @deprecated("use mapBoth", "2.0.0")
-  final def bimap[E1, T1](f: E => E1, g: T => T1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1, T1] =
-    transform[R, E1, T1] {
-      case ExecCase(exec, spec)        => ExecCase(exec, spec)
-      case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ScopedCase(scoped)          => ScopedCase[R, E1, Spec[R, E1, T1]](scoped.mapError(f))
-      case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.bimap(f, g), annotations)
-    }
-
-  /**
    * Transforms the environment being provided to each test in this spec with
    * the specified function.
    */
@@ -208,16 +195,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case MultipleCase(specs)      => f(MultipleCase(specs.map((_.fold(f)))))
       case t @ TestCase(_, _)       => f(t)
     }
-
-  /**
-   * Effectfully folds over all nodes according to the execution strategy of
-   * suites, utilizing the specified default for other cases.
-   */
-  @deprecated("use foldScoped", "2.0.0")
-  final def foldM[R1 <: R, E1, Z](
-    defExec: ExecutionStrategy
-  )(f: SpecCase[R, E, T, Z] => ZIO[R1 with Scope, E1, Z])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Z] =
-    foldScoped[R1, E1, Z](defExec)(f)
 
   /**
    * Effectfully folds over all nodes according to the execution strategy of
@@ -575,15 +552,6 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     b: => Boolean
   )(implicit ev: T <:< TestSuccess, trace: ZTraceElement): Spec[R with Annotations, E, TestSuccess] =
     whenZIO(ZIO.succeedNow(b))
-
-  /**
-   * Runs the spec only if the specified effectual predicate is satisfied.
-   */
-  @deprecated("use whenZIO", "2.0.0")
-  final def whenM[R1 <: R, E1 >: E](
-    b: ZIO[R1, E1, Boolean]
-  )(implicit ev: T <:< TestSuccess, trace: ZTraceElement): Spec[R1 with Annotations, E1, TestSuccess] =
-    whenZIO(b)
 
   /**
    * Runs the spec only if the specified effectual predicate is satisfied.

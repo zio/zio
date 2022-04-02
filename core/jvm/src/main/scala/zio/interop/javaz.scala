@@ -46,12 +46,6 @@ private[zio] object javaz {
       }
     }
 
-  @deprecated("use asyncWithCompletionHandler", "2.0.0")
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit
-    trace: ZTraceElement
-  ): Task[T] =
-    asyncWithCompletionHandler(op)
-
   private def catchFromGet(
     isFatal: Throwable => Boolean
   )(implicit trace: ZTraceElement): PartialFunction[Throwable, Task[Nothing]] = {

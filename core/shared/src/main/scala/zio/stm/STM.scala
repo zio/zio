@@ -69,14 +69,6 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.collectAll_]]
-   */
-  @deprecated("use collectAllDiscard", "2.0.0")
-  def collectAll_[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
-    ZSTM.collectAll_(in)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.collectAllDiscard]]
    */
   def collectAllDiscard[E, A](in: Iterable[STM[E, A]]): STM[E, Unit] =
@@ -217,14 +209,6 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.foreach_]]
-   */
-  @deprecated("use foreachDiscard", "2.0.0")
-  def foreach_[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
-    ZSTM.foreach_(in)(f)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.foreachDiscard]]
    */
   def foreachDiscard[E, A](in: Iterable[A])(f: A => STM[E, Any]): STM[E, Unit] =
@@ -239,22 +223,6 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.fromFunction]]
-   */
-  @deprecated("use access", "2.0.0")
-  def fromFunction[A](f: Any => A): USTM[A] =
-    ZSTM.fromFunction(f)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.fromFunctionM]]
-   */
-  @deprecated("use environmentWithZSTM", "2.0.0")
-  def fromFunctionM[E, A](f: Any => STM[E, A]): STM[E, A] =
-    ZSTM.fromFunctionM(f)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.fromOption]]
    */
   def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
@@ -266,14 +234,6 @@ object STM {
    */
   def fromTry[A](a: => Try[A]): TaskSTM[A] =
     ZSTM.fromTry(a)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.ifM]]
-   */
-  @deprecated("use ifSTM", "2.0.0")
-  def ifM[E](b: STM[E, Boolean]): ZSTM.IfSTM[Any, E] =
-    ZSTM.ifM(b)
 
   /**
    * @see
@@ -305,46 +265,10 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.loop_]]
-   */
-  @deprecated("use loopDiscard", "2.0.0")
-  def loop_[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
-    ZSTM.loop_(initial)(cont, inc)(body)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.loopDiscard]]
    */
   def loopDiscard[E, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => STM[E, Any]): STM[E, Unit] =
     ZSTM.loopDiscard(initial)(cont, inc)(body)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.mapN[R,E,A,B,C]*]]
-   */
-  @deprecated("use zip", "2.0.0")
-  def mapN[E, A, B, C](tx1: STM[E, A], tx2: STM[E, B])(f: (A, B) => C): STM[E, C] =
-    ZSTM.mapN(tx1, tx2)(f)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D]*]]
-   */
-  @deprecated("use zip", "2.0.0")
-  def mapN[E, A, B, C, D](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C])(
-    f: (A, B, C) => D
-  ): STM[E, D] =
-    ZSTM.mapN(tx1, tx2, tx3)(f)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.mapN[R,E,A,B,C,D,F]*]]
-   */
-  @deprecated("use zip", "2.0.0")
-  def mapN[E, A, B, C, D, F](tx1: STM[E, A], tx2: STM[E, B], tx3: STM[E, C], tx4: STM[E, D])(
-    f: (A, B, C, D) => F
-  ): STM[E, F] =
-    ZSTM.mapN(tx1, tx2, tx3, tx4)(f)
 
   /**
    * @see
@@ -359,14 +283,6 @@ object STM {
    *   See [[zio.stm.ZSTM.none]]
    */
   val none: USTM[Option[Nothing]] = ZSTM.none
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.partition]]
-   */
-  @deprecated("use attempt", "2.0.0")
-  def partial[A](a: => A): STM[Throwable, A] =
-    ZSTM.partial(a)
 
   /**
    * @see
@@ -394,22 +310,6 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.replicateM]]
-   */
-  @deprecated("use replicateSTM", "2.0.0")
-  def replicateM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
-    ZSTM.replicateM(n)(transaction)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.replicateM_]]
-   */
-  @deprecated("use replicateSTMDiscard", "2.0.0")
-  def replicateM_[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
-    ZSTM.replicateM_(n)(transaction)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.replicateSTM]]
    */
   def replicateSTM[E, A](n: Int)(transaction: STM[E, A]): STM[E, Iterable[A]] =
@@ -421,14 +321,6 @@ object STM {
    */
   def replicateSTMDiscard[E, A](n: Int)(transaction: STM[E, A]): STM[E, Unit] =
     ZSTM.replicateSTMDiscard(n)(transaction)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.require]]
-   */
-  @deprecated("use someOrFail", "2.0.0")
-  def require[E, A](error: => E): STM[E, Option[A]] => STM[E, A] =
-    ZSTM.require[Any, E, A](error)
 
   /**
    * @see
@@ -481,14 +373,6 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.unlessM]]
-   */
-  @deprecated("use unlessSTM", "2.0.0")
-  def unlessM[E](b: STM[E, Boolean]): ZSTM.UnlessSTM[Any, E] =
-    ZSTM.unlessM(b)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.unlessSTM]]
    */
   def unlessSTM[E](b: STM[E, Boolean]): ZSTM.UnlessSTM[Any, E] =
@@ -538,26 +422,10 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.whenCaseM]]
-   */
-  @deprecated("use whenCaseSTM", "2.0.0")
-  def whenCaseM[E, A, B](a: STM[E, A])(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
-    ZSTM.whenCaseM(a)(pf)
-
-  /**
-   * @see
    *   See [[zio.stm.ZSTM.whenCaseSTM]]
    */
   def whenCaseSTM[E, A, B](a: STM[E, A])(pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     ZSTM.whenCaseSTM(a)(pf)
-
-  /**
-   * @see
-   *   See [[zio.stm.ZSTM.whenM]]
-   */
-  @deprecated("use whenSTM", "2.0.0")
-  def whenM[E](b: STM[E, Boolean]): ZSTM.WhenSTM[Any, E] =
-    ZSTM.whenM(b)
 
   /**
    * @see

@@ -90,13 +90,6 @@ final case class TestRunner[R, E](
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 
   /**
-   * Creates a copy of this runner replacing the platform
-   */
-  @deprecated("use withRuntimeConfig", "2.0.0")
-  def withPlatform(f: Platform => Platform): TestRunner[R, E] =
-    withRuntimeConfig(f)
-
-  /**
    * Creates a copy of this runner replacing the reporter.
    */
   def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =

@@ -165,57 +165,6 @@ trait ZStreamPlatformSpecificConstructors {
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
 
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The optionality of the error type `E` can be used to signal the end
-   * of the stream, by setting it to `None`.
-   */
-  @deprecated("use async", "2.0.0")
-  def effectAsync[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    async(register, outputBuffer)
-
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback returns either a canceler or
-   * synchronously returns a stream. The optionality of the error type `E` can
-   * be used to signal the end of the stream, by setting it to `None`.
-   */
-  @deprecated("use asyncInterrupt", "2.0.0")
-  def effectAsyncInterrupt[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[URIO[R, Any], ZStream[R, E, A]],
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncInterrupt(register, outputBuffer)
-
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times The registration of the callback itself returns an effect. The
-   * optionality of the error type `E` can be used to signal the end of the
-   * stream, by setting it to `None`.
-   */
-  @deprecated("use asyncZIO", "2.0.0")
-  def effectAsyncM[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncZIO(register, outputBuffer)
-
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback can possibly return the stream
-   * synchronously. The optionality of the error type `E` can be used to signal
-   * the end of the stream, by setting it to `None`.
-   */
-  @deprecated("use asyncMaybe", "2.0.0")
-  def effectAsyncMaybe[R, E, A](
-    register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncMaybe(register, outputBuffer)
-
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 }
 

@@ -46,13 +46,6 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
-  @deprecated("use asExecutionContext", "2.0.0")
-  lazy val asEC: ExecutionContext =
-    asExecutionContext
-
-  /**
-   * Views this `Executor` as a Scala `ExecutionContext`.
-   */
   lazy val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
@@ -69,27 +62,6 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
     command =>
       if (unsafeSubmit(command)) ()
       else throw new java.util.concurrent.RejectedExecutionException
-
-  /**
-   * Current sampled execution metrics, if available.
-   */
-  @deprecated("use unsafeMetrics", "2.0.0")
-  def metrics: Option[ExecutionMetrics] =
-    unsafeMetrics
-
-  /**
-   * Submits an effect for execution.
-   */
-  @deprecated("use unsafeSubmit", "2.0.0")
-  def submit(runnable: Runnable): Boolean =
-    unsafeSubmit(runnable)
-
-  /**
-   * Submits an effect for execution or throws.
-   */
-  @deprecated("use unsafeSubmitOrThrow", "2.0.0")
-  final def submitOrThrow(runnable: Runnable): Unit =
-    unsafeSubmitOrThrow(runnable)
 
   /**
    * Submits an effect for execution and signals that the current fiber is ready
