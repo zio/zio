@@ -2317,7 +2317,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.withRuntimeConfig(runtimeConfig)(self)
 
   /**
-   * A named alias for `&&&` or `<*>`.
+   * A named alias for `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B],
