@@ -60,20 +60,12 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
-  @deprecated("use isDie", "2.0.0")
-  final def died: Boolean =
-    isDie
-
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
    * one exists.
    */
   final def dieOption: Option[Throwable] =
     find { case Die(t, _) => t }
-
-  @deprecated("use isFailure", "2.0.0")
-  final def failed: Boolean =
-    isFailure
 
   /**
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
@@ -225,21 +217,6 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
     loop(z, self, Nil)
   }
-
-  /**
-   * Determines if the `Cause` contains an interruption.
-   */
-  @deprecated("use isInterrupted", "2.0.0")
-  final def interrupted: Boolean =
-    isInterrupted
-
-  /**
-   * Determines if the `Cause` contains only interruptions and not any `Die` or
-   * `Fail` causes.
-   */
-  @deprecated("use isInterruptedOnly", "2.0.0")
-  final def interruptedOnly: Boolean =
-    isInterruptedOnly
 
   /**
    * Returns a set of interruptors, fibers that interrupted the fiber described

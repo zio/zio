@@ -111,9 +111,6 @@ object Supervisor {
   def track(weak: Boolean)(implicit trace: ZTraceElement): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] =
     ZIO.succeed(unsafeTrack(weak))
 
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
-
   def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
 
   /**

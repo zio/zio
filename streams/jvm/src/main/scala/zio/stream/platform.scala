@@ -181,57 +181,6 @@ trait ZStreamPlatformSpecificConstructors {
     asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
 
   /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The optionality of the error type `E` can be used to signal the end
-   * of the stream, by setting it to `None`.
-   */
-  @deprecated("use async", "2.0.0")
-  def effectAsync[R, E, A](
-    register: ZStream.Emit[R, E, A, Unit] => Unit,
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    async(register, outputBuffer)
-
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback returns either a canceler or
-   * synchronously returns a stream. The optionality of the error type `E` can
-   * be used to signal the end of the stream, by setting it to `None`.
-   */
-  @deprecated("use asyncInterrupt", "2.0.0")
-  def effectAsyncInterrupt[R, E, A](
-    register: ZStream.Emit[R, E, A, Unit] => Either[URIO[R, Any], ZStream[R, E, A]],
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncInterrupt(register, outputBuffer)
-
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times The registration of the callback itself returns an effect. The
-   * optionality of the error type `E` can be used to signal the end of the
-   * stream, by setting it to `None`.
-   */
-  @deprecated("use asyncZIO", "2.0.0")
-  def effectAsyncM[R, E, A](
-    register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncZIO(register, outputBuffer)
-
-  /**
-   * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback can possibly return the stream
-   * synchronously. The optionality of the error type `E` can be used to signal
-   * the end of the stream, by setting it to `None`.
-   */
-  @deprecated("use asyncMaybe", "2.0.0")
-  def effectAsyncMaybe[R, E, A](
-    register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
-    outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncMaybe(register, outputBuffer)
-
-  /**
    * Creates a stream of bytes from the specified file.
    */
   final def fromFile(file: => File, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
@@ -331,16 +280,6 @@ trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an effect producing `java.io.Reader`.
-   */
-  @deprecated("use fromReaderZIO", "2.0.0")
-  def fromReaderEffect[R](
-    reader: => ZIO[R, IOException, Reader],
-    chunkSize: => Int = ZStream.DefaultChunkSize
-  )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
-    fromReaderZIO(reader, chunkSize)
-
-  /**
    * Creates a stream from scoped `java.io.Reader`.
    */
   def fromReaderScoped[R](
@@ -393,15 +332,6 @@ trait ZStreamPlatformSpecificConstructors {
     )
 
   /**
-   * Creates a stream from a Java stream
-   */
-  @deprecated("use fromJavaStreamZIO", "2.0.0")
-  final def fromJavaStreamEffect[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, Throwable, A] =
-    fromJavaStreamZIO(stream)
-
-  /**
    * Creates a stream from a scoped Java stream
    */
   final def fromJavaStreamScoped[R, A](
@@ -416,15 +346,6 @@ trait ZStreamPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZStream[R, Nothing, A] =
     ZStream.fromJavaIteratorSucceed(stream.iterator())
-
-  /**
-   * Creates a stream from a Java stream
-   */
-  @deprecated("use fromJavaStreamSucceed", "2.0.0")
-  final def fromJavaStreamTotal[A](stream: => java.util.stream.Stream[A])(implicit
-    trace: ZTraceElement
-  ): ZStream[Any, Nothing, A] =
-    fromJavaStreamSucceed(stream)
 
   /**
    * Creates a stream from a Java stream

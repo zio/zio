@@ -149,14 +149,6 @@ final class Promise[E, A] private (
     completeWith(IO.failCause(e))
 
   /**
-   * Halts the promise with the specified cause, which will be propagated to all
-   * fibers waiting on the value of the promise.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt(e: Cause[E])(implicit trace: ZTraceElement): UIO[Boolean] =
-    failCause(e)
-
-  /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the fiber calling this method.
    */

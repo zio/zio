@@ -51,25 +51,10 @@ trait Runtime[+R] {
     Runtime(f(environment), runtimeConfig)
 
   /**
-   * Constructs a new `Runtime` by mapping the platform.
-   */
-  @deprecated("use mapRuntimeConfig", "2.0.0")
-  def mapPlatform(f: Platform => Platform): Runtime[R] =
-    mapRuntimeConfig(f)
-
-  /**
    * Constructs a new `Runtime` by mapping the runtime configuration.
    */
   def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime[R] =
     Runtime(environment, f(runtimeConfig))
-
-  /**
-   * The platform of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
-   */
-  @deprecated("use runtimeConfig", "2.0.0")
-  def platform: Platform =
-    runtimeConfig
 
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.

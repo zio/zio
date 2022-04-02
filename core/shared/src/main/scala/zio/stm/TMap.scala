@@ -151,13 +151,6 @@ final class TMap[K, V] private (
   /**
    * Atomically folds using a transactional function.
    */
-  @deprecated("use foldSTM", "2.0.0")
-  def foldM[R, E, A](zero: A)(op: (A, (K, V)) => ZSTM[R, E, A]): ZSTM[R, E, A] =
-    foldSTM[R, E, A](zero)(op)
-
-  /**
-   * Atomically folds using a transactional function.
-   */
   def foldSTM[R, E, A](zero: A)(op: (A, (K, V)) => ZSTM[R, E, A]): ZSTM[R, E, A] =
     toChunk.flatMap(ZSTM.foldLeft(_)(zero)(op))
 
@@ -550,13 +543,6 @@ final class TMap[K, V] private (
   /**
    * Atomically updates all bindings using a transactional function.
    */
-  @deprecated("use transformSTM", "2.0.0")
-  def transformM[E](f: (K, V) => STM[E, (K, V)]): STM[E, Unit] =
-    transformSTM(f)
-
-  /**
-   * Atomically updates all bindings using a transactional function.
-   */
   def transformSTM[R, E](f: (K, V) => ZSTM[R, E, (K, V)]): ZSTM[R, E, Unit] =
     toChunk.flatMap { data =>
       val g = f.tupled
@@ -597,13 +583,6 @@ final class TMap[K, V] private (
    */
   def transformValues(f: V => V): USTM[Unit] =
     transform((k, v) => k -> f(v))
-
-  /**
-   * Atomically updates all values using a transactional function.
-   */
-  @deprecated("use transformValuesSTM", "2.0.0")
-  def transformValuesM[E](f: V => STM[E, V]): STM[E, Unit] =
-    transformValuesSTM(f)
 
   /**
    * Atomically updates all values using a transactional function.

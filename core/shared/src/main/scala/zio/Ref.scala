@@ -186,30 +186,11 @@ object Ref extends Serializable {
     def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit]
 
     /**
-     * Atomically modifies the `RefM` with the specified function, returning the
-     * value immediately before modification.
-     */
-    @deprecated("use getAndUpdateZIO", "2.0.0")
-    def getAndUpdateM[R, E](f: A => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      getAndUpdateZIO(f)
-
-    /**
      * Atomically modifies the `Ref.Synchronized` with the specified function,
      * returning the value immediately before modification.
      */
     def getAndUpdateZIO[R, E](f: A => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       modifyZIO(v => f(v).map(result => (v, result)))
-
-    /**
-     * Atomically modifies the `RefM` with the specified partial function,
-     * returning the value immediately before modification. If the function is
-     * undefined on the current value it doesn't change it.
-     */
-    @deprecated("use getAndUpdateSomeZIO", "2.0.0")
-    def getAndUpdateSomeM[R, E](pf: PartialFunction[A, ZIO[R, E, A]])(implicit
-      trace: ZTraceElement
-    ): ZIO[R, E, A] =
-      getAndUpdateSomeZIO(pf)
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified partial
@@ -225,27 +206,6 @@ object Ref extends Serializable {
       modifyZIO(a => ZIO.succeedNow(f(a)))
 
     /**
-     * Atomically modifies the `RefM` with the specified function, which
-     * computes a return value for the modification. This is a more powerful
-     * version of `update`.
-     */
-    @deprecated("use modifyZIO", "2.0.0")
-    def modifyM[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: ZTraceElement): ZIO[R, E, B] =
-      modifyZIO(f)
-
-    /**
-     * Atomically modifies the `RefM` with the specified function, which
-     * computes a return value for the modification if the function is defined
-     * in the current value otherwise it returns a default value. This is a more
-     * powerful version of `updateSome`.
-     */
-    @deprecated("use modifySomeZIO", "2.0.0")
-    def modifySomeM[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]])(implicit
-      trace: ZTraceElement
-    ): ZIO[R, E, B] =
-      modifySomeZIO[R, E, B](default)(pf)
-
-    /**
      * Atomically modifies the `Ref.Synchronized` with the specified function,
      * which computes a return value for the modification if the function is
      * defined in the current value otherwise it returns a default value. This
@@ -257,25 +217,10 @@ object Ref extends Serializable {
       modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, (B, A)]](v, _ => ZIO.succeedNow((default, v))))
 
     /**
-     * Atomically modifies the `RefM` with the specified function.
-     */
-    @deprecated("use updateZIO", "2.0.0")
-    def updateM[R, E](f: A => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-      updateZIO(f)
-
-    /**
      * Atomically modifies the `Ref.Synchronized` with the specified function.
      */
     def updateZIO[R, E](f: A => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
       modifyZIO(v => f(v).map(result => ((), result)))
-
-    /**
-     * Atomically modifies the `RefM` with the specified function, returning the
-     * value immediately after modification.
-     */
-    @deprecated("use updateAndGetZIO", "2.0.0")
-    def updateAndGetM[R, E](f: A => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      updateAndGetZIO(f)
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified function,
@@ -283,16 +228,6 @@ object Ref extends Serializable {
      */
     def updateAndGetZIO[R, E](f: A => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       modifyZIO(v => f(v).map(result => (result, result)))
-
-    /**
-     * Atomically modifies the `RefM` with the specified partial function. If
-     * the function is undefined on the current value it doesn't change it.
-     */
-    @deprecated("use updateSomeZIO", "2.0.0")
-    def updateSomeM[R, E](pf: PartialFunction[A, ZIO[R, E, A]])(implicit
-      trace: ZTraceElement
-    ): ZIO[R, E, Unit] =
-      updateSomeZIO(pf)
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified partial
@@ -303,17 +238,6 @@ object Ref extends Serializable {
       trace: ZTraceElement
     ): ZIO[R, E, Unit] =
       modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeedNow).map(result => ((), result)))
-
-    /**
-     * Atomically modifies the `RefM` with the specified partial function. If
-     * the function is undefined on the current value it returns the old value
-     * without changing it.
-     */
-    @deprecated("use updateSomeAndGetZIO", "2.0.0")
-    def updateSomeAndGetM[R, E](pf: PartialFunction[A, ZIO[R, E, A]])(implicit
-      trace: ZTraceElement
-    ): ZIO[R, E, A] =
-      updateSomeAndGetZIO(pf)
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified partial
