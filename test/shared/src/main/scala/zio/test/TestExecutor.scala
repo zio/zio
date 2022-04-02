@@ -62,9 +62,11 @@ object TestExecutor {
                 loop(label :: labels, spec, exec, ancestors, sectionId)
 
               case Spec.ScopedCase(managed) =>
-                managed
+                ZIO.scoped(
+                  managed
                   .flatMap(loop(labels, _, exec, ancestors, sectionId))
                   .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
+                )
 
               case Spec.MultipleCase(specs) =>
                 ZIO.uninterruptibleMask(restore =>
