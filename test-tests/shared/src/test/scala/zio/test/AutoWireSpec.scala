@@ -113,9 +113,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
         val addOne: ZIO[IntService, Nothing, Int] =
           ZIO
-            .service[IntService]
-            .zip(Random.nextIntBounded(2))
-            .flatMap { case (ref, int) => ref.add(int) }
+            .serviceWithZIO[IntService](_.add(1))
 
         val refLayer: ULayer[IntService] = Ref.make(1).map(IntService(_)).toLayer
 
@@ -125,8 +123,8 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 2")(assertM(addOne)(equalTo(2)))
           ),
           suite("suite 2")(
-            test("test 3")(assertM(addOne)(equalTo(2))),
-            test("test 4")(assertM(addOne)(equalTo(3)))
+            test("test 3")(assertM(addOne)(equalTo(3))),
+            test("test 4")(assertM(addOne)(equalTo(4)))
           )
         ).provideShared(refLayer) @@ TestAspect.sequential
       } @@ TestAspect.exceptScala3

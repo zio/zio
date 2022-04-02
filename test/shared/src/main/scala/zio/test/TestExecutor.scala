@@ -64,8 +64,8 @@ object TestExecutor {
               case Spec.ScopedCase(managed) =>
                 ZIO.scoped(
                   managed
-                  .flatMap(loop(labels, _, exec, ancestors, sectionId))
-                  .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
+                    .flatMap(loop(labels, _, exec, ancestors, sectionId))
+                    .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
                 )
 
               case Spec.MultipleCase(specs) =>
