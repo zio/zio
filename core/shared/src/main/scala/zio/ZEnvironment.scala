@@ -216,7 +216,7 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   lazy val empty: ZEnvironment[Any] =
-    new ZEnvironment[AnyRef](Map.empty, 0, Map(taggedTagType(TaggedAnyRef) -> (())))
+    new ZEnvironment[Any](Map.empty, 0, Map(taggedTagType(TaggedAny) -> (())))
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
@@ -298,6 +298,6 @@ object ZEnvironment {
       patch.asInstanceOf[Patch[Any, Any]]
   }
 
-  private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
-    implicitly[EnvironmentTag[AnyRef]]
+  private lazy val TaggedAny: EnvironmentTag[Any] =
+    implicitly[EnvironmentTag[Any]]
 }
