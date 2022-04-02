@@ -62,7 +62,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         self.runSpec.zipPar(that.runSpec)
 
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
-        self.spec + that.spec
+        self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
@@ -70,6 +70,9 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         val _                                                  = (selfTag, thatTag)
         EnvironmentTag[Environment]
       }
+
+      override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
+        Chunk.empty
     }
 
   protected def runSpec: ZIO[
