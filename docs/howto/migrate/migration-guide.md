@@ -1314,9 +1314,17 @@ ZIO.scoped {
 }
 ```  
 
-The `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. The `ZManaged` data type is moved to a separate module that users can depend on for backward compatibility.
+The `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We moved it to a separate module called `zio-managed` that users can depend on for backward compatibility. 
 
-For example, assume we have written the following `transfer` function in ZIO 1.x:
+So if we are not ready to migrate completely to the new `Scope` approach, we can add the `zio-managed` dependency into the `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
+```
+
+And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor the codebase to use the `Scope` data type instead.
+
+The following example shows how we can convert a `ZManaged` code base to the `Scope` data type. Therefore, let's assume we have written the following `transfer` function in ZIO 1.x:
 
 ```scala
 import zio._
