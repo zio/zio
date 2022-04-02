@@ -434,6 +434,20 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that only runs a test if the specified environment variable
+   * satisfies the specified assertion.
+   */
+  def ifEnv(env: String)(assertion: String => Boolean): TestAspectAtLeastR[Live with Annotations] =
+    ifEnvOption(env)(_.fold(false)(assertion))
+
+  /**
+   * An aspect that only runs a test if the specified environment variable is
+   * not set.
+   */
+  def ifEnvNotSet(env: String): TestAspectAtLeastR[Live with Annotations] =
+    ifEnvOption(env)(_.isEmpty)
+
+  /**
    * An aspect that only runs a test if the specified optional environment
    * variable satisfies the specified assertion.
    */
@@ -444,13 +458,6 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that only runs a test if the specified environment variable
-   * satisfies the specified assertion.
-   */
-  def ifEnv(env: String)(assertion: String => Boolean): TestAspectAtLeastR[Live with Annotations] =
-    ifEnvOption(env)(_.fold(false)(assertion))
-
-  /**
    * An aspect that only runs a test if the specified environment variable is
    * set.
    */
@@ -458,27 +465,33 @@ object TestAspect extends TimeoutVariants {
     ifEnvOption(env)(_.nonEmpty)
 
   /**
-   * An aspect that only runs a test if the specified environment variable is
-   * not set.
-   */
-  def ifEnvNotSet(env: String): TestAspectAtLeastR[Live with Annotations] =
-    ifEnvOption(env)(_.isEmpty)
-
-  /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion.
    */
   def ifProp(prop: String)(assertion: String => Boolean): TestAspectAtLeastR[Live with Annotations] =
+    ifPropOption(prop)(_.fold(false)(assertion))
+
+  /**
+   * An aspect that only runs a test if the specified Java property is not set.
+   */
+  def ifPropNotSet(env: String): TestAspectAtLeastR[Live with Annotations] =
+    ifPropOption(env)(_.isEmpty)
+
+  /**
+   * An aspect that only runs a test if the specified optional Java property
+   * satisfies the specified assertion.
+   */
+  def ifPropOption(prop: String)(assertion: Option[String] => Boolean): TestAspectAtLeastR[Live with Annotations] =
     new TestAspectAtLeastR[Live with Annotations] {
       def some[R <: Live with Annotations, E](spec: ZSpec[R, E])(implicit trace: ZTraceElement): ZSpec[R, E] =
-        spec.whenZIO(Live.live(System.property(prop)).orDie.map(_.fold(false)(assertion)))
+        spec.whenZIO(Live.live(System.property(prop)).orDie.map(assertion))
     }
 
   /**
    * An aspect that only runs a test if the specified Java property is set.
    */
   def ifPropSet(prop: String): TestAspectAtLeastR[Live with Annotations] =
-    ifProp(prop)(_ => true)
+    ifPropOption(prop)(_.nonEmpty)
 
   /**
    * An aspect that applies the specified aspect on ScalaJS.
