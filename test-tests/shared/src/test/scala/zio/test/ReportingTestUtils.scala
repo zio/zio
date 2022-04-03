@@ -86,17 +86,17 @@ object ReportingTestUtils {
   def test3(implicit trace: ZTraceElement): ZSpec[Any, Nothing] =
     test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
   def test3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    expectedFailure("Value falls within range"),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
-    withOffset(2)(
+    withOffset(2)(expectedFailure("Value falls within range")),
+    withOffset(4)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
+    withOffset(4)(
       s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
     ),
-    withOffset(2)(assertSourceLocation() + "\n\n"),
-    withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
-    withOffset(2)(
+    withOffset(4)(assertSourceLocation() + "\n\n"),
+    withOffset(4)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
+    withOffset(4)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
     ),
-    withOffset(2)(assertSourceLocation() + "\n")
+    withOffset(4)(assertSourceLocation() + "\n\n")
   )
 
   def test4(implicit trace: ZTraceElement): Spec[Any, TestFailure[String], Nothing] =
@@ -171,21 +171,21 @@ object ReportingTestUtils {
     suite("Suite1")(test1, test2)
   def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedSuccess("Suite1"),
-    withOffset(2)(test1Expected),
-    withOffset(2)(test2Expected)
+    withOffset(4)(test1Expected),
+    withOffset(4)(test2Expected)
   )
 
   def suite2(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite2")(test1, test2, test3)
   def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    expectedFailure("Suite2"),
-    withOffset(2)(test1Expected),
-    withOffset(2)(test2Expected)
+    expectedSuccess("Suite2"),
+    withOffset(4)(test1Expected),
+    withOffset(4)(test2Expected)
   ) ++ test3Expected.map(withOffset(2)(_))
 
   def suite3(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite3")(suite1, suite2, test3)
-  def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedFailure("Suite3")) ++
+  def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedSuccess("Suite3")) ++
     suite1Expected.map(withOffset(2)) ++
     suite2Expected.map(withOffset(2)) ++
     Vector("\n") ++
@@ -193,10 +193,19 @@ object ReportingTestUtils {
 
   def suite4(implicit trace: ZTraceElement): Spec[Any, TestFailure[Nothing], TestSuccess] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
-  def suite4Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedFailure("Suite4")) ++
-    suite1Expected.map(withOffset(2)) ++
-    Vector(withOffset(2)(expectedIgnored("Empty"))) ++
-    test3Expected.map(withOffset(2))
+  def suite4Expected(implicit trace: ZTraceElement): Vector[String] = {
+
+    def suite1ExpectedLocal(implicit trace: ZTraceElement): Vector[String] = Vector(
+      expectedSuccess("Suite1"),
+      withOffset(4)(test1Expected),
+      withOffset(4)(test2Expected)
+    )
+
+    Vector(expectedSuccess("Suite4")) ++
+      suite1ExpectedLocal.map(withOffset(4)) ++
+      Vector(withOffset(4)(expectedSuccess("Empty"))) ++
+      test3Expected.map(withOffset(2))
+  }
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String =
     Option(trace).collect { case ZTraceElement(_, path, line) =>
