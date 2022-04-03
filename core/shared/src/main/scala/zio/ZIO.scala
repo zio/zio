@@ -1420,8 +1420,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
         self,
         that,
-        (exit, fiber) => leftDone(exit, fiber),
-        (exit, fiber) => rightDone(exit, fiber),
+        (winner, loser) =>
+          winner.await.flatMap {
+            case exit: Exit.Success[_] =>
+              winner.inheritRefs.flatMap(_ => leftDone(exit, loser))
+            case exit: Exit.Failure[_] =>
+              leftDone(exit, loser)
+          },
+        (winner, loser) =>
+          winner.await.flatMap {
+            case exit: Exit.Success[B] =>
+              winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
+            case exit: Exit.Failure[E1] =>
+              rightDone(exit, loser)
+          },
         trace
       )
     }
@@ -2379,9 +2391,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       fiberId: FiberId,
       f: (A, B) => C,
       leftWinner: Boolean
-    )(winner: Exit[E1, A], loser: Fiber[E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, C] =
-      winner match {
-        case Exit.Success(a) => loser.inheritRefs *> loser.join.map(f(a, _))
+    )(winner: Fiber[E1, A], loser: Fiber[E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, C] =
+      winner.await.flatMap {
+        case Exit.Success(a) =>
+          loser.await.flatMap {
+            case Exit.Success(b)     => winner.inheritRefs *> loser.inheritRefs *> ZIO.succeed(f(a, b))
+            case Exit.Failure(cause) => ZIO.failCause(cause)
+          }
         case Exit.Failure(cause) =>
           loser.interruptAs(fiberId).flatMap {
             case Exit.Success(_) => ZIO.failCause(cause)
@@ -2395,7 +2411,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     ZIO.transplant { graft =>
       ZIO.descriptorWith { d =>
-        (graft(self) raceWith graft(that))(coordinate(d.id, f, true), coordinate(d.id, g, false))
+        new ZIO.RaceWith(
+          graft(self),
+          graft(that),
+          coordinate(d.id, f, true),
+          coordinate(d.id, g, false),
+          trace
+        )
       }
     }
   }
@@ -5457,8 +5479,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class RaceWith[R, EL, ER, E, A, B, C](
     val left: ZIO[R, EL, A],
     val right: ZIO[R, ER, B],
-    val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
-    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
+    val leftWins: (Fiber[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
+    val rightWins: (Fiber[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
     val trace: ZTraceElement
   ) extends ZIO[R, E, C] {
     def unsafeLog: () => String =

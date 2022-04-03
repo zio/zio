@@ -379,6 +379,12 @@ object FiberRefSpec extends ZIOBaseSpec {
         assertTrue(environment.get[Console] == testConsole) &&
         assertTrue(environment.get[Random] == testRandom) &&
         assertTrue(environment.get[System] == testSystem)
+    } @@ TestAspect.nonFlaky,
+    test("zipPar") {
+      for {
+        _ <- ZIO.unit.timeout(1.second) <& TestClock.adjust(1.second)
+        _ <- testClock
+      } yield assertCompletes
     } @@ TestAspect.nonFlaky
   ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
 }
