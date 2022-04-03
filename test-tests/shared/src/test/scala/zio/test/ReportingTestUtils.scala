@@ -96,7 +96,7 @@ object ReportingTestUtils {
     withOffset(4)(
       s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
     ),
-    withOffset(4)(assertSourceLocation() + "\n\n") // TODO Check on extra newline
+    withOffset(4)(assertSourceLocation() + "\n\n")
   )
 
   def test4(implicit trace: ZTraceElement): Spec[Any, TestFailure[String], Nothing] =
