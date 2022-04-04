@@ -105,8 +105,8 @@ trait ZLogger[-Message, +Output] { self =>
     )
 }
 object ZLogger {
-  private[zio] val stringTag: LightTypeTag = EnvironmentTag[String].tag
-  private[zio] val causeTag: LightTypeTag  = EnvironmentTag[Cause[Any]].tag
+  private[zio] val stringTag: LightTypeTag = CompositeTag[String].tag
+  private[zio] val causeTag: LightTypeTag  = CompositeTag[Cause[Any]].tag
 
   import Predef.{Set => ScalaSet, _}
 

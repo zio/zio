@@ -26,7 +26,7 @@ final class ZEnvironment[+R] private (
   private var cache: Map[LightTypeTag, Any] = Map.empty
 ) extends Serializable { self =>
 
-  def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def ++[R1: CompositeTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
 
   /**
@@ -50,7 +50,7 @@ final class ZEnvironment[+R] private (
    * Retrieves a service from the environment corresponding to the specified
    * key.
    */
-  def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: EnvironmentTag[Map[K, V]]): Option[V] =
+  def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: CompositeTag[Map[K, V]]): Option[V] =
     unsafeGet[Map[K, V]](taggedTagType(tagged)).get(k)
 
   override def hashCode: Int =
@@ -60,7 +60,7 @@ final class ZEnvironment[+R] private (
    * Prunes the environment to the set of services statically known to be
    * contained within it.
    */
-  def prune[R1 >: R](implicit tagged: EnvironmentTag[R1]): ZEnvironment[R1] = {
+  def prune[R1 >: R](implicit tagged: CompositeTag[R1]): ZEnvironment[R1] = {
     val tag = taggedTagType(tagged)
     val set = taggedGetServices(tag)
 
@@ -90,7 +90,7 @@ final class ZEnvironment[+R] private (
   /**
    * Combines this environment with the specified environment.
    */
-  def union[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def union[R1: CompositeTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.unionAll[R1](that.prune)
 
   /**
@@ -298,6 +298,6 @@ object ZEnvironment {
       patch.asInstanceOf[Patch[Any, Any]]
   }
 
-  private lazy val TaggedAny: EnvironmentTag[Any] =
-    implicitly[EnvironmentTag[Any]]
+  private lazy val TaggedAny: CompositeTag[Any] =
+    implicitly[CompositeTag[Any]]
 }

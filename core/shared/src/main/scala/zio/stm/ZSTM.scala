@@ -1419,7 +1419,7 @@ object ZSTM {
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: EnvironmentTag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
+    )(implicit tag: CompositeTag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
       ZSTM.environmentWith(_.getAt(key))
   }
 

@@ -1,6 +1,6 @@
 package zio.autowire
 
-import zio.{EnvironmentTag, UIO, ZIO, ZLayer}
+import zio.{CompositeTag, UIO, ZIO, ZLayer}
 import zio.test._
 import zio.ULayer
 
@@ -31,7 +31,7 @@ object InjectParameterizedServicesSpec extends ZIOSpecDefault {
   }
 
   object ParameterizedService {
-    def something[A: EnvironmentTag]: ZIO[ParameterizedService[A], Nothing, Unit] =
+    def something[A: CompositeTag]: ZIO[ParameterizedService[A], Nothing, Unit] =
       ZIO.serviceWithZIO[ParameterizedService[A]](_.something)
   }
 

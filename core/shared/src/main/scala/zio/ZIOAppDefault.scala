@@ -42,7 +42,7 @@ trait ZIOAppDefault extends ZIOApp {
 
   val layer: ZLayer[ZIOAppArgs with Scope, Any, Any] = ZLayer.empty
 
-  val tag: EnvironmentTag[Any] = EnvironmentTag[Any]
+  val tag: CompositeTag[Any] = CompositeTag[Any]
 
 }
 

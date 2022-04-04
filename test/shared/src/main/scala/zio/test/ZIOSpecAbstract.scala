@@ -64,11 +64,11 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
-      def tag: EnvironmentTag[Environment] = {
-        implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
-        implicit val thatTag: EnvironmentTag[that.Environment] = that.tag
+      def tag: CompositeTag[Environment] = {
+        implicit val selfTag: CompositeTag[self.Environment] = self.tag
+        implicit val thatTag: CompositeTag[that.Environment] = that.tag
         val _                                                  = (selfTag, thatTag)
-        EnvironmentTag[Environment]
+        CompositeTag[Environment]
       }
 
       override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =

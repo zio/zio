@@ -51,12 +51,12 @@ package object zio
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
 
-  trait Tag[A] extends EnvironmentTag[A] {
+  trait Tag[A] extends CompositeTag[A] {
     def tag: LightTypeTag
   }
 
   object Tag extends TagVersionSpecific {
-    def apply[A](implicit tag0: EnvironmentTag[A], isNotIntersection: IsNotIntersection[A]): Tag[A] =
+    def apply[A](implicit tag0: CompositeTag[A], isNotIntersection: IsNotIntersection[A]): Tag[A] =
       new Tag[A] {
         def tag: zio.LightTypeTag = tag0.tag
 

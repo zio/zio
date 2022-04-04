@@ -62,7 +62,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+  )(implicit tag: CompositeTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.union[ROut2](_))
 
   /**
@@ -78,7 +78,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
-  )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
+  )(implicit tag: CompositeTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
   /**
@@ -87,7 +87,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
     that: ZLayer[RIn2, E1, ROut2]
   )(implicit
-    tagged: EnvironmentTag[ROut2],
+    tagged: CompositeTag[ROut2],
     trace: ZTraceElement
   ): ZLayer[RIn, E1, ROut1 with ROut2] =
     self.>+>[E1, RIn2, ROut1, ROut2](that)
@@ -679,8 +679,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * passes through the inputs.
      */
     def passthrough(implicit
-      in: EnvironmentTag[RIn],
-      out: EnvironmentTag[ROut],
+      in: CompositeTag[RIn],
+      out: CompositeTag[ROut],
       trace: ZTraceElement
     ): ZLayer[RIn, E, RIn with ROut] =
       ZLayer.environment[RIn] ++ self
@@ -1019,9 +1019,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     final def apply[R, E1 >: E, A](
       zio: ZIO[ROut with R, E1, A]
     )(implicit
-      ev1: EnvironmentTag[R],
-      ev2: EnvironmentTag[ROut],
-      ev3: EnvironmentTag[RIn],
+      ev1: CompositeTag[R],
+      ev2: CompositeTag[ROut],
+      ev3: CompositeTag[RIn],
       trace: ZTraceElement
     ): ZIO[RIn with R, E1, A] =
       ZIO.provideLayer[RIn, E1, ROut, R, A](self)(zio)
@@ -1033,7 +1033,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      */
     def >>>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
-    )(implicit tag: EnvironmentTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
+    )(implicit tag: CompositeTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
       ZLayer.To(ZLayer.environment[RIn2] ++ self, that)
 
     /**
@@ -1054,8 +1054,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >+>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit
-      tagged: EnvironmentTag[ROut],
-      tagged2: EnvironmentTag[ROut2],
+      tagged: CompositeTag[ROut],
+      tagged2: CompositeTag[ROut2],
       trace: ZTraceElement
     ): ZLayer[RIn with RIn2, E1, ROut with ROut2] =
       self ++ self.>>>[RIn2, E1, ROut2](that)
@@ -1068,7 +1068,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
       that: ZLayer[RIn2, E1, ROut2]
     )(implicit
-      tagged: EnvironmentTag[ROut2],
+      tagged: CompositeTag[ROut2],
       trace: ZTraceElement
     ): ZLayer[RIn, E1, ROut1 with ROut2] =
       self.zipWithPar(self >>> that)(_.union[ROut2](_))

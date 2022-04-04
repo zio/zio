@@ -62,7 +62,7 @@ object ZState {
   /**
    * A layer that allocates the initial state of a stateful workflow.
    */
-  def initial[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
+  def initial[S: CompositeTag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
     ZLayer.scoped {
       for {
         fiberRef <- FiberRef.make(s)

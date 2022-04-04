@@ -1583,8 +1583,8 @@ object ZChannel {
   def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
     channel: => ZChannel[Env with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   )(implicit
-    ev: EnvironmentTag[Env],
-    tag: EnvironmentTag[Env1],
+    ev: CompositeTag[Env],
+    tag: CompositeTag[Env1],
     trace: ZTraceElement
   ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
@@ -1813,7 +1813,7 @@ object ZChannel {
       layer: => ZLayer[Env0, OutErr1, Env1]
     )(implicit
       ev: Env0 with Env1 <:< Env,
-      tagged: EnvironmentTag[Env1],
+      tagged: CompositeTag[Env1],
       trace: ZTraceElement
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
       self
@@ -1857,7 +1857,7 @@ object ZChannel {
     def apply[Key](
       key: => Key
     )(implicit
-      tag: EnvironmentTag[Map[Key, Service]],
+      tag: CompositeTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZChannel[Map[Key, Service], Any, Any, Any, Nothing, Nothing, Option[Service]] =
       ZChannel.environmentWith(_.getAt(key))

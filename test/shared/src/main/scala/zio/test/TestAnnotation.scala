@@ -29,7 +29,7 @@ final class TestAnnotation[V] private (
   val identifier: String,
   val initial: V,
   val combine: (V, V) => V,
-  private val tag: EnvironmentTag[V]
+  private val tag: CompositeTag[V]
 ) extends Serializable {
 
   override def equals(that: Any): Boolean = (that: @unchecked) match {
@@ -43,7 +43,7 @@ final class TestAnnotation[V] private (
 object TestAnnotation {
 
   def apply[V](identifier: String, initial: V, combine: (V, V) => V)(implicit
-    tag: EnvironmentTag[V]
+    tag: CompositeTag[V]
   ): TestAnnotation[V] =
     new TestAnnotation(identifier, initial, combine, tag)
 

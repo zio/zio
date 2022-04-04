@@ -22,8 +22,8 @@ import izumi.reflect.macrortti.LightTypeTagRef
 
 private[zio] trait VersionSpecific {
 
-  type EnvironmentTag[A] = izumi.reflect.Tag[A]
-  lazy val EnvironmentTag = izumi.reflect.Tag
+  type CompositeTag[A] = izumi.reflect.Tag[A]
+  lazy val CompositeTag = izumi.reflect.Tag
 
   type TagK[F[_]] = izumi.reflect.TagK[F]
   lazy val TagK = izumi.reflect.TagK
@@ -59,7 +59,7 @@ private[zio] trait VersionSpecific {
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
     left <:< right
 
-  private[zio] def taggedTagType[A](tagged: EnvironmentTag[A]): LightTypeTag =
+  private[zio] def taggedTagType[A](tagged: CompositeTag[A]): LightTypeTag =
     tagged.tag
 
   /**

@@ -18,7 +18,7 @@ class InternalMacros(val c: blackbox.Context) {
               val intersectionType      = c.typecheck(q"_root_.zio.IsNotIntersection[$x]").tpe
               val isNotIntersectionTree = c.inferImplicitValue(intersectionType, silent = false)
 
-              val envTagType = c.typecheck(q"_root_.zio.EnvironmentTag[$x]").tpe
+              val envTagType = c.typecheck(q"_root_.zio.CompositeTag[$x]").tpe
               val envTagTree = c.inferImplicitValue(envTagType, silent = false)
 
               q"_root_.zio.Tag[$tpe]($envTagTree, $isNotIntersectionTree)"

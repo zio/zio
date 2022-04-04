@@ -1265,7 +1265,7 @@ object ZManaged extends ZManagedPlatformSpecific {
     def apply[Key](
       key: => Key
     )(implicit
-      tag: EnvironmentTag[Map[Key, Service]],
+      tag: CompositeTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZManaged[Map[Key, Service], Nothing, Option[Service]] =
       ZManaged.environmentWith(_.getAt(key))
@@ -1318,7 +1318,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       layer: => ZLayer[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
-      tagged: EnvironmentTag[R1],
+      tagged: CompositeTag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
       self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
@@ -2440,8 +2440,8 @@ object ZManaged extends ZManagedPlatformSpecific {
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     managed: ZManaged[ROut with RIn2, E, ROut2]
   )(implicit
-    ev: EnvironmentTag[RIn2],
-    tag: EnvironmentTag[ROut],
+    ev: CompositeTag[RIn2],
+    tag: CompositeTag[ROut],
     trace: ZTraceElement
   ): ZManaged[RIn with RIn2, E, ROut2] =
     managed.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)

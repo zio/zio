@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   private[zio] val shuttingDown = new AtomicBoolean(false)
 
-  implicit def tag: EnvironmentTag[Environment]
+  implicit def tag: CompositeTag[Environment]
 
   type Environment
 
@@ -129,7 +129,7 @@ object ZIOApp {
       app.layer
     override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
-    implicit final def tag: EnvironmentTag[Environment] =
+    implicit final def tag: CompositeTag[Environment] =
       app.tag
   }
 
@@ -141,10 +141,10 @@ object ZIOApp {
     run0: ZIO[R with ZIOAppArgs with Scope, Any, Any],
     layer0: ZLayer[ZIOAppArgs with Scope, Any, R],
     hook0: RuntimeConfigAspect
-  )(implicit tagged: EnvironmentTag[R]): ZIOApp =
+  )(implicit tagged: CompositeTag[R]): ZIOApp =
     new ZIOApp {
       type Environment = R
-      def tag: EnvironmentTag[Environment] = tagged
+      def tag: CompositeTag[Environment] = tagged
       override def hook                    = hook0
       def layer                            = layer0
       def run                              = run0

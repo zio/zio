@@ -3598,7 +3598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Gets a state from the environment.
    */
-  def getState[S: EnvironmentTag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
+  def getState[S: CompositeTag](implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, S] =
     ZIO.serviceWithZIO(_.get)
 
   /**
@@ -4037,7 +4037,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
-  )(implicit ev: EnvironmentTag[RIn2], tag: EnvironmentTag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
+  )(implicit ev: CompositeTag[RIn2], tag: CompositeTag[ROut], trace: ZTraceElement): ZIO[RIn with RIn2, E, ROut2] =
     zio.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer)
 
   /**
@@ -4174,7 +4174,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Sets a state in the environment to the specified value.
    */
-  def setState[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
+  def setState[S: CompositeTag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWith(_.set(s))
 
   /**
@@ -4421,7 +4421,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * Updates a state in the environment with the specified function.
    */
-  def updateState[S: EnvironmentTag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
+  def updateState[S: CompositeTag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWithZIO(_.update(f))
 
   /**
@@ -4673,7 +4673,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       layer: => ZLayer[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
-      tagged: EnvironmentTag[R1],
+      tagged: CompositeTag[R1],
       trace: ZTraceElement
     ): ZIO[R0, E1, A] =
       self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
@@ -4814,7 +4814,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
-    )(implicit tag: EnvironmentTag[Map[Key, Service]], trace: ZTraceElement): URIO[Map[Key, Service], Option[Service]] =
+    )(implicit tag: CompositeTag[Map[Key, Service]], trace: ZTraceElement): URIO[Map[Key, Service], Option[Service]] =
       ZIO.environmentWith(_.getAt(key))
   }
 
@@ -4842,12 +4842,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class StatefulPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[S, E, A](
       s: S
-    )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[R, E, A] =
+    )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: CompositeTag[S], trace: ZTraceElement): ZIO[R, E, A] =
       zio.provideSomeLayer[R](ZState.initial(s))
   }
 
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
-    def apply[A](f: S => A)(implicit tag: EnvironmentTag[S], trace: ZTraceElement): ZIO[ZState[S], Nothing, A] =
+    def apply[A](f: S => A)(implicit tag: CompositeTag[S], trace: ZTraceElement): ZIO[ZState[S], Nothing, A] =
       ZIO.serviceWithZIO(_.get.map(f))
   }
 

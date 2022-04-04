@@ -4534,8 +4534,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     stream: => ZStream[ROut with RIn2, E, ROut2]
   )(implicit
-    ev: EnvironmentTag[RIn2],
-    tag: EnvironmentTag[ROut],
+    ev: CompositeTag[RIn2],
+    tag: CompositeTag[ROut],
     trace: ZTraceElement
   ): ZStream[RIn with RIn2, E, ROut2] =
     ZStream.suspend(stream.provideSomeLayer[RIn with RIn2](ZLayer.environment[RIn2] ++ layer))
@@ -4809,7 +4809,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def apply[Key](
       key: => Key
     )(implicit
-      tag: EnvironmentTag[Map[Key, Service]],
+      tag: CompositeTag[Map[Key, Service]],
       trace: ZTraceElement
     ): ZStream[Map[Key, Service], Nothing, Option[Service]] =
       ZStream.environmentWith(_.getAt(key))
@@ -4935,7 +4935,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       layer: => ZLayer[R0, E1, R1]
     )(implicit
       ev: R0 with R1 <:< R,
-      tagged: EnvironmentTag[R1],
+      tagged: CompositeTag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
       self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
