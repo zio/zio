@@ -28,8 +28,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
 
   def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
-  type Failure
-
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
     Chunk(TestAspect.fibers)
 
