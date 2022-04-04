@@ -1034,7 +1034,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def >>>[RIn2, E1 >: E, ROut2](
       that: ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit tag: EnvironmentTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
-      ZLayer.To(ZLayer.environment[RIn2] ++ self, that)
+      ZLayer.To(ZLayer.environment[RIn2] +!+ self, that)
 
     /**
      * Feeds the output services of this layer into the input of the specified
