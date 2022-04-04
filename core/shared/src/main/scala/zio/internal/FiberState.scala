@@ -194,7 +194,7 @@ object successor {
     val fiberId         = FiberId.unsafeMake(location0)
     val interruptStatus = StackBool(interruptible0)
     val stack           = Stack[ZIO.TracedCont[Any, Any, Any, Any]]()
-    var _fiberRefs      = null.asInstanceOf[JavaMap[FiberRef.Runtime[_], Any]]
+    var _fiberRefs      = null.asInstanceOf[JavaMap[FiberRef[_], Any]]
     var runtimeConfig   = runtimeConfig0
     var _children       = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
     val mailbox         = new AtomicReference[UIO[Any]](ZIO.unit)
@@ -260,14 +260,14 @@ object successor {
       trace: ZTraceElement
     ): ZIO[R, E2, A2] = evalOnZIO(effect, effect)
 
-    private final def fiberRefs: JavaMap[FiberRef.Runtime[_], Any] = {
+    private final def fiberRefs: JavaMap[FiberRef[_], Any] = {
       if (_fiberRefs eq null) {
-        _fiberRefs = new JavaMap[FiberRef.Runtime[_], Any]
+        _fiberRefs = new JavaMap[FiberRef[_], Any]
       }
       _fiberRefs
     }
 
-    final def getRef[A](ref: FiberRef.Runtime[A])(implicit trace: ZTraceElement): UIO[A] =
+    final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] =
       evalZIO(ZIO.succeed(unsafeGetRefOrInitial(ref)))
 
     final def id: FiberId.Runtime = fiberId
@@ -284,7 +284,7 @@ object successor {
             if (locals.isEmpty) UIO.unit
             else
               UIO.foreachDiscard(locals) { case (fiberRef, value) =>
-                val ref = fiberRef.asInstanceOf[FiberRef.Runtime[Any]]
+                val ref = fiberRef.asInstanceOf[FiberRef[Any]]
                 ref.update(old => ref.join(old, value))
               }
           }
@@ -417,15 +417,15 @@ object successor {
     final def unsafeGetListeners(): List[Exit[Nothing, Exit[E, A]] => Unit] =
       unsafeGetRefOrElse(FiberRef.listeners, Nil).asInstanceOf[List[Exit[Nothing, Exit[E, A]] => Unit]]
 
-    final def unsafeGetRef[A](ref: FiberRef.Runtime[A]): Option[A] =
+    final def unsafeGetRef[A](ref: FiberRef[A]): Option[A] =
       if (fiberRefs.containsKey(ref)) Some(fiberRefs.get(ref).asInstanceOf[A])
       else None
 
-    final def unsafeGetRefOrInitial[A](ref: FiberRef.Runtime[A]): A =
+    final def unsafeGetRefOrInitial[A](ref: FiberRef[A]): A =
       if (fiberRefs.containsKey(ref)) fiberRefs.get(ref).asInstanceOf[A]
       else ref.initial
 
-    final def unsafeGetRefOrElse[A](ref: FiberRef.Runtime[A], orElse: A): A =
+    final def unsafeGetRefOrElse[A](ref: FiberRef[A], orElse: A): A =
       if (fiberRefs.containsKey(ref)) fiberRefs.get(ref).asInstanceOf[A]
       else orElse
 
@@ -453,7 +453,7 @@ object successor {
       trace: ZTraceElement,
       cause: () => Cause[Any] = null,
       overrideLogLevel: Option[LogLevel] = None,
-      overrideRef1: FiberRef.Runtime[_] = null,
+      overrideRef1: FiberRef[_] = null,
       overrideValue1: AnyRef = null
     ): Unit = {
       val logLevel =
@@ -463,7 +463,7 @@ object successor {
 
       val contextMap =
         if (overrideRef1 ne null) {
-          val map: Map[FiberRef.Runtime[_], AnyRef] = ??? // FIXME
+          val map: Map[FiberRef[_], AnyRef] = ??? // FIXME
 
           if (overrideValue1 eq null) map - overrideRef1
           else map.updated(overrideRef1, overrideValue1)
@@ -523,7 +523,7 @@ object successor {
     final def unsafeSetListeners(ls: List[Exit[Nothing, Exit[E, A]] => Unit]): Unit =
       unsafeSetRef(FiberRef.listeners, ls.asInstanceOf[List[Exit[Nothing, Exit[Any, Any]] => Unit]])
 
-    final def unsafeSetRef[A](ref: FiberRef.Runtime[A], value: A): Unit =
+    final def unsafeSetRef[A](ref: FiberRef[A], value: A): Unit =
       fiberRefs.put(ref, value)
   }
 }
