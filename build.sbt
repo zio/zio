@@ -876,7 +876,8 @@ lazy val docs = project.module
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
-    fork := true
+    fork           := true,
+    Compile / fork := false
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
