@@ -86,11 +86,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     for {
       args    <- ZIO.service[ZIOAppArgs]
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      summary <- runSpec(spec, testArgs)
-      _ <- ZIO.debug("determing exit code")
-      exitCode = if (summary.fail > 0) 1 else 0
-      _       <- doExit(exitCode)
-      _ <- ZIO.debug("should have exited")
+      _       <- runSpec(spec, testArgs)
     } yield ()
   }
 
@@ -101,46 +97,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     }
     testReporter(renderer, TestAnnotationRenderer.default)
   }
-
-  private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    if (TestPlatform.isJVM) {
-      ZIO.succeed(
-        try if (!isAmmonite) {
-          println("Not ammonite, should exit with code " + exitCode)
-          exitWithFallbackHalt(exitCode, 2000)
-        }
-        catch { case _: SecurityException =>  }
-      )
-    } else {
-      UIO.unit
-    }
-
-  import java.util.TimerTask
-
-  def exitWithFallbackHalt(status: Int, maxDelayMillis: Long): Unit = {
-    try { // setup a timer, so if nice exit fails, the nasty exit happens
-      val timer = new Timer
-      timer.schedule(new TimerTask() {
-        override def run(): Unit = {
-          java.lang.Runtime.getRuntime.halt(status)
-        }
-      }, maxDelayMillis)
-      println("going to try to exit nicely")
-      sys.exit(status)
-    } catch {
-      case ex: Throwable =>
-        println("Could not exit, halting instead.")
-        java.lang.Runtime.getRuntime.halt(status)
-    } finally {
-      // should never get here
-      java.lang.Runtime.getRuntime.halt(status)
-    }
-  }
-
-  private def isAmmonite: Boolean =
-    sys.env.exists { case (k, v) =>
-      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
-    }
 
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
