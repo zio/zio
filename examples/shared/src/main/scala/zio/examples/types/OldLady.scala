@@ -50,6 +50,6 @@ object Fly {
   val live: URLayer[Console, Fly] = {
     println("FLY")
 
-    Console.printLine("Bzzzzzzzzzz...").orDie.as(new Fly {}).toLayer
+    ZLayer(Console.printLine("Bzzzzzzzzzz...").orDie.as(new Fly {}))
   }
 }

@@ -407,7 +407,7 @@ object ZLayerSpec extends ZIOBaseSpec {
               boolean <- ZIO.service[Boolean]
             } yield FooService(ref, string, boolean)
           }
-        val provideRefInt = Ref.make(10).toLayer
+        val provideRefInt = ZLayer(Ref.make(10))
 
         val needsStringAndBoolean = provideRefInt >>> fooBuilder
 
@@ -434,7 +434,7 @@ object ZLayerSpec extends ZIOBaseSpec {
               boolean <- ZIO.service[Boolean]
             } yield FooService(ref, string, boolean)
           }
-        val provideRefInt = Ref.make(10).toLayer
+        val provideRefInt = ZLayer(Ref.make(10))
 
         val needsStringAndBoolean = provideRefInt >+> fooBuilder
 
