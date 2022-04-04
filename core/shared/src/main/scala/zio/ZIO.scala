@@ -2082,25 +2082,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.TimeoutTo(self, () => b)
 
   /**
-   * Constructs a layer from this effect.
-   */
-  final def toLayer[A1 >: A](implicit
-    tag: Tag[A1],
-    trace: ZTraceElement
-  ): ZLayer[R, E, A1] =
-    ZLayer.fromZIO[R, E, A1](self)
-
-  /**
-   * Constructs a layer from this effect, which must return one or more
-   * services.
-   */
-  final def toLayerEnvironment[B](implicit
-    ev: A <:< ZEnvironment[B],
-    trace: ZTraceElement
-  ): ZLayer[R, E, B] =
-    ZLayer.fromZIOEnvironment(self.map(ev))
-
-  /**
    * Converts the effect into a [[scala.concurrent.Future]].
    */
   final def toFuture(implicit ev2: E IsSubtypeOfError Throwable, trace: ZTraceElement): URIO[R, CancelableFuture[A]] =
