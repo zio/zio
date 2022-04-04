@@ -22,8 +22,6 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render._
 
-import java.util.Timer
-
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp {
   self =>

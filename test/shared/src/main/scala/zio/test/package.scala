@@ -75,7 +75,7 @@ package object test extends CompileVariants {
     }
   }
 
-  lazy val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
   val testEnvironment: ZLayer[Scope, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
