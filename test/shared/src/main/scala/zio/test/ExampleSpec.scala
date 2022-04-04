@@ -49,6 +49,17 @@ object Encapsulated { // Work around for some threading issue when used directly
   // -------------------------------------------------------------
 }
 
-object Example extends ZIOSpecDefault {
+//object Example extends ZIOSpecDefault {
+//  def spec = Encapsulated.testLogic
+//}
+
+object Example extends RunnableSpec[TestEnvironment, Any] {
   def spec = Encapsulated.testLogic
+
+  override type Environment = TestEnvironment
+  override type Failure     = Any
+
+  override def aspects: List[TestAspectAtLeastR[Environment]] = List.empty
+
+  override def runner: TestRunner[TestEnvironment, Any] = defaultTestRunner
 }
