@@ -1350,9 +1350,104 @@ In addition to providing simpler, more powerful, and faster resource management,
 
 ### Migration from `ZManaged` to `Scope`
 
-The `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. Migration to `Scope` is easy we can do it like the following example.
+Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We should follow these steps to migrate the `ZManaged` codebase to `Scope`:
 
-Let's assume we have written the following `transfer` function in ZIO 1.x using `ZManaged`:
+1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`:
+
+```diff
+- def foo[R, E, A]: ZManaged[R, E, A] = ???
++ def foo[R, E, A]: ZIO[R with Scope, E, A] = ???
+```
+
+Example: 
+
+```diff
+trait ZPool[+Error, Item] {
+-  def make[R, E, A](get: => ZManaged[R, E, A], size: => Int): ZManaged[R, Nothing, ZPool[E, A]]
++  def make[R, E, A](get: => ZIO[R, E, A], size: => Int): ZIO[R with Scope, Nothing, ZPool[E, A]]
+}
+```
+
+2. Replace all references to `resource.use(f)` with `ZIO.scoped(resource.flatMap(f))`:
+
+```diff
+- resource.use(f)
++ ZIO.scoped {
++  resource.flatMap(f) 
++ }
+```
+
+Example:
+
+```diff
+- ZManaged
+-  .fromAutoCloseable(zio.blocking.effectBlockingIO(scala.io.Source.fromFile("file.txt")))
+-  .use(x => ZIO.succeed(x.getLines().length))
++ ZIO.scoped {
++   ZIO
++    .fromAutoCloseable(ZIO.attemptBlockingIO(scala.io.Source.fromFile("file.txt")))
++    .flatMap(x => ZIO.succeed(x.getLines().length))
++ }
+```
+
+3. Replace all `ZManaged` constructors with `ZIO.acquireRelease` or one of its variants:
+
+```diff
+- ZManaged.make(acquire)(release)
++ ZIO.acquireRelease(acqurie)(release)
+```
+
+Example: 
+
+```diff
+- ZManaged.fromAutoCloseable(
+-   zio.blocking.effectBlockingIO(new FileInputStream("file.txt")) 
+- )
++ ZIO.fromAutoCloseable(
++   ZIO.attemptBlockingIO(new FileInputStream("file.txt")) 
++ )
+```
+
+4. Replace all usages of `ZLayer(resource)` or `resource.toLayer` with `ZLayer.scoped(resource)`, all references to `ZStream.managed(resource)` with `ZStream.scoped(resource)`, and so on for similar constructors:
+
+```diff
+- ZLayer {
+-   resource // with type of ZManaged[R, E, A]
+- }
++ ZLayer.scoped {
++   resource // with type of ZIO[R with Scope, E, A]
++ }
+
+- resource.toLayer
++ ZLayer.scoped(resource)
+
+- ZStream.managed(resource)
++ ZStream.scoped(resource)
+```
+
+5. Delete all uses of `toManaged_`:
+
+```diff
+- effect.toManaged_
++ effect 
+```
+
+6. Replace all uses of `toManaged(finalizer)` with `withFinalizer(finalizer)`:
+
+```diff
+- effect.toManaged(finalizer)
++ effect.withFinalizer(finalizer)
+```
+
+Example:
+
+```diff
+val effect: ZIO[Any, IOException, FileInputStream] = ???
+- effect.toManaged(is => ZIO.succeed(is.close))
++ effect.withFinalizer(is => ZIO.succeed(is.close()))
+```
+
+Finally, let's try a full example of converting a ZManaged codebase to the Scoped one. Assume we have written the following `transfer` function in ZIO 1.x using `ZManaged`:
 
 ```scala
 import zio._
