@@ -145,9 +145,9 @@ object ZIOApp {
     new ZIOApp {
       type Environment = R
       def tag: CompositeTag[Environment] = tagged
-      override def hook                    = hook0
-      def layer                            = layer0
-      def run                              = run0
+      override def hook                  = hook0
+      def layer                          = layer0
+      def run                            = run0
     }
 
   /**
