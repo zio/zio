@@ -83,8 +83,9 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       args    <- ZIO.service[ZIOAppArgs]
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpec(spec, testArgs)
-      exitCode = if (summary.fail > 0) 1 else 0
-      _       <- doExit(exitCode)
+      _ <- ZIO.when(summary.fail > 0) {
+             ZIO.fail("Failed tests.")
+           }
     } yield ()
   }
 
@@ -95,21 +96,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     }
     testReporter(renderer, TestAnnotationRenderer.default)
   }
-
-  private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    if (TestPlatform.isJVM) {
-      ZIO.succeed(
-        try if (!isAmmonite) sys.exit(exitCode)
-        catch { case _: SecurityException => }
-      )
-    } else {
-      UIO.unit
-    }
-
-  private def isAmmonite: Boolean =
-    sys.env.exists { case (k, v) =>
-      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
-    }
 
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
