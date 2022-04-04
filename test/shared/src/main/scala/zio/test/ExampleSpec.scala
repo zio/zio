@@ -25,6 +25,7 @@ object Encapsulated { // Work around for some threading issue when used directly
   val alarmLogic = for {
     _        <- Console.printLine("how many seconds to wait for ?")
     duration <- Console.readLine.map(_.toInt)
+    _ <- zio.ZIO.debug("Inputted duration: " + duration)
     _        <- Clock.sleep(duration.seconds)
     _        <- Console.printLine("Wake up !")
   } yield ()
@@ -37,8 +38,11 @@ object Encapsulated { // Work around for some threading issue when used directly
         _      <- TestConsole.feedLines("5")
         x      <- alarmLogic.fork
         _      <- TestClock.adjust(6.seconds)
+        _ <- zio.ZIO.debug("pre-join")
         _      <- x.join
+        _ <- zio.ZIO.debug("post-join")
         output <- TestConsole.output
+        _ <- zio.ZIO.debug("Retrieved output")
       } yield assertTrue(output.contains("Wake up !\n"))
     }
   )

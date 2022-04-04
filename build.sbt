@@ -398,6 +398,8 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
         .cross(CrossVersion.for3Use2_13)
     )
+    , scalaJSUseMainModuleInitializer := true
+
   )
   .settings(
     scalacOptions ++= {
