@@ -84,7 +84,10 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     for {
       args    <- ZIO.service[ZIOAppArgs]
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      _       <- runSpec(spec, testArgs)
+      summary <- runSpec(spec, testArgs)
+      _ <- ZIO.when(summary.fail > 0) {
+             ZIO.fail("Failed tests.")
+           }
     } yield ()
   }
 
