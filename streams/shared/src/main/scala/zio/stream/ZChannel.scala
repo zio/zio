@@ -1411,7 +1411,7 @@ object ZChannel {
       (done: Done) => succeedNow(done)
     )
 
-  def interrupt(fiberId: => FiberId)(implicit
+  def interruptAs(fiberId: => FiberId)(implicit
     trace: ZTraceElement
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
