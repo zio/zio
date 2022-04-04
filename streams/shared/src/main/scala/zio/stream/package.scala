@@ -27,6 +27,4 @@ package object stream {
 
   type Sink[+OutErr, -In, +L, +Z] = ZSink[Any, OutErr, In, L, Z]
   val Sink = ZSink
-
-  type ZNothing <: Nothing
 }

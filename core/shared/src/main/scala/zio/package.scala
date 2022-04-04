@@ -29,7 +29,7 @@ package object zio
 
   type ZEnv = Clock with Console with System with Random
 
-  private[zio] type Callback[E, A] = Exit[E, A] => Any
+  type ZNothing <: Nothing
 
   type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
   type Task[+A]     = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
@@ -69,4 +69,6 @@ package object zio
   object IsNotIntersection extends IsNotIntersectionVersionSpecific {
     def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
+
+  private[zio] type Callback[E, A] = Exit[E, A] => Any
 }
