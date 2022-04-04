@@ -1306,17 +1306,19 @@ def file(name: String): ZIO[Scope, IOException, File] =
 
 The file workflow requires a `Scope` to be run and its implementation will add a finalizer to the scope that will close the file.
 
-This allows us to work with the resource and compose it with other resources, much like we do with `ZManaged`. Then, when we are ready to close the scope we use `ZIO.scoped` to provide the scope and eliminate it from the environment, much the same way we do with `use` on `ZManaged`.
+This allows us to work with the resource and compose it with other resources, much like we do with `ZManaged`. Then, when we are ready to close the scope we use `ZIO.scoped` to provide the scope and eliminate it from the environment, much the same way we do with `use` on `ZManaged`:
 
 ```scala
 ZIO.scoped {
-  openFile(name).flatMap(file => useFile(file))
-}
-```  
+  openFile(name).flatMap(file => useFile(file))  // ZIO[Scoped, IOException, Unit]
+}                                                // ZIO[Any, IOException, Unit]
+```
+
+So the `ZIO.scoped` is another use case of [eliminators for environmental effect](#eliminators-for-environmental-effects). It converts the type of enclosed effect from `ZIO[Scoped, IOException, Unit]` to `ZIO[Any, IOException, Unit]`.
 
 The `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. 
 
-Migrating to scopes is easy we can do it like the following example. Let's assume we have written the following `transfer` function in ZIO 1.x using`ZManaged`:
+Migrating to scopes is easy we can do it like the following example. Let's assume we have written the following `transfer` function in ZIO 1.x using `ZManaged`:
 
 ```scala
 import zio._
