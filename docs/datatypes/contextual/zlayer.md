@@ -181,13 +181,12 @@ val usersLayer : ZLayer[Any, Throwable, UserRepository] =
 
 ### From ZIO Effects
 
-We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
+We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromZIO` constructor:
 
 ```scala mdoc:compile-only
 import zio._
 
-val layer1: ZLayer[Any, Nothing, String] = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
-val layer2: ZLayer[Any, Nothing, String] = ZIO.succeed("Hello, World!").toLayer
+val layer: ZLayer[Any, Nothing, String] = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
 ```
 
 For example, assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
@@ -505,9 +504,8 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZIO.succeed(AppConfig(5))
-      .debug("Application config initialized")
-      .toLayer ++ Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized")) ++
+      Console.live
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers.update[AppConfig](c =>
@@ -552,9 +550,8 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZIO.succeed(AppConfig(5))
-      .debug("Application config initialized")
-      .toLayer ++ Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized")) ++
+      Console.live
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers ++ ZLayer.succeed(AppConfig(8))
@@ -1096,7 +1093,7 @@ case class BLive(a: A) extends B
 case class CLive(a: A) extends C
 
 val a: ZLayer[Any, Nothing, A] =
-  ZIO.succeed(new A {}).debug("initialized").toLayer
+  ZLayer(ZIO.succeed(new A {}).debug("initialized"))
 
 val b: ZLayer[A, Nothing, B] =
   ZLayer {
@@ -1505,9 +1502,7 @@ class InmemeoryCache() extends Cache {
 
 object InmemoryCache {
   val layer: ZLayer[Any, Throwable, Cache] =
-    ZIO.attempt(new InmemeoryCache)
-      .debug("initialized")
-      .toLayer
+    ZLayer(ZIO.attempt(new InmemeoryCache).debug("initialized"))
 }
 
 class PersistentCache() extends Cache {
@@ -1520,9 +1515,7 @@ class PersistentCache() extends Cache {
 
 object PersistentCache {
   val layer: ZLayer[Any, Throwable, Cache] =
-    ZIO.attempt(new PersistentCache)
-      .debug("initialized")
-      .toLayer
+    ZLayer(ZIO.attempt(new PersistentCache).debug("initialized"))
 }
 
 case class Document(title: String, author: String, body: String)
