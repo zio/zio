@@ -10,28 +10,30 @@ object Gunzip {
   )(implicit
     trace: ZTraceElement
   ): ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
-    ZChannel.scoped(
-      ZIO.acquireRelease(
-        Gunzipper.make(bufferSize)
-      )(gunzipper => ZIO.succeed(gunzipper.close()))
-    ) {
-      case gunzipper => {
+    ZChannel.unwrapScoped {
+      ZIO
+        .acquireRelease(
+          Gunzipper.make(bufferSize)
+        )(gunzipper => ZIO.succeed(gunzipper.close()))
+        .map {
+          case gunzipper => {
 
-        lazy val loop: ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
-          ZChannel.readWithCause(
-            chunk =>
-              ZChannel.fromZIO {
-                gunzipper.onChunk(chunk)
-              }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.failCause(_),
-            done =>
-              ZChannel.fromZIO {
-                gunzipper.onNone
-              }.flatMap(chunk => ZChannel.write(chunk).as(done))
-          )
+            lazy val loop
+              : ZChannel[Any, CompressionException, Chunk[Byte], Done, CompressionException, Chunk[Byte], Done] =
+              ZChannel.readWithCause(
+                chunk =>
+                  ZChannel.fromZIO {
+                    gunzipper.onChunk(chunk)
+                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+                ZChannel.failCause(_),
+                done =>
+                  ZChannel.fromZIO {
+                    gunzipper.onNone
+                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
+              )
 
-        loop
-      }
+            loop
+          }
+        }
     }
-
 }

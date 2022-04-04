@@ -366,10 +366,10 @@ object ZChannelSpec extends ZIOBaseSpec {
           )
         }
       ),
-      suite("ZChannel#scopedOut")(
+      suite("ZChannel#scoped")(
         test("failure") {
           for {
-            exit <- ZChannel.scopedOut(ZIO.fail("error")).runCollect.exit
+            exit <- ZChannel.scoped(ZIO.fail("error")).runCollect.exit
           } yield assert(exit)(fails(equalTo("error")))
         }
       ),
