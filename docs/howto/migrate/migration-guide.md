@@ -59,7 +59,7 @@ trait ZIO[-R, +E, +A] {
 
 Assume we have written the `FooLibrary` as below:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 
 object FooLibrary {
