@@ -216,7 +216,7 @@ object ZEnvironment {
    * The empty environment containing no services.
    */
   val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](Map.empty, 0, Map(taggedTagType(TaggedAny) -> (())))
+    new ZEnvironment[Any](Map.empty, 0, Map((taggedTagType(TaggedAny), ())))
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
