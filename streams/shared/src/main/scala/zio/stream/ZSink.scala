@@ -636,7 +636,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foldWeighted[In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
-   * Accumulates incoming elements into a chunk until predicate `p` is satisfied.
+   * Accumulates incoming elements into a chunk until predicate `p` is
+   * satisfied.
    */
   def collectAllUntil[In](p: In => Boolean)(implicit
     trace: ZTraceElement
@@ -648,8 +649,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * Accumulates incoming elements into a chunk until effectful predicate `p`
-   * is satisfied.
+   * Accumulates incoming elements into a chunk until effectful predicate `p` is
+   * satisfied.
    */
   def collectAllUntilZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
     trace: ZTraceElement
@@ -776,7 +777,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * Drops incoming elements as long as the effectful predicate `p` is satisfied.
+   * Drops incoming elements as long as the effectful predicate `p` is
+   * satisfied.
    */
   def dropWhileZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]

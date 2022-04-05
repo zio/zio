@@ -319,13 +319,17 @@ object ZSinkSpec extends ZIOBaseSpec {
         val sink   = ZSink.collectAllUntil[Int](_ > 4)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
-        assertM(result)(equalTo(Chunk(Chunk(3, 4, 5), Chunk(6), Chunk(7), Chunk(2, 3, 4, 5), Chunk(6), Chunk(5), Chunk(4, 3, 2))))
+        assertM(result)(
+          equalTo(Chunk(Chunk(3, 4, 5), Chunk(6), Chunk(7), Chunk(2, 3, 4, 5), Chunk(6), Chunk(5), Chunk(4, 3, 2)))
+        )
       },
       test("collectAllUntilZIO") {
         val sink   = ZSink.collectAllUntilZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i > 4))
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
-        assertM(result)(equalTo(Chunk(Chunk(3, 4, 5), Chunk(6), Chunk(7), Chunk(2, 3, 4, 5), Chunk(6), Chunk(5), Chunk(4, 3, 2))))
+        assertM(result)(
+          equalTo(Chunk(Chunk(3, 4, 5), Chunk(6), Chunk(7), Chunk(2, 3, 4, 5), Chunk(6), Chunk(5), Chunk(4, 3, 2)))
+        )
       },
       test("collectAllWhile") {
         val sink   = ZSink.collectAllWhile[Int](_ < 5)
