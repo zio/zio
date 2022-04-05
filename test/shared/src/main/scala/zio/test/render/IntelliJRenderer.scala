@@ -71,8 +71,11 @@ trait IntelliJRenderer extends TestRenderer {
       case Nil              => ""
     }
 
+  import zio.duration2DurationOps
   def render(summary: Summary): String =
-    s""" ${summary.success}  tests passed  ${summary.fail}  tests failed ${summary.ignore}   tests ignored """
+    s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
+       |Executed in ${summary.duration.render}.
+       |""".stripMargin
 }
 object IntelliJRenderer extends IntelliJRenderer {
   private type Graph[A] = Map[Int, List[Node[A]]]

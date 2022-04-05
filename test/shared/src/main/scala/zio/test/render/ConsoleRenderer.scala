@@ -92,7 +92,10 @@ trait ConsoleRenderer extends TestRenderer {
   private def renderOffset(n: Int)(s: String) =
     " " * (n * tabSize) + s
 
+  import zio.duration2DurationOps
   def render(summary: Summary): String =
-    s""" ${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored."""
+    s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
+       |Executed in ${summary.duration.render}.
+       |""".stripMargin
 }
 object ConsoleRenderer extends ConsoleRenderer
