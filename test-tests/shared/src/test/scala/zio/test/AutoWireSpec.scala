@@ -93,7 +93,7 @@ object AutoWireSpec extends ZIOBaseSpec {
       ),
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
-        val refLayer = Ref.make(1).toLayer
+        val refLayer = ZLayer(Ref.make(1))
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
@@ -115,7 +115,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           ZIO
             .serviceWithZIO[IntService](_.add(1))
 
-        val refLayer: ULayer[IntService] = Ref.make(1).map(IntService(_)).toLayer
+        val refLayer: ULayer[IntService] = ZLayer(Ref.make(1).map(IntService(_)))
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(

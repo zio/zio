@@ -51,14 +51,16 @@ object TRandom extends Serializable {
 
   val live: ZLayer[Random, Nothing, TRandom] = {
     implicit val trace = Tracer.newTrace
-    Random.nextLong.flatMap { init =>
-      TRef
-        .make(init)
-        .map { seed =>
-          TRandomLive(seed)
-        }
-        .commit
-    }.toLayer
+    ZLayer {
+      Random.nextLong.flatMap { init =>
+        TRef
+          .make(init)
+          .map { seed =>
+            TRandomLive(seed)
+          }
+          .commit
+      }
+    }
   }
 
   /**

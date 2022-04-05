@@ -10,7 +10,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
       test("Issue #4802") {
         ZIO
           .serviceWithZIO[Ref[Int]](_.get)
-          .provide(Ref.make(10).toLayer)
+          .provide(ZLayer(Ref.make(10)))
           .map { int =>
             assertTrue(int == 10)
           }
@@ -59,7 +59,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
       test("Issue #4564") {
         trait Svc[A]
         def testBaseLayer[R, A: Tag]: ZLayer[R, Nothing, Svc[A]] =
-          ZIO.environmentWith[R](_ => new Svc[A] {}).toLayer[Svc[A]]
+          ZLayer(ZIO.environmentWith[R](_ => new Svc[A] {}))
         def testSecondLayer[A: Tag]: ZLayer[Svc[A], Nothing, Svc[A]] =
           ZLayer.fromFunction[Svc[A], Svc[A]] { environment =>
             environment.get
