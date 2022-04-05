@@ -848,7 +848,9 @@ private[zio] final class FiberContext[E, A](
 
     val contextMap = unsafeGetRefs(fiberRefLocals)
 
-    runtimeConfig.logger(trace, fiberId, logLevel, message, Cause.empty, contextMap, spans, annotations)
+    runtimeConfig.loggers.foreach { logger =>
+      logger(trace, fiberId, logLevel, message, Cause.empty, contextMap, spans, annotations)
+    }
   }
 
   private def unsafeLog(
@@ -876,7 +878,9 @@ private[zio] final class FiberContext[E, A](
         else map.updated(overrideRef1, overrideValue1)
       } else unsafeGetRefs(fiberRefLocals)
 
-    runtimeConfig.logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
+    runtimeConfig.loggers.foreach { logger =>
+      logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
+    }
   }
 
   @inline
