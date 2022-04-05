@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.ZIO
-import zio.test.{Summary, TestArgs, ZIOSpec, ZIOSpecAbstract}
+import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -81,7 +81,7 @@ object ZTestTask {
     new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec)
   }
 
-  def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
+  private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
 
@@ -89,7 +89,7 @@ object ZTestTask {
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
       .loadModule()
-      .asInstanceOf[ZIOSpec[_]]
+      .asInstanceOf[ZIOSpecAbstract]
   }
 }
 
@@ -101,27 +101,21 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
     val newTaskOpt =
-      zioTasks.foldLeft(Option.empty: Option[ZTestTask]) {
-        case (newTests, nextSpec) =>
-          nextSpec match {
-            case taskNew: ZTestTask =>
-              newTests match {
-                case Some(existingNewTestTask) =>
-                  Some(
-                    new ZTestTask(
-                      existingNewTestTask.taskDef,
-                      existingNewTestTask.testClassLoader,
-                      existingNewTestTask.sendSummary,
-                      existingNewTestTask.args,
-                      existingNewTestTask.spec <> taskNew.spec
-                    )
-                  )
-                case None =>
-                  Some(taskNew)
-              }
-            case other =>
-              throw new RuntimeException("Other case: " + other)
-          }
+      zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
+        newTests match {
+          case Some(composedTask) =>
+            Some(
+              new ZTestTask(
+                composedTask.taskDef,
+                composedTask.testClassLoader,
+                composedTask.sendSummary,
+                composedTask.args,
+                composedTask.spec <> nextSpec.spec
+              )
+            )
+          case None =>
+            Some(nextSpec)
+        }
       }
 
     newTaskOpt.toArray

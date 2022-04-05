@@ -17,15 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{
-  FilteredSpec,
-  Summary,
-  TestArgs,
-  TestEnvironment,
-  TestLogger,
-  ZIOSpecAbstract,
-  sbt
-}
+import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
 import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs}
 
 import scala.collection.mutable
@@ -93,50 +85,48 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    spec match {
-      case NewSpecWrapper(zioSpec) => {
+  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
+    val zioSpec = spec
 
-        val fullLayer: Layer[
-          Error,
-          zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
-        ] =
-          constructLayer[zioSpec.Environment](zioSpec.layer)
+    val fullLayer: Layer[
+      Error,
+      zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
+    ] =
+      constructLayer[zioSpec.Environment](zioSpec.layer)
 
-        Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
-          val logic =
-            for {
-              summary <- zioSpec
-                           .runSpec(FilteredSpec(zioSpec.spec, args), args)
-                           .provideLayer(
-                             fullLayer
-                           )
-              // TODO Confirm if/how these events needs to be handled in #6481
-              //    Check XML behavior
-              _ <- ZIO.when(summary.fail > 0) {
-                     val event = ZTestEvent(
-                       taskDef.fullyQualifiedName(),
-                       taskDef.selectors().head,
-                       Status.Failure,
-                       None,
-                       0L,
-                       taskDef.fingerprint()
-                     )
-                     ZIO.attempt(eventHandler.handle(event)) *>
-                       ZIO.fail(summary.summary)
-                   }
-            } yield ()
-          logic
-            .onError(e => ZIO.succeed(println(e.prettyPrint)))
-        } { exit =>
-          exit match {
-            case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-            case _                   =>
-          }
-          continuation(Array())
-        }
+    Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
+      val logic =
+        for {
+          summary <- zioSpec
+                       .runSpec(FilteredSpec(zioSpec.spec, args), args)
+                       .provideLayer(
+                         fullLayer
+                       )
+          // TODO Confirm if/how these events needs to be handled in #6481
+          //    Check XML behavior
+          _ <- ZIO.when(summary.fail > 0) {
+                 val event = ZTestEvent(
+                   taskDef.fullyQualifiedName(),
+                   taskDef.selectors().head,
+                   Status.Failure,
+                   None,
+                   0L,
+                   taskDef.fingerprint()
+                 )
+                 ZIO.attempt(eventHandler.handle(event)) *>
+                   ZIO.fail(summary.summary)
+               }
+        } yield ()
+      logic
+        .onError(e => ZIO.succeed(println(e.prettyPrint)))
+    } { exit =>
+      exit match {
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+        case _                   =>
       }
+      continuation(Array())
     }
+  }
 }
 object ZTestTask {
   def apply(
@@ -145,33 +135,18 @@ object ZTestTask {
     runnerType: String,
     sendSummary: SendSummary,
     args: TestArgs
-  ): ZTestTask =
-    disectTask(taskDef, testClassLoader) match {
-      case NewSpecWrapper(zioSpec) =>
-        new ZTestTaskNew(taskDef, testClassLoader, runnerType, sendSummary, args, zioSpec)
-    }
+  ): ZTestTask = {
+    val zioSpec = disectTask(taskDef, testClassLoader)
+    new ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, args, zioSpec)
+  }
 
-  def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
+  private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
-    val module =
-      Reflect
-        .lookupLoadableModuleClass(fqn, testClassLoader)
-        .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-        .loadModule()
-    // TODO Cast instead of match?
-    module match {
-      case specAbstract: ZIOSpecAbstract => sbt.NewSpecWrapper(specAbstract)
-    }
-
+    Reflect
+      .lookupLoadableModuleClass(fqn, testClassLoader)
+      .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
+      .loadModule()
+      .asInstanceOf[ZIOSpecAbstract]
   }
 }
-
-final class ZTestTaskNew(
-  taskDef: TaskDef,
-  testClassLoader: ClassLoader,
-  runnerType: String,
-  sendSummary: SendSummary,
-  testArgs: TestArgs,
-  val newSpec: ZIOSpecAbstract
-) extends ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))
