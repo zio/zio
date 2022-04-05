@@ -1,9 +1,9 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.{CancelableFuture, IO, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{CancelableFuture, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
-import zio.test.{AbstractRunnableSpec, FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.test.{FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -13,22 +13,8 @@ abstract class BaseTestTask(
   val testClassLoader: ClassLoader,
   val sendSummary: SendSummary,
   val args: TestArgs,
-  val spec: NewOrLegacySpec
+  val spec: ZIOSpecAbstract
 ) extends Task {
-
-  protected def run(
-    eventHandler: EventHandler,
-    spec: AbstractRunnableSpec
-  ): IO[
-    Throwable,
-    Unit
-  ] = {
-    assert(eventHandler != null)
-    for {
-      summary <- spec.runSpec(FilteredSpec(spec.spec, args))
-      _       <- sendSummary.provideEnvironment(ZEnvironment(summary))
-    } yield ()
-  }
 
   protected val sharedFilledTestlayer
     : ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
@@ -64,25 +50,15 @@ abstract class BaseTestTask(
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     var resOutter: CancelableFuture[Unit] = null
     try {
-      spec match {
-        case NewSpecWrapper(zioSpec) =>
-          val res: CancelableFuture[Unit] =
-            Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunToFuture {
-              run(eventHandler, zioSpec)
-                .tapError(e => ZIO.succeed(println(e.getMessage)))
-            }
+      val res: CancelableFuture[Unit] =
+        Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
+          run(eventHandler, spec)
+            .tapError(e => ZIO.succeed(println(e.getMessage)))
+        }
 
-          resOutter = res
-          Await.result(res, Duration.Inf)
-          Array()
-        case LegacySpecWrapper(abstractRunnableSpec) =>
-          Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRun {
-            run(eventHandler, abstractRunnableSpec)
-              .provideLayer(sharedFilledTestlayer)
-              .onError(e => ZIO.succeed(println(e.prettyPrint)))
-          }
-          Array()
-      }
+      resOutter = res
+      Await.result(res, Duration.Inf)
+      Array()
     } catch {
       case t: Throwable =>
         if (resOutter != null) resOutter.cancel()

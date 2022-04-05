@@ -32,7 +32,7 @@ object ZTestFrameworkSpec {
 
   def testFingerprints(): Unit = {
     val fingerprints = new ZTestFramework().fingerprints.toSeq
-    assertEquals("fingerprints", fingerprints, Seq(RunnableSpecFingerprint, ZioSpecFingerprint))
+    assertEquals("fingerprints", fingerprints, Seq(ZioSpecFingerprint))
   }
 
   val dummyHandler: EventHandler = (_: Event) => ()
