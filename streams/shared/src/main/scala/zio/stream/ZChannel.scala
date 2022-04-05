@@ -1813,11 +1813,9 @@ object ZChannel {
       tagged: EnvironmentTag[Env1],
       trace: ZTraceElement
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
-      ZChannel.environmentWithChannel[Env0] { environment =>
-        self
-          .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-          .provideLayer(ZLayer.succeedEnvironment(environment) ++ layer)
-      }
+      self
+        .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
+        .provideLayer(ZLayer.environment[Env0] ++ layer)
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {

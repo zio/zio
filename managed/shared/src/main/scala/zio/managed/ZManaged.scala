@@ -1321,11 +1321,7 @@ object ZManaged extends ZManagedPlatformSpecific {
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZManaged[R0, E1, A] =
-      ZManaged.environmentWithManaged[R0] { environment =>
-        self
-          .asInstanceOf[ZManaged[R0 with R1, E, A]]
-          .provideLayer(ZLayer.succeedEnvironment(environment) ++ layer)
-      }
+      self.asInstanceOf[ZManaged[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
   final class UnlessManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {

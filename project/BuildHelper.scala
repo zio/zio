@@ -33,7 +33,7 @@ object BuildHelper {
     "-feature",
     "-unchecked"
   ) ++ {
-    if (true) {
+    if (false) {
       Seq("-Xfatal-warnings")
     } else {
       Nil
