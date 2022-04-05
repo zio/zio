@@ -1352,19 +1352,14 @@ In addition to providing simpler, more powerful, and faster resource management,
 
 Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We should follow these steps to migrate the `ZManaged` codebase to `Scope`:
 
-1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`:
-
-```diff
-- def foo[R, E, A]: ZManaged[R, E, A] = ???
-+ def foo[R, E, A]: ZIO[R with Scope, E, A] = ???
-```
+1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`.
 
 Example: 
 
 ```diff
-trait ZPool[+Error, Item] {
--  def make[R, E, A](get: => ZManaged[R, E, A], size: => Int): ZManaged[R, Nothing, ZPool[E, A]]
-+  def make[R, E, A](get: => ZIO[R, E, A], size: => Int): ZIO[R with Scope, Nothing, ZPool[E, A]]
+object HttpClient {
+-   def make(): ZManaged[Config, IOException, HttpClient] = ???
++   def make(): ZIO[Config with Scope, IOException, HttpClient] = ???
 }
 ```
 
