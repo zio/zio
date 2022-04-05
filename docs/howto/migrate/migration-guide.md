@@ -45,17 +45,62 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 As a contributor to ZIO ecosystem libraries, we also should cover these guidelines:
 
 1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace. 
- 
-    Let's see an example of that in the ZIO source code:
 
-    ```diff
-    trait ZIO[-R, +E, +A] {
-    -  def map[B](f: A => B): ZIO[R, E, B] =
-         flatMap(a => ZIO.succeedNow(f(a)))
-    +  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
-         flatMap(a => ZIO.succeedNow(f(a)))
-    }
-    ```
+Let's see an example of that in the ZIO source code:
+
+```diff
+trait ZIO[-R, +E, +A] {
+-  def map[B](f: A => B): ZIO[R, E, B] =
+     flatMap(a => ZIO.succeedNow(f(a)))
++  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
+     flatMap(a => ZIO.succeedNow(f(a)))
+}
+```
+
+Assume we have written the `FooLibrary` as below:
+
+```scala mdoc:compile-only
+import zio._
+
+object FooLibrary {
+  def foo = bar.flatMap(x => ZIO.succeed(x * 2))  // line 4
+  private def bar = baz.flatMap(x => ZIO.succeed(x * x))  // line 5
+  private def baz = ZIO.fail("Oh uh!").as(5)              // line 6
+}
+```
+
+Without _implicit trace parameter_, the user of our library will get so many unrelated stack trace messages:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = FooLibrary.foo
+}
+// timestamp=2022-04-05T11:37:59.336623325Z level=ERROR thread=#zio-fiber-0 message="" cause="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
+//	at <empty>.FooLibrary.baz(MainApp.scala:6)
+//	at <empty>.FooLibrary.bar(MainApp.scala:5)
+//	at <empty>.FooLibrary.foo(MainApp.scala:4)"
+```
+
+To avoid messing up our user's execution trace, we should add implicit trace parameters to our methods:
+
+```scala
+import zio._
+
+object FooLibrary {
+  def foo(implicit trace: ZTraceElement) = bar.flatMap(x => ZIO.succeed(x * 2))
+  private def bar(implicit trace: ZTraceElement) = baz.flatMap(x => ZIO.succeed(x * x))
+  private def baz(implicit trace: ZTraceElement) = ZIO.fail("Oh uh!").as(5)
+}
+
+object MainApp extends ZIOAppDefault {
+  def run = FooLibrary.foo // line 10
+}
+//timestamp=2022-04-05T11:47:59.773409363Z level=ERROR thread=#zio-fiber-0 message="" cause="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
+//	at <empty>.MainApp.run(MainApp.scala:10)"
+```
+
 2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as a lazy val in our implementation to prevent _double evaluation_. 
     
     The overall pattern in implementing such methods will be:
