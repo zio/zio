@@ -538,27 +538,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   }
 
   /**
-   * Constructs a layer from acquire and release actions. The acquire and
-   * release actions will be performed uninterruptibly.
-   */
-  def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    ZLayer.scoped[R](ZIO.acquireRelease(acquire)(release))
-
-  /**
-   * Constructs a layer from acquire and release actions, which must return one
-   * or more services. The acquire and release actions will be performed
-   * uninterruptibly.
-   */
-  def fromAcquireReleaseEnvironment[R, E, A](
-    acquire: ZIO[R, E, ZEnvironment[A]]
-  )(release: ZEnvironment[A] => URIO[R, Any])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    scopedEnvironment[R](ZIO.acquireRelease(acquire)(release))
-
-  /**
    * Constructs a layer using the specified function.
    */
   def fromFunction[A: Tag, B: Tag](f: A => B)(implicit trace: ZTraceElement): ZLayer[A, Nothing, B] =
