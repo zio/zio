@@ -18,7 +18,6 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{
-  AbstractRunnableSpec,
   FilteredSpec,
   Summary,
   TestArgs,
@@ -91,7 +90,7 @@ sealed class ZTestTask(
   runnerType: String,
   sendSummary: SendSummary,
   testArgs: TestArgs,
-  spec: NewOrLegacySpec
+  spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
@@ -137,16 +136,6 @@ sealed class ZTestTask(
           continuation(Array())
         }
       }
-      case LegacySpecWrapper(abstractRunnableSpec) =>
-        Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
-          run(eventHandler, abstractRunnableSpec)
-        } { exit =>
-          exit match {
-            case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-            case _                   =>
-          }
-          continuation(Array())
-        }
     }
 }
 object ZTestTask {
@@ -160,8 +149,6 @@ object ZTestTask {
     disectTask(taskDef, testClassLoader) match {
       case NewSpecWrapper(zioSpec) =>
         new ZTestTaskNew(taskDef, testClassLoader, runnerType, sendSummary, args, zioSpec)
-      case LegacySpecWrapper(abstractRunnableSpec) =>
-        new ZTestTaskLegacy(taskDef, testClassLoader, runnerType, sendSummary, args, abstractRunnableSpec)
     }
 
   def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
@@ -172,26 +159,13 @@ object ZTestTask {
         .lookupLoadableModuleClass(fqn, testClassLoader)
         .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
         .loadModule()
+    // TODO Cast instead of match?
     module match {
       case specAbstract: ZIOSpecAbstract => sbt.NewSpecWrapper(specAbstract)
-      case _ =>
-        sbt.LegacySpecWrapper(
-          module
-            .asInstanceOf[AbstractRunnableSpec]
-        )
     }
 
   }
 }
-
-final class ZTestTaskLegacy(
-  taskDef: TaskDef,
-  testClassLoader: ClassLoader,
-  runnerType: String,
-  sendSummary: SendSummary,
-  testArgs: TestArgs,
-  spec: AbstractRunnableSpec
-) extends ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, testArgs, sbt.LegacySpecWrapper(spec))
 
 final class ZTestTaskNew(
   taskDef: TaskDef,

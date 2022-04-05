@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.ZIO
-import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
+import zio.test.{Summary, TestArgs, ZIOSpec, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -62,29 +62,13 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   }
 }
 
-sealed class ZTestTask(
+final class ZTestTask(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
   sendSummary: SendSummary,
   testArgs: TestArgs,
-  spec: NewOrLegacySpec
+  spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec)
-
-final class ZTestTaskLegacy(
-  taskDef: TaskDef,
-  testClassLoader: ClassLoader,
-  sendSummary: SendSummary,
-  testArgs: TestArgs,
-  spec: AbstractRunnableSpec
-) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.LegacySpecWrapper(spec))
-
-final class ZTestTaskNew(
-  taskDef: TaskDef,
-  testClassLoader: ClassLoader,
-  sendSummary: SendSummary,
-  testArgs: TestArgs,
-  val newSpec: ZIOSpecAbstract
-) extends ZTestTask(taskDef, testClassLoader, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))
 
 object ZTestTask {
   def apply(
@@ -92,36 +76,20 @@ object ZTestTask {
     testClassLoader: ClassLoader,
     sendSummary: SendSummary,
     args: TestArgs
-  ): ZTestTask =
-    disectTask(taskDef, testClassLoader) match {
-      case NewSpecWrapper(zioSpec) =>
-        new ZTestTaskNew(taskDef, testClassLoader, sendSummary, args, zioSpec)
+  ): ZTestTask = {
+    val zioSpec = disectTask(taskDef, testClassLoader)
+    new ZTestTask(taskDef, testClassLoader, sendSummary, args, zioSpec)
+  }
 
-      case LegacySpecWrapper(abstractRunnableSpec) =>
-        new ZTestTaskLegacy(taskDef, testClassLoader, sendSummary, args, abstractRunnableSpec)
-    }
-
-  def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
+  def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
 
-    try {
-      val res = Reflect
-        .lookupLoadableModuleClass(fqn, testClassLoader)
-        .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-        .loadModule()
-        .asInstanceOf[ZIOSpec[_]]
-      sbt.NewSpecWrapper(res)
-    } catch {
-      case _: ClassCastException =>
-        sbt.LegacySpecWrapper(
-          Reflect
-            .lookupLoadableModuleClass(fqn, testClassLoader)
-            .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-            .loadModule()
-            .asInstanceOf[AbstractRunnableSpec]
-        )
-    }
+    Reflect
+      .lookupLoadableModuleClass(fqn, testClassLoader)
+      .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
+      .loadModule()
+      .asInstanceOf[ZIOSpec[_]]
   }
 }
 
@@ -129,40 +97,34 @@ abstract class ZTestTaskPolicy {
   def merge(zioTasks: Array[ZTestTask]): Array[Task]
 }
 
-case class MergedSpec(spec: ZTestTaskNew)
-
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
   override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
-    val (newTaskOpt, legacyTaskList) =
-      zioTasks.foldLeft((List.empty: List[MergedSpec], List[ZTestTaskLegacy]())) {
-        case ((newTests, legacyTests), nextSpec) =>
+    val newTaskOpt =
+      zioTasks.foldLeft(Option.empty: Option[ZTestTask]) {
+        case (newTests, nextSpec) =>
           nextSpec match {
-            case legacy: ZTestTaskLegacy => (newTests, legacyTests :+ legacy)
-            case taskNew: ZTestTaskNew =>
+            case taskNew: ZTestTask =>
               newTests match {
-                case existingNewTestTask :: otherTasks =>
-                  (
-                    MergedSpec(
-                      new ZTestTaskNew(
-                        existingNewTestTask.spec.taskDef,
-                        existingNewTestTask.spec.testClassLoader,
-                        existingNewTestTask.spec.sendSummary,
-                        existingNewTestTask.spec.args,
-                        existingNewTestTask.spec.newSpec <> taskNew.newSpec
-                      )
-                    ) :: otherTasks,
-                    legacyTests
+                case Some(existingNewTestTask) =>
+                  Some(
+                    new ZTestTask(
+                      existingNewTestTask.taskDef,
+                      existingNewTestTask.testClassLoader,
+                      existingNewTestTask.sendSummary,
+                      existingNewTestTask.args,
+                      existingNewTestTask.spec <> taskNew.spec
+                    )
                   )
-                case _ =>
-                  (List(MergedSpec(taskNew)), legacyTests)
+                case None =>
+                  Some(taskNew)
               }
             case other =>
               throw new RuntimeException("Other case: " + other)
           }
       }
 
-    (legacyTaskList ++ newTaskOpt.map(_.spec)).toArray
+    newTaskOpt.toArray
   }
 
 }
