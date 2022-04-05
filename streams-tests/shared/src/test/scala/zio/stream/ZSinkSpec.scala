@@ -97,6 +97,30 @@ object ZSinkSpec extends ZIOBaseSpec {
               .map(assert(_)(equalTo(Chunk(Map.empty[Int, Int]))))
           }
         ),
+        test("dropUntil")(
+          assertM(
+            ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
+              .pipeThrough(ZSink.dropUntil[Int](_ >= 3))
+              .runCollect
+          )(equalTo(Chunk(4, 5, 1, 2, 3, 4, 5)))
+        ),
+        suite("dropUntilZIO")(
+          test("happy path")(
+            assertM(
+              ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
+                .pipeThrough(ZSink.dropUntilZIO(x => ZIO.succeed(x >= 3)))
+                .runCollect
+            )(equalTo(Chunk(4, 5, 1, 2, 3, 4, 5)))
+          ),
+          test("error")(
+            assertM {
+              (ZStream(1, 2, 3) ++ ZStream.fail("Aie") ++ ZStream(5, 1, 2, 3, 4, 5))
+                .pipeThrough(ZSink.dropUntilZIO[Any, String, Int](x => ZIO.succeed(x >= 2)))
+                .either
+                .runCollect
+            }(equalTo(Chunk(Right(3), Left("Aie"))))
+          )
+        ),
         test("dropWhile")(
           assertM(
             ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)

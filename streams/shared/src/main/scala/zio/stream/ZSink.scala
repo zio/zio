@@ -720,6 +720,46 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(loop)
   }
 
+  /**
+   * Drops incoming elements until the predicate `p` is satisfied.
+   */
+  def dropUntil[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
+    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      ZChannel.readWith(
+        (in: Chunk[In]) => {
+          val leftover = in.dropUntil(p)
+          val more     = leftover.isEmpty
+          if (more) loop
+          else ZChannel.write(leftover) *> ZChannel.identity[ZNothing, Chunk[In], Any]
+        },
+        (e: ZNothing) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+    new ZSink(loop)
+  }
+
+  /**
+   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   */
+  def dropUntilZIO[R, InErr, In](
+    p: In => ZIO[R, InErr, Boolean]
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In, In, Any] = {
+    lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
+      (in: Chunk[In]) =>
+        ZChannel.unwrap(in.dropUntilZIO(p).map { leftover =>
+          val more = leftover.isEmpty
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[InErr, Chunk[In], Any]
+        }),
+      (e: InErr) => ZChannel.fail(e),
+      (_: Any) => ZChannel.unit
+    )
+
+    new ZSink(loop)
+  }
+
+  /**
+   * Drops incoming elements as long as the predicate `p` is satisfied.
+   */
   def dropWhile[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
     lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel.readWith(
@@ -735,6 +775,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(loop)
   }
 
+  /**
+   * Drops incoming elements as long as the effectful predicate `p` is satisfied.
+   */
   def dropWhileZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
   )(implicit trace: ZTraceElement): ZSink[R, InErr, In, In, Any] = {
