@@ -2446,20 +2446,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * The `acquire` and `release` effects will be run uninterruptibly.
    */
-  def acquireRelease[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
+  def acquireRelease[R, R1, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Scope, E, A] =
+  ): ZIO[R with R1 with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
   /**
    * A more powerful variant of `acquireRelease` that allows the `release`
    * effect to depend on the `Exit` value specified when the scope is closed.
    */
-  def acquireReleaseExit[R, R1 <: R, E, A](
+  def acquireReleaseExit[R, R1, E, A](
     acquire: => ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Scope, E, A] =
+  ): ZIO[R with R1 with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
   /**
@@ -2470,9 +2470,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * what finalization, if any, needs to be performed (e.g. by examining in
    * memory state).
    */
-  def acquireReleaseInterruptible[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
+  def acquireReleaseInterruptible[R, R1, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Scope, E, A] =
+  ): ZIO[R with R1 with Scope, E, A] =
     acquireReleaseInterruptibleExit(acquire)(_ => release)
 
   /**
@@ -2480,9 +2480,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `release` effect to depend on the `Exit` value specified when the scope is
    * closed.
    */
-  def acquireReleaseInterruptibleExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
+  def acquireReleaseInterruptibleExit[R, R1, E, A](acquire: => ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E, A] =
+  )(implicit trace: ZTraceElement): ZIO[R with R1 with Scope, E, A] =
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
