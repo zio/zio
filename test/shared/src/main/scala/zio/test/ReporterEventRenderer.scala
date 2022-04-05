@@ -7,6 +7,6 @@ object ReporterEventRenderer {
   def render(executionEvent: ExecutionEvent): Chunk[String] =
     Chunk.fromIterable(
       ConsoleRenderer
-        .render(DefaultTestReporter.render(executionEvent, false), TestAnnotationRenderer.timed)
+        .render(DefaultTestReporter.render(executionEvent, true), TestAnnotationRenderer.timed)
     )
 }
