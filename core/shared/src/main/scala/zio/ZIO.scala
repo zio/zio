@@ -3599,10 +3599,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
-  val infinity: UIO[Nothing] =
-    ZIO
-      .sleep(Duration.fromNanos(Long.MaxValue))(ZTraceElement.empty)
-      .zipRight(ZIO.never(ZTraceElement.empty))(ZTraceElement.empty)
+  def infinity(implicit trace: ZTraceElement): UIO[Nothing] =
+    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
