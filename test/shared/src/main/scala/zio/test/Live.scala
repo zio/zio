@@ -40,14 +40,17 @@ object Live {
    */
   val default: ZLayer[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
-    ZIO
-      .environmentWith[ZEnv] { zenv =>
-        new Live {
-          def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-            ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
-        }
+    ZLayer {
+      for {
+        environment   <- ZIO.environment[ZEnv]
+        runtimeConfig <- ZIO.runtimeConfig
+      } yield new Live {
+        def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+          ZEnv.services.locallyWith(_.unionAll(environment)) {
+            ZIO.withRuntimeConfig(runtimeConfig.copy(logger = runtimeConfig.logger))(zio)
+          }
       }
-      .toLayer
+    }
   }
 
   /**
@@ -63,5 +66,9 @@ object Live {
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
   )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
-    ZEnv.services.getWith(services => live(f(ZEnv.services.locally(services)(zio))))
+    for {
+      services      <- ZEnv.services.get
+      runtimeConfig <- ZIO.runtimeConfig
+      b             <- live(f(ZEnv.services.locally(services)(ZIO.withRuntimeConfig(runtimeConfig)(zio))))
+    } yield b
 }
