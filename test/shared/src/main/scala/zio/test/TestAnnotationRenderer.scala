@@ -131,6 +131,6 @@ object TestAnnotationRenderer {
   val timed: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.timing) { case (child :: _) =>
       if (child.isZero) None
-      else Some(f"${child.render} ")
+      else Some(f"${child.render}")
     }
 }
