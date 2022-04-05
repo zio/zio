@@ -61,9 +61,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
         def testBaseLayer[R, A: Tag]: ZLayer[R, Nothing, Svc[A]] =
           ZLayer(ZIO.environmentWith[R](_ => new Svc[A] {}))
         def testSecondLayer[A: Tag]: ZLayer[Svc[A], Nothing, Svc[A]] =
-          ZLayer.fromFunction[Svc[A], Svc[A]] { environment =>
-            environment.get
-          }
+          ZLayer.fromFunction[Svc[A], Svc[A]](environment => environment)
 
         val layer                                  = testBaseLayer[Any, String] >>> testSecondLayer[String]
         val zio: ZIO[Svc[String], Nothing, String] = ZIO.succeed("a")

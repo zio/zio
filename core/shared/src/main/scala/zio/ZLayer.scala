@@ -559,39 +559,757 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     scopedEnvironment[R](ZIO.acquireRelease(acquire)(release))
 
   /**
-   * Constructs a layer from the environment using the specified function.
+   * Constructs a layer using the specified function.
    */
-  def fromFunction[A, B: Tag](f: ZEnvironment[A] => B)(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromFunctionZIO(a => ZIO.succeedNow(f(a)))
+  def fromFunction[A: Tag, B: Tag](f: A => B)(implicit trace: ZTraceElement): ZLayer[A, Nothing, B] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.serviceWith[A](a => ZEnvironment(f(a)))
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified function, which
-   * must return one or more services.
-   */
-  def fromFunctionEnvironment[A, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromFunctionEnvironmentZIO(a => ZIO.succeedNow(f(a)))
+  def fromFunction[A: Tag, B: Tag, C: Tag](
+    f: (A, B) => C
+  )(implicit trace: ZTraceElement): ZLayer[A with B, Nothing, C] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function, which must return one or more services.
-   */
-  def fromFunctionEnvironmentZIO[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    ZLayer.fromZIOEnvironment(ZIO.environment[A].flatMap(f))
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag](
+    f: (A, B, C) => D
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C, Nothing, D] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function.
-   */
-  def fromFunctionZIO[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
+    f: (A, B, C, D) => E
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D, Nothing, E] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D])
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag](
+    f: (A, B, C, D, E) => F
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E, Nothing, F] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E])
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag](
+    f: (A, B, C, D, E, F) => G
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F, Nothing, G] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F])
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag](
+    f: (A, B, C, D, E, F, G) => H
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F with G, Nothing, H] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G])
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag](
+    f: (A, B, C, D, E, F, G, H) => I
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F with G with H, Nothing, I] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H])
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag](
+    f: (A, B, C, D, E, F, G, H, I) => J
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F with G with H with I, Nothing, J] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H], env.get[I])
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag](
+    f: (A, B, C, D, E, F, G, H, I, J) => K
+  )(implicit
     trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    ZLayer(ZIO.environmentWithZIO(f))
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J, Nothing, K] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J] { env =>
+        ZEnvironment(
+          f(
+            env.get[A],
+            env.get[B],
+            env.get[C],
+            env.get[D],
+            env.get[E],
+            env.get[F],
+            env.get[G],
+            env.get[H],
+            env.get[I],
+            env.get[J]
+          )
+        )
+      }
+    }
+
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag](
+    f: (A, B, C, D, E, F, G, H, I, J, K) => L
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K, Nothing, L] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K] { env =>
+        ZEnvironment(
+          f(
+            env.get[A],
+            env.get[B],
+            env.get[C],
+            env.get[D],
+            env.get[E],
+            env.get[F],
+            env.get[G],
+            env.get[H],
+            env.get[I],
+            env.get[J],
+            env.get[K]
+          )
+        )
+      }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L) => M
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L, Nothing, M] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L] { env =>
+        ZEnvironment(
+          f(
+            env.get[A],
+            env.get[B],
+            env.get[C],
+            env.get[D],
+            env.get[E],
+            env.get[F],
+            env.get[G],
+            env.get[H],
+            env.get[I],
+            env.get[J],
+            env.get[K],
+            env.get[L]
+          )
+        )
+      }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, Nothing, N] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M] {
+        env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M]
+            )
+          )
+      }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M with N, Nothing, O] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M with N] {
+          env =>
+            ZEnvironment(
+              f(
+                env.get[A],
+                env.get[B],
+                env.get[C],
+                env.get[D],
+                env.get[E],
+                env.get[F],
+                env.get[G],
+                env.get[H],
+                env.get[I],
+                env.get[J],
+                env.get[K],
+                env.get[L],
+                env.get[M],
+                env.get[N]
+              )
+            )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+    Nothing,
+    P
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O]
+            )
+          )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
+    Nothing,
+    Q
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P]
+            )
+          )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
+    Nothing,
+    R
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q]
+            )
+          )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
+    Nothing,
+    S
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R]
+            )
+          )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
+    Nothing,
+    T
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S]
+            )
+          )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
+    Nothing,
+    U
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S],
+              env.get[T]
+            )
+          )
+        }
+    }
+
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag,
+    V: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
+    Nothing,
+    V
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S],
+              env.get[T],
+              env.get[U]
+            )
+          )
+        }
+    }
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag,
+    V: Tag,
+    W: Tag
+  ](
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V,
+    Nothing,
+    W
+  ] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S],
+              env.get[T],
+              env.get[U],
+              env.get[V]
+            )
+          )
+        }
+    }
 
   /**
    * Constructs a layer from the specified effect.
@@ -812,189 +1530,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
           }
         }
   }
-
-  private[zio] def andThen[A0, A1, B, C](f: (A0, A1) => B)(g: B => C): (A0, A1) => C =
-    (a0, a1) => g(f(a0, a1))
-
-  private[zio] def andThen[A0, A1, A2, B, C](f: (A0, A1, A2) => B)(g: B => C): (A0, A1, A2) => C =
-    (a0, a1, a2) => g(f(a0, a1, a2))
-
-  private[zio] def andThen[A0, A1, A2, A3, B, C](f: (A0, A1, A2, A3) => B)(g: B => C): (A0, A1, A2, A3) => C =
-    (a0, a1, a2, a3) => g(f(a0, a1, a2, a3))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, B, C](f: (A0, A1, A2, A3, A4) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4) => C =
-    (a0, a1, a2, a3, a4) => g(f(a0, a1, a2, a3, a4))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, B, C](f: (A0, A1, A2, A3, A4, A5) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5) => C =
-    (a0, a1, a2, a3, a4, a5) => g(f(a0, a1, a2, a3, a4, a5))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, B, C](f: (A0, A1, A2, A3, A4, A5, A6) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6) => C =
-    (a0, a1, a2, a3, a4, a5, a6) => g(f(a0, a1, a2, a3, a4, a5, a6))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7) => g(f(a0, a1, a2, a3, a4, a5, a6, a7))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  )(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18))
-
-  private[zio] def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    B,
-    C
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19))
-
-  private[zio] def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    A20,
-    B,
-    C
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20))
-
-  private[zio] def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    A20,
-    A21,
-    B,
-    C
-  ](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
 
   implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A: Tag](zio: => ZIO[Scope with R, E, A])(implicit

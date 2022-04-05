@@ -49,14 +49,14 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       test("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction[Int, String](_.get.toString)
+        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction[Int, String](_.toString)
 
         testSize(layer, 1)
       },
       test("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (ZLayer.fromFunction[Int, String](_.get.toString) ++
-            ZLayer.fromFunction[Int, Boolean](_.get % 2 == 0))
+          (ZLayer.fromFunction[Int, String](_.toString) ++
+            ZLayer.fromFunction[Int, Boolean](_ % 2 == 0))
 
         testSize(layer, 2)
       },
@@ -251,7 +251,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         case class A(name: String, value: Int)
         case class B(name: String)
         val l1: Layer[Nothing, A]          = ZLayer.succeed(A("name", 1))
-        val l2: ZLayer[String, Nothing, B] = ZLayer.fromFunction(env => B(env.get))
+        val l2: ZLayer[String, Nothing, B] = ZLayer.fromFunction(string => B(string))
         val live: Layer[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
         assertM(ZIO.service[B].provide(live))(equalTo(B("name")))
       },
@@ -285,7 +285,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       test("passthrough") {
         val layer: ZLayer[Int, Nothing, String] =
-          ZLayer.fromFunction[Int, String](_.get.toString)
+          ZLayer.fromFunction[Int, String](_.toString)
         val live: ZLayer[Any, Nothing, Int with String] =
           ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
@@ -467,13 +467,13 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("caching values in dependencies") {
         case class Config(value: Int)
         case class A(value: Int)
-        val aLayer = ZLayer.fromFunction[Config, A](env => A(env.get.value))
+        val aLayer = ZLayer.fromFunction[Config, A](env => A(env.value))
 
         case class B(value: Int)
-        val bLayer = ZLayer.fromFunction[A, B](env => B(env.get.value))
+        val bLayer = ZLayer.fromFunction[A, B](env => B(env.value))
 
         case class C(value: Int)
-        val cLayer = ZLayer.fromFunction[A, C](env => C(env.get.value))
+        val cLayer = ZLayer.fromFunction[A, C](env => C(env.value))
 
         val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
         val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
