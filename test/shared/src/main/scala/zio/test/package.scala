@@ -101,10 +101,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.clockWith {
-      case testClock: TestClock => f(testClock)
-      case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestClock]].get))
 
   /**
    * Retrieves the `TestConsole` service for this test.
@@ -117,10 +114,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.consoleWith {
-      case testConsole: TestConsole => f(testConsole)
-      case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestConsole]].get))
 
   /**
    * Retrieves the `TestRandom` service for this test.
@@ -133,10 +127,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.randomWith {
-      case testRandom: TestRandom => f(testRandom)
-      case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestRandom]].get))
 
   /**
    * Retrieves the `TestSystem` service for this test.
@@ -149,10 +140,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.systemWith {
-      case testSystem: TestSystem => f(testSystem)
-      case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestSystem]].get))
 
   /**
    * Transforms this effect with the specified function. The test environment
