@@ -85,7 +85,7 @@ object MainApp extends ZIOAppDefault {
 
 To avoid messing up our user's execution trace, we should add implicit trace parameters to our methods:
 
-```scala
+```scala mdoc:compile-only
 import zio._
 
 object FooLibrary {
