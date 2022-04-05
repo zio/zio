@@ -636,6 +636,31 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foldWeighted[In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
+   * Accumulates incoming elements into a chunk until predicate `p` is satisfied.
+   */
+  def collectAllUntil[In](p: In => Boolean)(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Nothing, In, In, Chunk[In]] =
+    fold[In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+      (a :: as, !p(a))
+    }.map { case (is, _) =>
+      Chunk.fromIterable(is.reverse)
+    }
+
+  /**
+   * Accumulates incoming elements into a chunk until effectful predicate `p`
+   * is satisfied.
+   */
+  def collectAllUntilZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZSink[Env, Err, In, In, Chunk[In]] =
+    foldZIO[Env, Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+      p(a).map(bool => (a :: as, !bool))
+    }.map { case (is, _) =>
+      Chunk.fromIterable(is.reverse)
+    }
+
+  /**
    * Accumulates incoming elements into a chunk as long as they verify predicate
    * `p`.
    */
