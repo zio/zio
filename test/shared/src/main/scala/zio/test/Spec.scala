@@ -627,7 +627,13 @@ object Spec {
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): Spec[R0, E1, T] =
-      self.asInstanceOf[Spec[R0 with R1, E, T]].provideLayer(ZLayer.environment[R0] ++ layer)
+      Spec.scoped[R0] {
+        ZIO.environmentWith[R0] { environment =>
+          self
+            .asInstanceOf[Spec[R0 with R1, E, T]]
+            .provideLayer(ZLayer.succeedEnvironment(environment) ++ layer)
+        }
+      }
   }
 
   final class ProvideSomeLayerShared[R0, -R, +E, +T](private val self: Spec[R, E, T]) extends AnyVal {

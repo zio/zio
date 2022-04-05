@@ -64,7 +64,8 @@ final class ZEnvironment[+R] private (
     val tag = taggedTagType(tagged)
     val set = taggedGetServices(tag)
 
-    val missingServices = set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)))
+    val missingServices =
+      set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)) || cache.keys.exists(taggedIsSubtype(_, tag)))
     if (missingServices.nonEmpty) {
       throw new Error(
         s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"

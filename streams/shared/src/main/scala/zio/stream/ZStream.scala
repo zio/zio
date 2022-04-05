@@ -4942,7 +4942,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZStream[R0, E1, A] =
-      self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      new ZStream(self.channel.provideSomeLayer(layer))
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
