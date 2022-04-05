@@ -12,7 +12,7 @@ private object TagMacros {
   def materialize[A: Type](using Quotes): Expr[Tag[A]] = {
     import quotes.reflect.*
     TypeRepr.of[A].dealias match {
-      case tpe if tpe.typeSymbol.isTypeParam =>
+      case tpe if tpe.typeSymbol.isTypeParam || tpe.typeSymbol.isAbstractType =>
         Expr.summon[Tag[A]] match {
           case Some(tag) => tag
           case None =>
