@@ -4655,7 +4655,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       tagged: EnvironmentTag[R1],
       trace: ZTraceElement
     ): ZIO[R0, E1, A] =
-       self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
+      self.asInstanceOf[ZIO[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
 
   final class UpdateService[-R, +E, +A, M](private val self: ZIO[R, E, A]) extends AnyVal {
