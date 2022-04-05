@@ -1310,6 +1310,254 @@ Here is list of other deprecated methods:
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
 
+## Scopes
+
+ZIO 2.x introduced a new data type called `Scope`. Scopes are a huge simplification to resource management in ZIO 2.0 that brings new levels of simplicity, power, and performance. They are a replacement for the old `ZManaged` data type in ZIO 1.x.
+
+### ZManaged
+
+In ZIO 1.x, we used a data type called `ZManaged` to provide resource safety. Although inspired by the Managed data type from Haskell, ZIO Managed innovated in a number of ways over both Haskell and Cats Effect Resource:
+
+1. `ZManaged` supported interruptible acquisition, which is useful for concurrent data structures like semaphores, where it is safe to interrupt acquisition because the cleanup can determine (by inspecting the in-memory state) whether the acquisition succeeded or not.
+
+2. `ZManaged` supported parallel operations, all with the most desirable semantics possible. For example, if we acquired resources in parallel, then they would be released in parallel, and if anything went wrong, of course, the acquisition would be aborted and resources released.
+
+3. `ZManaged` has an API almost identical to `ZIO`, by design, so our knowledge of `ZIO` transfers to `Managed`. The main difference is that in `ZManaged`, `flatMap` lets us _use and keep open a resource_, while `use` lets us _use and release the resource (going back to `ZIO`)_.
+
+4. In addition, `ZManaged` has new constructors, so we can create them from a pair of acquire/release actions, or from just a finalizer (which would be invoked during finalization).
+
+Despite the innovation and numerous benefits, however, `ZManaged` presents some serious drawbacks:
+
+- First, `ZManaged` is yet another thing to teach to developers. Many new `ZIO` developers try to avoid using `ZManaged`, because they are not sure exactly what it's for or how it differs from `ZIO`. Those who use it, sometimes wonder when to use `ZIO` versus `ZManaged`.
+
+- Second, all the methods on `ZIO` must be manually and painstakingly re-implemented on `ZManaged`, but with much more complex implementations due to the complications of handling resource-safety in the presence of concurrency. In practice, `ZIO` still has more methods than `ZManaged`.
+
+- Third, `ZManaged` is a layer over `ZIO`, and is slower than `ZIO` itself, because of the additional complications and wrapping. Unlike other approaches, `ZIO` uses an executable encoding, so it's able to avoid double-interpretation, but it still has measurable overhead over `ZIO`.
+
+Despite the drawbacks of `ZManaged`, the benefits of concurrent resource safety are significant, so we documented, supported, and tried to optimize `ZManaged` over the life of ZIO 1.x, not having a suitable alternative.
+
+### Scopes
+
+The concept of scopes has been implicit in ZIO since before ZIO 1.0, including in `ZManaged`, `FiberRef`, interruptibility, and thread pool shifting. In each of these cases we "do something" at the beginning of the scope (e.g. acquire a resource, set a `FiberRef`, change the interruptibility of the thread pool) and "do something else" (release the resource, restore the `FiberRef`, restore the interruptibility or thread pool) at the end of the scope.
+
+However, scopes have not been first-class values, which has required the use of other data types such as `ZManaged` to represent this concept. With ZIO 2.0, all of this is radically changing for the better! Thanks to other ZIO 2.0 innovations, including the [removal of `Has`](#has) (which bakes a compositional environment directly into the ZIO data type), we have found a way to delete `ZManaged` entirely, while preserving all of its benefits!
+
+ZIO 2.x addresses this by introducing the concept of a Scope as a first class value:
+
+```scala
+trait Scope {
+  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
+  def close(exit: Exit[Any, Any]): UIO[Unit]
+}
+```
+
+That is, a `Scope` is something that we can add finalizers to and eventually close, running all of the finalizers in the scope. Operations that acquire resources add their finalizers directly to the current scope, stored in ZIO Environment. So we found that the ZIO Environment is now powerful enough to provide resource-safety by itself!
+
+For example, an operation that opens a file might have this type signature:
+
+```scala
+def openFile(name: String): ZIO[Scope, IOException, FileInputStream] =
+  ZIO.acquireRelease(acquire)(release)
+```
+
+The `openFile` workflow requires a `Scope` to be run and its implementation will add a finalizer to the scope that will close the file. So, in combination with the environment, we can use `Scope` to represent resources.
+
+This allows us to work with the resource and compose it with other resources, much like we do with `ZManaged`. Then, when we are ready to close the scope we use `ZIO.scoped` to provide the scope and eliminate it from the environment, much the same way we do with `use` on `ZManaged`:
+
+```scala
+ZIO.scoped {
+  openFile(name).flatMap(file => useFile(file))  // ZIO[Scoped, IOException, Unit]
+}                                                // ZIO[Any, IOException, Unit]
+```
+
+`ZIO.scoped` eliminates `Scope` from the environment, leaving the rest of the environment unchanged. It converts the type of enclosed effect from `ZIO[Scoped, IOException, Unit]` to `ZIO[Any, IOException, Unit]`. So, we can think of it as an algebraic effect handler that handles the `Scope` effect by eliminating it from the set of algebraic effects being used. This is another use case of [eliminators for environmental effect](#eliminators-for-environmental-effects).
+
+This simple, beautiful, and powerful design gives us bulletproof parallel and concurrent operators that may acquire resources with well-defined and optimal semantics in successful and failure scenarios. All the `ZManaged` semantics arise for free atop `ZIO`.
+
+Scopes are simple because they don't require us to learn any new data types. Scopes are powerful because ZIO has more operators than `ZManaged`, and is always _up to date_ with the latest and greatest. Scopes are fast because there are no layers atop ZIO.
+
+In addition to providing simpler, more powerful, and faster resource management, the replacement of Managed with scopes is going to tremendously simplify the ZIO API: there will not be any more `toManaged`, `mapManaged`, etc, variants. Layers will always be constructed with `ZIO`.
+
+### Migration from `ZManaged` to `Scope`
+
+Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We should follow these steps to migrate the `ZManaged` codebase to `Scope`:
+
+1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`.
+
+Example: 
+
+```diff
+object HttpClient {
+-   def make(): ZManaged[Config, IOException, HttpClient] = ???
++   def make(): ZIO[Config with Scope, IOException, HttpClient] = ???
+}
+```
+
+2. Replace all references to `resource.use(f)` with `ZIO.scoped(resource.flatMap(f))`:
+
+```diff
+- resource.use(f)
++ ZIO.scoped {
++  resource.flatMap(f) 
++ }
+```
+
+Example:
+
+```diff
+- ZManaged
+-  .fromAutoCloseable(zio.blocking.effectBlockingIO(scala.io.Source.fromFile("file.txt")))
+-  .use(x => ZIO.succeed(x.getLines().length))
++ ZIO.scoped {
++   ZIO
++    .fromAutoCloseable(ZIO.attemptBlockingIO(scala.io.Source.fromFile("file.txt")))
++    .flatMap(x => ZIO.succeed(x.getLines().length))
++ }
+```
+
+3. Replace all `ZManaged` constructors with `ZIO.acquireRelease` or one of its variants:
+
+```diff
+- ZManaged.make(acquire)(release)
++ ZIO.acquireRelease(acqurie)(release)
+```
+
+Example: 
+
+```diff
+- ZManaged.fromAutoCloseable(
+-   zio.blocking.effectBlockingIO(new FileInputStream("file.txt")) 
+- )
++ ZIO.fromAutoCloseable(
++   ZIO.attemptBlockingIO(new FileInputStream("file.txt")) 
++ )
+```
+
+4. Replace all usages of `ZLayer(resource)` or `resource.toLayer` with `ZLayer.scoped(resource)`, all references to `ZStream.managed(resource)` with `ZStream.scoped(resource)`, and so on for similar constructors:
+
+```diff
+- ZLayer {
+-   resource // with type of ZManaged[R, E, A]
+- }
++ ZLayer.scoped {
++   resource // with type of ZIO[R with Scope, E, A]
++ }
+
+- resource.toLayer
++ ZLayer.scoped(resource)
+
+- ZStream.managed(resource)
++ ZStream.scoped(resource)
+```
+
+5. Delete all uses of `toManaged_`:
+
+```diff
+- effect.toManaged_
++ effect 
+```
+
+6. Replace all uses of `toManaged(finalizer)` with `withFinalizer(finalizer)`:
+
+```diff
+- effect.toManaged(finalizer)
++ effect.withFinalizer(finalizer)
+```
+
+Example:
+
+```diff
+val effect: ZIO[Any, IOException, FileInputStream] = ???
+- effect.toManaged(is => ZIO.succeed(is.close))
++ effect.withFinalizer(is => ZIO.succeed(is.close()))
+```
+
+Finally, let's try a full example of converting a ZManaged codebase to the Scoped one. Assume we have written the following `transfer` function in ZIO 1.x using `ZManaged`:
+
+```scala
+import zio._
+import zio.blocking._
+
+import java.io._
+
+def close(resource: Closeable): URIO[Blocking, Unit] =
+  effectBlockingIO(resource.close()).orDie
+
+def is(file: String): ZManaged[Blocking, IOException, FileInputStream] =
+  ZManaged.make(effectBlockingIO(new FileInputStream(file)))(close)
+
+def os(file: String): ZManaged[Blocking, IOException, FileOutputStream] =
+  ZManaged.make(effectBlockingIO(new FileOutputStream(file)))(close)
+
+def copy(
+    from: FileInputStream,
+    to: FileOutputStream
+): ZIO[Blocking, IOException, Unit] =
+  effectBlockingIO {
+    val buf = new Array[Byte](1024)
+    var length = 0
+    length = from.read(buf)
+
+    while (length > 0) {
+      to.write(buf, 0, length)
+      length = from.read(buf)
+    }
+  }
+
+def transfer(from: String, to: String): ZIO[Blocking, IOException, Unit] = {
+  val resource = for {
+    from <- is(from)
+    to   <- os(to)
+    _    <- copy(from, to).toManaged_
+  } yield ()
+  resource.useNow
+}
+```
+
+As of ZIO 2.x, we should rewrite it as follows:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io._
+
+def close(resource: Closeable): UIO[Unit] =
+  ZIO.attempt(resource.close()).orDie
+
+def is(file: String): ZIO[Scope, IOException, FileInputStream] =
+  ZIO.acquireRelease(ZIO.attemptBlockingIO(new FileInputStream(file)))(close)
+
+def os(file: String): ZIO[Scope, IOException, FileOutputStream] =
+  ZIO.acquireRelease(ZIO.attemptBlockingIO(new FileOutputStream(file)))(close)
+
+def copy(
+    from: FileInputStream,
+    to: FileOutputStream
+): IO[IOException, Unit] =
+  ZIO.attemptBlockingIO(???)
+
+def transfer(from: String, to: String): IO[Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      from <- is(from)
+      to   <- os(to)
+      _    <- copy(from, to)
+    } yield ()
+  }
+```
+
+As we can see, the migration is quite straightforward, and it doesn't require much extra work.
+
+For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
+
+So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
+```
+
+And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
+
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
