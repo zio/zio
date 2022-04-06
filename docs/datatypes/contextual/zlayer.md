@@ -188,79 +188,54 @@ val configLayer: TaskLayer[AppConfig] = ZLayer.fromZIO(loadConfig)
 
 ### From Functions
 
-A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer`.
-
-Let's say we have defined the following `Logging` service:
-
-```scala mdoc:silent
-import zio._
-
-trait Logging {
-  def log(line: String): UIO[Unit]
-}
-```
-
-Assume we have the following function which creates a live layer for `Logging` service:
-
-```scala mdoc:silent
-import zio._
-
-def loggingLive(console: Console, clock: Clock): Logging =
-  new Logging {
-    override def log(line: String): UIO[Unit] =
-      for {
-        time <- clock.currentDateTime
-        _    <- console.printLine(s"$time — $line").orDie
-      } yield ()
-  }
-```
-
-We can convert the `loggingLive` function to the `ZLayer` using `toLayer` extension method on functions:
+A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer`:
 
 ```scala mdoc:compile-only
-val layer: ZLayer[Any, Nothing, Logging] =
-  ZLayer {
-    for {
-      console <- ZIO.console
-      clock   <- ZIO.clock
-    } yield LoggingLive(console, clock)
-  }
-```
-
-This is the same method we use in Service Pattern:
-
-```scala mdoc:silent
 import zio._
 
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] =
-    for {
-      time <- clock.currentDateTime
-      _    <- console.printLine(s"$time — $line").orDie
-    } yield ()
-}
+object FromFunctionExample extends ZIOAppDefault {
+  final case class DatabaseConfig()
 
-object LoggingLive {
-  val layer: ZLayer[Any, Nothing, Logging] =
-    ZLayer {
-      for {
-        console <- ZIO.console
-        clock   <- ZIO.clock
-      } yield LoggingLive(console, clock)
-    }
-}
-```
-
-Other than the `toLayer` extension method, we can create a layer using `ZLayer.fromFunction` directly:
-
-```scala mdoc:silent
-val layer: ZLayer[Any, Nothing, Logging] =
-  ZLayer {
-    for {
-      console <- ZIO.console
-      clock   <- ZIO.clock
-    } yield LoggingLive(console, clock)
+  object DatabaseConfig {
+    val live = ZLayer.succeed(DatabaseConfig())
   }
+
+  final case class Database(databaseConfig: DatabaseConfig)
+
+  object Database {
+    val live: ZLayer[DatabaseConfig, Nothing, Database] =
+      ZLayer.fromFunction(Database.apply _)
+  }
+
+  final case class Analytics()
+
+  object Analytics {
+    val live: ULayer[Analytics] = ZLayer.succeed(Analytics())
+  }
+
+  final case class Users(database: Database, analytics: Analytics)
+
+  object Users {
+    val live = ZLayer.fromFunction(Users.apply _)
+  }
+
+  final case class App(users: Users, analytics: Analytics) {
+    def execute: UIO[Unit] =
+      ZIO.debug(s"This app is made from ${users} and ${analytics}")
+  }
+
+  object App {
+    val live = ZLayer.fromFunction(App.apply _)
+  }
+
+  def run =
+    ZIO
+      .serviceWithZIO[App](_.execute)
+      // Cannot use `provide` due to this dotty bug: https://github.com/lampepfl/dotty/issues/12498
+      .provideLayer(
+        (((DatabaseConfig.live >>> Database.live) ++ Analytics.live >>> Users.live) ++ Analytics.live) >>> App.live
+      )
+}
 ```
 
 ```scala mdoc:invisible:reset
