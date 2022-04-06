@@ -16,7 +16,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       for {
         _      <- loadAndExecuteAll(Seq(SimpleSpec.getClass.getName))
         output <- testOutput
-      } yield assertTrue(output.mkString.contains("1 tests passed. 0 tests failed. 0 tests ignored."))
+      } yield assertTrue(output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored."))
     ),
     // TODO Get this enabled
 //    test("displays runtime exceptions helpfully")(
@@ -53,7 +53,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             // s"    ${assertSourceLocation()}",
             // s"""${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
           ).mkString("\n")
-      } yield assertTrue(output.mkString.contains(expected))
+      } yield assertTrue(output.mkString("").contains(expected))
     ),
     test("only executes selected test") {
       for {
@@ -69,7 +69,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             s"""${ConsoleRenderer.render(Summary(1, 0, 0, "", testTime))}"""
           ).mkString("\n")
 
-      } yield assertTrue(output.mkString.contains(expected))
+      } yield assertTrue(output.mkString("").contains(expected))
     }
   )
 
