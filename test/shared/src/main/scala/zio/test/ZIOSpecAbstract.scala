@@ -41,7 +41,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer.environment[ZIOAppArgs with Scope] +!+
-        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
+        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive)) // TODO revisit
     )
   }
 
@@ -81,8 +81,9 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     implicit val trace = Tracer.newTrace
     for {
       args    <- ZIO.service[ZIOAppArgs]
+      console <- ZIO.console // TODO revisit
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      summary <- runSpec(spec, testArgs)
+      summary <- runSpec(spec, testArgs, console)
       _ <- ZIO.when(summary.fail > 0) {
              ZIO.fail("Failed tests.")
            }
@@ -99,7 +100,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
 
   private[zio] def runSpec(
     spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
-    testArgs: TestArgs
+    testArgs: TestArgs,
+    console: Console
   )(implicit
     trace: ZTraceElement
   ): URIO[
@@ -113,6 +115,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         ZIO.runtime[
           Environment with TestEnvironment with ZIOAppArgs with Scope
         ]
+      _ <- ZIO.debug("ZIOSpecAbstract.runSpec.console: " + console)
       environment   = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
       runner =
@@ -123,7 +126,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
               Any
             ](
               ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment),
-              (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+              (TestLogger.fromConsole(console) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
             ),
           runtimeConfig
         )

@@ -12,7 +12,8 @@ object ZTestNewFrameworkSpec extends ZIOSpecDefault {
     test("basic happy path") (
       for {
         _ <- loadAndExecuteAll(Seq(spec1UsingSharedLayer))
-        console <- testConsole
+        console <- testConsole.debug
+        _ <- ZIO.debug("ZTestNewFrameworkSpec.console" +  console)
         output  <- console.output
         outputString = "=================\n" + output.mkString("\n") + "=================\n"
         _       <- ZIO.debug(outputString)

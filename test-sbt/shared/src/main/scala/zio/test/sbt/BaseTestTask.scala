@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
-import zio.{CancelableFuture, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{CancelableFuture, Console, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
 import zio.test.{FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
 
@@ -16,36 +16,41 @@ abstract class BaseTestTask(
   val spec: ZIOSpecAbstract
 ) extends Task {
 
-  protected val sharedFilledTestlayer
+  protected def sharedFilledTestlayer(console: Console)
     : ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
     ZIOAppArgs.empty +!+ (
       (zio.ZEnv.live ++ Scope.default) >>>
-        TestEnvironment.live >+> TestLogger.fromConsole
+        TestEnvironment.live >+> TestLogger.fromConsole(console)
     )
   } +!+ Scope.default
 
   protected def constructLayer[Environment](
-    specLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
+    specLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment],
+    console: Console
   ): ZLayer[Any, Error, Environment with TestEnvironment with TestLogger with ZIOAppArgs with Scope] =
-    (sharedFilledTestlayer >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer
+    (sharedFilledTestlayer(console) >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer(console)
 
   protected def run(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    (for {
-      _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
-      summary <- spec
-                   .runSpec(FilteredSpec(spec.spec, args), args)
-      _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-      _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
-      _ <- (if (summary.fail > 0)
-              ZIO.fail(new Exception("Failed tests"))
-            else ZIO.unit)
-    } yield ())
-      .provideLayer(
-        constructLayer[spec.Environment](spec.layer)
-      )
+                   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
+    ZIO.consoleWith{console =>
+      (for {
+        _ <- ZIO.debug("BaseTestTask.run.console: " +  console)
+        _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
+        summary <- spec
+          .runSpec(FilteredSpec(spec.spec, args), args, console)
+        _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
+        _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
+        _ <- (if (summary.fail > 0)
+          ZIO.fail(new Exception("Failed tests"))
+        else ZIO.unit)
+      } yield ())
+        .provideLayer(
+          constructLayer[spec.Environment](spec.layer, console)
+        )
+    }
+  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     var resOutter: CancelableFuture[Unit] = null
