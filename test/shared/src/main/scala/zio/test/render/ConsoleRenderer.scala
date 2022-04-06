@@ -95,7 +95,7 @@ trait ConsoleRenderer extends TestRenderer {
   import zio.duration2DurationOps
   def render(summary: Summary): String =
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
-       |Executed in ${summary.duration.render}.
+       |Executed in ${summary.duration.render}
        |""".stripMargin
 }
 object ConsoleRenderer extends ConsoleRenderer

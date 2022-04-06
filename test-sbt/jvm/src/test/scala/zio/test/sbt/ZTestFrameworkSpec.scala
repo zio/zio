@@ -14,7 +14,6 @@ import scala.util.Try
 
 object Blah {}
 
-
 object ZTestFrameworkSpec {
 
   def main(args: Array[String]): Unit =
@@ -63,7 +62,7 @@ object ZTestFrameworkSpec {
   def testLogMessages()(implicit trace: ZTraceElement): Unit = {
     val loggers = Seq(new MockLogger)
 
-    loadAndExecute(failingSpecFQN, loggers = loggers)
+    loadAndExecute(FrameworkSpecInstances.failingSpecFQN, loggers = loggers)
 
     loggers.map(_.messages.map(_.withNoLineNumbers)) foreach { messages =>
       assertContains(
@@ -95,7 +94,7 @@ object ZTestFrameworkSpec {
   def testColored(): Unit = {
     val loggers = Seq.fill(3)(new MockLogger)
 
-    loadAndExecute(multiLineSpecFQN, loggers = loggers)
+    loadAndExecute(FrameworkSpecInstances.multiLineSpecFQN, loggers = loggers)
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
@@ -114,7 +113,7 @@ object ZTestFrameworkSpec {
   def testTestSelection(): Unit = {
     val loggers = Seq(new MockLogger)
 
-    loadAndExecute(failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
+    loadAndExecute(FrameworkSpecInstances.failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
 
     loggers.map(_.messages) foreach { messages =>
       val results = messages.drop(1).mkString("\n")
@@ -147,7 +146,7 @@ object ZTestFrameworkSpec {
   }
 
   def testSummary(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array())
+    val taskDef = new TaskDef(FrameworkSpecInstances.failingSpecFQN, ZioSpecFingerprint, false, Array())
     val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
 
     val task = runner
@@ -164,23 +163,15 @@ object ZTestFrameworkSpec {
       }
       .head
 
-    // TODO Figure out how to get correct TestConsole instance in this non-ZIO realm.
-    zio.Runtime.default.unsafeRun(
-      for {
-        console <- testConsole
-        output  <- console.output
-        _       <- ZIO.debug(s"output: ${output.mkString("\n")}")
-      } yield ()
-    )
-
     task.execute(_ => (), Array.empty)
 
     assertEquals("done contains summary", runner.done(), "foo\nDone")
   }
 
   def testNoTestsExecutedWarning(): Unit = {
-    val taskDef = new TaskDef(failingSpecFQN, ZioSpecFingerprint, false, Array(new TestSelector("nope")))
-    val runner  = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
+    val taskDef =
+      new TaskDef(FrameworkSpecInstances.failingSpecFQN, ZioSpecFingerprint, false, Array(new TestSelector("nope")))
+    val runner = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
       .map(task => task.asInstanceOf[ZTestTask])
@@ -233,34 +224,11 @@ object ZTestFrameworkSpec {
     doRun(Iterable(task))
   }
 
-  lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
-
-  object SimpleFailingSharedSpec extends ZIOSpecDefault {
-    def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
-      test("failing test") {
-        zio.test.assert(1)(Assertion.equalTo(2))
-      },
-      test("passing test") {
-        zio.test.assert(1)(Assertion.equalTo(1))
-      },
-      test("ignored test") {
-        zio.test.assert(1)(Assertion.equalTo(2))
-      } @@ TestAspect.ignore
-    )
-  }
-
   lazy val timedSpecFQN = TimedSharedSpec.getClass.getName
   object TimedSharedSpec extends ZIOSpecDefault {
     override def spec = test("timed passing test") {
       zio.test.assertCompletes
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
-  }
-
-  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
-  object MultiLineSharedSpec extends ZIOSpecDefault {
-    def spec = test("multi-line test") {
-      zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
-    }
   }
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String = {

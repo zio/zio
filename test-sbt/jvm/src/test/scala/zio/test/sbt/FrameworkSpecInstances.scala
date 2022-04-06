@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler}
 import zio.{ZIO, ZLayer}
-import zio.test.{TestAspect, assertCompletes}
+import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOSpecDefault, assertCompletes}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -27,7 +27,7 @@ object FrameworkSpecInstances {
 
     def spec =
       suite("simple suite")(
-        numberedTest(specIdx = 1, suiteIdx = 1, 1),
+        numberedTest(specIdx = 1, suiteIdx = 1, 1)
       ) @@ TestAspect.parallel
   }
 
@@ -53,6 +53,29 @@ object FrameworkSpecInstances {
       zio.test.test("test completes with shared layer 2") {
         assertCompletes
       }
+  }
+
+  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
+  object MultiLineSharedSpec extends ZIOSpecDefault {
+    def spec = test("multi-line test") {
+      zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))
+    }
+  }
+
+  lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
+
+  object SimpleFailingSharedSpec extends ZIOSpecDefault {
+    def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = zio.test.suite("some suite")(
+      test("failing test") {
+        zio.test.assert(1)(Assertion.equalTo(2))
+      },
+      test("passing test") {
+        zio.test.assert(1)(Assertion.equalTo(1))
+      },
+      test("ignored test") {
+        zio.test.assert(1)(Assertion.equalTo(2))
+      } @@ TestAspect.ignore
+    )
   }
 
 }
