@@ -357,7 +357,9 @@ object FiberRef {
       ZEnvironment.Patch.empty
     )
 
-  private[zio] def unsafeMakeRuntimeConfig(initial: RuntimeConfig): FiberRef.WithPatch[RuntimeConfig, RuntimeConfig.Patch] =
+  private[zio] def unsafeMakeRuntimeConfig(
+    initial: RuntimeConfig
+  ): FiberRef.WithPatch[RuntimeConfig, RuntimeConfig.Patch] =
     unsafeMakePatch[RuntimeConfig, RuntimeConfig.Patch](
       initial,
       RuntimeConfig.Patch.diff,
