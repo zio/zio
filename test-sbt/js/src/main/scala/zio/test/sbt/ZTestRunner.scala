@@ -92,13 +92,13 @@ sealed class ZTestTask(
       Error,
       zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
     ] =
-      constructLayer[zioSpec.Environment](zioSpec.layer)
+      constructLayer[zioSpec.Environment](zioSpec.layer, zio.Console.ConsoleLive)
 
     Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
       val logic =
         for {
           summary <- zioSpec
-                       .runSpec(FilteredSpec(zioSpec.spec, args), args)
+                       .runSpec(FilteredSpec(zioSpec.spec, args), args, zio.Console.ConsoleLive)
                        .provideLayer(
                          fullLayer
                        )
