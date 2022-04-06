@@ -47,16 +47,13 @@ Let's see how we can create a layer:
 
 ## Creation
 
-There are many ways to create a ZLayer. Here's an incomplete list:
-- `ZLayer.succeed` to create a layer from an existing service
-- `ZLayer.succeedEnvironment` to create a layer from a value that's one or more services
-- `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
-- `ZLayer.fromZIO` to lift a `ZIO` effect to a layer requiring the effect environment
-- `ZLayer.identity` to express the requirement for a dependency
+There are four main ways to create a ZLayer:
+1. `ZLayer.succeed` for creating layers from simple values.
+2. `ZLayer.scoped` for creating layers with _for comprehension_ style from resourceful effects.
+3. `ZLayer.apply`/`ZLayer.fromZIO` for creating layers with _for comprehension_ style from effectual but not resourceful effects.
+4. `ZLayer.fromFunction` for creating layers that are neither effectual nor resourceful.
 
-Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`) or to create a combination of services (suffixed by `Environment`).
-
-Let's review some of the `ZLayer`'s most useful constructors:
+Now let's look at each of these methods.
 
 ### From a Simple Value or an Existing Service
 
@@ -100,7 +97,7 @@ object Logging {
 }
 ```
 
-### From Scoped Resources
+### From Resourceful Effects (Scoped Resources)
 
 Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
@@ -164,15 +161,9 @@ val usersLayer : ZLayer[Any, Throwable, UserRepository] =
 
 ```
 
-### From ZIO Effects
+### From Non-resourceful Effects
 
-We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromZIO` constructor:
-
-```scala mdoc:compile-only
-import zio._
-
-val layer: ZLayer[Any, Nothing, String] = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
-```
+We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromZIO`/`ZLayer.apply` constructor.
 
 For example, assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
 
@@ -181,18 +172,62 @@ import zio._
 
 case class AppConfig(poolSize: Int)
   
-def loadConfig : Task[AppConfig]      = Task.attempt(???)
-val configLayer: TaskLayer[AppConfig] = ZLayer.fromZIO(loadConfig)
+def loadConfig : Task[AppConfig] = 
+  Task.attempt(???)
+
+object AppConfig {
+  val layer: TaskLayer[AppConfig] = 
+    ZLayer(loadConfig)  // or ZLayer.fromZIO(loadConfig)
+} 
 ```
 
-### From Functions
-
-A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer`:
+This is the for-comprehension way of creating a ZIO service using `ZLayer.apply`:
 
 ```scala mdoc:compile-only
 import zio._
 
-object FromFunctionExample extends ZIOAppDefault {
+trait A
+trait B
+trait C
+case class CLive(a: A, b: B) extends C
+
+object CLive {
+  val layer: ZLayer[A & B, Nothing, C] =
+    ZLayer {
+      for {
+        a <- ZIO.service[A]
+        b <- ZIO.service[B]
+      } yield CLive(a, b)
+    }
+}
+```
+
+### From Functions
+
+A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer` using the `ZLayer.fromFunction` constructor.
+
+In the following example, the `CLive` implementation requires two `A` and `B` services, and we can easily convert that case class to a `ZLayer`:
+
+```scala mdoc:compile-only
+import zio._
+
+trait A
+trait B
+trait C
+case class CLive(a: A, b: B) extends C
+
+object CLive {
+  val layer: ZLayer[A & B, Nothing, C] = 
+    ZLayer.fromFunction(CLive.apply _)
+}
+```
+
+Below is a complete working example:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
   final case class DatabaseConfig()
 
   object DatabaseConfig {
