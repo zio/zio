@@ -53,7 +53,6 @@ There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
 - `ZLayer.fromZIO` to lift a `ZIO` effect to a layer requiring the effect environment
 - `ZLayer.identity` to express the requirement for a dependency
-- `ZIO#toLayer` to construct a layer from an effect
 
 Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`) or to create a combination of services (suffixed by `Environment`).
 
