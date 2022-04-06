@@ -87,6 +87,12 @@ object DeriveGen {
       BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
     )
   )
+  implicit val genBigInt: DeriveGen[BigInt] = instance(
+    Gen.bigInt(
+      BigInt(Int.MinValue) * BigInt(Int.MaxValue),
+      BigInt(Int.MaxValue) * BigInt(Int.MaxValue)
+    )
+  )
 
   implicit def genEither[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Either[A, B]] =
     instance(Gen.either(ev1.derive, ev2.derive))
