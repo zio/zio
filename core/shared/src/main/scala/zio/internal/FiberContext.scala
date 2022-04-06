@@ -118,13 +118,13 @@ private[zio] final class FiberContext[E, A](
    */
   override final def runUntil(maxOpCount: Int): Unit =
     try {
-      val runtimeConfig = unsafeGetRuntimeConfig()
-
-      val logRuntime = runtimeConfig.flags.isEnabled(RuntimeConfigFlag.LogRuntime)
-
       // Do NOT accidentally capture `curZio` in a closure, or Scala will wrap
       // it in `ObjectRef` and performance will plummet.
       var curZio = erase(nextEffect)
+
+      val runtimeConfig = unsafeGetRuntimeConfig()
+
+      val logRuntime = runtimeConfig.flags.isEnabled(RuntimeConfigFlag.LogRuntime)
 
       nextEffect = null
 
