@@ -4160,7 +4160,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sets the runtime configuration to the specified value.
    */
   def setRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.suspendSucceed(new ZIO.SetRuntimeConfig(runtimeConfig, trace))
+    FiberRef.currentRuntimeConfig.set(runtimeConfig)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -5227,7 +5227,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val FiberRefLocally        = 26
     final val FiberRefDelete         = 27
     final val FiberRefWith           = 28
-    final val SetRuntimeConfig       = 29
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A], trace: ZTraceElement)
@@ -5523,14 +5522,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       () => s"Logged at ${trace}"
 
     override def tag = Tags.Logged
-  }
-
-  private[zio] final class SetRuntimeConfig(val runtimeConfig: RuntimeConfig, val trace: ZTraceElement)
-      extends UIO[Unit] {
-    def unsafeLog: () => String =
-      () => s"SetRuntimeConfig at ${trace}"
-
-    override def tag = Tags.SetRuntimeConfig
   }
 
   private[zio] val someFatal   = Some(LogLevel.Fatal)

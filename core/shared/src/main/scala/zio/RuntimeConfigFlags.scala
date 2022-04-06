@@ -21,6 +21,9 @@ final case class RuntimeConfigFlags(flags: Set[RuntimeConfigFlag]) {
   def +(flag: RuntimeConfigFlag): RuntimeConfigFlags =
     RuntimeConfigFlags(flags + flag)
 
+  def -(flag: RuntimeConfigFlag): RuntimeConfigFlags =
+    RuntimeConfigFlags(flags - flag)
+
   def isEnabled(runtimeConfigFlag: RuntimeConfigFlag): Boolean =
     flags.contains(runtimeConfigFlag)
 }

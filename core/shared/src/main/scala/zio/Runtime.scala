@@ -364,12 +364,12 @@ trait Runtime[+R] {
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
-      runtimeConfig,
       StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
         Map(
-          FiberRef.currentEnvironment -> ::(fiberId -> environment, Nil),
-          ZEnv.services               -> ::(fiberId -> ZEnv.Services.live, Nil)
+          FiberRef.currentEnvironment   -> ::(fiberId -> environment, Nil),
+          FiberRef.currentRuntimeConfig -> ::(fiberId -> runtimeConfig, Nil),
+          ZEnv.services                 -> ::(fiberId -> ZEnv.Services.live, Nil)
         )
       ),
       children
