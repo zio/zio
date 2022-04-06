@@ -49,11 +49,10 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
         .mkString("", "", "Done")
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] = {
+  def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs).toArray.map(_.asInstanceOf[Task]) // TODO Safe/required?
-  }
 
-  private [sbt] def tasksZ(defs: Array[TaskDef]): Option[ZTestTask] = {
+  private[sbt] def tasksZ(defs: Array[TaskDef]): Option[ZTestTask] = {
     val testArgs                = TestArgs.parse(args)
     val tasks: Array[ZTestTask] = defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs))
     val entrypointClass: String = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)

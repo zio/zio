@@ -27,9 +27,9 @@ object TestLogger {
 
   def fromConsole(console: Console)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, TestLogger] =
     ZLayer.succeed {
-        new TestLogger {
-          def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = console.printLine(line).orDie
-        }
+      new TestLogger {
+        def logLine(line: String)(implicit trace: ZTraceElement): UIO[Unit] = console.printLine(line).orDie
+      }
     }
 
   def logLine(line: String)(implicit trace: ZTraceElement): URIO[TestLogger, Unit] =

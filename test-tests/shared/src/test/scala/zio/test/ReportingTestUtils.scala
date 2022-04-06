@@ -52,7 +52,9 @@ object ReportingTestUtils {
         TestTestRunner(testEnvironment, console)
           .run(spec)
           .provideLayer(
-            (TestLogger.fromConsole(console) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live
+            (TestLogger.fromConsole(
+              console
+            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live
           )
       output <- TestConsole.output
     } yield output.mkString
@@ -64,7 +66,9 @@ object ReportingTestUtils {
         TestTestRunner(testEnvironment, console)
           .run(spec)
           .provideLayer(
-            Scope.default >>> ((TestLogger.fromConsole(console) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live)
+            Scope.default >>> ((TestLogger.fromConsole(
+              console
+            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live)
           )
     } yield summary.summary
 
@@ -74,7 +78,9 @@ object ReportingTestUtils {
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         testEnvironment,
-        (Console.live >>> TestLogger.fromConsole(console) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        (Console.live >>> TestLogger.fromConsole(
+          console
+        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
       ),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
