@@ -52,7 +52,6 @@ There are many ways to create a ZLayer. Here's an incomplete list:
 - `ZLayer.succeedEnvironment` to create a layer from a value that's one or more services
 - `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
 - `ZLayer.fromZIO` to lift a `ZIO` effect to a layer requiring the effect environment
-- `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `Scope`.
 - `ZLayer.identity` to express the requirement for a dependency
 - `ZIO#toLayer` to construct a layer from an effect
 
@@ -106,7 +105,7 @@ object Logging {
 
 Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
-1. The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.apply` constructor:
+The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.apply` constructor:
 
 ```scala mdoc:silent:nest
 import zio._
@@ -118,19 +117,6 @@ val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
       ZIO.attempt(scala.io.Source.fromFile("file.txt"))
     )
   }
-```
-
-2. We can create a `ZLayer` directly from `acquire` and `release` actions of a scoped resource:
-
-```scala mdoc:compile-only
-import zio._
-import java.io.{Closeable, FileInputStream}
-
-def acquire: Task[FileInputStream] = ZIO.attempt(new FileInputStream("file.txt"))
-def release(resource: Closeable): UIO[Unit] = ZIO.succeed(resource.close())
-
-val inputStreamLayer: ZLayer[Scope, Throwable, FileInputStream] =
-  ZLayer.fromAcquireRelease(acquire)(release)
 ```
 
 Let's see a real-world example of creating a layer from scoped resources. Assume we have the following `UserRepository` service:
@@ -1223,9 +1209,13 @@ object Database {
 }
 
 val database: ZLayer[Any, Throwable, Database] =
-  ZLayer.fromAcquireRelease(
-    Database.connect.debug("connecting to the database")
-  )(_.close)
+  ZLayer.scoped {
+    ZIO.acquireRelease {
+      Database.connect.debug("connecting to the database")
+    } { database =>
+      database.close
+    }
+  }
 
 val scopedDatabase: ZIO[Scope, Throwable, ZEnvironment[Database]] =
   database.build
