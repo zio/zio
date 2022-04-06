@@ -21,7 +21,6 @@ object ExecutionEventPrinter {
       val rendered = ReporterEventRenderer.render(event)
       ZIO
         .when(rendered.nonEmpty)(
-//          ZIO.debug("missing output: " + rendered.mkString("\n")) *>
           logger.logLine(
             rendered.mkString("\n")
           )

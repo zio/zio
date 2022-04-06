@@ -6,12 +6,14 @@ import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{ZEnvironment, ZIO, ZLayer, ZTraceElement, durationInt}
+import zio.{ZEnvironment, ZIO, ZTraceElement, durationInt}
 
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
+
+object Blah {}
+
 
 object ZTestFrameworkSpec {
 
@@ -128,12 +130,6 @@ object ZTestFrameworkSpec {
     }
   }
 
-  private val counter = new AtomicInteger(0)
-
-  lazy val sharedLayer: ZLayer[Any, Nothing, Int] = {
-    ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
-  }
-
   val randomFailure =
     zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
 
@@ -142,44 +138,12 @@ object ZTestFrameworkSpec {
       assertCompletes
     }
 
-  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
-  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
-    override def layer = sharedLayer
-
-    /*
-      TODO
-        - Create some big entities in each test, to highlight memory usage
-        - Wrap BEGIN/END messages around specs, to see if they're overlapping
-        - Check how large just the test reports are
-            Some of these classes have thousands of lines of tests
-     */
-    val numberOfSuites = 1
-    val numberOfTests  = 1
-    def spec =
-      suite("basic suite")(
-        numberedTest(specIdx = 1, suiteIdx = 1, 1),
-        numberedTest(specIdx = 1, suiteIdx = 1, 2),
-        numberedTest(specIdx = 1, suiteIdx = 1, 3),
-        numberedTest(specIdx = 1, suiteIdx = 1, 4)
-      ) @@ TestAspect.parallel
-  }
-
-  lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
-  object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
-    override def layer = sharedLayer
-
-    def spec =
-      zio.test.test("test completes with shared layer 2") {
-        assertCompletes
-      }
-  }
-
   def testSharedLayer(): Unit = {
 
     val loggers = Seq(new MockLogger)
-    loadAndExecuteAll(Seq.fill(3)(spec1UsingSharedLayer), loggers, Array.empty)
+    loadAndExecuteAll(Seq.fill(3)(FrameworkSpecInstances.spec1UsingSharedLayer), loggers, Array.empty)
 
-    assert(counter.get() == 1)
+    assert(FrameworkSpecInstances.counter.get() == 1)
   }
 
   def testSummary(): Unit = {

@@ -144,6 +144,7 @@ object DefaultTestReporter {
                     }
 
                 case Left(TestFailure.Runtime(cause)) =>
+                  println("RUNTIME ERROR: " + cause)
                   Some(
                     renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
                   )

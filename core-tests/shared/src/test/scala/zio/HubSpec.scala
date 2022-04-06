@@ -362,7 +362,7 @@ object HubSpec extends ZIOBaseSpec {
             assert(values2.filter(_ > 0))(isSorted) &&
             assert(values2.filter(_ < 0))(isSorted)
         }
-      }
+      } @@ TestAspect.flaky
     ),
     suite("unbounded")(
       test("one to one") {

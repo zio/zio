@@ -8,7 +8,7 @@ object TestUtils {
     TestExecutor
       .default(
         testEnvironment,
-        (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        (Console.live >>> TestLogger.fromConsole(Console.ConsoleLive) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
       )
       .run(spec, ExecutionStrategy.Sequential)
 

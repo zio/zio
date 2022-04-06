@@ -1,25 +1,47 @@
 package zio.test.sbt
 
-import sbt.testing.{Event, EventHandler, SuiteSelector, TaskDef}
-import zio.{ZIO, ZLayer}
-import zio.test.Assertion.equalTo
-import zio.test.{TestAspect, ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
-
-import java.util.concurrent.atomic.AtomicInteger
+import sbt.testing.{SuiteSelector, TaskDef}
+import zio.ZIO
+import zio.test.sbt.FrameworkSpecInstances.SimpleSpec
+import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
 object ZTestNewFrameworkSpec extends ZIOSpecDefault {
+
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path") (
       for {
-        _ <- loadAndExecuteAll(Seq(spec1UsingSharedLayer))
-        console <- testConsole.debug
-        _ <- ZIO.debug("ZTestNewFrameworkSpec.console" +  console)
-        output  <- console.output
-        outputString = "=================\n" + output.mkString("\n") + "=================\n"
-        _       <- ZIO.debug(outputString)
-      } yield assertTrue(outputString.contains("4 tests passed. 0 tests failed. 0 tests ignored."))
+        _ <- loadAndExecuteAll(Seq(SimpleSpec.getClass.getName))
+        output <- testOutput
+      } yield assertTrue(output.mkString.contains("1 tests passed. 0 tests failed. 0 tests ignored."))
+    ),
+    test("ensure shared layers are not re-initialized")(
+      for {
+        _ <- loadAndExecuteAll(Seq(FrameworkSpecInstances.spec1UsingSharedLayer, FrameworkSpecInstances.spec2UsingSharedLayer))
+      } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
+
+    ),
+    suite("warn when no tests are executed")(
+      test("TODO")(
+      for {
+        _ <- loadAndExecuteAll(Seq())
+      } yield assertCompletes
+      )
+
     )
   )
+
+  val testOutput =
+    for {
+      console <- testConsole
+      output  <- console.output
+    } yield output
+
+  val dumpTestOutput =
+    for {
+      output  <- testOutput
+      outputString = "=================\n" + output.mkString + "=================\n"
+      _       <- ZIO.debug(outputString)
+    } yield output
 
   def loadAndExecuteAll(
                                  fqns: Seq[String],
@@ -30,40 +52,12 @@ object ZTestNewFrameworkSpec extends ZIOSpecDefault {
       fqns
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
-    val task = new ZTestFramework()
+    new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
       .tasksZ(tasks)
-      .get // TODO Unsafe
+      .map(_.executeZ(FrameworkSpecInstances.dummyHandler))
+      .getOrElse(ZIO.unit) // TODO What do we want to do here?
 
-    task.executeZ(dummyHandler)
-  }
 
-  val dummyHandler: EventHandler = (_: Event) => ()
-
-  private val counter = new AtomicInteger(0)
-
-  lazy val sharedLayer: ZLayer[Any, Nothing, Int] = {
-    ZLayer.fromZIO(ZIO.succeed(counter.getAndUpdate(value => value + 1)))
-  }
-
-  val randomFailure =
-    zio.test.assert(new java.util.Random().nextInt())(equalTo(2))
-
-  def numberedTest(specIdx: Int, suiteIdx: Int, testIdx: Int) =
-    zio.test.test(s"spec $specIdx suite $suiteIdx test $testIdx") {
-      assertCompletes
-    }
-
-  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
-  object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
-    override def layer = sharedLayer
-
-    def spec =
-      suite("basic suite")(
-        numberedTest(specIdx = 1, suiteIdx = 1, 1),
-        numberedTest(specIdx = 1, suiteIdx = 1, 2),
-        numberedTest(specIdx = 1, suiteIdx = 1, 3),
-        numberedTest(specIdx = 1, suiteIdx = 1, 4)
-      ) @@ TestAspect.parallel
   }
 }

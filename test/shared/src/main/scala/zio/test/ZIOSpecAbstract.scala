@@ -115,7 +115,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         ZIO.runtime[
           Environment with TestEnvironment with ZIOAppArgs with Scope
         ]
-      _ <- ZIO.debug("ZIOSpecAbstract.runSpec.console: " + console)
       environment   = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
       runner =

@@ -36,14 +36,16 @@ abstract class BaseTestTask(
                    )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
     ZIO.consoleWith{console =>
       (for {
-        _ <- ZIO.debug("BaseTestTask.run.console: " +  console)
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
         summary <- spec
           .runSpec(FilteredSpec(spec.spec, args), args, console)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
+        _ <- ZIO.when (summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
+          TestLogger.logLine("No tests were executed.")
+        }
         _ <- (if (summary.fail > 0)
-          ZIO.fail(new Exception("Failed tests"))
+          ZIO.fail(new Exception("Failed tests: " + summary.summary))
         else ZIO.unit)
       } yield ())
         .provideLayer(
@@ -73,7 +75,7 @@ abstract class BaseTestTask(
 
   def executeZ(eventHandler: EventHandler): ZIO[Any, Throwable, Unit] = {
           run(eventHandler, spec)
-            .tapError(e => ZIO.succeed(println(e.getMessage)))
+//            .tapError(e => ZIO.succeed(println(e.getMessage))) // TODO Make sure we don't need this
   }
 
   override def tags(): Array[String] = Array.empty
