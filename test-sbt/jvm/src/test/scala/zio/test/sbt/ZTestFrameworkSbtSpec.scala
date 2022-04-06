@@ -12,7 +12,7 @@ import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-object ZTestFrameworkSpec {
+object ZTestFrameworkSbtSpec {
 
   def main(args: Array[String]): Unit =
     run(tests: _*)

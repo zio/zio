@@ -9,7 +9,7 @@ import zio.test.sbt.TestingSupport.{green, red}
 //import zio.test.sbt.TestingSupport.{blue, cyan, red}
 import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
-object ZTestNewFrameworkSpec extends ZIOSpecDefault {
+object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(

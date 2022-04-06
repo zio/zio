@@ -58,8 +58,7 @@ object FrameworkSpecInstances {
 
   lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
   object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
-//    override def layer = sharedLayer
-    override def layer = ZLayer.succeed(1)
+    override def layer = sharedLayer
 
     def spec =
       zio.test.test("test completes with shared layer 2") {
