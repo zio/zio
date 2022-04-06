@@ -33,7 +33,10 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     }
   )
 
-  def done(): String = {
+  // TODO This is where we can potentially flush all ExecutionEvents for the many tests.
+  //    I *completely* missed how significant this method is.
+  //    This is what determines when our tests are all done.
+  override def done(): String = {
     val allSummaries = summaries.get
 
     val total  = allSummaries.map(_.total).sum
