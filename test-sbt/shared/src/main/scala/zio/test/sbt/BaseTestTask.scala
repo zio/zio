@@ -48,7 +48,7 @@ abstract class BaseTestTask(
                TestLogger.logLine("No tests were executed.")
              }
         _ <- (if (summary.fail > 0)
-                ZIO.fail(new Exception("Failed tests: " + summary.summary))
+                ZIO.fail(new Exception("Failed tests."))
               else ZIO.unit)
       } yield ())
         .provideLayer(
@@ -70,7 +70,6 @@ abstract class BaseTestTask(
     } catch {
       case t: Throwable =>
         if (resOutter != null) resOutter.cancel()
-        t.printStackTrace()
         throw t
     }
   }
