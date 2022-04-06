@@ -12,8 +12,6 @@ import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
-object Blah {}
-
 object ZTestFrameworkSpec {
 
   def main(args: Array[String]): Unit =

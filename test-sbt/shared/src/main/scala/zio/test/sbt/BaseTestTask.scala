@@ -76,7 +76,6 @@ abstract class BaseTestTask(
 
   def executeZ(eventHandler: EventHandler): ZIO[Any, Throwable, Unit] =
     run(eventHandler, spec)
-//            .tapError(e => ZIO.succeed(println(e.getMessage))) // TODO Make sure we don't need this
 
   override def tags(): Array[String] = Array.empty
 }

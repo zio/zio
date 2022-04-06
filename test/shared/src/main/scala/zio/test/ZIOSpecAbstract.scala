@@ -41,7 +41,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer.environment[ZIOAppArgs with Scope] +!+
-        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive)) // TODO revisit
+        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive))
     )
   }
 
@@ -80,8 +80,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   ] = {
     implicit val trace = Tracer.newTrace
     for {
-      args <- ZIO.service[ZIOAppArgs]
-      console <- ZIO.console // TODO revisit
+      args    <- ZIO.service[ZIOAppArgs]
+      console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpec(spec, testArgs, console)
       _ <- ZIO.when(summary.fail > 0) {

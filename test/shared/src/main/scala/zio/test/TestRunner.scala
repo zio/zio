@@ -38,7 +38,7 @@ final case class TestRunner[R, E](
   bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
     implicit val emptyTracer = ZTraceElement.empty
     val printerLayer =
-      TestLogger.fromConsole(Console.ConsoleLive) // TODO revisit
+      TestLogger.fromConsole(Console.ConsoleLive)
 
     val sinkLayer = ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
 

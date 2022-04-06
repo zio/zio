@@ -2,17 +2,7 @@ package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler}
 import zio.{ZIO, ZLayer}
-import zio.test.{
-  Annotations,
-  Assertion,
-  Spec,
-  TestAspect,
-  TestFailure,
-  TestSuccess,
-  ZIOSpecDefault,
-  assertCompletes,
-  assertNever
-}
+import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOSpecDefault, assertCompletes}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -37,10 +27,7 @@ object FrameworkSpecInstances {
 
     def spec =
       suite("simple suite")(
-//        numberedTest(specIdx = 1, suiteIdx = 1, 1)
-        zio.test.test("fail") {
-          assertNever("should not get here")
-        }
+        numberedTest(specIdx = 1, suiteIdx = 1, 1)
       ) @@ TestAspect.parallel
   }
 

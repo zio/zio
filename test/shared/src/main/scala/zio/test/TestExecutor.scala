@@ -36,7 +36,7 @@ object TestExecutor {
 
   def default[R <: Annotations, E](
     env: ZLayer[Scope, Nothing, R],
-    sinkLayer: Layer[Nothing, ExecutionEventSink] // TODO Should this just be a plain Sink instead of a layer?
+    sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement

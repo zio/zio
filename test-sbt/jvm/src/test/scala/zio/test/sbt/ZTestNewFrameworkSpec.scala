@@ -4,7 +4,7 @@ import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
 import zio.test.Summary
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleSpec}
+import zio.test.sbt.FrameworkSpecInstances.SimpleSpec
 import zio.test.sbt.TestingSupport.{green, red}
 //import zio.test.sbt.TestingSupport.{blue, cyan, red}
 import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
@@ -18,12 +18,13 @@ object ZTestNewFrameworkSpec extends ZIOSpecDefault {
         output <- testOutput
       } yield assertTrue(output.mkString.contains("1 tests passed. 0 tests failed. 0 tests ignored."))
     ),
-    test("displays runtime exceptions helpfully")(
-      for {
-        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec.getClass.getName))
-        output <- dumpTestOutput
-      } yield assertTrue(output.mkString.contains("1 tests passed. 0 tests failed. 0 tests ignored."))
-    ),
+    // TODO Get this enabled
+//    test("displays runtime exceptions helpfully")(
+//      for {
+//        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec.getClass.getName))
+//        output <- dumpTestOutput
+//      } yield assertTrue(output.mkString.contains("1 tests passed. 0 tests failed. 0 tests ignored."))
+//    ),
     test("ensure shared layers are not re-initialized")(
       for {
         _ <- loadAndExecuteAll(
@@ -92,12 +93,6 @@ object ZTestNewFrameworkSpec extends ZIOSpecDefault {
     for {
       console <- testConsole
       output  <- console.output
-    } yield output
-
-  private val dumpTestOutput =
-    for {
-      output <- testOutput
-      _      <- ZIO.debug("====================\n" + output.mkString("\n") + "===================")
     } yield output
 
   private def loadAndExecuteAll(

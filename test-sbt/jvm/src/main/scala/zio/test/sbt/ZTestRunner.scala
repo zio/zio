@@ -50,7 +50,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    tasksZ(defs).toArray.map(_.asInstanceOf[Task]) // TODO Safe/required?
+    tasksZ(defs).toArray
 
   private[sbt] def tasksZ(defs: Array[TaskDef]): Option[ZTestTask] = {
     val testArgs                = TestArgs.parse(args)
@@ -102,26 +102,22 @@ abstract class ZTestTaskPolicy {
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
-  override def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask] = {
-    val newTaskOpt =
-      zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
-        newTests match {
-          case Some(composedTask) =>
-            Some(
-              new ZTestTask(
-                composedTask.taskDef,
-                composedTask.testClassLoader,
-                composedTask.sendSummary,
-                composedTask.args,
-                composedTask.spec <> nextSpec.spec
-              )
+  override def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask] =
+    zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
+      newTests match {
+        case Some(composedTask) =>
+          Some(
+            new ZTestTask(
+              composedTask.taskDef,
+              composedTask.testClassLoader,
+              composedTask.sendSummary,
+              composedTask.args,
+              composedTask.spec <> nextSpec.spec
             )
-          case None =>
-            Some(nextSpec)
-        }
+          )
+        case None =>
+          Some(nextSpec)
       }
-
-    newTaskOpt
-  }
+    }
 
 }
