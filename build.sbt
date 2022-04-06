@@ -559,6 +559,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
   .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(core)
   .dependsOn(test)
 

@@ -52,8 +52,7 @@ abstract class BaseTestTask(
     try {
       val res: CancelableFuture[Unit] =
         Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
-          run(eventHandler, spec)
-            .tapError(e => ZIO.succeed(println(e.getMessage)))
+          executeZ(eventHandler)
         }
 
       resOutter = res
@@ -65,6 +64,11 @@ abstract class BaseTestTask(
         t.printStackTrace()
         throw t
     }
+  }
+
+  def executeZ(eventHandler: EventHandler): ZIO[Any, Throwable, Unit] = {
+          run(eventHandler, spec)
+            .tapError(e => ZIO.succeed(println(e.getMessage)))
   }
 
   override def tags(): Array[String] = Array.empty

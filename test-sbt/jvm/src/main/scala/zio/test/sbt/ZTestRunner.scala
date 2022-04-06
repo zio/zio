@@ -50,6 +50,10 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] = {
+    tasksZ(defs).toArray.map(_.asInstanceOf[Task]) // TODO Safe/required?
+  }
+
+  private [sbt] def tasksZ(defs: Array[TaskDef]): Option[ZTestTask] = {
     val testArgs                = TestArgs.parse(args)
     val tasks: Array[ZTestTask] = defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs))
     val entrypointClass: String = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
@@ -94,12 +98,12 @@ object ZTestTask {
 }
 
 abstract class ZTestTaskPolicy {
-  def merge(zioTasks: Array[ZTestTask]): Array[Task]
+  def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask]
 }
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
-  override def merge(zioTasks: Array[ZTestTask]): Array[Task] = {
+  override def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask] = {
     val newTaskOpt =
       zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
         newTests match {
@@ -118,7 +122,7 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
         }
       }
 
-    newTaskOpt.toArray
+    newTaskOpt
   }
 
 }
