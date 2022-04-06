@@ -3,7 +3,7 @@ package zio.test.sbt
 import sbt.testing.{Event, EventHandler, SuiteSelector, TaskDef}
 import zio.{ZIO, ZLayer}
 import zio.test.Assertion.equalTo
-import zio.test.{TestAspect, ZIOSpecDefault, assertCompletes, testConsole}
+import zio.test.{TestAspect, ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -14,8 +14,9 @@ object ZTestNewFrameworkSpec extends ZIOSpecDefault {
         _ <- loadAndExecuteAll(Seq(spec1UsingSharedLayer))
         console <- testConsole
         output  <- console.output
-        _       <- ZIO.debug(s"output: ${output.mkString("\n")}")
-      } yield assertCompletes
+        outputString = "=================\n" + output.mkString("\n") + "=================\n"
+        _       <- ZIO.debug(outputString)
+      } yield assertTrue(outputString.contains("4 tests passed. 0 tests failed. 0 tests ignored."))
     )
   )
 
