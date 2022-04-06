@@ -144,16 +144,9 @@ object DefaultTestReporter {
                     }
 
                 case Left(TestFailure.Runtime(cause)) =>
-                  cause match {
-                    case Cause.Die(value, _) =>
-                      println("should handle runtime exception: " + value)
-                      Some(
-                        renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
-                      )
-                    case _ =>
-                      println("not rendering other Runtime test failure")
-                      None
-                  }
+                  Some(
+                    renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
+                  )
               }
               renderedResult.map(r => r.lines).getOrElse(Nil)
             }
