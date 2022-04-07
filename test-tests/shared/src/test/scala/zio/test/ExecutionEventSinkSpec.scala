@@ -47,7 +47,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
       } yield assertTrue(summary.success == 1)
     }
   ).provide(
-    TestLogger.fromConsole,
+    TestLogger.fromConsole(zio.Console.ConsoleLive),
     ExecutionEventSink.live,
     TestOutput.live,
     ExecutionEventPrinter.live

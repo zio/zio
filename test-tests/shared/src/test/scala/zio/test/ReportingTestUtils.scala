@@ -42,36 +42,45 @@ object ReportingTestUtils {
     ) + "\n"
   }
 
+  // TODO de-dup layers?
   def runLog(
     spec: ZSpec[TestEnvironment, String]
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
+      console <- ZIO.console
       _ <-
-        TestTestRunner(testEnvironment)
+        TestTestRunner(testEnvironment, console)
           .run(spec)
           .provideLayer(
-            (TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live
+            (TestLogger.fromConsole(
+              console
+            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live
           )
       output <- TestConsole.output
     } yield output.mkString
 
   def runSummary(spec: ZSpec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
+      console <- ZIO.console
       summary <-
-        TestTestRunner(testEnvironment)
+        TestTestRunner(testEnvironment, console)
           .run(spec)
           .provideLayer(
-            Scope.default >>> ((TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live)
+            Scope.default >>> ((TestLogger.fromConsole(
+              console
+            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live)
           )
     } yield summary.summary
 
-  private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment])(implicit
+  private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment], console: Console)(implicit
     trace: ZTraceElement
   ) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         testEnvironment,
-        (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        (Console.live >>> TestLogger.fromConsole(
+          console
+        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
       ),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
