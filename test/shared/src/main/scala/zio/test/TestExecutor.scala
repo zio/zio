@@ -44,7 +44,6 @@ object TestExecutor {
       Summary
     ] =
       (for {
-        _ <- ZIO.debug(???)
         sink      <- ZIO.service[ExecutionEventSink]
         topParent <- SuiteId.newRandom
         _ <- {
