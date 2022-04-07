@@ -23,8 +23,10 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       for {
         _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec.getClass.getName)).flip
         output <- testOutput
-      } yield assertTrue(output.mkString.contains("0 tests passed. 1 tests failed. 0 tests ignored.")) && assertTrue(
-        output.mkString.contains("Good luck ;)")
+      } yield assertTrue(
+        output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
+      ) && assertTrue(
+        output.mkString("").contains("Good luck ;)")
       )
     ),
     test("ensure shared layers are not re-initialized")(
