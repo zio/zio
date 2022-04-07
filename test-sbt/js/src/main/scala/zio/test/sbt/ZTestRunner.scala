@@ -42,16 +42,8 @@ sealed abstract class ZTestRunner(
       summaries.map(_.summary).filter(_.nonEmpty).flatMap(s => colored(s) :: "\n" :: Nil).mkString("", "", "Done")
   }
 
-  def tasks(defs: Array[TaskDef]): Array[Task] = {
-    tasksZ(defs).toArray
-  }
-
-  def tasksZ(defs: Array[TaskDef]): Option[ZTestTask] = {
-    val tasks = defs.map(ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
-
-    val taskPolicy = new ZTestTaskPolicyDefaultImpl
-    taskPolicy.merge(tasks)
-  }
+  def tasks(defs: Array[TaskDef]): Array[Task] =
+    defs.map(ZTestTask(_, testClassLoader, runnerType, sendSummary, TestArgs.parse(args)))
 
   override def receiveMessage(summary: String): Option[String] = {
     SummaryProtocol.deserialize(summary).foreach(s => summaries += s)
@@ -87,7 +79,7 @@ final class ZSlaveTestRunner(
 sealed class ZTestTask(
   taskDef: TaskDef,
   testClassLoader: ClassLoader,
-  val runnerType: String,
+  runnerType: String,
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract
@@ -148,32 +140,4 @@ object ZTestTask {
       .loadModule()
       .asInstanceOf[ZIOSpecAbstract]
   }
-}
-
-abstract class ZTestTaskPolicy {
-  def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask]
-}
-
-class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
-
-  override def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask] =
-    zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
-      newTests match {
-        case Some(composedTask) =>
-          println("Merging in new task: " + nextSpec.spec)
-          Some(
-            new ZTestTask(
-              composedTask.taskDef,
-              composedTask.testClassLoader,
-              composedTask.runnerType,
-              composedTask.sendSummary,
-              composedTask.args,
-              composedTask.spec <> nextSpec.spec
-            )
-          )
-        case None =>
-          Some(nextSpec)
-      }
-    }
-
 }
