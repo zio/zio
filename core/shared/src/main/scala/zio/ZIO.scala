@@ -4160,7 +4160,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sets the runtime configuration to the specified value.
    */
   def setRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): UIO[Unit] =
-    FiberRef.currentRuntimeConfig.set(runtimeConfig)
+    FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
+      FiberRef.currentDefaultExecutor.set(runtimeConfig.executor) *>
+      FiberRef.currentFatal.set(runtimeConfig.fatal) *>
+      FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
+      FiberRef.currentSupervisor.set(runtimeConfig.supervisor) *>
+      FiberRef.currentLogger.set(runtimeConfig.logger) *>
+      FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags)
 
   /**
    * Accesses the specified service in the environment of the effect.

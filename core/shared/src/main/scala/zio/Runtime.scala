@@ -367,15 +367,21 @@ trait Runtime[+R] {
       StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
         Map(
-          FiberRef.currentEnvironment   -> ::(fiberId -> environment, Nil),
-          FiberRef.currentRuntimeConfig -> ::(fiberId -> runtimeConfig, Nil),
-          ZEnv.services                 -> ::(fiberId -> ZEnv.Services.live, Nil)
+          FiberRef.currentBlockingExecutor   -> ::(fiberId -> runtimeConfig.blockingExecutor, Nil),
+          FiberRef.currentDefaultExecutor    -> ::(fiberId -> runtimeConfig.executor, Nil),
+          FiberRef.currentEnvironment        -> ::(fiberId -> environment, Nil),
+          FiberRef.currentFatal              -> ::(fiberId -> runtimeConfig.fatal, Nil),
+          FiberRef.currentLogger             -> ::(fiberId -> runtimeConfig.logger, Nil),
+          FiberRef.currentReportFatal        -> ::(fiberId -> runtimeConfig.reportFatal, Nil),
+          FiberRef.currentRuntimeConfigFlags -> ::(fiberId -> runtimeConfig.flags, Nil),
+          ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),
+          FiberRef.currentSupervisor         -> ::(fiberId -> supervisor, Nil)
         )
       ),
       children
     )
 
-    FiberScope.global.unsafeAdd(runtimeConfig, context)
+    FiberScope.global.unsafeAdd(runtimeConfig.flags, context)
 
     if (supervisor ne Supervisor.none) {
       supervisor.unsafeOnStart(environment, zio, None, context)
