@@ -47,9 +47,9 @@ abstract class BaseTestTask(
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
                TestLogger.logLine("No tests were executed.")
              }
-//        _ <- (if (summary.fail > 0)
-//                ZIO.fail(new Exception("Failed tests."))
-//              else ZIO.unit)
+        _ <- (if (summary.fail > 0)
+                ZIO.fail(new Exception("Failed tests."))
+              else ZIO.unit)
       } yield ())
         .provideLayer(
           constructLayer[spec.Environment](spec.layer, console)
