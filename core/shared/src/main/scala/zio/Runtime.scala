@@ -234,7 +234,7 @@ trait Runtime[+R] {
                 }
               }
 
-              if (!runtimeConfig.fatal(t)) throw new ZIO.ZioError(Exit.die(t), trace0)
+              if (!runtimeConfig.fatal.exists(_.isInstance(t))) throw new ZIO.ZioError(Exit.die(t), trace0)
               else runtimeConfig.reportFatal(t)
           }
         }
@@ -346,7 +346,7 @@ trait Runtime[+R] {
   /**
    * Constructs a new `Runtime` with the specified fatal predicate.
    */
-  def withFatal(f: Throwable => Boolean): Runtime[R] = mapRuntimeConfig(_.copy(fatal = f))
+  def withFatal(f: Throwable => Boolean): Runtime[R] = ???
 
   /**
    * Constructs a new `Runtime` with the fatal error reporter.
@@ -442,7 +442,7 @@ object Runtime {
       mapRuntimeConfig(_.copy(executor = e))
 
     override final def withFatal(f: Throwable => Boolean): Runtime.Scoped[R] =
-      mapRuntimeConfig(_.copy(fatal = f))
+      ???
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Scoped[R] =
       mapRuntimeConfig(_.copy(reportFatal = f))

@@ -4148,7 +4148,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                     count += 1
                   }
                 } catch {
-                  case e: Throwable if !rt.runtimeConfig.fatal(e) =>
+                  case e: Throwable if !rt.runtimeConfig.fatal.exists(_.isInstance(e)) =>
                     throw e
                 }
 
@@ -4177,14 +4177,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           val hasNext: Boolean =
             try it.hasNext
             catch {
-              case e: Throwable if !rt.runtimeConfig.fatal(e) =>
+              case e: Throwable if !rt.runtimeConfig.fatal.exists(_.isInstance(e)) =>
                 throw e
             }
 
           if (hasNext) {
             try it.next()
             catch {
-              case e: Throwable if !rt.runtimeConfig.fatal(e) =>
+              case e: Throwable if !rt.runtimeConfig.fatal.exists(_.isInstance(e)) =>
                 throw e
             }
           } else throw StreamEnd

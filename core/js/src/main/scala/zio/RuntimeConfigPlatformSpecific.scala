@@ -55,8 +55,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val executor = executor0
 
-    val fatal = (_: Throwable) => false
-
     val logger: ZLogger[String, Unit] =
       (
         trace: ZTraceElement,
@@ -79,7 +77,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
           ()
         } catch {
-          case t if !fatal(t) => ()
+          case t => ()
         }
       }
 
@@ -91,7 +89,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     RuntimeConfig(
       blockingExecutor,
       executor,
-      fatal,
+      Set.empty,
       reportFatal,
       Set.empty,
       Set(logger),

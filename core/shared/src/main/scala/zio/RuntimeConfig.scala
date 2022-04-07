@@ -27,7 +27,7 @@ import scala.annotation.tailrec
 final case class RuntimeConfig(
   blockingExecutor: Executor,
   executor: Executor,
-  fatal: Throwable => Boolean,
+  fatal: Set[Class[_ <: Throwable]],
   reportFatal: Throwable => Nothing,
   supervisors: Set[Supervisor[Any]],
   loggers: Set[ZLogger[String, Any]],

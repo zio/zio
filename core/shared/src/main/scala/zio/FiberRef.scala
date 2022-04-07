@@ -390,7 +390,7 @@ object FiberRef {
   private[zio] val currentDefaultExecutor: FiberRef[Executor] =
     FiberRef.unsafeMake(RuntimeConfig.default.executor)
 
-  private[zio] val currentFatal: FiberRef[Throwable => Boolean] =
+  private[zio] val currentFatal: FiberRef[Set[Class[_ <: Throwable]]] =
     FiberRef.unsafeMake(RuntimeConfig.default.fatal)
 
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
