@@ -360,22 +360,20 @@ trait Runtime[+R] {
 
     val children = Platform.newWeakSet[FiberContext[_, _]]()
 
-    val supervisors = runtimeConfig.supervisors
-
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       StackBool(InterruptStatus.Interruptible.toBoolean),
       new java.util.concurrent.atomic.AtomicReference(
         Map(
           FiberRef.currentBlockingExecutor   -> ::(fiberId -> runtimeConfig.blockingExecutor, Nil),
-          FiberRef.currentDefaultExecutor    -> ::(fiberId -> runtimeConfig.executor, Nil),
           FiberRef.currentEnvironment        -> ::(fiberId -> environment, Nil),
+          ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),
+          FiberRef.currentExecutor           -> ::(fiberId -> runtimeConfig.executor, Nil),
           FiberRef.currentFatal              -> ::(fiberId -> runtimeConfig.fatal, Nil),
           FiberRef.currentLoggers            -> ::(fiberId -> runtimeConfig.loggers, Nil),
           FiberRef.currentReportFatal        -> ::(fiberId -> runtimeConfig.reportFatal, Nil),
           FiberRef.currentRuntimeConfigFlags -> ::(fiberId -> runtimeConfig.flags, Nil),
-          ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),
-          FiberRef.currentSupervisors        -> ::(fiberId -> supervisors, Nil)
+          FiberRef.currentSupervisors        -> ::(fiberId -> runtimeConfig.supervisors, Nil)
         )
       ),
       children
@@ -383,7 +381,7 @@ trait Runtime[+R] {
 
     FiberScope.global.unsafeAdd(runtimeConfig.flags, context)
 
-    supervisors.foreach { supervisor =>
+    runtimeConfig.supervisors.foreach { supervisor =>
       supervisor.unsafeOnStart(environment, zio, None, context)
 
       context.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))

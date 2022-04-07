@@ -381,32 +381,32 @@ object FiberRef {
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
     FiberRef.unsafeMake(None, _ => None)
 
+  private[zio] val overrideExecutor: FiberRef[Option[Executor]] =
+    FiberRef.unsafeMake(None)
+
+  private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
+    FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
+
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     FiberRef.unsafeMake(RuntimeConfig.default.blockingExecutor)
 
-  private[zio] val currentExecutor: FiberRef[Option[Executor]] =
-    FiberRef.unsafeMake(None)
-
-  private[zio] val currentDefaultExecutor: FiberRef[Executor] =
+  private[zio] val currentExecutor: FiberRef[Executor] =
     FiberRef.unsafeMake(RuntimeConfig.default.executor)
 
   private[zio] val currentFatal: FiberRef[Set[Class[_ <: Throwable]]] =
     FiberRef.unsafeMake(RuntimeConfig.default.fatal)
 
-  private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
-    FiberRef.unsafeMake(RuntimeConfig.default.reportFatal)
-
-  private[zio] val currentSupervisors: FiberRef[Set[Supervisor[Any]]] =
-    FiberRef.unsafeMake(RuntimeConfig.default.supervisors)
-
   private[zio] val currentLoggers: FiberRef[Set[ZLogger[String, Any]]] =
     FiberRef.unsafeMake(RuntimeConfig.default.loggers)
+
+  private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
+    FiberRef.unsafeMake(RuntimeConfig.default.reportFatal)
 
   private[zio] val currentRuntimeConfigFlags: FiberRef[Set[RuntimeConfigFlag]] =
     FiberRef.unsafeMake(RuntimeConfig.default.flags)
 
-  private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
-    FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
+  private[zio] val currentSupervisors: FiberRef[Set[Supervisor[Any]]] =
+    FiberRef.unsafeMake(RuntimeConfig.default.supervisors)
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]

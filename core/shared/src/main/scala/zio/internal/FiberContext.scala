@@ -208,8 +208,8 @@ private[zio] final class FiberContext[E, A](
                         val io2    = nested.asInstanceOf[ZIO.SucceedWith[Any]]
                         val effect = io2.effect
 
-                        val blockingExecutor = unsafeGetBlockingExecutor()
-                        val executor         = unsafeGetDefaultExecutor()
+                        val blockingExecutor = unsafeGetRef(currentBlockingExecutor)
+                        val executor         = unsafeGetRef(currentExecutor)
                         val fatal            = unsafeGetFatal()
                         val reportFatal      = unsafeGetReportFatal()
                         val supervisors      = unsafeGetSupervisors()
@@ -257,8 +257,8 @@ private[zio] final class FiberContext[E, A](
                     val zio    = curZio.asInstanceOf[ZIO.SucceedWith[Any]]
                     val effect = zio.effect
 
-                    val blockingExecutor = unsafeGetBlockingExecutor()
-                    val executor         = unsafeGetDefaultExecutor()
+                    val blockingExecutor = unsafeGetRef(currentBlockingExecutor)
+                    val executor         = unsafeGetRef(currentExecutor)
                     val fatal            = unsafeGetFatal()
                     val reportFatal      = unsafeGetReportFatal()
                     val supervisors      = unsafeGetSupervisors()
@@ -324,8 +324,8 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.SuspendWith =>
                     val zio = curZio.asInstanceOf[ZIO.SuspendWith[Any, Any, Any]]
 
-                    val blockingExecutor = unsafeGetBlockingExecutor()
-                    val executor         = unsafeGetDefaultExecutor()
+                    val blockingExecutor = unsafeGetRef(currentBlockingExecutor)
+                    val executor         = unsafeGetRef(currentExecutor)
                     val fatal            = unsafeGetFatal()
                     val reportFatal      = unsafeGetReportFatal()
                     val supervisors      = unsafeGetSupervisors()
@@ -397,13 +397,13 @@ private[zio] final class FiberContext[E, A](
                     val executor = zio.executor
 
                     def doShift(implicit trace: ZTraceElement): UIO[Unit] =
-                      ZIO.succeed(unsafeSetRef(currentExecutor, Some(executor))) *> ZIO.yieldNow
+                      ZIO.succeed(unsafeSetRef(overrideExecutor, Some(executor))) *> ZIO.yieldNow
 
                     curZio = if (executor eq null) {
-                      unsafeSetRef(currentExecutor, None)
+                      unsafeSetRef(overrideExecutor, None)
                       ZIO.unit
                     } else {
-                      unsafeGetRef(currentExecutor) match {
+                      unsafeGetRef(overrideExecutor) match {
                         case None =>
                           doShift(zio.trace)
 
@@ -806,23 +806,11 @@ private[zio] final class FiberContext[E, A](
       state.get.interruptors,
       InterruptStatus.fromBoolean(unsafeIsInterruptible()),
       unsafeGetExecutor(),
-      unsafeGetRef(currentExecutor).isDefined
+      unsafeGetRef(overrideExecutor).isDefined
     )
 
-  private def unsafeGetDefaultExecutor(): Executor =
-    unsafeGetRef(currentDefaultExecutor)
-
-  private def unsafeGetSupervisors(): Set[Supervisor[Any]] =
-    unsafeGetRef(currentSupervisors)
-
-  private def unsafeGetBlockingExecutor(): Executor =
-    unsafeGetRef(currentBlockingExecutor)
-
-  private def unsafeGetExecutor(): zio.Executor =
-    unsafeGetRef(currentExecutor).getOrElse {
-      val defaultExecutor = unsafeGetDefaultExecutor()
-      defaultExecutor
-    }
+  private def unsafeGetExecutor(): Executor =
+    unsafeGetRef(overrideExecutor).getOrElse(unsafeGetRef(currentExecutor))
 
   private def unsafeGetFatal(): Set[Class[_ <: Throwable]] =
     unsafeGetRef(currentFatal)
@@ -835,6 +823,9 @@ private[zio] final class FiberContext[E, A](
 
   private def unsafeGetRuntimeConfigFlags(): Set[RuntimeConfigFlag] =
     unsafeGetRef(currentRuntimeConfigFlags)
+
+  private def unsafeGetSupervisors(): Set[Supervisor[Any]] =
+    unsafeGetRef(currentSupervisors)
 
   private[zio] final def unsafeGetRef[A](fiberRef: FiberRef[A]): A =
     fiberRefLocals.get.get(fiberRef).map(_.head._2).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)

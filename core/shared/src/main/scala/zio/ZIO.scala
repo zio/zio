@@ -4162,12 +4162,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def setRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): UIO[Unit] =
     FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
-      FiberRef.currentDefaultExecutor.set(runtimeConfig.executor) *>
+      FiberRef.currentExecutor.set(runtimeConfig.executor) *>
       FiberRef.currentFatal.set(runtimeConfig.fatal) *>
-      FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
-      FiberRef.currentSupervisors.set(runtimeConfig.supervisors) *>
       FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
-      FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags)
+      FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
+      FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags) *>
+      FiberRef.currentSupervisors.set(runtimeConfig.supervisors)
 
   /**
    * Accesses the specified service in the environment of the effect.
