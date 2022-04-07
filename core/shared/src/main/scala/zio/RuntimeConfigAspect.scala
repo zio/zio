@@ -30,7 +30,7 @@ object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeC
     RuntimeConfigAspect(self => self.copy(loggers = self.loggers + logger))
 
   def addSupervisor(supervisor: Supervisor[Any]): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(supervisor = self.supervisor ++ supervisor))
+    RuntimeConfigAspect(self => self.copy(supervisors = self.supervisors + supervisor))
 
   val enableCurrentFiber: RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(flags = self.flags + RuntimeConfigFlag.EnableCurrentFiber))

@@ -4164,7 +4164,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       FiberRef.currentDefaultExecutor.set(runtimeConfig.executor) *>
       FiberRef.currentFatal.set(runtimeConfig.fatal) *>
       FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
-      FiberRef.currentSupervisor.set(runtimeConfig.supervisor) *>
+      FiberRef.currentSupervisors.set(runtimeConfig.supervisors) *>
       FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
       FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags)
 

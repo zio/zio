@@ -72,14 +72,12 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       } catch { case _: Throwable => throw t }
     }
 
-    val supervisor = Supervisor.none
-
     RuntimeConfig(
       blockingExecutor,
       executor,
       fatal,
       reportFatal,
-      supervisor,
+      Set.empty,
       Set(logger),
       RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
     )

@@ -137,15 +137,15 @@ private[zio] final class FiberContext[E, A](
       // of a 1-hop left bind, to show a stack trace closer to the point of failure
       var extraTrace: ZTraceElement = emptyTraceElement
 
-      val supervisor = unsafeGetSupervisor()
+      val supervisors = unsafeGetSupervisors()
 
       import RuntimeConfigFlag._
       val superviseOps =
         flags.isEnabled(SuperviseOperations) &&
-          (supervisor ne Supervisor.none)
+          (supervisors.nonEmpty)
 
       if (flags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.set(this)
-      if (supervisor ne Supervisor.none) supervisor.unsafeOnResume(self)
+      if (supervisors.nonEmpty) supervisors.foreach(_.unsafeOnResume(self))
 
       while (curZio ne null) {
         try {
@@ -173,8 +173,8 @@ private[zio] final class FiberContext[E, A](
                   unsafeLog(ZLogger.stringTag, curZio.unsafeLog)(trace)
                 }
                 if (superviseOps) {
-                  val supervisor = unsafeGetSupervisor()
-                  supervisor.unsafeOnEffect(self, curZio)
+                  val supervisors = unsafeGetSupervisors()
+                  supervisors.foreach(_.unsafeOnEffect(self, curZio))
                 }
 
                 // Fiber is neither being interrupted nor needs to yield. Execute
@@ -212,12 +212,12 @@ private[zio] final class FiberContext[E, A](
                         val executor         = unsafeGetDefaultExecutor()
                         val fatal            = unsafeGetFatal()
                         val reportFatal      = unsafeGetReportFatal()
-                        val supervisor       = unsafeGetSupervisor()
+                        val supervisors      = unsafeGetSupervisors()
                         val loggers          = unsafeGetLoggers()
                         val flags            = unsafeGetRuntimeConfigFlags()
 
                         val runtimeConfig =
-                          RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, loggers, flags)
+                          RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
 
                         extraTrace = zio.trace
                         val value = effect(runtimeConfig, fiberId)
@@ -261,12 +261,12 @@ private[zio] final class FiberContext[E, A](
                     val executor         = unsafeGetDefaultExecutor()
                     val fatal            = unsafeGetFatal()
                     val reportFatal      = unsafeGetReportFatal()
-                    val supervisor       = unsafeGetSupervisor()
+                    val supervisors      = unsafeGetSupervisors()
                     val loggers          = unsafeGetLoggers()
                     val flags            = unsafeGetRuntimeConfigFlags()
 
                     val runtimeConfig =
-                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, loggers, flags)
+                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
 
                     curZio = unsafeNextEffect(effect(runtimeConfig, fiberId))
 
@@ -328,12 +328,12 @@ private[zio] final class FiberContext[E, A](
                     val executor         = unsafeGetDefaultExecutor()
                     val fatal            = unsafeGetFatal()
                     val reportFatal      = unsafeGetReportFatal()
-                    val supervisor       = unsafeGetSupervisor()
+                    val supervisors      = unsafeGetSupervisors()
                     val loggers          = unsafeGetLoggers()
                     val flags            = unsafeGetRuntimeConfigFlags()
 
                     val runtimeConfig =
-                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, loggers, flags)
+                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
 
                     curZio = zio.make(runtimeConfig, fiberId)
 
@@ -470,13 +470,13 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.Supervise =>
                     val zio = curZio.asInstanceOf[ZIO.Supervise[Any, Any, Any]]
 
-                    val oldSupervisor = unsafeGetSupervisor()
-                    val newSupervisor = zio.supervisor ++ oldSupervisor
+                    val oldSupervisors = unsafeGetSupervisors()
+                    val newSupervisors = oldSupervisors + zio.supervisor
 
-                    unsafeSetRef(currentSupervisor, newSupervisor)
+                    unsafeSetRef(currentSupervisors, newSupervisors)
 
                     unsafeAddFinalizer(ZIO.succeed {
-                      unsafeSetRef(currentSupervisor, oldSupervisor)
+                      unsafeSetRef(currentSupervisors, oldSupervisors)
                     }(zio.trace))
 
                     curZio = zio.zio
@@ -576,12 +576,14 @@ private[zio] final class FiberContext[E, A](
     } finally {
       import RuntimeConfigFlag._
 
-      val flags      = unsafeGetRuntimeConfigFlags()
-      val supervisor = unsafeGetSupervisor()
+      val flags       = unsafeGetRuntimeConfigFlags()
+      val supervisors = unsafeGetSupervisors()
 
       // FIXME: Race condition on fiber resumption
       if (flags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
-      if (supervisor ne Supervisor.none) supervisor.unsafeOnSuspend(self)
+      supervisors.foreach { supervisor =>
+        supervisor.unsafeOnSuspend(self)
+      }
     }
 
   override def toString(): String =
@@ -776,9 +778,9 @@ private[zio] final class FiberContext[E, A](
       grandChildren
     )
 
-    val supervisor = unsafeGetSupervisor()
+    val supervisors = unsafeGetSupervisors()
 
-    if (supervisor ne Supervisor.none) {
+    supervisors.foreach { supervisor =>
       supervisor.unsafeOnStart(unsafeGetRef((currentEnvironment)), zio, Some(self), childContext)
 
       childContext.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, childContext))
@@ -810,8 +812,8 @@ private[zio] final class FiberContext[E, A](
   private def unsafeGetDefaultExecutor(): Executor =
     unsafeGetRef(currentDefaultExecutor)
 
-  private def unsafeGetSupervisor(): Supervisor[Any] =
-    unsafeGetRef(currentSupervisor)
+  private def unsafeGetSupervisors(): Set[Supervisor[Any]] =
+    unsafeGetRef(currentSupervisors)
 
   private def unsafeGetBlockingExecutor(): Executor =
     unsafeGetRef(currentBlockingExecutor)

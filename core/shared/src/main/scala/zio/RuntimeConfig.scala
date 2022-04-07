@@ -29,7 +29,7 @@ final case class RuntimeConfig(
   executor: Executor,
   fatal: Throwable => Boolean,
   reportFatal: Throwable => Nothing,
-  supervisor: Supervisor[Any],
+  supervisors: Set[Supervisor[Any]],
   loggers: Set[ZLogger[String, Any]],
   flags: RuntimeConfigFlags
 ) { self =>

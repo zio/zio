@@ -396,8 +396,8 @@ object FiberRef {
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
     FiberRef.unsafeMake(RuntimeConfig.default.reportFatal)
 
-  private[zio] val currentSupervisor: FiberRef[Supervisor[Any]] =
-    FiberRef.unsafeMake(RuntimeConfig.default.supervisor)
+  private[zio] val currentSupervisors: FiberRef[Set[Supervisor[Any]]] =
+    FiberRef.unsafeMake(RuntimeConfig.default.supervisors)
 
   private[zio] val currentLoggers: FiberRef[Set[ZLogger[String, Any]]] =
     FiberRef.unsafeMake(RuntimeConfig.default.loggers)

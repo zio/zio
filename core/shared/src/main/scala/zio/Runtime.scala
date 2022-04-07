@@ -360,7 +360,7 @@ trait Runtime[+R] {
 
     val children = Platform.newWeakSet[FiberContext[_, _]]()
 
-    val supervisor = runtimeConfig.supervisor
+    val supervisors = runtimeConfig.supervisors
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
@@ -375,7 +375,7 @@ trait Runtime[+R] {
           FiberRef.currentReportFatal        -> ::(fiberId -> runtimeConfig.reportFatal, Nil),
           FiberRef.currentRuntimeConfigFlags -> ::(fiberId -> runtimeConfig.flags, Nil),
           ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),
-          FiberRef.currentSupervisor         -> ::(fiberId -> supervisor, Nil)
+          FiberRef.currentSupervisors        -> ::(fiberId -> supervisors, Nil)
         )
       ),
       children
@@ -383,7 +383,7 @@ trait Runtime[+R] {
 
     FiberScope.global.unsafeAdd(runtimeConfig.flags, context)
 
-    if (supervisor ne Supervisor.none) {
+    supervisors.foreach { supervisor =>
       supervisor.unsafeOnStart(environment, zio, None, context)
 
       context.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
