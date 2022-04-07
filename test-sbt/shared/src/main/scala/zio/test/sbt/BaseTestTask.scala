@@ -1,6 +1,6 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import sbt.testing.{Event, EventHandler, Logger, Task, TaskDef}
 import zio.{CancelableFuture, Console, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
 import zio.test.{FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
@@ -47,9 +47,9 @@ abstract class BaseTestTask(
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
                TestLogger.logLine("No tests were executed.")
              }
-        _ <- (if (summary.fail > 0)
-                ZIO.fail(new Exception("Failed tests."))
-              else ZIO.unit)
+//        _ <- (if (summary.fail > 0)
+//                ZIO.fail(new Exception("Failed tests."))
+//              else ZIO.unit)
       } yield ())
         .provideLayer(
           constructLayer[spec.Environment](spec.layer, console)
@@ -57,11 +57,15 @@ abstract class BaseTestTask(
     }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+    println("BaseTestTask.execute")
+    val newEventHandler = new EventHandler {
+      override def handle(event: Event): Unit = ???
+    }
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
         Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
-          executeZ(eventHandler)
+          executeZ(newEventHandler)
         }
 
       resOutter = res

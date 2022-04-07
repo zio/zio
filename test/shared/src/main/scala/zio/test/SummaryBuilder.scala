@@ -39,9 +39,8 @@ object SummaryBuilder {
     val failures = extractFailures(reporterEvent)
 
     val rendered =
-      //      TODO Check impact of hard-coded false here
       ConsoleRenderer
-        .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
+        .render(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
     val newSummaryPiece = Summary(success, fail, ignore, rendered)
@@ -49,7 +48,11 @@ object SummaryBuilder {
       oldSummary.success + newSummaryPiece.success,
       oldSummary.fail + newSummaryPiece.fail,
       oldSummary.ignore + newSummaryPiece.ignore,
-      oldSummary.summary + newSummaryPiece.summary
+      oldSummary.summary +
+        (if (newSummaryPiece.summary.isBlank)
+          newSummaryPiece.summary
+        else
+          "\n" + newSummaryPiece.summary)
     )
 
   }

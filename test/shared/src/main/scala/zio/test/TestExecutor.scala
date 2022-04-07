@@ -65,7 +65,6 @@ object TestExecutor {
                 ZIO.scoped(
                   managed
                     .flatMap(loop(labels, _, exec, ancestors, sectionId))
-                    .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
                 )
 
               case Spec.MultipleCase(specs) =>
@@ -96,7 +95,10 @@ object TestExecutor {
                         .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
                     )
                 } yield ()
-            }).unit
+            })
+              .catchAllCause{e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))}
+//                                  .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
+              .unit
 
           val scopedSpec =
             (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated
