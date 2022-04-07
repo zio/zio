@@ -371,7 +371,7 @@ trait Runtime[+R] {
           FiberRef.currentDefaultExecutor    -> ::(fiberId -> runtimeConfig.executor, Nil),
           FiberRef.currentEnvironment        -> ::(fiberId -> environment, Nil),
           FiberRef.currentFatal              -> ::(fiberId -> runtimeConfig.fatal, Nil),
-          FiberRef.currentLogger             -> ::(fiberId -> runtimeConfig.logger, Nil),
+          FiberRef.currentLoggers            -> ::(fiberId -> runtimeConfig.loggers, Nil),
           FiberRef.currentReportFatal        -> ::(fiberId -> runtimeConfig.reportFatal, Nil),
           FiberRef.currentRuntimeConfigFlags -> ::(fiberId -> runtimeConfig.flags, Nil),
           ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),

@@ -213,11 +213,11 @@ private[zio] final class FiberContext[E, A](
                         val fatal            = unsafeGetFatal()
                         val reportFatal      = unsafeGetReportFatal()
                         val supervisor       = unsafeGetSupervisor()
-                        val logger           = unsafeGetLogger()
+                        val loggers          = unsafeGetLoggers()
                         val flags            = unsafeGetRuntimeConfigFlags()
 
                         val runtimeConfig =
-                          RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, logger, flags)
+                          RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, loggers, flags)
 
                         extraTrace = zio.trace
                         val value = effect(runtimeConfig, fiberId)
@@ -262,11 +262,11 @@ private[zio] final class FiberContext[E, A](
                     val fatal            = unsafeGetFatal()
                     val reportFatal      = unsafeGetReportFatal()
                     val supervisor       = unsafeGetSupervisor()
-                    val logger           = unsafeGetLogger()
+                    val loggers          = unsafeGetLoggers()
                     val flags            = unsafeGetRuntimeConfigFlags()
 
                     val runtimeConfig =
-                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, logger, flags)
+                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, loggers, flags)
 
                     curZio = unsafeNextEffect(effect(runtimeConfig, fiberId))
 
@@ -329,11 +329,11 @@ private[zio] final class FiberContext[E, A](
                     val fatal            = unsafeGetFatal()
                     val reportFatal      = unsafeGetReportFatal()
                     val supervisor       = unsafeGetSupervisor()
-                    val logger           = unsafeGetLogger()
+                    val loggers          = unsafeGetLoggers()
                     val flags            = unsafeGetRuntimeConfigFlags()
 
                     val runtimeConfig =
-                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, logger, flags)
+                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisor, loggers, flags)
 
                     curZio = zio.make(runtimeConfig, fiberId)
 
@@ -825,8 +825,8 @@ private[zio] final class FiberContext[E, A](
   private def unsafeGetFatal(): Throwable => Boolean =
     unsafeGetRef(currentFatal)
 
-  private def unsafeGetLogger(): ZLogger[String, Any] =
-    unsafeGetRef(currentLogger)
+  private def unsafeGetLoggers(): Set[ZLogger[String, Any]] =
+    unsafeGetRef(currentLoggers)
 
   private def unsafeGetReportFatal(): Throwable => Nothing =
     unsafeGetRef(currentReportFatal)
@@ -912,9 +912,11 @@ private[zio] final class FiberContext[E, A](
 
     val contextMap = unsafeGetRefs(fiberRefLocals)
 
-    val logger = unsafeGetLogger()
+    val loggers = unsafeGetLoggers()
 
-    logger(trace, fiberId, logLevel, message, Cause.empty, contextMap, spans, annotations)
+    loggers.foreach { logger =>
+      logger(trace, fiberId, logLevel, message, Cause.empty, contextMap, spans, annotations)
+    }
   }
 
   private def unsafeLog(
@@ -942,9 +944,11 @@ private[zio] final class FiberContext[E, A](
         else map.updated(overrideRef1, overrideValue1)
       } else unsafeGetRefs(fiberRefLocals)
 
-    val logger = unsafeGetLogger()
+    val loggers = unsafeGetLoggers()
 
-    logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
+    loggers.foreach { logger =>
+      logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
+    }
   }
 
   @inline
