@@ -14,7 +14,7 @@ object AMinimalSpec extends ZIOSpecDefault {
     test("test after big delay") {
       Live.live(ZIO.sleep(5.second)).map(_ => assertTrue(true))
     }
-  ) @@ TestAspect.ignore
+  )
 
 }
 

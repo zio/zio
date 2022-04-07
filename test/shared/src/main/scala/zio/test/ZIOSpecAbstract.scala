@@ -58,7 +58,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         Summary
       ] =
         self.runSpec.zipPar(that.runSpec).map { case (summary1, summary2) =>
-          summary1.add(summary2)
+          summary1
         }
 
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
