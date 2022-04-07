@@ -49,7 +49,7 @@ object SummaryBuilder {
       oldSummary.fail + newSummaryPiece.fail,
       oldSummary.ignore + newSummaryPiece.ignore,
       oldSummary.summary +
-        (if (newSummaryPiece.summary.isBlank)
+        (if (newSummaryPiece.summary.trim.isEmpty)
            ""
          else
            "\n" + newSummaryPiece.summary)
