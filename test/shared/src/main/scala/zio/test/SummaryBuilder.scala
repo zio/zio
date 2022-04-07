@@ -50,7 +50,7 @@ object SummaryBuilder {
       oldSummary.ignore + newSummaryPiece.ignore,
       oldSummary.summary +
         (if (newSummaryPiece.summary.isBlank)
-           newSummaryPiece.summary
+           ""
          else
            "\n" + newSummaryPiece.summary)
     )
