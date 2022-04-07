@@ -402,7 +402,7 @@ object FiberRef {
   private[zio] val currentLoggers: FiberRef[Set[ZLogger[String, Any]]] =
     FiberRef.unsafeMake(RuntimeConfig.default.loggers)
 
-  private[zio] val currentRuntimeConfigFlags: FiberRef[RuntimeConfigFlags] =
+  private[zio] val currentRuntimeConfigFlags: FiberRef[Set[RuntimeConfigFlag]] =
     FiberRef.unsafeMake(RuntimeConfig.default.flags)
 
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =

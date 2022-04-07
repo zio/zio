@@ -124,7 +124,7 @@ private[zio] final class FiberContext[E, A](
 
       val flags = unsafeGetRuntimeConfigFlags()
 
-      val logRuntime = flags.isEnabled(RuntimeConfigFlag.LogRuntime)
+      val logRuntime = flags(RuntimeConfigFlag.LogRuntime)
 
       nextEffect = null
 
@@ -141,10 +141,10 @@ private[zio] final class FiberContext[E, A](
 
       import RuntimeConfigFlag._
       val superviseOps =
-        flags.isEnabled(SuperviseOperations) &&
+        flags(SuperviseOperations) &&
           (supervisors.nonEmpty)
 
-      if (flags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.set(this)
+      if (flags(EnableCurrentFiber)) Fiber._currentFiber.set(this)
       if (supervisors.nonEmpty) supervisors.foreach(_.unsafeOnResume(self))
 
       while (curZio ne null) {
@@ -580,7 +580,7 @@ private[zio] final class FiberContext[E, A](
       val supervisors = unsafeGetSupervisors()
 
       // FIXME: Race condition on fiber resumption
-      if (flags.isEnabled(EnableCurrentFiber)) Fiber._currentFiber.remove()
+      if (flags(EnableCurrentFiber)) Fiber._currentFiber.remove()
       supervisors.foreach { supervisor =>
         supervisor.unsafeOnSuspend(self)
       }
@@ -833,7 +833,7 @@ private[zio] final class FiberContext[E, A](
   private def unsafeGetReportFatal(): Throwable => Nothing =
     unsafeGetRef(currentReportFatal)
 
-  private def unsafeGetRuntimeConfigFlags(): RuntimeConfigFlags =
+  private def unsafeGetRuntimeConfigFlags(): Set[RuntimeConfigFlag] =
     unsafeGetRef(currentRuntimeConfigFlags)
 
   private[zio] final def unsafeGetRef[A](fiberRef: FiberRef[A]): A =
@@ -1296,7 +1296,7 @@ private[zio] final class FiberContext[E, A](
   @inline
   private def trackMetrics: Boolean = {
     val flags = unsafeGetRuntimeConfigFlags()
-    flags.isEnabled(RuntimeConfigFlag.TrackRuntimeMetrics)
+    flags(RuntimeConfigFlag.TrackRuntimeMetrics)
   }
 
   @inline
