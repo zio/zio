@@ -36,7 +36,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
-  final def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
+  final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = Tracer.newTrace
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
@@ -55,9 +55,11 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       override def runSpec: ZIO[
         Environment with TestEnvironment with ZIOAppArgs with Scope,
         Any,
-        Any
+        Summary
       ] =
-        self.runSpec.zipPar(that.runSpec)
+        self.runSpec.zipPar(that.runSpec).map{ case (summary1, summary2) =>
+          summary1.add(summary2)
+        }
 
       def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
@@ -76,7 +78,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   protected def runSpec: ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
     Any,
-    Any
+    Summary
   ] = {
     implicit val trace = Tracer.newTrace
     for {
@@ -84,10 +86,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpec(spec, testArgs, console)
-      _ <- ZIO.when(summary.fail > 0) {
-             ZIO.fail("Failed tests.")
-           }
-    } yield ()
+    } yield summary
   }
 
   private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {

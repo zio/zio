@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs}
+import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -63,6 +63,7 @@ final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], te
 
   //This implementation seems to be used when there's only single spec to run
   override val sendSummary: SendSummary = SendSummary.fromSend { summary =>
+    println("sending summary??")
     summaries += summary
     ()
   }
@@ -102,6 +103,7 @@ sealed class ZTestTask(
                        .provideLayer(
                          fullLayer
                        )
+          _ <- sendSummary.provide(ZLayer.succeed(summary))
           // TODO Confirm if/how these events needs to be handled in #6481
           //    Check XML behavior
           _ <- ZIO.when(summary.fail > 0) {
