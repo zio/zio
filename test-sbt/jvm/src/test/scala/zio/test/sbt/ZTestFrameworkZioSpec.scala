@@ -22,8 +22,10 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     test("displays runtime exceptions helpfully")(
       for {
         _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec.getClass.getName)).flip
-        output <- testOutput.debug
-      } yield assertTrue(output.mkString.contains("0 tests passed. 1 tests failed. 0 tests ignored.")) && assertTrue(output.mkString.contains("Good luck ;)"))
+        output <- testOutput
+      } yield assertTrue(output.mkString.contains("0 tests passed. 1 tests failed. 0 tests ignored.")) && assertTrue(
+        output.mkString.contains("Good luck ;)")
+      )
     ),
     test("ensure shared layers are not re-initialized")(
       for {

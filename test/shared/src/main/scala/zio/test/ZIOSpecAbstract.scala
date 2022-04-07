@@ -57,7 +57,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         Any,
         Summary
       ] =
-        self.runSpec.zipPar(that.runSpec).map{ case (summary1, summary2) =>
+        self.runSpec.zipPar(that.runSpec).map { case (summary1, summary2) =>
           summary1.add(summary2)
         }
 

@@ -27,13 +27,12 @@ object ExecutionEventSink {
       override def process(
         event: ExecutionEvent
       ): ZIO[Any, Nothing, Unit] =
-            summary.update(
-              _.add(event)
-            ) *>
-              testOutput.print(
-                event
-              )
-
+        summary.update(
+          _.add(event)
+        ) *>
+          testOutput.print(
+            event
+          )
 
       override def getSummary: UIO[Summary] = summary.get
 

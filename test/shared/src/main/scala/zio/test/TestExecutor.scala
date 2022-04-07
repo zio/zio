@@ -95,10 +95,9 @@ object TestExecutor {
                         .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
                     )
                 } yield ()
-            })
-              .catchAllCause{e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))}
-//                                  .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
-              .unit
+            }).catchAllCause { e =>
+              sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+            }.unit
 
           val scopedSpec =
             (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated

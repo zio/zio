@@ -44,7 +44,6 @@ object DefaultTestReporter {
     reporterEvent: ExecutionEvent,
     includeCause: Boolean
   )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
-//    println("DefaultTestReporter.render event: " + reporterEvent)
     reporterEvent match {
       case SectionStart(labelsReversed, _, ancestors) =>
         val depth = labelsReversed.length - 1
@@ -154,7 +153,6 @@ object DefaultTestReporter {
           )
         )
       case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
-        println("ExecutionEvent.RuntimeFailure: " + failure)
         failure match {
           case TestFailure.Assertion(_) => throw new NotImplementedError("Assertion failures are not supported")
           case TestFailure.Runtime(_)   => throw new NotImplementedError("Runtime failures are not supported")
