@@ -58,7 +58,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         t.printStackTrace()
         throw t
       },
-      supervisor = Supervisor.none,
+      supervisors = Set.empty,
       loggers = Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info)),
       flags = RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
     )
