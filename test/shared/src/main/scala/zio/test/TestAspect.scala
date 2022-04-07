@@ -432,6 +432,16 @@ object TestAspect extends TimeoutVariants {
         test.fork.flatMap(_.join)
     }
 
+  def fromZIOAspect[LowerR, UpperR, LowerE, UpperE](
+    zioAspect: ZIOAspect[LowerR, UpperR, TestFailure[LowerE], TestFailure[UpperE], TestSuccess, TestSuccess]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    new TestAspect.PerTest[LowerR, UpperR, LowerE, UpperE] {
+      def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
+        trace: ZTraceElement
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        zioAspect(test)
+    }
+
   /**
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion.
@@ -745,17 +755,6 @@ object TestAspect extends TimeoutVariants {
     }
     restoreTestEnvironment >>> retry
   }
-
-  /**
-   * As aspect that runs each test with the specified `RuntimeConfigAspect`.
-   */
-  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspectPoly =
-    new PerTest.Poly {
-      def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
-        trace: ZTraceElement
-      ): ZIO[R, TestFailure[E], TestSuccess] =
-        ZIO.runtimeConfig.flatMap(runtimeConfig => test.withRuntimeConfig(runtimeConfigAspect(runtimeConfig)))
-    }
 
   /**
    * An aspect that runs each test with the number of sufficient samples to

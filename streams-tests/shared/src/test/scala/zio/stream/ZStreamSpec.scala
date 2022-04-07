@@ -4988,23 +4988,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             _       <- fiber.interrupt
             output  <- TestConsole.output
           } yield assertTrue(output == Vector("acquire outer", "release outer"))
-        },
-        suite("withRuntimeConfig")(
-          test("runs the stream on the specified runtime configuration") {
-            val global = RuntimeConfig.global
-            for {
-              default   <- ZIO.runtimeConfig
-              ref1      <- Ref.make[RuntimeConfig](default)
-              ref2      <- Ref.make[RuntimeConfig](default)
-              stream1    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref1.set)).withRuntimeConfig(global)
-              stream2    = ZStream.fromZIO(ZIO.runtimeConfig.flatMap(ref2.set))
-              _         <- (stream1 *> stream2).runDrain
-              executor1 <- ref1.get
-              executor2 <- ref2.get
-            } yield assert(executor1)(equalTo(global)) &&
-              assert(executor2)(equalTo(default))
-          }
-        )
+        }
       )
     ) @@ TestAspect.timed @@ TestAspect.fibers
 

@@ -3906,14 +3906,6 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
-      },
-      test("withRuntimeConfig") {
-        for {
-          runtimeConfig <- ZIO.runtimeConfig
-          global        <- ZIO.withRuntimeConfig(RuntimeConfig.global)(ZIO.runtimeConfig)
-          default       <- ZIO.runtimeConfig
-        } yield assert(global)(equalTo(RuntimeConfig.global)) &&
-          assert(default)(equalTo(runtimeConfig))
       }
     )
   )

@@ -108,9 +108,15 @@ object ZIOAspect {
   val disableLogging: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        ZIO.runtimeConfig.flatMap { runtimeConfig =>
-          zio.withRuntimeConfig(runtimeConfig.copy(loggers = Set.empty))
-        }
+        ZIO.loggers.flatMap(_.foldLeft(zio)((zio, logger) => ZIO.removeLogger(logger)(zio)))
+    }
+
+  val enableCurrentFiber: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        FiberRef.currentRuntimeConfigFlags.locallyWith(_ + RuntimeConfigFlag.EnableCurrentFiber)(
+          ZIO.acquireReleaseWith(ZIO.yieldNow)(_ => ZIO.yieldNow)(_ => zio)
+        )
     }
 
   /**
@@ -187,16 +193,6 @@ object ZIOAspect {
     new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] {
       def apply[R <: R1, E <: E1, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
         zio.retry(schedule)
-    }
-
-  /**
-   * An aspect that runs effects with the runtime configuration modified with
-   * the specified `RuntimeConfigAspect`.
-   */
-  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        ZIO.runtimeConfig.flatMap(runtimeConfig => zio.withRuntimeConfig(runtimeConfigAspect(runtimeConfig)))
     }
 
   /**

@@ -38,12 +38,8 @@ object ZTestLogger {
   val default: ZLayer[Any, Nothing, Any] =
     ZLayer.scoped {
       for {
-        runtimeConfig <- ZIO.runtimeConfig
-        testLogger    <- ZTestLogger.make
-        loggers        = runtimeConfig.loggers + testLogger
-        acquire        = ZIO.setRuntimeConfig(runtimeConfig.copy(loggers = loggers))
-        release        = ZIO.setRuntimeConfig(runtimeConfig)
-        _             <- ZIO.acquireRelease(acquire)(_ => release)
+        testLogger <- ZTestLogger.make
+        acquire    <- ZIO.addLoggerScoped(testLogger)
       } yield ()
     }
 

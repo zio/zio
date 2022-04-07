@@ -3428,19 +3428,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     filter(predicate)
 
   /**
-   * Runs this stream on the specified runtime configuration. Any streams that
-   * are composed after this one will be run on the previous executor.
-   */
-  def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    ZStream.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-      ZStream.scoped(
-        ZIO.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(_ => ZIO.setRuntimeConfig(currentRuntimeConfig))
-      ) *>
-        self <*
-        ZStream.fromZIO(ZIO.setRuntimeConfig(currentRuntimeConfig))
-    }
-
-  /**
    * Zips this stream with another point-wise, but keeps only the outputs of
    * this stream.
    *

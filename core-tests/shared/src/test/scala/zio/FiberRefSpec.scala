@@ -386,7 +386,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         _ <- testClock
       } yield assertCompletes
     } @@ TestAspect.nonFlaky
-  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
+  ) @@ TestAspect.fromZIOAspect(ZIOAspect.enableCurrentFiber)
 }
 
 object FiberRefSpecUtil {

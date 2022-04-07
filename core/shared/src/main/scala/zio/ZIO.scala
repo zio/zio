@@ -2304,13 +2304,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.withParallelismUnbounded(self)
 
   /**
-   * Runs this effect on the specified runtime configuration, restoring the old
-   * runtime configuration when it completes execution.
-   */
-  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.withRuntimeConfig(runtimeConfig)(self)
-
-  /**
    * A named alias for `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit
@@ -2586,6 +2579,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       scope       <- ZIO.scope
       _           <- scope.addFinalizerExit(exit => finalizer(exit).provideEnvironment(environment))
     } yield ()
+
+  def addLogger[R, E, A](logger: => ZLogger[String, Any])(zio: ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, A] =
+    FiberRef.currentLoggers.locallyWith(_ + logger)(zio)
+
+  def addLoggerScoped(logger: => ZLogger[String, Any])(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentLoggers.locallyScopedWith(_ + logger)
 
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
@@ -3808,6 +3809,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def logFatalCause(cause: => Cause[Any])(implicit trace: ZTraceElement): UIO[Unit] =
     logFatalCause("", cause)
 
+  def loggers(implicit trace: ZTraceElement): UIO[Set[ZLogger[String, Any]]] =
+    FiberRef.currentLoggers.get
+
   /**
    * Logs the specified message at the informational log level.
    */
@@ -4070,6 +4074,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       mergeAllPar(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
     }
 
+  def removeLogger[R, E, A](logger: ZLogger[String, Any])(zio: ZIO[R, E, A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, A] =
+    FiberRef.currentLoggers.locallyWith(_ - logger)(zio)
+
   /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
    * an empty `Iterable` will be returned. This method is more efficient than
@@ -4156,18 +4165,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def setState[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWith(_.set(s))
-
-  /**
-   * Sets the runtime configuration to the specified value.
-   */
-  def setRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: ZTraceElement): UIO[Unit] =
-    FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
-      FiberRef.currentExecutor.set(runtimeConfig.executor) *>
-      FiberRef.currentFatal.set(runtimeConfig.fatal) *>
-      FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
-      FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
-      FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags) *>
-      FiberRef.currentSupervisors.set(runtimeConfig.supervisors)
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -4588,18 +4585,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def withParallelismUnbounded[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.suspendSucceed(Parallelism.locally(None)(zio))
-
-  /**
-   * Runs the specified effect on the specified runtime configuration, restoring
-   * the old runtime configuration when it completes execution.
-   */
-  def withRuntimeConfig[R, E, A](
-    runtimeConfig: => RuntimeConfig
-  )(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-      (ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.yieldNow)
-        .acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
-    }
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
