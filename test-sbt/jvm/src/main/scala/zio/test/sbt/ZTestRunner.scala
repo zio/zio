@@ -17,16 +17,17 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.ZIO
+import zio.{ZIO, ZTraceElement}
 import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  val sendSummary: SendSummary = SendSummary.fromSendM(summary =>
+  def sendSummary(implicit trace: ZTraceElement): SendSummary = SendSummary.fromSendM(summary =>
     ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
@@ -50,9 +51,9 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    tasksZ(defs).toArray
+    tasksZ(defs)(ZTraceElement.empty).toArray
 
-  private[sbt] def tasksZ(defs: Array[TaskDef]): Option[ZTestTask] = {
+  private[sbt] def tasksZ(defs: Array[TaskDef])(implicit trace: ZTraceElement): Option[ZTestTask] = {
     val testArgs                = TestArgs.parse(args)
     val tasks: Array[ZTestTask] = defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs))
     val entrypointClass: String = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
@@ -97,12 +98,12 @@ object ZTestTask {
 }
 
 abstract class ZTestTaskPolicy {
-  def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask]
+  def merge(zioTasks: Array[ZTestTask])(implicit trace: ZTraceElement): Option[ZTestTask]
 }
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
-  override def merge(zioTasks: Array[ZTestTask]): Option[ZTestTask] =
+  override def merge(zioTasks: Array[ZTestTask])(implicit trace: ZTraceElement): Option[ZTestTask] =
     zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
       newTests match {
         case Some(composedTask) =>

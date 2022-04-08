@@ -7,6 +7,7 @@ import zio.test.{FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbs
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class BaseTestTask(
   val taskDef: TaskDef,
@@ -18,7 +19,7 @@ abstract class BaseTestTask(
 
   protected def sharedFilledTestlayer(
     console: Console
-  ): ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
+  )(implicit trace: ZTraceElement): ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
     ZIOAppArgs.empty +!+ (
       (zio.ZEnv.live ++ Scope.default) >>>
         TestEnvironment.live >+> TestLogger.fromConsole(console)
@@ -28,6 +29,8 @@ abstract class BaseTestTask(
   protected def constructLayer[Environment](
     specLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment],
     console: Console
+  )(implicit
+    trace: ZTraceElement
   ): ZLayer[Any, Error, Environment with TestEnvironment with TestLogger with ZIOAppArgs with Scope] =
     (sharedFilledTestlayer(console) >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer(
       console
@@ -57,6 +60,7 @@ abstract class BaseTestTask(
     }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+    implicit val trace                    = ZTraceElement.empty
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
@@ -74,7 +78,7 @@ abstract class BaseTestTask(
     }
   }
 
-  def executeZ(eventHandler: EventHandler): ZIO[Any, Throwable, Unit] =
+  def executeZ(eventHandler: EventHandler)(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     run(eventHandler, spec)
 
   override def tags(): Array[String] = Array.empty
