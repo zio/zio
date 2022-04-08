@@ -41,7 +41,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
 
   private def genOps(currentDepth: Int = 1): Gen[Sized, Op] =
     Gen.double(0.0, 1.0).flatMap { n =>
-      val r = (1.0 / currentDepth)
+      val r = 1.0 / currentDepth
 
       val nonRecursive = Seq(
         Gen.const(Succeed),

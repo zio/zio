@@ -110,9 +110,7 @@ private[zio] trait ZIOCompanionPlatformSpecific {
                            ZIO.interrupt
                          case t: Throwable =>
                            ZIO.fail(t)
-                       } finally {
-                         withMutex { thread.set(None); end.set(()) }
-                       }
+                       } finally withMutex { thread.set(None); end.set(()) }
                      }.forkDaemon
             a <- restore(fiber.join).ensuring(interruptThread)
           } yield a

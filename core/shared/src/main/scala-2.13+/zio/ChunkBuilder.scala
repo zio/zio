@@ -56,9 +56,8 @@ object ChunkBuilder {
             arrayBuilder.sizeHint(size)
           }
         }
-        try {
-          arrayBuilder.addOne(a)
-        } catch {
+        try arrayBuilder.addOne(a)
+        catch {
           case _: ClassCastException =>
             val as = arrayBuilder.result()
             arrayBuilder = ArrayBuilder.make[AnyRef].asInstanceOf[ArrayBuilder[A]]
@@ -103,9 +102,8 @@ object ChunkBuilder {
    */
   final class Boolean extends ChunkBuilder[SBoolean] { self =>
 
-    private val arrayBuilder: ArrayBuilder[SByte] = {
+    private val arrayBuilder: ArrayBuilder[SByte] =
       new ArrayBuilder.ofByte
-    }
     private var lastByte: SByte   = 0.toByte
     private var maxBitIndex: SInt = 0
 
@@ -164,9 +162,8 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Byte` values.
    */
   final class Byte extends ChunkBuilder[SByte] { self =>
-    private val arrayBuilder: ArrayBuilder[SByte] = {
+    private val arrayBuilder: ArrayBuilder[SByte] =
       new ArrayBuilder.ofByte
-    }
     def addOne(a: SByte): this.type = {
       arrayBuilder += a
       this
@@ -194,9 +191,8 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Char` values.
    */
   final class Char extends ChunkBuilder[SChar] { self =>
-    private val arrayBuilder: ArrayBuilder[SChar] = {
+    private val arrayBuilder: ArrayBuilder[SChar] =
       new ArrayBuilder.ofChar
-    }
     def addOne(a: SChar): this.type = {
       arrayBuilder += a
       this
@@ -225,9 +221,8 @@ object ChunkBuilder {
    * values.
    */
   final class Double extends ChunkBuilder[SDouble] { self =>
-    private val arrayBuilder: ArrayBuilder[SDouble] = {
+    private val arrayBuilder: ArrayBuilder[SDouble] =
       new ArrayBuilder.ofDouble
-    }
     def addOne(a: SDouble): this.type = {
       arrayBuilder += a
       this
@@ -255,9 +250,8 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Float` values.
    */
   final class Float extends ChunkBuilder[SFloat] { self =>
-    private val arrayBuilder: ArrayBuilder[SFloat] = {
+    private val arrayBuilder: ArrayBuilder[SFloat] =
       new ArrayBuilder.ofFloat
-    }
     def addOne(a: SFloat): this.type = {
       arrayBuilder += a
       this
@@ -285,9 +279,8 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Int` values.
    */
   final class Int extends ChunkBuilder[SInt] { self =>
-    private val arrayBuilder: ArrayBuilder[SInt] = {
+    private val arrayBuilder: ArrayBuilder[SInt] =
       new ArrayBuilder.ofInt
-    }
     def addOne(a: SInt): this.type = {
       arrayBuilder += a
       this
@@ -315,9 +308,8 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Long` values.
    */
   final class Long extends ChunkBuilder[SLong] { self =>
-    private val arrayBuilder: ArrayBuilder[SLong] = {
+    private val arrayBuilder: ArrayBuilder[SLong] =
       new ArrayBuilder.ofLong
-    }
     def addOne(a: SLong): this.type = {
       arrayBuilder += a
       this
@@ -345,9 +337,8 @@ object ChunkBuilder {
    * A `ChunkBuilder` specialized for building chunks of unboxed `Short` values.
    */
   final class Short extends ChunkBuilder[SShort] { self =>
-    private val arrayBuilder: ArrayBuilder[SShort] = {
+    private val arrayBuilder: ArrayBuilder[SShort] =
       new ArrayBuilder.ofShort
-    }
     def addOne(a: SShort): this.type = {
       arrayBuilder += a
       this

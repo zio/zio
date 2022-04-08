@@ -56,33 +56,30 @@ trait ZStreamPlatformSpecificConstructors {
       runtime <- ZIO.runtime[R]
       eitherStream <- ZIO.succeed {
                         register { k =>
-                          try {
-                            runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
-                          } catch {
+                          try runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+                          catch {
                             case FiberFailure(c) if c.isInterrupted =>
                               Future.successful(false)
                           }
                         }
                       }
-    } yield {
-      eitherStream match {
-        case Right(value) => ZStream.unwrap(output.shutdown as value)
-        case Left(canceler) =>
-          lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.unwrap(
-              output.take
-                .flatMap(_.done)
-                .fold(
-                  maybeError =>
-                    ZChannel.fromZIO(output.shutdown) *>
-                      maybeError
-                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
-                  a => ZChannel.write(a) *> loop
-                )
-            )
+    } yield eitherStream match {
+      case Right(value) => ZStream.unwrap(output.shutdown as value)
+      case Left(canceler) =>
+        lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+          ZChannel.unwrap(
+            output.take
+              .flatMap(_.done)
+              .fold(
+                maybeError =>
+                  ZChannel.fromZIO(output.shutdown) *>
+                    maybeError
+                      .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
+                a => ZChannel.write(a) *> loop
+              )
+          )
 
-          new ZStream(loop).ensuring(canceler)
-      }
+        new ZStream(loop).ensuring(canceler)
     })
 
   /**
@@ -100,9 +97,8 @@ trait ZStreamPlatformSpecificConstructors {
         output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
-               try {
-                 runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
-               } catch {
+               try runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+               catch {
                  case FiberFailure(c) if c.isInterrupted =>
                    Future.successful(false)
                }
@@ -131,9 +127,8 @@ trait ZStreamPlatformSpecificConstructors {
       output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
-             try {
-               runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
-             } catch {
+             try runtime.unsafeRunToFuture(stream.Take.fromPull(k).flatMap(output.offer))
+             catch {
                case FiberFailure(c) if c.isInterrupted =>
                  Future.successful(false)
              }

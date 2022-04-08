@@ -334,9 +334,8 @@ object SmartAssertions {
       }
 
   private def className[A](C: ClassTag[A]): String =
-    try {
-      C.runtimeClass.getSimpleName
-    } catch {
+    try C.runtimeClass.getSimpleName
+    catch {
       // See https://github.com/scala/bug/issues/2034.
       case t: InternalError if t.getMessage == "Malformed class name" =>
         C.runtimeClass.getName

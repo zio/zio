@@ -1313,14 +1313,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def apply(i: Int): A = {
       var j = used - 1
       var a = null.asInstanceOf[A]
-      while (j >= 0) {
+      while (j >= 0)
         if (bufferIndices(j) == i) {
           a = bufferValues(j).asInstanceOf[A]
           j = -1
         } else {
           j -= 1
         }
-      }
       if (a != null) a else chunk(i)
     }
 
@@ -1438,9 +1437,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val len  = self.length
 
       var i = 0
-      while (i < len && f(self(i))) {
+      while (i < len && f(self(i)))
         i += 1
-      }
 
       drop(i)
     }
@@ -1508,9 +1506,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val len  = length
 
       var i = 0
-      while (i < len && f(self(i))) {
+      while (i < len && f(self(i)))
         i += 1
-      }
 
       take(i)
     }

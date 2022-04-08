@@ -808,12 +808,11 @@ package object test extends CompileVariants {
                     None
                 )
             },
-          onEmit = (chunk: Chunk[Either[Boolean, B]]) => {
+          onEmit = (chunk: Chunk[Either[Boolean, B]]) =>
             chunk.headOption match {
               case Some(Left(true)) => ChildExecutorDecision.Yield
               case _                => ChildExecutorDecision.Continue
             }
-          }
         )
     ).filter(_ != Left(true)).map {
       case Left(_)      => None

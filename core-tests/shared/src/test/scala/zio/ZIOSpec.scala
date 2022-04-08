@@ -280,7 +280,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("fails if cause doesn't match") {
         ZIO.fiberId.flatMap { fiberId =>
           ZIO.interrupt.catchSomeCause {
-            case c if (!c.isInterrupted) => ZIO.succeed(true)
+            case c if !c.isInterrupted => ZIO.succeed(true)
           }.sandbox.either.map(
             assert(_)(isLeft(equalTo(Cause.interrupt(fiberId))))
           )
@@ -801,12 +801,12 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(results)(equalTo(List(4, 6)))
       },
       test("runs many tasks") {
-        val as      = (1 to 1000)
+        val as      = 1 to 1000
         val results = IO.foreachPar(as)(a => IO.succeed(2 * a))
         assertM(results)(equalTo(as.map(2 * _)))
       },
       test("runs a task that fails") {
-        val as = (1 to 10)
+        val as = 1 to 10
         val results = IO
           .foreachPar(as) {
             case 5 => IO.fail("Boom!")
@@ -816,7 +816,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(results)(equalTo("Boom!"))
       },
       test("runs two failed tasks") {
-        val as = (1 to 10)
+        val as = 1 to 10
         val results = IO
           .foreachPar(as) {
             case 5 => IO.fail("Boom1!")
@@ -827,7 +827,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(results)(equalTo("Boom1!") || equalTo("Boom2!"))
       },
       test("runs a task that dies") {
-        val as = (1 to 10)
+        val as = 1 to 10
         val results = IO
           .foreachPar(as) {
             case 5 => IO.dieMessage("Boom!")
@@ -837,7 +837,7 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(results)(dies(hasMessage(equalTo("Boom!"))))
       },
       test("runs a task that is interrupted") {
-        val as = (1 to 10)
+        val as = 1 to 10
         val results = IO
           .foreachPar(as) {
             case 5 => IO.interrupt
@@ -1021,13 +1021,11 @@ object ZIOSpec extends ZIOBaseSpec {
           result1 <- joinDefect(fiber1).map(_.untraced)
           result2 <- joinDefect(fiber2).map(_.untraced)
           result3 <- joinDefect(fiber3).map(_.untraced)
-        } yield {
-          assert(result1.dieOption)(isSome(equalTo(boom))) && {
-            assert(result2.dieOption)(isSome(equalTo(boom))) ||
-            (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
-          } && {
-            assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
-          }
+        } yield assert(result1.dieOption)(isSome(equalTo(boom))) && {
+          assert(result2.dieOption)(isSome(equalTo(boom))) ||
+          (assert(result2.dieOption)(isSome(equalTo(boom))) && assert(result2.isInterrupted)(isTrue))
+        } && {
+          assert(result3.dieOption)(isSome(equalTo(boom))) && assert(result3.isInterrupted)(isTrue)
         }
       } @@ nonFlaky,
       test("infers correctly") {
@@ -1547,16 +1545,12 @@ object ZIOSpec extends ZIOBaseSpec {
         val option: Option[String] = None
         for {
           value <- ZIO.noneOrFail(option)
-        } yield {
-          assert(value)(equalTo(()))
-        }
+        } yield assert(value)(equalTo(()))
       },
       test("on Some fails") {
         for {
           value <- ZIO.noneOrFail(Some("v")).catchAll(e => ZIO.succeed(e))
-        } yield {
-          assert(value)(equalTo("v"))
-        }
+        } yield assert(value)(equalTo("v"))
       } @@ zioTag(errors)
     ),
     suite("noneOrFailWith")(
@@ -1565,16 +1559,12 @@ object ZIOSpec extends ZIOBaseSpec {
         val adaptError: String => String = identity
         for {
           value <- ZIO.noneOrFailWith(option)(adaptError)
-        } yield {
-          assert(value)(equalTo(()))
-        }
+        } yield assert(value)(equalTo(()))
       },
       test("on Some fails") {
         for {
           value <- ZIO.noneOrFailWith(Some("value"))((v: String) => v + v).catchAll(e => ZIO.succeed(e))
-        } yield {
-          assert(value)(equalTo("valuevalue"))
-        }
+        } yield assert(value)(equalTo("valuevalue"))
       } @@ zioTag(errors)
     ),
     suite("once")(
@@ -2561,10 +2551,8 @@ object ZIOSpec extends ZIOBaseSpec {
                     .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
-        } yield {
-          assert(unexpected)(isEmpty) &&
+        } yield assert(unexpected)(isEmpty) &&
           assert(result)(isNone) // timeout happens
-        }
       } @@ zioTag(interruption) @@ flaky,
       test("asyncMaybe should not resume fiber twice after synchronous result") {
         for {
@@ -2591,10 +2579,8 @@ object ZIOSpec extends ZIOBaseSpec {
                     .forkDaemon
           result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           unexpected <- unexpectedPlace.get
-        } yield {
-          assert(unexpected)(isEmpty) &&
+        } yield assert(unexpected)(isEmpty) &&
           assert(result)(isNone) // timeout happens
-        }
       } @@ flaky,
       test("sleep 0 must return") {
         assertM(Live.live(Clock.sleep(1.nanos)))(isUnit)
@@ -3473,11 +3459,9 @@ object ZIOSpec extends ZIOBaseSpec {
           failure    = new Exception("expected")
           _         <- IO.fail(failure).unless(true)
           failed    <- IO.fail(failure).unless(false).either
-        } yield {
-          assert(val1)(equalTo(0)) &&
+        } yield assert(val1)(equalTo(0)) &&
           assert(val2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
-        }
       }
     ),
     suite("unlessZIO")(
@@ -3496,13 +3480,11 @@ object ZIOSpec extends ZIOBaseSpec {
           failure        = new Exception("expected")
           _             <- IO.fail(failure).unlessZIO(conditionTrue)
           failed        <- IO.fail(failure).unlessZIO(conditionFalse).either
-        } yield {
-          assert(val1)(equalTo(0)) &&
+        } yield assert(val1)(equalTo(0)) &&
           assert(conditionVal1)(equalTo(1)) &&
           assert(val2)(equalTo(2)) &&
           assert(conditionVal2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
-        }
       },
       test("infers correctly") {
         trait R
@@ -3716,11 +3698,9 @@ object ZIOSpec extends ZIOBaseSpec {
           failure    = new Exception("expected")
           _         <- IO.fail(failure).when(false)
           failed    <- IO.fail(failure).when(true).either
-        } yield {
-          assert(val1)(equalTo(0)) &&
+        } yield assert(val1)(equalTo(0)) &&
           assert(val2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
-        }
       }
     ),
     suite("whenCase")(
@@ -3765,13 +3745,11 @@ object ZIOSpec extends ZIOBaseSpec {
           failure        = new Exception("expected")
           _             <- IO.fail(failure).whenZIO(conditionFalse)
           failed        <- IO.fail(failure).whenZIO(conditionTrue).either
-        } yield {
-          assert(val1)(equalTo(0)) &&
+        } yield assert(val1)(equalTo(0)) &&
           assert(conditionVal1)(equalTo(1)) &&
           assert(val2)(equalTo(2)) &&
           assert(conditionVal2)(equalTo(2)) &&
           assert(failed)(isLeft(equalTo(failure)))
-        }
       },
       test("infers correctly") {
         trait R
@@ -3860,16 +3838,12 @@ object ZIOSpec extends ZIOBaseSpec {
       test("basic option test") {
         for {
           value <- ZIO.getOrFailUnit(Some("foo"))
-        } yield {
-          assert(value)(equalTo("foo"))
-        }
+        } yield assert(value)(equalTo("foo"))
       },
       test("side effect unit in option test") {
         for {
           value <- ZIO.getOrFailUnit(None).catchAll(_ => ZIO.succeed("Controlling unit side-effect"))
-        } yield {
-          assert(value)(equalTo("Controlling unit side-effect"))
-        }
+        } yield assert(value)(equalTo("Controlling unit side-effect"))
       }
     ),
     suite("promises")(
@@ -3884,9 +3858,7 @@ object ZIOSpec extends ZIOBaseSpec {
                  }
                }.fork
           value <- ZIO.fromPromiseScala(promise)
-        } yield {
-          assert(value)(equalTo("HELLO WORLD FROM FUTURE"))
-        }
+        } yield assert(value)(equalTo("HELLO WORLD FROM FUTURE"))
       },
       test("promise supplier test") {
         val func: Unit => String = _ => "hello again from future"
@@ -3899,9 +3871,7 @@ object ZIOSpec extends ZIOBaseSpec {
                  }
                }.fork
           value <- ZIO.fromPromiseScala(promise)
-        } yield {
-          assert(value)(equalTo("hello again from future"))
-        }
+        } yield assert(value)(equalTo("hello again from future"))
       },
       test("promise ugly path test") {
         val func: String => String = s => s.toUpperCase
@@ -3916,9 +3886,7 @@ object ZIOSpec extends ZIOBaseSpec {
           value <- ZIO
                      .fromPromiseScala(promise)
                      .catchAll(_ => ZIO.succeed("Controlling side-effect of function passed to promise"))
-        } yield {
-          assert(value)(equalTo("Controlling side-effect of function passed to promise"))
-        }
+        } yield assert(value)(equalTo("Controlling side-effect of function passed to promise"))
       },
       test("withRuntimeConfig") {
         for {

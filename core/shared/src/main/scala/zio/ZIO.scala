@@ -2551,19 +2551,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     use: A => ZIO[R, E, B]
   )(implicit trace: ZTraceElement): ZIO[R, E, B] =
     ZIO.uninterruptibleMask[R, E, B](restore =>
-      acquire.flatMap({ a =>
+      acquire.flatMap { a =>
         ZIO
           .suspendSucceed(restore(use(a)))
           .exit
-          .flatMap({ e =>
+          .flatMap { e =>
             ZIO
               .suspendSucceed(release(a, e))
               .foldCauseZIO(
                 cause2 => ZIO.failCause(e.fold(_ ++ cause2, _ => cause2)),
                 _ => ZIO.done(e)
               )
-          })
-      })
+          }
+      }
     )
 
   /**

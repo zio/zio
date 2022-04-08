@@ -64,7 +64,7 @@ final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with 
     var ret     = false
     var looping = true
 
-    while (looping) {
+    while (looping)
       if (aRef.get() != null) looping = false
       else {
         if (aRef.compareAndSet(null, a.asInstanceOf[AnyRef])) {
@@ -72,7 +72,6 @@ final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with 
           looping = false
         }
       }
-    }
 
     ret
   }

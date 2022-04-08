@@ -177,9 +177,9 @@ object ZSinkSpec extends ZIOBaseSpec {
                 ZSink.unwrapScoped(res.map(m => ZSink.count.mapZIO(cnt => closed.get.map(cl => (cnt + m, cl)))))
               resAndState <- ZStream(1, 2, 3).run(sink)
               finalState  <- closed.get
-            } yield {
-              assert(resAndState._1)(equalTo(103L)) && assert(resAndState._2)(isFalse) && assert(finalState)(isTrue)
-            }
+            } yield assert(resAndState._1)(equalTo(103L)) && assert(resAndState._2)(isFalse) && assert(finalState)(
+              isTrue
+            )
           },
           test("sad path") {
             for {
@@ -548,9 +548,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             queue          <- Queue.unbounded[Int]
             _              <- ZStream(1, 2, 3).run(ZSink.fromQueue(queue))
             enqueuedValues <- queue.takeAll
-          } yield {
-            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
-          }
+          } yield assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3)))
 
         }
       ),
@@ -591,9 +589,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             _              <- ZStream(1, 2, 3).run(ZSink.fromQueueWithShutdown(queue))
             enqueuedValues <- queue.takeAll
             isShutdown     <- queue.isShutdown
-          } yield {
-            assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3))) && assert(isShutdown)(isTrue)
-          }
+          } yield assert(enqueuedValues)(hasSameElementsDistinct(List(1, 2, 3))) && assert(isShutdown)(isTrue)
 
         }
       ),
@@ -611,9 +607,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             _              <- ZStream(1, 2, 3).run(ZSink.fromHub(hub))
             _              <- promise2.succeed(())
             publisedValues <- f.join
-          } yield {
-            assert(publisedValues)(hasSameElementsDistinct(List(1, 2, 3)))
-          }
+          } yield assert(publisedValues)(hasSameElementsDistinct(List(1, 2, 3)))
 
         }
       ),
@@ -623,9 +617,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             hub        <- Hub.unbounded[Int]
             _          <- ZStream(1, 2, 3).run(ZSink.fromHubWithShutdown(hub))
             isShutdown <- hub.isShutdown
-          } yield {
-            assert(isShutdown)(isTrue)
-          }
+          } yield assert(isShutdown)(isTrue)
 
         }
       ),
@@ -662,7 +654,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           suite("zipRight (*>)")(
             test("happy path") {
               assertM(ZStream(1, 2, 3).run(ZSink.head.zipParRight(ZSink.succeed("Hello"))))(
-                equalTo(("Hello"))
+                equalTo("Hello")
               )
             }
           ),
@@ -677,25 +669,19 @@ object ZSinkSpec extends ZIOBaseSpec {
             val in = ZStream(1, 2, 3, 4, 5, 6, 7, 8)
             for {
               res <- in.via(ZPipeline.fromSink(ZSink.collectAll[Int].splitWhere[Int](_ % 2 == 0))).runCollect
-            } yield {
-              assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
-            }
+            } yield assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
           },
           test("should split a stream on predicate and run each part into the sink, in several chunks") {
             val in = ZStream.fromChunks(Chunk(1, 2, 3, 4), Chunk(5, 6, 7, 8))
             for {
               res <- in.via(ZPipeline.fromSink(ZSink.collectAll[Int].splitWhere[Int](_ % 2 == 0))).runCollect
-            } yield {
-              assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
-            }
+            } yield assertTrue(res == Chunk(Chunk(1), Chunk(2, 3), Chunk(4, 5), Chunk(6, 7), Chunk(8)))
           },
           test("not yield an empty sink if split on the first element") {
             val in = ZStream(1, 2, 3, 4, 5, 6, 7, 8)
             for {
               res <- in.via(ZPipeline.fromSink(ZSink.collectAll[Int].splitWhere[Int](_ % 2 != 0))).runCollect
-            } yield {
-              assertTrue(res == Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8)))
-            }
+            } yield assertTrue(res == Chunk(Chunk(1, 2), Chunk(3, 4), Chunk(5, 6), Chunk(7, 8)))
           }
         ),
         test("untilOutputZIO with head sink") {
@@ -740,11 +726,9 @@ object ZSinkSpec extends ZIOBaseSpec {
             val headAndCount =
               ZSink.head[Int].flatMap((h: Option[Int]) => ZSink.count.map(cnt => (h, cnt)))
             check(Gen.listOf(Gen.small(Gen.chunkOfN(_)(Gen.int)))) { chunks =>
-              ZStream.fromChunks(chunks: _*).run(headAndCount).map {
-                case (head, count) => {
-                  assert(head)(equalTo(chunks.flatten.headOption)) &&
+              ZStream.fromChunks(chunks: _*).run(headAndCount).map { case (head, count) =>
+                assert(head)(equalTo(chunks.flatten.headOption)) &&
                   assert(count + head.toList.size)(equalTo(chunks.map(_.size.toLong).sum))
-                }
               }
             }
           },

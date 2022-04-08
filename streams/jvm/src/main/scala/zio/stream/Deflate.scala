@@ -25,28 +25,25 @@ object Deflate {
         }) { case (deflater, _) =>
           ZIO.succeed(deflater.end())
         }
-        .map {
-          case (deflater, buffer) => {
+        .map { case (deflater, buffer) =>
+          lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+            ZChannel.readWithCause(
+              chunk =>
+                ZChannel.succeed {
+                  deflater.setInput(chunk.toArray)
+                  pullOutput(deflater, buffer, flushMode)
+                }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+              ZChannel.failCause(_),
+              done =>
+                ZChannel.succeed {
+                  deflater.finish()
+                  val out = pullOutput(deflater, buffer, flushMode)
+                  deflater.reset()
+                  out
+                }.flatMap(chunk => ZChannel.write(chunk).as(done))
+            )
 
-            lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-              ZChannel.readWithCause(
-                chunk =>
-                  ZChannel.succeed {
-                    deflater.setInput(chunk.toArray)
-                    pullOutput(deflater, buffer, flushMode)
-                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-                ZChannel.failCause(_),
-                done =>
-                  ZChannel.succeed {
-                    deflater.finish()
-                    val out = pullOutput(deflater, buffer, flushMode)
-                    deflater.reset()
-                    out
-                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
-              )
-
-            loop
-          }
+          loop
         }
     }
 

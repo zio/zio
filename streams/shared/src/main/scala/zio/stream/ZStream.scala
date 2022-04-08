@@ -586,8 +586,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         chunk => {
           val (newLast, newChunk) =
             chunk.foldLeft[(Option[A], Chunk[A])]((last, Chunk.empty)) {
-              case ((Some(o), os), o1) if (f(o, o1)) => (Some(o1), os)
-              case ((_, os), o1)                     => (Some(o1), os :+ o1)
+              case ((Some(o), os), o1) if f(o, o1) => (Some(o1), os)
+              case ((_, os), o1)                   => (Some(o1), os :+ o1)
             }
 
           ZChannel.write(newChunk) *> writer(newLast)
@@ -2802,7 +2802,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
             def reader(queueSize: Int): ZChannel[Any, E, Chunk[A], Any, E, Chunk[Chunk[A]], Any] =
               ZChannel.readWithCause(
-                (in: Chunk[A]) => {
+                (in: Chunk[A]) =>
                   ZChannel.write {
                     in.zipWithIndex.flatMap { case (i, idx) =>
                       queue.put(i)
@@ -2810,8 +2810,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                       if (currentIndex < chunkSize || (currentIndex - chunkSize) % stepSize > 0) None
                       else Some(queue.toChunk)
                     }
-                  } *> reader(queueSize + in.length)
-                },
+                  } *> reader(queueSize + in.length),
                 (cause: Cause[E]) => emitOnStreamEnd(queueSize)(ZChannel.failCause(cause)),
                 (_: Any) => emitOnStreamEnd(queueSize)(ZChannel.unit)
               )
@@ -2838,11 +2837,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZChannel.readWith(
         (in: Chunk[A]) => split(leftovers)(in),
         (e: E) => ZChannel.fail(e),
-        (_: Any) => {
+        (_: Any) =>
           if (leftovers.isEmpty) ZChannel.unit
           else if (leftovers.find(f).isEmpty) ZChannel.write(Chunk.single(leftovers)) *> ZChannel.unit
           else split(Chunk.empty)(leftovers) *> ZChannel.unit
-        }
       )
 
     new ZStream(self.channel >>> loop(Chunk.empty))
@@ -3732,7 +3730,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       for {
         left  <- self.toPull.map(pullNonEmpty(_))
         right <- that.toPull.map(pullNonEmpty(_))
-        pull <- (ZStream.fromZIOOption {
+        pull <- ZStream.fromZIOOption {
                   left.raceWith(right)(
                     (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
                     (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
@@ -3758,7 +3756,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                         }
                         .flatMap(ZStream.fromChunk(_))
                   }
-                }).toPull
+                }.toPull
 
       } yield pull
     }
@@ -4142,11 +4140,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                 builder.clear()
                 var count = 0
 
-                try {
-                  while (count < maxChunkSize && it.hasNext) {
-                    builder += it.next()
-                    count += 1
-                  }
+                try while (count < maxChunkSize && it.hasNext) {
+                  builder += it.next()
+                  count += 1
                 } catch {
                   case e: Throwable if !rt.runtimeConfig.fatal(e) =>
                     throw e

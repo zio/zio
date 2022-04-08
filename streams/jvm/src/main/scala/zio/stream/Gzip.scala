@@ -18,24 +18,21 @@ object Gzip {
         ) { gzipper =>
           ZIO.succeed(gzipper.close())
         }
-        .map {
-          case gzipper => {
+        .map { case gzipper =>
+          lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+            ZChannel.readWithCause(
+              chunk =>
+                ZChannel.fromZIO {
+                  gzipper.onChunk(chunk)
+                }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+              ZChannel.failCause(_),
+              done =>
+                ZChannel.fromZIO {
+                  gzipper.onNone
+                }.flatMap(chunk => ZChannel.write(chunk).as(done))
+            )
 
-            lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-              ZChannel.readWithCause(
-                chunk =>
-                  ZChannel.fromZIO {
-                    gzipper.onChunk(chunk)
-                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-                ZChannel.failCause(_),
-                done =>
-                  ZChannel.fromZIO {
-                    gzipper.onNone
-                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
-              )
-
-            loop
-          }
+          loop
         }
     }
 }

@@ -114,10 +114,8 @@ object RandomSpec extends ZIOBaseSpec {
         results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
         random     <- extract(testRandom)
         expected   <- ZIO.succeed(generate(new SRandom(seed)))
-      } yield {
-        assert(results)(equalTo(values)) &&
+      } yield assert(results)(equalTo(values)) &&
         assert(random)(equalTo(expected))
-      }
     }
 
   def nextBytes(n: Int)(random: SRandom): Chunk[Byte] = {
@@ -219,7 +217,7 @@ object RandomSpec extends ZIOBaseSpec {
     import num._
     val genMinMax = for {
       value1 <- gen
-      value2 <- gen if (value1 != value2)
+      value2 <- gen if value1 != value2
     } yield if (value2 > value1) (value1, value2) else (value2, value1)
     check(genMinMax) { case (min, max) =>
       for {

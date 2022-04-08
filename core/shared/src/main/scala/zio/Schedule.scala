@@ -555,15 +555,15 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
           ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Continue(combined)))
         else if (lInterval < rInterval)
           self.step(lInterval.end, in, lState).flatMap {
-            case ((lState, out, Continue(lInterval))) =>
+            case (lState, out, Continue(lInterval)) =>
               loop(in, lState, out, lInterval, rState, out2, rInterval)
-            case ((lState, out, _)) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+            case (lState, out, _) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
           }
         else
           that.step(rInterval.end, in, rState).flatMap {
-            case ((rState, out2, Continue(rInterval))) =>
+            case (rState, out2, Continue(rInterval)) =>
               loop(in, lState, out, lInterval, rState, out2, rInterval)
-            case ((rState, out2, _)) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
+            case (rState, out2, _) => ZIO.succeedNow(((lState, rState), zippable.zip(out, out2), Done))
           }
       }
 
@@ -669,7 +669,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
               val newStart = now.plusNanos(duration.toNanos)
               val delta    = java.time.Duration.between(oldStart, newStart)
               val newEnd =
-                try { interval.end.plus(delta) }
+                try interval.end.plus(delta)
                 catch { case _: java.time.DateTimeException => OffsetDateTime.MAX }
 
               val newInterval = Interval(newStart, newEnd)

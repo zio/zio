@@ -67,7 +67,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         context: Map[FiberRef[_], Any],
         spans: List[LogSpan],
         annotations: Map[String, String]
-      ) => {
+      ) =>
         try {
           // TODO: Improve output & use console.group for spans, etc.
           val line = ZLogger.default(trace, fiberId, level, message, cause, context, spans, annotations)
@@ -81,7 +81,6 @@ private[zio] trait RuntimeConfigPlatformSpecific {
         } catch {
           case t if !fatal(t) => ()
         }
-      }
 
     val reportFatal = (t: Throwable) => {
       t.printStackTrace()

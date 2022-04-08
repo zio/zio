@@ -186,10 +186,10 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
           out.foldLeft[List[Z]](List.empty) {
             case (acc, Right(causes)) => causes :: acc
             case (acc, Left(BothCase)) =>
-              val left :: right :: causes = (acc: @unchecked)
+              val left :: right :: causes = acc: @unchecked
               bothCase(left, right) :: causes
             case (acc, Left(ThenCase)) =>
-              val left :: right :: causes = (acc: @unchecked)
+              val left :: right :: causes = acc: @unchecked
               thenCase(left, right) :: causes
             case (acc, Left(StacklessCase(stackless))) =>
               val cause :: causes = acc

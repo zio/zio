@@ -284,9 +284,8 @@ $Assert($ast.withCode($codeString).withLocation)
 
     // Moves to the true beginning of the expression, in the case where the
     // internal expression is wrapped in parens.
-    while ((start - 2) >= 0 && fileContent(start - 2) == '(') {
+    while ((start - 2) >= 0 && fileContent(start - 2) == '(')
       start -= 1
-    }
 
     val g      = c.asInstanceOf[reflect.macros.runtime.Context].global
     val parser = g.newUnitParser(fileContent.drop(start))

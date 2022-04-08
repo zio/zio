@@ -59,7 +59,7 @@ object SystemSpec extends ZIOBaseSpec {
       for {
         _    <- putProperty("k1", "v1")
         _    <- clearProperty("k1")
-        prop <- System.property(("k1"))
+        prop <- System.property("k1")
       } yield assert(prop)(isNone)
     },
     test("fetch the system's line separator and check that it is identical to Data.lineSeparator") {

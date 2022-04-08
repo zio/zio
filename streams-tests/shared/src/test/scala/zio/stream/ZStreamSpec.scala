@@ -2905,9 +2905,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                                  }
               (result, state) = collectAndCheck
               finalState     <- closed.get
-            } yield {
-              assert(result)(equalTo(Chunk(1, 1, 1))) && assert(state)(isFalse) && assert(finalState)(isTrue)
-            }
+            } yield assert(result)(equalTo(Chunk(1, 1, 1))) && assert(state)(isFalse) && assert(finalState)(isTrue)
           )
         ),
         suite("scan")(
@@ -2944,7 +2942,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("scheduleWith")(
             assertM(
               ZStream("A", "B", "C", "A", "B", "C")
-                .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction((_) => "Done"))(
+                .scheduleWith(Schedule.recurs(2) *> Schedule.fromFunction(_ => "Done"))(
                   _.toLowerCase,
                   identity
                 )
@@ -2954,7 +2952,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("scheduleEither")(
             assertM(
               ZStream("A", "B", "C")
-                .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction((_) => "!"))
+                .scheduleEither(Schedule.recurs(2) *> Schedule.fromFunction(_ => "!"))
                 .runCollect
             )(equalTo(Chunk(Right("A"), Right("B"), Right("C"), Left("!"))))
           )
@@ -2963,7 +2961,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("repeatElementsWith")(
             assertM(
               ZStream("A", "B", "C")
-                .repeatElementsWith(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))(
+                .repeatElementsWith(Schedule.recurs(0) *> Schedule.fromFunction(_ => 123))(
                   identity,
                   _.toString
                 )
@@ -2973,7 +2971,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("repeatElementsEither")(
             assertM(
               ZStream("A", "B", "C")
-                .repeatElementsEither(Schedule.recurs(0) *> Schedule.fromFunction((_) => 123))
+                .repeatElementsEither(Schedule.recurs(0) *> Schedule.fromFunction(_ => 123))
                 .runCollect
             )(equalTo(Chunk(Right("A"), Left(123), Right("B"), Left(123), Right("C"), Left(123))))
           ),

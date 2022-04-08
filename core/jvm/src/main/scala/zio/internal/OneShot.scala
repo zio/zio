@@ -78,11 +78,10 @@ private[zio] final class OneShot[A] private (@volatile var value: A) {
    * This will block until the value is set or the thread is interrupted.
    */
   def get(): A = {
-    while (value == null) {
+    while (value == null)
       this.synchronized {
         if (value == null) this.wait()
       }
-    }
     value
   }
 

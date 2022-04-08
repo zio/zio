@@ -171,13 +171,11 @@ object Random extends Serializable {
       Random.shuffleWith(unsafeNextIntBounded(_), collection)
   }
 
-  val any: ZLayer[Random, Nothing, Random] = {
+  val any: ZLayer[Random, Nothing, Random] =
     ZLayer.service[Random](Tag[Random], Tracer.newTrace)
-  }
 
-  val live: Layer[Nothing, Random] = {
+  val live: Layer[Nothing, Random] =
     ZLayer.succeed[Random](RandomLive)(Tag[Random], Tracer.newTrace)
-  }
 
   /**
    * Constructs a `Random` service from a `scala.util.Random`.

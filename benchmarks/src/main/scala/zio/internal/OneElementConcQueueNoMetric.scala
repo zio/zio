@@ -22,7 +22,7 @@ class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
     var ret     = false
     var looping = true
 
-    while (looping) {
+    while (looping)
       if (aRef.get() != null) looping = false
       else {
         if (aRef.compareAndSet(null, a.asInstanceOf[AnyRef])) {
@@ -30,7 +30,6 @@ class OneElementConcQueueNoMetric[A] extends MutableConcurrentQueue[A] {
           looping = false
         }
       }
-    }
 
     ret
   }

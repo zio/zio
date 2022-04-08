@@ -85,7 +85,7 @@ class ZSchedulerBenchmarks {
 
   @Benchmark
   def zioSchedulerPingPong(): Int =
-    zioPingPong((zScheduler))
+    zioPingPong(zScheduler)
 
   @Benchmark
   def zioSchedulerYieldMany(): Int =

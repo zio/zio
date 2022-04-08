@@ -77,9 +77,8 @@ private[zio] final class FiberContext[E, A](
 
         val iterator = _children.iterator()
 
-        while (iterator.hasNext()) {
+        while (iterator.hasNext())
           chunkBuilder += iterator.next()
-        }
 
         chunkBuilder.result()
       },
@@ -741,7 +740,7 @@ private[zio] final class FiberContext[E, A](
     )
 
     if (runtimeConfig.supervisor ne Supervisor.none) {
-      runtimeConfig.supervisor.unsafeOnStart(unsafeGetRef((currentEnvironment)), zio, Some(self), childContext)
+      runtimeConfig.supervisor.unsafeOnStart(unsafeGetRef(currentEnvironment), zio, Some(self), childContext)
 
       childContext.unsafeOnDone(exit => runtimeConfig.supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
@@ -962,9 +961,8 @@ private[zio] final class FiberContext[E, A](
   }
   private def unsafeReportUnhandled(v: Exit[E, A], trace: ZTraceElement): Unit = v match {
     case Exit.Failure(cause) =>
-      try {
-        unsafeLog(() => s"Fiber ${fiberId} did not handle an error", cause, ZIO.someDebug, trace = trace)
-      } catch {
+      try unsafeLog(() => s"Fiber ${fiberId} did not handle an error", cause, ZIO.someDebug, trace = trace)
+      catch {
         case t: Throwable =>
           if (runtimeConfig.fatal(t)) {
             runtimeConfig.reportFatal(t)
@@ -1118,15 +1116,9 @@ private[zio] final class FiberContext[E, A](
 
                 cause.fold[Unit](
                   fiberFailureCauses.unsafeUpdate("<empty>"),
-                  (failure, _) => {
-                    observeFailure(failure.getClass())
-                  },
-                  (defect, _) => {
-                    observeFailure(defect.getClass)
-                  },
-                  (fiberId, _) => {
-                    observeFailure(classOf[InterruptedException])
-                  }
+                  (failure, _) => observeFailure(failure.getClass()),
+                  (defect, _) => observeFailure(defect.getClass),
+                  (fiberId, _) => observeFailure(classOf[InterruptedException])
                 )(combineUnit, combineUnit, leftUnit)
             }
 
@@ -1166,7 +1158,7 @@ private[zio] final class FiberContext[E, A](
     var discardedFolds = false
 
     // Unwind the stack, looking for an error handler:
-    while (unwinding && !stack.isEmpty) {
+    while (unwinding && !stack.isEmpty)
       stack.pop() match {
         case _: InterruptExit =>
           interruptStatus.popDrop(())
@@ -1212,7 +1204,6 @@ private[zio] final class FiberContext[E, A](
 
         case _ =>
       }
-    }
 
     discardedFolds
   }

@@ -757,18 +757,17 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     def unwindStack(error: Any, isRetry: Boolean): Erased = {
       var result = null.asInstanceOf[Erased]
 
-      while (!contStack.isEmpty && (result eq null)) {
+      while (!contStack.isEmpty && (result eq null))
         contStack.pop() match {
           case OnFailure(_, onFailure) => if (!isRetry) result = onFailure.asInstanceOf[Cont].apply(error)
           case OnRetry(_, onRetry)     => if (isRetry) result = onRetry
           case _                       =>
         }
-      }
 
       result
     }
 
-    while (exit eq null) {
+    while (exit eq null)
       if (opCount == YieldOpCount) {
         if (isInvalid(journal)) exit = TExit.Retry
         else opCount = 0
@@ -837,7 +836,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
         opCount += 1
       }
-    }
 
     exit.asInstanceOf[TExit[E, A]]
   }

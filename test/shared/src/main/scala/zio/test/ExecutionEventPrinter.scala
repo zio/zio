@@ -7,11 +7,10 @@ trait ExecutionEventPrinter {
 }
 
 object ExecutionEventPrinter {
-  val live: ZLayer[TestLogger, Nothing, ExecutionEventPrinter] = {
+  val live: ZLayer[TestLogger, Nothing, ExecutionEventPrinter] =
     ZLayer.fromZIO(for {
       testLogger <- ZIO.service[TestLogger]
     } yield new Live(testLogger))
-  }
 
   def print(event: ExecutionEvent): ZIO[ExecutionEventPrinter, Nothing, Unit] =
     ZIO.serviceWithZIO[ExecutionEventPrinter](_.print(event))

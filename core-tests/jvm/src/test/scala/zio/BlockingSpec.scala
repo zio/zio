@@ -46,11 +46,9 @@ object BlockingSpec extends ZIOBaseSpec {
   )
 
   def blockingAtomic(released: AtomicBoolean): Unit =
-    while (!released.get()) {
-      try {
-        Thread.sleep(10L)
-      } catch {
+    while (!released.get())
+      try Thread.sleep(10L)
+      catch {
         case _: InterruptedException => ()
       }
-    }
 }

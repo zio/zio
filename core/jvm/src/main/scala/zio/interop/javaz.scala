@@ -38,9 +38,8 @@ private[zio] object javaz {
           }
         }
 
-        try {
-          op(handler)
-        } catch {
+        try op(handler)
+        catch {
           case e if !p.fatal(e) => k(Task.fail(e))
         }
       }
@@ -62,9 +61,8 @@ private[zio] object javaz {
   }
 
   def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A])(implicit trace: ZTraceElement): Task[A] =
-    try {
-      Task.succeedNow(f.get())
-    } catch catchFromGet(isFatal)
+    try Task.succeedNow(f.get())
+    catch catchFromGet(isFatal)
 
   def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: ZTraceElement): Task[A] =
     Task.attempt(thunk).flatMap { cs =>

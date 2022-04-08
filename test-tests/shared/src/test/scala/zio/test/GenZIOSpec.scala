@@ -12,30 +12,24 @@ object GenZIOSpec extends ZIOBaseSpec {
       for {
         sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
-      } yield {
-        assert(successes)(isEmpty) &&
+      } yield assert(successes)(isEmpty) &&
         assert(failures)(isNonEmpty && forall(dies(anything)))
-      }
     },
     test("failures generates failed effects") {
       val gen = failures(string)
       for {
         sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
-      } yield {
-        assert(successes)(isEmpty) &&
+      } yield assert(successes)(isEmpty) &&
         assert(failures)(isNonEmpty && forall(fails(anything)))
-      }
     },
     test("successes generates successful effects") {
       val gen = successes(int(-10, 10))
       for {
         sample               <- sampleEffect(gen)
         (failures, successes) = partitionExit(sample)
-      } yield {
-        assert(successes)(isNonEmpty && forall(isWithin(-10, 10))) &&
+      } yield assert(successes)(isNonEmpty && forall(isWithin(-10, 10))) &&
         assert(failures)(isEmpty)
-      }
     }
   )
 }

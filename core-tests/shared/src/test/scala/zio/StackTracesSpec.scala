@@ -13,11 +13,9 @@ object StackTracesSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(25)
           value  = ZIO.fail("Oh no!")
           trace <- matchPrettyPrintCause(value)
-        } yield {
-          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+        } yield assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
           assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assertTrue(!trace.contains("Suppressed"))
-        }
       }
     ),
     suite("captureMultiMethod")(
@@ -38,15 +36,13 @@ object StackTracesSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(25)
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
-        } yield {
-          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+        } yield assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
           assertHasStacktraceFor(trace)("spec.deepUnderlyingFailure") &&
           assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
           assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 2)
-        }
       },
       test("captures a deep embedded failure without suppressing the underlying cause") {
         val deepUnderlyingFailure =
@@ -65,14 +61,12 @@ object StackTracesSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(25)
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
-        } yield {
-          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+        } yield assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
           assertHasStacktraceFor(trace)("spec.deepUnderlyingFailure") &&
           assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
           assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: deep failure")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
-        }
       },
       test("captures the embedded failure") {
         val underlyingFailure =
@@ -85,13 +79,11 @@ object StackTracesSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(25)
           value  = underlyingFailure
           trace <- matchPrettyPrintCause(value)
-        } yield {
-          assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
+        } yield assertHasExceptionInThreadZioFiber(trace)("java.lang.String: Oh no!") &&
           assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
           assertHasStacktraceFor(trace)("matchPrettyPrintCause") &&
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
-        }
       }
     )
   ) @@ sequential

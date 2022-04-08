@@ -863,12 +863,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
       def transform(charset: Charset): ZChannel[Any, ZNothing, Chunk[Byte], Any, Nothing, Chunk[String], Any] =
         ZChannel.readWith(
-          received => {
+          received =>
             if (received.isEmpty)
               transform(charset)
             else
-              ZChannel.write(stringChunkFrom(received, charset))
-          },
+              ZChannel.write(stringChunkFrom(received, charset)),
           error = ZChannel.fail(_),
           done = _ => ZChannel.unit
         )

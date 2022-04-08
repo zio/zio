@@ -81,9 +81,7 @@ object SerializableSpec extends ZIOBaseSpec {
         fiber          <- io.fork
         status         <- fiber.await
         returnedStatus <- serializeAndBack(status)
-      } yield {
-        assert(returnedStatus.getOrElse(_ => List.empty))(equalTo(list))
-      }
+      } yield assert(returnedStatus.getOrElse(_ => List.empty))(equalTo(list))
     },
     test("Duration is serializable") {
       val duration = Duration.fromNanos(1)

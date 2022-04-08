@@ -23,16 +23,13 @@ object SinkUtils {
       r1 <- stream.run(s1).either
       r2 <- stream.run(s2).either
       r  <- stream.run(s1.raceBoth(s2)).either
-    } yield {
-      r match {
-        case Left(_) => assert(r1)(Assertion.isLeft) || assert(r2)(Assertion.isLeft)
-        case Right(v) => {
-          v match {
-            case Left(w)  => assert(Right(w))(equalTo(r1))
-            case Right(w) => assert(Right(w))(equalTo(r2))
-          }
+    } yield r match {
+      case Left(_) => assert(r1)(Assertion.isLeft) || assert(r2)(Assertion.isLeft)
+      case Right(v) =>
+        v match {
+          case Left(w)  => assert(Right(w))(equalTo(r1))
+          case Right(w) => assert(Right(w))(equalTo(r2))
         }
-      }
     }
 
   def zipParLaw[A, B, C, L, E](
@@ -44,10 +41,8 @@ object SinkUtils {
       zb  <- s.run(sink1).either
       zc  <- s.run(sink2).either
       zbc <- s.run(sink1.zipPar(sink2)).either
-    } yield {
-      zbc match {
-        case Left(e)       => assert(zb)(equalTo(Left(e))) || assert(zc)(equalTo(Left(e)))
-        case Right((b, c)) => assert(zb)(equalTo(Right(b))) && assert(zc)(equalTo(Right(c)))
-      }
+    } yield zbc match {
+      case Left(e)       => assert(zb)(equalTo(Left(e))) || assert(zc)(equalTo(Left(e)))
+      case Right((b, c)) => assert(zb)(equalTo(Right(b))) && assert(zc)(equalTo(Right(c)))
     }
 }

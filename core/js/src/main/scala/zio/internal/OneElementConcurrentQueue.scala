@@ -44,7 +44,7 @@ final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with 
     var res     = false
     var looping = true
 
-    while (looping) {
+    while (looping)
       if (isFull()) {
         looping = false
       } else {
@@ -59,7 +59,6 @@ final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with 
           looping = false
         }
       }
-    }
 
     res
   }
@@ -68,7 +67,7 @@ final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with 
     var res     = default
     var looping = true
 
-    while (looping) {
+    while (looping)
       if (isEmpty()) {
         looping = false
       } else {
@@ -85,7 +84,6 @@ final class OneElementConcurrentQueue[A] extends MutableConcurrentQueue[A] with 
           looping = false
         }
       }
-    }
 
     res
   }

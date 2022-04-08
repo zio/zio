@@ -36,7 +36,7 @@ private[zio] object FiberRenderer {
     val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
       (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
       (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
-      (s"${millis}ms")
+      s"${millis}ms"
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn, _) =>
         if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.ids.mkString(", ")}" else ""

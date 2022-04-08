@@ -40,9 +40,8 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
           val executor = runtime.runtimeConfig.executor
 
           def compute[A](a: => A): Either[Throwable, A] =
-            try {
-              Right(a)
-            } catch {
+            try Right(a)
+            catch {
               case t: CancellationException => Left(t)
               case t: InterruptedException  => Left(t)
               case t: OutOfMemoryError      => throw t

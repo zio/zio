@@ -73,25 +73,23 @@ trait ZStreamPlatformSpecificConstructors {
                           }
                         }
                       }
-    } yield {
-      eitherStream match {
-        case Right(value) => ZStream.unwrap(output.shutdown as value)
-        case Left(canceler) =>
-          lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.unwrap(
-              output.take
-                .flatMap(_.done)
-                .fold(
-                  maybeError =>
-                    ZChannel.fromZIO(output.shutdown) *>
-                      maybeError
-                        .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
-                  a => ZChannel.write(a) *> loop
-                )
-            )
+    } yield eitherStream match {
+      case Right(value) => ZStream.unwrap(output.shutdown as value)
+      case Left(canceler) =>
+        lazy val loop: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+          ZChannel.unwrap(
+            output.take
+              .flatMap(_.done)
+              .fold(
+                maybeError =>
+                  ZChannel.fromZIO(output.shutdown) *>
+                    maybeError
+                      .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.fail(_)),
+                a => ZChannel.write(a) *> loop
+              )
+          )
 
-          new ZStream(loop).ensuring(canceler)
-      }
+        new ZStream(loop).ensuring(canceler)
     })
 
   /**

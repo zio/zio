@@ -129,9 +129,8 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
                 }
               }
             }
-            while (!active && !isInterrupted) {
+            while (!active && !isInterrupted)
               LockSupport.park()
-            }
             searching = true
           } else {
             if (searching) {

@@ -179,8 +179,8 @@ object MyersDiff {
 
     val myersMatrix = Array.fill[Int](originalLength + 1, modifiedLength + 1)(0)
 
-    for (i <- 0 until originalLength) {
-      for (j <- 0 until modifiedLength) {
+    for (i <- 0 until originalLength)
+      for (j <- 0 until modifiedLength)
         if (original(i) == modified(j)) {
           myersMatrix(i + 1)(j + 1) = myersMatrix(i)(j) + 1
         } else {
@@ -190,8 +190,6 @@ object MyersDiff {
             myersMatrix(i + 1)(j + 1) = myersMatrix(i + 1)(j)
           }
         }
-      }
-    }
 
     myersMatrix
   }

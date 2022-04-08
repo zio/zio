@@ -25,10 +25,8 @@ object FunSpec extends ZIOBaseSpec {
         f <- Fun.make((_: String) => Random.nextBoolean)
         p  = f("Scala")
         q  = f("Haskell")
-      } yield {
-        assert(f.toString)(equalTo(s"Fun(Scala -> $p, Haskell -> $q)")) ||
+      } yield assert(f.toString)(equalTo(s"Fun(Scala -> $p, Haskell -> $q)")) ||
         assert(f.toString)(equalTo(s"Fun(Haskell -> $q, Scala -> $p)"))
-      }
     },
     test("fun is supported on Scala.js") {
       for {

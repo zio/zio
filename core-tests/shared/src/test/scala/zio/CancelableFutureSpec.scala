@@ -95,9 +95,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         for {
           f <- ZIO.succeed(42).toFuture
           v <- ZIO.fromFuture(_ => f)
-        } yield {
-          assert(v)(equalTo(42))
-        }
+        } yield assert(v)(equalTo(42))
       }
     ) @@ zioTag(future) @@ TestAspect.fibers
 }

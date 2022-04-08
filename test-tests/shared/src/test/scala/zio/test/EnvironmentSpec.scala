@@ -34,10 +34,8 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _      <- TestConsole.feedLines("Input 1", "Input 2")
         input1 <- Console.readLine
         input2 <- Console.readLine
-      } yield {
-        assert(input1)(equalTo("Input 1")) &&
+      } yield assert(input1)(equalTo("Input 1")) &&
         assert(input2)(equalTo("Input 2"))
-      }
     },
     test("Random returns next pseudorandom integer") {
       for {

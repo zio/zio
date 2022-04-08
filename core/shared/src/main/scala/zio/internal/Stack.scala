@@ -28,7 +28,7 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
   private def getUsed: Int          = packed & 0xf
   private def setUsed(n: Int): Unit = packed = (packed & 0xfffffff0) + (n & 0xf)
 
-  private def getNesting: Int          = (packed >>> 4)
+  private def getNesting: Int          = packed >>> 4
   private def setNesting(n: Int): Unit = packed = (packed & 0xf) + (n << 4)
 
   override def size: Int = getUsed + (12 * getNesting)
@@ -50,9 +50,8 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
 
         var result = null.asInstanceOf[A]
 
-        while (result == null && currentIndex >= 0) {
+        while (result == null && currentIndex >= 0)
           result = computeNext()
-        }
 
         _next = result
 
@@ -79,14 +78,13 @@ private[zio] final class Stack[A <: AnyRef]() extends Iterable[A] { self =>
 
         var i = array.length - 1
 
-        while (i >= 0) {
+        while (i >= 0)
           if (array(i) ne null) {
             index = i
             i = -1 // Terminate loop
           } else {
             i = i - 1
           }
-        }
 
         index
       }

@@ -81,7 +81,7 @@ private final class UnboundedHub[A] extends Hub[A] {
         else {
           var empty = true
           var loop  = true
-          while (loop) {
+          while (loop)
             if (subscriberHead eq publisherTail) {
               loop = false
             } else {
@@ -93,7 +93,6 @@ private final class UnboundedHub[A] extends Hub[A] {
                 subscriberIndex += 1
               }
             }
-          }
           empty
         }
 
@@ -102,7 +101,7 @@ private final class UnboundedHub[A] extends Hub[A] {
         else {
           var loop   = true
           var polled = default
-          while (loop) {
+          while (loop)
             if (subscriberHead eq publisherTail) {
               loop = false
             } else {
@@ -120,7 +119,6 @@ private final class UnboundedHub[A] extends Hub[A] {
               subscriberHead = subscriberHead.next
               subscriberIndex += 1
             }
-          }
           polled
         }
 

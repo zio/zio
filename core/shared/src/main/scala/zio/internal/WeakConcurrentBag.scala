@@ -93,7 +93,7 @@ class WeakConcurrentBag[A](tableSize: Int) {
         var currentList   = _currentList
         var currentBucket = _currentBucket
 
-        while ((currentBucket < bucketCount || currentList.nonEmpty) && (nextElement == null)) {
+        while ((currentBucket < bucketCount || currentList.nonEmpty) && (nextElement == null))
           if (currentList.isEmpty) {
             currentList = contents.get(currentBucket)
             currentBucket = currentBucket + 1
@@ -101,7 +101,6 @@ class WeakConcurrentBag[A](tableSize: Int) {
             nextElement = currentList.head.get()
             currentList = currentList.tail
           }
-        }
 
         _nextElement = nextElement
         _currentList = currentList

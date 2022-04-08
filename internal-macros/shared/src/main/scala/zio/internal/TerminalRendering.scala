@@ -72,7 +72,7 @@ object TerminalRendering {
         s"Please provide a layer for the following type:"
       }
 
-    val allMissingTypes = (toplevel ++ transitive.values.flatten)
+    val allMissingTypes = toplevel ++ transitive.values.flatten
 
     val provideSomeSuggestion =
       if (isUsingProvideSome) {

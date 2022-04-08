@@ -43,9 +43,7 @@ private[zio] trait PlatformSpecific {
     try {
       val string = s"zio-signal=${signal}".toLowerCase
 
-      dom.window.onhashchange = (e: HashChangeEvent) => {
-        if (e.newURL.toLowerCase.contains(string)) action()
-      }
+      dom.window.onhashchange = (e: HashChangeEvent) => if (e.newURL.toLowerCase.contains(string)) action()
     } catch {
       case _: Throwable => ()
     }

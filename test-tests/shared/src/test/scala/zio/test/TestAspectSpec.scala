@@ -18,10 +18,8 @@ object TestAspectSpec extends ZIOBaseSpec {
                } @@ around(ref.set(1), ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
-      } yield {
-        assert(result)(isTrue) &&
+      } yield assert(result)(isTrue) &&
         assert(after)(equalTo(-1))
-      }
     },
     test("aroundAll evaluates all tests between before and after effects") {
       for {
@@ -44,10 +42,8 @@ object TestAspectSpec extends ZIOBaseSpec {
                )
         result <- succeeded(spec)
         after  <- ref.get
-      } yield {
-        assert(result)(isTrue) &&
+      } yield assert(result)(isTrue) &&
         assert(after)(equalTo(0))
-      }
     },
     test("after evaluates in case if test IO fails") {
       for {
@@ -57,10 +53,8 @@ object TestAspectSpec extends ZIOBaseSpec {
                } @@ after(ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
-      } yield {
-        assert(result)(isFalse) &&
+      } yield assert(result)(isFalse) &&
         assert(after)(equalTo(-1))
-      }
     },
     test("after evaluates in case if test IO dies") {
       for {
@@ -70,10 +64,8 @@ object TestAspectSpec extends ZIOBaseSpec {
                } @@ after(ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
-      } yield {
-        assert(result)(isFalse) &&
+      } yield assert(result)(isFalse) &&
         assert(after)(equalTo(-1))
-      }
     },
     test("exceptJS runs tests on all platforms except ScalaJS") {
       assert(TestPlatform.isJS)(isFalse)
