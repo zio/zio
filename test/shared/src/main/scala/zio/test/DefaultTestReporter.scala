@@ -186,8 +186,6 @@ object DefaultTestReporter {
     val failureDetails =
       Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
 
-    println("Failure Details:\n" + failureDetails.mkString("\n"))
-
     rendered(ResultType.Test, label, Failed, depth, failureDetails: _*)
   }
 
@@ -267,8 +265,6 @@ object DefaultTestReporter {
         true
       }
     val prefix = timeouts.foldLeft(Message.empty)(_ ++ _)
-
-    println("Remaining: " + remaining)
 
     remaining match {
       case Some(remainingCause) =>
