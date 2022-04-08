@@ -39,7 +39,7 @@ object ZTestLogger {
     ZLayer.scoped {
       for {
         testLogger <- ZTestLogger.make
-        acquire    <- ZIO.addLoggerScoped(testLogger)
+        acquire    <- FiberRef.currentLoggers.locallyScopedWith(_ + testLogger)
       } yield ()
     }
 

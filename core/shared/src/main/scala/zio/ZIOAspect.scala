@@ -108,7 +108,7 @@ object ZIOAspect {
   val disableLogging: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        ZIO.loggers.flatMap(_.foldLeft(zio)((zio, logger) => ZIO.removeLogger(logger)(zio)))
+        FiberRef.currentLoggers.locally(Set.empty)(zio)
     }
 
   /**

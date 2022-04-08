@@ -2580,14 +2580,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       _           <- scope.addFinalizerExit(exit => finalizer(exit).provideEnvironment(environment))
     } yield ()
 
-  def addLogger[R, E, A](logger: => ZLogger[String, Any])(zio: ZIO[R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, A] =
-    FiberRef.currentLoggers.locallyWith(_ + logger)(zio)
-
-  def addLoggerScoped(logger: => ZLogger[String, Any])(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
-    FiberRef.currentLoggers.locallyScopedWith(_ + logger)
-
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
    * so, performs self-interruption
@@ -3809,9 +3801,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def logFatalCause(cause: => Cause[Any])(implicit trace: ZTraceElement): UIO[Unit] =
     logFatalCause("", cause)
 
-  def loggers(implicit trace: ZTraceElement): UIO[Set[ZLogger[String, Any]]] =
-    FiberRef.currentLoggers.get
-
   /**
    * Logs the specified message at the informational log level.
    */
@@ -4073,11 +4062,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       val all = prepend(a, as)
       mergeAllPar(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
     }
-
-  def removeLogger[R, E, A](logger: ZLogger[String, Any])(zio: ZIO[R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, A] =
-    FiberRef.currentLoggers.locallyWith(_ - logger)(zio)
 
   /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
