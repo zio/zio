@@ -789,7 +789,8 @@ private[zio] final class FiberContext[E, A](
     val flags = unsafeGetRuntimeConfigFlags()
 
     val childZio =
-      if (!parentScope.unsafeAdd(flags(RuntimeConfigFlag.EnableFiberRoots), childContext)) ZIO.interruptAs(parentScope.fiberId)
+      if (!parentScope.unsafeAdd(flags(RuntimeConfigFlag.EnableFiberRoots), childContext))
+        ZIO.interruptAs(parentScope.fiberId)
       else zio
 
     childContext.nextEffect = childZio
