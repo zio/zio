@@ -18,8 +18,6 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.tailrec
-
 /**
  * A `RuntimeConfig` provides the minimum capabilities necessary to bootstrap
  * execution of `ZIO` tasks.
