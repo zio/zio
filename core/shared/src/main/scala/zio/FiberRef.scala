@@ -378,7 +378,7 @@ object FiberRef {
     }
 
     def empty[A]: SetPatch[A] =
-      Empty[A]
+      Empty()
 
     final case class Add[A](value: A)                                    extends SetPatch[A]
     final case class AndThen[A](first: SetPatch[A], second: SetPatch[A]) extends SetPatch[A]
