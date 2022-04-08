@@ -37,7 +37,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
-    implicit val trace = Tracer.newTrace
+    implicit val trace = ZTraceElement.empty
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer.environment[ZIOAppArgs with Scope] +!+
@@ -80,7 +80,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     Any,
     Summary
   ] = {
-    implicit val trace = Tracer.newTrace
+    implicit val trace = ZTraceElement.empty
     for {
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
