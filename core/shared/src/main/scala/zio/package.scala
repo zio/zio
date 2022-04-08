@@ -70,5 +70,5 @@ package object zio
     def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
 
-  private[zio] type Callback[E, A] = Exit[E, A] => Any
+  private[zio] type Callback[E, A] = (Exit[E, A], FiberRefs) => Any
 }

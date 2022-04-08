@@ -52,7 +52,7 @@ private[zio] object FiberScope {
       if (enableFiberRoots) {
         val childRef = Fiber._roots.add(child)
 
-        child.unsafeOnDone(_ => childRef.clear())
+        child.unsafeOnDone((_, _) => childRef.clear())
       }
 
       true

@@ -351,26 +351,36 @@ trait Runtime[+R] {
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
+    val canceler = unsafeRunWithRefs(zio, FiberRefs.empty)((exit, _) => k(exit))
+    fiberId => k => canceler(fiberId)((exit, _) => k(exit))
+  }
+
+  private final def unsafeRunWithRefs[E, A](
+    zio: ZIO[R, E, A],
+    fiberRefs: FiberRefs
+  )(
+    k: (Exit[E, A], FiberRefs) => Any
+  )(implicit trace: ZTraceElement): FiberId => ((Exit[E, A], FiberRefs) => Any) => Unit = {
     val fiberId = FiberId.unsafeMake(trace)
 
     val children = Platform.newWeakSet[FiberContext[_, _]]()
 
+    val runtimeFiberRefs: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] = Map(
+      FiberRef.currentBlockingExecutor   -> ::(fiberId -> runtimeConfig.blockingExecutor, Nil),
+      FiberRef.currentEnvironment        -> ::(fiberId -> environment, Nil),
+      ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),
+      FiberRef.currentExecutor           -> ::(fiberId -> runtimeConfig.executor, Nil),
+      FiberRef.currentFatal              -> ::(fiberId -> runtimeConfig.fatal, Nil),
+      FiberRef.currentLoggers            -> ::(fiberId -> runtimeConfig.loggers, Nil),
+      FiberRef.currentReportFatal        -> ::(fiberId -> runtimeConfig.reportFatal, Nil),
+      FiberRef.currentRuntimeConfigFlags -> ::(fiberId -> runtimeConfig.flags, Nil),
+      FiberRef.currentSupervisors        -> ::(fiberId -> runtimeConfig.supervisors, Nil)
+    )
+
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       StackBool(InterruptStatus.Interruptible.toBoolean),
-      new java.util.concurrent.atomic.AtomicReference(
-        Map(
-          FiberRef.currentBlockingExecutor   -> ::(fiberId -> runtimeConfig.blockingExecutor, Nil),
-          FiberRef.currentEnvironment        -> ::(fiberId -> environment, Nil),
-          ZEnv.services                      -> ::(fiberId -> ZEnv.Services.live, Nil),
-          FiberRef.currentExecutor           -> ::(fiberId -> runtimeConfig.executor, Nil),
-          FiberRef.currentFatal              -> ::(fiberId -> runtimeConfig.fatal, Nil),
-          FiberRef.currentLoggers            -> ::(fiberId -> runtimeConfig.loggers, Nil),
-          FiberRef.currentReportFatal        -> ::(fiberId -> runtimeConfig.reportFatal, Nil),
-          FiberRef.currentRuntimeConfigFlags -> ::(fiberId -> runtimeConfig.flags, Nil),
-          FiberRef.currentSupervisors        -> ::(fiberId -> runtimeConfig.supervisors, Nil)
-        )
-      ),
+      new java.util.concurrent.atomic.AtomicReference(runtimeFiberRefs ++ fiberRefs.fiberRefLocals),
       children
     )
 
@@ -379,17 +389,20 @@ trait Runtime[+R] {
     runtimeConfig.supervisors.foreach { supervisor =>
       supervisor.unsafeOnStart(environment, zio, None, context)
 
-      context.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, context))
+      context.unsafeOnDone((exit, _) => supervisor.unsafeOnEnd(exit.flatten, context))
     }
 
     context.nextEffect = zio
     context.run()
-    context.unsafeOnDone { exit =>
-      k(exit.flatten)
+    context.unsafeOnDone { (exit, fiberRefs) =>
+      k(exit.flatten, fiberRefs)
     }
 
     fiberId =>
-      k => unsafeRunAsyncWith(context.interruptAs(fiberId))((exit: Exit[Nothing, Exit[E, A]]) => k(exit.flatten))
+      k =>
+        unsafeRunWithRefs(context.interruptAs(fiberId), fiberRefs)(
+          (exit: Exit[Nothing, Exit[E, A]], fiberRefs: FiberRefs) => k(exit.flatten, fiberRefs)
+        )
   }
 }
 

@@ -60,7 +60,7 @@ private[zio] final class FiberContext[E, A](
   final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
     ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
       { k =>
-        val cb: Callback[Nothing, Exit[E, A]] = x => k(ZIO.done(x))
+        val cb: Callback[Nothing, Exit[E, A]] = (x, _) => k(ZIO.done(x))
         val result                            = unsafeAddObserverMaybe(cb)
 
         if (result eq null) Left(ZIO.succeed(unsafeRemoveObserver(cb)))
@@ -783,7 +783,7 @@ private[zio] final class FiberContext[E, A](
     supervisors.foreach { supervisor =>
       supervisor.unsafeOnStart(unsafeGetRef((currentEnvironment)), zio, Some(self), childContext)
 
-      childContext.unsafeOnDone(exit => supervisor.unsafeOnEnd(exit.flatten, childContext))
+      childContext.unsafeOnDone((exit, _) => supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
 
     val flags = unsafeGetRuntimeConfigFlags()
@@ -958,14 +958,19 @@ private[zio] final class FiberContext[E, A](
     observers: List[Callback[Nothing, Exit[E, A]]]
   ): Unit =
     if (observers.nonEmpty) {
-      val result = Exit.succeed(v)
-      observers.foreach(k => k(result))
+      val result    = Exit.succeed(v)
+      val fiberRefs = FiberRefs(fiberRefLocals.get)
+      observers.foreach(k => k(result, fiberRefs))
     }
 
   private[zio] def unsafeOnDone(k: Callback[Nothing, Exit[E, A]]): Unit =
     unsafeAddObserverMaybe(k) match {
       case null => ()
-      case exit => k(Exit.succeed(exit)); ()
+      case exit =>
+        val result    = Exit.succeed(exit)
+        val fiberRefs = FiberRefs(fiberRefLocals.get)
+        k(Exit.succeed(exit), fiberRefs)
+        ()
     }
 
   private[this] def unsafePoll: Option[Exit[E, A]] =
@@ -996,14 +1001,14 @@ private[zio] final class FiberContext[E, A](
     ZIO
       .async[R, E, C](
         { cb =>
-          val leftRegister = left.unsafeAddObserverMaybe { _ =>
+          val leftRegister = left.unsafeAddObserverMaybe { (_, _) =>
             complete(left, right, race.leftWins, raceIndicator, cb)
           }
 
           if (leftRegister ne null)
             complete(left, right, race.leftWins, raceIndicator, cb)
           else {
-            val rightRegister = right.unsafeAddObserverMaybe { _ =>
+            val rightRegister = right.unsafeAddObserverMaybe { (_, _) =>
               complete(right, left, race.rightWins, raceIndicator, cb)
             }
 
