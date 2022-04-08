@@ -33,7 +33,11 @@ final case class RuntimeConfig(
   loggers: Set[ZLogger[String, Any]],
   flags: Set[RuntimeConfigFlag]
 ) { self =>
+
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
+
+  def isFatal(t: Throwable): Boolean =
+    fatal.exists(_.isAssignableFrom(t.getClass))
 }
 
 object RuntimeConfig extends RuntimeConfigPlatformSpecific

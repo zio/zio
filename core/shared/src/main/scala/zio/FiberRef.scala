@@ -335,7 +335,9 @@ object FiberRef {
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
     makeWith(unsafeMakePatch(initial, diff, combine, patch, fork))
 
-  def makeSet[A](initial: => Set[A])(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
+  def makeSet[A](initial: => Set[A])(implicit
+    trace: ZTraceElement
+  ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
     ???
 
   sealed trait SetPatch[A] { self =>
@@ -343,23 +345,23 @@ object FiberRef {
 
     def apply(oldValue: Set[A]): Set[A] = {
 
-       @tailrec
-       def loop(set: Set[A], patches: List[SetPatch[A]]): Set[A] =
-         patches match {
-           case Add(a) :: patches =>
-             loop(set + a, patches)
-           case AndThen(first, second) :: patches =>
-             loop(set, first :: second :: patches)
-           case Empty() :: patches =>
-             loop(set, patches)
-           case Remove(a) :: patches =>
-             loop(set - a, patches)
-           case Nil =>
-             set
-         }
+      @tailrec
+      def loop(set: Set[A], patches: List[SetPatch[A]]): Set[A] =
+        patches match {
+          case Add(a) :: patches =>
+            loop(set + a, patches)
+          case AndThen(first, second) :: patches =>
+            loop(set, first :: second :: patches)
+          case Empty() :: patches =>
+            loop(set, patches)
+          case Remove(a) :: patches =>
+            loop(set - a, patches)
+          case Nil =>
+            set
+        }
 
-       loop(oldValue, List(self))
-     }
+      loop(oldValue, List(self))
+    }
 
     def combine(that: SetPatch[A]): SetPatch[A] =
       AndThen(self, that)
@@ -368,21 +370,20 @@ object FiberRef {
   object SetPatch {
 
     def diff[A](oldValue: Set[A], newValue: Set[A]): SetPatch[A] = {
-      val (removed, patch) = newValue.foldLeft[(Set[A], SetPatch[A])](oldValue -> empty) {
-          case ((set, patch), a) =>
-            if (set.contains(a)) (set - a, patch)
-            else (set, patch.combine(Add(a)))
-        }
-        removed.foldLeft(patch)((patch, a) => patch.combine(Remove(a)))
+      val (removed, patch) = newValue.foldLeft[(Set[A], SetPatch[A])](oldValue -> empty) { case ((set, patch), a) =>
+        if (set.contains(a)) (set - a, patch)
+        else (set, patch.combine(Add(a)))
       }
+      removed.foldLeft(patch)((patch, a) => patch.combine(Remove(a)))
+    }
 
     def empty[A]: SetPatch[A] =
       Empty[A]
 
-    final case class Add[A](value: A) extends SetPatch[A]
+    final case class Add[A](value: A)                                    extends SetPatch[A]
     final case class AndThen[A](first: SetPatch[A], second: SetPatch[A]) extends SetPatch[A]
-    final case class Empty[A]() extends SetPatch[A]
-    final case class Remove[A](value: A) extends SetPatch[A]
+    final case class Empty[A]()                                          extends SetPatch[A]
+    final case class Remove[A](value: A)                                 extends SetPatch[A]
   }
 
   private[zio] def unsafeMake[A](
@@ -440,7 +441,6 @@ object FiberRef {
       patch => value => patch(value),
       SetPatch.empty
     )
-
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
     FiberRef.unsafeMake(None, _ => None)

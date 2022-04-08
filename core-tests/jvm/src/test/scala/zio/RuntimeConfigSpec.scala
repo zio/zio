@@ -9,11 +9,11 @@ object RuntimeConfigSpec extends ZIOBaseSpec {
     suite("RuntimeConfigLive fatal:")(
       test("RuntimeConfig.fatal should identify a nonFatal exception") {
         val nonFatal = new Exception
-        assert(RuntimeConfig.default.fatal.exists(_.isInstance(nonFatal)))(isFalse)
+        assert(RuntimeConfig.default.isFatal(nonFatal))(isFalse)
       },
       test("RuntimeConfig.fatal should identify a fatal exception") {
         val fatal = new OutOfMemoryError
-        assert(RuntimeConfig.default.fatal.exists(_.isInstance(fatal)))(isTrue)
+        assert(RuntimeConfig.default.isFatal(fatal))(isTrue)
       }
     )
   )

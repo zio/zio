@@ -757,10 +757,10 @@ object TestAspect extends TimeoutVariants {
   }
 
   /**
-    * As aspect that runs each test with the specified `RuntimeConfigAspect`.
-    */
-   def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspectPoly =
-     fromZIOAspect(ZIOAspect.runtimeConfig(runtimeConfigAspect))
+   * As aspect that runs each test with the specified `RuntimeConfigAspect`.
+   */
+  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspectPoly =
+    fromZIOAspect(ZIOAspect.runtimeConfig(runtimeConfigAspect))
 
   /**
    * An aspect that runs each test with the number of sufficient samples to

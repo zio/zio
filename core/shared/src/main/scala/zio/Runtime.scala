@@ -234,7 +234,7 @@ trait Runtime[+R] {
                 }
               }
 
-              if (!runtimeConfig.fatal.exists(_.isInstance(t))) throw new ZIO.ZioError(Exit.die(t), trace0)
+              if (!runtimeConfig.isFatal(t)) throw new ZIO.ZioError(Exit.die(t), trace0)
               else runtimeConfig.reportFatal(t)
           }
         }

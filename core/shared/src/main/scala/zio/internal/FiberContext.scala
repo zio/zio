@@ -562,7 +562,7 @@ private[zio] final class FiberContext[E, A](
           case t: Throwable =>
             val fatal = unsafeGetFatal()
 
-            curZio = if (fatal.exists(_.isInstance(t))) {
+            curZio = if (fatal.exists(_.isAssignableFrom(t.getClass))) {
               catastrophicFailure.set(true)
               val reportFatal = unsafeGetReportFatal()
               reportFatal(t)
@@ -1032,7 +1032,7 @@ private[zio] final class FiberContext[E, A](
       } catch {
         case t: Throwable =>
           val fatal = unsafeGetFatal()
-          if (fatal.exists(_.isInstance(t))) {
+          if (fatal.exists(_.isAssignableFrom(t.getClass))) {
             val reportFatal = unsafeGetReportFatal()
             reportFatal(t)
           } else {

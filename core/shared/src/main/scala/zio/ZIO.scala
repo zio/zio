@@ -416,7 +416,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: ZTraceElement): ZIO[R1, E2, A1] = {
 
     def hh(e: E) =
-      ZIO.runtime[Any].flatMap(runtime => if (runtime.runtimeConfig.fatal.exists(_.isInstance(e))) ZIO.die(e) else h(e))
+      ZIO.runtime[Any].flatMap(runtime => if (runtime.runtimeConfig.isFatal(e)) ZIO.die(e) else h(e))
     self.foldZIO[R1, E2, A1](hh, ZIO.succeedNow)
   }
 
@@ -2691,7 +2691,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeedWith { (runtimeConfig, _) =>
       try effect
       catch {
-        case t: Throwable if !runtimeConfig.fatal.exists(_.isInstance(t)) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -4273,7 +4273,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith { (runtimeConfig, _) =>
       try rio
       catch {
-        case t: Throwable if !runtimeConfig.fatal.exists(_.isInstance(t)) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -4308,7 +4308,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith((runtimeConfig, fiberId) =>
       try f(runtimeConfig, fiberId)
       catch {
-        case t: Throwable if !runtimeConfig.fatal.exists(_.isInstance(t)) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     )
 
