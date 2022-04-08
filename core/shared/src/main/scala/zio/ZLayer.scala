@@ -206,7 +206,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * result of this layer.
    */
   final def memoize(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
-    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.Scoped[RIn, E, ROut](_))
+    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.scopedEnvironment[RIn](_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -332,6 +332,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     trace: ZTraceElement
   ): ZIO[Any, Nothing, ZLayer.MemoMap => ZIO[RIn, E, ZEnvironment[ROut]]] =
     self match {
+      case ZLayer.Apply(self) =>
+        ZIO.succeed(_ => self)
       case ZLayer.ExtendScope(self) =>
         ZIO.succeed { memoMap =>
           ZIO
@@ -369,6 +371,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 }
 
 object ZLayer extends ZLayerCompanionVersionSpecific {
+
+  private final case class Apply[-RIn, +E, +ROut](self: ZIO[RIn, E, ZEnvironment[ROut]]) extends ZLayer[RIn, E, ROut]
 
   private final case class ExtendScope[RIn <: Scope, E, ROut](self: ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
 
@@ -504,7 +508,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * A layer that does not produce any services.
    */
   val empty: ZLayer[Any, Nothing, Any] =
-    ZLayer.Scoped(ZIO.succeedNow(ZEnvironment.empty))
+    ZLayer.fromZIOEnvironment(ZIO.succeedNow(ZEnvironment.empty))(ZTraceElement.empty)
 
   /**
    * Constructs a layer that fails with the specified error.
@@ -1305,7 +1309,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ZLayer.Scoped[R, E, A](zio)
+    ZLayer.Apply[R, E, A](zio)
 
   /**
    * Constructs a layer that passes along the specified environment as an
@@ -1321,11 +1325,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * workflow.
    */
   val scope: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.Scoped[Any, Nothing, Scope.Closeable](
+    ZLayer.scopedEnvironment(
       ZIO
         .acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit))(ZTraceElement.empty)
         .map(ZEnvironment(_))(ZTraceElement.empty)
-    )
+    )(ZTraceElement.empty)
 
   /**
    * Constructs a layer from the specified scoped effect.

@@ -589,7 +589,9 @@ package object test extends CompileVariants {
     TestRunner(
       TestExecutor.default(
         testEnvironment,
-        Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+        TestLogger.fromConsole(
+          Console.ConsoleLive
+        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
       )
     )
   }

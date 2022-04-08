@@ -40,7 +40,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
@@ -149,7 +149,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.0.8")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.0")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
@@ -559,6 +559,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
   .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
+  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .dependsOn(core)
   .dependsOn(test)
 
@@ -686,7 +687,7 @@ lazy val benchmarks = project.module
         "co.fs2"                    %% "fs2-core"        % fs2Version,
         "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
         "com.twitter"               %% "util-core"       % "21.9.0",
-        "com.typesafe.akka"         %% "akka-stream"     % "2.6.16",
+        "com.typesafe.akka"         %% "akka-stream"     % "2.6.19",
         "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
         "io.projectreactor"          % "reactor-core"    % "3.4.11",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
