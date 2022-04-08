@@ -432,6 +432,9 @@ object TestAspect extends TimeoutVariants {
         test.fork.flatMap(_.join)
     }
 
+  /**
+   * As aspect that runs each test with the specified `ZIOAspect`.
+   */
   def fromZIOAspect[LowerR, UpperR, LowerE, UpperE](
     zioAspect: ZIOAspect[LowerR, UpperR, TestFailure[LowerE], TestFailure[UpperE], TestSuccess, TestSuccess]
   ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
