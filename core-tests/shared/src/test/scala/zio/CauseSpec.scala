@@ -138,6 +138,8 @@ object CauseSpec extends ZIOBaseSpec {
           val renderedCause    = Cause.stackless(cause).prettyPrint
           val squashed         = cause.squashTraceWith(identity)
 
+          println("renderedCause: " + renderedCause)
+
           assert(squashed)(
             equalTo(e) &&
               hasMessage(equalTo(throwableMessage)) &&
@@ -145,7 +147,7 @@ object CauseSpec extends ZIOBaseSpec {
               hasSuppressed(exists(hasMessage(equalTo(renderedCause))))
           )
         }
-      } @@ TestAspect.unix
+      }  // @@ TestAspect.unix // TODO Why does this fail on Windows?
     ),
     suite("stripSomeDefects")(
       test("returns `Some` with remaining causes") {
