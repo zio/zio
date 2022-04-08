@@ -24,4 +24,12 @@ final case class Summary(success: Int, fail: Int, ignore: Int, summary: String, 
 
   def add(executionEvent: ExecutionEvent)(implicit trace: ZTraceElement): Summary =
     SummaryBuilder.buildSummary(executionEvent, this)
+
+  def add(other: Summary)(implicit trace: ZTraceElement): Summary =
+    Summary(
+      success + other.success,
+      fail + other.fail,
+      ignore + other.ignore,
+      summary + other.summary
+    )
 }

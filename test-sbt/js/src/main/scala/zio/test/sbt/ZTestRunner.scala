@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs}
+import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -102,27 +102,18 @@ sealed class ZTestTask(
                        .provideLayer(
                          fullLayer
                        )
+          _ <- sendSummary.provide(ZLayer.succeed(summary))
           // TODO Confirm if/how these events needs to be handled in #6481
           //    Check XML behavior
           _ <- ZIO.when(summary.fail > 0) {
-                 val event = ZTestEvent(
-                   taskDef.fullyQualifiedName(),
-                   taskDef.selectors().head,
-                   Status.Failure,
-                   None,
-                   0L,
-                   taskDef.fingerprint()
-                 )
-                 ZIO.attempt(eventHandler.handle(event)) *>
-                   ZIO.fail(summary.summary)
+                 ZIO.fail("Failed tests")
                }
         } yield ()
       logic
-        .onError(e => ZIO.succeed(println(e.prettyPrint)))
     } { exit =>
       exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-        case _                   =>
+        case Exit.Failure(_) => Console.err.println(s"$runnerType failed.")
+        case _               =>
       }
       continuation(Array())
     }
