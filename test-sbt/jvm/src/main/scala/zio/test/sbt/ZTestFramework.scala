@@ -26,12 +26,12 @@ import sbt.testing._
  * Contains test logic and how it should be executed. The most important method
  * is:
  *
- * [[zio.test.ZIOSpecAbstract.runSpec]]
- *   - Runtime interaction
- *   - build TestRunner
- *   - fold aspects into logic
+ * `runSpec` is the most significant method in this class. It:
+ *   - Interacts with the Runtime
+ *   - Builds TestRunner
+ *   - Folds aspects into logic
  *   - Builds `TestExecutor` and passes spec to it
- *   - returns summary
+ *   - Returns summary
  *
  * [[zio.test.TestExecutor]]
  *
@@ -61,7 +61,7 @@ import sbt.testing._
  * [[zio.test.sbt.ZioSpecFingerprint]] What SBT needs to find your tests. Finds
  * `ZIOSpecAbstract` implementations in your codebase.
  *
- * [[zio.test.sbt.ZTestRunner]] extends [[Runner]]
+ * [[zio.test.sbt.ZTestRunner]] extends [[sbt.testing.Runner]]
  *
  * Receives all Specs found by the `FingerPrint` and merges them into a single
  * `ZTestTask`
@@ -69,7 +69,7 @@ import sbt.testing._
  * [[sbt.testing.Framework]] We need to implement this for SBT to recognize
  * ZIO-test as a legitimate test framework.
  *
- * [[zio.test.sbt.ZTestFramework]] extends [[Framework]] Defines
+ * [[zio.test.sbt.ZTestFramework]] extends [[sbt.testing.Framework]] Defines
  * `ZIOSpecFingerPrint` & `ZTestRunner` and passes them to SBT
  */
 final class ZTestFramework extends Framework {
