@@ -19,8 +19,6 @@ package zio
 import zio.internal.FiberScope
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.annotation.tailrec
-
 /**
  * A `FiberRef` is ZIO's equivalent of Java's `ThreadLocal`. The value of a
  * `FiberRef` is automatically propagated to child fibers when they are forked
@@ -289,6 +287,7 @@ trait FiberRef[A] extends Serializable { self =>
 }
 
 object FiberRef {
+  import Differ._
 
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
@@ -328,63 +327,15 @@ object FiberRef {
    */
   def makePatch[Value, Patch](
     initial: Value,
-    diff: (Value, Value) => Patch,
-    combine: (Patch, Patch) => Patch,
-    patch: Patch => Value => Value,
+    differ: Differ[Value, Patch],
     fork: Patch
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
-    makeWith(unsafeMakePatch(initial, diff, combine, patch, fork))
+    makeWith(unsafeMakePatch(initial, differ, fork))
 
   def makeSet[A](initial: => Set[A])(implicit
     trace: ZTraceElement
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
     makeWith(unsafeMakeSet(initial))
-
-  sealed trait SetPatch[A] { self =>
-    import SetPatch._
-
-    def apply(oldValue: Set[A]): Set[A] = {
-
-      @tailrec
-      def loop(set: Set[A], patches: List[SetPatch[A]]): Set[A] =
-        patches match {
-          case Add(a) :: patches =>
-            loop(set + a, patches)
-          case AndThen(first, second) :: patches =>
-            loop(set, first :: second :: patches)
-          case Empty() :: patches =>
-            loop(set, patches)
-          case Remove(a) :: patches =>
-            loop(set - a, patches)
-          case Nil =>
-            set
-        }
-
-      loop(oldValue, List(self))
-    }
-
-    def combine(that: SetPatch[A]): SetPatch[A] =
-      AndThen(self, that)
-  }
-
-  object SetPatch {
-
-    def diff[A](oldValue: Set[A], newValue: Set[A]): SetPatch[A] = {
-      val (removed, patch) = newValue.foldLeft[(Set[A], SetPatch[A])](oldValue -> empty) { case ((set, patch), a) =>
-        if (set.contains(a)) (set - a, patch)
-        else (set, patch.combine(Add(a)))
-      }
-      removed.foldLeft(patch)((patch, a) => patch.combine(Remove(a)))
-    }
-
-    def empty[A]: SetPatch[A] =
-      Empty()
-
-    final case class Add[A](value: A)                                    extends SetPatch[A]
-    final case class AndThen[A](first: SetPatch[A], second: SetPatch[A]) extends SetPatch[A]
-    final case class Empty[A]()                                          extends SetPatch[A]
-    final case class Remove[A](value: A)                                 extends SetPatch[A]
-  }
 
   private[zio] def unsafeMake[A](
     initial: A,
@@ -393,9 +344,7 @@ object FiberRef {
   ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
       initial,
-      (_, newValue) => _ => newValue,
-      (first, second) => value => second(first(value)),
-      patch => value => join(value, patch(value)),
+      Differ.update[A](join),
       fork
     )
 
@@ -404,31 +353,27 @@ object FiberRef {
   ): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
     unsafeMakePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
       initial,
-      ZEnvironment.Patch.diff,
-      _ combine _,
-      patch => value => patch(value),
+      Differ.environment,
       ZEnvironment.Patch.empty
     )
 
   private[zio] def unsafeMakePatch[Value0, Patch0](
     initialValue0: Value0,
-    diff0: (Value0, Value0) => Patch0,
-    combinePatch0: (Patch0, Patch0) => Patch0,
-    patch0: Patch0 => Value0 => Value0,
+    differ: Differ[Value0, Patch0],
     fork0: Patch0
   ): FiberRef.WithPatch[Value0, Patch0] =
     new FiberRef[Value0] {
       type Patch = Patch0
       def combine(first: Patch, second: Patch): Patch =
-        combinePatch0(first, second)
+        differ.combine(first, second)
       def diff(oldValue: Value, newValue: Value): Patch =
-        diff0(oldValue, newValue)
+        differ.diff(oldValue, newValue)
       def fork: Patch =
         fork0
       def initial: Value =
         initialValue0
       def patch(patch: Patch)(oldValue: Value): Value =
-        patch0(patch)(oldValue)
+        differ.patch(patch)(oldValue)
     }
 
   private[zio] def unsafeMakeSet[A](
@@ -436,9 +381,7 @@ object FiberRef {
   ): FiberRef.WithPatch[Set[A], SetPatch[A]] =
     unsafeMakePatch[Set[A], SetPatch[A]](
       initial,
-      SetPatch.diff,
-      _ combine _,
-      patch => value => patch(value),
+      Differ.set,
       SetPatch.empty
     )
 
