@@ -79,11 +79,12 @@ module.exports = {
             type: "category",
             label: "Synchronization",
             items: [
-                "datatypes/sync/concurrentmap",
-                "datatypes/sync/concurrentset",
+                "datatypes/sync/index",
+                "datatypes/sync/reentrantlock",
                 "datatypes/sync/countdownlatch",
                 "datatypes/sync/cyclicbarrier",
-                "datatypes/sync/reentrantlock",
+                "datatypes/sync/concurrentmap",
+                "datatypes/sync/concurrentset",
             ]
         },
         {
