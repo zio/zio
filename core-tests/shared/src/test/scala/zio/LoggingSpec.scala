@@ -57,7 +57,7 @@ object LoggingSpec extends ZIOBaseSpec {
         for {
           _      <- ZIO.log("It's alive!") @@ disableLogging
           output <- ZTestLogger.logOutput
-        } yield assertTrue(output.length == 0)
+        } yield assertTrue(output.isEmpty)
       },
       test("log annotations") {
         val key   = "key"
@@ -67,6 +67,17 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- ZTestLogger.logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).annotations(key) == value)
+      },
+      test("context capture") {
+        val value = "value"
+        ZIO.scoped(
+          for {
+            ref    <- FiberRef.make(value)
+            _      <- ZIO.log("It's alive!")
+            output <- ZTestLogger.logOutput
+          } yield assertTrue(output.length == 1) &&
+            assertTrue(output(0).context.get(ref).contains(value))
+        )
       }
     )
 }
