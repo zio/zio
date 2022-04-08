@@ -85,14 +85,20 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  def execute(continuation: Array[Task] => Unit): Unit = {
-    val zioSpec = spec
-    Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
-      ZIO.scoped {
-        zioSpec.run
-          .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
-          .onError(e => ZIO.succeed(println(e.prettyPrint)))
-      }
+  def execute(continuation: Array[Task] => Unit): Unit =
+    Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRunAsyncWith {
+      for {
+        summary <- ZIO.scoped {
+                     spec.run
+                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
+                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
+                   }
+        _ <- sendSummary.provide(ZLayer.succeed(summary))
+        _ <- (if (summary.fail > 0)
+                ZIO.fail(new Exception("Failed tests."))
+              else ZIO.unit)
+      } yield ()
+
     } { exit =>
       exit match {
         case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
@@ -100,7 +106,6 @@ sealed class ZTestTask(
       }
       continuation(Array())
     }
-  }
 }
 
 object ZTestTask {
