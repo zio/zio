@@ -122,5 +122,4 @@ class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
           Some(nextSpec)
       }
     }
-
 }

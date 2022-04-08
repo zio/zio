@@ -18,6 +18,60 @@ package zio.test.sbt
 
 import sbt.testing._
 
+/**
+ * =General Test Pieces=
+ *
+ * [[zio.test.ZIOSpecAbstract]]
+ *
+ * Contains test logic and how it should be executed. The most important method
+ * is:
+ *
+ * [[zio.test.ZIOSpecAbstract.runSpec]]
+ *   - Runtime interaction
+ *   - build TestRunner
+ *   - fold aspects into logic
+ *   - Builds `TestExecutor` and passes spec to it
+ *   - returns summary
+ *
+ * [[zio.test.TestExecutor]]
+ *
+ * Capable of executing specs that require an environment `R` and may fail with
+ * an `E` Recursively traverses tree of specs, executing suites/tests in
+ * parallel
+ *
+ * [[zio.test.TestRunner]]
+ *
+ * Encapsulates the logic necessary to run specs that require an environment `R`
+ * and may fail with an error `E`.
+ *
+ * ==SBT-specific pieces==
+ *
+ * [[sbt.testing.Task]]
+ *
+ * SBT needs everything packaged in these to run tests/suites
+ *
+ * [[zio.test.sbt.ZTestTask]] extends [[Task]]
+ *
+ * Contains a ZIOSpecAbstract and everything that SBT needs to run/report it.
+ *
+ * [[sbt.testing.Runner]]
+ *
+ * SBT delegates to `Runner` clients for managing/executing test
+ *
+ * [[zio.test.sbt.ZioSpecFingerprint]] What SBT needs to find your tests. Finds
+ * `ZIOSpecAbstract` implementations in your codebase.
+ *
+ * [[zio.test.sbt.ZTestRunner]] extends [[Runner]]
+ *
+ * Receives all Specs found by the `FingerPrint` and merges them into a single
+ * `ZTestTask`
+ *
+ * [[sbt.testing.Framework]] We need to implement this for SBT to recognize
+ * ZIO-test as a legitimate test framework.
+ *
+ * [[zio.test.sbt.ZTestFramework]] extends [[Framework]] Defines
+ * `ZIOSpecFingerPrint` & `ZTestRunner` and passes them to SBT
+ */
 final class ZTestFramework extends Framework {
   override val name: String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
