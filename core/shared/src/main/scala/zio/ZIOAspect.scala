@@ -201,24 +201,22 @@ object ZIOAspect {
    */
   def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-        ZIO.runtimeConfig.flatMap { runtimeConfig =>
-          FiberRef.currentBlockingExecutor.locally(runtimeConfig.blockingExecutor) {
-            FiberRef.currentExecutor.locally(runtimeConfig.executor) {
-              FiberRef.currentFatal.locally(runtimeConfig.fatal) {
-                FiberRef.currentLoggers.locally(runtimeConfig.loggers) {
-                  FiberRef.currentReportFatal.locally(runtimeConfig.reportFatal) {
-                    FiberRef.currentRuntimeConfigFlags.locally(runtimeConfig.flags) {
-                      FiberRef.currentSupervisors.locally(runtimeConfig.supervisors) {
-                        zio
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] = {
+
+        def setRuntimeConfig(runtimeConfig: => RuntimeConfig): UIO[Unit] =
+          FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
+            FiberRef.currentExecutor.set(runtimeConfig.executor) *>
+            FiberRef.currentFatal.set(runtimeConfig.fatal) *>
+            FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
+            FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
+            FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags) *>
+            FiberRef.currentSupervisors.set(runtimeConfig.supervisors)
+
+        ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
+          (setRuntimeConfig(runtimeConfigAspect(currentRuntimeConfig)) *> ZIO.yieldNow)
+            .acquireRelease(setRuntimeConfig(currentRuntimeConfig) *> ZIO.yieldNow, zio)
         }
+      }
     }
 
   /**
