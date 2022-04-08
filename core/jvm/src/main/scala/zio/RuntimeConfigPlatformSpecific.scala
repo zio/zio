@@ -38,7 +38,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
    * mainstream usage. Advanced users should consider making their own runtime
    * configuration customized for specific application requirements.
    */
-  val default: RuntimeConfig = makeDefault()
+  lazy val default: RuntimeConfig = makeDefault()
 
   /**
    * The default number of operations the ZIO runtime should execute before

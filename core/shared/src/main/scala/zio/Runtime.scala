@@ -344,11 +344,6 @@ trait Runtime[+R] {
   def withExecutor(e: Executor): Runtime[R] = mapRuntimeConfig(_.copy(executor = e))
 
   /**
-   * Constructs a new `Runtime` with the specified fatal predicate.
-   */
-  def withFatal(f: Throwable => Boolean): Runtime[R] = ???
-
-  /**
    * Constructs a new `Runtime` with the fatal error reporter.
    */
   def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
@@ -438,9 +433,6 @@ object Runtime {
 
     override final def withExecutor(e: Executor): Runtime.Scoped[R] =
       mapRuntimeConfig(_.copy(executor = e))
-
-    override final def withFatal(f: Throwable => Boolean): Runtime.Scoped[R] =
-      ???
 
     override final def withReportFatal(f: Throwable => Nothing): Runtime.Scoped[R] =
       mapRuntimeConfig(_.copy(reportFatal = f))

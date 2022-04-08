@@ -338,7 +338,7 @@ object FiberRef {
   def makeSet[A](initial: => Set[A])(implicit
     trace: ZTraceElement
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
-    ???
+    makeWith(unsafeMakeSet(initial))
 
   sealed trait SetPatch[A] { self =>
     import SetPatch._
