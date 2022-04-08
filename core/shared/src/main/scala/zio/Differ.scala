@@ -61,6 +61,18 @@ trait Differ[Value, Patch] extends Serializable { self =>
 
 object Differ {
 
+  def chunk[Value, Patch](differ: Differ[Value, Patch]): Differ[Chunk[Value], ChunkPatch[Value, Patch]] =
+    new Differ[Chunk[Value], ChunkPatch[Value, Patch]] {
+      def combine(first: ChunkPatch[Value, Patch], second: ChunkPatch[Value, Patch]): ChunkPatch[Value, Patch] =
+        first combine second
+      def diff(oldValue: Chunk[Value], newValue: Chunk[Value]): ChunkPatch[Value, Patch] =
+        ChunkPatch.diff(oldValue, newValue)(differ)
+      def empty: ChunkPatch[Value, Patch] =
+        ChunkPatch.empty
+      def patch(patch: ChunkPatch[Value, Patch])(oldValue: Chunk[Value]): Chunk[Value] =
+        patch(oldValue)(differ)
+    }
+
   def environment[A]: Differ[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
     new Differ[ZEnvironment[A], ZEnvironment.Patch[A, A]] {
       def combine(first: ZEnvironment.Patch[A, A], second: ZEnvironment.Patch[A, A]): ZEnvironment.Patch[A, A] =
@@ -97,6 +109,147 @@ object Differ {
       def patch(patch: SetPatch[A])(oldValue: Set[A]): Set[A] =
         patch(oldValue)
     }
+
+  def map[Key, Value, Patch](differ: Differ[Value, Patch]): Differ[Map[Key, Value], MapPatch[Key, Value, Patch]] =
+    new Differ[Map[Key, Value], MapPatch[Key, Value, Patch]] {
+      def combine(
+        first: MapPatch[Key, Value, Patch],
+        second: MapPatch[Key, Value, Patch]
+      ): MapPatch[Key, Value, Patch] =
+        first combine second
+      def diff(oldValue: Map[Key, Value], newValue: Map[Key, Value]): MapPatch[Key, Value, Patch] =
+        MapPatch.diff(oldValue, newValue)(differ)
+
+      def empty: MapPatch[Key, Value, Patch] =
+        MapPatch.empty
+
+      def patch(patch: MapPatch[Key, Value, Patch])(oldValue: Map[Key, Value]): Map[Key, Value] =
+        patch(oldValue)
+    }
+
+  sealed trait ChunkPatch[Value, Patch] { self =>
+    import ChunkPatch._
+
+    def apply(oldValue: Chunk[Value])(differ: Differ[Value, Patch]): Chunk[Value] = {
+
+      @tailrec
+      def loop(chunk: Chunk[Value], patches: List[ChunkPatch[Value, Patch]]): Chunk[Value] =
+        patches match {
+          case Append(values) :: patches =>
+            loop(chunk ++ values, patches)
+          case AndThen(first, second) :: patches =>
+            loop(chunk, first :: second :: patches)
+          case Empty() :: patches =>
+            loop(chunk, patches)
+          case Slice(from, until) :: patches =>
+            loop(chunk.slice(from, until), patches)
+          case Update(index, patch) :: patches =>
+            loop(chunk.updated(index, differ.patch(patch)(chunk(index))), patches)
+          case Nil =>
+            chunk
+        }
+
+      loop(oldValue, List(self))
+    }
+
+    def combine(that: ChunkPatch[Value, Patch]): ChunkPatch[Value, Patch] =
+      AndThen(self, that)
+  }
+
+  object ChunkPatch {
+
+    def diff[Value, Patch](oldValue: Chunk[Value], newValue: Chunk[Value])(
+      differ: Differ[Value, Patch]
+    ): ChunkPatch[Value, Patch] = {
+      var i           = 0
+      val oldIterator = oldValue.chunkIterator
+      val newIterator = newValue.chunkIterator
+      var patch       = empty[Value, Patch]
+      while (oldIterator.hasNextAt(i) && newIterator.hasNextAt(i)) {
+        val oldValue   = oldIterator.nextAt(i)
+        val newValue   = newIterator.nextAt(i)
+        val valuePatch = differ.diff(oldValue, newValue)
+        if (valuePatch != empty) { patch = patch combine Update(i, valuePatch) }
+        i += 1
+      }
+      if (oldIterator.hasNextAt(i)) {
+        patch combine Slice(0, i)
+      }
+      if (newIterator.hasNextAt(i)) {
+        patch combine Append(newValue.drop(i))
+      }
+      patch
+    }
+
+    def empty[Value, Patch]: ChunkPatch[Value, Patch] =
+      Empty()
+
+    final case class Append[Value, Patch](values: Chunk[Value])     extends ChunkPatch[Value, Patch]
+    final case class Slice[Value, Patch](from: Int, until: Int)     extends ChunkPatch[Value, Patch]
+    final case class Update[Value, Patch](index: Int, patch: Patch) extends ChunkPatch[Value, Patch]
+    final case class AndThen[Value, Patch](first: ChunkPatch[Value, Patch], second: ChunkPatch[Value, Patch])
+        extends ChunkPatch[Value, Patch]
+    final case class Empty[Value, Patch]() extends ChunkPatch[Value, Patch]
+  }
+
+  sealed trait MapPatch[Key, Value, Patch] { self =>
+    import MapPatch._
+
+    def apply(oldValue: Map[Key, Value]): Map[Key, Value] = {
+
+      @tailrec
+      def loop(map: Map[Key, Value], patches: List[MapPatch[Key, Value, Patch]]): Map[Key, Value] =
+        patches match {
+          case Add(key, value) :: patches =>
+            loop(map + ((key, value)), patches)
+          case AndThen(first, second) :: patches =>
+            loop(map, first :: second :: patches)
+          case Empty() :: patches =>
+            loop(map, patches)
+          case Remove(key) :: patches =>
+            loop(map - key, patches)
+          case Nil =>
+            map
+        }
+
+      loop(oldValue, List(self))
+    }
+
+    def combine(that: MapPatch[Key, Value, Patch]): MapPatch[Key, Value, Patch] =
+      AndThen(self, that)
+  }
+
+  object MapPatch {
+
+    def diff[Key, Value, Patch](oldValue: Map[Key, Value], newValue: Map[Key, Value])(
+      differ: Differ[Value, Patch]
+    ): MapPatch[Key, Value, Patch] = {
+      val (removed, patch) = newValue.foldLeft[(Map[Key, Value], MapPatch[Key, Value, Patch])](oldValue -> empty) {
+        case ((map, patch), (key, newValue)) =>
+          map.get(key) match {
+            case Some(oldValue) =>
+              val valuePatch = differ.diff(oldValue, newValue)
+              if (valuePatch == empty)
+                map - key -> patch
+              else
+                map - key -> patch.combine(Update(key, valuePatch))
+            case _ =>
+              map - key -> patch.combine(Add(key, newValue))
+          }
+      }
+      removed.foldLeft(patch) { case (patch, (key, _)) => patch.combine(Remove(key)) }
+    }
+
+    def empty[Key, Value, Patch]: MapPatch[Key, Value, Patch] =
+      Empty()
+
+    final case class Add[Key, Value, Patch](key: Key, value: Value)    extends MapPatch[Key, Value, Patch]
+    final case class Remove[Key, Value, Patch](key: Key)               extends MapPatch[Key, Value, Patch]
+    final case class Update[Key, Value, Patch](key: Key, patch: Patch) extends MapPatch[Key, Value, Patch]
+    final case class Empty[Key, Value, Patch]()                        extends MapPatch[Key, Value, Patch]
+    final case class AndThen[Key, Value, Patch](first: MapPatch[Key, Value, Patch], second: MapPatch[Key, Value, Patch])
+        extends MapPatch[Key, Value, Patch]
+  }
 
   sealed trait OrPatch[Value, Value2, Patch, Patch2] { self =>
     import OrPatch._
