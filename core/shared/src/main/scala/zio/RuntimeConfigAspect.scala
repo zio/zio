@@ -18,13 +18,14 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
+final case class RuntimeConfigAspect private (customize: RuntimeConfig => RuntimeConfig)
     extends (RuntimeConfig => RuntimeConfig) { self =>
   def apply(p: RuntimeConfig): RuntimeConfig = customize(p)
 
   def >>>(that: RuntimeConfigAspect): RuntimeConfigAspect = RuntimeConfigAspect(self.customize.andThen(that.customize))
 }
-object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeConfigAspect) {
+
+object RuntimeConfigAspect extends {
 
   def addLogger(logger: ZLogger[String, Any]): RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(loggers = self.loggers + logger))
