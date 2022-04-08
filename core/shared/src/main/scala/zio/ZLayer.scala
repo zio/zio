@@ -1327,7 +1327,9 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   val scope: ZLayer[Any, Nothing, Scope.Closeable] =
     ZLayer.scopedEnvironment(
       ZIO
-        .acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit))(ZTraceElement.empty)
+        .acquireReleaseExit(Scope.make(ZTraceElement.empty))((scope, exit) => scope.close(exit)(ZTraceElement.empty))(
+          ZTraceElement.empty
+        )
         .map(ZEnvironment(_))(ZTraceElement.empty)
     )(ZTraceElement.empty)
 
