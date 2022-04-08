@@ -374,7 +374,7 @@ trait Runtime[+R] {
       children
     )
 
-    FiberScope.global.unsafeAdd(runtimeConfig.flags, context)
+    FiberScope.global.unsafeAdd(runtimeConfig.flags(RuntimeConfigFlag.EnableFiberRoots), context)
 
     runtimeConfig.supervisors.foreach { supervisor =>
       supervisor.unsafeOnStart(environment, zio, None, context)
