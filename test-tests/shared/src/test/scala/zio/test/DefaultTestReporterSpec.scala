@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.test.AssertionResult.FailureDetailsResult
 import zio.{ZIO, ZTrace}
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect._
@@ -49,7 +50,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         }
       ),
       suite("Runtime exception reporting")(
-        test("does not swallow error") (
+        test("ExecutionEvent.RuntimeFailure  Runtime does not swallow error") (
           for {
             result <- ZIO.succeed(DefaultTestReporter.render(
               ExecutionEvent.RuntimeFailure(
@@ -60,6 +61,32 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
               ),
               true
             ))
+            _ <- ZIO.debug(result)
+          } yield assertCompletes
+        ),
+        test("ExecutionEvent.RuntimeFailure  Assertion does not swallow error") (
+          for {
+            result <- ZIO.succeed(DefaultTestReporter.render(
+              ExecutionEvent.RuntimeFailure(
+                SuiteId(1),
+                labelsReversed = List("label"),
+                failure = TestFailure.assertion(
+                  BoolAlgebra.success {
+                    FailureDetailsResult(
+                      FailureDetails(
+                        ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
+                      )
+                    )
+                  }
+                ),
+                /*
+
+                 */
+                ancestors = List.empty
+              ),
+              true
+            ))
+            _ <- testConsole.debug("")
             _ <- ZIO.debug(result)
           } yield assertCompletes
         )
