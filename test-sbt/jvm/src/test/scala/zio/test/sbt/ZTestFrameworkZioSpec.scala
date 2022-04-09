@@ -4,7 +4,7 @@ import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
 import zio.test.Summary
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleSpec}
+import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec}
 import zio.test.sbt.TestingSupport.{green, red}
 //import zio.test.sbt.TestingSupport.{blue, cyan, red}
 import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
@@ -18,7 +18,6 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         output <- testOutput
       } yield assertTrue(output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored."))
     ),
-    // TODO Get this enabled
     test("displays runtime exceptions helpfully")(
       for {
         _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec.getClass.getName)).flip
@@ -29,6 +28,18 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         output.mkString("").contains("Good luck ;)")
       )
     ),
+    test("displays runtime exceptions during spec layer construction")(
+      for {
+        _      <- loadAndExecuteAll(Seq(RuntimeExceptionDuringLayerConstructionSpec.getClass.getName)).flip
+        output <- testOutput
+      } yield assertTrue(
+        output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
+      ) && assertTrue(
+        output.mkString("").contains("Good luck ;)")
+      )
+    ),
+
+
     test("ensure shared layers are not re-initialized")(
       for {
         _ <- loadAndExecuteAll(

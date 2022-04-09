@@ -4,6 +4,7 @@ import sbt.testing.{Event, EventHandler}
 import zio.{ZIO, ZLayer}
 import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOSpecDefault, assertCompletes}
 
+import java.net.BindException
 import java.util.concurrent.atomic.AtomicInteger
 
 object FrameworkSpecInstances {
@@ -41,6 +42,20 @@ object FrameworkSpecInstances {
           assertCompletes
         }
       )
+  }
+
+  object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpecDefault {
+    override val layer = ZLayer.succeed{
+      throw new BindException("Other Kafka container already grabbed your port")
+    }
+
+    def spec = {
+      suite("kafka suite")(
+        test("does stuff with a live kafka cluster") {
+          assertCompletes
+        }
+      )
+    }
   }
 
   lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
