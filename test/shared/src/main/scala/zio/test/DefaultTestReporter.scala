@@ -158,7 +158,7 @@ object DefaultTestReporter {
         failure match {
           case TestFailure.Assertion(result) =>
             Seq(renderAssertFailure(result, label, depth))
-          case TestFailure.Runtime(cause)   =>
+          case TestFailure.Runtime(cause) =>
             Seq(renderRuntimeCause(cause, label, depth, includeCause))
         }
       case SectionEnd(_, _, _) =>
