@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.{ZIO, ZTrace}
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect._
 
@@ -46,6 +47,23 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         test("negated failures") {
           runLog(test8).map(res => test8Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
         }
+      ),
+      suite("Runtime exception reporting")(
+        test("does not swallow error") (
+          for {
+            result <- ZIO.succeed(DefaultTestReporter.render(
+              ExecutionEvent.RuntimeFailure(
+                SuiteId(1),
+                labelsReversed = List("label"),
+                failure = TestFailure.failCause(zio.Cause.Die(new RuntimeException("boom"), ZTrace.none)),
+                ancestors = List.empty
+              ),
+              true
+            ))
+            _ <- ZIO.debug(result)
+          } yield assertCompletes
+        )
+
       )
     ) @@ silent
 }
