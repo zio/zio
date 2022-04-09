@@ -52,7 +52,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     self.orDie
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.unionAll[ROut2](_))
 
@@ -61,7 +61,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * has the inputs and outputs of = both.
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.union[ROut2](_))
 
@@ -69,7 +69,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * A symbolic alias for `orElse`.
    */
   def <>[RIn1 <: RIn, E1, ROut1 >: ROut](
-    that: ZLayer[RIn1, E1, ROut1]
+    that: => ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     self.orElse(that)
 
@@ -77,7 +77,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * A named alias for `++`.
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
@@ -85,7 +85,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * A named alias for `>+>`.
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(implicit
     tagged: EnvironmentTag[ROut2],
     trace: ZTraceElement
@@ -96,7 +96,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Builds a layer into a scoped value.
    */
   final def build(implicit trace: ZTraceElement): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
-    ZIO.serviceWithZIO[Scope](build)
+    ZIO.serviceWithZIO[Scope](build(_))
 
   /**
    * Builds a layer into a ZIO value. Any resources associated with this layer
@@ -105,7 +105,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * the services output by the layer exceed the lifetime of the effect the
    * layer is provided to.
    */
-  final def build(scope: Scope)(implicit trace: ZTraceElement): ZIO[RIn, E, ZEnvironment[ROut]] =
+  final def build(scope: => Scope)(implicit trace: ZTraceElement): ZIO[RIn, E, ZEnvironment[ROut]] =
     for {
       memoMap <- ZLayer.MemoMap.make
       run     <- self.scope(scope)
@@ -135,7 +135,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
     f: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
-    foldLayer(ZLayer.fail, f)
+    foldLayer(ZLayer.fail(_), f)
 
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
     tag: Tag[ROut1],
@@ -153,7 +153,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     failure: E => ZLayer[RIn1, E1, ROut2],
     success: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
-    foldCauseLayer(_.failureOrCause.fold(failure, ZLayer.failCause), success)
+    foldCauseLayer(_.failureOrCause.fold(failure, ZLayer.failCause(_)), success)
 
   /**
    * Feeds the error or output services of this layer into the input of either
@@ -184,7 +184,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def launch(implicit trace: ZTraceElement): ZIO[RIn, E, Nothing] =
     ZIO.scoped[RIn] {
-      ZIO.serviceWithZIO[Scope](build) *> ZIO.never
+      ZIO.serviceWithZIO[Scope](build(_)) *> ZIO.never
     }
 
   /**
@@ -206,7 +206,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * result of this layer.
    */
   final def memoize(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
-    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.scopedEnvironment[RIn](_))
+    ZIO.serviceWithZIO[Scope](build(_)).memoize.map(ZLayer.scopedEnvironment[RIn](_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -224,7 +224,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * executes the specified layer.
    */
   final def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](
-    that: ZLayer[RIn1, E1, ROut1]
+    that: => ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     catchAll(_ => that)
 
@@ -232,28 +232,31 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Retries constructing this layer according to the specified schedule.
    */
   final def retry[RIn1 <: RIn](
-    schedule: Schedule[RIn1, E, Any]
-  )(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] = {
-    import Schedule.Decision._
+    schedule0: => Schedule[RIn1, E, Any]
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] =
+    ZLayer.suspend {
+      import Schedule.Decision._
 
-    case class State(state: schedule.State)
+      val schedule = schedule0
 
-    def update(e: E, s: schedule.State): ZLayer[RIn1, E, State] =
-      ZLayer.fromZIO {
-        Clock.currentDateTime.flatMap { now =>
-          schedule.step(now, e, s).flatMap {
-            case (_, _, Done) => ZIO.fail(e)
-            case (state, _, Continue(interval)) =>
-              Clock.sleep(Duration.fromInterval(now, interval.start)).as(State(state))
+      case class State(state: schedule.State)
+
+      def update(e: E, s: schedule.State): ZLayer[RIn1, E, State] =
+        ZLayer.fromZIO {
+          Clock.currentDateTime.flatMap { now =>
+            schedule.step(now, e, s).flatMap {
+              case (_, _, Done) => ZIO.fail(e)
+              case (state, _, Continue(interval)) =>
+                Clock.sleep(Duration.fromInterval(now, interval.start)).as(State(state))
+            }
           }
         }
-      }
 
-    def loop(s: schedule.State): ZLayer[RIn1, E, ROut] =
-      self.catchAll(update(_, s).flatMap(environment => loop(environment.get.state).fresh))
+      def loop(s: schedule.State): ZLayer[RIn1, E, ROut] =
+        self.catchAll(update(_, s).flatMap(environment => loop(environment.get.state).fresh))
 
-    ZLayer.succeed(State(schedule.initial)).flatMap(environment => loop(environment.get.state))
-  }
+      ZLayer.succeed(State(schedule.initial)).flatMap(environment => loop(environment.get.state))
+    }
 
   /**
    * Performs the specified effect if this layer succeeds.
@@ -274,7 +277,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   /**
    * A named alias for `>>>`.
    */
-  final def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit
+  final def to[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E1, ROut2] =
     self >>> that
@@ -287,7 +290,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): ZIO[Scope, E, Runtime[ROut]] =
     ZIO
-      .serviceWithZIO[Scope](build)
+      .serviceWithZIO[Scope](build(_))
       .provideSomeEnvironment[Scope](ZEnvironment.empty.upcast(ev).union[Scope](_))
       .map(Runtime(_, runtimeConfig))
 
@@ -315,9 +318,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * function.
    */
   final def zipWithPar[E1 >: E, RIn2, ROut1 >: ROut, ROut2, ROut3](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(f: (ZEnvironment[ROut], ZEnvironment[ROut2]) => ZEnvironment[ROut3]): ZLayer[RIn with RIn2, E1, ROut3] =
-    ZLayer.ZipWithPar(self, that, f)
+    ZLayer.suspend(ZLayer.ZipWithPar(self, that, f))
 
   /**
    * Returns whether this layer is a fresh version that will not be shared.
@@ -403,7 +406,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from an effectual resource.
    */
-  def apply[RIn, E, ROut: Tag](zio: ZIO[RIn, E, ROut])(implicit
+  def apply[RIn, E, ROut: Tag](zio: => ZIO[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
@@ -490,7 +493,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * into a single ZLayer containing an equivalent collection of results.
    */
   def collectAll[R, E, A: Tag, Collection[+Element] <: Iterable[Element]](
-    in: Collection[ZLayer[R, E, A]]
+    in: => Collection[ZLayer[R, E, A]]
   )(implicit
     tag: Tag[Collection[A]],
     bf: BuildFrom[Collection[ZLayer[R, E, A]], A, Collection[A]],
@@ -501,7 +504,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that dies with the specified throwable.
    */
-  final def die(t: Throwable)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Nothing] =
+  final def die(t: => Throwable)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Nothing] =
     ZLayer.failCause(Cause.die(t))
 
   /**
@@ -513,13 +516,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer that fails with the specified error.
    */
-  def fail[E](e: E)(implicit trace: ZTraceElement): Layer[E, Nothing] =
+  def fail[E](e: => E)(implicit trace: ZTraceElement): Layer[E, Nothing] =
     failCause(Cause.fail(e))
 
   /**
    * Constructs a layer that fails with the specified cause.
    */
-  def failCause[E](cause: Cause[E])(implicit trace: ZTraceElement): Layer[E, Nothing] =
+  def failCause[E](cause: => Cause[E])(implicit trace: ZTraceElement): Layer[E, Nothing] =
     ZLayer(ZIO.failCause(cause))
 
   /**
@@ -527,19 +530,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * the results in a new `Collection[B]`.
    */
   def foreach[R, E, A, B: Tag, Collection[+Element] <: Iterable[Element]](
-    in: Collection[A]
+    in: => Collection[A]
   )(f: A => ZLayer[R, E, B])(implicit
     tag: Tag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
-  ): ZLayer[R, E, Collection[B]] = {
-    val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
-    in
-      .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
-        io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
-      )
-      .map(environment => ZEnvironment(environment.get.result()))
-  }
+  ): ZLayer[R, E, Collection[B]] =
+    ZLayer.suspend {
+      val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
+      in
+        .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
+          io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
+        )
+        .map(environment => ZEnvironment(environment.get.result()))
+    }
 
   /**
    * Constructs a layer using the specified function.
@@ -1297,7 +1301,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the specified effect.
    */
-  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
+  def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromZIOEnvironment(zio.map(ZEnvironment(_)))
@@ -1306,10 +1310,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect, which must return one or more
    * services.
    */
-  def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
+  def fromZIOEnvironment[R, E, A](zio: => ZIO[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ZLayer.Apply[R, E, A](zio)
+    ZLayer.suspend(ZLayer.Apply[R, E, A](zio))
 
   /**
    * Constructs a layer that passes along the specified environment as an
@@ -1354,15 +1358,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tag](a: A)(implicit trace: ZTraceElement): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeedNow(ZEnvironment(a)))
+  def succeed[A: Tag](a: => A)(implicit trace: ZTraceElement): ULayer[A] =
+    ZLayer.fromZIOEnvironment(ZIO.succeed(ZEnvironment(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedEnvironment[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeedNow(a))
+  def succeedEnvironment[A](a: => ZEnvironment[A])(implicit trace: ZTraceElement): ULayer[A] =
+    ZLayer.fromZIOEnvironment(ZIO.succeed(a))
 
   /**
    * Lazily constructs a layer. This is useful to avoid infinite recursion when
@@ -1525,7 +1529,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def apply[E, A](zio: => ZIO[Scope with R, E, ZEnvironment[A]])(implicit
       trace: ZTraceElement
     ): ZLayer[R, E, A] =
-      Scoped[R, E, A](zio)
+      ZLayer.suspend(ZLayer.Scoped[R, E, A](zio))
   }
 
   implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
@@ -1550,19 +1554,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * any leftover inputs, and the outputs of the specified layer.
      */
     def >>>[RIn2, E1 >: E, ROut2](
-      that: ZLayer[ROut with RIn2, E1, ROut2]
+      that: => ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit tag: EnvironmentTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
-      ZLayer.To(ZLayer.environment[RIn2] ++ self, that)
+      ZLayer.suspend(ZLayer.To(ZLayer.environment[RIn2] ++ self, that))
 
     /**
      * Feeds the output services of this layer into the input of the specified
      * layer, resulting in a new layer with the inputs of this layer as well as
      * any leftover inputs, and the outputs of the specified layer.
      */
-    def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit
+    def >>>[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2])(implicit
       trace: ZTraceElement
     ): ZLayer[RIn, E1, ROut2] =
-      ZLayer.To(self, that)
+      ZLayer.suspend(ZLayer.To(self, that))
 
     /**
      * Feeds the output services of this layer into the input of the specified
@@ -1570,7 +1574,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * outputs of both layers.
      */
     def >+>[RIn2, E1 >: E, ROut2](
-      that: ZLayer[ROut with RIn2, E1, ROut2]
+      that: => ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit
       tagged: EnvironmentTag[ROut],
       tagged2: EnvironmentTag[ROut2],
@@ -1584,7 +1588,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * outputs of both layers.
      */
     def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-      that: ZLayer[RIn2, E1, ROut2]
+      that: => ZLayer[RIn2, E1, ROut2]
     )(implicit
       tagged: EnvironmentTag[ROut2],
       trace: ZTraceElement
