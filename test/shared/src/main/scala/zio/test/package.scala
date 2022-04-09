@@ -207,7 +207,8 @@ package object test extends CompileVariants {
      */
     def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult])(implicit
       trace: ZTraceElement
-    ): ZIO[R, TestFailure[E], TestSuccess] =
+    ): ZIO[R, TestFailure[E], TestSuccess] = {
+      println("About to build with our effectual assertion")
       ZIO
         .suspendSucceed(assertion)
         .daemonChildren
@@ -232,12 +233,30 @@ package object test extends CompileVariants {
           }
         }
         .foldCauseZIO(
-          cause => ZIO.fail(TestFailure.Runtime(cause)),
+          cause =>
+            cause match {
+              case Cause.Die(value, trace) => {
+                implicit val t = (ZTraceElement.empty)
+                println("die cause: "  + value.getCause)
+                if(
+                 value.getCause != null
+                ) ZIO.fail(TestFailure.die(value.getCause))
+                else
+                  ZIO.fail(TestFailure.die(value))
+              }
+              case _ => ???
+            },
           _.failures match {
             case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+            case Some(failures) =>
+              ZIO.fail(TestFailure.Assertion(failures))
           }
         )
+    }.catchSome {
+      case  ex: ExceptionInInitializerError =>
+        ZIO.debug("Caught exception in initializer") *>
+        ZIO.fail(TestFailure.die(ex))
+    }
   }
 
   /**
