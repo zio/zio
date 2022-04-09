@@ -124,7 +124,7 @@ object Differ {
         MapPatch.empty
 
       def patch(patch: MapPatch[Key, Value, Patch])(oldValue: Map[Key, Value]): Map[Key, Value] =
-        patch(oldValue)
+        patch(oldValue)(differ)
     }
 
   sealed trait ChunkPatch[Value, Patch] { self =>
@@ -195,7 +195,7 @@ object Differ {
   sealed trait MapPatch[Key, Value, Patch] { self =>
     import MapPatch._
 
-    def apply(oldValue: Map[Key, Value]): Map[Key, Value] = {
+    def apply(oldValue: Map[Key, Value])(differ: Differ[Value, Patch]): Map[Key, Value] = {
 
       @tailrec
       def loop(map: Map[Key, Value], patches: List[MapPatch[Key, Value, Patch]]): Map[Key, Value] =
@@ -208,6 +208,8 @@ object Differ {
             loop(map, patches)
           case Remove(key) :: patches =>
             loop(map - key, patches)
+          case Update(key, patch) :: patches =>
+            loop(map.get(key).fold(map)(oldValue => map.updated(key, differ.patch(patch)(oldValue))), patches)
           case Nil =>
             map
         }
