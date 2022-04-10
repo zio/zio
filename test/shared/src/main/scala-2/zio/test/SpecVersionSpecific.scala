@@ -5,7 +5,7 @@ import zio.internal.macros.LayerMacros
 
 private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
 
-  type ZSpec[R, E, T] = Spec[R, E]
+  type ZSpec[-R, +E, +T] = Spec[R, E]
 
   /**
    * Automatically assembles a layer for the spec, translating it up a level.
@@ -95,7 +95,7 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
 
 private final class provideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
 
-  type ZSpec[-R, +E, +A] = Spec[R, E]
+  type ZSpec[-R, +E, +T] = Spec[R, E]
 
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
@@ -108,13 +108,11 @@ private final class provideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]
 
 private final class provideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
 
-  type ZSpec[-R, +E, +A] = Spec[R, E]
-
   def provideLayerShared[E1 >: E](
     layer: ZLayer[R0, E1, R]
   ): Spec[R0, E1] =
     self.provideLayerShared(layer)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZSpec[R0, E1, TestSuccess] =
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]
 }

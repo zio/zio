@@ -8,7 +8,7 @@ import scala.reflect.macros.blackbox
 
 class SpecLayerMacros(val c: blackbox.Context) extends LayerMacroUtils {
 
-  private type ZSpec[-R, +E, +T] = Spec[R, E]
+  type ZSpec[-R, +E, +T] = Spec[R, E]
 
   def provideSharedImpl[R: c.WeakTypeTag, E](
     layer: c.Expr[ZLayer[_, E, _]]*
