@@ -17,7 +17,7 @@ title: "Ref"
 
 
 ## Operations
-Though `Ref` has many operations, here we will introduce the most important, or common ones.
+Though `Ref` has many operations, here we will introduce the most common and important ones.
 
 ### make
 `Ref` is never empty, it always contains something. We can create a `Ref` by providing the initial value to its `make` method, a constructor of the `Ref` data type. We should pass an **immutable value** of type `A` to the constructor, and it returns an `UIO[Ref[A]]` value:
