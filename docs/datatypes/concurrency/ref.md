@@ -209,7 +209,7 @@ def request(counter: Ref[Int]) = {
   } yield ()
 }
 ```
-What happens if between running the update and get, another update in another fiber occurred? We would see that this function doesn't perform in a deterministic fashion in concurrent environments. So we need a way to perform a combination of **get, set, get** atomically. This is where `modify` comes in. Here we will edit `request` to use `modify`:
+What happens if, between running `update` and `get`, a second `update` occurs on another fiber? This would not behave deterministically in concurrent environments. So we need a way to perform a combination of **get, set, get** atomically. This is where `modify` comes in. Here we will edit `request` to use `modify`:
 
 ```scala mdoc:silent:nest
 // Safe in Concurrent Environment
