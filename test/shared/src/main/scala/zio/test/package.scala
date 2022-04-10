@@ -241,12 +241,6 @@ package object test extends CompileVariants {
   }
 
   /**
-   * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
-   * test type is a ZIO effect that requires an `R` and might fail with an `E`.
-   */
-  type ZSpec[-R, +E] = Spec[R, E]
-
-  /**
    * An `Annotated[A]` contains a value of type `A` along with zero or more test
    * annotations.
    */

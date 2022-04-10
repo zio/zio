@@ -13,7 +13,7 @@ object CleanCodePrinterSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec: Spec[Environment, Failure] =
     suite("AutoLayerSpec")(
       suite(".showTree") {
         test("prints trees for expressions") {

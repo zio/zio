@@ -58,7 +58,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   lazy val getDescription: Description = {
     val description = Description.createSuiteDescription(className)
     def traverse[R, E](
-      spec: ZSpec[R, E],
+      spec: Spec[R, E],
       description: Description,
       path: Vector[String] = Vector.empty
     ): ZIO[R with Scope, Any, Unit] =
@@ -93,7 +93,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   override def run(notifier: RunNotifier): Unit = {
     val _ = zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
 
-      val instrumented: ZSpec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
+      val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
         .runSpec(
@@ -144,9 +144,9 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   }
 
   private def instrumentSpec[R, E](
-    zspec: ZSpec[R, E],
+    zspec: Spec[R, E],
     notifier: JUnitNotifier
-  ): ZSpec[R, E] = {
+  ): Spec[R, E] = {
     type ZSpecCase = Spec.SpecCase[R, E, Spec[R, E]]
     def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess]) =
       notifier.fireTestStarted(label, path) *> test.tapBoth(

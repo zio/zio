@@ -318,7 +318,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * {{{
    * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   * val spec: Spec[TestEnvironment with Logging, Nothing] = ???
    *
    * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
@@ -338,7 +338,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * {{{
    * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
    *
-   * val spec: ZSpec[TestEnvironment with Logging, Nothing] = ???
+   * val spec: Spec[TestEnvironment with Logging, Nothing] = ???
    *
    * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
@@ -413,7 +413,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: Spec[Clock with Random, Nothing] = ???
    *
    * val spec2 = spec.provideSomeLayer[Random](clockLayer)
    * }}}
@@ -429,7 +429,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * {{{
    * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
    *
-   * val spec: ZSpec[Clock with Random, Nothing] = ???
+   * val spec: Spec[Clock with Random, Nothing] = ???
    *
    * val spec2 = spec.provideSomeLayerShared[Random](clockLayer)
    * }}}

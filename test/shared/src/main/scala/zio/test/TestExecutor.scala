@@ -25,7 +25,7 @@ import zio.{ExecutionStrategy, ZIO, ZTraceElement}
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
+  def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
   ): UIO[Summary]
 
@@ -38,7 +38,7 @@ object TestExecutor {
     env: ZLayer[Scope, Nothing, R],
     sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
+    def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
     ): UIO[
       Summary
