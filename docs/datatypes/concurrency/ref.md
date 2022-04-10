@@ -13,7 +13,7 @@ title: "Ref"
 - updates and modifies atomically
 
 ## Concurrent Stateful Application
-**`Ref` is is the foundation for writing concurrent stateful applications**. Anytime we need to share information between multiple fibers, and those fibers have to update the same information, they need to communicate through something that provides the guarantee of atomicity. Because `Ref` is **concurrent-safe**, we can share the same `Ref` among many fibers. All of which can update `Ref` concurrently, removing the worry of race conditions. Even if we had ten thousand fibers all updating the same `Ref`, as long as they are using atomic update and modify functions, we will have zero race conditions.
+**`Ref` is the foundation for writing concurrent stateful applications**. Anytime we need to share information between multiple fibers, and those fibers have to update the same information, they need to communicate through something that provides the guarantee of atomicity. Because `Ref` is **concurrent-safe**, we can share the same `Ref` among many fibers. All of which can update `Ref` concurrently, removing the worry of race conditions. Even if we had ten thousand fibers all updating the same `Ref`, as long as they are using atomic update and modify functions, we will have zero race conditions.
 
 
 ## Operations
