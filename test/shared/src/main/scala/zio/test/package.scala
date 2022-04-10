@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy, succeed}
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 
@@ -208,7 +208,6 @@ package object test extends CompileVariants {
     def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult])(implicit
       trace: ZTraceElement
     ): ZIO[R, TestFailure[E], TestSuccess] = {
-      println("About to build with our effectual assertion")
       ZIO
         .suspendSucceed(assertion)
         .daemonChildren
@@ -233,30 +232,35 @@ package object test extends CompileVariants {
           }
         }
         .foldCauseZIO(
-          cause =>
-            cause match {
-              case Cause.Die(value, trace) => {
-                implicit val t = (ZTraceElement.empty)
-                println("die cause: "  + value.getCause)
-                if(
-                 value.getCause != null
-                ) ZIO.fail(TestFailure.die(value.getCause))
-                else
-                  ZIO.fail(TestFailure.die(value))
-              }
-              case _ => ???
-            },
-          _.failures match {
-            case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-            case Some(failures) =>
-              ZIO.fail(TestFailure.Assertion(failures))
-          }
+          handleTopLevelTestDefects,
+          parseTestResults
         )
-    }.catchSome {
-      case  ex: ExceptionInInitializerError =>
-        ZIO.debug("Caught exception in initializer") *>
-        ZIO.fail(TestFailure.die(ex))
     }
+  }
+
+  def parseTestResults[A, R1, E2, B](implicit
+                                     trace: ZTraceElement
+                                    ): PartialFunction[TestResult, ZIO[R1, TestFailure.Assertion, TestSuccess.Succeeded]] = {
+
+    success: TestResult =>
+      success.failures match {
+        case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+        case Some(failures) =>
+          ZIO.fail(TestFailure.Assertion(failures))
+      }
+  }
+
+  def handleTopLevelTestDefects[E, R1, B]: PartialFunction[Cause[E], ZIO[R1, TestFailure[E], B]] = {
+    case Cause.Die(value, trace) =>
+      implicit val t = (ZTraceElement.empty)
+      val reportedThrowableForUser =
+        if(
+          value.getCause != null
+        ) value.getCause
+        else
+          value
+
+      ZIO.fail(TestFailure.die(reportedThrowableForUser))
   }
 
   /**
