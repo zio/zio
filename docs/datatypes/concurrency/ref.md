@@ -48,7 +48,7 @@ val stateRef = Ref.make(Active)
 
 > _**Warning**_:  
 >
-> The big mistake to creating a `Ref` is trying to store mutable data inside it, which doesn't work. The only way to use a `Ref` is to store **immutable data** inside it. We are otherwise not provided atomic guarantees, which means we can have collisions and race conditions. 
+> A big mistake when creating a `Ref` is trying to store mutable data inside it. A`Ref` must be used with **immutable data**. Otherwise, we lose our atomic guarantees, which can lead to collisions and race conditions. 
 
 The following snippet compiles, but it leads to race conditions due to a mutable variable being provided to `make`:
 
