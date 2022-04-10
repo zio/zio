@@ -236,9 +236,14 @@ package object test extends CompileVariants {
           parseTestResults
         )
     }
+//      .catchAll {
+//      case anyError =>
+//        println("any error: " + anyError)
+//        ZIO.fail(TestFailure.die(new Exception(anyError.toString)))
+//    }
   }
 
-  def parseTestResults[A, R1, E2, B](implicit
+  def parseTestResults[R1](implicit
                                      trace: ZTraceElement
                                     ): PartialFunction[TestResult, ZIO[R1, TestFailure.Assertion, TestSuccess.Succeeded]] = {
 
@@ -246,6 +251,7 @@ package object test extends CompileVariants {
       success.failures match {
         case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
         case Some(failures) =>
+          println("test.package parseTestResults: " + failures)
           ZIO.fail(TestFailure.Assertion(failures))
       }
   }
@@ -253,6 +259,7 @@ package object test extends CompileVariants {
   def handleTopLevelTestDefects[E, R1, B]: PartialFunction[Cause[E], ZIO[R1, TestFailure[E], B]] = {
     case Cause.Die(value, trace) =>
       implicit val t = (ZTraceElement.empty)
+      println("test.package handleTopLevelTestDefects Die: " + value)
       val reportedThrowableForUser =
         if(
           value.getCause != null
@@ -261,6 +268,10 @@ package object test extends CompileVariants {
           value
 
       ZIO.fail(TestFailure.die(reportedThrowableForUser))
+    case todo_real_logic_for_all_other_cases =>
+      println("Other value: " + todo_real_logic_for_all_other_cases)
+      ZIO.fail(TestFailure.die(new Exception("TODO real value here")))(ZTraceElement.empty)
+
   }
 
   /**
