@@ -145,7 +145,7 @@ object DefaultTestReporter {
 
                 case Left(TestFailure.Runtime(cause)) =>
                   Some(
-                    renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
+                    renderRuntimeCause(cause, labels.reverse.head, depth, includeCause)
                   )
               }
               renderedResult.map(r => r.lines).getOrElse(Nil)
