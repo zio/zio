@@ -222,7 +222,7 @@ def request(counter: Ref[Int]) = {
 ```
 
 ## AtomicReference in Java 
-For Java programmers, we can think of `Ref` as an `AtomicReference`. Java has a `java.util.concurrent.atomic` package which contains `AtomicReference`, `AtomicLong`, `AtomicBoolean` and so forth. `Ref` has roughly the same power, guarantees, and limitations as `AtomicReference`, but, is packaged in a higher-level context and of course, is ZIO friendly. 
+For Java programmers, we can think of `Ref` as an `AtomicReference`. Java has a `java.util.concurrent.atomic` package which contains `AtomicReference`, `AtomicLong`, `AtomicBoolean` and so forth. `Ref` has roughly the same power, guarantees, and limitations as `AtomicReference`, but is higher-level and ZIO-friendly. 
  
 ## Ref vs. State Monad
 Basically `Ref` allows us to have all the power of State Monad inside ZIO. State Monad lacks two important features that we use in real-life application development:
