@@ -46,10 +46,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * test("foo") { assert(42, equalTo(42)) } @@ ignore
    * }}}
    */
-  final def @@[R0 <: R1, R1 <: R, E0, E1, E2 >: E0 <: E1](
+  final def @@[R0 <: R1, R1 <: R, E0 >: E, E1 >: E0](
     aspect: TestAspect[R0, R1, E0, E1]
-  )(implicit ev1: E <:< TestFailure[E2], ev2: T <:< TestSuccess, trace: ZTraceElement): ZSpec[R1, E2] =
-    aspect(self.asInstanceOf[ZSpec[R1, E2]])
+  )(implicit ev: T <:< TestSuccess, trace: ZTraceElement): ZSpec[R1, E0] =
+    aspect(self.mapTest(ev))
 
   /**
    * Annotates each test in this spec with the specified test annotation.
@@ -63,13 +63,13 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated(implicit trace: ZTraceElement): Spec[R with Annotations, Annotated[E], Annotated[T]] =
-    transform[R with Annotations, Annotated[E], Annotated[T]] {
+  final def annotated(implicit trace: ZTraceElement): Spec[R with Annotations, E, Annotated[T]] =
+    transform[R with Annotations, E, Annotated[T]] {
       case ExecCase(exec, spec)     => ExecCase(exec, spec)
       case LabeledCase(label, spec) => LabeledCase(label, spec)
       case ScopedCase(scoped) =>
-        ScopedCase[R with Annotations, Annotated[E], Spec[R with Annotations, Annotated[E], Annotated[T]]](
-          scoped.mapError((_, TestAnnotationMap.empty))
+        ScopedCase[R with Annotations, E, Spec[R with Annotations, E, Annotated[T]]](
+          scoped
         )
       case MultipleCase(specs)         => MultipleCase(specs)
       case TestCase(test, annotations) => TestCase(Annotations.withAnnotation(test), annotations)
@@ -97,8 +97,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * Returns the number of tests in the spec that satisfy the specified
    * predicate.
    */
-  final def countTests(f: T => Boolean)(implicit trace: ZTraceElement): ZIO[R with Scope, E, Int] =
-    fold[ZIO[R with Scope, E, Int]] {
+  final def countTests(f: T => Boolean)(implicit trace: ZTraceElement): ZIO[R with Scope, TestFailure[E], Int] =
+    fold[ZIO[R with Scope, TestFailure[E], Int]] {
       case ExecCase(_, spec)    => spec
       case LabeledCase(_, spec) => spec
       case ScopedCase(scoped)   => scoped.flatten
@@ -119,14 +119,14 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def exists[R1 <: R, E1 >: E](
     f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Boolean] =
-    fold[ZIO[R1 with Scope, E1, Boolean]] {
-      case c @ ExecCase(_, spec)    => spec.zipWith(f(c))(_ || _)
-      case c @ LabeledCase(_, spec) => spec.zipWith(f(c))(_ || _)
-      case c @ ScopedCase(scoped)   => scoped.flatMap(_.zipWith(f(c))(_ || _))
+  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, TestFailure[E1], Boolean] =
+    fold[ZIO[R1 with Scope, TestFailure[E1], Boolean]] {
+      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).mapError(TestFailure.fail))(_ || _)
+      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).mapError(TestFailure.fail))(_ || _)
+      case c @ ScopedCase(scoped)   => scoped.flatMap(_.zipWith(f(c).mapError(TestFailure.fail))(_ || _))
       case c @ MultipleCase(specs) =>
-        ZIO.collectAll(specs).map(_.exists(identity)).zipWith(f(c))(_ || _)
-      case c @ TestCase(_, _) => f(c)
+        ZIO.collectAll(specs).map(_.exists(identity)).zipWith(f(c).mapError(TestFailure.fail))(_ || _)
+      case c @ TestCase(_, _) => f(c).mapError(TestFailure.fail)
     }
 
   /**
@@ -223,14 +223,14 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def forall[R1 <: R, E1 >: E](
     f: SpecCase[R, E, T, Any] => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Boolean] =
-    fold[ZIO[R1 with Scope, E1, Boolean]] {
-      case c @ ExecCase(_, spec)    => spec.zipWith(f(c))(_ && _)
-      case c @ LabeledCase(_, spec) => spec.zipWith(f(c))(_ && _)
-      case c @ ScopedCase(scoped)   => scoped.flatMap(_.zipWith(f(c))(_ && _))
+  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, TestFailure[E1], Boolean] =
+    fold[ZIO[R1 with Scope, TestFailure[E1], Boolean]] {
+      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).mapError(TestFailure.fail))(_ && _)
+      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).mapError(TestFailure.fail))(_ && _)
+      case c @ ScopedCase(scoped)   => scoped.flatMap(_.zipWith(f(c).mapError(TestFailure.fail))(_ && _))
       case c @ MultipleCase(specs) =>
-        ZIO.collectAll(specs).map(_.forall(identity)).zipWith(f(c))(_ && _)
-      case c @ TestCase(_, _) => f(c)
+        ZIO.collectAll(specs).map(_.forall(identity)).zipWith(f(c).mapError(TestFailure.fail))(_ && _)
+      case c @ TestCase(_, _) => f(c).mapError(TestFailure.fail)
     }
 
   /**
@@ -240,7 +240,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def foreachExec[R1 <: R, E1, A](
     defExec: ExecutionStrategy
-  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A])(implicit
+  )(failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], A], success: T => ZIO[R1, E1, A])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1, A]] =
     foldScoped[R1, Nothing, Spec[R1, E1, A]](defExec) {
@@ -254,7 +254,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case MultipleCase(specs) => ZIO.succeedNow(Spec.multiple(specs))
       case TestCase(test, annotations) =>
         test
-          .foldCause(e => Spec.test(failure(e), annotations), t => Spec.test(success(t), annotations))
+          .foldCause(
+            e => Spec.test(failure(e), annotations),
+            t => Spec.test(success(t).mapError(TestFailure.fail), annotations)
+          )
     }
 
   /**
@@ -263,7 +266,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * reconstructing the spec with the same structure.
    */
   final def foreach[R1 <: R, E1, A](
-    failure: Cause[E] => ZIO[R1, E1, A],
+    failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], A],
     success: T => ZIO[R1, E1, A]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
@@ -274,7 +277,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    * reconstructing the spec with the same structure.
    */
   final def foreachPar[R1 <: R, E1, A](
-    failure: Cause[E] => ZIO[R1, E1, A],
+    failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], A],
     success: T => ZIO[R1, E1, A]
   )(implicit trace: ZTraceElement): ZIO[R1 with Scope, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
@@ -286,7 +289,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
    */
   final def foreachParN[R1 <: R, E1, A](
     n: Int
-  )(failure: Cause[E] => ZIO[R1, E1, A], success: T => ZIO[R1, E1, A])(implicit
+  )(failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], A], success: T => ZIO[R1, E1, A])(implicit
     trace: ZTraceElement
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1, A]] =
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
@@ -298,9 +301,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     transform[R, E1, T1] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ScopedCase(scoped)          => ScopedCase[R, E1, Spec[R, E1, T1]](scoped.mapError(f))
+      case ScopedCase(scoped)          => ScopedCase[R, E1, Spec[R, E1, T1]](scoped.mapError(_.map(f)))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.mapBoth(f, g), annotations)
+      case TestCase(test, annotations) => TestCase(test.mapBoth(_.map(f), g), annotations)
     }
 
   /**
@@ -310,9 +313,9 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     transform[R, E1, T] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
-      case ScopedCase(scoped)          => ScopedCase[R, E1, Spec[R, E1, T]](scoped.mapError(f))
+      case ScopedCase(scoped)          => ScopedCase[R, E1, Spec[R, E1, T]](scoped.mapError(_.map(f)))
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.mapError(f), annotations)
+      case TestCase(test, annotations) => TestCase(test.mapError(_.map(f)), annotations)
     }
 
   /**
@@ -406,10 +409,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case LabeledCase(label, spec) => LabeledCase(label, spec)
       case ScopedCase(scoped) =>
         ScopedCase[R0, E1, Spec[R0, E1, T]](
-          layer.build.flatMap(r => scoped.provideSomeEnvironment[Scope](r.union[Scope](_)))
+          layer.mapError(TestFailure.fail).build.flatMap(r => scoped.provideSomeEnvironment[Scope](r.union[Scope](_)))
         )
       case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.provideLayer(layer), annotations)
+      case TestCase(test, annotations) => TestCase(test.provideLayer(layer.mapError(TestFailure.fail)), annotations)
     }
 
   /**
@@ -423,13 +426,16 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
       case ScopedCase(scoped) =>
         Spec.scoped[R0](
-          layer.build.flatMap(r => scoped.map(_.provideEnvironment(r)).provideSomeEnvironment[Scope](r.union[Scope]))
+          layer
+            .mapError(TestFailure.fail)
+            .build
+            .flatMap(r => scoped.map(_.provideEnvironment(r)).provideSomeEnvironment[Scope](r.union[Scope]))
         )
       case MultipleCase(specs) =>
         Spec.scoped[R0](
-          layer.build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
+          layer.mapError(TestFailure.fail).build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
         )
-      case TestCase(test, annotations) => Spec.test(test.provideLayer(layer), annotations)
+      case TestCase(test, annotations) => Spec.test(test.provideLayer(layer.mapError(TestFailure.fail)), annotations)
     }
 
   /**
@@ -466,8 +472,8 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
   /**
    * Computes the size of the spec, i.e. the number of tests in the spec.
    */
-  final def size(implicit trace: ZTraceElement): ZIO[R with Scope, E, Int] =
-    fold[ZIO[R with Scope, E, Int]] {
+  final def size(implicit trace: ZTraceElement): ZIO[R with Scope, TestFailure[E], Int] =
+    fold[ZIO[R with Scope, TestFailure[E], Int]] {
       case ExecCase(_, counts)    => counts
       case LabeledCase(_, counts) => counts
       case ScopedCase(counts)     => counts.flatten
@@ -496,7 +502,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
     z0: Z
   )(
     f: (Z, SpecCase[R, E, T, Spec[R1, E1, T1]]) => (Z, SpecCase[R1, E1, T1, Spec[R1, E1, T1]])
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, E, (Z, Spec[R1, E1, T1])] =
+  )(implicit trace: ZTraceElement): ZIO[R with Scope, TestFailure[E], (Z, Spec[R1, E1, T1])] =
     caseValue match {
       case ExecCase(exec, spec) =>
         spec.transformAccum(z0)(f).map { case (z, spec) =>
@@ -519,9 +525,10 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         }
       case MultipleCase(specs) =>
         ZIO
-          .foldLeft[R with Scope, E, (Z, Chunk[Spec[R1, E1, T1]]), Spec[R, E, T]](specs)(z0 -> Chunk.empty) {
-            case ((z, vector), spec) =>
-              spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
+          .foldLeft[R with Scope, TestFailure[E], (Z, Chunk[Spec[R1, E1, T1]]), Spec[R, E, T]](specs)(
+            z0 -> Chunk.empty
+          ) { case ((z, vector), spec) =>
+            spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
           }
           .map { case (z, specs) =>
             f(z, MultipleCase(specs)) match {
@@ -566,7 +573,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         Spec.labeled(label, spec.whenZIO(b))
       case ScopedCase(scoped) =>
         Spec.scoped[R1 with Annotations](
-          b.flatMap { b =>
+          b.mapError(TestFailure.fail).flatMap { b =>
             if (b) scoped.map(_.mapTest(ev))
             else ZIO.succeedNow(Spec.empty)
           }
@@ -575,7 +582,7 @@ final case class Spec[-R, +E, +T](caseValue: SpecCase[R, E, T, Spec[R, E, T]]) e
         Spec.multiple(specs.map(_.whenZIO(b)))
       case TestCase(test, annotations) =>
         Spec.test(
-          b.flatMap { b =>
+          b.mapError(TestFailure.fail).flatMap { b =>
             if (b) test.map(ev)
             else Annotations.annotate(TestAnnotation.ignored, 1).as(TestSuccess.Ignored)
           },
@@ -594,11 +601,12 @@ object Spec {
       case TestCase(test, annotations) => TestCase(test, annotations)
     }
   }
-  final case class ExecCase[+Spec](exec: ExecutionStrategy, spec: Spec)          extends SpecCase[Any, Nothing, Nothing, Spec]
-  final case class LabeledCase[+Spec](label: String, spec: Spec)                 extends SpecCase[Any, Nothing, Nothing, Spec]
-  final case class ScopedCase[-R, +E, +Spec](scoped: ZIO[Scope with R, E, Spec]) extends SpecCase[R, E, Nothing, Spec]
-  final case class MultipleCase[+Spec](specs: Chunk[Spec])                       extends SpecCase[Any, Nothing, Nothing, Spec]
-  final case class TestCase[-R, +E, +T](test: ZIO[R, E, T], annotations: TestAnnotationMap)
+  final case class ExecCase[+Spec](exec: ExecutionStrategy, spec: Spec) extends SpecCase[Any, Nothing, Nothing, Spec]
+  final case class LabeledCase[+Spec](label: String, spec: Spec)        extends SpecCase[Any, Nothing, Nothing, Spec]
+  final case class ScopedCase[-R, +E, +Spec](scoped: ZIO[Scope with R, TestFailure[E], Spec])
+      extends SpecCase[R, E, Nothing, Spec]
+  final case class MultipleCase[+Spec](specs: Chunk[Spec]) extends SpecCase[Any, Nothing, Nothing, Spec]
+  final case class TestCase[-R, +E, +T](test: ZIO[R, TestFailure[E], T], annotations: TestAnnotationMap)
       extends SpecCase[R, E, T, Nothing]
 
   final def exec[R, E, T](exec: ExecutionStrategy, spec: Spec[R, E, T]): Spec[R, E, T] =
@@ -613,7 +621,9 @@ object Spec {
   final def multiple[R, E, T](specs: Chunk[Spec[R, E, T]]): Spec[R, E, T] =
     Spec(MultipleCase(specs))
 
-  final def test[R, E, T](test: ZIO[R, E, T], annotations: TestAnnotationMap): Spec[R, E, T] =
+  final def test[R, E, T](test: ZIO[R, TestFailure[E], T], annotations: TestAnnotationMap)(implicit
+    trace: ZTraceElement
+  ): Spec[R, E, T] =
     Spec(TestCase(test, annotations))
 
   val empty: Spec[Any, Nothing, Nothing] =
@@ -643,7 +653,7 @@ object Spec {
         case LabeledCase(label, spec) => Spec.labeled(label, spec.provideSomeLayerShared(layer))
         case ScopedCase(scoped) =>
           Spec.scoped[R0](
-            layer.build.flatMap { r =>
+            layer.mapError(TestFailure.fail).build.flatMap { r =>
               scoped
                 .map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))
                 .provideSomeEnvironment[R0 with Scope](in => in.union[R1](r).asInstanceOf[ZEnvironment[R with Scope]])
@@ -651,15 +661,18 @@ object Spec {
           )
         case MultipleCase(specs) =>
           Spec.scoped[R0](
-            layer.build.map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))))
+            layer
+              .mapError(TestFailure.fail)
+              .build
+              .map(r => Spec.multiple(specs.map(_.provideSomeLayer[R0](ZLayer.succeedEnvironment(r)))))
           )
         case TestCase(test, annotations) =>
-          Spec.test(test.provideSomeLayer(layer), annotations)
+          Spec.test(test.provideSomeLayer(layer.mapError(TestFailure.fail)), annotations)
       }
   }
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
-    def apply[E, T](scoped: => ZIO[Scope with R, E, Spec[R, E, T]]): Spec[R, E, T] =
+    def apply[E, T](scoped: => ZIO[Scope with R, TestFailure[E], Spec[R, E, T]]): Spec[R, E, T] =
       Spec(ScopedCase[R, E, Spec[R, E, T]](scoped))
   }
 

@@ -147,12 +147,12 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     zspec: ZSpec[R, E],
     notifier: JUnitNotifier
   ): ZSpec[R, E] = {
-    type ZSpecCase = Spec.SpecCase[R, TestFailure[E], TestSuccess, Spec[R, TestFailure[E], TestSuccess]]
+    type ZSpecCase = Spec.SpecCase[R, E, TestSuccess, Spec[R, E, TestSuccess]]
     def instrumentTest(label: String, path: Vector[String], test: ZIO[R, TestFailure[E], TestSuccess]) =
       notifier.fireTestStarted(label, path) *> test.tapBoth(
         {
-          case Assertion(result) => reportAssertionFailure(notifier, path, label, result)
-          case Runtime(cause)    => reportRuntimeFailure(notifier, path, label, cause)
+          case Assertion(result, _) => reportAssertionFailure(notifier, path, label, result)
+          case Runtime(cause, _)    => reportRuntimeFailure(notifier, path, label, cause)
         },
         {
           case Succeeded(_) => notifier.fireTestFinished(label, path)
@@ -166,7 +166,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         case Spec.LabeledCase(label, spec) =>
           Spec.LabeledCase(label, Spec(loop(spec.caseValue, path :+ label)))
         case Spec.ScopedCase(scoped) =>
-          Spec.ScopedCase[R, TestFailure[E], Spec[R, TestFailure[E], TestSuccess]](
+          Spec.ScopedCase[R, E, Spec[R, E, TestSuccess]](
             scoped.map(spec => Spec(loop(spec.caseValue, path)))
           )
         case Spec.MultipleCase(specs) =>

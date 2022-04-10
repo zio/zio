@@ -708,8 +708,8 @@ object ScheduleSpec extends ZIOBaseSpec {
     isCase(
       "Runtime",
       {
-        case TestFailure.Runtime(c) => c.dieOption
-        case _                      => None
+        case TestFailure.Runtime(c, _) => c.dieOption
+        case _                         => None
       },
       assertion
     )

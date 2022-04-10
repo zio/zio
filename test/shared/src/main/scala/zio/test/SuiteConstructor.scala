@@ -64,7 +64,7 @@ trait SuiteConstructorLowPriority3 extends SuiteConstructorLowPriority4 {
       type OutError       = E2
       type OutSuccess     = T
       def apply(specs: ZIO[R, E, Collection[Spec[R1, E1, T]]])(implicit trace: ZTraceElement): Spec[R with R1, E2, T] =
-        Spec.scoped[R with R1](specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))))
+        Spec.scoped[R with R1](specs.mapBoth(TestFailure.fail, specs => Spec.multiple(Chunk.fromIterable(specs))))
     }
 }
 
@@ -77,6 +77,8 @@ trait SuiteConstructorLowPriority4 {
       type OutError       = E2
       type OutSuccess     = T
       def apply(specs: ZSTM[R, E, Collection[Spec[R1, E1, T]]])(implicit trace: ZTraceElement): Spec[R with R1, E2, T] =
-        Spec.scoped[R with R1](specs.map(specs => Spec.multiple(Chunk.fromIterable(specs))).commit)
+        Spec.scoped[R with R1](
+          specs.mapBoth(TestFailure.fail, specs => Spec.multiple(Chunk.fromIterable(specs))).commit
+        )
     }
 }

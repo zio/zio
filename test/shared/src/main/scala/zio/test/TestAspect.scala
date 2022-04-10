@@ -246,7 +246,7 @@ object TestAspect extends TimeoutVariants {
             })
           }
 
-        spec.transform[R, TestFailure[E], TestSuccess] {
+        spec.transform[R, E, TestSuccess] {
           case Spec.TestCase(test, annotations) => Spec.TestCase(diagnose("", test), annotations)
           case c                                => c
         }
@@ -583,8 +583,8 @@ object TestAspect extends TimeoutVariants {
   def nonTermination(duration: Duration): TestAspectAtLeastR[Live] =
     timeout(duration) >>>
       failing {
-        case TestFailure.Assertion(_) => false
-        case TestFailure.Runtime(cause) =>
+        case TestFailure.Assertion(_, _) => false
+        case TestFailure.Runtime(cause, _) =>
           cause.dieOption match {
             case Some(t) => t.getMessage == s"Timeout of ${duration.render} exceeded."
             case None    => false
@@ -1062,7 +1062,7 @@ object TestAspect extends TimeoutVariants {
     final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       spec: ZSpec[R, E]
     )(implicit trace: ZTraceElement): ZSpec[R, E] =
-      spec.transform[R, TestFailure[E], TestSuccess] {
+      spec.transform[R, E, TestSuccess] {
         case Spec.TestCase(test, annotations) => Spec.TestCase(perTest(test), annotations)
         case c                                => c
       }

@@ -16,8 +16,11 @@ object AnnotationsSpec extends ZIOBaseSpec {
     },
     test("withAnnotation returns annotation map with result") {
       for {
-        map <- Annotations.withAnnotation(Annotations.annotate(count, 3) *> ZIO.fail("fail")).flip.map(_._2)
-        c    = map.get(count)
+        map <- Annotations
+                 .withAnnotation(Annotations.annotate(count, 3) *> ZIO.fail(TestFailure.fail("fail")))
+                 .flip
+                 .map(_.annotations)
+        c = map.get(count)
       } yield assert(c)(equalTo(3))
     }
   )
