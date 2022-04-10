@@ -30,7 +30,7 @@ import zio._
 def make[A](a: A): UIO[Ref[A]]
 ```
 
-As we can see, the output is wrapped in `UIO`, which means creating `Ref` is effectful. Whenever we `make`, `update`, or `modify` the `Ref`, we are doing some effectful operation. This distinction helps maintain the API's referential transparency.
+As we can see, the output is wrapped in`UIO`, which means creating a `Ref` is effectful. Whenever we `make`, `update`, or `modify` the `Ref`, we are performing an effectful operation.
 
 Let's create some `Ref`s from immutable values:
 
