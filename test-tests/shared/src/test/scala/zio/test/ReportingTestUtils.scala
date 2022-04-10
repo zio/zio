@@ -108,7 +108,7 @@ object ReportingTestUtils {
     withOffset(4)(assertSourceLocation() + "\n\n")
   )
 
-  def test4(implicit trace: ZTraceElement): Spec[Any, String, Nothing] =
+  def test4(implicit trace: ZTraceElement): Spec[Any, String] =
     Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Test 4 Fail")), TestAnnotationMap.empty))
 
   def test5(implicit trace: ZTraceElement): ZSpec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(3)))
@@ -176,7 +176,7 @@ object ReportingTestUtils {
     assertTrue(1 == 0).map(_.label("fourth"))
   }
 
-  def suite1(implicit trace: ZTraceElement): Spec[Any, Nothing, TestSuccess] =
+  def suite1(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite1")(test1, test2)
   def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedSuccess("Suite1"),
@@ -184,7 +184,7 @@ object ReportingTestUtils {
     withOffset(4)(test2Expected)
   )
 
-  def suite2(implicit trace: ZTraceElement): Spec[Any, Nothing, TestSuccess] =
+  def suite2(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite2")(test1, test2, test3)
   def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedSuccess("Suite2"),
@@ -192,7 +192,7 @@ object ReportingTestUtils {
     withOffset(4)(test2Expected)
   ) ++ test3Expected.map(withOffset(2)(_))
 
-  def suite3(implicit trace: ZTraceElement): Spec[Any, Nothing, TestSuccess] =
+  def suite3(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite3")(suite1, suite2, test3)
   def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedSuccess("Suite3")) ++
     suite1Expected.map(withOffset(2)) ++
@@ -200,7 +200,7 @@ object ReportingTestUtils {
     Vector("\n") ++
     test3Expected.map(withOffset(2))
 
-  def suite4(implicit trace: ZTraceElement): Spec[Any, Nothing, TestSuccess] =
+  def suite4(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
   def suite4Expected(implicit trace: ZTraceElement): Vector[String] = {
 

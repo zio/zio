@@ -74,8 +74,8 @@ object DefaultTestReporter {
               case Left(_) => Status.Failed
               case Right(value: TestSuccess) =>
                 value match {
-                  case TestSuccess.Succeeded(_) => Status.Passed
-                  case TestSuccess.Ignored      => Status.Ignored
+                  case TestSuccess.Succeeded(_, _) => Status.Passed
+                  case TestSuccess.Ignored(_)      => Status.Ignored
                 }
             },
             initialDepth * 2,
@@ -84,7 +84,7 @@ object DefaultTestReporter {
               val label = labels.last
 
               val renderedResult = results match {
-                case Right(TestSuccess.Succeeded(_)) =>
+                case Right(TestSuccess.Succeeded(_, _)) =>
                   Some(
                     rendered(
                       ResultType.Test,
@@ -94,7 +94,7 @@ object DefaultTestReporter {
                       fr(labels.last).toLine
                     )
                   )
-                case Right(TestSuccess.Ignored) =>
+                case Right(TestSuccess.Ignored(_)) =>
                   Some(
                     rendered(
                       ResultType.Test,

@@ -49,7 +49,7 @@ object TestExecutor {
         _ <- {
           def loop(
             labels: List[String],
-            spec: Spec[Scope, E, Annotated[TestSuccess]],
+            spec: Spec[Scope, E],
             exec: ExecutionStrategy,
             ancestors: List[SuiteId],
             sectionId: SuiteId
@@ -112,10 +112,10 @@ object TestExecutor {
 
     val environment = env
 
-    private def extract(result: Either[TestFailure[E], (TestSuccess, TestAnnotationMap)]) =
+    private def extract(result: Either[TestFailure[E], TestSuccess]) =
       result match {
-        case Left(testFailure)                 => (Left(testFailure), testFailure.annotations)
-        case Right((testSuccess, annotations)) => (Right(testSuccess), annotations)
+        case Left(testFailure)  => (Left(testFailure), testFailure.annotations)
+        case Right(testSuccess) => (Right(testSuccess), testSuccess.annotations)
       }
   }
 

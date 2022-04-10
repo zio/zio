@@ -25,16 +25,16 @@ object SummaryBuilder {
 
   def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Succeeded(_)) => true
-      case _                               => false
+      case Right(TestSuccess.Succeeded(_, _)) => true
+      case _                                  => false
     }
     val fail = countTestResults(reporterEvent) {
       case Right(_) => false
       case _        => true
     }
     val ignore = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Ignored) => true
-      case _                          => false
+      case Right(TestSuccess.Ignored(_)) => true
+      case _                             => false
     }
     val failures = extractFailures(reporterEvent)
 

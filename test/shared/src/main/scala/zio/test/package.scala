@@ -244,7 +244,7 @@ package object test extends CompileVariants {
    * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
    * test type is a ZIO effect that requires an `R` and might fail with an `E`.
    */
-  type ZSpec[-R, +E] = Spec[R, E, TestSuccess]
+  type ZSpec[-R, +E] = Spec[R, E]
 
   /**
    * An `Annotated[A]` contains a value of type `A` along with zero or more test
@@ -606,7 +606,7 @@ package object test extends CompileVariants {
    * Creates an ignored test result.
    */
   val ignored: UIO[TestSuccess] =
-    ZIO.succeedNow(TestSuccess.Ignored)
+    ZIO.succeedNow(TestSuccess.Ignored())
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -624,7 +624,7 @@ package object test extends CompileVariants {
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: ZTraceElement
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     Spec.labeled(
       label,
       if (specs.isEmpty) Spec.empty

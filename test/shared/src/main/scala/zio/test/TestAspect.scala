@@ -246,7 +246,7 @@ object TestAspect extends TimeoutVariants {
             })
           }
 
-        spec.transform[R, E, TestSuccess] {
+        spec.transform[R, E] {
           case Spec.TestCase(test, annotations) => Spec.TestCase(diagnose("", test), annotations)
           case c                                => c
         }
@@ -911,7 +911,7 @@ object TestAspect extends TimeoutVariants {
         test: ZIO[R, TestFailure[E], TestSuccess]
       )(implicit trace: ZTraceElement): ZIO[R, TestFailure[E], TestSuccess] =
         test.flatMap {
-          case TestSuccess.Ignored =>
+          case TestSuccess.Ignored(_) =>
             ZIO.fail(TestFailure.Runtime(Cause.die(new RuntimeException("Test was ignored."))))
           case x => ZIO.succeedNow(x)
         }
@@ -1062,7 +1062,7 @@ object TestAspect extends TimeoutVariants {
     final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       spec: ZSpec[R, E]
     )(implicit trace: ZTraceElement): ZSpec[R, E] =
-      spec.transform[R, E, TestSuccess] {
+      spec.transform[R, E] {
         case Spec.TestCase(test, annotations) => Spec.TestCase(perTest(test), annotations)
         case c                                => c
       }
