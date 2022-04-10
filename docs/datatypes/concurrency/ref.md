@@ -148,7 +148,7 @@ object UnsafeCountRequests extends ZIOAppDefault {
 }
 ```
 
-The above snippet doesn't behave deterministically. This program sometimes prints 2 and sometime prints 1. We can fix it by using `update`:
+The above snippet doesn't behave deterministically. This program sometimes prints `2` and sometimes prints `1`. We can fix it by using `update`:
 
 ```scala mdoc:compile-only
 // Safe State Management
