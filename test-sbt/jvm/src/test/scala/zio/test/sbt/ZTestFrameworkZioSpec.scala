@@ -2,10 +2,12 @@ package zio.test.sbt
 
 import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
-import zio.test.Summary
+import zio.test.{Summary, ZIOSpecAbstract}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec}
 import zio.test.sbt.TestingSupport.{green, red}
+
+import java.net.BindException
 //import zio.test.sbt.TestingSupport.{blue, cyan, red}
 import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
@@ -14,13 +16,13 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
       for {
-        _      <- loadAndExecuteAll(Seq(SimpleSpec.getClass.getName))
+        _      <- loadAndExecuteAllZ(Seq(SimpleSpec))
         output <- testOutput
       } yield assertTrue(output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored."))
     ),
     test("displays runtime exceptions helpfully")(
       for {
-        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec.getClass.getName)).flip
+        _      <- loadAndExecuteAllZ(Seq(RuntimeExceptionSpec)).flip
         output <- testOutput
       } yield assertTrue(
         output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
@@ -30,8 +32,10 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays runtime exceptions during spec layer construction")(
       for {
-        _      <- loadAndExecuteAll(Seq(RuntimeExceptionDuringLayerConstructionSpec.getClass.getName)).flip
-        output <- testOutput
+        returnError      <-
+            loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec))
+        _ <- ZIO.debug("Returned error: " + returnError)
+        output <- testOutput.debug
       } yield assertTrue(
         output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
       ) && assertTrue(
@@ -42,8 +46,8 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
     test("ensure shared layers are not re-initialized")(
       for {
-        _ <- loadAndExecuteAll(
-               Seq(FrameworkSpecInstances.spec1UsingSharedLayer, FrameworkSpecInstances.spec2UsingSharedLayer)
+        _ <- loadAndExecuteAllZ(
+               Seq(FrameworkSpecInstances.Spec1UsingSharedLayer, FrameworkSpecInstances.Spec2UsingSharedLayer)
              )
       } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
     ),
@@ -56,7 +60,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays multi-colored lines")(
       for {
-        _ <- loadAndExecuteAll(Seq(FrameworkSpecInstances.multiLineSpecFQN)).ignore
+        _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec)).ignore
         output <-
           testOutput
         expected =
@@ -72,7 +76,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("only executes selected test") {
       for {
-        _      <- loadAndExecuteAll(Seq(FrameworkSpecInstances.failingSpecFQN), testArgs = Array("-t", "passing test"))
+        _      <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.SimpleFailingSharedSpec), testArgs = Array("-t", "passing test"))
         output <- testOutput
         testTime =
           extractTestRunDuration(output)
@@ -114,15 +118,25 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     fqns: Seq[String],
     testArgs: Array[String] = Array.empty
   ): ZIO[Any, Throwable, Unit] = {
-
     val tasks =
       fqns
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
-    new ZTestFramework()
-      .runner(testArgs, Array(), getClass.getClassLoader)
-      .tasksZ(tasks)
-      .map(_.executeZ(FrameworkSpecInstances.dummyHandler))
-      .getOrElse(ZIO.unit)
+      new ZTestFramework()
+        .runner(testArgs, Array(), getClass.getClassLoader)
+        .tasksZ(tasks)
+        .map(_.executeZ(FrameworkSpecInstances.dummyHandler))
+        .getOrElse(ZIO.unit)
+  }
+
+  private def loadAndExecuteAllZ[T <: ZIOSpecAbstract](
+                                 specs: Seq[T],
+                                 testArgs: Array[String] = Array.empty
+                               ): ZIO[Any, Throwable, Unit] = {
+    loadAndExecuteAll(
+      specs
+        .map(_.getClass.getName),
+      testArgs
+    )
   }
 }

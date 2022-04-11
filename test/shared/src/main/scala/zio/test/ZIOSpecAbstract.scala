@@ -116,6 +116,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         ]
       environment   = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
+      _ <- ZIO.debug("ZIOSpecAbstract.runSpec before layer is provided")
       runner =
         TestRunner(
           TestExecutor

@@ -18,7 +18,7 @@ package zio
 
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy, succeed}
+import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.AssertionResult.FailureDetailsResult
 
@@ -207,7 +207,7 @@ package object test extends CompileVariants {
      */
     def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult])(implicit
       trace: ZTraceElement
-    ): ZIO[R, TestFailure[E], TestSuccess] = {
+    ): ZIO[R, TestFailure[E], TestSuccess] =
       ZIO
         .suspendSucceed(assertion)
         .daemonChildren
@@ -232,46 +232,13 @@ package object test extends CompileVariants {
           }
         }
         .foldCauseZIO(
-          handleTopLevelTestDefects,
-          parseTestResults
+          cause =>
+            ZIO.fail(TestFailure.Runtime(cause)),
+          _.failures match {
+            case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
+            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
+          }
         )
-    }
-//      .catchAll {
-//      case anyError =>
-//        println("any error: " + anyError)
-//        ZIO.fail(TestFailure.die(new Exception(anyError.toString)))
-//    }
-  }
-
-  def parseTestResults[R1](implicit
-                                     trace: ZTraceElement
-                                    ): PartialFunction[TestResult, ZIO[R1, TestFailure.Assertion, TestSuccess.Succeeded]] = {
-
-    success: TestResult =>
-      success.failures match {
-        case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-        case Some(failures) =>
-          println("test.package parseTestResults: " + failures)
-          ZIO.fail(TestFailure.Assertion(failures))
-      }
-  }
-
-  def handleTopLevelTestDefects[E, R1, B]: PartialFunction[Cause[E], ZIO[R1, TestFailure[E], B]] = {
-    case Cause.Die(value, trace) =>
-      implicit val t = (ZTraceElement.empty)
-      println("test.package handleTopLevelTestDefects Die: " + value)
-      val reportedThrowableForUser =
-        if(
-          value.getCause != null
-        ) value.getCause
-        else
-          value
-
-      ZIO.fail(TestFailure.die(reportedThrowableForUser))
-    case todo_real_logic_for_all_other_cases =>
-      println("Other value: " + todo_real_logic_for_all_other_cases)
-      ZIO.fail(TestFailure.die(new Exception("TODO real value here")))(ZTraceElement.empty)
-
   }
 
   /**

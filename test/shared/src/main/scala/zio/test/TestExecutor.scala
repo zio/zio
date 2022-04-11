@@ -65,7 +65,11 @@ object TestExecutor {
                 ZIO.scoped(
                   managed
                     .flatMap(loop(labels, _, exec, ancestors, sectionId))
-                )
+                ).catchAllCause { e =>
+//                  ).catchNonFatalOrDie { e =>
+                  ZIO.debug("scoped catchAllCause") *>
+                  sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+                }
 
               case Spec.MultipleCase(specs) =>
                 ZIO.uninterruptibleMask(restore =>
@@ -86,7 +90,7 @@ object TestExecutor {
                     test,
                     staticAnnotations: TestAnnotationMap
                   ) =>
-                for {
+                (for {
                   result                  <- test.either
                   (testEvent, annotations) = extract(result)
                   _ <-
@@ -94,10 +98,11 @@ object TestExecutor {
                       ExecutionEvent
                         .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
                     )
-                } yield ()
-            }).catchAllCause { e =>
-              sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
-            }.unit
+                } yield ()).catchAllCause { e =>
+                  ZIO.debug("test catchAllCause") *>
+                  sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+                }
+            }).unit
 
           val scopedSpec =
             (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated

@@ -22,7 +22,6 @@ object FrameworkSpecInstances {
       assertCompletes
     }
 
-  lazy val simpleSpec = SimpleSpec.getClass.getName
   object SimpleSpec extends zio.test.ZIOSpec[Int] {
     override def layer = ZLayer.succeed(1)
 
@@ -44,10 +43,16 @@ object FrameworkSpecInstances {
       )
   }
 
-  object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpecDefault {
-    override val layer = ZLayer.succeed{
-      throw new BindException("Other Kafka container already grabbed your port")
-    }
+  object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
+    override val layer = ZLayer.fromZIO(
+      ZIO.debug("constructing faulty layer") *>
+      ZIO.debug("stack trace: " + new Exception().getStackTrace.mkString("\n")) *>
+//        ZIO.succeed(1)
+      ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
+    )
+
+    // This blows up in a different way that I can't easily translate into the error channel
+//    override val layer = ZLayer.succeed(???)
 
     def spec = {
       suite("kafka suite")(
