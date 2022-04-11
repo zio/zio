@@ -75,24 +75,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Transforms the environment being provided to each test in this spec with
-   * the specified function.
-   */
-  final def provideSomeEnvironment[R0](
-    f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit trace: ZTraceElement): Spec[R0, E] =
-    transform[R0, E] {
-      case ExecCase(exec, spec)     => ExecCase(exec, spec)
-      case LabeledCase(label, spec) => LabeledCase(label, spec)
-      case ScopedCase(scoped) =>
-        ScopedCase[R0, E, Spec[R0, E]](
-          scoped.provideSomeEnvironment[R0 with Scope](in => f(in).add[Scope](in.get[Scope]))
-        )
-      case MultipleCase(specs)         => MultipleCase(specs)
-      case TestCase(test, annotations) => TestCase(test.provideSomeEnvironment(f), annotations)
-    }
-
-  /**
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy)(implicit
@@ -315,16 +297,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     provideSomeEnvironment(_ => r)
 
   /**
-   * Provides each test in this spec with the single service it requires. If
-   * this spec requires multiple services use `provideEnvironment` instead.
-   */
-  final def provideService[Service <: R](service: Service)(implicit
-    tag: Tag[Service],
-    trace: ZTraceElement
-  ): Spec[Any, E] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Provides a layer to the spec, translating it up a level.
    */
   final def provideLayer[E1 >: E, R0](
@@ -362,6 +334,34 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
           layer.mapError(TestFailure.fail).build.map(r => Spec.multiple(specs.map(_.provideEnvironment(r))))
         )
       case TestCase(test, annotations) => Spec.test(test.provideLayer(layer.mapError(TestFailure.fail)), annotations)
+    }
+
+  /**
+   * Provides each test in this spec with the single service it requires. If
+   * this spec requires multiple services use `provideEnvironment` instead.
+   */
+  final def provideService[Service <: R](service: Service)(implicit
+    tag: Tag[Service],
+    trace: ZTraceElement
+  ): Spec[Any, E] =
+    provideEnvironment(ZEnvironment(service))
+
+  /**
+   * Transforms the environment being provided to each test in this spec with
+   * the specified function.
+   */
+  final def provideSomeEnvironment[R0](
+    f: ZEnvironment[R0] => ZEnvironment[R]
+  )(implicit trace: ZTraceElement): Spec[R0, E] =
+    transform[R0, E] {
+      case ExecCase(exec, spec)     => ExecCase(exec, spec)
+      case LabeledCase(label, spec) => LabeledCase(label, spec)
+      case ScopedCase(scoped) =>
+        ScopedCase[R0, E, Spec[R0, E]](
+          scoped.provideSomeEnvironment[R0 with Scope](in => f(in).add[Scope](in.get[Scope]))
+        )
+      case MultipleCase(specs)         => MultipleCase(specs)
+      case TestCase(test, annotations) => TestCase(test.provideSomeEnvironment(f), annotations)
     }
 
   /**
