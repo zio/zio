@@ -19,17 +19,30 @@ By default, it creates a reentrant lock with an unfair policy, so waiters will b
 
 ## Locking and Unlocking
 
-When a fiber attempt to acquire the lock using `ReentrantLock#lock` one of the following cases will happen:
+The two basic operations on reentrant locks are `lock` and `unlock`. They acquire and release the lock, respectively:
 
-1. If the lock is not held by another fiber, it will acquire the lock. The call to the `ReentrantLock#lock` returns immediately, and the _hold count_ increased by one.
+```scala
+trait ReentrantLock {
+  lazy val lock:   UIO[Unit]
+  lazy val unlock: UIO[Unit]
+}
+```
 
-2. If the current fiber already holds the lock, then the _hold count_ is incremented by one, and the method returns immediately. Due to the reentrancy feature of the lock, its owner can acquire the lock multiple times.
+1. **`ReentrantLock#lock`**— When a fiber attempt to acquire the lock one of the following cases will happen:
 
-3. If the lock is held by another fiber, then the current fiber will be put to sleep until the lock has been acquired, at which point the lock hold count will be reset to one.
+   - When the state is _unlocked_ and in another word if the lock is not held by another fiber, it will acquire the lock and returns immediately and the _hold count_ increased by one.
+
+   - When the state is _locked_ and the current fiber already holds the lock, then the _hold count_ is incremented by one, and the method returns immediately. 
+
+   - When the state is _locked_ and the lock is held by another fiber, then the current fiber will be put to sleep until the lock has been acquired, at which point the lock hold count will be reset to one.
+
+2. **`ReentrantLock#unlock`**— When a fiber attempt to release the lock, one of the following cases will happen:
+    - If the current fiber is the holder of this lock then the hold count is decremented. If the hold count is now zero then the lock is released. So if there are any fibers blocked on acquire, one fiber will be picked using (fairness or unfairness policy) and woken up.
+    - If the current thread is not the holder of this lock then nothing happens.
 
 ## Convenience Operations
 
-1. **`tryLock`**— Acquires the lock only if it is not held by another fiber at the time of invocation otherwise it will return immediately, so it is a non-blocking operation.
+1. **`ReentrantLock#tryLock`**— Acquires the lock only if it is not held by another fiber at the time of invocation otherwise it will return immediately, so it is a non-blocking operation.
 
 - When the state is _unlocked_ `tryLock` changes the state to _locked_ (with the current fiber as owner and a hold count of 1) and returns `True`.
 - When the state is _locked_ `tryLock` leaves the state _unchanged_ and returns `False`.
@@ -40,7 +53,7 @@ trait ReentrantLock {
 }
 ```
 
-2. **`withLock`**— Acquires and releases the lock as a scoped effect. By using this method, the unlock method will be called automatically at the end of the scope.
+2. **`ReentrantLock#withLock`**— Acquires and releases the lock as a scoped effect. By using this method, the unlock method will be called automatically at the end of the scope.
 
 ```scala
 trait ReentrantLock {
@@ -145,5 +158,3 @@ object MainApp extends ZIOAppDefault {
 ```
 
 In this example, inside the `task` function, we have a critical section. Also, the `task` itself is recursive and inside the critical section, it will call itself. When a fiber tries to enter the critical section and that fiber is the owner of that critical section, the `ReentrantLock` allows that fiber to reenter, and it will increment the `holdCount` by one.
-
-
