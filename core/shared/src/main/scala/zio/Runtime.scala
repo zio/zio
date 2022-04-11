@@ -209,7 +209,7 @@ trait Runtime[+R] {
       Platform.newWeakHashMap(),
       supervisor,
       scope,
-      platform.reportFailure
+      Some(platform.reportFailure)
     )
 
     if (supervisor ne Supervisor.none) {

@@ -41,7 +41,7 @@ private[zio] final class FiberContext[E, A](
   val fiberRefLocals: FiberRefLocals,
   supervisor0: Supervisor[Any],
   openScope: ZScope.Open[Exit[E, A]],
-  reportFailure: Cause[Any] => Unit
+  reportFailure: Option[Cause[Any] => Unit]
 ) extends Fiber.Runtime.Internal[E, A] { self =>
 
   import FiberContext._
@@ -725,7 +725,7 @@ private[zio] final class FiberContext[E, A](
       childFiberRefLocals,
       currentSup,
       childScope,
-      reportFailure.getOrElse(platform.reportFailure)
+      reportFailure
     )
 
     if (currentSup ne Supervisor.none) {
@@ -981,7 +981,7 @@ private[zio] final class FiberContext[E, A](
   }
 
   private[this] def reportUnhandled(v: Exit[E, A]): Unit = v match {
-    case Exit.Failure(cause) => reportFailure(cause)
+    case Exit.Failure(cause) => reportFailure.getOrElse(platform.reportFailure(_))(cause)
     case _                   =>
   }
 
