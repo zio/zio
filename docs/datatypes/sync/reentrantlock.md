@@ -3,7 +3,7 @@ id: reentrantlock
 title: "ReentrantLock"
 ---
 
-A `ReentrantLock` is a synchronization data type that may be locked multiple times by the same fiber. When a fiber locks a reentrant lock, it will become the owner of that lock. Other threads cannot obtain the lock unless the lock owner unlocks the lock. As the lock is reentrant, the lock owner can call the lock again, multiple times.
+A `ReentrantLock` is a lock which can be acquired multiple times by the same fiber. When a fiber acquires (`lock`) a reentrant lock, it will become the owner of that lock. Other threads cannot obtain the lock unless the lock owner releases (`unlock`) the lock. As the lock is reentrant, the lock owner can call the `lock` again, multiple times.
 
 When a fiber attempt to acquire the lock using `ReentrantLock#lock` one of the following cases will happen:
 
