@@ -26,6 +26,7 @@ abstract class BaseTestTask(
     )
   } +!+ Scope.default
 
+  // TODO Figure out how to delete this OR move it to ScalaJS ZTestRunner
   protected def constructLayer[Environment](
     specLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment],
     console: Console
@@ -45,20 +46,16 @@ abstract class BaseTestTask(
     ZIO.consoleWith { console =>
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
-        _ <- ZIO.debug("BaseTestTask.run")
         summary <- spec
                      .runSpec(FilteredSpec(spec.spec, args), args, console)
-//          .provideLayer(
-//            constructLayer[spec.Environment](spec.layer, console)
-//          )
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
-               TestLogger.logLine("No tests were executed.")
-             }
-        _ <- (if (summary.fail > 0)
+               ZIO.fail(new RuntimeException("No tests were executed."))
+        }
+        _ <- if (summary.fail > 0)
                 ZIO.fail(new Exception("Failed tests."))
-              else ZIO.unit)
+              else ZIO.unit
       } yield ())
         .provideLayer(
           sharedFilledTestlayer(console)
@@ -73,7 +70,6 @@ abstract class BaseTestTask(
     try {
       val res: CancelableFuture[Unit] =
         Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
-          ZIO.debug("BaseTestTask.execute (ZIO command)") *>
           executeZ(eventHandler)
         }
 
