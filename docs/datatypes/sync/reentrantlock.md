@@ -55,3 +55,49 @@ object MainApp extends ZIOAppDefault {
 // zio-fiber-7 will release the lock after 5 second.
 // zio-fiber-7 released the lock.
 ```
+
+Parent fiber (`zio-fiber-2`) acquires the lock and then releases it after 10 seconds. Meanwhile, the child fiber (`zio-fiber-7`) tries to acquire the lock, but it cannot. The attempt to acquire the lock in the child fiber causes the fiber to go into sleep mode. Following the release of the lock by the parent fiber, the child fiber will awaken and acquire the lock.
+
+In the previous example, we used the simplest use-case of a locking mechanism that doesn't involve reentrancy. To illustrate how reentrancy works, let's look at another example:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent._
+
+object MainApp extends ZIOAppDefault {
+
+  def task(l: ReentrantLock, i: Int): ZIO[Any, Nothing, Unit] = for {
+    fn <- ZIO.fiberId.map(_.threadName)
+    _  <- l.lock
+    hc <- l.holdCount
+    _  <- ZIO.debug(s"$fn (re)entered the critical section and now the hold count is $hc")
+    _  <- ZIO.when(i > 0)(task(l, i - 1))
+    _  <- l.unlock
+    hc <- l.holdCount
+    _  <- ZIO.debug(s"$fn exited the critical section and now the hold count is $hc")
+  } yield ()
+
+  def run =
+    for {
+      l <- ReentrantLock.make()
+      _ <- task(l, 2) zipPar task(l, 3)
+    } yield ()
+}
+// One possible output:
+// zio-fiber-8 (re)entered the critical section and now the hold count is 1
+// zio-fiber-8 (re)entered the critical section and now the hold count is 2
+// zio-fiber-8 (re)entered the critical section and now the hold count is 3
+// zio-fiber-8 (re)entered the critical section and now the hold count is 4
+// zio-fiber-8 exited the critical section and now the hold count is 3
+// zio-fiber-8 exited the critical section and now the hold count is 2
+// zio-fiber-8 exited the critical section and now the hold count is 1
+// zio-fiber-8 exited the critical section and now the hold count is 0
+// zio-fiber-7 (re)entered the critical section and now the hold count is 1
+// zio-fiber-7 (re)entered the critical section and now the hold count is 2
+// zio-fiber-7 (re)entered the critical section and now the hold count is 3
+// zio-fiber-7 exited the critical section and now the hold count is 2
+// zio-fiber-7 exited the critical section and now the hold count is 1
+// zio-fiber-7 exited the critical section and now the hold count is 0
+```
+
+In this example, inside the `task` function, we have a critical section. Also, the `task` itself is recursive and inside the critical section, it will call itself. When a fiber tries to enter the critical section and that fiber is the owner of that critical section, the `ReentrantLock` allows that fiber to reenter, and it will increment the `holdCount` by one.
