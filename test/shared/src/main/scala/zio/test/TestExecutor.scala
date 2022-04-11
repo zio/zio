@@ -34,12 +34,12 @@ abstract class TestExecutor[+R, E] {
 
 object TestExecutor {
 
-  def default[R <: Annotations, E](
-    env: ZLayer[Any, Any, R],
-    freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
-    sinkLayer: Layer[Nothing, ExecutionEventSink]
-  ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
+  def default[R, E](
+                                    sharedSpecLayer: ZLayer[Any, Any, R],
+                                    freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
+                                    sinkLayer: Layer[Nothing, ExecutionEventSink]
+  ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] = new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
+    def run(spec: ZSpec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
     ): UIO[
       Summary
@@ -111,7 +111,7 @@ object TestExecutor {
               .provideSomeLayer[R](freshLayerPerSpec)
               .provideLayerShared{
 //                println("Environment: " + env)
-                env
+                sharedSpecLayer
                   .tapError(error =>
                     ZIO.debug("Going to report layer failure") *>
                     sink.process(ExecutionEvent.RuntimeFailure(SuiteId(-1), List("Top-level layer construction problem"), TestFailure.die(new Exception(error.toString)), ancestors = List.empty))
@@ -126,7 +126,7 @@ object TestExecutor {
         summary <- sink.getSummary
       } yield summary).provideLayer(sinkLayer)
 
-    val environment = env
+    val environment = (sharedSpecLayer ++ freshLayerPerSpec)
       .catchAll( error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
 
     private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =

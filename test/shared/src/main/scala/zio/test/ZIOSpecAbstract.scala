@@ -118,17 +118,15 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         ZIO.runtime[
           TestEnvironment with ZIOAppArgs with Scope
         ]
-      environment: ZEnvironment[TestEnvironment with ZIOAppArgs with Scope] = runtime.environment
+      environment: ZEnvironment[TestEnvironment with ZIOAppArgs with Scope with Annotations] = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
-      intermediateLayer: ZLayer[Any, Any, TestEnvironment with ZIOAppArgs with Scope with Environment] =
-        ((ZLayer.succeedEnvironment(environment) ) >+> layer)
-//          .catchAll( _ => throw new IllegalStateException("Layer construction blew up prior to TestExecutor"))
-      _ <- ZIO.debug("ZIOSpecAbstract.runSpec before layer is provided")
+      intermediateLayer: ZLayer[Any, Any, Environment] =
+        ZLayer.succeedEnvironment(environment) >>> layer
       runner =
         TestRunner(
           TestExecutor
             .default[
-              Environment with TestEnvironment with ZIOAppArgs with Scope,
+              Environment,
               Any
             ](
               intermediateLayer,
