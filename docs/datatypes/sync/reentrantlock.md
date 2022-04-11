@@ -13,6 +13,11 @@ When a fiber attempt to acquire the lock using `ReentrantLock#lock` one of the f
 
 3. If the lock is held by another fiber, then the current fiber will be put to sleep until the lock has been acquired, at which point the lock hold count will be reset to one.
 
+A reentrant lock has two states: _locked_ or _unlocked_. When the reentrant lock is in _locked_ state it has these properties:
+- **Owner** indicates which fiber has acquired the lock. This can be queried by calling the `ReentrantLock#owner` method.
+- **Hold Count** indicates how many times its owner acquired the lock. This can be queried using by calling the `ReentrantLock#holdCount` method.
+- **Waiters** is a collection of fibers that are waiting to acquire this lock. We can query all of them using the `ReentrantLock#queuedFibers` method.
+
 In the following example, the main fiber acquires the lock, and then we try to acquire the lock from its child fiber. We will see that the child fiber will be blocked when it attempts to acquire the lock until the parent fiber releases it:
 
 ```scala mdoc:compile-only
@@ -102,7 +107,4 @@ object MainApp extends ZIOAppDefault {
 
 In this example, inside the `task` function, we have a critical section. Also, the `task` itself is recursive and inside the critical section, it will call itself. When a fiber tries to enter the critical section and that fiber is the owner of that critical section, the `ReentrantLock` allows that fiber to reenter, and it will increment the `holdCount` by one.
 
-A reentrant lock has two states: _locked_ or _unlocked_. When the reentrant lock is in _locked_ state it has two properties:
-- **Owner** indicates which fiber has acquired the lock. This can be queried by calling the `ReentrantLock#owner` method.
-- **Hold Count** indicates how many times its owner acquired the lock. This can be queried using by calling the `ReentrantLock#holdCount` method.
 
