@@ -240,12 +240,6 @@ package object test extends CompileVariants {
         )
   }
 
-  /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more test
-   * annotations.
-   */
-  type Annotated[+A] = (A, TestAnnotationMap)
-
   private def traverseResult[A](
     value: => A,
     assertResult: AssertResult,
