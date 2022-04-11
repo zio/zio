@@ -118,10 +118,13 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         ZIO.runtime[
           TestEnvironment with ZIOAppArgs with Scope
         ]
+      environment0: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
+      environment1: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
       environment: ZEnvironment[TestEnvironment with ZIOAppArgs with Scope with Annotations] = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
-      intermediateLayer: ZLayer[Any, Any, Environment] =
-        ZLayer.succeedEnvironment(environment) >>> layer
+      sharedLayer: ZLayer[Any, Any, Environment] =
+        ZLayer.succeedEnvironment(environment0) >>> layer
+      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer.environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
       runner =
         TestRunner(
           TestExecutor
@@ -129,9 +132,9 @@ abstract class ZIOSpecAbstract extends ZIOApp {
               Environment,
               Any
             ](
-              intermediateLayer,
-              ZLayer.succeedEnvironment(environment),
-              (TestLogger.fromConsole(
+              sharedLayer, // shared layer???
+              perTestLayer,//ZLayer.succeedEnvironment(environment), // per test layer
+              (TestLogger.fromConsole( // execution layer
                 console
               ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
             ),
