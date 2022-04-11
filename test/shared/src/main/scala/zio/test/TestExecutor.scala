@@ -110,7 +110,13 @@ object TestExecutor {
             (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated
               .provideSomeLayer[R](freshLayerPerSpec)
               .provideLayerShared{
-                environment
+//                println("Environment: " + env)
+                env
+                  .tapError(error =>
+                    ZIO.debug("Going to report layer failure") *>
+                    sink.process(ExecutionEvent.RuntimeFailure(SuiteId(-1), List("Top-level layer construction problem"), TestFailure.die(new Exception(error.toString)), ancestors = List.empty))
+                  )
+                  .catchAll( error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
               }
           ZIO.scoped {
             loop(List.empty, scopedSpec, defExec, List.empty, topParent)
@@ -121,7 +127,7 @@ object TestExecutor {
       } yield summary).provideLayer(sinkLayer)
 
     val environment = env
-      .catchAll( _ => throw new IllegalStateException("Layer construction blew up in the TestExecutor"))(ZTraceElement.empty)
+      .catchAll( error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
 
     private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =
       result match {
