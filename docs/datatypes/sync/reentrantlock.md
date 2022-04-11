@@ -5,6 +5,20 @@ title: "ReentrantLock"
 
 A `ReentrantLock` is a lock which can be acquired multiple times by the same fiber. When a fiber acquires (`lock`) a reentrant lock, it will become the owner of that lock. Other threads cannot obtain the lock unless the lock owner releases (`unlock`) the lock. As the lock is reentrant, the lock owner can call the `lock` again, multiple times.
 
+## Creating ReentrantLocks
+
+Using `ReentrantLocks.make` we can create a reentrant lock in the _unlocked state_:
+
+```scala
+object ReentrantLock {
+  def make(fairness: Boolean = false): UIO[ReentrantLock] = ???
+}
+```
+
+By default, it creates a reentrant lock with an unfair policy, so waiters will be picked randomly. If we set the `fairness` parameter to true, the reentrant lock will pick the longest waiting thread.
+
+## Locking and Unlocking
+
 When a fiber attempt to acquire the lock using `ReentrantLock#lock` one of the following cases will happen:
 
 1. If the lock is not held by another fiber, it will acquire the lock. The call to the `ReentrantLock#lock` returns immediately, and the _hold count_ increased by one.
