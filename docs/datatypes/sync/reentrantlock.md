@@ -101,3 +101,8 @@ object MainApp extends ZIOAppDefault {
 ```
 
 In this example, inside the `task` function, we have a critical section. Also, the `task` itself is recursive and inside the critical section, it will call itself. When a fiber tries to enter the critical section and that fiber is the owner of that critical section, the `ReentrantLock` allows that fiber to reenter, and it will increment the `holdCount` by one.
+
+A reentrant lock has two states: _locked_ or _unlocked_. When the reentrant lock is in _locked_ state it has two properties:
+- **Owner** indicates which fiber has acquired the lock. This can be queried by calling the `ReentrantLock#owner` method.
+- **Hold Count** indicates how many times its owner acquired the lock. This can be queried using by calling the `ReentrantLock#holdCount` method.
+
