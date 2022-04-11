@@ -27,10 +27,35 @@ When a fiber attempt to acquire the lock using `ReentrantLock#lock` one of the f
 
 3. If the lock is held by another fiber, then the current fiber will be put to sleep until the lock has been acquired, at which point the lock hold count will be reset to one.
 
+## Convenience Operations
+
+1. **`tryLock`**— Acquires the lock only if it is not held by another fiber at the time of invocation otherwise it will return immediately, so it is a non-blocking operation.
+
+- When the state is _unlocked_ `tryLock` changes the state to _locked_ (with the current fiber as owner and a hold count of 1) and returns `True`.
+- When the state is _locked_ `tryLock` leaves the state _unchanged_ and returns `False`.
+
+```scala
+trait ReentrantLock {
+  lazy val tryLock: UIO[Boolean]
+}
+```
+
+2. **`withLock`**— Acquires and releases the lock as a scoped effect. By using this method, the unlock method will be called automatically at the end of the scope.
+
+```scala
+trait ReentrantLock {
+  lazy val withLock: URIO[Scope, Int]
+}
+```
+
+## Querying ReentrantLocks
+
 A reentrant lock has two states: _locked_ or _unlocked_. When the reentrant lock is in _locked_ state it has these properties:
 - **Owner** indicates which fiber has acquired the lock. This can be queried by calling the `ReentrantLock#owner` method.
 - **Hold Count** indicates how many times its owner acquired the lock. This can be queried using by calling the `ReentrantLock#holdCount` method.
 - **Waiters** is a collection of fibers that are waiting to acquire this lock. We can query all of them using the `ReentrantLock#queuedFibers` method.
+
+## Examples
 
 In the following example, the main fiber acquires the lock, and then we try to acquire the lock from its child fiber. We will see that the child fiber will be blocked when it attempts to acquire the lock until the parent fiber releases it:
 
