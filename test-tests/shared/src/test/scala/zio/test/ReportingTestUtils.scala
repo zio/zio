@@ -77,7 +77,8 @@ object ReportingTestUtils {
   ) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
-        testEnvironment,
+        Scope.default >>> testEnvironment,
+        ???, // TODO
         (Console.live >>> TestLogger.fromConsole(
           console
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

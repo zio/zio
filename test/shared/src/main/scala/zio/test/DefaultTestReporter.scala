@@ -154,7 +154,7 @@ object DefaultTestReporter {
         )
       case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = reporterEvent.labels.length
-        val label = reporterEvent.labels.lastOption.getOrElse("No label provided.")
+        val label = reporterEvent.labels.lastOption.getOrElse("No label provided TODO Better message.")
         failure match {
           case TestFailure.Assertion(result) =>
             Seq(renderAssertFailure(result, label, depth))

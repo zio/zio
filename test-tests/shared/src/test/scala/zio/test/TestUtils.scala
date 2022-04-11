@@ -1,13 +1,14 @@
 package zio.test
 
-import zio.{Console, ExecutionStrategy, UIO}
+import zio.{Console, ExecutionStrategy, Scope, UIO}
 
 object TestUtils {
 
   def execute[E](spec: ZSpec[TestEnvironment, E]): UIO[Summary] =
     TestExecutor
       .default(
-        testEnvironment,
+        Scope.default >>> testEnvironment,
+        ???, // TODO
         (Console.live >>> TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

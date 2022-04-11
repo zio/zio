@@ -91,8 +91,10 @@ sealed class ZTestTask(
     val fullLayer: Layer[
       Error,
       zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
-    ] =
+    ] = {
+      // TODO What do we want to do here?
       constructLayer[zioSpec.Environment](zioSpec.layer, zio.Console.ConsoleLive)
+    }
 
     Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
       val logic =

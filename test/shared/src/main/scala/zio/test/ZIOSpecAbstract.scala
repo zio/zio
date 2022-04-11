@@ -45,7 +45,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     )
   }
 
-  final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
+  final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract = {
+//    println("Composing specs. A: " + this.getClass.getName + " B: " + that.getClass.getName)
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
 
@@ -74,6 +75,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
         Chunk.empty
     }
+  }
 
   protected def runSpec: ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
@@ -104,18 +106,23 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   )(implicit
     trace: ZTraceElement
   ): URIO[
-    Environment with TestEnvironment with ZIOAppArgs with Scope,
+    TestEnvironment with ZIOAppArgs with Scope,
     Summary
   ] = {
+    val l: ZLayer[ZIOAppArgs with Scope, Any, Environment] = layer
     val filteredSpec = FilteredSpec(spec, testArgs)
 
     for {
+      _ <- ZIO.debug("ZIOSpecAbstract.runSpec")
       runtime <-
         ZIO.runtime[
-          Environment with TestEnvironment with ZIOAppArgs with Scope
+          TestEnvironment with ZIOAppArgs with Scope
         ]
-      environment   = runtime.environment
+      environment: ZEnvironment[TestEnvironment with ZIOAppArgs with Scope] = runtime.environment
       runtimeConfig = hook(runtime.runtimeConfig)
+      intermediateLayer: ZLayer[Any, Any, TestEnvironment with ZIOAppArgs with Scope with Environment] =
+        ((ZLayer.succeedEnvironment(environment) ) >+> layer)
+//          .catchAll( _ => throw new IllegalStateException("Layer construction blew up prior to TestExecutor"))
       _ <- ZIO.debug("ZIOSpecAbstract.runSpec before layer is provided")
       runner =
         TestRunner(
@@ -124,7 +131,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
               Environment with TestEnvironment with ZIOAppArgs with Scope,
               Any
             ](
-              ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment),
+              intermediateLayer,
+              ZLayer.succeedEnvironment(environment),
               (TestLogger.fromConsole(
                 console
               ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

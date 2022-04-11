@@ -35,7 +35,8 @@ abstract class TestExecutor[+R, E] {
 object TestExecutor {
 
   def default[R <: Annotations, E](
-    env: ZLayer[Scope, Nothing, R],
+    env: ZLayer[Any, Any, R],
+    freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
     sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
     def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
@@ -44,6 +45,7 @@ object TestExecutor {
       Summary
     ] =
       (for {
+        _ <- ZIO.debug("TestExecutor.default.run")
         sink      <- ZIO.service[ExecutionEventSink]
         topParent <- SuiteId.newRandom
         _ <- {
@@ -106,7 +108,10 @@ object TestExecutor {
 
           val scopedSpec =
             (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated
-              .provideLayer(environment)
+              .provideSomeLayer[R](freshLayerPerSpec)
+              .provideLayerShared{
+                environment
+              }
           ZIO.scoped {
             loop(List.empty, scopedSpec, defExec, List.empty, topParent)
           }
@@ -116,6 +121,7 @@ object TestExecutor {
       } yield summary).provideLayer(sinkLayer)
 
     val environment = env
+      .catchAll( _ => throw new IllegalStateException("Layer construction blew up in the TestExecutor"))(ZTraceElement.empty)
 
     private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =
       result match {

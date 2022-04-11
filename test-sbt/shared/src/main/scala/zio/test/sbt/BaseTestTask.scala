@@ -31,20 +31,26 @@ abstract class BaseTestTask(
     console: Console
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[Any, Error, Environment with TestEnvironment with TestLogger with ZIOAppArgs with Scope] =
+  ): ZLayer[Any, Error, Environment with TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
+    println("about to blow up when constructing spec layer")
     (sharedFilledTestlayer(console) >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer(
       console
     )
+  }
 
   protected def run(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
     ZIO.consoleWith { console =>
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
+        _ <- ZIO.debug("BaseTestTask.run")
         summary <- spec
                      .runSpec(FilteredSpec(spec.spec, args), args, console)
+//          .provideLayer(
+//            constructLayer[spec.Environment](spec.layer, console)
+//          )
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
@@ -55,16 +61,19 @@ abstract class BaseTestTask(
               else ZIO.unit)
       } yield ())
         .provideLayer(
-          constructLayer[spec.Environment](spec.layer, console)
+          sharedFilledTestlayer(console)
         )
     }
+  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
+    println("BaseTestTask.execute (SBT command)")
     implicit val trace                    = ZTraceElement.empty
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
         Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
+          ZIO.debug("BaseTestTask.execute (ZIO command)") *>
           executeZ(eventHandler)
         }
 

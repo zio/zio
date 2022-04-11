@@ -207,7 +207,8 @@ object IntelliJRenderUtils {
   )(implicit trace: ZTraceElement) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
-        testEnvironment,
+        Scope.default >>> testEnvironment,
+        ???, // TODO
         (Console.live >>> TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

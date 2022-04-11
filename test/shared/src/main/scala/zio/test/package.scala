@@ -589,7 +589,8 @@ package object test extends CompileVariants {
     implicit val trace = ZTraceElement.empty
     TestRunner(
       TestExecutor.default(
-        testEnvironment,
+        Scope.default >>> testEnvironment,
+        (Scope.default >+>testEnvironment) ++ ZIOAppArgs.empty,   // TODO
         TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
