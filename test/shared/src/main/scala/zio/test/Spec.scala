@@ -101,21 +101,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
   /**
-   * Determines if any node in the spec is satisfied by the given predicate.
-   */
-  final def exists[R1 <: R, E1 >: E](
-    f: SpecCase[R, E, Any] => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, TestFailure[E1], Boolean] =
-    fold[ZIO[R1 with Scope, TestFailure[E1], Boolean]] {
-      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).mapError(TestFailure.fail))(_ || _)
-      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).mapError(TestFailure.fail))(_ || _)
-      case c @ ScopedCase(scoped)   => scoped.flatMap(_.zipWith(f(c).mapError(TestFailure.fail))(_ || _))
-      case c @ MultipleCase(specs) =>
-        ZIO.collectAll(specs).map(_.exists(identity)).zipWith(f(c).mapError(TestFailure.fail))(_ || _)
-      case c @ TestCase(_, _) => f(c).mapError(TestFailure.fail)
-    }
-
-  /**
    * Returns a new spec with only those tests with annotations satisfying the
    * specified predicate. If no annotations satisfy the specified predicate then
    * returns `Some` with an empty suite if this is a suite or `None` otherwise.
@@ -171,18 +156,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
 
   /**
-   * Folds over all nodes to produce a final result.
-   */
-  final def fold[Z](f: SpecCase[R, E, Z] => Z)(implicit trace: ZTraceElement): Z =
-    caseValue match {
-      case ExecCase(exec, spec)     => f(ExecCase(exec, spec.fold(f)))
-      case LabeledCase(label, spec) => f(LabeledCase(label, spec.fold(f)))
-      case ScopedCase(scoped)       => f(ScopedCase[R, E, Z](scoped.map(_.fold(f))))
-      case MultipleCase(specs)      => f(MultipleCase(specs.map((_.fold(f)))))
-      case t @ TestCase(_, _)       => f(t)
-    }
-
-  /**
    * Effectfully folds over all nodes according to the execution strategy of
    * suites, utilizing the specified default for other cases.
    */
@@ -202,21 +175,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
           .foreachExec(specs)(defExec)(spec => ZIO.scoped[R1](spec.foldScoped[R1, E1, Z](defExec)(f)))
           .flatMap(zs => f(MultipleCase(zs)))
       case t @ TestCase(_, _) => f(t)
-    }
-
-  /**
-   * Determines if all node in the spec are satisfied by the given predicate.
-   */
-  final def forall[R1 <: R, E1 >: E](
-    f: SpecCase[R, E, Any] => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, TestFailure[E1], Boolean] =
-    fold[ZIO[R1 with Scope, TestFailure[E1], Boolean]] {
-      case c @ ExecCase(_, spec)    => spec.zipWith(f(c).mapError(TestFailure.fail))(_ && _)
-      case c @ LabeledCase(_, spec) => spec.zipWith(f(c).mapError(TestFailure.fail))(_ && _)
-      case c @ ScopedCase(scoped)   => scoped.flatMap(_.zipWith(f(c).mapError(TestFailure.fail))(_ && _))
-      case c @ MultipleCase(specs) =>
-        ZIO.collectAll(specs).map(_.forall(identity)).zipWith(f(c).mapError(TestFailure.fail))(_ && _)
-      case c @ TestCase(_, _) => f(c).mapError(TestFailure.fail)
     }
 
   /**
@@ -438,18 +396,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     new Spec.ProvideSomeLayerShared[R0, R, E](self)
 
   /**
-   * Computes the size of the spec, i.e. the number of tests in the spec.
-   */
-  final def size(implicit trace: ZTraceElement): ZIO[R with Scope, TestFailure[E], Int] =
-    fold[ZIO[R with Scope, TestFailure[E], Int]] {
-      case ExecCase(_, counts)    => counts
-      case LabeledCase(_, counts) => counts
-      case ScopedCase(counts)     => counts.flatten
-      case MultipleCase(counts)   => ZIO.collectAll(counts).map(_.sum)
-      case TestCase(_, _)         => ZIO.succeedNow(1)
-    }
-
-  /**
    * Transforms the spec one layer at a time.
    */
   final def transform[R1, E1](
@@ -461,51 +407,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
       case ScopedCase(scoped)       => Spec(f(ScopedCase[R, E, Spec[R1, E1]](scoped.map(_.transform[R1, E1](f)))))
       case MultipleCase(specs)      => Spec(f(MultipleCase(specs.map(_.transform(f)))))
       case t @ TestCase(_, _)       => Spec(f(t))
-    }
-
-  /**
-   * Transforms the spec statefully, one layer at a time.
-   */
-  final def transformAccum[R1, E1, Z](
-    z0: Z
-  )(
-    f: (Z, SpecCase[R, E, Spec[R1, E1]]) => (Z, SpecCase[R1, E1, Spec[R1, E1]])
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, TestFailure[E], (Z, Spec[R1, E1])] =
-    caseValue match {
-      case ExecCase(exec, spec) =>
-        spec.transformAccum(z0)(f).map { case (z, spec) =>
-          f(z, ExecCase(exec, spec)) match {
-            case (z, specs) => z -> Spec(specs)
-          }
-        }
-      case LabeledCase(label, spec) =>
-        spec.transformAccum(z0)(f).map { case (z, spec) =>
-          f(z, LabeledCase(label, spec)) match {
-            case (z, specs) => z -> Spec(specs)
-          }
-        }
-      case ScopedCase(scoped) =>
-        scoped.flatMap(_.transformAccum(z0)(f)).map { case (z, specs) =>
-          f(z, ScopedCase(ZIO.succeedNow(specs))) match {
-            case (z, specs) =>
-              z -> Spec(specs)
-          }
-        }
-      case MultipleCase(specs) =>
-        ZIO
-          .foldLeft[R with Scope, TestFailure[E], (Z, Chunk[Spec[R1, E1]]), Spec[R, E]](specs)(
-            z0 -> Chunk.empty
-          ) { case ((z, vector), spec) =>
-            spec.transformAccum(z)(f).map { case (z1, spec1) => z1 -> (vector :+ spec1) }
-          }
-          .map { case (z, specs) =>
-            f(z, MultipleCase(specs)) match {
-              case (z, specs) => z -> Spec(specs)
-            }
-          }
-      case t @ TestCase(_, _) =>
-        val (z, caseValue) = f(z0, t)
-        ZIO.succeedNow(z -> Spec(caseValue))
     }
 
   /**
