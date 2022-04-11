@@ -50,8 +50,8 @@ object MVarSpec extends ZIOSpecDefault {
           v  <- MVar.empty[Boolean]
           f  <- v.update(!_).fork
           _  <- v.put(true)
-          r2 <- v.take
           _  <- f.join
+          r2 <- v.take
         } yield assert(r2)(isFalse)
       }
     )
