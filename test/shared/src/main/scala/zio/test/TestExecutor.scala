@@ -25,7 +25,7 @@ import zio.{ExecutionStrategy, ZIO, ZTraceElement}
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
+  def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
   ): UIO[Summary]
 
@@ -38,7 +38,7 @@ object TestExecutor {
     env: ZLayer[Scope, Nothing, R],
     sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
+    def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
       trace: ZTraceElement
     ): UIO[
       Summary
@@ -49,7 +49,7 @@ object TestExecutor {
         _ <- {
           def loop(
             labels: List[String],
-            spec: Spec[Scope, Annotated[TestFailure[E]], Annotated[TestSuccess]],
+            spec: Spec[Scope, E],
             exec: ExecutionStrategy,
             ancestors: List[SuiteId],
             sectionId: SuiteId
@@ -112,34 +112,10 @@ object TestExecutor {
 
     val environment = env
 
-    private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =
+    private def extract(result: Either[TestFailure[E], TestSuccess]) =
       result match {
-        case Left(
-              (
-                testFailure: TestFailure[
-                  E
-                ],
-                annotations
-              )
-            ) =>
-          (
-            Left(
-              testFailure
-            ),
-            annotations
-          )
-        case Right(
-              (
-                testSuccess,
-                annotations
-              )
-            ) =>
-          (
-            Right(
-              testSuccess
-            ),
-            annotations
-          )
+        case Left(testFailure)  => (Left(testFailure), testFailure.annotations)
+        case Right(testSuccess) => (Right(testSuccess), testSuccess.annotations)
       }
   }
 

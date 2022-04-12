@@ -52,7 +52,7 @@ final case class TestRunner[R, E](
    * Runs the spec, producing the execution results.
    */
   def run(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit
     trace: ZTraceElement
   ): UIO[
@@ -69,7 +69,7 @@ final case class TestRunner[R, E](
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRun(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit trace: ZTraceElement): Unit =
     runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
@@ -77,7 +77,7 @@ final case class TestRunner[R, E](
    * An unsafe, asynchronous run of the specified spec.
    */
   def unsafeRunAsync(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(
     k: => Unit
   )(implicit trace: ZTraceElement): Unit =
@@ -90,7 +90,7 @@ final case class TestRunner[R, E](
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRunSync(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit trace: ZTraceElement): Exit[Nothing, Unit] =
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 

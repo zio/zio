@@ -12,7 +12,7 @@
 //      Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}").orDie
 //    }
 //
-//  def spec: ZSpec[Environment, Failure] =
+//  def spec: Spec[Environment, Failure] =
 //    suite("AutoLayerExampleSpec")(
 //      test("inject") {
 //        assertM(exampleZio)(anything)

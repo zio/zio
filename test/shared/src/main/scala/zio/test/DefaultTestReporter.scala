@@ -74,8 +74,8 @@ object DefaultTestReporter {
               case Left(_) => Status.Failed
               case Right(value: TestSuccess) =>
                 value match {
-                  case TestSuccess.Succeeded(_) => Status.Passed
-                  case TestSuccess.Ignored      => Status.Ignored
+                  case TestSuccess.Succeeded(_, _) => Status.Passed
+                  case TestSuccess.Ignored(_)      => Status.Ignored
                 }
             },
             initialDepth * 2,
@@ -84,7 +84,7 @@ object DefaultTestReporter {
               val label = labels.last
 
               val renderedResult = results match {
-                case Right(TestSuccess.Succeeded(_)) =>
+                case Right(TestSuccess.Succeeded(_, _)) =>
                   Some(
                     rendered(
                       ResultType.Test,
@@ -94,7 +94,7 @@ object DefaultTestReporter {
                       fr(labels.last).toLine
                     )
                   )
-                case Right(TestSuccess.Ignored) =>
+                case Right(TestSuccess.Ignored(_)) =>
                   Some(
                     rendered(
                       ResultType.Test,
@@ -104,7 +104,7 @@ object DefaultTestReporter {
                       warn(label).toLine
                     )
                   )
-                case Left(TestFailure.Assertion(result)) =>
+                case Left(TestFailure.Assertion(result, _)) =>
                   result
                     .fold[Option[TestResult]] {
                       case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
@@ -143,7 +143,7 @@ object DefaultTestReporter {
                       )
                     }
 
-                case Left(TestFailure.Runtime(cause)) =>
+                case Left(TestFailure.Runtime(cause, _)) =>
                   Some(
                     renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
                   )
@@ -154,8 +154,8 @@ object DefaultTestReporter {
         )
       case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         failure match {
-          case TestFailure.Assertion(_) => throw new NotImplementedError("Assertion failures are not supported")
-          case TestFailure.Runtime(_)   => throw new NotImplementedError("Runtime failures are not supported")
+          case TestFailure.Assertion(_, _) => throw new NotImplementedError("Assertion failures are not supported")
+          case TestFailure.Runtime(_, _)   => throw new NotImplementedError("Runtime failures are not supported")
         }
       case SectionEnd(_, _, _) =>
         Nil

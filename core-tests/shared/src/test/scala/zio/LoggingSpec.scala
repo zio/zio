@@ -5,7 +5,7 @@ import zio.test._
 
 object LoggingSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Any, Any] =
+  def spec: Spec[Any, Any] =
     suite("LoggingSpec")(
       test("simple log message") {
         for {
