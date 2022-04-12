@@ -1,6 +1,8 @@
 package zio
 
-trait ZIOAppVersionSpecific { self: ZIOApp =>
+trait ZIOAppVersionSpecific {
+
+  type Environment
 
   /**
    * This implicit conversion macro will ensure that the provided ZIO effect
