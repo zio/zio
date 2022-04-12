@@ -143,6 +143,9 @@ object TestExecutor {
           summary <- sink.getSummary
         } yield summary).provideLayer(sinkLayer)
 
+      /*
+       */
+
       val environment = (sharedSpecLayer ++ freshLayerPerSpec)
         .catchAll(error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
 
