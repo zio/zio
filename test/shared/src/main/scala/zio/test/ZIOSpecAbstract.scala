@@ -121,10 +121,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         ZLayer.succeedEnvironment(environment0) >>> layer
       perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
                        .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
-      executionEventSinkLayer =
-        TestLogger.fromConsole(
-          console
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+      executionEventSinkLayer = sinkLayerWithConsole(console)
       runner =
         TestRunner(
           TestExecutor

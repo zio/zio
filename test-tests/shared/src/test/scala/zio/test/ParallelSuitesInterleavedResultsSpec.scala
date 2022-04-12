@@ -3,6 +3,7 @@ package zio.test
 import zio._
 
 object AMinimalSpec extends ZIOSpecDefault {
+  override val layer = ZLayer.fromZIO(ZIO.attempt(???))
 
   override def spec = suite("ASpec")(
     test("test before delay") {

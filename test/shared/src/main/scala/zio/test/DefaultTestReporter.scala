@@ -144,8 +144,9 @@ object DefaultTestReporter {
                     }
 
                 case Left(TestFailure.Runtime(cause, _)) =>
+                  println("YYY")
                   Some(
-                    renderRuntimeCause(cause, labels.reverse.head, depth, includeCause)
+                    renderRuntimeCause(cause, labels.reverse.headOption.getOrElse("Unlabeled failure"), depth, includeCause)
                   )
               }
               renderedResult.map(r => r.lines).getOrElse(Nil)
@@ -153,6 +154,7 @@ object DefaultTestReporter {
           )
         )
       case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+        println("ZZZ")
         val depth = reporterEvent.labels.length
         val label = reporterEvent.labels.lastOption.getOrElse("Top-level defect prevented test execution")
         failure match {
@@ -272,12 +274,14 @@ object DefaultTestReporter {
 
     remaining match {
       case Some(remainingCause) =>
-        prefix ++ Message(
+        val res = prefix ++ Message(
           remainingCause.prettyPrint
             .split("\n")
             .map(s => withOffset(offset + 1)(Line.fromString(s)))
             .toVector
         )
+        println("Rendered cause: " + res)
+        res
       case None =>
         prefix
     }

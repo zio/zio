@@ -94,9 +94,6 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
                                 )
                               }
                             ),
-                            /*
-
-                             */
                             ancestors = List.empty
                           ),
                           true
