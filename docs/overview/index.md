@@ -37,7 +37,6 @@ The `ZIO` data type is the only effect type in ZIO. However, there are a family 
  - `RIO[R, A]` — A type alias for `ZIO[R, Throwable, A]`, representing an effect that requires an `R`, may fail with a `Throwable` value, or succeed with an `A`.
  - `IO[E, A]` — A type alias for `ZIO[Any, E, A]`, representing an effect that has no requirements, may fail with an `E`, or succeed with an `A`.
 
-These type aliases all have companion objects and these companion objects have methods that can be used to construct values of the appropriate type.
 
 **Tips For Getting Started With Type Aliases**
 
