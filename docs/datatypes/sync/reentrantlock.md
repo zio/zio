@@ -5,6 +5,12 @@ title: "ReentrantLock"
 
 A `ReentrantLock` is a lock which can be acquired multiple times by the same fiber. When a fiber acquires (`lock`) a reentrant lock, it will become the owner of that lock. Other fibers cannot obtain the lock unless the lock owner releases (`unlock`) the lock. As the lock is reentrant, the lock owner can call the `lock` again, multiple times.
 
+## Reentrancy
+
+In reentrancy, only the current working thread can access a shared resource, preventing any other thread from doing so. Reentrant locks allow their owner (the fiber that owns the lock) to re-enter them multiple times.
+
+Therefore, in reentrancy locks are acquired per-fiber instead of per-invocation. In other words, if a fiber is not reentrant, and tries to acquire a lock that it already holds, the request won’t succeed.
+
 ## Creating ReentrantLocks
 
 Using `ReentrantLocks.make` we can create a reentrant lock in the _unlocked state_:
