@@ -3,7 +3,7 @@ id: reentrantlock
 title: "ReentrantLock"
 ---
 
-A `ReentrantLock` is a lock which can be acquired multiple times by the same fiber. When a fiber acquires (`lock`) a reentrant lock, it will become the owner of that lock. Other threads cannot obtain the lock unless the lock owner releases (`unlock`) the lock. As the lock is reentrant, the lock owner can call the `lock` again, multiple times.
+A `ReentrantLock` is a lock which can be acquired multiple times by the same fiber. When a fiber acquires (`lock`) a reentrant lock, it will become the owner of that lock. Other fibers cannot obtain the lock unless the lock owner releases (`unlock`) the lock. As the lock is reentrant, the lock owner can call the `lock` again, multiple times.
 
 ## Creating ReentrantLocks
 
@@ -15,7 +15,7 @@ object ReentrantLock {
 }
 ```
 
-By default, it creates a reentrant lock with an unfair policy, so waiters will be picked randomly. If we set the `fairness` parameter to `true`, the reentrant lock will pick the longest waiting thread.
+By default, it creates a reentrant lock with an unfair policy, so waiters will be picked randomly. If we set the `fairness` parameter to `true`, the reentrant lock will pick the longest waiting fiber.
 
 ## Locking and Unlocking
 
@@ -38,7 +38,17 @@ trait ReentrantLock {
 
 2. **`ReentrantLock#unlock`**— When a fiber attempt to release the lock, one of the following cases will happen:
     - If the current fiber is the holder of this lock then the hold count is decremented. If the hold count is now zero then the lock is released. So if there are any fibers blocked on acquire, one fiber will be picked using (fairness or unfairness policy) and woken up.
-    - If the current thread is not the holder of this lock then nothing happens.
+    - If the current fiber is not the holder of this lock then nothing happens.
+
+## Fairness Policy
+
+The ReentrantLock constructor offers two fairness policies:
+  - unfair policy (the default)
+  - fair policy
+
+When a fiber fails to acquire the lock, it is placed in the waiting queue. So when the owning fiber releases the lock, the next waiting fiber chosen by the fairness policy is allowed to try acquiring the lock:
+  - In the case of a fairness policy, fibers always acquire a lock in the order in which they requested it. So the reentrant lock will pick the longest waiting fiber from the waiting queue.
+  - In case of unfair policy, the reentrant lock will pick a random fiber from the waiting queue.
 
 ## Convenience Operations
 
