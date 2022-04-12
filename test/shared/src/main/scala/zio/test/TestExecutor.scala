@@ -112,10 +112,14 @@ object TestExecutor {
               .provideLayerShared{
 //                println("Environment: " + env)
                 sharedSpecLayer
-                  .tapError(error =>
+                  .tapError {
+                    case throwable: Throwable =>
+                      ZIO.debug("Going to report layer failure") *>
+                        sink.process(ExecutionEvent.RuntimeFailure(SuiteId(-1), List("Top-level layer construction problem"), TestFailure.die(throwable), ancestors = List.empty))
+                    case error =>
                     ZIO.debug("Going to report layer failure") *>
-                    sink.process(ExecutionEvent.RuntimeFailure(SuiteId(-1), List("Top-level layer construction problem"), TestFailure.die(new Exception(error.toString)), ancestors = List.empty))
-                  )
+                      sink.process(ExecutionEvent.RuntimeFailure(SuiteId(-1), List("Top-level layer construction problem"), TestFailure.die(new Exception(error.toString)), ancestors = List.empty))
+                  }
                   .catchAll( error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
               }
           ZIO.scoped {

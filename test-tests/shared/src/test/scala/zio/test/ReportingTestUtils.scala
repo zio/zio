@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.render.TestRenderer
-import zio.{Cause, Console, Random, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Cause, Console, Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -78,7 +78,7 @@ object ReportingTestUtils {
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,
-        ???, // TODO
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty, //  TODO
         (Console.live >>> TestLogger.fromConsole(
           console
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

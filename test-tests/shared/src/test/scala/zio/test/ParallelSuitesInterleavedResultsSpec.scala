@@ -2,13 +2,7 @@ package zio.test
 
 import zio._
 
-import java.net.BindException
-
 object AMinimalSpec extends ZIOSpecDefault {
-  override val layer = ZLayer.fromZIO(
-    ZIO.debug("constructing faulty layer in AMinimalSpec") *>
-      ZIO.attempt(throw new BindException("AMinimal: Other Kafka container already grabbed your port"))
-  )
 
   override def spec = suite("ASpec")(
     test("test before delay") {

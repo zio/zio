@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{Console, ExecutionStrategy, Scope, UIO}
+import zio.{Console, ExecutionStrategy, Scope, UIO, ZEnv, ZIOAppArgs}
 
 object TestUtils {
 
@@ -8,7 +8,7 @@ object TestUtils {
     TestExecutor
       .default(
         Scope.default >>> testEnvironment,
-        ???, // TODO
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty, //  TODO
         (Console.live >>> TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
