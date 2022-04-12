@@ -98,23 +98,42 @@ sealed class ZTestTask(
 
     Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
       val logic =
-        for {
-          summary <- zioSpec
-                       .runSpec(FilteredSpec(zioSpec.spec, args), args, zio.Console.ConsoleLive)
-                       .provideLayer(
-                         fullLayer
-                       )
-          _ <- sendSummary.provide(ZLayer.succeed(summary))
-          // TODO Confirm if/how these events needs to be handled in #6481
-          //    Check XML behavior
-          _ <- ZIO.when(summary.fail > 0) {
-                 ZIO.fail("Failed tests")
-               }
-        } yield ()
+        ZIO.consoleWith { console =>
+          (for {
+            summary <- zioSpec
+              .runSpec(FilteredSpec(zioSpec.spec, args), args, zio.Console.ConsoleLive)
+            //                       .provideLayer(
+            //                         fullLayer
+            //                       )
+            _ <- sendSummary.provide(ZLayer.succeed(summary))
+            _ <- ZIO.debug("Final JS Summary: " + summary)
+            _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
+              ZIO.fail(new RuntimeException("No tests were executed."))
+            }
+            // TODO Confirm if/how these events needs to be handled in #6481
+            //    Check XML behavior
+            _ <- ZIO.when(summary.fail > 0) {
+              ZIO.debug("ZZZ" ) *>
+              ZIO.attempt(eventHandler.handle(ZTestEvent(
+                fullyQualifiedName = taskDef.fullyQualifiedName(),
+                selector = taskDef.selectors().head,
+                status = Status.Failure,
+                maybeThrowable=  None,
+                duration = 0L,
+                fingerprint = ZioSpecFingerprint
+              ).asInstanceOf[Event]))
+              ZIO.fail("Failed tests")
+            }
+          } yield ())
+            .provideLayer(
+              sharedFilledTestlayer(console)
+            )
+        }
       logic
     } { exit =>
       exit match {
-        case Exit.Failure(_) => Console.err.println(s"$runnerType failed.")
+        case Exit.Failure(x) =>
+          Console.err.println(s"$runnerType failed.")
         case _               =>
       }
       continuation(Array())
