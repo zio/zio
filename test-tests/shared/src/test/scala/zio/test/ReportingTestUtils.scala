@@ -78,7 +78,7 @@ object ReportingTestUtils {
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,
-        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty, //  TODO
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
         (Console.live >>> TestLogger.fromConsole(
           console
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

@@ -46,7 +46,6 @@ object TestExecutor {
         Summary
       ] =
         (for {
-          _         <- ZIO.debug("TestExecutor.default.run")
           sink      <- ZIO.service[ExecutionEventSink]
           topParent <- SuiteId.newRandom
           _ <- {
@@ -71,11 +70,9 @@ object TestExecutor {
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
-//                  ).catchNonFatalOrDie { e =>
-                      ZIO.debug("scoped catchAllCause") *>
-                        sink.process(
-                          ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
-                        )
+                      sink.process(
+                        ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                      )
                     }
 
                 case Spec.MultipleCase(specs) =>
@@ -108,8 +105,7 @@ object TestExecutor {
                           .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
                       )
                   } yield ()).catchAllCause { e =>
-                    ZIO.debug("test catchAllCause") *>
-                      sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+                    sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
                   }
               }).unit
 
@@ -119,30 +115,25 @@ object TestExecutor {
               )).annotated
                 .provideSomeLayer[R](freshLayerPerSpec)
                 .provideLayerShared {
-//                println("Environment: " + env)
-                  sharedSpecLayer.tapError {
-                    case throwable: Throwable =>
-                      ZIO.debug("Going to report layer failure") *>
-                        sink.process(
-                          ExecutionEvent.RuntimeFailure(
-                            SuiteId(-1),
-                            List("Top-level layer construction problem"),
-                            TestFailure.die(throwable),
-                            ancestors = List.empty
-                          )
-                        )
-                    case error =>
-                      ZIO.debug("Going to report layer failure") *>
-                        sink.process(
-                          ExecutionEvent.RuntimeFailure(
-                            SuiteId(-1),
-                            List("Top-level layer construction problem"),
-                            TestFailure.die(new Exception(error.toString)),
-                            ancestors = List.empty
-                          )
-                        )
+                  sharedSpecLayer.tapError { error =>
+                    val ex =
+                      error match {
+                        case throwable: Throwable => throwable
+                        case error                => new Exception(error.toString)
+                      }
+
+                    sink.process(
+                      ExecutionEvent.RuntimeFailure(
+                        SuiteId(-1),
+                        List("Top-level layer construction problem"),
+                        TestFailure.die(ex),
+                        ancestors = List.empty
+                      )
+                    )
                   }
-                    .catchAll(error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
+                    .catchAll(error => throw new IllegalStateException(error.toString))(
+                      ZTraceElement.empty
+                    ) // TODO Figure this out.
                 }
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)

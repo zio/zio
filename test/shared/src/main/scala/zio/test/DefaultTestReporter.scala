@@ -154,7 +154,7 @@ object DefaultTestReporter {
         )
       case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = reporterEvent.labels.length
-        val label = reporterEvent.labels.lastOption.getOrElse("No label provided TODO Better message.")
+        val label = reporterEvent.labels.lastOption.getOrElse("Top-level defect prevented test execution")
         failure match {
           case TestFailure.Assertion(result) =>
             Seq(renderAssertFailure(result, label, depth))

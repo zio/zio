@@ -8,7 +8,7 @@ object TestUtils {
     TestExecutor
       .default(
         Scope.default >>> testEnvironment,
-        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty, //  TODO
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
         (Console.live >>> TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

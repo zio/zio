@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Console, Random, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Console, Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -208,7 +208,7 @@ object IntelliJRenderUtils {
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,
-        ???, // TODO
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
         (Console.live >>> TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)

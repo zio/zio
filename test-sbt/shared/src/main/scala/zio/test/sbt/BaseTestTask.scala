@@ -26,19 +26,6 @@ abstract class BaseTestTask(
     )
   } +!+ Scope.default
 
-  // TODO Figure out how to delete this OR move it to ScalaJS ZTestRunner
-  protected def constructLayer[Environment](
-    specLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment],
-    console: Console
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[Any, Error, Environment with TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
-    println("about to blow up when constructing spec layer")
-    (sharedFilledTestlayer(console) >>> specLayer.mapError(e => new Error(e.toString))) +!+ sharedFilledTestlayer(
-      console
-    )
-  }
-
   protected def run(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract
@@ -63,7 +50,6 @@ abstract class BaseTestTask(
     }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    println("BaseTestTask.execute (SBT command)")
     implicit val trace                    = ZTraceElement.empty
     var resOutter: CancelableFuture[Unit] = null
     try {
