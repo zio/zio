@@ -15,7 +15,7 @@ object ReentrantLock {
 }
 ```
 
-By default, it creates a reentrant lock with an unfair policy, so waiters will be picked randomly. If we set the `fairness` parameter to true, the reentrant lock will pick the longest waiting thread.
+By default, it creates a reentrant lock with an unfair policy, so waiters will be picked randomly. If we set the `fairness` parameter to `true`, the reentrant lock will pick the longest waiting thread.
 
 ## Locking and Unlocking
 
@@ -44,8 +44,8 @@ trait ReentrantLock {
 
 1. **`ReentrantLock#tryLock`**— Acquires the lock only if it is not held by another fiber at the time of invocation otherwise it will return immediately, so it is a non-blocking operation.
 
-- When the state is _unlocked_ `tryLock` changes the state to _locked_ (with the current fiber as owner and a hold count of 1) and returns `True`.
-- When the state is _locked_ `tryLock` leaves the state _unchanged_ and returns `False`.
+- When the state is _unlocked_ `tryLock` changes the state to _locked_ (with the current fiber as owner and a hold count of 1) and returns `true`.
+- When the state is _locked_ `tryLock` leaves the state _unchanged_ and returns `false`.
 
 ```scala
 trait ReentrantLock {
