@@ -26,7 +26,7 @@ import zio.test.render._
 abstract class ZIOSpecAbstract extends ZIOApp {
   self =>
 
-  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
+  def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
     Chunk(TestAspect.fibers)
@@ -61,7 +61,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
           summary1
         }
 
-      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
+      def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
       def tag: EnvironmentTag[Environment] = {
@@ -98,7 +98,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   }
 
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
+    spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
     console: Console
   )(implicit

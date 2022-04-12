@@ -9,7 +9,7 @@ import scala.util.{Failure, Success}
 
 object AssertionSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+  def spec: Spec[Annotations, TestFailure[Any]] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },

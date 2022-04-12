@@ -6,7 +6,7 @@ import zio.test.TestAspect._
 import zio.metrics._
 
 object ConcurrentSummarySpec extends ZIOBaseSpec {
-  override def spec: ZSpec[Environment, Any] =
+  override def spec: Spec[Environment, Any] =
     suite("ConcurrentSummary")(
       test("single observe works with maxSize = 0") {
         val summary = ConcurrentMetricHooks.summary(

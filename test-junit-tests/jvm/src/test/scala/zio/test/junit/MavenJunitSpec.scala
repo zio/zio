@@ -2,7 +2,7 @@
 
 // import org.apache.maven.cli.MavenCli
 // import zio.test.Assertion._
-// import zio.test.{DefaultRunnableSpec, ZSpec, _}
+// import zio.test.{DefaultRunnableSpec, Spec, _}
 // import zio.{System => _, _}
 
 // import java.io.File
@@ -18,7 +18,7 @@
 //  */
 // object MavenJunitSpec extends DefaultRunnableSpec {
 
-//   def spec: ZSpec[Environment, Failure] = suite("MavenJunitSpec")(
+//   def spec: Spec[Environment, Any] = suite("MavenJunitSpec")(
 //     test("FailingSpec results are properly reported") {
 //       for {
 //         mvn       <- makeMaven

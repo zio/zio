@@ -110,8 +110,8 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("failure makes tests pass on an expected assertion failure") {
       assert(true)(equalTo(false))
     } @@ failing[TestFailure[Any]] {
-      case TestFailure.Assertion(_) => true
-      case TestFailure.Runtime(_)   => false
+      case TestFailure.Assertion(_, _) => true
+      case TestFailure.Runtime(_, _)   => false
     },
     test("flaky retries a test that fails") {
       for {
@@ -332,8 +332,8 @@ object TestAspectSpec extends ZIOBaseSpec {
     diesWith(ct.unapply(_).isDefined)
 
   def diesWith(assertion: Throwable => Boolean): TestFailure[Any] => Boolean = {
-    case TestFailure.Assertion(_) => false
-    case TestFailure.Runtime(cause) =>
+    case TestFailure.Assertion(_, _) => false
+    case TestFailure.Runtime(cause, _) =>
       cause.dieOption match {
         case Some(t) => assertion(t)
         case None    => false

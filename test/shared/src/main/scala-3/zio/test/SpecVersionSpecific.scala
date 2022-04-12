@@ -2,20 +2,20 @@ package zio.test
 
 import zio.{ZIO, ZLayer}
 
-trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
+trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
 
   /**
    * Automatically assembles a layer for the spec, translating it
    * up a level.
    */
-  inline def provide[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    ${SpecLayerMacros.provideImpl[Any, R, E1, T]('self, 'layer)}
+  inline def provide[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
+    ${SpecLayerMacros.provideImpl[Any, R, E1]('self, 'layer)}
 
   def provideSome[R0] =
-    new provideSomePartiallyApplied[R0, R, E, T](self)
+    new provideSomePartiallyApplied[R0, R, E](self)
 
   def provideSomeShared[R0] =
-    new provideSomeSharedPartiallyApplied[R0, R, E, T](self)
+    new provideSomeSharedPartiallyApplied[R0, R, E](self)
 
   /**
    * Automatically constructs the part of the environment that is not part of the
@@ -34,15 +34,15 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *   zio.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustom[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    ${SpecLayerMacros.provideImpl[TestEnvironment, R, E1, T]('self, 'layer)}
+  inline def provideCustom[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1] =
+    ${SpecLayerMacros.provideImpl[TestEnvironment, R, E1]('self, 'layer)}
 
   /**
    * Automatically assembles a layer for the spec, sharing
    * services between all tests.
    */
-  inline def provideShared[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    ${SpecLayerMacros.provideSharedImpl[Any, R, E1, T]('self, 'layer)}
+  inline def provideShared[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
+    ${SpecLayerMacros.provideSharedImpl[Any, R, E1]('self, 'layer)}
 
   /**
    * Automatically constructs the part of the environment that is not part of the
@@ -63,16 +63,16 @@ trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *   zio.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
-  inline def provideCustomShared[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    ${SpecLayerMacros.provideSharedImpl[TestEnvironment, R, E1, T]('self, 'layer)}
+  inline def provideCustomShared[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1] =
+    ${SpecLayerMacros.provideSharedImpl[TestEnvironment, R, E1]('self, 'layer)}
 }
 
-private final class provideSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
-  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
-    ${SpecLayerMacros.provideImpl[R0, R, E1, T]('self, 'layer)}
+private final class provideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
+    ${SpecLayerMacros.provideImpl[R0, R, E1]('self, 'layer)}
 }
 
-private final class provideSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
-  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
-    ${SpecLayerMacros.provideSharedImpl[R0, R, E1, T]('self, 'layer)}
+private final class provideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+  inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
+    ${SpecLayerMacros.provideSharedImpl[R0, R, E1]('self, 'layer)}
 }

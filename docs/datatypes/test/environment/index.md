@@ -22,7 +22,7 @@ If we are using ZIO Test and extending `ZIOSpecDefault` a `TestEnvironment` cont
 ```scala mdoc:invisible:nest
 import zio.Scope
 import zio.test._
-val myProgram: ZSpec[TestEnvironment, Nothing] =
+val myProgram: Spec[TestEnvironment, Nothing] =
   test("my suite")(assertTrue(true))
 ```
 
@@ -36,7 +36,7 @@ If we are only interested in one of the test implementations for our application
 
 ```scala mdoc:invisible:nest
 import zio.test._
-val myProgram: ZSpec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
+val myProgram: Spec[TestConsole, Nothing] = test("my suite")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only
