@@ -17,9 +17,9 @@ The `ZIO` data type has three type parameters: `ZIO[R, E, A]`. The parameters ar
  - **`E` - Failure Type**. Represents the value of the effect's potential failure. If this type parameter is `Nothing`, it means the effect cannot fail as there are no values of type `Nothing`. Or, as another example, some applications will use `Throwable` to indicate a failure which may throw.
  - **`A` - Success Type**. Represents the potential success value of the effect. If this type parameter is `Unit`, it means the effect produces no useful information, while if it is `Nothing`, it means the effect runs forever (or until failure).
 
-An example of a defined `ZIO` effect, `ZIO[Any, IOException, Byte]` has no requirements, may fail with a value of type `IOException`, or may succeed with a value of type `Byte`.
+For example, an effect of type `ZIO[Any, IOException, Byte]` has no requirements, may fail with a value of type `IOException`, or may succeed with a value of type `Byte`.
 
-You could consider a value of type `ZIO[R, E, A]` to be an effectful version of the following function type:
+A value of type `ZIO[R, E, A]` is like an effectful version of the following function type:
 
 ```scala
 R => Either[E, A]
