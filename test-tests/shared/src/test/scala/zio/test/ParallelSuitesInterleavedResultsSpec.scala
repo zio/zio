@@ -3,8 +3,6 @@ package zio.test
 import zio._
 
 object AMinimalSpec extends ZIOSpecDefault {
-  override val layer = ZLayer.fromZIO(ZIO.attempt(???))
-
   override def spec = suite("ASpec")(
     test("test before delay") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
@@ -22,7 +20,7 @@ object AMinimalSpec extends ZIOSpecDefault {
 object BMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("BSpec")(
     test("B 1") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(false))
+      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
     },
     test("B 2") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
