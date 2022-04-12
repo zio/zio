@@ -4800,7 +4800,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class UsingPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1, E, A, B](
       resource: ZIO[R with Scope, E, A]
-    )(use: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+    )(use: A => ZIO[R1, E, B])(implicit trace: ZTraceElement): ZIO[R with R1, E, B] =
       ZIO.acquireReleaseExitWith {
         Scope.make
       } { (scope: Scope.Closeable, exit: Exit[Any, Any]) =>
