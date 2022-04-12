@@ -3,6 +3,7 @@ package zio.test
 import zio._
 
 object AMinimalSpec extends ZIOSpecDefault {
+
   override def spec = suite("ASpec")(
     test("test before delay") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
@@ -13,7 +14,7 @@ object AMinimalSpec extends ZIOSpecDefault {
     test("test after big delay") {
       Live.live(ZIO.sleep(5.second)).map(_ => assertTrue(true))
     }
-  )
+  ) @@ TestAspect.ignore
 
 }
 
@@ -25,7 +26,7 @@ object BMinimalSpec extends ZIOSpecDefault {
     test("B 2") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
     }
-  )
+  ) @@ TestAspect.ignore
 }
 
 object MultiCMinimalSpec extends ZIOSpecDefault {

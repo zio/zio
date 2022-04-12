@@ -29,7 +29,7 @@ abstract class TestExecutor[+R, E] {
     trace: ZTraceElement
   ): UIO[Summary]
 
-  def environment: ZLayer[Scope, Nothing, R]
+  def environment: ZLayer[Scope, E, R]
 }
 
 object TestExecutor {
@@ -56,7 +56,7 @@ object TestExecutor {
               ancestors: List[SuiteId],
               sectionId: SuiteId
             ): ZIO[Scope, Nothing, Unit] =
-              (spec.caseValue match {
+              spec.caseValue match {
                 case Spec.ExecCase(exec, spec) =>
                   loop(labels, spec, exec, ancestors, sectionId)
 
@@ -97,17 +97,23 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) =>
                   (for {
-                    result                  <- test.either
-                    (testEvent, annotations) = extract(result)
+                    result <- test.either
                     _ <-
                       sink.process(
                         ExecutionEvent
-                          .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
+                          .Test(
+                            labels,
+                            result,
+                            staticAnnotations ++ extractAnnotations(result),
+                            ancestors,
+                            1L,
+                            sectionId
+                          )
                       )
                   } yield ()).catchAllCause { e =>
                     sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
                   }
-              }).unit
+              }
 
             val scopedSpec =
               (spec @@ TestAspect.aroundTest(
@@ -124,13 +130,14 @@ object TestExecutor {
           summary <- sink.getSummary
         } yield summary).provideLayer(sinkLayer)
 
-      val environment = (sharedSpecLayer ++ freshLayerPerSpec)
-        .catchAll(error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
+      // TODO Is this sensible, or just going to set JUnit up for failure?
+      //     Should we have 2 different fields?
+      val environment = sharedSpecLayer ++ freshLayerPerSpec
 
-      private def extract(result: Either[TestFailure[E], TestSuccess]) =
+      private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
         result match {
-          case Left(testFailure)  => (Left(testFailure), testFailure.annotations)
-          case Right(testSuccess) => (Right(testSuccess), testSuccess.annotations)
+          case Left(testFailure)  => testFailure.annotations
+          case Right(testSuccess) => testSuccess.annotations
         }
     }
 
