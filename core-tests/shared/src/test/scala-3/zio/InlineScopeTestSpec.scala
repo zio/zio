@@ -1,21 +1,27 @@
 package zio
 
-import zio.Experimental._
 import zio.test._
 import zio.test.Assertion._
 import zio.Random
 import zio.test.Gen._
 
-import scala.annotation.experimental
-import scala.language.experimental.saferExceptions
+object AnObject {
+  def bar: Int = 1
+}
+
+object AnotherObject {
+  opaque type ATypeIsNeeded = Unit
+  val AnAlias = AnObject
+  inline def foo(): Int = AnAlias.bar
+}
 
 object InlineScopeTestSpec extends ZIOBaseSpec {
 
   def spec = 
     suite("Inline Scope Spec")(
-        test("Inline scope shows errors") {
-            assertTrue(true)
-        }
+      test("Inline scope shows errors") {
+        assertTrue(AnotherObject.foo() == 1)
+      }
     )
-    
+
 }
