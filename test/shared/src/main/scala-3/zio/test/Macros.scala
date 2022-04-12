@@ -138,7 +138,7 @@ class SmartAssertMacros(ctx: Quotes)  {
         val res = transformAs(body.asExprOf[TestLens[v]])(lhs)
         res.asInstanceOf[Expr[TestArrow[Any, A]]]
 
-      case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
+      case Unseal(Inlined(a, b, expr)) => Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
 
       case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         val span = rhs.span
