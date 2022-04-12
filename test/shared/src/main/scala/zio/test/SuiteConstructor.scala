@@ -30,7 +30,7 @@ object SuiteConstructor extends SuiteConstructorLowPriority1 {
 
 trait SuiteConstructorLowPriority1 extends SuiteConstructorLowPriority2 {
 
-  implicit def SpecConstructor[R, E, T]: SuiteConstructor.WithOut[Spec[R, E], R, E] =
+  implicit def SpecConstructor[R, E]: SuiteConstructor.WithOut[Spec[R, E], R, E] =
     new SuiteConstructor[Spec[R, E]] {
       type OutEnvironment = R
       type OutError       = E
