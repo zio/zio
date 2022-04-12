@@ -19,7 +19,7 @@ object InlineScopeTestSpec extends ZIOBaseSpec {
 
   def spec = 
     suite("Inline Scope Spec")(
-      test("Inline scope shows errors") {
+      test("Inline scope is captured") {
         assertTrue(AnotherObject.foo() == 1)
       }
     )
