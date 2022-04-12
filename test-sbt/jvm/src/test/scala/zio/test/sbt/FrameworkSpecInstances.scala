@@ -46,16 +46,15 @@ object FrameworkSpecInstances {
   object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
     override val layer = ZLayer.fromZIO(
       ZIO.debug("constructing faulty layer") *>
-      ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
+        ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
     )
 
-    def spec = {
+    def spec =
       suite("kafka suite")(
         test("does stuff with a live kafka cluster") {
           assertCompletes
         }
       )
-    }
   }
 
   lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName

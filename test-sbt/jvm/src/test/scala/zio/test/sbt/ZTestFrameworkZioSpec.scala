@@ -4,7 +4,11 @@ import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
 import zio.test.{Summary, ZIOSpecAbstract}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec}
+import zio.test.sbt.FrameworkSpecInstances.{
+  RuntimeExceptionDuringLayerConstructionSpec,
+  RuntimeExceptionSpec,
+  SimpleSpec
+}
 import zio.test.sbt.TestingSupport.{green, red}
 
 import java.net.BindException
@@ -24,7 +28,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       for {
         _      <- loadAndExecuteAllZ(Seq(RuntimeExceptionSpec)).flip
         output <- testOutput
-        _ <- ZIO.debug("OUTPUT: " + output)
+        _      <- ZIO.debug("OUTPUT: " + output)
       } yield assertTrue(
         output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
       ) && assertTrue(
@@ -33,18 +37,15 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays runtime exceptions during spec layer construction")(
       for {
-        returnError      <-
-            loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
-        _ <- ZIO.debug("Returned error: " + returnError)
+        returnError <-
+          loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
+        _      <- ZIO.debug("Returned error: " + returnError)
         output <- testOutput
-      } yield
-        assertTrue(output.length == 2) &&
+      } yield assertTrue(output.length == 2) &&
         assertTrue(output(0).contains("Top-level layer construction problem")) &&
         assertTrue(output(0).contains("java.net.BindException: Other Kafka container already grabbed your port")) &&
         assertTrue(output(1).startsWith("0 tests passed. 0 tests failed. 0 tests ignored."))
     ),
-
-
     test("ensure shared layers are not re-initialized")(
       for {
         _ <- loadAndExecuteAllZ(
@@ -77,7 +78,10 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("only executes selected test") {
       for {
-        _      <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.SimpleFailingSharedSpec), testArgs = Array("-t", "passing test"))
+        _ <- loadAndExecuteAllZ(
+               Seq(FrameworkSpecInstances.SimpleFailingSharedSpec),
+               testArgs = Array("-t", "passing test")
+             )
         output <- testOutput
         testTime =
           extractTestRunDuration(output)
@@ -123,21 +127,20 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       fqns
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
-      new ZTestFramework()
-        .runner(testArgs, Array(), getClass.getClassLoader)
-        .tasksZ(tasks)
-        .map(_.executeZ(FrameworkSpecInstances.dummyHandler))
-        .getOrElse(ZIO.unit)
+    new ZTestFramework()
+      .runner(testArgs, Array(), getClass.getClassLoader)
+      .tasksZ(tasks)
+      .map(_.executeZ(FrameworkSpecInstances.dummyHandler))
+      .getOrElse(ZIO.unit)
   }
 
   private def loadAndExecuteAllZ[T <: ZIOSpecAbstract](
-                                 specs: Seq[T],
-                                 testArgs: Array[String] = Array.empty
-                               ): ZIO[Any, Throwable, Unit] = {
+    specs: Seq[T],
+    testArgs: Array[String] = Array.empty
+  ): ZIO[Any, Throwable, Unit] =
     loadAndExecuteAll(
       specs
         .map(_.getClass.getName),
       testArgs
     )
-  }
 }

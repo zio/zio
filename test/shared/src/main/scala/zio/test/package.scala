@@ -232,8 +232,7 @@ package object test extends CompileVariants {
           }
         }
         .foldCauseZIO(
-          cause =>
-            ZIO.fail(TestFailure.Runtime(cause)),
+          cause => ZIO.fail(TestFailure.Runtime(cause)),
           _.failures match {
             case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
             case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
@@ -590,7 +589,7 @@ package object test extends CompileVariants {
     TestRunner(
       TestExecutor.default(
         Scope.default >>> testEnvironment,
-        (Scope.default >+>testEnvironment) ++ ZIOAppArgs.empty,   // TODO
+        (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty, // TODO
         TestLogger.fromConsole(
           Console.ConsoleLive
         ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live

@@ -42,7 +42,7 @@ abstract class BaseTestTask(
   protected def run(
     eventHandler: EventHandler,
     spec: ZIOSpecAbstract
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.consoleWith { console =>
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
@@ -52,16 +52,15 @@ abstract class BaseTestTask(
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
                ZIO.fail(new RuntimeException("No tests were executed."))
-        }
+             }
         _ <- if (summary.fail > 0)
-                ZIO.fail(new Exception("Failed tests."))
-              else ZIO.unit
+               ZIO.fail(new Exception("Failed tests."))
+             else ZIO.unit
       } yield ())
         .provideLayer(
           sharedFilledTestlayer(console)
         )
     }
-  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     println("BaseTestTask.execute (SBT command)")
