@@ -35,7 +35,7 @@ abstract class TestExecutor[+R, E] {
 object TestExecutor {
 
   def default[R, E](
-    sharedSpecLayer: ZLayer[Any, Any, R],
+    sharedSpecLayer: ZLayer[Any, E, R],
     freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
     sinkLayer: Layer[Nothing, ExecutionEventSink]
   ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] =
@@ -114,43 +114,24 @@ object TestExecutor {
                 ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x))
               )).annotated
                 .provideSomeLayer[R](freshLayerPerSpec)
-                .provideLayerShared {
-                  sharedSpecLayer.tapError { error =>
-                    val ex =
-                      error match {
-                        case throwable: Throwable => throwable
-                        case error                => new Exception(error.toString)
-                      }
+                .provideLayerShared(sharedSpecLayer)
 
-                    sink.process(
-                      ExecutionEvent.RuntimeFailure(
-                        SuiteId(-1),
-                        List("Top-level layer construction problem"),
-                        TestFailure.die(ex),
-                        ancestors = List.empty
-                      )
-                    )
-                  }
-                    .catchAll(error => throw new IllegalStateException(error.toString))(
-                      ZTraceElement.empty
-                    ) // TODO Figure this out.
-                }
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
             }
           }
 
-        summary <- sink.getSummary
-      } yield summary).provideLayer(sinkLayer)
+          summary <- sink.getSummary
+        } yield summary).provideLayer(sinkLayer)
 
-    val environment = (sharedSpecLayer ++ freshLayerPerSpec)
-      .catchAll(error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
+      val environment = (sharedSpecLayer ++ freshLayerPerSpec)
+        .catchAll(error => throw new IllegalStateException(error.toString))(ZTraceElement.empty)
 
-    private def extract(result: Either[TestFailure[E], TestSuccess]) =
-      result match {
-        case Left(testFailure)  => (Left(testFailure), testFailure.annotations)
-        case Right(testSuccess) => (Right(testSuccess), testSuccess.annotations)
-      }
-  }
+      private def extract(result: Either[TestFailure[E], TestSuccess]) =
+        result match {
+          case Left(testFailure)  => (Left(testFailure), testFailure.annotations)
+          case Right(testSuccess) => (Right(testSuccess), testSuccess.annotations)
+        }
+    }
 
 }

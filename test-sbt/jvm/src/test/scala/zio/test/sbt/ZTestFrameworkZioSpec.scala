@@ -42,7 +42,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         _      <- ZIO.debug("Returned error: " + returnError)
         output <- testOutput
       } yield assertTrue(output.length == 2) &&
-        assertTrue(output(0).contains("Top-level layer construction problem")) &&
+        assertTrue(output(0).contains("Top-level defect prevented test execution")) &&
         assertTrue(output(0).contains("java.net.BindException: Other Kafka container already grabbed your port")) &&
         assertTrue(output(1).startsWith("0 tests passed. 0 tests failed. 0 tests ignored."))
     ),
