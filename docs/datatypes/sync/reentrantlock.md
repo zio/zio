@@ -70,6 +70,8 @@ A reentrant lock has two states: _locked_ or _unlocked_. When the reentrant lock
 
 ## Examples
 
+### Example of Simple Locking Mechanism
+
 In the following example, the main fiber acquires the lock, and then we try to acquire the lock from its child fiber. We will see that the child fiber will be blocked when it attempts to acquire the lock until the parent fiber releases it:
 
 ```scala mdoc:compile-only
@@ -115,6 +117,8 @@ object MainApp extends ZIOAppDefault {
 
 Parent fiber (`zio-fiber-2`) acquires the lock and then releases it after 10 seconds. Meanwhile, the child fiber (`zio-fiber-7`) tries to acquire the lock, but it cannot. The attempt to acquire the lock in the child fiber causes the fiber to go into sleep mode. Following the release of the lock by the parent fiber, the child fiber will awaken and acquire the lock.
 
+### Example of Reentrancy
+
 In the previous example, we used the simplest use-case of a locking mechanism that doesn't involve reentrancy. To illustrate how reentrancy works, let's look at another example:
 
 ```scala mdoc:compile-only
@@ -158,3 +162,61 @@ object MainApp extends ZIOAppDefault {
 ```
 
 In this example, inside the `task` function, we have a critical section. Also, the `task` itself is recursive and inside the critical section, it will call itself. When a fiber tries to enter the critical section and that fiber is the owner of that critical section, the `ReentrantLock` allows that fiber to reenter, and it will increment the `holdCount` by one.
+
+### Example of Producing Deadlock
+
+When two or more threads wait forever for a lock held by another thread, they have reached a deadlock. So when we are working with locks, we should be careful of avoiding deadlocks.
+
+In this example, we are just trying to show a simple possible deadlock example:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent._
+
+object MainApp extends ZIOAppDefault {
+  def workflow1(l1: ReentrantLock, l2: ReentrantLock) =
+    for {
+      f <- ZIO.fiberId.map(_.threadName)
+      _ <- l1.lock *> ZIO.debug(s"$f locked the l1")
+      o <- l2.owner.map(_.map(_.threadName))
+      _ <- ZIO.debug(s"$f trying to lock the l2 while the $o is its owner") *>
+        l2.lock *>
+        ZIO.debug(s"$f locked the l2")
+      _ <- l2.unlock
+      _ <- l1.unlock
+    } yield ()
+
+  def workflow2(l1: ReentrantLock, l2: ReentrantLock) =
+    for {
+      f <- ZIO.fiberId.map(_.threadName)
+      _ <- l2.lock *> ZIO.debug(s"$f locked the l2")
+      o <- l1.owner.map(_.map(_.threadName))
+      _ <- ZIO.debug(s"$f trying to lock the l1 while the $o is its owner") *>
+        l1.lock *>
+        ZIO.debug(s"$f locked the l1")
+      _ <- l1.unlock
+      _ <- l2.unlock
+    } yield ()
+
+  def run =
+    for {
+      l1 <- ReentrantLock.make()
+      l2 <- ReentrantLock.make()
+      _ <- workflow1(l1, l2) <&> workflow2(l1, l2)
+    } yield ()
+}
+```
+
+In we run this program, we have a possible deadlock situation, and it might print the following messages and lock forever:
+
+```
+zio-fiber-7 locked the l1
+zio-fiber-8 locked the l2
+zio-fiber-7 trying to lock the l2 while the Some(zio-fiber-8) is its owner
+zio-fiber-8 trying to lock the l1 while the Some(zio-fiber-7) is its owner
+```
+
+When we run two workflows concurrently, it can cause a deadlock when the first workflow obtains `l1` and in the meantime, the second workflow obtains `l2`, now:
+  - When the first workflow tries to obtain `l2` while `l2` is being obtained by `l1`.
+  - When the second workflow tries to obtain the `l1` while the `l2` is being obtained by `l1`.
+Eventually, both fibers will enter a waiting state, and there will be a deadlock.
