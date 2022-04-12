@@ -7,7 +7,7 @@ A `ReentrantLock` is a lock which can be acquired multiple times by the same fib
 
 ## Reentrancy
 
-In reentrancy, only the current working thread can access a shared resource, preventing any other thread from doing so. Reentrant locks allow their owner (the fiber that owns the lock) to re-enter them multiple times.
+In reentrancy, only the current working fiber can access a shared resource, preventing any other fibers from doing so. Reentrant locks allow their owner (the fiber that owns the lock) to re-enter them multiple times.
 
 Therefore, in reentrancy locks are acquired per-fiber instead of per-invocation. In other words, if a fiber is not reentrant, and tries to acquire a lock that it already holds, the request won’t succeed.
 
@@ -181,7 +181,7 @@ In this example, inside the `task` function, we have a critical section. Also, t
 
 ### Example of Producing Deadlock
 
-When two or more threads wait forever for a lock held by another thread, they have reached a deadlock. So when we are working with locks, we should be careful of avoiding deadlocks.
+When two or more fibers wait forever for a lock held by another fiber, they have reached a deadlock. So when we are working with locks, we should be careful of avoiding deadlocks.
 
 In this example, we are just trying to show a simple possible deadlock example:
 
