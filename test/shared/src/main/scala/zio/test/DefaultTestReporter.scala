@@ -74,8 +74,8 @@ object DefaultTestReporter {
               case Left(_) => Status.Failed
               case Right(value: TestSuccess) =>
                 value match {
-                  case TestSuccess.Succeeded(_) => Status.Passed
-                  case TestSuccess.Ignored      => Status.Ignored
+                  case TestSuccess.Succeeded(_, _) => Status.Passed
+                  case TestSuccess.Ignored(_)      => Status.Ignored
                 }
             },
             initialDepth * 2,
@@ -84,7 +84,7 @@ object DefaultTestReporter {
               val label = labels.last
 
               val renderedResult = results match {
-                case Right(TestSuccess.Succeeded(_)) =>
+                case Right(TestSuccess.Succeeded(_, _)) =>
                   Some(
                     rendered(
                       ResultType.Test,
@@ -94,7 +94,7 @@ object DefaultTestReporter {
                       fr(labels.last).toLine
                     )
                   )
-                case Right(TestSuccess.Ignored) =>
+                case Right(TestSuccess.Ignored(_)) =>
                   Some(
                     rendered(
                       ResultType.Test,
@@ -104,7 +104,7 @@ object DefaultTestReporter {
                       warn(label).toLine
                     )
                   )
-                case Left(TestFailure.Assertion(result)) =>
+                case Left(TestFailure.Assertion(result, _)) =>
                   result
                     .fold[Option[TestResult]] {
                       case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
@@ -143,7 +143,7 @@ object DefaultTestReporter {
                       )
                     }
 
-                case Left(TestFailure.Runtime(cause)) =>
+                case Left(TestFailure.Runtime(cause, _)) =>
                   Some(
                     renderRuntimeCause(cause, labels.reverse.head, depth, includeCause)
                   )
@@ -156,9 +156,9 @@ object DefaultTestReporter {
         val depth = reporterEvent.labels.length
         val label = reporterEvent.labels.lastOption.getOrElse("Top-level defect prevented test execution")
         failure match {
-          case TestFailure.Assertion(result) =>
+          case TestFailure.Assertion(result, _) =>
             Seq(renderAssertFailure(result, label, depth))
-          case TestFailure.Runtime(cause) =>
+          case TestFailure.Runtime(cause, _) =>
             Seq(renderRuntimeCause(cause, label, depth, includeCause))
         }
       case SectionEnd(_, _, _) =>

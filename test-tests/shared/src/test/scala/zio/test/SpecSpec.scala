@@ -10,7 +10,7 @@ object SpecSpec extends ZIOBaseSpec {
   val specLayer: ZLayer[Any, Nothing, Unit] =
     ZLayer.succeed(())
 
-  def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
+  def spec: Spec[TestEnvironment, TestFailure[Nothing]] = suite("SpecSpec")(
     suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {

@@ -188,7 +188,7 @@ object IntelliJRenderUtils {
 
   // TODO de-dup layer creation
   def runLog(
-    spec: ZSpec[TestEnvironment, String]
+    spec: Spec[TestEnvironment, String]
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <-

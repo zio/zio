@@ -59,7 +59,7 @@ object TestOutputSpec extends ZIOSpecDefault {
 
   val fakePrinterLayer: ZLayer[Any, Nothing, ExecutionEventHolder] = ZLayer.fromZIO(makeFakePrinter)
 
-  override def spec: ZSpec[TestEnvironment with Scope, Any] = suite("TestOutputSpec")(
+  override def spec: Spec[TestEnvironment with Scope, Any] = suite("TestOutputSpec")(
     test("nested events without flushing") {
       val events =
         List(

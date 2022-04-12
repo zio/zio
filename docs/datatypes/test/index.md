@@ -156,9 +156,9 @@ import zio.test.{test, _}
 import zio.test.Assertion._
 
 val kafkaLayer: ZLayer[Any, Nothing, Int] = ZLayer.succeed(1)
-val test1: ZSpec[Int, Nothing] = test("kafkatest")(assertTrue(true))
-val test2: ZSpec[Int, Nothing] = test("kafkatest")(assertTrue(true))
-val test3: ZSpec[Int, Nothing] = test("kafkatest")(assertTrue(true))
+val test1: Spec[Int, Nothing] = test("kafkatest")(assertTrue(true))
+val test2: Spec[Int, Nothing] = test("kafkatest")(assertTrue(true))
+val test3: Spec[Int, Nothing] = test("kafkatest")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only

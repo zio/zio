@@ -495,6 +495,19 @@ object ZLayerSpec extends ZIOBaseSpec {
           release <- ref.get
         } yield assertTrue(acquire == Vector("Acquiring Module 1")) &&
           assertTrue(release == Vector("Acquiring Module 1", "Releasing Module 1"))
+      },
+      test("succeed is lazy") {
+        import java.util.concurrent.atomic.AtomicInteger
+        final case class Counter(ref: AtomicInteger) {
+          def getAndIncrement: UIO[Int] = ZIO.succeed(ref.getAndIncrement())
+        }
+        val layer = ZLayer.succeed(Counter(new AtomicInteger(0)))
+        def getAndIncrement: ZIO[Counter, Nothing, Int] =
+          ZIO.serviceWithZIO(_.getAndIncrement)
+        for {
+          x <- getAndIncrement.provide(layer)
+          y <- getAndIncrement.provide(layer)
+        } yield assertTrue(x == 0 && y == 0)
       }
     )
 }
