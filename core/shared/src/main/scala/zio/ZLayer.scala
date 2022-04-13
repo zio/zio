@@ -121,6 +121,31 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     foldLayer(handler, ZLayer.succeedEnvironment(_))
 
   /**
+   * Recovers from all errors.
+   */
+  final def catchAllCause[RIn1 <: RIn, E1, ROut1 >: ROut](
+    handler: Cause[E] => ZLayer[RIn1, E1, ROut1]
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
+    foldCauseLayer(handler, ZLayer.succeedEnvironment(_))
+
+  /**
+   * Taps the layer, printing the result of calling `.toString` on the value.
+   */
+  final def debug(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+    self
+      .tap(value => ZIO.succeed(println(value)))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+
+  /**
+   * Taps the layer, printing the result of calling `.toString` on the value.
+   * Prefixes the output with the given message.
+   */
+  final def debug(prefix: => String)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+    self
+      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
+
+  /**
    * Extends the scope of this layer, returning a new layer that when provided
    * to an effect will not immediately release its associated resources when
    * that effect completes execution but instead when the scope the resulting
@@ -273,6 +298,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut] =
     catchAll(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.fail(e)))
+
+  /**
+   * Performs the specified effect if this layer fails.
+   */
+  final def tapErrorCause[RIn1 <: RIn, E1 >: E](f: Cause[E] => ZIO[RIn1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZLayer[RIn1, E1, ROut] =
+    catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.failCause(e)))
 
   /**
    * A named alias for `>>>`.
@@ -500,6 +533,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     trace: ZTraceElement
   ): ZLayer[R, E, Collection[A]] =
     foreach(in)(i => i)
+
+  /**
+   * Prints the specified message to the console for debugging purposes.
+   */
+  def debug(value: => Any)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Unit] =
+    ZLayer.fromZIO(ZIO.debug(value))
 
   /**
    * Constructs a layer that dies with the specified throwable.
