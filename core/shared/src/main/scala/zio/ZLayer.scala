@@ -129,7 +129,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     foldCauseLayer(handler, ZLayer.succeedEnvironment(_))
 
   final def debug(label: String)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
-    self.tap(environment => ZIO.debug(label, environment)).tapErrorCause(cause => ZIO.debug(label, cause))
+    self.tap(environment => ZIO.debug(label, environment)).tapErrorCause(cause => ZIO.debug(label, cause.dieOption))
 
   /**
    * Extends the scope of this layer, returning a new layer that when provided

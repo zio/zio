@@ -19,5 +19,5 @@ object ZIOSpecSpec extends ZIOSpecDefault {
         actual <- ZIO.blockingExecutor
       } yield assertTrue(actual == expected)
     }
-  ) @@ TestAspect.ignore // TODO Investigate this for next PR
+  )
 }

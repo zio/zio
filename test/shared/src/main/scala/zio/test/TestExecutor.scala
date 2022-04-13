@@ -71,7 +71,7 @@ object TestExecutor {
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
-                      ZIO.debug("scoped case error: " + e) *>
+                      ZIO.debug("scoped case error: " + e.prettyPrint) *>
                       sink.process(
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                       )
