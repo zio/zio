@@ -2,13 +2,9 @@ package zio.test.sbt
 
 import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
-import zio.test.{Summary, ZIOSpecAbstract}
+import zio.test.{Summary, TestAspect, ZIOSpecAbstract}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{
-  RuntimeExceptionDuringLayerConstructionSpec,
-  RuntimeExceptionSpec,
-  SimpleSpec
-}
+import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec}
 import zio.test.sbt.TestingSupport.{green, red}
 
 import java.net.BindException
@@ -44,7 +40,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         assertTrue(output(0).contains("Top-level defect prevented test execution")) &&
         assertTrue(output(0).contains("java.net.BindException: Other Kafka container already grabbed your port")) &&
         assertTrue(output(1).startsWith("0 tests passed. 0 tests failed. 0 tests ignored."))
-    ),
+    ) @@ TestAspect.nonFlaky,
     test("ensure shared layers are not re-initialized")(
       for {
         _ <- loadAndExecuteAll(

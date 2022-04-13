@@ -64,18 +64,21 @@ object TestExecutor {
                   loop(label :: labels, spec, exec, ancestors, sectionId)
 
                 case Spec.ScopedCase(managed) =>
+                  ZIO.debug("scoped case") *>
                   ZIO
                     .scoped(
                       managed
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
+                      ZIO.debug("scoped case error: " + e) *>
                       sink.process(
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                       )
                     }
 
                 case Spec.MultipleCase(specs) =>
+                  ZIO.debug("Multicase") *>
                   ZIO.uninterruptibleMask(restore =>
                     for {
                       newMultiSectionId <- SuiteId.newRandom
