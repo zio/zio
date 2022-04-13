@@ -569,15 +569,12 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
-  val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] = {
-    implicit val trace = ZTraceElement.empty
+  val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] =
+    sinkLayerWithConsole(Console.ConsoleLive)(ZTraceElement.empty)
 
-    sinkLayerWithConsole(Console.ConsoleLive)
-  }
-
-  def sinkLayerWithConsole(console: Console): ZLayer[Any, Nothing, ExecutionEventSink] = {
-    implicit val trace = ZTraceElement.empty //
-
+  def sinkLayerWithConsole(console: Console)(implicit
+                                             trace: ZTraceElement
+  ): ZLayer[Any, Nothing, ExecutionEventSink] = {
     TestLogger.fromConsole(
       console
     ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live

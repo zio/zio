@@ -23,8 +23,8 @@ object Spec2 extends ZIOSpecDefault {
     }
 }
 
-object BMinimalSpec extends ZIOSpec[Int] {
-  override val layer = ZLayer.fromZIO(ZIO.sleep(2.seconds) *> ZIO.succeed(42))
+object BMinimalSpec extends ZIOSpecDefault {
+//  override val layer = ZLayer.fromZIO(ZIO.sleep(2.seconds) *> ZIO.succeed(42))
   override def spec = suite("BSpec")(
     test("B 1") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
@@ -32,7 +32,7 @@ object BMinimalSpec extends ZIOSpec[Int] {
     test("B 2") {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
     }
-  ) @@ TestAspect.ignore
+  )
 }
 
 object MultiCMinimalSpec extends ZIOSpecDefault {
