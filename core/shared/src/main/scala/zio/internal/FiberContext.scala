@@ -380,8 +380,8 @@ private[zio] final class FiberContext[E, A](
 
                     curZio = null
 
-                  case ZIO.Tags.Trace =>
-                    val zio = curZio.asInstanceOf[ZIO.Trace]
+                  case ZIO.Tags.CaptureTrace =>
+                    val zio = curZio.asInstanceOf[ZIO.CaptureTrace]
 
                     curZio = unsafeNextEffect(unsafeCaptureTrace(zio.trace :: Nil))
 

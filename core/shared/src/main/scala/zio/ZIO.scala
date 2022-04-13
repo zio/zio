@@ -4323,7 +4323,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Capture ZIO trace at the current point
    */
   def trace(implicit trace: ZTraceElement): UIO[ZTrace] =
-    new ZIO.Trace(trace)
+    new ZIO.CaptureTrace(trace)
 
   /**
    * Transplants specified effects so that when those effects fork other
@@ -5215,7 +5215,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val Yield                  = 16
     final val FiberRefNew            = 17
     final val FiberRefModify         = 18
-    final val Trace                  = 19
+    final val CaptureTrace           = 19
     final val RaceWith               = 20
     final val Supervise              = 21
     final val GetForkScope           = 22
@@ -5446,11 +5446,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.FiberRefWith
   }
 
-  private[zio] final class Trace(val trace: ZTraceElement) extends UIO[ZTrace] {
+  private[zio] final class CaptureTrace(val trace: ZTraceElement) extends UIO[ZTrace] {
     def unsafeLog: () => String =
-      () => s"Trace at ${trace}"
+      () => s"CaptureTrace at ${trace}"
 
-    override def tag = Tags.Trace
+    override def tag = Tags.CaptureTrace
   }
 
   private[zio] final class RaceWith[R, EL, ER, E, A, B, C](
