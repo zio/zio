@@ -2,7 +2,7 @@ package zio.test
 
 import zio._
 
-object AMinimalSpec extends ZIOSpecDefault {
+object SpecWithBrokenLayer extends ZIOSpecDefault {
   override val layer = ZLayer.fromZIO(ZIO.attempt(???))
   override def spec =
     test("a") {
@@ -10,13 +10,13 @@ object AMinimalSpec extends ZIOSpecDefault {
     }
 }
 
-object SingleMinimalSpec extends ZIOSpecDefault {
+object Spec1 extends ZIOSpecDefault {
   override def spec =
     test("Single 1") {
       assertTrue(true)
     }
 }
-object SingleMinimalSpec2 extends ZIOSpecDefault {
+object Spec2 extends ZIOSpecDefault {
   override def spec =
     test("Single 2") {
       assertTrue(true)
