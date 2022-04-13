@@ -4,7 +4,7 @@ import zio.{Scope, ZIO, ZIOAppArgs}
 object ZIOSpecAbstractSpec extends ZIOSpecDefault {
   override def spec = test("highlighting composed layer failures")(for {
     _ <- ZIO.debug("Let's compose things")
-    composedSpec: ZIOSpecAbstract = AMinimalSpec <> BMinimalSpec
+    composedSpec: ZIOSpecAbstract = AMinimalSpec <> BMinimalSpec <> MultiCMinimalSpec <> SmallMinimalSpec <> SlowMinimalSpec <> SingleMinimalSpec
     _ <- ZIO.consoleWith(console =>  composedSpec.runSpec(composedSpec.spec, TestArgs.empty, console))
 
   } yield assertCompletes
