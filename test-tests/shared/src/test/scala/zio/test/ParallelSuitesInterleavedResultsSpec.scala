@@ -4,19 +4,23 @@ import zio._
 
 object AMinimalSpec extends ZIOSpecDefault {
   override val layer = ZLayer.fromZIO(ZIO.attempt(???))
-
-  override def spec = suite("ASpec")(
-    test("test before delay") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
-    },
-    test("test after delay") {
-      Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
-    },
-    test("test after big delay") {
-      Live.live(ZIO.sleep(5.second)).map(_ => assertTrue(true))
+  override def spec =
+    test("a") {
+      assertTrue(true)
     }
-  ) @@ TestAspect.ignore
+}
 
+object SingleMinimalSpec extends ZIOSpecDefault {
+  override def spec =
+    test("Single 1") {
+      assertTrue(true)
+    }
+}
+object SingleMinimalSpec2 extends ZIOSpecDefault {
+  override def spec =
+    test("Single 2") {
+      assertTrue(true)
+    }
 }
 
 object BMinimalSpec extends ZIOSpec[Int] {
@@ -94,12 +98,4 @@ object SlowMinimalSpec extends ZIOSpecDefault {
       }
     )
   ) @@ TestAspect.ignore
-}
-
-object SingleMinimalSpec extends ZIOSpecDefault {
-  override def spec =
-    test("Single spec not in a suite") {
-      Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
-    } @@ TestAspect.ignore
-
 }
