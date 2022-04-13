@@ -30,14 +30,14 @@ trait ZPool[+Error, Item] {
    * acquisition fails, then the returned effect will fail for that same reason.
    * Retrying a failed acquisition attempt will repeat the acquisition attempt.
    */
-  def get(implicit trace: ZTraceElement): ZIO[Scope, Error, Item]
+  def get(implicit trace: Trace): ZIO[Scope, Error, Item]
 
   /**
    * Invalidates the specified item. This will cause the pool to eventually
    * reallocate the item, although this reallocation may occur lazily rather
    * than eagerly.
    */
-  def invalidate(item: Item)(implicit trace: ZTraceElement): UIO[Unit]
+  def invalidate(item: Item)(implicit trace: Trace): UIO[Unit]
 }
 object ZPool {
 
@@ -47,7 +47,7 @@ object ZPool {
    * associated with items in the pool. If cleanup or release is required, then
    * the `make` constructor should be used instead.
    */
-  def fromIterable[A](iterable: => Iterable[A])(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZPool[Nothing, A]] =
+  def fromIterable[A](iterable: => Iterable[A])(implicit trace: Trace): ZIO[Scope, Nothing, ZPool[Nothing, A]] =
     for {
       iterable <- ZIO.succeed(iterable)
       source   <- Ref.make(iterable.toList)
@@ -67,7 +67,7 @@ object ZPool {
    * will be released in some unspecified order.
    */
   def make[R, E, A](get: => ZIO[R, E, A], size: => Int)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
     for {
       size <- ZIO.succeed(size)
@@ -94,7 +94,7 @@ object ZPool {
    * }}}
    */
   def make[R, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
     makeWith[R, Any, E, A](get, range)(Strategy.TimeToLive(timeToLive))
 
@@ -104,7 +104,7 @@ object ZPool {
    * down to the minimum size.
    */
   private def makeWith[R, R1, E, A](get: => ZIO[R, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R with R1 with Scope, Nothing, ZPool[E, A]] =
     ZIO.uninterruptibleMask { restore =>
       for {
@@ -141,7 +141,7 @@ object ZPool {
         case Exit.Success(a) => f(a)
       }
 
-    def toZIO(implicit trace: ZTraceElement): ZIO[Any, E, A] =
+    def toZIO(implicit trace: Trace): ZIO[Any, E, A] =
       ZIO.done(result)
   }
 
@@ -158,10 +158,10 @@ object ZPool {
     /**
      * Returns the number of items in the pool in excess of the minimum size.
      */
-    def excess(implicit trace: ZTraceElement): UIO[Int] =
+    def excess(implicit trace: Trace): UIO[Int] =
       state.get.map { case State(free, size) => size - range.start min free }
 
-    def get(implicit trace: ZTraceElement): ZIO[Scope, E, A] = {
+    def get(implicit trace: Trace): ZIO[Scope, E, A] = {
 
       def acquire: UIO[Attempted[E, A]] =
         isShuttingDown.get.flatMap { down =>
@@ -214,7 +214,7 @@ object ZPool {
     /**
      * Begins pre-allocating pool entries based on minimum pool size.
      */
-    final def initialize(implicit trace: ZTraceElement): UIO[Unit] =
+    final def initialize(implicit trace: Trace): UIO[Unit] =
       ZIO.replicateZIODiscard(range.start) {
         ZIO.uninterruptibleMask { restore =>
           state.modify { case State(size, free) =>
@@ -236,13 +236,13 @@ object ZPool {
         }
       }
 
-    def invalidate(item: A)(implicit trace: zio.ZTraceElement): UIO[Unit] =
+    def invalidate(item: A)(implicit trace: zio.Trace): UIO[Unit] =
       invalidated.update(_ + item)
 
     /**
      * Shrinks the pool down, but never to less than the minimum size.
      */
-    def shrink(implicit trace: ZTraceElement): UIO[Any] =
+    def shrink(implicit trace: Trace): UIO[Any] =
       ZIO.uninterruptible {
         state.modify { case State(size, free) =>
           if (size > range.start && free > 0)
@@ -259,7 +259,7 @@ object ZPool {
         }.flatten
       }
 
-    private def allocate(implicit trace: ZTraceElement): UIO[Any] =
+    private def allocate(implicit trace: Trace): UIO[Any] =
       ZIO.uninterruptibleMask { restore =>
         for {
           scope     <- Scope.make
@@ -275,7 +275,7 @@ object ZPool {
      * Gets items from the pool and shuts them down as long as there are items
      * free, signalling shutdown of the pool if the pool is empty.
      */
-    private def getAndShutdown(implicit trace: ZTraceElement): UIO[Unit] =
+    private def getAndShutdown(implicit trace: Trace): UIO[Unit] =
       state.modify { case State(size, free) =>
         if (free > 0)
           (
@@ -295,7 +295,7 @@ object ZPool {
           items.shutdown -> State(size - 1, free)
       }.flatten
 
-    final def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+    final def shutdown(implicit trace: Trace): UIO[Unit] =
       isShuttingDown.modify { down =>
         if (down)
           items.awaitShutdown -> true
@@ -320,18 +320,18 @@ object ZPool {
     /**
      * Describes how the initial state of the strategy should be allocated.
      */
-    def initial(implicit trace: ZTraceElement): URIO[Environment, State]
+    def initial(implicit trace: Trace): URIO[Environment, State]
 
     /**
      * Describes how the state of the strategy should be updated when an item is
      * added to the pool or returned to the pool.
      */
-    def track(state: State)(item: Exit[Error, Item])(implicit trace: ZTraceElement): UIO[Unit]
+    def track(state: State)(item: Exit[Error, Item])(implicit trace: Trace): UIO[Unit]
 
     /**
      * Describes how excess items that are not being used should shrink down.
      */
-    def run(state: State, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
+    def run(state: State, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: Trace): UIO[Unit]
   }
 
   private object Strategy {
@@ -343,11 +343,11 @@ object ZPool {
      */
     case object None extends Strategy[Any, Any, Any] {
       type State = Any
-      def initial(implicit trace: ZTraceElement): UIO[Any] =
+      def initial(implicit trace: Trace): UIO[Any] =
         ZIO.unit
-      def track(state: Any)(attempted: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
+      def track(state: Any)(attempted: Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
-      def run(state: Any, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+      def run(state: Any, getExcess: UIO[Int], shrink: UIO[Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
     }
 
@@ -357,14 +357,14 @@ object ZPool {
      */
     final case class TimeToLive(timeToLive: Duration) extends Strategy[Any, Any, Any] {
       type State = (Clock, Ref[java.time.Instant])
-      def initial(implicit trace: ZTraceElement): UIO[State] =
+      def initial(implicit trace: Trace): UIO[State] =
         for {
           clock <- ZIO.clock
           now   <- Clock.instant
           ref   <- Ref.make(now)
         } yield (clock, ref)
       def track(state: (Clock, Ref[java.time.Instant]))(attempted: Exit[Any, Any])(implicit
-        trace: ZTraceElement
+        trace: Trace
       ): UIO[Unit] = {
         val (clock, ref) = state
         for {
@@ -373,7 +373,7 @@ object ZPool {
         } yield ()
       }
       def run(state: (Clock, Ref[java.time.Instant]), getExcess: UIO[Int], shrink: UIO[Any])(implicit
-        trace: ZTraceElement
+        trace: Trace
       ): UIO[Unit] = {
         val (clock, ref) = state
         getExcess.flatMap { excess =>

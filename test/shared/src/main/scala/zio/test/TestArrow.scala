@@ -5,7 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
-import zio.ZTraceElement
+import zio.Trace
 
 case class Assert(arrow: TestArrow[Any, Boolean]) {
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
@@ -26,7 +26,7 @@ object Assert {
     else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
   }
 
-  implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
+  implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert])(implicit trace: Trace): ZIO[R, E, TestResult] =
     zio.map(trace2TestResult)
 
 }
@@ -57,9 +57,9 @@ sealed trait TestArrow[-A, +B] { self =>
   def withCode(code: String): TestArrow[A, B] =
     meta(code = Some(code))
 
-  def withLocation(implicit trace: ZTraceElement): TestArrow[A, B] =
+  def withLocation(implicit trace: Trace): TestArrow[A, B] =
     trace match {
-      case ZTraceElement(_, file, line) =>
+      case Trace(_, file, line) =>
         meta(location = Some(s"$file:$line"))
       case _ => self
     }

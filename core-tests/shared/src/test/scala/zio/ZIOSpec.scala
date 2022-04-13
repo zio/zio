@@ -432,7 +432,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = FiberId(0, 123, ZTraceElement.empty)
+        val fiberId = FiberId(0, 123, Trace.empty)
         val error   = exampleError
 
         for {
@@ -1659,7 +1659,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = FiberId(0, 123, ZTraceElement.empty)
+        val fiberId          = FiberId(0, 123, Trace.empty)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> IO.unit).exit

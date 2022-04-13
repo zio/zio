@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.ZTraceElement
+import zio.Trace
 
 /**
  * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some
@@ -110,55 +110,55 @@ object GenPoly {
    * Provides evidence that instances of `Gen` and a `Ordering` exist for
    * booleans.
    */
-  def boolean(implicit trace: ZTraceElement): GenPoly =
+  def boolean(implicit trace: Trace): GenPoly =
     GenOrderingPoly(Gen.boolean, Ordering.Boolean)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for bytes.
    */
-  def byte(implicit trace: ZTraceElement): GenPoly =
+  def byte(implicit trace: Trace): GenPoly =
     GenIntegralPoly.byte
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * characters.
    */
-  def char(implicit trace: ZTraceElement): GenPoly =
+  def char(implicit trace: Trace): GenPoly =
     GenIntegralPoly.char
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for doubles.
    */
-  def double(implicit trace: ZTraceElement): GenPoly =
+  def double(implicit trace: Trace): GenPoly =
     GenFractionalPoly.double
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for floats.
    */
-  def float(implicit trace: ZTraceElement): GenPoly =
+  def float(implicit trace: Trace): GenPoly =
     GenFractionalPoly.float
 
-  def genPoly(implicit trace: ZTraceElement): Gen[Any, GenPoly] =
+  def genPoly(implicit trace: Trace): Gen[Any, GenPoly] =
     GenOrderingPoly.genOrderingPoly
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * integers.
    */
-  def int(implicit trace: ZTraceElement): GenPoly =
+  def int(implicit trace: Trace): GenPoly =
     GenIntegralPoly.int
 
   /**
    * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
    * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
    */
-  def list(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
+  def list(poly: GenPoly)(implicit trace: Trace): GenPoly =
     GenPoly(Gen.listOf(poly.genT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for longs.
    */
-  def long(implicit trace: ZTraceElement): GenPoly =
+  def long(implicit trace: Trace): GenPoly =
     GenIntegralPoly.long
 
   /**
@@ -166,26 +166,26 @@ object GenPoly {
    * `Ordering[Option[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def option(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
+  def option(poly: GenPoly)(implicit trace: Trace): GenPoly =
     GenPoly(Gen.option(poly.genT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for shorts.
    */
-  def short(implicit trace: ZTraceElement): GenPoly =
+  def short(implicit trace: Trace): GenPoly =
     GenIntegralPoly.long
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
    */
-  def string(implicit trace: ZTraceElement): GenPoly =
+  def string(implicit trace: Trace): GenPoly =
     GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for the unit
    * value.
    */
-  def unit(implicit trace: ZTraceElement): GenPoly =
+  def unit(implicit trace: Trace): GenPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)
 
   /**
@@ -193,6 +193,6 @@ object GenPoly {
    * `Ordering[Vector[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def vector(poly: GenPoly)(implicit trace: ZTraceElement): GenPoly =
+  def vector(poly: GenPoly)(implicit trace: Trace): GenPoly =
     GenPoly(Gen.vectorOf(poly.genT))
 }

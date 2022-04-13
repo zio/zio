@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZEnv, ZIO, ZLayer, ZTraceElement}
+import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZEnv, ZIO, ZLayer, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -61,13 +61,13 @@ import zio.ZTrace
  * }}}
  */
 trait TestConsole extends Console with Restorable {
-  def clearInput(implicit trace: ZTraceElement): UIO[Unit]
-  def clearOutput(implicit trace: ZTraceElement): UIO[Unit]
-  def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
-  def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit]
-  def output(implicit trace: ZTraceElement): UIO[Vector[String]]
-  def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]]
-  def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
+  def clearInput(implicit trace: Trace): UIO[Unit]
+  def clearOutput(implicit trace: Trace): UIO[Unit]
+  def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+  def feedLines(lines: String*)(implicit trace: Trace): UIO[Unit]
+  def output(implicit trace: Trace): UIO[Vector[String]]
+  def outputErr(implicit trace: Trace): UIO[Vector[String]]
+  def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 }
 
 object TestConsole extends Serializable {
@@ -82,13 +82,13 @@ object TestConsole extends Serializable {
     /**
      * Clears the contents of the input buffer.
      */
-    def clearInput(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearInput(implicit trace: Trace): UIO[Unit] =
       consoleState.update(data => data.copy(input = List.empty))
 
     /**
      * Clears the contents of the output buffer.
      */
-    def clearOutput(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearOutput(implicit trace: Trace): UIO[Unit] =
       consoleState.update(data => data.copy(output = Vector.empty))
 
     /**
@@ -96,7 +96,7 @@ object TestConsole extends Serializable {
      * that console output is rendered to standard output in addition to being
      * written to the output buffer.
      */
-    def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       debugState.locally(true)(zio)
 
     /**
@@ -104,41 +104,41 @@ object TestConsole extends Serializable {
      * string in the sequence will be the first to be taken. These strings will
      * be taken before any strings that were previously in the input buffer.
      */
-    def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedLines(lines: String*)(implicit trace: Trace): UIO[Unit] =
       consoleState.update(data => data.copy(input = lines.toList ::: data.input))
 
     /**
      * Takes the first value from the input buffer, if one exists, or else fails
      * with an `EOFException`.
      */
-    def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
+    def readLine(implicit trace: Trace): IO[IOException, String] =
       ZIO.attempt(unsafeReadLine()).refineToOrDie[IOException]
 
     /**
      * Returns the contents of the output buffer. The first value written to the
      * output buffer will be the first in the sequence.
      */
-    def output(implicit trace: ZTraceElement): UIO[Vector[String]] =
+    def output(implicit trace: Trace): UIO[Vector[String]] =
       consoleState.get.map(_.output)
 
     /**
      * Returns the contents of the error output buffer. The first value written
      * to the error output buffer will be the first in the sequence.
      */
-    def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]] =
+    def outputErr(implicit trace: Trace): UIO[Vector[String]] =
       consoleState.get.map(_.errOutput)
 
     /**
      * Writes the specified string to the output buffer.
      */
-    override def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    override def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafePrint(line)) *>
         live.provide(Console.print(line)).whenZIO(debugState.get).unit
 
     /**
      * Writes the specified string to the error buffer.
      */
-    override def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    override def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafePrintError(line)) *>
         live.provide(Console.printError(line)).whenZIO(debugState.get).unit
 
@@ -146,7 +146,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the output buffer followed by a newline
      * character.
      */
-    override def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    override def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafePrintLine(line)) *>
         live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
 
@@ -154,7 +154,7 @@ object TestConsole extends Serializable {
      * Writes the specified string to the error buffer followed by a newline
      * character.
      */
-    override def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    override def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafePrintLineError(line)) *>
         live.provide(Console.printLineError(line)).whenZIO(debugState.get).unit
 
@@ -162,7 +162,7 @@ object TestConsole extends Serializable {
      * Saves the `TestConsole`'s current state in an effect which, when run,
      * will restore the `TestConsole` state to the saved state.
      */
-    def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
         consoleData <- consoleState.get
       } yield consoleState.set(consoleData)
@@ -172,7 +172,7 @@ object TestConsole extends Serializable {
      * that console output is only written to the output buffer and not rendered
      * to standard output.
      */
-    def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       debugState.locally(false)(zio)
 
     override private[zio] def unsafePrint(line: Any): Unit =
@@ -212,7 +212,7 @@ object TestConsole extends Serializable {
    * This can be useful for mixing in with implementations of other interfaces.
    */
   def make(data: Data, debug: Boolean = true)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZLayer[Live, Nothing, TestConsole] =
     ZLayer.scoped {
       for {
@@ -237,14 +237,14 @@ object TestConsole extends Serializable {
    * Accesses a `TestConsole` instance in the environment and clears the input
    * buffer.
    */
-  def clearInput(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearInput(implicit trace: Trace): UIO[Unit] =
     testConsoleWith(_.clearInput)
 
   /**
    * Accesses a `TestConsole` instance in the environment and clears the output
    * buffer.
    */
-  def clearOutput(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearOutput(implicit trace: Trace): UIO[Unit] =
     testConsoleWith(_.clearOutput)
 
   /**
@@ -253,28 +253,28 @@ object TestConsole extends Serializable {
    * rendered to standard output in addition to being written to the output
    * buffer.
    */
-  def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     testConsoleWith(_.debug(zio))
 
   /**
    * Accesses a `TestConsole` instance in the environment and writes the
    * specified sequence of strings to the input buffer.
    */
-  def feedLines(lines: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedLines(lines: String*)(implicit trace: Trace): UIO[Unit] =
     testConsoleWith(_.feedLines(lines: _*))
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the output buffer.
    */
-  def output(implicit trace: ZTraceElement): UIO[Vector[String]] =
+  def output(implicit trace: Trace): UIO[Vector[String]] =
     testConsoleWith(_.output)
 
   /**
    * Accesses a `TestConsole` instance in the environment and returns the
    * contents of the error buffer.
    */
-  def outputErr(implicit trace: ZTraceElement): UIO[Vector[String]] =
+  def outputErr(implicit trace: Trace): UIO[Vector[String]] =
     testConsoleWith(_.outputErr)
 
   /**
@@ -282,7 +282,7 @@ object TestConsole extends Serializable {
    * state in an effect which, when run, will restore the `TestConsole` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+  def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testConsoleWith(_.save)
 
   /**
@@ -290,7 +290,7 @@ object TestConsole extends Serializable {
    * effect with the `TestConsole` set to silent mode, so that console output is
    * only written to the output buffer and not rendered to standard output.
    */
-  def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     testConsoleWith(_.silent(zio))
 
   /**

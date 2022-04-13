@@ -81,7 +81,7 @@ object TestAnnotation {
    * An annotation for capturing the trace information, including source
    * location (i.e. file name and line number) of the calling test.
    */
-  private[zio] val trace: TestAnnotation[List[ZTraceElement]] =
+  private[zio] val trace: TestAnnotation[List[Trace]] =
     TestAnnotation("trace", List.empty, _ ++ _)
 
   val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =

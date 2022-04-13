@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.ZTraceElement
+import zio.Trace
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -37,7 +37,7 @@ sealed abstract class AssertionValue {
     AssertionValue(assertion.label(string), value, result, expression, sourceLocation)
   def sameAssertion(that: AssertionValue): Boolean = assertion == that.assertion
 
-  def negate(implicit trace: ZTraceElement): AssertionValue =
+  def negate(implicit trace: Trace): AssertionValue =
     AssertionValue(assertion.negate, value, !result, expression, sourceLocation)
   def withContext(expr: Option[String], sourceLocation: Option[String]): AssertionValue =
     AssertionValue(assertion, value, result, expr, sourceLocation)

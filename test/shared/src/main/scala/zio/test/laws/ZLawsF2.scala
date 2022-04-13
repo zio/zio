@@ -19,7 +19,7 @@ package zio.test.laws
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, TestConfig, TestResult, check}
 import zio.{URIO, ZIO}
-import zio.ZTraceElement
+import zio.Trace
 
 object ZLawsF2 {
 
@@ -36,7 +36,7 @@ object ZLawsF2 {
     def run[R1 <: R with TestConfig, F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
       genF: GenF2[R1, F],
       gen: Gen[R1, B]
-    )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult]
+    )(implicit trace: Trace): ZIO[R1, Nothing, TestResult]
 
     /**
      * Combine these laws with the specified laws to produce a set of laws that
@@ -58,7 +58,7 @@ object ZLawsF2 {
       override final def run[R1 <: R with TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R1, F],
         gen: Gen[R1, B]
-      )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] = {
+      )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] = {
         val lhs: ZIO[R1, Nothing, TestResult] = left.run(genF, gen)
         val rhs: ZIO[R1, Nothing, TestResult] = right.run(genF, gen)
         lhs.zipWith(rhs)(_ && _)
@@ -83,7 +83,7 @@ object ZLawsF2 {
         genB: Gen[R, B],
         genA1: Gen[R, A1],
         genA2: Gen[R, A2]
-      )(implicit trace: ZTraceElement): URIO[R, TestResult] =
+      )(implicit trace: Trace): URIO[R, TestResult] =
         check(
           genF[R, A, B](genB),
           Gen.function[R, A, A1](genA1),
@@ -101,7 +101,7 @@ object ZLawsF2 {
       final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R, F],
         gen: Gen[R, B]
-      )(implicit trace: ZTraceElement): URIO[R, TestResult] =
+      )(implicit trace: Trace): URIO[R, TestResult] =
         check(genF[R, A, B](gen))(apply(_).map(_.label(label)))
     }
   }

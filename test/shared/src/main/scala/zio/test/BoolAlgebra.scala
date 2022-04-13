@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{ZIO, ZTraceElement}
+import zio.{ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -112,7 +112,7 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * specified effectual function.
    */
   final def flatMapZIO[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R, E, BoolAlgebra[B]] =
     fold(a => f(a))(_.zipWith(_)(_ && _), _.zipWith(_)(_ || _), _.map(!_))
 
@@ -177,7 +177,7 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * Returns a new result, with all values mapped by the specified effectual
    * function.
    */
-  final def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, BoolAlgebra[B]] =
+  final def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, BoolAlgebra[B]] =
     flatMapZIO(a => f(a).map(success))
 
   /**

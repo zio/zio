@@ -188,7 +188,7 @@ object CauseSpec extends ZIOBaseSpec {
     Gen.string
 
   val fiberIds: Gen[Any, FiberId] =
-    Gen.int.zipWith(Gen.int)(FiberId(_, _, ZTraceElement.empty))
+    Gen.int.zipWith(Gen.int)(FiberId(_, _, Trace.empty))
 
   val throwables: Gen[Any, Throwable] =
     Gen.throwable

@@ -562,26 +562,26 @@ object ZSinkSpec extends ZIOBaseSpec {
             @volatile
             private var isShutDown = false
 
-            override def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] = q.awaitShutdown
+            override def awaitShutdown(implicit trace: Trace): UIO[Unit] = q.awaitShutdown
 
             override def capacity: Int = q.capacity
 
-            override def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = ZIO.succeed(this.isShutDown)
+            override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(this.isShutDown)
 
-            override def offer(a: A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Boolean] = q.offer(a)
+            override def offer(a: A)(implicit trace: Trace): ZIO[Any, Nothing, Boolean] = q.offer(a)
 
-            override def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): ZIO[Any, Nothing, Boolean] =
+            override def offerAll(as: Iterable[A])(implicit trace: Trace): ZIO[Any, Nothing, Boolean] =
               q.offerAll(as)
 
-            override def shutdown(implicit trace: ZTraceElement): UIO[Unit] = ZIO.succeed(this.isShutDown = true)
+            override def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.succeed(this.isShutDown = true)
 
-            override def size(implicit trace: ZTraceElement): UIO[Int] = q.size
+            override def size(implicit trace: Trace): UIO[Int] = q.size
 
-            override def take(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] = q.take
+            override def take(implicit trace: Trace): ZIO[Any, Nothing, A] = q.take
 
-            override def takeAll(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] = q.takeAll
+            override def takeAll(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] = q.takeAll
 
-            override def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
+            override def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
               q.takeUpTo(max)
 
           }

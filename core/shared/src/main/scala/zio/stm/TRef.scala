@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{UIO, ZTraceElement}
+import zio.{UIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM.internal._
 
@@ -175,7 +175,7 @@ object TRef {
    * A convenience method that makes a `TRef` and immediately commits the
    * transaction to extract the value out.
    */
-  def makeCommit[A](a: => A)(implicit trace: ZTraceElement): UIO[TRef[A]] =
+  def makeCommit[A](a: => A)(implicit trace: Trace): UIO[TRef[A]] =
     STM.atomically(make(a))
 
   private[stm] def unsafeMake[A](a: A): TRef[A] = {

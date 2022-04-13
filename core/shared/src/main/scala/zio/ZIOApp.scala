@@ -51,20 +51,20 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
    */
-  final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
+  final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp =
     ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
    */
-  final def getArgs(implicit trace: ZTraceElement): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
+  final def getArgs(implicit trace: Trace): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIOAppArgs.getArgs
 
   /**
    * A helper function to exit the application with the specified exit code.
    */
-  final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
+  final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
       if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)
@@ -83,7 +83,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   /**
    * Invokes the main app. Designed primarily for testing.
    */
-  final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[Any, Any, Any] =
+  final def invoke(args: Chunk[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
     ZIO.suspendSucceed {
       val newLayer =
         ZLayer.environment[Scope] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
@@ -100,7 +100,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
 
   def runtime: Runtime[Any] = Runtime.default
 
-  protected def installSignalHandlers(implicit trace: ZTraceElement): UIO[Any] =
+  protected def installSignalHandlers(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
       if (!ZIOApp.installedSignals.getAndSet(true)) {
         val dumpFibers = () => runtime.unsafeRun(Fiber.dumpAll)
@@ -154,6 +154,6 @@ object ZIOApp {
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's
    * configuration.
    */
-  def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
+  def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any])(implicit trace: Trace): ZIOApp =
     ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
 }

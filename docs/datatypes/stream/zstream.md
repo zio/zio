@@ -1632,7 +1632,7 @@ abstract class ZStream[-R, +E, +O] {
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  )(implicit trace: ZTraceElement): ZStream[R1, E2, B] = ???
+  )(implicit trace: Trace): ZStream[R1, E2, B] = ???
 }
 ```
 

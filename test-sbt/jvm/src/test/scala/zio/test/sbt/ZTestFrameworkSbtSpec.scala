@@ -6,7 +6,7 @@ import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{ZEnvironment, ZIO, ZTraceElement, durationInt}
+import zio.{ZEnvironment, ZIO, Trace, durationInt}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -57,7 +57,7 @@ object ZTestFrameworkSbtSpec {
     )
   }
 
-  def testLogMessages()(implicit trace: ZTraceElement): Unit = {
+  def testLogMessages()(implicit trace: Trace): Unit = {
     val loggers = Seq(new MockLogger)
 
     loadAndExecute(FrameworkSpecInstances.failingSpecFQN, loggers = loggers)
@@ -229,16 +229,16 @@ object ZTestFrameworkSbtSpec {
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
-  def assertSourceLocation()(implicit trace: ZTraceElement): String = {
-    val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
+  def assertSourceLocation()(implicit trace: Trace): String = {
+    val filePath = Option(trace).collect { case Trace(_, file, _) =>
       file
     }
     filePath.fold("")(path => cyan(s"at $path:XXX"))
   }
 
   implicit class TestOutputOps(output: String) {
-    def withNoLineNumbers(implicit trace: ZTraceElement): String = {
-      val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
+    def withNoLineNumbers(implicit trace: Trace): String = {
+      val filePath = Option(trace).collect { case Trace(_, file, _) =>
         file
       }
       filePath.fold(output)(path => output.replaceAll(Pattern.quote(path + ":") + "\\d+", path + ":XXX"))

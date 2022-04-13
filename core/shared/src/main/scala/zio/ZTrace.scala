@@ -22,7 +22,7 @@ import scala.annotation.tailrec
 
 final case class ZTrace(
   fiberId: FiberId,
-  stackTrace: Chunk[ZTraceElement]
+  stackTrace: Chunk[Trace]
 ) { self =>
 
   def ++(that: ZTrace): ZTrace =
@@ -33,7 +33,7 @@ final case class ZTrace(
    * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
-    stackTrace.flatMap(ZTraceElement.toJava)
+    stackTrace.flatMap(Trace.toJava)
 }
 
 object ZTrace {

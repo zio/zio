@@ -1,3 +1,5 @@
+package zio
+
 /*
  * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
@@ -59,7 +61,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val logger: ZLogger[String, Unit] =
       (
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         level: LogLevel,
         message: () => String,

@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{Scope, UIO, ZIO, ZTraceElement}
+import zio.{Scope, UIO, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
@@ -97,14 +97,14 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * effect begins execution and releasing it immediately after the effect
    * completes execution, whether by success, failure, or interruption.
    */
-  def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     withPermits(1L)(zio)
 
   /**
    * Returns a scoped effect that describes acquiring a permit as the `acquire`
    * action and releasing it as the `release` action.
    */
-  def withPermitScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+  def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     withPermitsScoped(1L)
 
   /**
@@ -113,14 +113,14 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * immediately after the effect completes execution, whether by success,
    * failure, or interruption.
    */
-  def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore => restore(acquireN(n).commit) *> restore(zio).ensuring(releaseN(n).commit))
 
   /**
    * Returns a scoped effect that describes acquiring the specified number of
    * permits and releasing them when the scope is closed.
    */
-  def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+  def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZIO.acquireReleaseInterruptible(acquireN(n).commit)(releaseN(n).commit)
 
   private def assertNonNegative(n: Long): Unit =
@@ -132,13 +132,13 @@ object TSemaphore {
   /**
    * Constructs a new `TSemaphore` with the specified number of permits.
    */
-  def make(permits: => Long)(implicit trace: ZTraceElement): USTM[TSemaphore] =
+  def make(permits: => Long)(implicit trace: Trace): USTM[TSemaphore] =
     TRef.make(permits).map(v => new TSemaphore(v))
 
   /**
    * Constructs a new `TSemaphore` with the specified number of permits,
    * immediately committing the transaction.
    */
-  def makeCommit(permits: => Long)(implicit trace: ZTraceElement): UIO[TSemaphore] =
+  def makeCommit(permits: => Long)(implicit trace: Trace): UIO[TSemaphore] =
     make(permits).commit
 }

@@ -32,6 +32,6 @@ private[zio] trait ZIOCompanionPlatformSpecific {
    * applications consider using `attemptBlocking` or
    * `attemptBlockingCancelable`.
    */
-  def attemptBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
+  def attemptBlockingInterrupt[A](effect: => A)(implicit trace: Trace): Task[A] =
     ZIO.attemptBlocking(effect)
 }

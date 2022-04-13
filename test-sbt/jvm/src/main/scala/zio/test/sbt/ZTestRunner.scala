@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{ZIO, ZTraceElement}
+import zio.{ZIO, Trace}
 import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
 
 import java.util.concurrent.atomic.AtomicReference
@@ -27,7 +27,7 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  def sendSummary(implicit trace: ZTraceElement): SendSummary = SendSummary.fromSendM(summary =>
+  def sendSummary(implicit trace: Trace): SendSummary = SendSummary.fromSendM(summary =>
     ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
@@ -51,9 +51,9 @@ final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], 
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    tasksZ(defs)(ZTraceElement.empty).toArray
+    tasksZ(defs)(Trace.empty).toArray
 
-  private[sbt] def tasksZ(defs: Array[TaskDef])(implicit trace: ZTraceElement): Option[ZTestTask] = {
+  private[sbt] def tasksZ(defs: Array[TaskDef])(implicit trace: Trace): Option[ZTestTask] = {
     val testArgs                = TestArgs.parse(args)
     val tasks: Array[ZTestTask] = defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs))
     val entrypointClass: String = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
@@ -98,12 +98,12 @@ object ZTestTask {
 }
 
 abstract class ZTestTaskPolicy {
-  def merge(zioTasks: Array[ZTestTask])(implicit trace: ZTraceElement): Option[ZTestTask]
+  def merge(zioTasks: Array[ZTestTask])(implicit trace: Trace): Option[ZTestTask]
 }
 
 class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
 
-  override def merge(zioTasks: Array[ZTestTask])(implicit trace: ZTraceElement): Option[ZTestTask] =
+  override def merge(zioTasks: Array[ZTestTask])(implicit trace: Trace): Option[ZTestTask] =
     zioTasks.foldLeft(Option.empty[ZTestTask]) { case (newTests, nextSpec) =>
       newTests match {
         case Some(composedTask) =>

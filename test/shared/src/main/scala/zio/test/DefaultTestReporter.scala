@@ -31,7 +31,7 @@ import scala.annotation.tailrec
 // TODO Needs to be re-written or simply dropped for new streaming behavior. #6484
 object DefaultTestReporter {
   def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): TestReporter[E] = { (duration: Duration, executedSpec: ExecutionEvent) =>
     // val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
     // val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
@@ -43,7 +43,7 @@ object DefaultTestReporter {
   def render(
     reporterEvent: ExecutionEvent,
     includeCause: Boolean
-  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
+  )(implicit trace: Trace): Seq[ExecutionResult] = {
     reporterEvent match {
       case SectionStart(labelsReversed, _, ancestors) =>
         val depth = labelsReversed.length - 1
@@ -181,7 +181,7 @@ object DefaultTestReporter {
     )
 
   private def renderRuntimeCause[E](cause: Cause[E], label: String, depth: Int, includeCause: Boolean)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ) = {
     val failureDetails =
       Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
@@ -255,7 +255,7 @@ object DefaultTestReporter {
     if (assertionValue.result.isSuccess) Fragment(" satisfied ")
     else Fragment(" did not satisfy ")
 
-  def renderCause(cause: Cause[Any], offset: Int)(implicit trace: ZTraceElement): Message = {
+  def renderCause(cause: Cause[Any], offset: Int)(implicit trace: Trace): Message = {
     val defects = cause.defects
     val timeouts = defects.collect { case TestTimeoutException(message) =>
       Message(message)

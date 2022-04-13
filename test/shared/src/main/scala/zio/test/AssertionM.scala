@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{UIO, ZIO, ZTraceElement}
+import zio.{UIO, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.reflect.ClassTag
@@ -36,7 +36,7 @@ abstract class AssertionM[-A] { self =>
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
    */
-  def &&[A1 <: A](that: => AssertionM[A1])(implicit trace: ZTraceElement): AssertionM[A1] =
+  def &&[A1 <: A](that: => AssertionM[A1])(implicit trace: Trace): AssertionM[A1] =
     AssertionM(infix(param(self), "&&", param(that)), actual => self.runM(actual) && that.runM(actual))
 
   /**
@@ -48,7 +48,7 @@ abstract class AssertionM[-A] { self =>
   /**
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
-  def ||[A1 <: A](that: => AssertionM[A1])(implicit trace: ZTraceElement): AssertionM[A1] =
+  def ||[A1 <: A](that: => AssertionM[A1])(implicit trace: Trace): AssertionM[A1] =
     AssertionM(infix(param(self), "||", param(that)), actual => self.runM(actual) || that.runM(actual))
 
   def canEqual(that: AssertionM[_]): Boolean = that != null
@@ -70,7 +70,7 @@ abstract class AssertionM[-A] { self =>
   /**
    * Returns the negation of this assertion.
    */
-  def negate(implicit trace: ZTraceElement): AssertionM[A] =
+  def negate(implicit trace: Trace): AssertionM[A] =
     AssertionM.not(self)
 
   /**
@@ -177,7 +177,7 @@ object AssertionM {
    */
   def assertionM[R, E, A](
     name: String
-  )(params: RenderParam*)(run: (=> A) => UIO[Boolean])(implicit trace: ZTraceElement): AssertionM[A] = {
+  )(params: RenderParam*)(run: (=> A) => UIO[Boolean])(implicit trace: Trace): AssertionM[A] = {
     lazy val assertion: AssertionM[A] = assertionDirect(name)(params: _*) { actual =>
       lazy val tryActual = Try(actual)
       BoolAlgebraM.fromZIO(run(tryActual.get)).flatMap { p =>
@@ -204,8 +204,8 @@ object AssertionM {
     assertion: AssertionM[B]
   )(
     get: (=> A) => ZIO[Any, Nothing, Option[B]],
-    orElse: AssertionMData => AssertResultM = _.asFailureM(ZTraceElement.empty)
-  )(implicit trace: ZTraceElement): AssertionM[A] = {
+    orElse: AssertionMData => AssertResultM = _.asFailureM(Trace.empty)
+  )(implicit trace: Trace): AssertionM[A] = {
     lazy val resultAssertion: AssertionM[A] = assertionDirect(name)(params: _*) { a =>
       lazy val tryA = Try(a)
       BoolAlgebraM.fromZIO(get(tryA.get)).flatMap {
@@ -226,7 +226,7 @@ object AssertionM {
   /**
    * Makes a new assertion that negates the specified assertion.
    */
-  def not[A](assertion: AssertionM[A])(implicit trace: ZTraceElement): AssertionM[A] =
+  def not[A](assertion: AssertionM[A])(implicit trace: Trace): AssertionM[A] =
     AssertionM.assertionDirect("not")(param(assertion))(!assertion.runM(_))
 
 }

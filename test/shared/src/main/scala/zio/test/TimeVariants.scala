@@ -17,7 +17,7 @@
 package zio.test
 
 import com.github.ghik.silencer.silent
-import zio.{Duration, Random, ZTraceElement}
+import zio.{Duration, Random, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time._
@@ -29,7 +29,7 @@ trait TimeVariants {
    * A generator of `java.time.DayOfWeek` values. Shrinks toward
    * `DayOfWeek.MONDAY`.
    */
-  final def dayOfWeek(implicit trace: ZTraceElement): Gen[Any, DayOfWeek] =
+  final def dayOfWeek(implicit trace: Trace): Gen[Any, DayOfWeek] =
     Gen.elements(
       DayOfWeek.MONDAY,
       DayOfWeek.TUESDAY,
@@ -44,27 +44,27 @@ trait TimeVariants {
    * A generator of finite `zio.duration.Duration` values. Shrinks toward
    * `Duration.Zero`.
    */
-  final def finiteDuration(implicit trace: ZTraceElement): Gen[Any, Duration] =
+  final def finiteDuration(implicit trace: Trace): Gen[Any, Duration] =
     Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
 
   /**
    * A generator of finite `zio.duration.Duration` values inside the specified
    * range: [min, max]. Shrinks toward min.
    */
-  final def finiteDuration(min: Duration, max: Duration)(implicit trace: ZTraceElement): Gen[Any, Duration] =
+  final def finiteDuration(min: Duration, max: Duration)(implicit trace: Trace): Gen[Any, Duration] =
     Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
 
   /**
    * A generator of `java.time.Instant` values. Shrinks toward `Instant.MIN`.
    */
-  final def instant(implicit trace: ZTraceElement): Gen[Any, Instant] =
+  final def instant(implicit trace: Trace): Gen[Any, Instant] =
     instant(Instant.MIN, Instant.MAX)
 
   /**
    * A generator of `java.time.Instant` values inside the specified range: [min,
    * max]. Shrinks toward min.
    */
-  final def instant(min: Instant, max: Instant)(implicit trace: ZTraceElement): Gen[Any, Instant] = {
+  final def instant(min: Instant, max: Instant)(implicit trace: Trace): Gen[Any, Instant] = {
 
     def genSecond(min: Instant, max: Instant): Gen[Any, Long] =
       Gen.long(min.getEpochSecond, max.getEpochSecond - 1)
@@ -85,7 +85,7 @@ trait TimeVariants {
    * A generator of `java.time.LocalDate` values. Shrinks toward
    * `LocalDate.MIN`.
    */
-  final def localDate(implicit trace: ZTraceElement): Gen[Any, LocalDate] =
+  final def localDate(implicit trace: Trace): Gen[Any, LocalDate] =
     for {
       year  <- year
       month <- Gen.int(1, 12)
@@ -97,7 +97,7 @@ trait TimeVariants {
    * A generator of `java.time.LocalDateTime` values. Shrinks toward
    * `LocalDateTime.MIN`.
    */
-  final def localDateTime(implicit trace: ZTraceElement): Gen[Any, LocalDateTime] =
+  final def localDateTime(implicit trace: Trace): Gen[Any, LocalDateTime] =
     localDateTime(LocalDateTime.MIN, LocalDateTime.MAX)
 
   /**
@@ -105,7 +105,7 @@ trait TimeVariants {
    * [min, max]. Shrinks toward min.
    */
   final def localDateTime(min: LocalDateTime, max: LocalDateTime)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[Any, LocalDateTime] =
     instant(min.toInstant(utc), max.toInstant(utc)).map(LocalDateTime.ofInstant(_, utc))
 
@@ -113,7 +113,7 @@ trait TimeVariants {
    * A generator of `java.time.LocalTime` values. Shrinks toward
    * `LocalTime.MIN`.
    */
-  final def localTime(implicit trace: ZTraceElement): Gen[Any, LocalTime] =
+  final def localTime(implicit trace: Trace): Gen[Any, LocalTime] =
     for {
       hour   <- Gen.int(0, 23)
       minute <- Gen.int(0, 59)
@@ -124,7 +124,7 @@ trait TimeVariants {
   /**
    * A generator of `java.time.Month` values. Shrinks toward `Month.JANUARY`.
    */
-  final def month(implicit trace: ZTraceElement): Gen[Any, Month] =
+  final def month(implicit trace: Trace): Gen[Any, Month] =
     Gen.elements(
       Month.JANUARY,
       Month.FEBRUARY,
@@ -144,7 +144,7 @@ trait TimeVariants {
    * A generator of `java.time.MonthDay` values. Shrinks toward
    * `MonthDay.of(Month.JANUARY, 1)`.
    */
-  final def monthDay(implicit trace: ZTraceElement): Gen[Any, MonthDay] =
+  final def monthDay(implicit trace: Trace): Gen[Any, MonthDay] =
     for {
       month <- Gen.int(1, 12).map(Month.of)
       days  <- Gen.int(1, month.maxLength())
@@ -154,7 +154,7 @@ trait TimeVariants {
    * A generator of `java.time.OffsetDateTime` values. Shrinks toward
    * `OffsetDateTime.MIN`.
    */
-  final def offsetDateTime(implicit trace: ZTraceElement): Gen[Any, OffsetDateTime] =
+  final def offsetDateTime(implicit trace: Trace): Gen[Any, OffsetDateTime] =
     offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
@@ -162,7 +162,7 @@ trait TimeVariants {
    * range: [min, max]. Shrinks toward min.
    */
   final def offsetDateTime(min: OffsetDateTime, max: OffsetDateTime)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[Any, OffsetDateTime] = {
 
     def genLocalDateTime(min: OffsetDateTime, max: OffsetDateTime): Gen[Any, LocalDateTime] = {
@@ -190,7 +190,7 @@ trait TimeVariants {
    * A generator of `java.time.OffsetTime` values. Shrinks torward
    * `OffsetTime.MIN`.
    */
-  final def offsetTime(implicit trace: ZTraceElement): Gen[Any, OffsetTime] =
+  final def offsetTime(implicit trace: Trace): Gen[Any, OffsetTime] =
     for {
       time   <- localTime
       offset <- zoneOffset
@@ -199,7 +199,7 @@ trait TimeVariants {
   /**
    * A generator of `java.time.Period` values. Shrinks toward `Period.ZERO`.
    */
-  final def period(implicit trace: ZTraceElement): Gen[Any, Period] =
+  final def period(implicit trace: Trace): Gen[Any, Period] =
     for {
       years  <- Gen.int(0, Int.MaxValue)
       months <- Gen.int(0, Int.MaxValue)
@@ -210,14 +210,14 @@ trait TimeVariants {
    * A generator of `java.time.Year` values. Shrinks toward
    * `Year.of(Year.MIN_VALUE)`.
    */
-  final def year(implicit trace: ZTraceElement): Gen[Any, Year] =
+  final def year(implicit trace: Trace): Gen[Any, Year] =
     Gen.int(Year.MIN_VALUE, Year.MAX_VALUE).map(Year.of)
 
   /**
    * A generator of `java.time.YearMonth` values. Shrinks toward
    * `YearMonth.of(Year.MIN_VALUE, Month.JANUARY)`.
    */
-  final def yearMonth(implicit trace: ZTraceElement): Gen[Any, YearMonth] =
+  final def yearMonth(implicit trace: Trace): Gen[Any, YearMonth] =
     for {
       year  <- year
       month <- Gen.int(1, 12)
@@ -227,7 +227,7 @@ trait TimeVariants {
    * A generator of `java.time.ZonedDateTime` values. Shrinks toward
    * `ZoneDateTime.of(LocalDateTime.MIN, zoneId)`.
    */
-  final def zonedDateTime(implicit trace: ZTraceElement): Gen[Any, ZonedDateTime] =
+  final def zonedDateTime(implicit trace: Trace): Gen[Any, ZonedDateTime] =
     for {
       dateTime <- localDateTime
       zoneId   <- zoneId
@@ -237,14 +237,14 @@ trait TimeVariants {
    * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
    */
   @silent("JavaConverters")
-  final def zoneId(implicit trace: ZTraceElement): Gen[Any, ZoneId] =
+  final def zoneId(implicit trace: Trace): Gen[Any, ZoneId] =
     Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
 
   /**
    * A generator of `java.time.ZoneOffset` values. Shrinks toward
    * `ZoneOffset.MIN`.
    */
-  final def zoneOffset(implicit trace: ZTraceElement): Gen[Any, ZoneOffset] =
+  final def zoneOffset(implicit trace: Trace): Gen[Any, ZoneOffset] =
     Gen
       .int(ZoneOffset.MIN.getTotalSeconds, ZoneOffset.MAX.getTotalSeconds)
       .map(ZoneOffset.ofTotalSeconds)

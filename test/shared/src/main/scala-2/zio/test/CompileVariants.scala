@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{UIO, ZIO, ZTraceElement}
+import zio.{UIO, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait CompileVariants {
@@ -33,14 +33,14 @@ trait CompileVariants {
   private[zio] def assertImpl[A](
     value: => A,
     expression: Option[String] = None
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
+  )(assertion: Assertion[A])(implicit trace: Trace): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
+  )(implicit trace: Trace): ZIO[R, E, TestResult]
 
   /**
    * Checks the assertion holds for the given value.
@@ -70,11 +70,11 @@ object CompileVariants {
 
   def assertProxy[A](value: => A, expression: String)(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult =
+  )(implicit trace: Trace): TestResult =
     zio.test.assertImpl(value, Some(expression))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
+  )(implicit trace: Trace): ZIO[R, E, TestResult] =
     zio.test.assertMImpl(effect)(assertion)
 }

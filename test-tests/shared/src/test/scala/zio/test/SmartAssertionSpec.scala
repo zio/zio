@@ -380,7 +380,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(cause.is(_.failure) == "UH OH")
         },
         test("interrupted") {
-          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1, ZTraceElement.empty))
+          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1, Trace.empty))
           assertTrue(!cause.is(_.interrupted))
         }
       ),
@@ -394,7 +394,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(exit.is(_.failure) == 88)
         },
         test("interrupted") {
-          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1, ZTraceElement.empty))
+          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1, Trace.empty))
           assertTrue(!exit.is(_.interrupted))
         },
         test("success") {
@@ -481,7 +481,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   // The implicit trace will be used by assertTrue to report the
   // actual location.
-  def customAssertion(string: String)(implicit trace: ZTraceElement): Assert =
+  def customAssertion(string: String)(implicit trace: Trace): Assert =
     assertTrue(string == "cool")
 
   // Test Types

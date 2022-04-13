@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.CompressionException
-import zio.{Chunk, ZIO, ZTraceElement}
+import zio.{Chunk, ZIO, Trace}
 
 import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
@@ -12,7 +12,7 @@ object Inflate {
   def makeInflater[Err >: CompressionException, Done](
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false
-  )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+  )(implicit trace: Trace): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
     ZChannel.unwrapScoped {
       ZIO
         .acquireRelease(ZIO.succeed((new Array[Byte](bufferSize), new Inflater(noWrap)))) { case (_, inflater) =>

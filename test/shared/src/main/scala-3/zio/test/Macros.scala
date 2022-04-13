@@ -240,9 +240,9 @@ object Macros {
   def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
     import quotes.reflect._
     val code = showExpr(value)
-    Expr.summon[ZTraceElement] match {
+    Expr.summon[Trace] match {
       case Some(trace) => '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)})($assertion)($trace)}
-      case None => throw new Exception("Unable to summon the implicit ZTraceElement. Ensure the function calling this macro defines it.")
+      case None => throw new Exception("Unable to summon the implicit Trace. Ensure the function calling this macro defines it.")
     }
   }
 
