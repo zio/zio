@@ -679,7 +679,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def debug(implicit trace: ZTraceElement): ZStream[R, E, A] =
     self
       .tap(a => ZIO.debug(a))
-      .tapError(e => ZIO.debug(s"<FAIL>: $e"))
+      .tapErrorCause(e => ZIO.debug(s"<FAIL>: $e"))
 
   /**
    * Taps the stream, printing the result of calling `.toString` on the emitted
@@ -688,7 +688,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def debug(label: String)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     self
       .tap(a => ZIO.debug(s"$label: $a"))
-      .tapError(e => ZIO.debug(s"<FAIL> $label: $e"))
+      .tapErrorCause(e => ZIO.debug(s"<FAIL> $label: $e"))
 
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
@@ -2965,6 +2965,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     f: E => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R1, E1, A] =
     catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
+
+  /**
+   * Returns a stream that effectfully "peeks" at the cause of failure of the
+   * stream.
+   */
+  final def tapErrorCause[R1 <: R, E1 >: E](
+    f: Cause[E] => ZIO[R1, E1, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R1, E1, A] =
+    catchAllCause(e => ZStream.fromZIO(f(e) *> ZIO.failCause(e)))
 
   /**
    * Sends all elements emitted by this stream to the specified sink in addition
