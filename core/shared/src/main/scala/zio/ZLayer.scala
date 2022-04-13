@@ -121,6 +121,17 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     foldLayer(handler, ZLayer.succeedEnvironment(_))
 
   /**
+   * Recovers from all errors.
+   */
+  final def catchAllCause[RIn1 <: RIn, E1, ROut1 >: ROut](
+                                                      handler: Cause[E] => ZLayer[RIn1, E1, ROut1]
+                                                    )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
+    foldCauseLayer(handler, ZLayer.succeedEnvironment(_))
+
+  final def debug(label: String)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+    self.tap(environment => ZIO.debug(label, environment)).tapErrorCause(cause => ZIO.debug(label, cause))
+
+  /**
    * Extends the scope of this layer, returning a new layer that when provided
    * to an effect will not immediately release its associated resources when
    * that effect completes execution but instead when the scope the resulting
@@ -273,6 +284,14 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut] =
     catchAll(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.fail(e)))
+
+  /**
+   * Performs the specified effect if this layer fails.
+   */
+  final def tapErrorCause[RIn1 <: RIn, E1 >: E](f: Cause[E] => ZIO[RIn1, E1, Any])(implicit
+                                                                       trace: ZTraceElement
+  ): ZLayer[RIn1, E1, ROut] =
+    catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.failCause(e)))
 
   /**
    * A named alias for `>>>`.

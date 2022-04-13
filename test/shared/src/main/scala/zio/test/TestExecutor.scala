@@ -120,7 +120,7 @@ object TestExecutor {
                 ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x))
               )).annotated
                 .provideSomeLayer[R](freshLayerPerSpec)
-                .provideLayerShared(sharedSpecLayer)
+                .provideLayerShared(sharedSpecLayer.debug("Foo"))
 
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
