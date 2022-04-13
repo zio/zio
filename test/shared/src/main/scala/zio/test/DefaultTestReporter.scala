@@ -109,7 +109,7 @@ object DefaultTestReporter {
                     .fold[Option[TestResult]] {
                       case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
                       case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
-                        Trace
+                        TestTrace
                           .prune(trace, false)
                           .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
                     }(

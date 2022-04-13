@@ -28,7 +28,7 @@ object AssertionResult {
   case class FailureDetailsResult(failureDetails: FailureDetails, genFailureDetails: Option[GenFailureDetails] = None)
       extends AssertionResult
   case class TraceResult(
-    trace: Trace[Boolean],
+    trace: TestTrace[Boolean],
     genFailureDetails: Option[GenFailureDetails] = None,
     label: Option[String] = None
   ) extends AssertionResult
