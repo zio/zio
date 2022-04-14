@@ -125,13 +125,13 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def catchAllCause[RIn1 <: RIn, E1, ROut1 >: ROut](
     handler: Cause[E] => ZLayer[RIn1, E1, ROut1]
-  )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
+  )(implicit trace: Trace): ZLayer[RIn1, E1, ROut1] =
     foldCauseLayer(handler, ZLayer.succeedEnvironment(_))
 
   /**
    * Taps the layer, printing the result of calling `.toString` on the value.
    */
-  final def debug(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+  final def debug(implicit trace: Trace): ZLayer[RIn, E, ROut] =
     self
       .tap(value => ZIO.succeed(println(value)))
       .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
@@ -140,7 +140,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Taps the layer, printing the result of calling `.toString` on the value.
    * Prefixes the output with the given message.
    */
-  final def debug(prefix: => String)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+  final def debug(prefix: => String)(implicit trace: Trace): ZLayer[RIn, E, ROut] =
     self
       .tap(value => ZIO.succeed(println(s"$prefix: $value")))
       .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
@@ -303,7 +303,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Performs the specified effect if this layer fails.
    */
   final def tapErrorCause[RIn1 <: RIn, E1 >: E](f: Cause[E] => ZIO[RIn1, E1, Any])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZLayer[RIn1, E1, ROut] =
     catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.failCause(e)))
 
@@ -537,7 +537,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Prints the specified message to the console for debugging purposes.
    */
-  def debug(value: => Any)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Unit] =
+  def debug(value: => Any)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.fromZIO(ZIO.debug(value))
 
   /**
