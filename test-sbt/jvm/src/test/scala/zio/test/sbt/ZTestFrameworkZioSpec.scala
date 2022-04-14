@@ -4,7 +4,12 @@ import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
 import zio.test.{Summary, TestAspect, ZIOSpecAbstract}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
+import zio.test.sbt.FrameworkSpecInstances.{
+  RuntimeExceptionDuringLayerConstructionSpec,
+  RuntimeExceptionSpec,
+  SimpleSpec,
+  TimeOutSpec
+}
 import zio.test.sbt.TestingSupport.{green, red}
 
 import java.net.BindException

@@ -124,8 +124,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Recovers from all errors.
    */
   final def catchAllCause[RIn1 <: RIn, E1, ROut1 >: ROut](
-                                                      handler: Cause[E] => ZLayer[RIn1, E1, ROut1]
-                                                    )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
+    handler: Cause[E] => ZLayer[RIn1, E1, ROut1]
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     foldCauseLayer(handler, ZLayer.succeedEnvironment(_))
 
   final def debug(label: String)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
@@ -289,7 +289,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Performs the specified effect if this layer fails.
    */
   final def tapErrorCause[RIn1 <: RIn, E1 >: E](f: Cause[E] => ZIO[RIn1, E1, Any])(implicit
-                                                                       trace: ZTraceElement
+    trace: ZTraceElement
   ): ZLayer[RIn1, E1, ROut] =
     catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.failCause(e)))
 

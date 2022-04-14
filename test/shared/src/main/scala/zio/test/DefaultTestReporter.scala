@@ -145,7 +145,12 @@ object DefaultTestReporter {
 
                 case Left(TestFailure.Runtime(cause, _)) =>
                   Some(
-                    renderRuntimeCause(cause, labels.reverse.headOption.getOrElse("Unlabeled failure"), depth, includeCause)
+                    renderRuntimeCause(
+                      cause,
+                      labels.reverse.headOption.getOrElse("Unlabeled failure"),
+                      depth,
+                      includeCause
+                    )
                   )
               }
               renderedResult.map(r => r.lines).getOrElse(Nil)

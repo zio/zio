@@ -1,8 +1,16 @@
 package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler}
-import zio.{ZEnvironment, ZIO, ZLayer, durationInt}
-import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOSpecDefault, assertCompletes, testClock}
+import zio.{ZIO, ZLayer, durationInt}
+import zio.test.{
+  Annotations,
+  Assertion,
+  Spec,
+  TestAspect,
+  TestFailure,
+  ZIOSpecDefault,
+  assertCompletes,
+}
 
 import java.net.BindException
 import java.util.concurrent.atomic.AtomicInteger
@@ -37,7 +45,7 @@ object FrameworkSpecInstances {
       suite("simple suite")(
         test("slow test")(
           for {
-           _ <- ZIO.sleep(3.seconds)
+            _ <- ZIO.sleep(3.seconds)
           } yield assertCompletes
         )
       ) @@ TestAspect.withLiveClock @@ TestAspect.timeout(1.second)
