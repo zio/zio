@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.test.Assertion.{containsCause, equalTo, failsCause, isFalse, isTrue}
 import zio.test.{Gen, assert, assertM, check}
-import zio.{Cause, Chunk, ZIO, Promise, Ref, Schedule, ZIO, ZIO, ZIO, ZIOBaseSpec}
+import zio.{Cause, Chunk, Promise, Ref, Schedule, ZIO, ZIOBaseSpec}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
