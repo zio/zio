@@ -112,7 +112,7 @@ object AutoWireSpec extends ZIOBaseSpec {
               program.provide(stringLayer)
 
             assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
-          },
+          }
         ),
         suite(".unit")(
           test("run layers for their side effects and suppresses unused layer warnings") {
