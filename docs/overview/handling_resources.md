@@ -59,7 +59,7 @@ def groupData(u: Unit): IO[IOException, Unit] = IO.unit
 
 ```scala mdoc:silent
 val groupedFileData: IO[IOException, Unit] = 
-  openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
+  ZIO.acquireReleaseWith(openFile("data.json"))(closeFile(_)) { file =>
     for {
       data    <- decodeData(file)
       grouped <- groupData(data)
