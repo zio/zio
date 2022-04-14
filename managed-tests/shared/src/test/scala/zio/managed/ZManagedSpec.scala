@@ -99,7 +99,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- exits.get
         } yield assert(result)(
           equalTo(
-            List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, ZTrace.none)), Exit.Failure(Cause.Die(ex, ZTrace.none)))
+            List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, StackTrace.none)), Exit.Failure(Cause.Die(ex, StackTrace.none)))
           )
         )
       } @@ zioTag(errors),
@@ -117,7 +117,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
           _      <- res(exits).useDiscard(ZIO.die(useEx)).exit
           result <- exits.get
-        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx, ZTrace.none)))))
+        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx, StackTrace.none)))))
       }
     ) @@ zioTag(errors),
     suite("zipWithPar")(
@@ -1391,7 +1391,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             second = ZManaged.fromReservation(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
             _     <- first.zipPar(second).useDiscard(ZIO.unit)
           } yield ()).exit
-            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail((), ZTrace.none), Cause.interrupt(selfId))))))
+            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail((), StackTrace.none), Cause.interrupt(selfId))))))
         }
       } @@ zioTag(errors),
       test("Run finalizers if one reservation fails") {
