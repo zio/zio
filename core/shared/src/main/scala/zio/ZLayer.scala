@@ -52,7 +52,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     self.orDie
 
   final def +!+[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   ): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.unionAll[ROut2](_))
 
@@ -61,7 +61,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * has the inputs and outputs of = both.
    */
   final def ++[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.zipWithPar(that)(_.union[ROut2](_))
 
@@ -69,7 +69,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * A symbolic alias for `orElse`.
    */
   def <>[RIn1 <: RIn, E1, ROut1 >: ROut](
-    that: ZLayer[RIn1, E1, ROut1]
+    that: => ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     self.orElse(that)
 
@@ -77,7 +77,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * A named alias for `++`.
    */
   final def and[E1 >: E, RIn2, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(implicit tag: EnvironmentTag[ROut2]): ZLayer[RIn with RIn2, E1, ROut1 with ROut2] =
     self.++[E1, RIn2, ROut1, ROut2](that)
 
@@ -85,7 +85,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * A named alias for `>+>`.
    */
   final def andTo[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(implicit
     tagged: EnvironmentTag[ROut2],
     trace: ZTraceElement
@@ -96,7 +96,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Builds a layer into a scoped value.
    */
   final def build(implicit trace: ZTraceElement): ZIO[RIn with Scope, E, ZEnvironment[ROut]] =
-    ZIO.serviceWithZIO[Scope](build)
+    ZIO.serviceWithZIO[Scope](build(_))
 
   /**
    * Builds a layer into a ZIO value. Any resources associated with this layer
@@ -105,7 +105,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * the services output by the layer exceed the lifetime of the effect the
    * layer is provided to.
    */
-  final def build(scope: Scope)(implicit trace: ZTraceElement): ZIO[RIn, E, ZEnvironment[ROut]] =
+  final def build(scope: => Scope)(implicit trace: ZTraceElement): ZIO[RIn, E, ZEnvironment[ROut]] =
     for {
       memoMap <- ZLayer.MemoMap.make
       run     <- self.scope(scope)
@@ -119,6 +119,31 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     handler: E => ZLayer[RIn1, E1, ROut1]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     foldLayer(handler, ZLayer.succeedEnvironment(_))
+
+  /**
+   * Recovers from all errors.
+   */
+  final def catchAllCause[RIn1 <: RIn, E1, ROut1 >: ROut](
+    handler: Cause[E] => ZLayer[RIn1, E1, ROut1]
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
+    foldCauseLayer(handler, ZLayer.succeedEnvironment(_))
+
+  /**
+   * Taps the layer, printing the result of calling `.toString` on the value.
+   */
+  final def debug(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+    self
+      .tap(value => ZIO.succeed(println(value)))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+
+  /**
+   * Taps the layer, printing the result of calling `.toString` on the value.
+   * Prefixes the output with the given message.
+   */
+  final def debug(prefix: => String)(implicit trace: ZTraceElement): ZLayer[RIn, E, ROut] =
+    self
+      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
 
   /**
    * Extends the scope of this layer, returning a new layer that when provided
@@ -135,7 +160,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def flatMap[RIn1 <: RIn, E1 >: E, ROut2](
     f: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
-    foldLayer(ZLayer.fail, f)
+    foldLayer(ZLayer.fail(_), f)
 
   final def flatten[RIn1 <: RIn, E1 >: E, ROut1 >: ROut, ROut2](implicit
     tag: Tag[ROut1],
@@ -153,7 +178,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     failure: E => ZLayer[RIn1, E1, ROut2],
     success: ZEnvironment[ROut] => ZLayer[RIn1, E1, ROut2]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut2] =
-    foldCauseLayer(_.failureOrCause.fold(failure, ZLayer.failCause), success)
+    foldCauseLayer(_.failureOrCause.fold(failure, ZLayer.failCause(_)), success)
 
   /**
    * Feeds the error or output services of this layer into the input of either
@@ -184,7 +209,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   final def launch(implicit trace: ZTraceElement): ZIO[RIn, E, Nothing] =
     ZIO.scoped[RIn] {
-      ZIO.serviceWithZIO[Scope](build) *> ZIO.never
+      ZIO.serviceWithZIO[Scope](build(_)) *> ZIO.never
     }
 
   /**
@@ -206,7 +231,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * result of this layer.
    */
   final def memoize(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZLayer[RIn, E, ROut]] =
-    ZIO.serviceWithZIO[Scope](build).memoize.map(ZLayer.Scoped[RIn, E, ROut](_))
+    ZIO.serviceWithZIO[Scope](build(_)).memoize.map(ZLayer.scopedEnvironment[RIn](_))
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -224,7 +249,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * executes the specified layer.
    */
   final def orElse[RIn1 <: RIn, E1, ROut1 >: ROut](
-    that: ZLayer[RIn1, E1, ROut1]
+    that: => ZLayer[RIn1, E1, ROut1]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZLayer[RIn1, E1, ROut1] =
     catchAll(_ => that)
 
@@ -232,28 +257,31 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Retries constructing this layer according to the specified schedule.
    */
   final def retry[RIn1 <: RIn](
-    schedule: Schedule[RIn1, E, Any]
-  )(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] = {
-    import Schedule.Decision._
+    schedule0: => Schedule[RIn1, E, Any]
+  )(implicit trace: ZTraceElement): ZLayer[RIn1, E, ROut] =
+    ZLayer.suspend {
+      import Schedule.Decision._
 
-    case class State(state: schedule.State)
+      val schedule = schedule0
 
-    def update(e: E, s: schedule.State): ZLayer[RIn1, E, State] =
-      ZLayer.fromZIO {
-        Clock.currentDateTime.flatMap { now =>
-          schedule.step(now, e, s).flatMap {
-            case (_, _, Done) => ZIO.fail(e)
-            case (state, _, Continue(interval)) =>
-              Clock.sleep(Duration.fromInterval(now, interval.start)).as(State(state))
+      case class State(state: schedule.State)
+
+      def update(e: E, s: schedule.State): ZLayer[RIn1, E, State] =
+        ZLayer.fromZIO {
+          Clock.currentDateTime.flatMap { now =>
+            schedule.step(now, e, s).flatMap {
+              case (_, _, Done) => ZIO.fail(e)
+              case (state, _, Continue(interval)) =>
+                Clock.sleep(Duration.fromInterval(now, interval.start)).as(State(state))
+            }
           }
         }
-      }
 
-    def loop(s: schedule.State): ZLayer[RIn1, E, ROut] =
-      self.catchAll(update(_, s).flatMap(environment => loop(environment.get.state).fresh))
+      def loop(s: schedule.State): ZLayer[RIn1, E, ROut] =
+        self.catchAll(update(_, s).flatMap(environment => loop(environment.get.state).fresh))
 
-    ZLayer.succeed(State(schedule.initial)).flatMap(environment => loop(environment.get.state))
-  }
+      ZLayer.succeed(State(schedule.initial)).flatMap(environment => loop(environment.get.state))
+    }
 
   /**
    * Performs the specified effect if this layer succeeds.
@@ -272,9 +300,17 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     catchAll(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.fail(e)))
 
   /**
+   * Performs the specified effect if this layer fails.
+   */
+  final def tapErrorCause[RIn1 <: RIn, E1 >: E](f: Cause[E] => ZIO[RIn1, E1, Any])(implicit
+    trace: ZTraceElement
+  ): ZLayer[RIn1, E1, ROut] =
+    catchAllCause(e => ZLayer.fromZIO[RIn1, E1, Nothing](f(e) *> ZIO.failCause(e)))
+
+  /**
    * A named alias for `>>>`.
    */
-  final def to[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit
+  final def to[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E1, ROut2] =
     self >>> that
@@ -287,7 +323,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     runtimeConfig: RuntimeConfig
   )(implicit ev: Any <:< RIn, trace: ZTraceElement): ZIO[Scope, E, Runtime[ROut]] =
     ZIO
-      .serviceWithZIO[Scope](build)
+      .serviceWithZIO[Scope](build(_))
       .provideSomeEnvironment[Scope](ZEnvironment.empty.upcast(ev).union[Scope](_))
       .map(Runtime(_, runtimeConfig))
 
@@ -315,9 +351,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * function.
    */
   final def zipWithPar[E1 >: E, RIn2, ROut1 >: ROut, ROut2, ROut3](
-    that: ZLayer[RIn2, E1, ROut2]
+    that: => ZLayer[RIn2, E1, ROut2]
   )(f: (ZEnvironment[ROut], ZEnvironment[ROut2]) => ZEnvironment[ROut3]): ZLayer[RIn with RIn2, E1, ROut3] =
-    ZLayer.ZipWithPar(self, that, f)
+    ZLayer.suspend(ZLayer.ZipWithPar(self, that, f))
 
   /**
    * Returns whether this layer is a fresh version that will not be shared.
@@ -332,6 +368,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     trace: ZTraceElement
   ): ZIO[Any, Nothing, ZLayer.MemoMap => ZIO[RIn, E, ZEnvironment[ROut]]] =
     self match {
+      case ZLayer.Apply(self) =>
+        ZIO.succeed(_ => self)
       case ZLayer.ExtendScope(self) =>
         ZIO.succeed { memoMap =>
           ZIO
@@ -370,6 +408,8 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
 
 object ZLayer extends ZLayerCompanionVersionSpecific {
 
+  private final case class Apply[-RIn, +E, +ROut](self: ZIO[RIn, E, ZEnvironment[ROut]]) extends ZLayer[RIn, E, ROut]
+
   private final case class ExtendScope[RIn <: Scope, E, ROut](self: ZLayer[RIn, E, ROut]) extends ZLayer[RIn, E, ROut]
 
   private final case class Fold[RIn, E, E2, ROut, ROut2](
@@ -399,7 +439,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from an effectual resource.
    */
-  def apply[RIn, E, ROut: Tag](zio: ZIO[RIn, E, ROut])(implicit
+  def apply[RIn, E, ROut: Tag](zio: => ZIO[RIn, E, ROut])(implicit
     trace: ZTraceElement
   ): ZLayer[RIn, E, ROut] =
     ZLayer.fromZIO(zio)
@@ -486,7 +526,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * into a single ZLayer containing an equivalent collection of results.
    */
   def collectAll[R, E, A: Tag, Collection[+Element] <: Iterable[Element]](
-    in: Collection[ZLayer[R, E, A]]
+    in: => Collection[ZLayer[R, E, A]]
   )(implicit
     tag: Tag[Collection[A]],
     bf: BuildFrom[Collection[ZLayer[R, E, A]], A, Collection[A]],
@@ -495,27 +535,33 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     foreach(in)(i => i)
 
   /**
+   * Prints the specified message to the console for debugging purposes.
+   */
+  def debug(value: => Any)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Unit] =
+    ZLayer.fromZIO(ZIO.debug(value))
+
+  /**
    * Constructs a layer that dies with the specified throwable.
    */
-  final def die(t: Throwable)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Nothing] =
+  final def die(t: => Throwable)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, Nothing] =
     ZLayer.failCause(Cause.die(t))
 
   /**
    * A layer that does not produce any services.
    */
   val empty: ZLayer[Any, Nothing, Any] =
-    ZLayer.Scoped(ZIO.succeedNow(ZEnvironment.empty))
+    ZLayer.fromZIOEnvironment(ZIO.succeedNow(ZEnvironment.empty))(ZTraceElement.empty)
 
   /**
    * Constructs a layer that fails with the specified error.
    */
-  def fail[E](e: E)(implicit trace: ZTraceElement): Layer[E, Nothing] =
+  def fail[E](e: => E)(implicit trace: ZTraceElement): Layer[E, Nothing] =
     failCause(Cause.fail(e))
 
   /**
    * Constructs a layer that fails with the specified cause.
    */
-  def failCause[E](cause: Cause[E])(implicit trace: ZTraceElement): Layer[E, Nothing] =
+  def failCause[E](cause: => Cause[E])(implicit trace: ZTraceElement): Layer[E, Nothing] =
     ZLayer(ZIO.failCause(cause))
 
   /**
@@ -523,3393 +569,778 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * the results in a new `Collection[B]`.
    */
   def foreach[R, E, A, B: Tag, Collection[+Element] <: Iterable[Element]](
-    in: Collection[A]
+    in: => Collection[A]
   )(f: A => ZLayer[R, E, B])(implicit
     tag: Tag[Collection[B]],
     bf: BuildFrom[Collection[A], B, Collection[B]],
     trace: ZTraceElement
-  ): ZLayer[R, E, Collection[B]] = {
-    val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
-    in
-      .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
-        io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
-      )
-      .map(environment => ZEnvironment(environment.get.result()))
-  }
+  ): ZLayer[R, E, Collection[B]] =
+    ZLayer.suspend {
+      val builder: mutable.Builder[B, Collection[B]] = bf.newBuilder(in)
+      in
+        .foldLeft[ZLayer[R, E, Builder[B, Collection[B]]]](ZLayer.succeed(builder))((io, a) =>
+          io.zipWithPar(f(a))((left, right) => ZEnvironment(left.get += right.get))
+        )
+        .map(environment => ZEnvironment(environment.get.result()))
+    }
 
   /**
-   * Constructs a layer from acquire and release actions. The acquire and
-   * release actions will be performed uninterruptibly.
+   * Constructs a layer using the specified function.
    */
-  def fromAcquireRelease[R, E, A: Tag](acquire: ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    ZLayer.scoped[R](ZIO.acquireRelease(acquire)(release))
+  def fromFunction[A: Tag, B: Tag](f: A => B)(implicit trace: ZTraceElement): ZLayer[A, Nothing, B] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.serviceWith[A](a => ZEnvironment(f(a)))
+    }
 
-  /**
-   * Constructs a layer from acquire and release actions, which must return one
-   * or more services. The acquire and release actions will be performed
-   * uninterruptibly.
-   */
-  def fromAcquireReleaseEnvironment[R, E, A](
-    acquire: ZIO[R, E, ZEnvironment[A]]
-  )(release: ZEnvironment[A] => URIO[R, Any])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    scopedEnvironment[R](ZIO.acquireRelease(acquire)(release))
+  def fromFunction[A: Tag, B: Tag, C: Tag](
+    f: (A, B) => C
+  )(implicit trace: ZTraceElement): ZLayer[A with B, Nothing, C] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from acquire and release actions, which must return one
-   * or more services. The acquire and release actions will be performed
-   * uninterruptibly.
-   */
-  @deprecated("use fromAcquireReleaseEnvironment", "2.0.0")
-  def fromAcquireReleaseMany[R, E, A](acquire: ZIO[R, E, ZEnvironment[A]])(release: ZEnvironment[A] => URIO[R, Any])(
-    implicit trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    fromAcquireReleaseEnvironment(acquire)(release)
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag](
+    f: (A, B, C) => D
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C, Nothing, D] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the specified effect.
-   */
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    fromZIO(zio)
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
+    f: (A, B, C, D) => E
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D, Nothing, E] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the specified effect, which must return one or more
-   * services.
-   */
-  @deprecated("use fromZIOMany", "2.0.0")
-  def fromEffectMany[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R, E, A] =
-    fromZIOMany(zio)
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag](
+    f: (A, B, C, D, E) => F
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E, Nothing, F] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified function.
-   */
-  def fromFunction[A, B: Tag](f: ZEnvironment[A] => B)(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromFunctionZIO(a => ZIO.succeedNow(f(a)))
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag](
+    f: (A, B, C, D, E, F) => G
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F, Nothing, G] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified function, which
-   * must return one or more services.
-   */
-  def fromFunctionEnvironment[A, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromFunctionEnvironmentZIO(a => ZIO.succeedNow(f(a)))
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag](
+    f: (A, B, C, D, E, F, G) => H
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F with G, Nothing, H] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function, which must return one or more services.
-   */
-  def fromFunctionEnvironmentZIO[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    ZLayer.fromZIOEnvironment(ZIO.environment[A].flatMap(f))
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag](
+    f: (A, B, C, D, E, F, G, H) => I
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F with G with H, Nothing, I] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function.
-   */
-  @deprecated("use fromFunctionZIO", "2.0.0")
-  def fromFunctionM[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    fromFunctionZIO(f)
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag](
+    f: (A, B, C, D, E, F, G, H, I) => J
+  )(implicit trace: ZTraceElement): ZLayer[A with B with C with D with E with F with G with H with I, Nothing, J] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I] { env =>
+        ZEnvironment(
+          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H], env.get[I])
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer from the environment using the specified function, which
-   * must return one or more services.
-   */
-
-  @deprecated("use fromFunctionEnvironment", "2.0.0")
-  def fromFunctionMany[A, B](f: ZEnvironment[A] => ZEnvironment[B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromFunctionEnvironment(f)
-
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function, which must return one or more services.
-   */
-  @deprecated("use fromFunctionManyZIO", "2.0.0")
-  def fromFunctionManyM[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    fromFunctionManyZIO(f)
-
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function, which must return one or more services.
-   */
-  @deprecated("use fromFunctionEnvironmentZIO", "2.0.0")
-  def fromFunctionManyZIO[A, E, B](f: ZEnvironment[A] => IO[E, ZEnvironment[B]])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    fromFunctionEnvironmentZIO(f)
-
-  /**
-   * Constructs a layer from the environment using the specified effectful
-   * function.
-   */
-  def fromFunctionZIO[A, E, B: Tag](f: ZEnvironment[A] => IO[E, B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, E, B] =
-    ZLayer(ZIO.environmentWithZIO(f))
-
-  /**
-   * Constructs a layer that purely depends on the specified service.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromService[A: Tag, B: Tag](f: A => B)(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromServiceM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[A0: Tag, A1: Tag, B: Tag](
-    f: (A0, A1) => B
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2) => B
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3) => B
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4) => B
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag](
+    f: (A, B, C, D, E, F, G, H, I, J) => K
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J, Nothing, K] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J] { env =>
+        ZEnvironment(
+          f(
+            env.get[A],
+            env.get[B],
+            env.get[C],
+            env.get[D],
+            env.get[E],
+            env.get[F],
+            env.get[G],
+            env.get[H],
+            env.get[I],
+            env.get[J]
+          )
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5) => B
+  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag](
+    f: (A, B, C, D, E, F, G, H, I, J, K) => L
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K, Nothing, L] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K] { env =>
+        ZEnvironment(
+          f(
+            env.get[A],
+            env.get[B],
+            env.get[C],
+            env.get[D],
+            env.get[E],
+            env.get[F],
+            env.get[G],
+            env.get[H],
+            env.get[I],
+            env.get[J],
+            env.get[K]
+          )
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    B: Tag
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6) => B
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7) => B
+    f: (A, B, C, D, E, F, G, H, I, J, K, L) => M
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L, Nothing, M] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L] { env =>
+        ZEnvironment(
+          f(
+            env.get[A],
+            env.get[B],
+            env.get[C],
+            env.get[D],
+            env.get[E],
+            env.get[F],
+            env.get[G],
+            env.get[H],
+            env.get[I],
+            env.get[J],
+            env.get[K],
+            env.get[L]
+          )
+        )
+      }
+    }
 
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    B: Tag
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, Nothing, N] =
+    ZLayer.fromZIOEnvironment {
+      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M] {
+        env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M]
+            )
+          )
+      }
+    }
 
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    B: Tag
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, Nothing, B] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServices[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    A21: Tag,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesM(andThen(f)(ZIO.succeedNow(_)))
-    layer
-  }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified service.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServiceM[A: Tag, R, E, B: Tag](f: A => ZIO[R, E, B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A, E, B] =
-    ZLayer {
-      for {
-        a <- ZIO.service[A]
-        b <- f(a)
-      } yield b
+  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M with N, Nothing, O] =
+    ZLayer.fromZIOEnvironment {
+      ZIO
+        .environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M with N] {
+          env =>
+            ZEnvironment(
+              f(
+                env.get[A],
+                env.get[B],
+                env.get[C],
+                env.get[D],
+                env.get[E],
+                env.get[F],
+                env.get[G],
+                env.get[H],
+                env.get[I],
+                env.get[J],
+                env.get[K],
+                env.get[L],
+                env.get[M],
+                env.get[N]
+              )
+            )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[A0: Tag, A1: Tag, R, E, B: Tag](
-    f: (A0, A1) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        b  <- f(a0, a1)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    R,
-    E,
-    B: Tag
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag
   ](
-    f: (A0, A1, A2) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        b  <- f(a0, a1, a2)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3) => ZIO[R, E, B]
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        b  <- f(a0, a1, a2, a3)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4) => ZIO[R, E, B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        b  <- f(a0, a1, a2, a3, a4)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        b  <- f(a0, a1, a2, a3, a4, a5)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        a7 <- ZIO.service[A7]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        a7 <- ZIO.service[A7]
-        a8 <- ZIO.service[A8]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
-    ZLayer {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        a7 <- ZIO.service[A7]
-        a8 <- ZIO.service[A8]
-        a9 <- ZIO.service[A9]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        a19 <- ZIO.service[A19]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        a19 <- ZIO.service[A19]
-        a20 <- ZIO.service[A20]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    A21: Tag,
-    R,
-    E,
-    B: Tag
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
-    E,
-    B
-  ] =
-    ZLayer {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        a19 <- ZIO.service[A19]
-        a20 <- ZIO.service[A20]
-        a21 <- ZIO.service[A21]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that purely depends on the specified service, which must
-   * return one or more services. For the more common variant that returns a
-   * single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServiceMany[A: Tag, B](f: A => ZEnvironment[B])(implicit
-    trace: ZTraceElement
-  ): ZLayer[A, Nothing, B] =
-    fromServiceManyM[A, Any, Nothing, B](a => ZIO.succeedNow(f(a)))
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[A0: Tag, A1: Tag, B](
-    f: (A0, A1) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[A0: Tag, A1: Tag, A2: Tag, B](
-    f: (A0, A1, A2) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4) => ZEnvironment[B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5) => ZEnvironment[B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZEnvironment[B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZEnvironment[B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZEnvironment[B]
-  )(implicit
-    trace: ZTraceElement
-  ): ZLayer[A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, Nothing, B] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
     Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => ZEnvironment[
-      B
-    ]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that purely depends on the specified services, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromService`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesMany[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    A21: Tag,
-    B
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZEnvironment[B]
-  )(implicit trace: ZTraceElement): ZLayer[
-    A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
-    Nothing,
-    B
-  ] = {
-    val layer = fromServicesManyM(andThen(f)(ZIO.succeedNow))
-    layer
-  }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified service, which
-   * must return one or more services. For the more common variant that returns
-   * a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServiceManyM[A: Tag, R, E, B](f: A => ZIO[R, E, ZEnvironment[B]])(implicit
-    trace: ZTraceElement
-  ): ZLayer[R with A, E, B] =
+    P
+  ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a <- ZIO.service[A]
-        b <- f(a)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O]
+            )
+          )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[A0: Tag, A1: Tag, R, E, B](
-    f: (A0, A1) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1, E, B] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        b  <- f(a0, a1)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[A0: Tag, A1: Tag, A2: Tag, R, E, B](
-    f: (A0, A1, A2) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2, E, B] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        b  <- f(a0, a1, a2)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag
   ](
-    f: (A0, A1, A2, A3) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3, E, B] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        b  <- f(a0, a1, a2, a3)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4) => ZIO[R, E, ZEnvironment[B]]
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4, E, B] =
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
+    Nothing,
+    Q
+  ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        b  <- f(a0, a1, a2, a3, a4)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P]
+            )
+          )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5) => ZIO[R, E, ZEnvironment[B]]
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5, E, B] =
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
+    Nothing,
+    R
+  ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        b  <- f(a0, a1, a2, a3, a4, a5)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q]
+            )
+          )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6, E, B] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7) => ZIO[R, E, ZEnvironment[B]]
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7, E, B] =
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
+    Nothing,
+    S
+  ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        a7 <- ZIO.service[A7]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R]
+            )
+          )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => ZIO[R, E, ZEnvironment[B]]
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8, E, B] =
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
+    Nothing,
+    T
+  ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        a7 <- ZIO.service[A7]
-        a8 <- ZIO.service[A8]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S]
+            )
+          )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => ZIO[R, E, ZEnvironment[B]]
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
   )(implicit
     trace: ZTraceElement
-  ): ZLayer[R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9, E, B] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0 <- ZIO.service[A0]
-        a1 <- ZIO.service[A1]
-        a2 <- ZIO.service[A2]
-        a3 <- ZIO.service[A3]
-        a4 <- ZIO.service[A4]
-        a5 <- ZIO.service[A5]
-        a6 <- ZIO.service[A6]
-        a7 <- ZIO.service[A7]
-        a8 <- ZIO.service[A8]
-        a9 <- ZIO.service[A9]
-        b  <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10,
-    E,
-    B
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
+    Nothing,
+    U
   ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S],
+              env.get[T]
+            )
+          )
+        }
     }
 
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag,
+    V: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11,
-    E,
-    B
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
+    Nothing,
+    V
   ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S],
+              env.get[T],
+              env.get[U]
+            )
+          )
+        }
     }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    R,
-    E,
-    B
+  def fromFunction[
+    A: Tag,
+    B: Tag,
+    C: Tag,
+    D: Tag,
+    E: Tag,
+    F: Tag,
+    G: Tag,
+    H: Tag,
+    I: Tag,
+    J: Tag,
+    K: Tag,
+    L: Tag,
+    M: Tag,
+    N: Tag,
+    O: Tag,
+    P: Tag,
+    Q: Tag,
+    R: Tag,
+    S: Tag,
+    T: Tag,
+    U: Tag,
+    V: Tag,
+    W: Tag
   ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12,
-    E,
-    B
+    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W
+  )(implicit
+    trace: ZTraceElement
+  ): ZLayer[
+    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V,
+    Nothing,
+    W
   ] =
     ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18
-    ) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19
-    ) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        a19 <- ZIO.service[A19]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20
-    ) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        a19 <- ZIO.service[A19]
-        a20 <- ZIO.service[A20]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20)
-      } yield b
-    }
-
-  /**
-   * Constructs a layer that effectfully depends on the specified services,
-   * which must return one or more services. For the more common variant that
-   * returns a single service see `fromServiceM`.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  def fromServicesManyM[
-    A0: Tag,
-    A1: Tag,
-    A2: Tag,
-    A3: Tag,
-    A4: Tag,
-    A5: Tag,
-    A6: Tag,
-    A7: Tag,
-    A8: Tag,
-    A9: Tag,
-    A10: Tag,
-    A11: Tag,
-    A12: Tag,
-    A13: Tag,
-    A14: Tag,
-    A15: Tag,
-    A16: Tag,
-    A17: Tag,
-    A18: Tag,
-    A19: Tag,
-    A20: Tag,
-    A21: Tag,
-    R,
-    E,
-    B
-  ](
-    f: (
-      A0,
-      A1,
-      A2,
-      A3,
-      A4,
-      A5,
-      A6,
-      A7,
-      A8,
-      A9,
-      A10,
-      A11,
-      A12,
-      A13,
-      A14,
-      A15,
-      A16,
-      A17,
-      A18,
-      A19,
-      A20,
-      A21
-    ) => ZIO[R, E, ZEnvironment[B]]
-  )(implicit trace: ZTraceElement): ZLayer[
-    R with A0 with A1 with A2 with A3 with A4 with A5 with A6 with A7 with A8 with A9 with A10 with A11 with A12 with A13 with A14 with A15 with A16 with A17 with A18 with A19 with A20 with A21,
-    E,
-    B
-  ] =
-    ZLayer.fromZIOEnvironment {
-      for {
-        a0  <- ZIO.service[A0]
-        a1  <- ZIO.service[A1]
-        a2  <- ZIO.service[A2]
-        a3  <- ZIO.service[A3]
-        a4  <- ZIO.service[A4]
-        a5  <- ZIO.service[A5]
-        a6  <- ZIO.service[A6]
-        a7  <- ZIO.service[A7]
-        a8  <- ZIO.service[A8]
-        a9  <- ZIO.service[A9]
-        a10 <- ZIO.service[A10]
-        a11 <- ZIO.service[A11]
-        a12 <- ZIO.service[A12]
-        a13 <- ZIO.service[A13]
-        a14 <- ZIO.service[A14]
-        a15 <- ZIO.service[A15]
-        a16 <- ZIO.service[A16]
-        a17 <- ZIO.service[A17]
-        a18 <- ZIO.service[A18]
-        a19 <- ZIO.service[A19]
-        a20 <- ZIO.service[A20]
-        a21 <- ZIO.service[A21]
-        b   <- f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21)
-      } yield b
+      ZIO
+        .environmentWith[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V
+        ] { env =>
+          ZEnvironment(
+            f(
+              env.get[A],
+              env.get[B],
+              env.get[C],
+              env.get[D],
+              env.get[E],
+              env.get[F],
+              env.get[G],
+              env.get[H],
+              env.get[I],
+              env.get[J],
+              env.get[K],
+              env.get[L],
+              env.get[M],
+              env.get[N],
+              env.get[O],
+              env.get[P],
+              env.get[Q],
+              env.get[R],
+              env.get[S],
+              env.get[T],
+              env.get[U],
+              env.get[V]
+            )
+          )
+        }
     }
 
   /**
    * Constructs a layer from the specified effect.
    */
-  def fromZIO[R, E, A: Tag](zio: ZIO[R, E, A])(implicit
+  def fromZIO[R, E, A: Tag](zio: => ZIO[R, E, A])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
     fromZIOEnvironment(zio.map(ZEnvironment(_)))
@@ -3918,35 +1349,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified effect, which must return one or more
    * services.
    */
-  def fromZIOEnvironment[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit
+  def fromZIOEnvironment[R, E, A](zio: => ZIO[R, E, ZEnvironment[A]])(implicit
     trace: ZTraceElement
   ): ZLayer[R, E, A] =
-    ZLayer.Scoped[R, E, A](zio)
-
-  /**
-   * Constructs a layer from the specified effect, which must return one or more
-   * services.
-   */
-  @deprecated("use fromZIOEnvironment", "2.0.0")
-  def fromZIOMany[R, E, A](zio: ZIO[R, E, ZEnvironment[A]])(implicit trace: ZTraceElement): ZLayer[R, E, A] =
-    fromZIOEnvironment(zio)
-
-  /**
-   * An identity layer that passes along its inputs. Note that this represents
-   * an identity with respect to the `>>>` operator. It represents an identity
-   * with respect to the `++` operator when the environment type is `Any`.
-   */
-  @deprecated("use environment", "2.0.0")
-  def identity[A: EnvironmentTag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
-    ZLayer.environment[A]
-
-  /**
-   * Constructs a layer that passes along the specified environment as an
-   * output.
-   */
-  @deprecated("use environment", "2.0.0")
-  def requires[A: EnvironmentTag](implicit trace: ZTraceElement): ZLayer[A, Nothing, A] =
-    ZLayer.environment[A]
+    ZLayer.suspend(ZLayer.Apply[R, E, A](zio))
 
   /**
    * Constructs a layer that passes along the specified environment as an
@@ -3962,11 +1368,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * workflow.
    */
   val scope: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.Scoped[Any, Nothing, Scope.Closeable](
+    ZLayer.scopedEnvironment(
       ZIO
-        .acquireReleaseExit(Scope.make)((scope, exit) => scope.close(exit))(ZTraceElement.empty)
+        .acquireReleaseExit(Scope.make(ZTraceElement.empty))((scope, exit) => scope.close(exit)(ZTraceElement.empty))(
+          ZTraceElement.empty
+        )
         .map(ZEnvironment(_))(ZTraceElement.empty)
-    )
+    )(ZTraceElement.empty)
 
   /**
    * Constructs a layer from the specified scoped effect.
@@ -3991,23 +1399,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   /**
    * Constructs a layer from the specified value.
    */
-  def succeed[A: Tag](a: A)(implicit trace: ZTraceElement): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeedNow(ZEnvironment(a)))
+  def succeed[A: Tag](a: => A)(implicit trace: ZTraceElement): ULayer[A] =
+    ZLayer.fromZIOEnvironment(ZIO.succeed(ZEnvironment(a)))
 
   /**
    * Constructs a layer from the specified value, which must return one or more
    * services.
    */
-  def succeedEnvironment[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): ULayer[A] =
-    ZLayer.fromZIOEnvironment(ZIO.succeedNow(a))
-
-  /**
-   * Constructs a layer from the specified value, which must return one or more
-   * services.
-   */
-  @deprecated("use succeedEnvironment", "2.0.0")
-  def succeedMany[A](a: ZEnvironment[A])(implicit trace: ZTraceElement): ULayer[A] =
-    succeedEnvironment(a)
+  def succeedEnvironment[A](a: => ZEnvironment[A])(implicit trace: ZTraceElement): ULayer[A] =
+    ZLayer.fromZIOEnvironment(ZIO.succeed(a))
 
   /**
    * Lazily constructs a layer. This is useful to avoid infinite recursion when
@@ -4159,189 +1559,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         }
   }
 
-  private[zio] def andThen[A0, A1, B, C](f: (A0, A1) => B)(g: B => C): (A0, A1) => C =
-    (a0, a1) => g(f(a0, a1))
-
-  private[zio] def andThen[A0, A1, A2, B, C](f: (A0, A1, A2) => B)(g: B => C): (A0, A1, A2) => C =
-    (a0, a1, a2) => g(f(a0, a1, a2))
-
-  private[zio] def andThen[A0, A1, A2, A3, B, C](f: (A0, A1, A2, A3) => B)(g: B => C): (A0, A1, A2, A3) => C =
-    (a0, a1, a2, a3) => g(f(a0, a1, a2, a3))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, B, C](f: (A0, A1, A2, A3, A4) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4) => C =
-    (a0, a1, a2, a3, a4) => g(f(a0, a1, a2, a3, a4))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, B, C](f: (A0, A1, A2, A3, A4, A5) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5) => C =
-    (a0, a1, a2, a3, a4, a5) => g(f(a0, a1, a2, a3, a4, a5))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, B, C](f: (A0, A1, A2, A3, A4, A5, A6) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6) => C =
-    (a0, a1, a2, a3, a4, a5, a6) => g(f(a0, a1, a2, a3, a4, a5, a6))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7) => g(f(a0, a1, a2, a3, a4, a5, a6, a7))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, B, C](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => B
-  )(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) => g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17))
-
-  private[zio] def andThen[A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, B, C](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18))
-
-  private[zio] def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    B,
-    C
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19))
-
-  private[zio] def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    A20,
-    B,
-    C
-  ](
-    f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => B
-  )(g: B => C): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20))
-
-  private[zio] def andThen[
-    A0,
-    A1,
-    A2,
-    A3,
-    A4,
-    A5,
-    A6,
-    A7,
-    A8,
-    A9,
-    A10,
-    A11,
-    A12,
-    A13,
-    A14,
-    A15,
-    A16,
-    A17,
-    A18,
-    A19,
-    A20,
-    A21,
-    B,
-    C
-  ](f: (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => B)(
-    g: B => C
-  ): (A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, A19, A20, A21) => C =
-    (a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21) =>
-      g(f(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18, a19, a20, a21))
-
   implicit final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A: Tag](zio: => ZIO[Scope with R, E, A])(implicit
       trace: ZTraceElement
@@ -4353,7 +1570,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     def apply[E, A](zio: => ZIO[Scope with R, E, ZEnvironment[A]])(implicit
       trace: ZTraceElement
     ): ZLayer[R, E, A] =
-      Scoped[R, E, A](zio)
+      ZLayer.suspend(ZLayer.Scoped[R, E, A](zio))
   }
 
   implicit final class ZLayerProvideSomeOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
@@ -4378,19 +1595,19 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * any leftover inputs, and the outputs of the specified layer.
      */
     def >>>[RIn2, E1 >: E, ROut2](
-      that: ZLayer[ROut with RIn2, E1, ROut2]
+      that: => ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit tag: EnvironmentTag[ROut], trace: ZTraceElement): ZLayer[RIn with RIn2, E1, ROut2] =
-      ZLayer.To(ZLayer.environment[RIn2] ++ self, that)
+      ZLayer.suspend(ZLayer.To(ZLayer.environment[RIn2] ++ self, that))
 
     /**
      * Feeds the output services of this layer into the input of the specified
      * layer, resulting in a new layer with the inputs of this layer as well as
      * any leftover inputs, and the outputs of the specified layer.
      */
-    def >>>[E1 >: E, ROut2](that: ZLayer[ROut, E1, ROut2])(implicit
+    def >>>[E1 >: E, ROut2](that: => ZLayer[ROut, E1, ROut2])(implicit
       trace: ZTraceElement
     ): ZLayer[RIn, E1, ROut2] =
-      ZLayer.To(self, that)
+      ZLayer.suspend(ZLayer.To(self, that))
 
     /**
      * Feeds the output services of this layer into the input of the specified
@@ -4398,7 +1615,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * outputs of both layers.
      */
     def >+>[RIn2, E1 >: E, ROut2](
-      that: ZLayer[ROut with RIn2, E1, ROut2]
+      that: => ZLayer[ROut with RIn2, E1, ROut2]
     )(implicit
       tagged: EnvironmentTag[ROut],
       tagged2: EnvironmentTag[ROut2],
@@ -4412,7 +1629,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * outputs of both layers.
      */
     def >+>[E1 >: E, RIn2 >: ROut, ROut1 >: ROut, ROut2](
-      that: ZLayer[RIn2, E1, ROut2]
+      that: => ZLayer[RIn2, E1, ROut2]
     )(implicit
       tagged: EnvironmentTag[ROut2],
       trace: ZTraceElement

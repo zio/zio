@@ -26,9 +26,7 @@ import zio.test.render._
 abstract class ZIOSpecAbstract extends ZIOApp {
   self =>
 
-  def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
-
-  type Failure
+  def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
     Chunk(TestAspect.fibers)
@@ -38,12 +36,12 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
-  final def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
-    implicit val trace = Tracer.newTrace
+  final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
+    implicit val trace = ZTraceElement.empty
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer.environment[ZIOAppArgs with Scope] +!+
-        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole)
+        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive))
     )
   }
 
@@ -57,12 +55,14 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       override def runSpec: ZIO[
         Environment with TestEnvironment with ZIOAppArgs with Scope,
         Any,
-        Any
+        Summary
       ] =
-        self.runSpec.zipPar(that.runSpec)
+        self.runSpec.zipPar(that.runSpec).map { case (summary1, summary2) =>
+          summary1
+        }
 
-      def spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
-        self.spec + that.spec
+      def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
+        self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
       def tag: EnvironmentTag[Environment] = {
         implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
@@ -70,21 +70,23 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         val _                                                  = (selfTag, thatTag)
         EnvironmentTag[Environment]
       }
+
+      override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
+        Chunk.empty
     }
 
   protected def runSpec: ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
     Any,
-    Any
+    Summary
   ] = {
-    implicit val trace = Tracer.newTrace
+    implicit val trace = ZTraceElement.empty
     for {
       args    <- ZIO.service[ZIOAppArgs]
+      console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      summary <- runSpec(spec, testArgs)
-      exitCode = if (summary.fail > 0) 1 else 0
-      _       <- doExit(exitCode)
-    } yield ()
+      summary <- runSpec(spec, testArgs, console)
+    } yield summary
   }
 
   private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {
@@ -95,24 +97,10 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     testReporter(renderer, TestAnnotationRenderer.default)
   }
 
-  private def doExit(exitCode: Int)(implicit trace: ZTraceElement): UIO[Unit] =
-    if (TestPlatform.isJVM) {
-      ZIO.succeed(
-        try if (!isAmmonite) sys.exit(exitCode)
-        catch { case _: SecurityException => }
-      )
-    } else {
-      UIO.unit
-    }
-
-  private def isAmmonite: Boolean =
-    sys.env.exists { case (k, v) =>
-      k.contains("JAVA_MAIN_CLASS") && v == "ammonite.Main"
-    }
-
   private[zio] def runSpec(
-    spec: ZSpec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
-    testArgs: TestArgs
+    spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
+    testArgs: TestArgs,
+    console: Console
   )(implicit
     trace: ZTraceElement
   ): URIO[
@@ -136,7 +124,9 @@ abstract class ZIOSpecAbstract extends ZIOApp {
               Any
             ](
               ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment),
-              (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+              (TestLogger.fromConsole(
+                console
+              ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
             ),
           runtimeConfig
         )

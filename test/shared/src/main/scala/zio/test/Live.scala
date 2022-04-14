@@ -40,14 +40,15 @@ object Live {
    */
   val default: ZLayer[ZEnv, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
-    ZIO
-      .environmentWith[ZEnv] { zenv =>
-        new Live {
-          def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-            ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
+    ZLayer {
+      ZIO
+        .environmentWith[ZEnv] { zenv =>
+          new Live {
+            def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+              ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
+          }
         }
-      }
-      .toLayer
+    }
   }
 
   /**

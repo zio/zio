@@ -114,13 +114,6 @@ object ZIOAspect {
     }
 
   /**
-   * As aspect that runs effects on the specified `Executor`.
-   */
-  @deprecated("use onExecutor", "2.0.0")
-  def lock(executor: Executor)(implicit trace: ZTraceElement): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    onExecutor(executor)
-
-  /**
    * An aspect that logs values by using [[ZIO.log]].
    */
   val logged: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
@@ -148,15 +141,6 @@ object ZIOAspect {
       override def apply[R, E, A0 <: A](zio: ZIO[R, E, A0])(implicit trace: ZTraceElement): ZIO[R, E, A0] =
         zio.tap(value => ZIO.log(f(value)))
     }
-
-  /**
-   * As aspect that runs effects on the specified `ExecutionContext`.
-   */
-  @deprecated("use onExecutionContext", "2.0.0")
-  def lockExecutionContext(ec: ExecutionContext)(implicit
-    trace: ZTraceElement
-  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    onExecutionContext(ec)
 
   /**
    * As aspect that runs effects on the specified `ExecutionContext`.

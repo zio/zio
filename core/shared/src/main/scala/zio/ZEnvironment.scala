@@ -64,7 +64,8 @@ final class ZEnvironment[+R] private (
     val tag = taggedTagType(tagged)
     val set = taggedGetServices(tag)
 
-    val missingServices = set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)))
+    val missingServices =
+      set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)) || cache.keys.exists(taggedIsSubtype(_, tag)))
     if (missingServices.nonEmpty) {
       throw new Error(
         s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"
@@ -215,8 +216,8 @@ object ZEnvironment {
   /**
    * The empty environment containing no services.
    */
-  lazy val empty: ZEnvironment[Any] =
-    new ZEnvironment[AnyRef](Map.empty, 0, Map(taggedTagType(TaggedAnyRef) -> (())))
+  val empty: ZEnvironment[Any] =
+    new ZEnvironment[Any](Map.empty, 0, Map((taggedTagType(TaggedAny), ())))
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`
@@ -298,6 +299,6 @@ object ZEnvironment {
       patch.asInstanceOf[Patch[Any, Any]]
   }
 
-  private lazy val TaggedAnyRef: EnvironmentTag[AnyRef] =
-    implicitly[EnvironmentTag[AnyRef]]
+  private lazy val TaggedAny: EnvironmentTag[Any] =
+    implicitly[EnvironmentTag[Any]]
 }

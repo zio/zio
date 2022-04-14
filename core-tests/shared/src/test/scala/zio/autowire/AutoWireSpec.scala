@@ -34,7 +34,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           },
           test("automatically memoizes non-val layers") {
             def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
-              ref.update(_ + 1).as("Howdy").toLayer
+              ZLayer(ref.update(_ + 1).as("Howdy"))
 
             val layerA: URLayer[String, Int]     = ZLayer.succeed(1)
             val layerB: URLayer[String, Boolean] = ZLayer.succeed(true)
@@ -121,9 +121,11 @@ object AutoWireSpec extends ZIOBaseSpec {
             val doubleLayer = ZLayer.succeed(100.1)
             val stringLayer: ULayer[String] =
               ZLayer.succeed("this string is 28 chars long")
-            val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
-              str.length + double.toInt
-            }.toLayer
+            val intLayer = ZLayer {
+              (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
+                str.length + double.toInt
+              }
+            }
 
             val layer =
               ZLayer.make[Int](intLayer, stringLayer, doubleLayer)
@@ -151,9 +153,11 @@ object AutoWireSpec extends ZIOBaseSpec {
         suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
             val stringLayer = ZLayer.succeed("this string is 28 chars long")
-            val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
-              str.length + double.toInt
-            }.toLayer
+            val intLayer = ZLayer {
+              (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
+                str.length + double.toInt
+              }
+            }
             val program = ZIO.service[Int]
 
             val layer =

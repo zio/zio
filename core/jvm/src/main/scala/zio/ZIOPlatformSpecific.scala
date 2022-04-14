@@ -123,12 +123,6 @@ private[zio] trait ZIOCompanionPlatformSpecific {
   def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: ZTraceElement): Task[T] =
     javaz.asyncWithCompletionHandler(op)
 
-  @deprecated("use asyncWithCompletionHandler", "2.0.0")
-  def effectAsyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit
-    trace: ZTraceElement
-  ): Task[T] =
-    asyncWithCompletionHandler(op)
-
   def fromCompletionStage[A](cs: => CompletionStage[A])(implicit trace: ZTraceElement): Task[A] =
     javaz.fromCompletionStage(cs)
 

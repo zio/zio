@@ -25,23 +25,22 @@ object SummaryBuilder {
 
   def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Succeeded(_)) => true
-      case _                               => false
+      case Right(TestSuccess.Succeeded(_, _)) => true
+      case _                                  => false
     }
     val fail = countTestResults(reporterEvent) {
       case Right(_) => false
       case _        => true
     }
     val ignore = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Ignored) => true
-      case _                          => false
+      case Right(TestSuccess.Ignored(_)) => true
+      case _                             => false
     }
     val failures = extractFailures(reporterEvent)
 
     val rendered =
-      //      TODO Check impact of hard-coded false here
       ConsoleRenderer
-        .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
+        .render(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
     val newSummaryPiece = Summary(success, fail, ignore, rendered)
@@ -49,7 +48,11 @@ object SummaryBuilder {
       oldSummary.success + newSummaryPiece.success,
       oldSummary.fail + newSummaryPiece.fail,
       oldSummary.ignore + newSummaryPiece.ignore,
-      oldSummary.summary + newSummaryPiece.summary
+      oldSummary.summary +
+        (if (newSummaryPiece.summary.trim.isEmpty)
+           ""
+         else
+           "\n" + newSummaryPiece.summary)
     )
 
   }

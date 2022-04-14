@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{AbstractRunnableSpec, Summary, TestArgs, ZIOSpec, ZIOSpecAbstract, sbt}
+import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
 import zio.{Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
@@ -82,37 +82,32 @@ sealed class ZTestTask(
   runnerType: String,
   sendSummary: SendSummary,
   testArgs: TestArgs,
-  spec: NewOrLegacySpec
+  spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  def execute(eventHandler: EventHandler, continuation: Array[Task] => Unit): Unit =
-    spec match {
-      case NewSpecWrapper(zioSpec) =>
-        Runtime(ZEnvironment.empty, zioSpec.runtime.runtimeConfig).unsafeRunAsyncWith {
-          ZIO.scoped {
-            zioSpec.run
-              .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
-              .onError(e => ZIO.succeed(println(e.prettyPrint)))
-          }
-        } { exit =>
-          exit match {
-            case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-            case _                   =>
-          }
-          continuation(Array())
-        }
-      case LegacySpecWrapper(abstractRunnableSpec) =>
-        Runtime(ZEnvironment.empty, abstractRunnableSpec.runtimeConfig).unsafeRunAsyncWith {
-          run(eventHandler, abstractRunnableSpec)
-        } { exit =>
-          exit match {
-            case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-            case _                   =>
-          }
-          continuation(Array())
-        }
+  def execute(continuation: Array[Task] => Unit): Unit =
+    Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRunAsyncWith {
+      for {
+        summary <- ZIO.scoped {
+                     spec.run
+                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
+                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
+                   }
+        _ <- sendSummary.provide(ZLayer.succeed(summary))
+        _ <- (if (summary.fail > 0)
+                ZIO.fail(new Exception("Failed tests."))
+              else ZIO.unit)
+      } yield ()
+
+    } { exit =>
+      exit match {
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+        case _                   =>
+      }
+      continuation(Array())
     }
 }
+
 object ZTestTask {
   def apply(
     taskDef: TaskDef,
@@ -120,52 +115,19 @@ object ZTestTask {
     runnerType: String,
     sendSummary: SendSummary,
     args: TestArgs
-  ): ZTestTask =
-    disectTask(taskDef, testClassLoader) match {
-      case NewSpecWrapper(zioSpec) =>
-        new ZTestTaskNew(taskDef, testClassLoader, runnerType, sendSummary, args, zioSpec)
-      case LegacySpecWrapper(abstractRunnableSpec) =>
-        new ZTestTaskLegacy(taskDef, testClassLoader, runnerType, sendSummary, args, abstractRunnableSpec)
-    }
+  ): ZTestTask = {
+    val zioSpec = disectTask(taskDef, testClassLoader)
+    new ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, args, zioSpec)
+  }
 
-  def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): NewOrLegacySpec = {
+  private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
     // Creating the class from magic ether
-    try {
-      val res = Reflect
-        .lookupLoadableModuleClass(fqn, testClassLoader)
-        .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-        .loadModule()
-        .asInstanceOf[ZIOSpec[_]]
-      sbt.NewSpecWrapper(res)
-    } catch {
-      case _: ClassCastException =>
-        sbt.LegacySpecWrapper(
-          Reflect
-            .lookupLoadableModuleClass(fqn, testClassLoader)
-            .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
-            .loadModule()
-            .asInstanceOf[AbstractRunnableSpec]
-        )
-    }
+    Reflect
+      .lookupLoadableModuleClass(fqn, testClassLoader)
+      .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
+      .loadModule()
+      .asInstanceOf[ZIOSpecAbstract]
   }
 }
-
-final class ZTestTaskLegacy(
-  taskDef: TaskDef,
-  testClassLoader: ClassLoader,
-  runnerType: String,
-  sendSummary: SendSummary,
-  testArgs: TestArgs,
-  spec: AbstractRunnableSpec
-) extends ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, testArgs, sbt.LegacySpecWrapper(spec))
-
-final class ZTestTaskNew(
-  taskDef: TaskDef,
-  testClassLoader: ClassLoader,
-  runnerType: String,
-  sendSummary: SendSummary,
-  testArgs: TestArgs,
-  val newSpec: ZIOSpecAbstract
-) extends ZTestTask(taskDef, testClassLoader, runnerType, sendSummary, testArgs, sbt.NewSpecWrapper(newSpec))

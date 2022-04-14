@@ -62,6 +62,11 @@ object EnvironmentSpec extends ZIOBaseSpec {
         _       <- TestSystem.setLineSeparator(",")
         lineSep <- System.lineSeparator
       } yield assert(lineSep)(equalTo(","))
-    }
+    },
+    test("Test services can be accessed in live scope") {
+      for {
+        _ <- TestClock.timeZone
+      } yield assertCompletes
+    } @@ withLiveClock
   )
 }

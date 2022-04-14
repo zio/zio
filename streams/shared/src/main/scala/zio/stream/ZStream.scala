@@ -75,13 +75,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self zipRight that
 
   /**
-   * Symbolic alias for [[ZStream#flatMap]].
-   */
-  @deprecated("use flatMap", "2.0.0")
-  def >>=[R1 <: R, E1 >: E, A2](f: A => ZStream[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
-    flatMap(f)
-
-  /**
    * Symbolic alias for [[ZStream#via]].
    */
   def >>>[R1 <: R, E1 >: E, B](pipeline: => ZPipeline[R1, E1, A, B])(implicit
@@ -228,24 +221,26 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             )
 
         ZChannel
-          .scoped[R1](timeout.forkScoped) { fiber =>
-            (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
-              ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
-                ZChannel.unwrap {
-                  sinkEndReason.modify {
-                    case ScheduleEnd(c) =>
-                      (ZChannel.write(Chunk(Right(b), Left(c))).as(Some(b)), SinkEnd)
+          .unwrapScoped[R1] {
+            timeout.forkScoped.map { fiber =>
+              (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
+                ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
+                  ZChannel.unwrap {
+                    sinkEndReason.modify {
+                      case ScheduleEnd(c) =>
+                        (ZChannel.write(Chunk(Right(b), Left(c))).as(Some(b)), SinkEnd)
 
-                    case ScheduleTimeout =>
-                      (ZChannel.write(Chunk(Right(b))).as(Some(b)), SinkEnd)
+                      case ScheduleTimeout =>
+                        (ZChannel.write(Chunk(Right(b))).as(Some(b)), SinkEnd)
 
-                    case SinkEnd =>
-                      (ZChannel.write(Chunk(Right(b))).as(Some(b)), SinkEnd)
+                      case SinkEnd =>
+                        (ZChannel.write(Chunk(Right(b))).as(Some(b)), SinkEnd)
 
-                    case UpstreamEnd =>
-                      (ZChannel.write(Chunk(Right(b))).as(None), UpstreamEnd) // leftovers??
+                      case UpstreamEnd =>
+                        (ZChannel.write(Chunk(Right(b))).as(None), UpstreamEnd) // leftovers??
+                    }
                   }
-                }
+              }
             }
           }
           .flatMap {
@@ -273,14 +268,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     n: Int
   )(f: Chunk[A] => ZPipeline[R1, E1, A, B])(implicit trace: ZTraceElement): ZStream[R1, E1, B] =
     self >>> ZPipeline.branchAfter(n)(f)
-
-  /**
-   * Returns a stream whose failure and success channels have been mapped by the
-   * specified pair of functions, `f` and `g`.
-   */
-  @deprecated("use mapBoth", "2.0.0")
-  def bimap[E1, A1](f: E => E1, g: A => A1)(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R, E1, A1] =
-    mapBoth(f, g)
 
   /**
    * Fan out the stream, producing a list of streams that have the same elements
@@ -348,20 +335,22 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def buffer(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueueOfElements(capacity)
     new ZStream(
-      ZChannel.scoped[R](queue) { queue =>
-        lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-          ZChannel.fromZIO {
-            queue.take
-          }.flatMap { (exit: Exit[Option[E], A]) =>
-            exit.fold(
-              Cause
-                .flipCauseOption(_)
-                .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.failCause(_)),
-              value => ZChannel.write(Chunk.single(value)) *> process
-            )
-          }
+      ZChannel.unwrapScoped[R] {
+        queue.map { queue =>
+          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+            ZChannel.fromZIO {
+              queue.take
+            }.flatMap { (exit: Exit[Option[E], A]) =>
+              exit.fold(
+                Cause
+                  .flipCauseOption(_)
+                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.failCause(_)),
+                value => ZChannel.write(Chunk.single(value)) *> process
+              )
+            }
 
-        process
+          process
+        }
       }
     )
   }
@@ -376,19 +365,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def bufferChunks(capacity: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueue(capacity)
     new ZStream(
-      ZChannel.scoped[R](queue) { queue =>
-        lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-          ZChannel.fromZIO {
-            queue.take
-          }.flatMap { (take: Take[E, A]) =>
-            take.fold(
-              ZChannel.unit,
-              error => ZChannel.failCause(error),
-              value => ZChannel.write(value) *> process
-            )
-          }
+      ZChannel.unwrapScoped[R] {
+        queue.map { queue =>
+          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+            ZChannel.fromZIO {
+              queue.take
+            }.flatMap { (take: Take[E, A]) =>
+              take.fold(
+                ZChannel.unit,
+                error => ZChannel.failCause(error),
+                value => ZChannel.write(value) *> process
+              )
+            }
 
-        process
+          process
+        }
       }
     )
   }
@@ -501,16 +492,14 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       process
     }
 
-    ZChannel.scoped[R1] {
+    ZChannel.unwrapScoped[R1] {
       for {
         queue <- scoped
         start <- Promise.make[Nothing, Unit]
         _     <- start.succeed(())
         ref   <- Ref.make(start)
         _     <- (channel >>> producer(queue, ref)).runScoped.fork
-      } yield queue
-    } { queue =>
-      consumer(queue)
+      } yield consumer(queue)
     }
   }
 
@@ -521,19 +510,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def bufferUnbounded(implicit trace: ZTraceElement): ZStream[R, E, A] = {
     val queue = self.toQueueUnbounded
     new ZStream(
-      ZChannel.scoped[R](queue) { queue =>
-        lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-          ZChannel.fromZIO {
-            queue.take
-          }.flatMap { (take: Take[E, A]) =>
-            take.fold(
-              ZChannel.unit,
-              error => ZChannel.failCause(error),
-              value => ZChannel.write(value) *> process
-            )
-          }
+      ZChannel.unwrapScoped[R] {
+        queue.map { queue =>
+          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+            ZChannel.fromZIO {
+              queue.take
+            }.flatMap { (take: Take[E, A]) =>
+              take.fold(
+                ZChannel.unit,
+                error => ZChannel.failCause(error),
+                value => ZChannel.write(value) *> process
+              )
+            }
 
-        process
+          process
+        }
       }
     )
   }
@@ -637,14 +628,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
-   * Re-chunks the elements of the stream into chunks of `n` elements each. The
-   * last chunk might contain less than `n` elements
-   */
-  @deprecated("use rechunk", "2.0.0")
-  def chunkN(n: => Int)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    rechunk(n)
-
-  /**
    * Exposes the underlying chunks of the stream as a stream of chunks of
    * elements.
    */
@@ -696,7 +679,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def debug(implicit trace: ZTraceElement): ZStream[R, E, A] =
     self
       .tap(a => ZIO.debug(a))
-      .tapError(e => ZIO.debug(s"<FAIL>: $e"))
+      .tapErrorCause(e => ZIO.debug(s"<FAIL>: $e"))
 
   /**
    * Taps the stream, printing the result of calling `.toString` on the emitted
@@ -705,7 +688,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def debug(label: String)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     self
       .tap(a => ZIO.debug(s"$label: $a"))
-      .tapError(e => ZIO.debug(s"<FAIL> $label: $e"))
+      .tapErrorCause(e => ZIO.debug(s"<FAIL> $label: $e"))
 
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
@@ -758,15 +741,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Performs an effectful filter and map in a single step.
    */
-  @deprecated("use collectZIO", "2.0.0")
-  final def collectM[R1 <: R, E1 >: E, A1](pf: PartialFunction[A, ZIO[R1, E1, A1]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A1] =
-    collectZIO(pf)
-
-  /**
-   * Performs an effectful filter and map in a single step.
-   */
   final def collectZIO[R1 <: R, E1 >: E, A1](pf: PartialFunction[A, ZIO[R1, E1, A1]])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A1] =
@@ -799,16 +773,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     val _ = ev
     self.asInstanceOf[ZStream[R, E, Either[L1, A1]]].collectWhile { case Left(a) => a }
   }
-
-  /**
-   * Effectfully transforms all elements of the stream for as long as the
-   * specified partial function is defined.
-   */
-  @deprecated("use collectWhileZIO", "2.0.0")
-  final def collectWhileM[R1 <: R, E1 >: E, A1](pf: PartialFunction[A, ZIO[R1, E1, A1]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A1] =
-    collectWhileZIO(pf)
 
   /**
    * Terminates the stream when encountering the first `None`.
@@ -877,19 +841,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.scoped[R1] {
+      ZChannel.unwrapScoped[R1] {
         for {
-          left   <- ZStream.Handoff.make[Exit[Option[E], A]]
-          right  <- ZStream.Handoff.make[Exit[Option[E1], A2]]
-          latchL <- ZStream.Handoff.make[Unit]
-          latchR <- ZStream.Handoff.make[Unit]
-          _      <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.fork
-          _      <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.fork
-        } yield (left, right, latchL, latchR)
-      } { case (left, right, latchL, latchR) =>
-        val pullLeft: IO[Option[E], A]    = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
-        val pullRight: IO[Option[E1], A2] = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
-        ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
+          left     <- ZStream.Handoff.make[Exit[Option[E], A]]
+          right    <- ZStream.Handoff.make[Exit[Option[E1], A2]]
+          latchL   <- ZStream.Handoff.make[Unit]
+          latchR   <- ZStream.Handoff.make[Unit]
+          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.fork
+          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.fork
+          pullLeft  = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
+          pullRight = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
+        } yield ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
       }
     )
   }
@@ -920,19 +882,17 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         )
 
     new ZStream(
-      ZChannel.scoped[R1] {
+      ZChannel.unwrapScoped[R1] {
         for {
-          left   <- ZStream.Handoff.make[Take[E, A]]
-          right  <- ZStream.Handoff.make[Take[E1, A2]]
-          latchL <- ZStream.Handoff.make[Unit]
-          latchR <- ZStream.Handoff.make[Unit]
-          _      <- (self.channel >>> producer(left, latchL)).runScoped.fork
-          _      <- (that.channel >>> producer(right, latchR)).runScoped.fork
-        } yield (left, right, latchL, latchR)
-      } { case (left, right, latchL, latchR) =>
-        val pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
-        val pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
-        ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
+          left     <- ZStream.Handoff.make[Take[E, A]]
+          right    <- ZStream.Handoff.make[Take[E1, A2]]
+          latchL   <- ZStream.Handoff.make[Unit]
+          latchR   <- ZStream.Handoff.make[Unit]
+          _        <- (self.channel >>> producer(left, latchL)).runScoped.fork
+          _        <- (that.channel >>> producer(right, latchR)).runScoped.fork
+          pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
+          pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
+        } yield ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
       }
     )
   }
@@ -1211,19 +1171,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self >>> ZPipeline.dropWhile(f)
 
   /**
-   * Drops all elements of the stream for as long as the specified predicate
-   * produces an effect that evalutates to `true`
-   *
-   * @see
-   *   [[dropWhile]]
-   */
-  @deprecated("use dropWhileZIO", "2.0.0")
-  final def dropWhileM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A] =
-    dropWhileZIO(f)
-
-  /**
    * Drops all elements of the stream until the specified predicate evaluates to
    * `true`.
    */
@@ -1284,16 +1231,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Finds the first element emitted by this stream that satisfies the provided
    * effectful predicate.
    */
-  @deprecated("use findZIO", "2.0.0")
-  final def findM[R1 <: R, E1 >: E, S](f: A => ZIO[R1, E1, Boolean])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A] =
-    findZIO(f)
-
-  /**
-   * Finds the first element emitted by this stream that satisfies the provided
-   * effectful predicate.
-   */
   final def findZIO[R1 <: R, E1 >: E, S](
     f: A => ZIO[R1, E1, Boolean]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, A] = {
@@ -1311,34 +1248,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Executes a pure fold over the stream of values - reduces all elements in
    * the stream to a value of type `S`.
    */
-  @deprecated("use runFold", "2.0.0")
-  final def fold[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
-    runFold(s)(f)
-
-  /**
-   * Executes a pure fold over the stream of values - reduces all elements in
-   * the stream to a value of type `S`.
-   */
   final def runFold[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
     ZIO.scoped[R](runFoldWhileScoped(s)(_ => true)((s, a) => f(s, a)))
-
-  /**
-   * Executes an effectful fold over the stream of values.
-   */
-  @deprecated("use runFoldZIO", "2.0.0")
-  final def foldM[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, S] =
-    runFoldZIO[R1, E1, S](s)(f)
-
-  /**
-   * Executes an effectful fold over the stream of values.
-   */
-  @deprecated("use runFoldZIO", "2.0.0")
-  final def runFoldM[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, S] =
-    runFoldZIO[R1, E1, S](s)(f)
 
   /**
    * Executes a pure fold over the stream of values. Returns a scoped value that
@@ -1363,55 +1274,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    *   Stream(1).forever.foldWhile(0)(_ <= 4)(_ + _) // UIO[Int] == 5
    * }}}
    */
-  @deprecated("use runFoldWhile", "2.0.0")
-  final def foldWhile[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
-    runFoldWhile(s)(cont)(f)
-
-  /**
-   * Reduces the elements in the stream to a value of type `S`. Stops the fold
-   * early when the condition is not fulfilled. Example:
-   * {{{
-   *   Stream(1).forever.foldWhile(0)(_ <= 4)(_ + _) // UIO[Int] == 5
-   * }}}
-   */
   final def runFoldWhile[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit trace: ZTraceElement): ZIO[R, E, S] =
     ZIO.scoped[R](runFoldWhileScoped(s)(cont)((s, a) => f(s, a)))
-
-  /**
-   * Executes an effectful fold over the stream of values. Stops the fold early
-   * when the condition is not fulfilled. Example:
-   * {{{
-   *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
-   * }}}
-   *
-   * @param cont
-   *   function which defines the early termination condition
-   */
-  @deprecated("use runFoldWhileZIO", "2.0.0")
-  final def foldWhileM[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, S] =
-    runFoldWhileZIO[R1, E1, S](s)(cont)(f)
-
-  /**
-   * Executes an effectful fold over the stream of values. Stops the fold early
-   * when the condition is not fulfilled. Example:
-   * {{{
-   *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
-   * }}}
-   *
-   * @param cont
-   *   function which defines the early termination condition
-   */
-  @deprecated("use runFoldWhileZIO", "2.0.0")
-  final def runFoldWhileM[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, S] =
-    runFoldWhileZIO[R1, E1, S](s)(cont)(f)
 
   /**
    * Executes an effectful fold over the stream of values. Returns a scoped
@@ -1443,24 +1307,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * @param cont
    *   function which defines the early termination condition
    */
-  @deprecated("use runFoldWhileZIO", "2.0.0")
-  final def foldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, S] =
-    runFoldWhileZIO[R1, E1, S](s)(cont)(f)
-
-  /**
-   * Executes an effectful fold over the stream of values. Stops the fold early
-   * when the condition is not fulfilled. Example:
-   * {{{
-   *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
-   * }}}
-   *
-   * @param cont
-   *   function which defines the early termination condition
-   */
   final def runFoldWhileZIO[R1 <: R, E1 >: E, S](s: => S)(cont: S => Boolean)(
     f: (S, A) => ZIO[R1, E1, S]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, S] =
@@ -1475,15 +1321,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     trace: ZTraceElement
   ): ZIO[R with Scope, E, S] =
     runScoped(ZSink.fold(s)(cont)(f))
-
-  /**
-   * Executes an effectful fold over the stream of values.
-   */
-  @deprecated("use runFoldZIO", "2.0.0")
-  final def foldZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, S] =
-    runFoldZIO[R1, E1, S](s)(f)
 
   /**
    * Executes an effectful fold over the stream of values.
@@ -1506,16 +1343,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runForeach[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit trace: ZTraceElement): ZIO[R1, E1, Unit] =
     run(ZSink.foreach(f))
-
-  /**
-   * Consumes all elements of the stream, passing them to the specified
-   * callback.
-   */
-  @deprecated("use runForeachChunk", "2.0.0")
-  final def foreachChunk[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, Unit] =
-    runForeachChunk[R1, E1](f)
 
   /**
    * Consumes all elements of the stream, passing them to the specified
@@ -1548,16 +1375,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Consumes elements of the stream, passing them to the specified callback,
    * and terminating consumption when the callback returns `false`.
    */
-  @deprecated("use runForeachWhile", "2.0.0")
-  final def foreachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, Unit] =
-    runForeachWhile[R1, E1](f)
-
-  /**
-   * Consumes elements of the stream, passing them to the specified callback,
-   * and terminating consumption when the callback returns `false`.
-   */
   final def runForeachWhile[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Unit] =
@@ -1577,13 +1394,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def forever(implicit trace: ZTraceElement): ZStream[R, E, A] =
     new ZStream(channel.repeated)
-
-  /**
-   * Effectfully filters the elements emitted by this stream.
-   */
-  @deprecated("use filterZIO", "2.0.0")
-  def filterM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    filterZIO(f)
 
   /**
    * Effectfully filters the elements emitted by this stream.
@@ -1901,42 +1711,42 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
     new ZStream(
-      ZChannel.scoped[R1] {
+      ZChannel.unwrapScoped[R1] {
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
           _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runScoped.fork
           _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runScoped.fork
-        } yield (left, right)
-      } { case (left, right) =>
-        def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
-          ZChannel.readWithCause[R1, E1, Boolean, Any, E1, Chunk[A1], Unit](
-            bool =>
-              (bool, leftDone, rightDone) match {
-                case (true, false, _) =>
-                  ZChannel.fromZIO(left.take).flatMap { take =>
-                    take.fold(
-                      if (rightDone) ZChannel.unit else process(true, rightDone),
-                      cause => ZChannel.failCause(cause),
-                      chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
-                    )
-                  }
-                case (false, _, false) =>
-                  ZChannel.fromZIO(right.take).flatMap { take =>
-                    take.fold(
-                      if (leftDone) ZChannel.unit else process(leftDone, true),
-                      cause => ZChannel.failCause(cause),
-                      chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
-                    )
-                  }
-                case _ =>
-                  process(leftDone, rightDone)
-              },
-            cause => ZChannel.failCause(cause),
-            _ => ZChannel.unit
-          )
+        } yield {
+          def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
+            ZChannel.readWithCause[R1, E1, Boolean, Any, E1, Chunk[A1], Unit](
+              bool =>
+                (bool, leftDone, rightDone) match {
+                  case (true, false, _) =>
+                    ZChannel.fromZIO(left.take).flatMap { take =>
+                      take.fold(
+                        if (rightDone) ZChannel.unit else process(true, rightDone),
+                        cause => ZChannel.failCause(cause),
+                        chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
+                      )
+                    }
+                  case (false, _, false) =>
+                    ZChannel.fromZIO(right.take).flatMap { take =>
+                      take.fold(
+                        if (leftDone) ZChannel.unit else process(leftDone, true),
+                        cause => ZChannel.failCause(cause),
+                        chunk => ZChannel.write(chunk) *> process(leftDone, rightDone)
+                      )
+                    }
+                  case _ =>
+                    process(leftDone, rightDone)
+                },
+              cause => ZChannel.failCause(cause),
+              _ => ZChannel.unit
+            )
 
-        b.channel.concatMap(ZChannel.writeChunk(_)) >>> process(false, false)
+          b.channel.concatMap(ZChannel.writeChunk(_)) >>> process(false, false)
+        }
       }
     )
   }
@@ -2027,26 +1837,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     intersperse(before, middle, after).mkString
 
   /**
-   * Enqueues elements of this stream into a queue. Stream failure and ending
-   * will also be signalled.
-   */
-  @deprecated("use runIntoQueue", "2.0.0")
-  final def runInto(
-    queue: => Enqueue[Take[E, A]]
-  )(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    runIntoQueue(queue)
-
-  /**
-   * Publishes elements of this stream to a hub. Stream failure and ending will
-   * also be signalled.
-   */
-  @deprecated("use runIntoHub", "2.0.0")
-  final def intoHub[E1 >: E, A1 >: A](
-    hub: => Hub[Take[E1, A1]]
-  )(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
-    runIntoHub(hub)
-
-  /**
    * Publishes elements of this stream to a hub. Stream failure and ending will
    * also be signalled.
    */
@@ -2063,16 +1853,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     hub: => Hub[Take[E1, A1]]
   )(implicit trace: ZTraceElement): ZIO[R with Scope, E1, Unit] =
     runIntoQueueScoped(hub)
-
-  /**
-   * Enqueues elements of this stream into a queue. Stream failure and ending
-   * will also be signalled.
-   */
-  @deprecated("use runIntoQueue", "2.0.0")
-  final def intoQueue(
-    queue: => Enqueue[Take[E, A]]
-  )(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    runIntoQueue(queue)
 
   /**
    * Enqueues elements of this stream into a queue. Stream failure and ending
@@ -2130,15 +1910,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   }
 
   /**
-   * Locks the execution of this stream to the specified executor. Any streams
-   * that are composed after this one will automatically be shifted back to the
-   * previous executor.
-   */
-  @deprecated("use onExecutor", "2.0.0")
-  def lock(executor: => Executor)(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    onExecutor(executor)
-
-  /**
    * Transforms the elements of this stream using the supplied function.
    */
   final def map[B](f: A => B)(implicit trace: ZTraceElement): ZStream[R, E, B] =
@@ -2166,16 +1937,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Statefully and effectfully maps over the elements of this stream to produce
    * new elements.
    */
-  @deprecated("use mapAccumZIO", "2.0.0")
-  final def mapAccumM[R1 <: R, E1 >: E, S, A1](s: => S)(f: (S, A) => ZIO[R1, E1, (S, A1)])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A1] =
-    mapAccumZIO[R1, E1, S, A1](s)(f)
-
-  /**
-   * Statefully and effectfully maps over the elements of this stream to produce
-   * new elements.
-   */
   final def mapAccumZIO[R1 <: R, E1 >: E, S, A1](
     s: => S
   )(f: (S, A) => ZIO[R1, E1, (S, A1)])(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
@@ -2193,15 +1954,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def mapChunks[A2](f: Chunk[A] => Chunk[A2])(implicit trace: ZTraceElement): ZStream[R, E, A2] =
     new ZStream(channel.mapOut(f))
-
-  /**
-   * Effectfully transforms the chunks emitted by this stream.
-   */
-  @deprecated("use mapChunksZIO", "2.0.0")
-  def mapChunksM[R1 <: R, E1 >: E, A2](f: Chunk[A] => ZIO[R1, E1, Chunk[A2]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A2] =
-    mapChunksZIO(f)
 
   /**
    * Effectfully transforms the chunks emitted by this stream.
@@ -2229,30 +1981,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Effectfully maps each element to a chunk, and flattens the chunks into the
    * output of this stream.
    */
-  @deprecated("use mapConcatChunkZIO", "2.0.0")
-  final def mapConcatChunkM[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Chunk[A2]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A2] =
-    mapConcatChunkZIO(f)
-
-  /**
-   * Effectfully maps each element to a chunk, and flattens the chunks into the
-   * output of this stream.
-   */
   final def mapConcatChunkZIO[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Chunk[A2]])(implicit
     trace: ZTraceElement
   ): ZStream[R1, E1, A2] =
     mapZIO(f).mapConcatChunk(identity)
-
-  /**
-   * Effectfully maps each element to an iterable, and flattens the iterables
-   * into the output of this stream.
-   */
-  @deprecated("use mapConcatZIO", "2.0.0")
-  final def mapConcatM[R1 <: R, E1 >: E, A2](f: A => ZIO[R1, E1, Iterable[A2]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A2] =
-    mapConcatZIO(f)
 
   /**
    * Effectfully maps each element to an iterable, and flattens the iterables
@@ -2274,54 +2006,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def mapErrorCause[E2](f: Cause[E] => Cause[E2])(implicit trace: ZTraceElement): ZStream[R, E2, A] =
     new ZStream(self.channel.mapErrorCause(f))
-
-  /**
-   * Maps over elements of the stream with the specified effectful function.
-   */
-  @deprecated("use mapZIO", "2.0.0")
-  def mapM[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
-    mapZIO(f)
-
-  /**
-   * Maps over elements of the stream with the specified effectful function,
-   * executing up to `n` invocations of `f` concurrently. Transformed elements
-   * will be emitted in the original order.
-   *
-   * @note
-   *   This combinator destroys the chunking structure. It's recommended to use
-   *   rechunk afterwards.
-   */
-  @deprecated("use mapZIOPar", "2.0.0")
-  final def mapMPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A2] =
-    mapZIOPar[R1, E1, A2](n)(f)
-
-  /**
-   * Maps over elements of the stream with the specified effectful function,
-   * executing up to `n` invocations of `f` concurrently. The element order is
-   * not enforced by this combinator, and elements may be reordered.
-   */
-  @deprecated("use mapZIOParUnordered", "2.0.0")
-  final def mapMParUnordered[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A2] =
-    mapZIOParUnordered[R1, E1, A2](n)(f)
-
-  /**
-   * Maps over elements of the stream with the specified effectful function,
-   * partitioned by `p` executing invocations of `f` concurrently. The number of
-   * concurrent invocations of `f` is determined by the number of different
-   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
-   * Transformed elements may be reordered but the order within a partition is
-   * maintained.
-   */
-  @deprecated("use mapZIOPartitioned", "2.0.0")
-  final def mapMPartitioned[R1 <: R, E1 >: E, A2, K](
-    keyBy: A => K,
-    buffer: => Int = 16
-  )(f: A => ZIO[R1, E1, A2])(implicit trace: ZTraceElement): ZStream[R1, E1, A2] =
-    mapZIOPartitioned[R1, E1, A2, K](keyBy, buffer)(f)
 
   /**
    * Maps over elements of the stream with the specified effectful function.
@@ -2687,9 +2371,11 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
   )(implicit trace: ZTraceElement): ZStream[R0, E1, A] =
-    new ZStream(ZChannel.scoped[R0](layer.build) { r =>
-      self.channel.provideEnvironment(r)
-    })
+    new ZStream(
+      ZChannel.unwrapScoped[R0] {
+        layer.build.map(r => self.channel.provideEnvironment(r))
+      }
+    )
 
   /**
    * Transforms the environment being provided to the stream with the specified
@@ -2977,16 +2663,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     scanZIO(s)((s, a) => ZIO.succeedNow(f(s, a)))
 
   /**
-   * Statefully and effectfully maps over the elements of this stream to produce
-   * all intermediate results of type `S` given an initial S.
-   */
-  @deprecated("use scanZIO", "2.0.0")
-  def scanM[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, S] =
-    scanZIO[R1, E1, S](s)(f)
-
-  /**
    * Statefully maps over the elements of this stream to produce all
    * intermediate results.
    *
@@ -2994,18 +2670,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def scanReduce[A1 >: A](f: (A1, A) => A1)(implicit trace: ZTraceElement): ZStream[R, E, A1] =
     scanReduceZIO[R, E, A1]((curr, next) => ZIO.succeedNow(f(curr, next)))
-
-  /**
-   * Statefully and effectfully maps over the elements of this stream to produce
-   * all intermediate results.
-   *
-   * See also [[ZStream#scanM]].
-   */
-  @deprecated("use scanReduceZIO", "2.0.0")
-  def scanReduceM[R1 <: R, E1 >: E, A1 >: A](f: (A1, A) => ZIO[R1, E1, A1])(implicit
-    trace: ZTraceElement
-  ): ZStream[R1, E1, A1] =
-    scanReduceZIO(f)
 
   /**
    * Statefully and effectfully maps over the elements of this stream to produce
@@ -3273,14 +2937,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes all elements of the stream until the specified effectual predicate
    * evaluates to `true`.
    */
-  @deprecated("use takeUntilZIO", "2.0.0")
-  def takeUntilM[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    takeUntilZIO(f)
-
-  /**
-   * Takes all elements of the stream until the specified effectual predicate
-   * evaluates to `true`.
-   */
   def takeUntilZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
     loopOnPartialChunks { (chunk, emit) =>
       for {
@@ -3309,6 +2965,15 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     f: E => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R1, E1, A] =
     catchAll(e => ZStream.fromZIO(f(e) *> ZIO.fail(e)))
+
+  /**
+   * Returns a stream that effectfully "peeks" at the cause of failure of the
+   * stream.
+   */
+  final def tapErrorCause[R1 <: R, E1 >: E](
+    f: Cause[E] => ZIO[R1, E1, Any]
+  )(implicit ev: CanFail[E], trace: ZTraceElement): ZStream[R1, E1, A] =
+    catchAllCause(e => ZStream.fromZIO(f(e) *> ZIO.failCause(e)))
 
   /**
    * Sends all elements emitted by this stream to the specified sink in addition
@@ -3344,20 +3009,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     costFn: Chunk[A] => Long
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     throttleEnforceZIO(units, duration, burst)(as => UIO.succeedNow(costFn(as)))
-
-  /**
-   * Throttles the chunks of this stream according to the given bandwidth
-   * parameters using the token bucket algorithm. Allows for burst in the
-   * processing of elements by allowing the token bucket to accumulate tokens up
-   * to a `units + burst` threshold. Chunks that do not meet the bandwidth
-   * constraints are dropped. The weight of each chunk is determined by the
-   * `costFn` effectful function.
-   */
-  @deprecated("use throttleEnforceZIO", "2.0.0")
-  final def throttleEnforceM[R1 <: R, E1 >: E](units: => Long, duration: => Duration, burst: => Long = 0)(
-    costFn: Chunk[A] => ZIO[R1, E1, Long]
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    throttleEnforceZIO[R1, E1](units, duration, burst)(costFn)
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth
@@ -3410,19 +3061,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     costFn: Chunk[A] => Long
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
     throttleShapeZIO(units, duration, burst)(os => UIO.succeedNow(costFn(os)))
-
-  /**
-   * Delays the chunks of this stream according to the given bandwidth
-   * parameters using the token bucket algorithm. Allows for burst in the
-   * processing of elements by allowing the token bucket to accumulate tokens up
-   * to a `units + burst` threshold. The weight of each chunk is determined by
-   * the `costFn` effectful function.
-   */
-  @deprecated("use throttleShapeZIO", "2.0.0")
-  final def throttleShapeM[R1 <: R, E1 >: E](units: => Long, duration: => Duration, burst: => Long = 0)(
-    costFn: Chunk[A] => ZIO[R1, E1, Long]
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    throttleShapeZIO[R1, E1](units, duration, burst)(costFn)
 
   /**
    * Delays the chunks of this stream according to the given bandwidth
@@ -3582,30 +3220,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Fails the stream with given error if it does not produce a value after d
    * duration.
    */
-  @deprecated("use timeoutFail", "2.0.0")
-  final def timeoutError[E1 >: E](e: => E1)(d: Duration)(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E1, A] =
-    timeoutFail(e)(d)
-
-  /**
-   * Fails the stream with given error if it does not produce a value after d
-   * duration.
-   */
   final def timeoutFail[E1 >: E](e: => E1)(d: Duration)(implicit
     trace: ZTraceElement
   ): ZStream[R, E1, A] =
     self.timeoutTo[R, E1, A](d)(ZStream.fail(e))
-
-  /**
-   * Fails the stream with given cause if it does not produce a value after d
-   * duration.
-   */
-  @deprecated("use timeoutFailCause", "2.0.0")
-  final def timeoutErrorCause[E1 >: E](
-    cause: => Cause[E1]
-  )(d: => Duration)(implicit trace: ZTraceElement): ZStream[R, E1, A] =
-    timeoutFailCause(cause)(d)
 
   /**
    * Fails the stream with given cause if it does not produce a value after d
@@ -3619,16 +3237,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         self.toPull.map(pull => pull.timeoutFailCause(cause.map(Some(_)))(d))
       }
     }
-
-  /**
-   * Halts the stream with given cause if it does not produce a value after d
-   * duration.
-   */
-  @deprecated("use timeoutFailCause", "2.0.0")
-  final def timeoutHalt[E1 >: E](cause: => Cause[E1])(d: => Duration)(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E1, A] =
-    timeoutFailCause(cause)(d)
 
   /**
    * Switches the stream if it does not produce a value after d duration.
@@ -3813,14 +3421,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def when(b: => Boolean)(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.when(b)(self)
-
-  /**
-   * Returns this stream if the specified effectful condition is satisfied,
-   * otherwise returns an empty stream.
-   */
-  @deprecated("use whenZIO", "2.0.0")
-  def whenM[R1 <: R, E1 >: E](b: => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    whenZIO(b)
 
   /**
    * Returns this stream if the specified effectful condition is satisfied,
@@ -4230,34 +3830,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     xs.mapZIO(ZIO.fromEither(_))
 
   /**
-   * Accesses the environment of the stream in the context of an effect.
-   */
-  @deprecated("use environmentWith", "2.0.0")
-  def access[R]: EnvironmentWithPartiallyApplied[R] =
-    environmentWith
-
-  /**
-   * Accesses the environment of the stream in the context of an effect.
-   */
-  @deprecated("use environmentWithZIO", "2.0.0")
-  def accessM[R]: EnvironmentWithZIOPartiallyApplied[R] =
-    environmentWithZIO
-
-  /**
-   * Accesses the environment of the stream in the context of an effect.
-   */
-  @deprecated("use environmentWithZIO", "2.0.0")
-  def accessZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
-    environmentWithZIO
-
-  /**
-   * Accesses the environment of the stream in the context of a stream.
-   */
-  @deprecated("use environmentWithStream", "2.0.0")
-  def accessStream[R]: EnvironmentWithStreamPartiallyApplied[R] =
-    environmentWithStream
-
-  /**
    * Creates a stream from a single value that will get cleaned up after the
    * stream is consumed
    */
@@ -4287,90 +3859,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def blocking[R, E, A](stream: => ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.onExecutor(_))
-
-  /**
-   * Creates a stream from a single value that will get cleaned up after the
-   * stream is consumed
-   */
-  @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[R, E, A](acquire: => ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    acquireReleaseWith(acquire)(release)
-
-  /**
-   * Creates a stream from a single value that will get cleaned up after the
-   * stream is consumed
-   */
-  @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[R, E, A](
-    acquire: => ZIO[R, E, A]
-  )(release: (A, Exit[Any, Any]) => URIO[R, Any])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    acquireReleaseExitWith(acquire)(release)
-
-  /**
-   * Composes the specified streams to create a cartesian product of elements
-   * with a specified function. Subsequent streams would be run multiple times,
-   * for every combination of elements in the prior streams.
-   *
-   * See also [[ZStream#zipN[R,E,A,B,C]*]] for the more common point-wise
-   * variant.
-   */
-  @deprecated("use instance method cross", "2.0.0")
-  def crossN[R, E, A, B, C](zStream1: => ZStream[R, E, A], zStream2: => ZStream[R, E, B])(
-    f: (A, B) => C
-  )(implicit trace: ZTraceElement): ZStream[R, E, C] =
-    ZStream.suspend(zStream1.crossWith(zStream2)(f))
-
-  /**
-   * Composes the specified streams to create a cartesian product of elements
-   * with a specified function. Subsequent stream would be run multiple times,
-   * for every combination of elements in the prior streams.
-   *
-   * See also [[ZStream#zipN[R,E,A,B,C,D]*]] for the more common point-wise
-   * variant.
-   */
-  @deprecated("use cross", "2.0.0")
-  def crossN[R, E, A, B, C, D](
-    zStream1: => ZStream[R, E, A],
-    zStream2: => ZStream[R, E, B],
-    zStream3: => ZStream[R, E, C]
-  )(
-    f: (A, B, C) => D
-  )(implicit trace: ZTraceElement): ZStream[R, E, D] =
-    ZStream.suspend {
-      for {
-        a <- zStream1
-        b <- zStream2
-        c <- zStream3
-      } yield f(a, b, c)
-    }
-
-  /**
-   * Composes the specified streams to create a cartesian product of elements
-   * with a specified function. Subsequent stream would be run multiple times,
-   * for every combination of elements in the prior streams.
-   *
-   * See also [[ZStream#zipN[R,E,A,B,C,D,F]*]] for the more common point-wise
-   * variant.
-   */
-  @deprecated("use cross", "2.0.0")
-  def crossN[R, E, A, B, C, D, F](
-    zStream1: => ZStream[R, E, A],
-    zStream2: => ZStream[R, E, B],
-    zStream3: => ZStream[R, E, C],
-    zStream4: => ZStream[R, E, D]
-  )(
-    f: (A, B, C, D) => F
-  )(implicit trace: ZTraceElement): ZStream[R, E, F] =
-    ZStream.suspend {
-      for {
-        a <- zStream1
-        b <- zStream2
-        c <- zStream3
-        d <- zStream4
-      } yield f(a, b, c, d)
-    }
 
   /**
    * Concatenates all of the streams in the chunk to one stream.
@@ -4463,22 +3951,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     constructor.make(input)
 
   /**
-   * Creates a stream from an blocking iterator that may throw exceptions.
-   */
-  @deprecated("use blocking(fromIterator())", "2.0.0")
-  def fromBlockingIterator[A](iterator: => Iterator[A])(implicit trace: ZTraceElement): ZStream[Any, Throwable, A] =
-    blocking(fromIterator(iterator))
-
-  /**
-   * Creates a stream from an blocking Java iterator that may throw exceptions.
-   */
-  @deprecated("use blocking(fromJavaIterator())", "2.0.0")
-  def fromBlockingJavaIterator[A](iter: => java.util.Iterator[A])(implicit
-    trace: ZTraceElement
-  ): ZStream[Any, Throwable, A] =
-    blocking(fromJavaIterator(iter))
-
-  /**
    * Creates a stream from a [[zio.Chunk]] of values
    *
    * @param c
@@ -4565,21 +4037,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromIterable(cs).flatMap(fromChunk(_))
 
   /**
-   * Creates a stream from an effect producing a value of type `A`
-   */
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A](fa: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    fromZIO(fa)
-
-  /**
-   * Creates a stream from an effect producing a value of type `A` or an empty
-   * Stream
-   */
-  @deprecated("use fromZIOOption", "2.0.0")
-  def fromEffectOption[R, E, A](fa: => ZIO[R, Option[E], A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    fromZIOOption(fa)
-
-  /**
    * Creates a stream from a subscription to a hub.
    */
   def fromHub[A](
@@ -4651,17 +4108,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a `java.io.InputStream`. Ensures that the input
    * stream is closed after it is exhausted.
    */
-  @deprecated("use fromInputStreamZIO", "2.0.0")
-  def fromInputStreamEffect[R](
-    is: => ZIO[R, IOException, InputStream],
-    chunkSize: => Int = ZStream.DefaultChunkSize
-  )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
-    fromInputStreamZIO(is, chunkSize)
-
-  /**
-   * Creates a stream from a `java.io.InputStream`. Ensures that the input
-   * stream is closed after it is exhausted.
-   */
   def fromInputStreamZIO[R](
     is: => ZIO[R, IOException, InputStream],
     chunkSize: => Int = ZStream.DefaultChunkSize
@@ -4682,13 +4128,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def fromIterable[O](as: => Iterable[O])(implicit trace: ZTraceElement): ZStream[Any, Nothing, O] =
     fromChunk(Chunk.fromIterable(as))
-
-  /**
-   * Creates a stream from an effect producing a value of type `Iterable[A]`
-   */
-  @deprecated("use fromIterableZIO", "2.0.0")
-  def fromIterableM[R, E, O](iterable: => ZIO[R, E, Iterable[O]])(implicit trace: ZTraceElement): ZStream[R, E, O] =
-    fromIterableZIO(iterable)
 
   /**
    * Creates a stream from an effect producing a value of type `Iterable[A]`
@@ -4767,15 +4206,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   /**
-   * Creates a stream from an iterator that may potentially throw exceptions
-   */
-  @deprecated("use fromIteratorZIO", "2.0.0")
-  def fromIteratorEffect[R, A](
-    iterator: => ZIO[R, Throwable, Iterator[A]]
-  )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    fromIteratorZIO(iterator)
-
-  /**
    * Creates a stream from a scoped iterator
    */
   def fromIteratorScoped[R, A](
@@ -4820,15 +4250,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an iterator
-   */
-  @deprecated("use fromIteratorSucceed", "2.0.0")
-  def fromIteratorTotal[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
-    trace: ZTraceElement
-  ): ZStream[Any, Nothing, A] =
-    fromIteratorSucceed(iterator, maxChunkSize)
-
-  /**
    * Creates a stream from an iterator that may potentially throw exceptions
    */
   def fromIteratorZIO[R, A](
@@ -4851,15 +4272,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a Java iterator that may potentially throw exceptions
-   */
-  @deprecated("use fromJavaIteratorZIO", "2.0.0")
-  def fromJavaIteratorEffect[R, A](
-    iterator: => ZIO[R, Throwable, java.util.Iterator[A]]
-  )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
-    fromJavaIteratorZIO(iterator)
-
-  /**
    * Creates a stream from a scoped iterator
    */
   def fromJavaIteratorScoped[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
@@ -4880,15 +4292,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         def hasNext: Boolean = it.hasNext
       }
     }
-
-  /**
-   * Creates a stream from a Java iterator
-   */
-  @deprecated("use fromJavaIteratorSucceed", "2.0.0")
-  def fromJavaIteratorTotal[A](iterator: => java.util.Iterator[A])(implicit
-    trace: ZTraceElement
-  ): ZStream[Any, Nothing, A] =
-    fromJavaIteratorSucceed(iterator)
 
   /**
    * Creates a stream from a Java iterator that may potentially throw exceptions
@@ -4971,13 +4374,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         )
       )
     )
-
-  /**
-   * The stream that always halts with `cause`.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: => Cause[E])(implicit trace: ZTraceElement): ZStream[Any, E, Nothing] =
-    failCause(cause)
 
   /**
    * The infinite stream of iterative function application: a, f(a), f(f(a)),
@@ -5130,17 +4526,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   /**
-   * Like [[unfoldChunkM]], but allows the emission of values to end one step
-   * further than the unfolding of the state. This is useful for embedding
-   * paginated APIs, hence the name.
-   */
-  @deprecated("use paginateChunkZIO", "2.0.0")
-  def paginateChunkM[R, E, A, S](s: => S)(f: S => ZIO[R, E, (Chunk[A], Option[S])])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    paginateChunkZIO(s)(f)
-
-  /**
    * Like [[unfoldChunkZIO]], but allows the emission of values to end one step
    * further than the unfolding of the state. This is useful for embedding
    * paginated APIs, hence the name.
@@ -5158,17 +4543,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
     new ZStream(ZChannel.suspend(loop(s)))
   }
-
-  /**
-   * Like [[unfoldM]], but allows the emission of values to end one step further
-   * than the unfolding of the state. This is useful for embedding paginated
-   * APIs, hence the name.
-   */
-  @deprecated("use paginateZIO", "2.0.0")
-  def paginateM[R, E, A, S](s: => S)(f: S => ZIO[R, E, (A, Option[S])])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    paginateZIO(s)(f)
 
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     stream: => ZStream[ROut with RIn2, E, ROut2]
@@ -5215,59 +4589,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   def repeat[A](a: => A)(implicit trace: ZTraceElement): ZStream[Any, Nothing, A] =
     new ZStream(ZChannel.succeed(a).flatMap(a => ZChannel.write(Chunk.single(a)).repeated))
-
-  /**
-   * Creates a stream from an effect producing a value of type `A` which repeats
-   * forever.
-   */
-  @deprecated("use repeatZIO", "2.0.0")
-  def repeatEffect[R, E, A](fa: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    repeatZIO(fa)
-
-  /**
-   * Creates a stream from an effect producing values of type `A` until it fails
-   * with None.
-   */
-  @deprecated("use repeatZIOOption", "2.0.0")
-  def repeatEffectOption[R, E, A](fa: => ZIO[R, Option[E], A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    repeatZIOOption(fa)
-
-  /**
-   * Creates a stream from an effect producing chunks of `A` values which
-   * repeats forever.
-   */
-  @deprecated("use repeatZIOChunk", "2.0.0")
-  def repeatEffectChunk[R, E, A](fa: => ZIO[R, E, Chunk[A]])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    repeatZIOChunk(fa)
-
-  /**
-   * Creates a stream from an effect producing chunks of `A` values until it
-   * fails with None.
-   */
-  @deprecated("use repeatZIOChunkOption", "2.0.0")
-  def repeatEffectChunkOption[R, E, A](fa: => ZIO[R, Option[E], Chunk[A]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    repeatZIOChunkOption(fa)
-
-  /**
-   * Creates a stream from an effect producing a value of type `A`, which is
-   * repeated using the specified schedule.
-   */
-  @deprecated("use repeatZIOWith", "2.0.0")
-  def repeatEffectWith[R, E, A](effect: => ZIO[R, E, A], schedule: => Schedule[R, A, Any])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    repeatZIOWithSchedule(effect, schedule)
-
-  /**
-   * Repeats the value using the provided schedule.
-   */
-  @deprecated("use repeatWithSchedule", "2.0.0")
-  def repeatWith[R, A](a: => A, schedule: Schedule[R, A, _])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, Nothing, A] =
-    repeatWithSchedule(a, schedule)
 
   /**
    * Repeats the value using the provided schedule.
@@ -5340,38 +4661,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     new ZStream.ServiceAtPartiallyApplied[Service]
 
   /**
-   * Accesses the specified services in the environment of the effect.
-   */
-  @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag](implicit
-    trace: ZTraceElement
-  ): ZStream[A with B, Nothing, (A, B)] =
-    ZStream.environmentWith(r => (r.get[A], r.get[B]))
-
-  /**
-   * Accesses the specified services in the environment of the effect.
-   */
-  @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag](implicit
-    trace: ZTraceElement
-  ): ZStream[A with B with C, Nothing, (A, B, C)] =
-    ZStream.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
-
-  /**
-   * Accesses the specified services in the environment of the effect.
-   */
-  @deprecated("use service", "2.0.0")
-  def services[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag
-  ](implicit
-    trace: ZTraceElement
-  ): ZStream[A with B with C with D, Nothing, (A, B, C, D)] =
-    ZStream.environmentWith(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
-
-  /**
    * Accesses the specified service in the environment of the stream.
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
@@ -5440,16 +4729,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream by effectfully peeling off the "layers" of a value of type
    * `S`
    */
-  @deprecated("use unfoldChunkZIO", "2.0.0")
-  def unfoldChunkM[R, E, A, S](s: => S)(f: S => ZIO[R, E, Option[(Chunk[A], S)]])(implicit
-    trace: ZTraceElement
-  ): ZStream[R, E, A] =
-    unfoldChunkZIO(s)(f)
-
-  /**
-   * Creates a stream by effectfully peeling off the "layers" of a value of type
-   * `S`
-   */
   def unfoldChunkZIO[R, E, A, S](
     s: => S
   )(f: S => ZIO[R, E, Option[(Chunk[A], S)]])(implicit trace: ZTraceElement): ZStream[R, E, A] = {
@@ -5463,14 +4742,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
     new ZStream(loop(s))
   }
-
-  /**
-   * Creates a stream by effectfully peeling off the "layers" of a value of type
-   * `S`
-   */
-  @deprecated("use unfoldZIO", "2.0.0")
-  def unfoldM[R, E, A, S](s: => S)(f: S => ZIO[R, E, Option[(A, S)]])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    unfoldZIO(s)(f)
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type
@@ -5513,14 +4784,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Returns the resulting stream when the given `PartialFunction` is defined
    * for the given effectful value, otherwise returns an empty stream.
    */
-  @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[R, E, A](a: => ZIO[R, E, A]): WhenCaseZIO[R, E, A] =
-    whenCaseZIO(a)
-
-  /**
-   * Returns the resulting stream when the given `PartialFunction` is defined
-   * for the given effectful value, otherwise returns an empty stream.
-   */
   def whenCaseZIO[R, E, A](a: => ZIO[R, E, A]): WhenCaseZIO[R, E, A] =
     new WhenCaseZIO(() => a)
 
@@ -5528,52 +4791,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Returns the specified stream if the given effectful condition is satisfied,
    * otherwise returns an empty stream.
    */
-  @deprecated("use whenZIO", "2.0.0")
-  def whenM[R, E](b: => ZIO[R, E, Boolean]): WhenZIO[R, E] =
-    whenZIO(b)
-
-  /**
-   * Returns the specified stream if the given effectful condition is satisfied,
-   * otherwise returns an empty stream.
-   */
   def whenZIO[R, E](b: => ZIO[R, E, Boolean]) =
     new WhenZIO(() => b)
-
-  /**
-   * Zips the specified streams together with the specified function.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, E, A, B, C](zStream1: => ZStream[R, E, A], zStream2: => ZStream[R, E, B])(
-    f: (A, B) => C
-  )(implicit trace: ZTraceElement): ZStream[R, E, C] =
-    ZStream.suspend(zStream1.zipWith(zStream2)(f))
-
-  /**
-   * Zips with specified streams together with the specified function.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, E, A, B, C, D](
-    zStream1: => ZStream[R, E, A],
-    zStream2: => ZStream[R, E, B],
-    zStream3: => ZStream[R, E, C]
-  )(
-    f: (A, B, C) => D
-  )(implicit trace: ZTraceElement): ZStream[R, E, D] =
-    ZStream.suspend((zStream1 <&> zStream2 <&> zStream3).map(f.tupled))
-
-  /**
-   * Returns an effect that executes the specified effects in parallel,
-   * combining their results with the specified `f` function. If any effect
-   * fails, then the other effects will be interrupted.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, E, A, B, C, D, F](
-    zStream1: ZStream[R, E, A],
-    zStream2: ZStream[R, E, B],
-    zStream3: ZStream[R, E, C],
-    zStream4: ZStream[R, E, D]
-  )(f: (A, B, C, D) => F)(implicit trace: ZTraceElement): ZStream[R, E, F] =
-    ZStream.suspend((zStream1 <&> zStream2 <&> zStream3 <&> zStream4).map(f.tupled))
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): ZStream[R, Nothing, A] =
@@ -5596,7 +4815,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
-      new ZStream(ZChannel.scopedOut[R](zio.map(Chunk.single)))
+      new ZStream(ZChannel.scoped[R](zio.map(Chunk.single)))
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
@@ -6024,18 +5243,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def fail[E](e: E)(implicit trace: ZTraceElement): IO[Option[E], Nothing] = IO.fail(Some(e))
     def failCause[E](c: Cause[E])(implicit trace: ZTraceElement): IO[Option[E], Nothing] =
       IO.failCause(c).mapError(Some(_))
-    @deprecated("use failCause", "2.0.0")
-    def halt[E](c: Cause[E])(implicit trace: ZTraceElement): IO[Option[E], Nothing] = failCause(c)
     def empty[A](implicit trace: ZTraceElement): IO[Nothing, Chunk[A]]   = ZIO.succeed(Chunk.empty)
     def end(implicit trace: ZTraceElement): IO[Option[Nothing], Nothing] = IO.fail(None)
-  }
-
-  @deprecated("use zio.stream.Take instead", "1.0.0")
-  type Take[+E, +A] = Exit[Option[E], Chunk[A]]
-
-  object Take {
-    @deprecated("use zio.stream.Take.end instead", "1.0.0")
-    val End: Exit[Option[Nothing], Nothing] = Exit.fail(None)
   }
 
   private[zio] case class BufferedPull[R, E, A](

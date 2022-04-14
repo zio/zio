@@ -1831,6 +1831,19 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res._1)(equalTo(List(0, 2, 4, 6, 8))) && assert(res._2)(equalTo(List(1, 3, 5, 7, 9)))
       } @@ zioTag(errors)
     ),
+    test("provideSomeLayer") {
+      for {
+        ref    <- Ref.make(0)
+        scope  <- Scope.make
+        scoped  = ZIO.acquireRelease(ref.update(_ + 1))(_ => ref.update(_ - 1))
+        layer   = ZLayer.scoped(scoped)
+        _      <- scope.extend(layer.build.provideSomeLayer[Scope](ZLayer.empty))
+        before <- ref.get
+        _      <- scope.close(Exit.unit)
+        after  <- ref.get
+      } yield assertTrue(before == 1) &&
+        assertTrue(after == 0)
+    },
     suite("raceAll")(
       test("returns first success") {
         assertM(ZIO.fail("Fail").raceAll(List(IO.succeed(24))))(equalTo(24))

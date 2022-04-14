@@ -27,7 +27,7 @@ object ZSTMConcurrencyTests {
   @State
   class ConcurrentAcquireAndInterruptDone {
     val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
-    val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
+    val semaphore: TSemaphore           = runtime.unsafeRun(TSemaphore.makeCommit(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
@@ -73,7 +73,7 @@ object ZSTMConcurrencyTests {
   @State
   class ConcurrentAcquireAndInterruptSuspend {
     val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
-    val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(0L))
+    val semaphore: TSemaphore           = runtime.unsafeRun(TSemaphore.makeCommit(0L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
@@ -123,7 +123,7 @@ object ZSTMConcurrencyTests {
   @State
   class ConcurrentWithPermit {
     val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
-    val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
+    val semaphore: TSemaphore           = runtime.unsafeRun(TSemaphore.makeCommit(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
@@ -163,7 +163,7 @@ object ZSTMConcurrencyTests {
   @State
   class ConcurrentWithPermitScoped {
     val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
-    val semaphore: Semaphore            = runtime.unsafeRun(Semaphore.make(1L))
+    val semaphore: TSemaphore           = runtime.unsafeRun(TSemaphore.makeCommit(1L))
     var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor

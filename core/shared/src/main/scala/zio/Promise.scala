@@ -50,7 +50,7 @@ final class Promise[E, A] private (
   def await(implicit trace: ZTraceElement): IO[E, A] =
     ZIO.asyncInterrupt[Any, E, A](
       k => {
-        var result = null.asInstanceOf[Either[Canceler[Any], IO[E, A]]]
+        var result = null.asInstanceOf[Either[UIO[Any], IO[E, A]]]
         var retry  = true
 
         while (retry) {
@@ -149,14 +149,6 @@ final class Promise[E, A] private (
     completeWith(IO.failCause(e))
 
   /**
-   * Halts the promise with the specified cause, which will be propagated to all
-   * fibers waiting on the value of the promise.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt(e: Cause[E])(implicit trace: ZTraceElement): UIO[Boolean] =
-    failCause(e)
-
-  /**
    * Completes the promise with interruption. This will interrupt all fibers
    * waiting on the value of the promise as by the fiber calling this method.
    */
@@ -194,7 +186,7 @@ final class Promise[E, A] private (
    */
   def succeed(a: A)(implicit trace: ZTraceElement): UIO[Boolean] = completeWith(IO.succeedNow(a))
 
-  private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: ZTraceElement): Canceler[Any] = IO.succeed {
+  private def interruptJoiner(joiner: IO[E, A] => Any)(implicit trace: ZTraceElement): UIO[Any] = IO.succeed {
     var retry = true
 
     while (retry) {

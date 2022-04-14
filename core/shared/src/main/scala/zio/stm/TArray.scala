@@ -44,14 +44,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Finds the result of applying an transactional partial function to the first
    * value in its domain.
    */
-  @deprecated("use collectFirstSTM", "2.0.0")
-  def collectFirstM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
-    collectFirstSTM(pf)
-
-  /**
-   * Finds the result of applying an transactional partial function to the first
-   * value in its domain.
-   */
   def collectFirstSTM[E, B](pf: PartialFunction[A, STM[E, B]]): STM[E, Option[B]] =
     find(pf.isDefinedAt).flatMap {
       case Some(a) => pf(a).map(Some(_))
@@ -72,13 +64,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Count the values in the array matching a transactional predicate.
    */
-  @deprecated("use countSTM", "2.0.0")
-  def countM[E](p: A => STM[E, Boolean]): STM[E, Int] =
-    countSTM(p)
-
-  /**
-   * Count the values in the array matching a transactional predicate.
-   */
   def countSTM[E](p: A => STM[E, Boolean]): STM[E, Int] =
     foldSTM(0)((n, a) => p(a).map(result => if (result) n + 1 else n))
 
@@ -86,14 +71,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Determine if the array contains a value satisfying a predicate.
    */
   def exists(p: A => Boolean): USTM[Boolean] = find(p).map(_.isDefined)
-
-  /**
-   * Determine if the array contains a value satisfying a transactional
-   * predicate.
-   */
-  @deprecated("use existsSTM", "2.0.0")
-  def existsM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
-    existsSTM(p)
 
   /**
    * Determine if the array contains a value satisfying a transactional
@@ -145,13 +122,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Find the last element in the array matching a transactional predicate.
    */
-  @deprecated("use findLastSTM", "2.0.0")
-  def findLastM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    findLastSTM(p)
-
-  /**
-   * Find the last element in the array matching a transactional predicate.
-   */
   def findLastSTM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] = {
     val init = (Option.empty[A], array.length - 1)
     val cont = (s: (Option[A], Int)) => s._1.isEmpty && s._2 >= 0
@@ -163,13 +133,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
       }
       .map(_._1)
   }
-
-  /**
-   * Find the first element in the array matching a transactional predicate.
-   */
-  @deprecated("use findSTM", "2.0.0")
-  def findM[E](p: A => STM[E, Boolean]): STM[E, Option[A]] =
-    findSTM(p)
 
   /**
    * Find the first element in the array matching a transactional predicate.
@@ -212,13 +175,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Atomically folds using a transactional function.
    */
-  @deprecated("use foldSTM", "2.0.0")
-  def foldM[E, Z](zero: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
-    foldSTM(zero)(op)
-
-  /**
-   * Atomically folds using a transactional function.
-   */
   def foldSTM[E, Z](zero: Z)(op: (Z, A) => STM[E, Z]): STM[E, Z] =
     toChunk.flatMap(STM.foldLeft(_)(zero)(op))
 
@@ -227,14 +183,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * the array.
    */
   def forall(p: A => Boolean): USTM[Boolean] = exists(a => !p(a)).map(!_)
-
-  /**
-   * Atomically evaluate the conjunction of a transactional predicate across the
-   * members of the array.
-   */
-  @deprecated("use forallSTM", "2.0.0")
-  def forallM[E](p: A => STM[E, Boolean]): STM[E, Boolean] =
-    forallSTM(p)
 
   /**
    * Atomically evaluate the conjunction of a transactional predicate across the
@@ -291,24 +239,8 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Get the index of the first entry in the array matching a transactional
    * predicate.
    */
-  @deprecated("use indexWhereSTM", "2.0.0")
-  def indexWhereM[E](p: A => STM[E, Boolean]): STM[E, Int] =
-    indexWhereSTM(p)
-
-  /**
-   * Get the index of the first entry in the array matching a transactional
-   * predicate.
-   */
   def indexWhereSTM[E](p: A => STM[E, Boolean]): STM[E, Int] =
     indexWhereSTM(p, 0)
-
-  /**
-   * Starting at specified index, get the index of the next entry that matches a
-   * transactional predicate.
-   */
-  @deprecated("use indexWhereSTM", "2.0.0")
-  def indexWhereM[E](p: A => STM[E, Boolean], from: Int): STM[E, Int] =
-    indexWhereSTM(p, from)
 
   /**
    * Starting at specified index, get the index of the next entry that matches a
@@ -395,14 +327,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
    * Atomically reduce the non-empty array using a transactional binary
    * operator.
    */
-  @deprecated("use reduceOptionSTM", "2.0.0")
-  def reduceOptionM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
-    reduceOptionSTM(op)
-
-  /**
-   * Atomically reduce the non-empty array using a transactional binary
-   * operator.
-   */
   def reduceOptionSTM[E](op: (A, A) => STM[E, A]): STM[E, Option[A]] =
     foldSTM(Option.empty[A]) { (acc, a) =>
       acc match {
@@ -448,13 +372,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
   /**
    * Atomically updates all elements using a transactional effect.
    */
-  @deprecated("use transformSTM", "2.0.0")
-  def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    transformSTM(f)
-
-  /**
-   * Atomically updates all elements using a transactional effect.
-   */
   def transformSTM[E](f: A => STM[E, A]): STM[E, Unit] =
     STM.foreach(Chunk.fromArray(array))(_.get.flatMap(f)).flatMap { newData =>
       ZSTM.Effect { (journal, _, _) =>
@@ -478,13 +395,6 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
       array(index).update(fn)
     else
       STM.die(new ArrayIndexOutOfBoundsException(index))
-
-  /**
-   * Atomically updates element in the array with given transactional effect.
-   */
-  @deprecated("use updateSTM", "2.0.0")
-  def updateM[E](index: Int, fn: A => STM[E, A]): STM[E, Unit] =
-    updateSTM(index, fn)
 
   /**
    * Atomically updates element in the array with given transactional effect.

@@ -23,16 +23,13 @@ import scala.reflect.ClassTag
 package object zio
     extends BuildFromCompat
     with EitherCompat
-    with FunctionToLayerSyntax
     with IntersectionTypeCompat
     with VersionSpecific
     with DurationModule {
 
   type ZEnv = Clock with Console with System with Random
 
-  private[zio] type Callback[E, A] = Exit[E, A] => Any
-
-  type Canceler[-R] = URIO[R, Any]
+  type ZNothing <: Nothing
 
   type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
   type Task[+A]     = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
@@ -51,12 +48,6 @@ package object zio
   type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
-
-  @deprecated("use Ref.Synchronized", "2.0.0")
-  type RefM[A] = Ref.Synchronized[A]
-  val RefM: Ref.Synchronized.type = Ref.Synchronized
-
-  type Semaphore = stm.TSemaphore
 
   type ZTraceElement = Tracer.instance.Type with Tracer.Traced
 
@@ -78,4 +69,6 @@ package object zio
   object IsNotIntersection extends IsNotIntersectionVersionSpecific {
     def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
+
+  private[zio] type Callback[E, A] = Exit[E, A] => Any
 }

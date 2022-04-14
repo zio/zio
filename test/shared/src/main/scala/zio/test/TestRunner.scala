@@ -16,11 +16,14 @@
 
 package zio.test
 
+import zio.Clock.ClockLive
 import zio._
 import zio.internal.Platform
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.TestRenderer
+
+import java.util.concurrent.TimeUnit
 
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
@@ -35,7 +38,7 @@ final case class TestRunner[R, E](
   bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
     implicit val emptyTracer = ZTraceElement.empty
     val printerLayer =
-      Console.live.to(TestLogger.fromConsole)
+      TestLogger.fromConsole(Console.ConsoleLive)
 
     val sinkLayer = ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
 
@@ -49,22 +52,24 @@ final case class TestRunner[R, E](
    * Runs the spec, producing the execution results.
    */
   def run(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit
     trace: ZTraceElement
   ): UIO[
     Summary
   ] =
-    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
-      // TODO Why is duration 0 here? Resolve for #6482
-      ZIO.succeed(summary)
-    }
+    for {
+      start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
+      summary  <- executor.run(spec, ExecutionStrategy.ParallelN(4))
+      finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
+      duration  = Duration.fromMillis(finished - start)
+    } yield summary.copy(duration = duration)
 
   /**
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRun(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit trace: ZTraceElement): Unit =
     runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
@@ -72,7 +77,7 @@ final case class TestRunner[R, E](
    * An unsafe, asynchronous run of the specified spec.
    */
   def unsafeRunAsync(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(
     k: => Unit
   )(implicit trace: ZTraceElement): Unit =
@@ -85,16 +90,9 @@ final case class TestRunner[R, E](
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRunSync(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit trace: ZTraceElement): Exit[Nothing, Unit] =
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
-
-  /**
-   * Creates a copy of this runner replacing the platform
-   */
-  @deprecated("use withRuntimeConfig", "2.0.0")
-  def withPlatform(f: Platform => Platform): TestRunner[R, E] =
-    withRuntimeConfig(f)
 
   /**
    * Creates a copy of this runner replacing the reporter.

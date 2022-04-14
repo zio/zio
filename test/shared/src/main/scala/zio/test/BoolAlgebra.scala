@@ -111,16 +111,6 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    * Returns a new result, with all values mapped to new results using the
    * specified effectual function.
    */
-  @deprecated("use flatMapZIO", "2.0.0")
-  final def flatMapM[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, BoolAlgebra[B]] =
-    flatMapZIO(f)
-
-  /**
-   * Returns a new result, with all values mapped to new results using the
-   * specified effectual function.
-   */
   final def flatMapZIO[R, E, B](f: A => ZIO[R, E, BoolAlgebra[B]])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, BoolAlgebra[B]] =
@@ -182,14 +172,6 @@ sealed abstract class BoolAlgebra[+A] extends Product with Serializable { self =
    */
   final def map[B](f: A => B): BoolAlgebra[B] =
     flatMap(f andThen success)
-
-  /**
-   * Returns a new result, with all values mapped by the specified effectual
-   * function.
-   */
-  @deprecated("use mapZIO", "2.0.0")
-  final def mapM[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, BoolAlgebra[B]] =
-    mapZIO(f)
 
   /**
    * Returns a new result, with all values mapped by the specified effectual

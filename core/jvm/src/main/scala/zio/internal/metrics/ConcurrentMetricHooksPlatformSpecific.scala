@@ -20,6 +20,7 @@ import zio.metrics._
 
 import java.util.concurrent.atomic._
 import java.util.concurrent.ConcurrentHashMap
+import java.lang.{Double => JDouble}
 
 class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
@@ -34,6 +35,28 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     MetricHook(v => ref.set(v), () => MetricState.Gauge(ref.get()))
   }
 
+  private def updateMin(atomic: AtomicDouble, value: Double): Unit = {
+    var loop = true
+
+    while (loop) {
+      val current = atomic.get()
+      if (value < current) {
+        loop = !atomic.compareAndSet(current, value)
+      } else loop = false
+    }
+  }
+
+  private def updateMax(atomic: AtomicDouble, value: Double): Unit = {
+    var loop = true
+
+    while (loop) {
+      val current = atomic.get()
+      if (value > current) {
+        loop = !atomic.compareAndSet(current, value)
+      } else loop = false
+    }
+
+  }
   def histogram(key: MetricKey.Histogram): MetricHook.Histogram = {
     val bounds     = key.keyType.boundaries.values
     val values     = new AtomicLongArray(bounds.length + 1)
@@ -41,6 +64,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     val count      = new LongAdder
     val sum        = new DoubleAdder
     val size       = bounds.length
+    val min        = AtomicDouble.make(Double.MaxValue)
+    val max        = AtomicDouble.make(Double.MinValue)
 
     bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
 
@@ -61,6 +86,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       values.getAndIncrement(from)
       count.increment()
       sum.add(value)
+      updateMin(min, value)
+      updateMax(max, value)
       ()
     }
 
@@ -78,7 +105,10 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       builder.result()
     }
 
-    MetricHook(update, () => MetricState.Histogram(getBuckets(), count.longValue(), sum.doubleValue()))
+    MetricHook(
+      update,
+      () => MetricState.Histogram(getBuckets(), count.longValue(), min.get(), max.get(), sum.doubleValue())
+    )
   }
 
   def summary(key: MetricKey.Summary): MetricHook.Summary = {
@@ -88,11 +118,19 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     val head   = new AtomicInteger(0)
     val count  = new LongAdder
     val sum    = new DoubleAdder
+    val min    = AtomicDouble.make(Double.MaxValue)
+    val max    = AtomicDouble.make(Double.MinValue)
 
     val sortedQuantiles: Chunk[Double] = quantiles.sorted(DoubleOrdering)
 
     def getCount(): Long =
       count.longValue
+
+    def getMin(): Double =
+      min.get()
+
+    def getMax(): Double =
+      max.get()
 
     def getSum(): Double =
       sum.doubleValue
@@ -130,8 +168,11 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
         values.set(target, tuple)
       }
 
+      val value = tuple._1
       count.increment()
-      sum.add(tuple._1)
+      sum.add(value)
+      updateMin(min, value)
+      updateMax(max, value)
       ()
     }
 
@@ -142,6 +183,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
           error,
           snapshot(java.time.Instant.now()),
           getCount(),
+          getMin(),
+          getMax(),
           getSum()
         )
     )
@@ -175,4 +218,33 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
     MetricHook(update, () => MetricState.Frequency(snapshot()))
   }
+
+  /**
+   * Scala's `Double` implementation does not play nicely with Java's
+   * `AtomicReference.compareAndSwap` as `compareAndSwap` uses Java's `==`
+   * reference equality when it performs an equality check. This means that even
+   * if two Scala `Double`s have the same value, they will still fail
+   * `compareAndSwap` as they will most likely be two, distinct object
+   * references. Thus, `compareAndSwap` will fail.
+   *
+   * This `AtomicDouble` implementation is a workaround for this issue that is
+   * backed by an `AtomicLong` instead of an `AtomicReference` in which the
+   * Double's bits are stored as a Long value. This approach also reduces boxing
+   * and unboxing overhead that can be incurred with `AtomicReference`.
+   */
+  private final class AtomicDouble private (private val ref: AtomicLong) {
+    def get(): Double =
+      JDouble.longBitsToDouble(ref.get())
+
+    def compareAndSet(expected: Double, newValue: Double): Boolean =
+      ref.compareAndSet(JDouble.doubleToLongBits(expected), JDouble.doubleToLongBits(newValue))
+
+  }
+
+  private object AtomicDouble {
+
+    def make(value: Double): AtomicDouble =
+      new AtomicDouble(new AtomicLong(JDouble.doubleToLongBits(value)))
+  }
+
 }

@@ -81,17 +81,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.flatMap(a => if (ev(a)) that else ZIO.succeedNow(false))
 
   /**
-   * Sequentially zips this effect with the specified effect, combining the
-   * results into a tuple.
-   */
-  @deprecated("use zip", "2.0.0")
-  final def &&&[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit
-    zippable: Zippable[A, B],
-    trace: ZTraceElement
-  ): ZIO[R1, E1, zippable.Out] =
-    self <*> that
-
-  /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, returning result of provided effect. If either side fails,
    * then the other side will be interrupted.
@@ -164,17 +153,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     trace: ZTraceElement
   ): ZIO[R1, E1, Either[A, B]] =
     self.raceEither(that)
-
-  /**
-   * Alias for `flatMap`.
-   *
-   * {{{
-   * val parsed = readFile("foo.txt") >>= parseFile
-   * }}}
-   */
-  @deprecated("use flatMap", "2.0.0")
-  final def >>=[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-    flatMap(k)
 
   /**
    * Returns the logical negation of the `Boolean` value returned by this
@@ -311,13 +289,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     mapError(Right(_))
 
   /**
-   * Maps the success value of this effect to a service.
-   */
-  @deprecated("use toLayer", "2.0.0")
-  final def asService[A1 >: A: Tag](implicit trace: ZTraceElement): ZIO[R, E, ZEnvironment[A1]] =
-    map(ZEnvironment[A1](_))
-
-  /**
    * Maps the success value of this effect to an optional value.
    */
   final def asSome(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] =
@@ -335,77 +306,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def awaitAllChildren(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ensuringChildren(Fiber.awaitAll(_))
-
-  /**
-   * Returns an effect whose failure and success channels have been mapped by
-   * the specified pair of functions, `f` and `g`.
-   */
-  @deprecated("use mapBoth", "2.0.0")
-  final def bimap[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R, E2, B] =
-    mapBoth(f, g)
-
-  /**
-   * Shorthand for the uncurried version of `ZIO.bracket`.
-   */
-  @deprecated("use acquireReleaseWith", "2.0.0")
-  final def bracket[R1 <: R, E1 >: E, B](
-    release: A => URIO[R1, Any],
-    use: A => ZIO[R1, E1, B]
-  )(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-    acquireReleaseWith(release, use)
-
-  /**
-   * Shorthand for the curried version of `ZIO.bracket`.
-   */
-  @deprecated("use acquireReleaseWith", "2.0.0")
-  final def bracket: ZIO.Acquire[R, E, A] =
-    acquireReleaseWith
-
-  /**
-   * A less powerful variant of `bracket` where the resource acquired by this
-   * effect is not needed.
-   */
-  @deprecated("use acquireRelease", "2.0.0")
-  final def bracket_[R1 <: R, E1 >: E]: ZIO.AcquireDiscard[R1, E1] =
-    acquireRelease
-
-  /**
-   * Uncurried version. Doesn't offer curried syntax and has worse
-   * type-inference characteristics, but it doesn't allocate intermediate
-   * [[zio.ZIO.AcquireDiscard]] and [[zio.ZIO.ReleaseDiscard]] objects.
-   */
-  @deprecated("use acquireRelease", "2.0.0")
-  final def bracket_[R1 <: R, E1 >: E, B](
-    release: => URIO[R1, Any],
-    use: => ZIO[R1, E1, B]
-  )(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-    acquireRelease(release, use)
-
-  /**
-   * Shorthand for the uncurried version of `ZIO.bracketExit`.
-   */
-  @deprecated("use acquireReleaseExitWith", "2.0.0")
-  final def bracketExit[R1 <: R, E1 >: E, B](
-    release: (A, Exit[E1, B]) => URIO[R1, Any],
-    use: A => ZIO[R1, E1, B]
-  )(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-    acquireReleaseExitWith(release, use)
-
-  /**
-   * Shorthand for the curried version of `ZIO.bracketExit`.
-   */
-  @deprecated("use acquireReleaseExitWith", "2.0.0")
-  final def bracketExit: ZIO.AcquireExit[R, E, A] =
-    acquireReleaseExitWith
-
-  /**
-   * Executes the release effect only if there was an error.
-   */
-  @deprecated("use acquireReleaseOnErrorWith", "2.0.0")
-  final def bracketOnError[R1 <: R, E1 >: E, B](
-    release: A => URIO[R1, Any]
-  )(use: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-    acquireReleaseOnErrorWith[R1, E1, B](release)(use)
 
   /**
    * Returns an effect that, if evaluated, will return the cached result of this
@@ -604,16 +504,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
    * continue with the returned value.
    */
-  @deprecated("use collectZIO", "2.0.0")
-  final def collectM[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZIO[R1, E1, B]])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, B] =
-    collectZIO(e)(pf)
-
-  /**
-   * Fail with `e` if the supplied `PartialFunction` does not match, otherwise
-   * continue with the returned value.
-   */
   final def collectZIO[R1 <: R, E1 >: E, B](e: => E1)(pf: PartialFunction[A, ZIO[R1, E1, B]])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, B] =
@@ -630,20 +520,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    self.tapBoth(
-      error => ZIO.succeed(println(s"<FAIL> $error")),
-      value => ZIO.succeed(println(value))
-    )
+    self
+      .tap(value => ZIO.succeed(println(value)))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
    * Prefixes the output with the given message.
    */
   final def debug(prefix: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    self.tapBoth(
-      error => ZIO.succeed(println(s"<FAIL> $prefix: $error")),
-      value => ZIO.succeed(println(s"$prefix: $value"))
-    )
+    self
+      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -777,15 +665,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     filterOrElseWith[R1, E1, A1](p)(_ => zio)
 
   /**
-   * Supplies `zio` if the predicate fails.
-   */
-  @deprecated("use filterOrElse", "2.0.0")
-  final def filterOrElse_[R1 <: R, E1 >: E, A1 >: A](p: A => Boolean)(zio: => ZIO[R1, E1, A1])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, A1] =
-    filterOrElse[R1, E1, A1](p)(zio)
-
-  /**
    * Applies `f` if the predicate fails.
    */
   final def filterOrElseWith[R1 <: R, E1 >: E, A1 >: A](
@@ -878,17 +757,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     foldCauseZIO(c => ZIO.succeedNow(failure(c)), a => ZIO.succeedNow(success(a)))
 
   /**
-   * A more powerful version of `fold` that allows recovering from any kind of
-   * failure except interruptions.
-   */
-  @deprecated("use foldCauseZIO", "2.0.0")
-  final def foldCauseM[R1 <: R, E2, B](
-    failure: Cause[E] => ZIO[R1, E2, B],
-    success: A => ZIO[R1, E2, B]
-  )(implicit trace: ZTraceElement): ZIO[R1, E2, B] =
-    foldCauseZIO(failure, success)
-
-  /**
    * A more powerful version of `foldZIO` that allows recovering from any kind
    * of failure except interruptions.
    */
@@ -897,37 +765,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     success: A => ZIO[R1, E2, B]
   )(implicit trace: ZTraceElement): ZIO[R1, E2, B] =
     new ZIO.Fold(self, failure, success, trace)
-
-  /**
-   * Recovers from errors by accepting one effect to execute for the case of an
-   * error, and one effect to execute for the case of success.
-   *
-   * This method has better performance than `either` since no intermediate
-   * value is allocated and does not require subsequent calls to `flatMap` to
-   * define the next effect.
-   *
-   * The error parameter of the returned `IO` may be chosen arbitrarily, since
-   * it will depend on the `IO`s returned by the given continuations.
-   */
-  @deprecated("use foldZIO", "2.0.0")
-  final def foldM[R1 <: R, E2, B](failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B])(implicit
-    ev: CanFail[E],
-    trace: ZTraceElement
-  ): ZIO[R1, E2, B] =
-    foldZIO(failure, success)
-
-  /**
-   * A version of `foldM` that gives you the trace of the error.
-   */
-  @deprecated("use foldTraceZIO", "2.0.0")
-  final def foldTraceM[R1 <: R, E2, B](
-    failure: ((E, ZTrace)) => ZIO[R1, E2, B],
-    success: A => ZIO[R1, E2, B]
-  )(implicit
-    ev: CanFail[E],
-    trace: ZTraceElement
-  ): ZIO[R1, E2, B] =
-    foldTraceZIO(failure, success)
 
   /**
    * A version of `foldZIO` that gives you the trace of the error.
@@ -1026,28 +863,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     new ZIO.Fork(self, Some(FiberScope.global), trace)
 
   /**
-   * Forks an effect that will be executed without unhandled failures being
-   * reported. This is useful for implementing combinators that handle failures
-   * themselves.
-   */
-  @deprecated("use fork", "2.0.0")
-  final def forkInternal(implicit trace: ZTraceElement): ZIO[R, Nothing, Fiber.Runtime[E, A]] =
-    new ZIO.Fork(self, None, trace)
-
-  /**
    * Forks the fiber in a [[Scope]], interrupting it when the scope is closed.
    */
   final def forkScoped(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).forkDaemon.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
     }
-
-  /**
-   * Forks an effect that will be executed on the specified `ExecutionContext`.
-   */
-  @deprecated("use onExecutionContext(ec).fork", "2.0.0")
-  final def forkOn(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZIO[R, E, Fiber.Runtime[E, A]] =
-    self.onExecutionContext(ec).fork
 
   /**
    * Like fork but handles an error with the provided handler.
@@ -1065,18 +886,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     trace: ZTraceElement
   ): ZIO[R, E1, A] =
     self.mapError(e => ev(e).getOrElse(default))
-
-  /**
-   * Unwraps the optional success of this effect, but can fail with an None
-   * value.
-   */
-  @deprecated("use some", "2.0.0")
-  final def get[B](implicit
-    ev1: E IsSubtypeOfError Nothing,
-    ev2: A IsSubtypeOfOutput Option[B],
-    trace: ZTraceElement
-  ): ZIO[R, Option[Nothing], B] =
-    ZIO.absolve(self.mapError(ev1)(CanFail, trace).map(ev2(_).toRight(None)))
 
   /**
    * Returns a successful effect with the head of the list if the list is
@@ -1170,30 +979,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Returns an effect which is guaranteed to be executed on the specified
-   * executor. The specified effect will always run on the specified executor,
-   * even in the presence of asynchronous boundaries.
-   *
-   * This is useful when an effect must be executed somewhere, for example: on a
-   * UI thread, inside a client library's thread pool, inside a blocking thread
-   * pool, inside a low-latency thread pool, or elsewhere.
-   *
-   * The `lock` function composes with the innermost `lock` taking priority. Use
-   * of this method does not alter the execution semantics of other effects
-   * composed with this one, making it easy to compositionally reason about
-   * where effects are running.
+   * Performs the specified operation while "zoomed in" on the `Left` case of an
+   * `Either`.
    */
-  @deprecated("use onExecutor", "2.0.0")
-  final def lock(executor: => Executor)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    onExecutor(executor)
-
-  /**
-   * Executes the effect on the specified `ExecutionContext` and then shifts
-   * back to the default one.
-   */
-  @deprecated("use onExecutionContext", "2.0.0")
-  final def lockExecutionContext(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    onExecutionContext(ec)
+  final def leftWith[R1, E1, A1, B, B1, C, C1](
+    f: ZIO[R, Either[E, C], B] => ZIO[R1, Either[E1, C1], B1]
+  )(implicit ev: A IsSubtypeOfOutput Either[B, C], trace: ZTraceElement): ZIO[R1, E1, Either[B1, C1]] =
+    f(self.left).unleft
 
   /**
    * Returns an effect whose success is mapped by the specified `f` function.
@@ -1214,14 +1006,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R, E2, B] =
     foldZIO(e => ZIO.fail(f(e)), a => ZIO.succeedNow(g(a)))
-
-  /**
-   * Returns an effect whose success is mapped by the specified side effecting
-   * `f` function, translating any thrown exceptions into typed failed effects.
-   */
-  @deprecated("use mapAttempt", "2.0.0")
-  final def mapEffect[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable, trace: ZTraceElement): RIO[R, B] =
-    mapAttempt(f)
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -1273,14 +1057,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       e => ZIO.fail(Some(e)),
       a => ev(a).fold[ZIO[R, Option[E], Unit]](ZIO.succeedNow(()))(_ => ZIO.fail(None))
     )
-
-  /**
-   * Executes the effect on the specified `ExecutionContext` and then shifts
-   * back to the default one.
-   */
-  @deprecated("use onExecutionContext", "2.0.0")
-  final def on(ec: => ExecutionContext)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    self.onExecutionContext(ec)
 
   /**
    * Returns an effect that will be executed at most once, even if it is
@@ -1384,16 +1160,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def option(implicit ev: CanFail[E], trace: ZTraceElement): URIO[R, Option[A]] =
     self.foldZIO(_ => IO.succeedNow(None), a => IO.succeedNow(Some(a)))
-
-  /**
-   * Converts an option on errors into an option on values.
-   */
-  @deprecated("use unsome", "2.0.0")
-  final def optional[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: ZTraceElement): ZIO[R, E1, Option[A]] =
-    self.foldZIO(
-      e => ev(e).fold[ZIO[R, E1, Option[A]]](ZIO.succeedNow(Option.empty[A]))(ZIO.fail(_)),
-      a => ZIO.succeedNow(Some(a))
-    )
 
   /**
    * Translates effect failure into death of the fiber, making all failures
@@ -1652,8 +1418,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
         self,
         that,
-        (exit, fiber) => leftDone(exit, fiber),
-        (exit, fiber) => rightDone(exit, fiber),
+        (winner, loser) =>
+          winner.await.flatMap {
+            case exit: Exit.Success[_] =>
+              winner.inheritRefs.flatMap(_ => leftDone(exit, loser))
+            case exit: Exit.Failure[_] =>
+              leftDone(exit, loser)
+          },
+        (winner, loser) =>
+          winner.await.flatMap {
+            case exit: Exit.Success[B] =>
+              winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
+            case exit: Exit.Failure[E1] =>
+              rightDone(exit, loser)
+          },
         trace
       )
     }
@@ -1681,17 +1459,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def reject[E1 >: E](pf: PartialFunction[A, E1])(implicit trace: ZTraceElement): ZIO[R, E1, A] =
     rejectZIO(pf.andThen(ZIO.fail(_)))
-
-  /**
-   * Continue with the returned computation if the `PartialFunction` matches,
-   * translating the successful match into a failure, otherwise continue with
-   * our held value.
-   */
-  @deprecated("use rejectZIO", "2.0.0")
-  final def rejectM[R1 <: R, E1 >: E](pf: PartialFunction[A, ZIO[R1, E1, E1]])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, A] =
-    rejectZIO(pf)
 
   /**
    * Continue with the returned computation if the `PartialFunction` matches,
@@ -1802,14 +1569,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect until its value satisfies the specified effectful
    * predicate or until the first failure.
    */
-  @deprecated("use repeatUntilZIO", "2.0.0")
-  final def repeatUntilM[R1 <: R](f: A => URIO[R1, Boolean])(implicit trace: ZTraceElement): ZIO[R1, E, A] =
-    repeatUntilZIO(f)
-
-  /**
-   * Repeats this effect until its value satisfies the specified effectful
-   * predicate or until the first failure.
-   */
   final def repeatUntilZIO[R1 <: R](f: A => URIO[R1, Boolean])(implicit trace: ZTraceElement): ZIO[R1, E, A] =
     self.flatMap(a => f(a).flatMap(b => if (b) ZIO.succeedNow(a) else ZIO.yieldNow *> repeatUntilZIO(f)))
 
@@ -1831,31 +1590,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Repeats this effect while its value satisfies the specified effectful
    * predicate or until the first failure.
    */
-  @deprecated("use repeatWhileZIO", "2.0.0")
-  final def repeatWhileM[R1 <: R](f: A => URIO[R1, Boolean])(implicit trace: ZTraceElement): ZIO[R1, E, A] =
-    repeatWhileZIO(f)
-
-  /**
-   * Repeats this effect while its value satisfies the specified effectful
-   * predicate or until the first failure.
-   */
   final def repeatWhileZIO[R1 <: R](f: A => URIO[R1, Boolean])(implicit trace: ZTraceElement): ZIO[R1, E, A] =
     repeatUntilZIO(e => f(e).map(!_))
-
-  /**
-   * Performs this effect the specified number of times and collects the
-   * results.
-   */
-  @deprecated("use replicateZIO", "2.0.0")
-  final def replicateM(n: => Int)(implicit trace: ZTraceElement): ZIO[R, E, Iterable[A]] =
-    replicateZIO(n)
-
-  /**
-   * Performs this effect the specified number of times, discarding the results.
-   */
-  @deprecated("use replicateZIODiscard", "2.0.0")
-  final def replicateM_(n: => Int)(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    replicateZIODiscard(n)
 
   /**
    * Performs this effect the specified number of times and collects the
@@ -1948,16 +1684,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Retries this effect until its error satisfies the specified effectful
    * predicate.
    */
-  @deprecated("use retryUntilZIO", "2.0.0")
-  final def retryUntilM[R1 <: R](
-    f: E => URIO[R1, Boolean]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1, E, A] =
-    retryUntilZIO(f)
-
-  /**
-   * Retries this effect until its error satisfies the specified effectful
-   * predicate.
-   */
   final def retryUntilZIO[R1 <: R](
     f: E => URIO[R1, Boolean]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1, E, A] =
@@ -1980,16 +1706,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Retries this effect while its error satisfies the specified effectful
    * predicate.
    */
-  @deprecated("use retryWhileZIO", "2.0.0")
-  final def retryWhileM[R1 <: R](
-    f: E => URIO[R1, Boolean]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1, E, A] =
-    retryWhileZIO(f)
-
-  /**
-   * Retries this effect while its error satisfies the specified effectful
-   * predicate.
-   */
   final def retryWhileZIO[R1 <: R](
     f: E => URIO[R1, Boolean]
   )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R1, E, A] =
@@ -2006,12 +1722,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Returns an effect that semantically runs the effect on a fiber, producing
-   * an [[zio.Exit]] for the completion value of the fiber.
+   * Performs the specified operation while "zoomed in" on the `Right` case of
+   * an `Either`.
    */
-  @deprecated("use exit", "2.0.0")
-  final def run(implicit trace: ZTraceElement): URIO[R, Exit[E, A]] =
-    exit
+  final def rightWith[R1, E1, A1, B, B1, C, C1](
+    f: ZIO[R, Either[B, E], C] => ZIO[R1, Either[B1, E1], C1]
+  )(implicit ev: A IsSubtypeOfOutput Either[B, C], trace: ZTraceElement): ZIO[R1, E1, Either[B1, C1]] =
+    f(self.right).unright
 
   /**
    * Exposes the full cause of failure of this effect.
@@ -2087,21 +1804,21 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
+   * Perfoms the specified operation while "zoomed in" on the `Some` case of an
+   * `Option`.
+   */
+  final def someWith[R1, E1, A1, B, B1](
+    f: ZIO[R, Option[E], B] => ZIO[R1, Option[E1], B1]
+  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZIO[R1, E1, Option[B1]] =
+    f(self.some).unsome
+
+  /**
    * Extracts the optional value, or returns the given 'default'.
    */
   final def someOrElse[B](
     default: => B
   )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZIO[R, E, B] =
     map(a => ev(a).getOrElse(default))
-
-  /**
-   * Extracts the optional value, or executes the effect 'default'.
-   */
-  @deprecated("use someOrElseZIO", "2.0.0")
-  final def someOrElseM[B, R1 <: R, E1 >: E](
-    default: => ZIO[R1, E1, B]
-  )(implicit ev: A IsSubtypeOfOutput Option[B], trace: ZTraceElement): ZIO[R1, E1, B] =
-    someOrElseZIO(default)
 
   /**
    * Extracts the optional value, or executes the effect 'default'.
@@ -2223,17 +1940,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     trace: ZTraceElement
   ): ZIO[R1, E1, A] =
     self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.failCause(c), _ => ZIO.failCause(c)), a => g(a).as(a))
-
-  /**
-   * Returns an effect that effectually "peeks" at the cause of the failure of
-   * this effect.
-   * {{{
-   * readFile("data.json").tapCause(logCause(_))
-   * }}}
-   */
-  @deprecated("use tapErrorCause", "2.0.0")
-  final def tapCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
-    tapErrorCause(f)
 
   /**
    * Returns an effect that effectually "peeks" at the defect of this effect.
@@ -2358,16 +2064,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.flatten(timeoutTo(ZIO.failCause(cause))(ZIO.succeedNow)(d))
 
   /**
-   * The same as [[timeout]], but instead of producing a `None` in the event of
-   * timeout, it will produce the specified failure.
-   */
-  @deprecated("use timeoutFailCause", "2.0.0")
-  final def timeoutHalt[E1 >: E](cause: => Cause[E1])(d: => Duration)(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E1, A] =
-    timeoutFailCause(cause)(d)
-
-  /**
    * Returns an effect that will timeout this effect, returning either the
    * default value if the timeout elapses before the effect has produced a
    * value; and or returning the result of applying the function `f` to the
@@ -2382,45 +2078,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def timeoutTo[B](b: => B): ZIO.TimeoutTo[R, E, A, B] =
     new ZIO.TimeoutTo(self, () => b)
-
-  /**
-   * Returns an effect that keeps or breaks a promise based on the result of
-   * this effect. Synchronizes interruption, so if this effect is interrupted,
-   * the specified promise will be interrupted, too.
-   */
-  @deprecated("use intoPromise", "2.0.0")
-  final def to[E1 >: E, A1 >: A](p: => Promise[E1, A1])(implicit trace: ZTraceElement): URIO[R, Boolean] =
-    intoPromise(p)
-
-  /**
-   * Constructs a layer from this effect.
-   */
-  final def toLayer[A1 >: A](implicit
-    tag: Tag[A1],
-    trace: ZTraceElement
-  ): ZLayer[R, E, A1] =
-    ZLayer.fromZIO[R, E, A1](self)
-
-  /**
-   * Constructs a layer from this effect, which must return one or more
-   * services.
-   */
-  final def toLayerEnvironment[B](implicit
-    ev: A <:< ZEnvironment[B],
-    trace: ZTraceElement
-  ): ZLayer[R, E, B] =
-    ZLayer.fromZIOEnvironment(self.map(ev))
-
-  /**
-   * Constructs a layer from this effect, which must return one or more
-   * services.
-   */
-  @deprecated("use toLayerEnvironment", "2.0.0")
-  final def toLayerMany[B](implicit
-    ev: A <:< ZEnvironment[B],
-    trace: ZTraceElement
-  ): ZLayer[R, E, B] =
-    toLayerEnvironment
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -2489,26 +2146,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  @deprecated("use unlessZIO", "2.0.0")
-  final def unlessM[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
-    trace: ZTraceElement
-  ): ZIO[R1, E1, Option[A]] =
-    unlessZIO(p)
-
-  /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
-   */
   final def unlessZIO[R1 <: R, E1 >: E](p: => ZIO[R1, E1, Boolean])(implicit
     trace: ZTraceElement
   ): ZIO[R1, E1, Option[A]] =
     ZIO.unlessZIO(p)(self)
-
-  /**
-   * Converts an option on errors into an option on values.
-   */
-  @deprecated("use unsome", "2.0.0")
-  final def unoption[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: ZTraceElement): ZIO[R, E1, Option[A]] =
-    unsome
 
   /**
    * Takes some fiber failures and converts them into errors.
@@ -2621,15 +2262,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
    */
-  @deprecated("use whenZIO", "2.0.0")
-  final def whenM[R1 <: R, E1 >: E](
-    p: => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZIO[R1, E1, Option[A]] =
-    whenZIO(p)
-
-  /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
-   */
   final def whenZIO[R1 <: R, E1 >: E](
     p: => ZIO[R1, E1, Boolean]
   )(implicit trace: ZTraceElement): ZIO[R1, E1, Option[A]] =
@@ -2676,7 +2308,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.withRuntimeConfig(runtimeConfig)(self)
 
   /**
-   * A named alias for `&&&` or `<*>`.
+   * A named alias for `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit
     zippable: Zippable[A, B],
@@ -2738,9 +2370,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       fiberId: FiberId,
       f: (A, B) => C,
       leftWinner: Boolean
-    )(winner: Exit[E1, A], loser: Fiber[E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, C] =
-      winner match {
-        case Exit.Success(a) => loser.inheritRefs *> loser.join.map(f(a, _))
+    )(winner: Fiber[E1, A], loser: Fiber[E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, C] =
+      winner.await.flatMap {
+        case Exit.Success(a) =>
+          loser.await.flatMap {
+            case Exit.Success(b)     => winner.inheritRefs *> loser.inheritRefs *> ZIO.succeed(f(a, b))
+            case Exit.Failure(cause) => ZIO.failCause(cause)
+          }
         case Exit.Failure(cause) =>
           loser.interruptAs(fiberId).flatMap {
             case Exit.Success(_) => ZIO.failCause(cause)
@@ -2754,7 +2390,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     ZIO.transplant { graft =>
       ZIO.descriptorWith { d =>
-        (graft(self) raceWith graft(that))(coordinate(d.id, f, true), coordinate(d.id, g, false))
+        new ZIO.RaceWith(
+          graft(self),
+          graft(that),
+          coordinate(d.id, f, true),
+          coordinate(d.id, g, false),
+          trace
+        )
       }
     }
   }
@@ -2795,30 +2437,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceed(v).flatMap(fromEither(_))
 
   /**
-   * Accesses the environment of the effect.
-   * {{{
-   * val portNumber = effect.access(_.config.portNumber)
-   * }}}
-   */
-  @deprecated("use environmentWith", "2.0.0")
-  def access[R]: ZIO.EnvironmentWithPartiallyApplied[R] =
-    environmentWith
-
-  /**
-   * Effectfully accesses the environment of the effect.
-   */
-  @deprecated("use environmentWithZIO", "2.0.0")
-  def accessM[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
-    environmentWithZIO
-
-  /**
-   * Effectfully accesses the environment of the effect.
-   */
-  @deprecated("use environmentWithZIO", "2.0.0")
-  def accessZIO[R]: ZIO.EnvironmentWithZIOPartiallyApplied[R] =
-    environmentWithZIO
-
-  /**
    * Constructs a scoped resource from an `acquire` and `release` effect. If
    * `acquire` successfully completes execution then `release` will be added to
    * the finalizers associated with the scope of this effect and is guaranteed
@@ -2826,20 +2444,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    *
    * The `acquire` and `release` effects will be run uninterruptibly.
    */
-  def acquireRelease[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
+  def acquireRelease[R, R1, E, A](acquire: => ZIO[R, E, A])(release: A => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Scope, E, A] =
+  ): ZIO[R with R1 with Scope, E, A] =
     acquireReleaseExit(acquire)((a, _) => release(a))
 
   /**
    * A more powerful variant of `acquireRelease` that allows the `release`
    * effect to depend on the `Exit` value specified when the scope is closed.
    */
-  def acquireReleaseExit[R, R1 <: R, E, A](
+  def acquireReleaseExit[R, R1, E, A](
     acquire: => ZIO[R, E, A]
   )(release: (A, Exit[Any, Any]) => ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Scope, E, A] =
+  ): ZIO[R with R1 with Scope, E, A] =
     ZIO.uninterruptible(acquire.tap(a => ZIO.addFinalizerExit(exit => release(a, exit))))
 
   /**
@@ -2850,9 +2468,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * what finalization, if any, needs to be performed (e.g. by examining in
    * memory state).
    */
-  def acquireReleaseInterruptible[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
+  def acquireReleaseInterruptible[R, R1, E, A](acquire: => ZIO[R, E, A])(release: ZIO[R1, Nothing, Any])(implicit
     trace: ZTraceElement
-  ): ZIO[R1 with Scope, E, A] =
+  ): ZIO[R with R1 with Scope, E, A] =
     acquireReleaseInterruptibleExit(acquire)(_ => release)
 
   /**
@@ -2860,9 +2478,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `release` effect to depend on the `Exit` value specified when the scope is
    * closed.
    */
-  def acquireReleaseInterruptibleExit[R, R1 <: R, E, A](acquire: => ZIO[R, E, A])(
+  def acquireReleaseInterruptibleExit[R, R1, E, A](acquire: => ZIO[R, E, A])(
     release: Exit[Any, Any] => ZIO[R1, Nothing, Any]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, E, A] =
+  )(implicit trace: ZTraceElement): ZIO[R with R1 with Scope, E, A] =
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
@@ -3012,7 +2630,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * provide better diagnostics.
    */
   def asyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.suspendSucceed(new Async(register, blockingOn, trace))
@@ -3109,76 +2727,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig.blockingExecutor))
 
   /**
-   * When this effect represents acquisition of a resource (for example, opening
-   * a file, launching a thread, etc.), `bracket` can be used to ensure the
-   * acquisition is not interrupted and the resource is always released.
-   *
-   * The function does two things:
-   *
-   *   1. Ensures this effect, which acquires the resource, will not be
-   *      interrupted. Of course, acquisition may fail for internal reasons (an
-   *      uncaught exception). 2. Ensures the `release` effect will not be
-   *      interrupted, and will be executed so long as this effect successfully
-   *      acquires the resource.
-   *
-   * In between acquisition and release of the resource, the `use` effect is
-   * executed.
-   *
-   * If the `release` effect fails, then the entire effect will fail even if the
-   * `use` effect succeeds. If this fail-fast behavior is not desired, errors
-   * produced by the `release` effect can be caught and ignored.
-   *
-   * {{{
-   * openFile("data.json").bracket(closeFile) { file =>
-   *   for {
-   *     header <- readHeader(file)
-   *     ...
-   *   } yield result
-   * }
-   * }}}
-   */
-  @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[R, E, A](acquire: => ZIO[R, E, A]): ZIO.Acquire[R, E, A] =
-    acquireReleaseWith(acquire)
-
-  /**
-   * Uncurried version. Doesn't offer curried syntax and have worse
-   * type-inference characteristics, but guarantees no extra allocations of
-   * intermediate [[zio.ZIO.Acquire]] and [[zio.ZIO.Release]] objects.
-   */
-  @deprecated("use acquireReleaseWith", "2.0.0")
-  def bracket[R, E, A, B](
-    acquire: => ZIO[R, E, A],
-    release: A => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZIO[R, E, B] =
-    acquireReleaseWith(acquire, release, use)
-
-  /**
-   * Acquires a resource, uses the resource, and then releases the resource.
-   * Neither the acquisition nor the release will be interrupted, and the
-   * resource is guaranteed to be released, so long as the `acquire` effect
-   * succeeds. If `use` fails, then after release, the returned effect will fail
-   * with the same error.
-   */
-  @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[R, E, A](acquire: => ZIO[R, E, A]): ZIO.AcquireExit[R, E, A] =
-    acquireReleaseExitWith(acquire)
-
-  /**
-   * Uncurried version. Doesn't offer curried syntax and has worse
-   * type-inference characteristics, but guarantees no extra allocations of
-   * intermediate [[zio.ZIO.AcquireExit]] and [[zio.ZIO.ReleaseExit]] objects.
-   */
-  @deprecated("use acquireReleaseExitWith", "2.0.0")
-  def bracketExit[R, E, A, B](
-    acquire: => ZIO[R, E, A],
-    release: (A, Exit[E, B]) => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  )(implicit trace: ZTraceElement): ZIO[R, E, B] =
-    acquireReleaseExitWith(acquire, release, use)
-
-  /**
    * Checks the interrupt status, and produces the effect returned by the
    * specified callback.
    */
@@ -3261,14 +2809,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Evaluate each effect in the structure from left to right, and discard the
-   * results. For a parallel version, see `collectAllPar_`.
-   */
-  @deprecated("use collectAllDiscard", "2.0.0")
-  def collectAll_[R, E, A](in: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    collectAllDiscard(in)
-
-  /**
-   * Evaluate each effect in the structure from left to right, and discard the
    * results. For a parallel version, see `collectAllParDiscard`.
    */
   def collectAllDiscard[R, E, A](in: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
@@ -3311,56 +2851,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Evaluate each effect in the structure in parallel, and discard the results.
-   * For a sequential version, see `collectAll_`.
-   */
-  @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllPar_[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    collectAllParDiscard(as)
-
-  /**
-   * Evaluate each effect in the structure in parallel, and discard the results.
    * For a sequential version, see `collectAllDiscard`.
    */
   def collectAllParDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(ZIO.identityFn)
-
-  /**
-   * Evaluate each effect in the structure in parallel, and collect the results.
-   * For a sequential version, see `collectAll`.
-   *
-   * Unlike `collectAllPar`, this method will use at most `n` fibers.
-   */
-  @deprecated("use collectAllPar", "2.0.0")
-  def collectAllParN[R, E, A, Collection[+Element] <: Iterable[Element]](n: => Int)(
-    as: Collection[ZIO[R, E, A]]
-  )(implicit
-    bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]],
-    trace: ZTraceElement
-  ): ZIO[R, E, Collection[A]] =
-    foreachParN(n)(as)(ZIO.identityFn)
-
-  /**
-   * Evaluate each effect in the structure in parallel, and discard the results.
-   * For a sequential version, see `collectAll_`.
-   *
-   * Unlike `collectAllPar_`, this method will use at most `n` fibers.
-   */
-  @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParN_[R, E, A](n: => Int)(as: => Iterable[ZIO[R, E, A]])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, Unit] =
-    collectAllParNDiscard(n)(as)
-
-  /**
-   * Evaluate each effect in the structure in parallel, and discard the results.
-   * For a sequential version, see `collectAllDiscard`.
-   *
-   * Unlike `collectAllParDiscard`, this method will use at most `n` fibers.
-   */
-  @deprecated("use collectAllParDiscard", "2.0.0")
-  def collectAllParNDiscard[R, E, A](n: => Int)(as: => Iterable[ZIO[R, E, A]])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, Unit] =
     foreachParDiscard(as)(ZIO.identityFn)
 
   /**
@@ -3380,19 +2873,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in: Collection[ZIO[R, E, A]]
   )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]], trace: ZTraceElement): URIO[R, Collection[A]] =
     collectAllWithPar(in.map(_.exit)) { case zio.Exit.Success(a) => a }.map(bf.fromSpecific(in))
-
-  /**
-   * Evaluate and run each effect in the structure in parallel, and collect
-   * discarding failed ones.
-   *
-   * Unlike `collectAllSuccessesPar`, this method will use at most up to `n`
-   * fibers.
-   */
-  @deprecated("use collectAllSuccessesPar", "2.0.0")
-  def collectAllSuccessesParN[R, E, A, Collection[+Element] <: Iterable[Element]](n: => Int)(
-    in: Collection[ZIO[R, E, A]]
-  )(implicit bf: BuildFrom[Collection[ZIO[R, E, A]], A, Collection[A]], trace: ZTraceElement): URIO[R, Collection[A]] =
-    collectAllWithParN(n)(in.map(_.exit)) { case zio.Exit.Success(a) => a }.map(bf.fromSpecific(in))
 
   /**
    * Evaluate each effect in the structure with `collectAll`, and collect the
@@ -3417,23 +2897,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     trace: ZTraceElement
   ): ZIO[R, E, Collection[U]] =
     ZIO.collectAllPar[R, E, A, Iterable](in).map(_.collect(f)).map(bf.fromSpecific(in))
-
-  /**
-   * Evaluate each effect in the structure with `collectAllPar`, and collect the
-   * results with given partial function.
-   *
-   * Unlike `collectAllWithPar`, this method will use at most up to `n` fibers.
-   */
-  @deprecated("use collectAllWithPar", "2.0.0")
-  def collectAllWithParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
-    in: Collection[ZIO[R, E, A]]
-  )(
-    f: PartialFunction[A, B]
-  )(implicit
-    bf: BuildFrom[Collection[ZIO[R, E, A]], B, Collection[B]],
-    trace: ZTraceElement
-  ): ZIO[R, E, Collection[B]] =
-    ZIO.collectAllParN[R, E, A, Iterable](n)(in).map(_.collect(f)).map(bf.fromSpecific(in))
 
   /**
    * Collects the first element of the `Iterable[A]` for which the effectual
@@ -3469,20 +2932,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     map: Map[Key, Value]
   )(f: (Key, Value) => ZIO[R, Option[E], (Key2, Value2)])(implicit trace: ZTraceElement): ZIO[R, E, Map[Key2, Value2]] =
     foreachPar[R, E, (Key, Value), Option[(Key2, Value2)], Iterable](map)(f.tupled(_).unsome).map(_.flatten.toMap)
-
-  /**
-   * Evaluate each effect in the structure in parallel, collecting the the
-   * successful values and discarding the empty cases.
-   *
-   * Unlike `collectPar`, this method will use at most up to `n` fibers.
-   */
-  @deprecated("use collectPar", "2.0.0")
-  def collectParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
-    in: Collection[A]
-  )(
-    f: A => ZIO[R, Option[E], B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
-    foreachParN[R, E, A, Option[B], Iterable](n)(in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
    * Similar to Either.cond, evaluate the predicate, return the given A as
@@ -3551,190 +3000,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         case Exit.Failure(cause) => failCause(cause)
       }
     }
-
-  /**
-   * Imports a synchronous side-effect into a pure `ZIO` value, translating any
-   * thrown exceptions into typed failed effects creating with `ZIO.fail`.
-   *
-   * {{{
-   * def printLine(line: String): Task[Unit] = Task.effect(println(line))
-   * }}}
-   */
-  @deprecated("use attempt", "2.0.0")
-  def effect[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
-    attempt(effect)
-
-  /**
-   * Imports an asynchronous side-effect into a pure `ZIO` value. See
-   * `effectAsyncMaybe` for the more expressive variant of this function that
-   * can return a value synchronously.
-   *
-   * The callback function `ZIO[R, E, A] => Any` must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
-   */
-  @deprecated("use async", "2.0.0")
-  def effectAsync[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Any,
-    blockingOn: => FiberId = null
-  )(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    async(register, blockingOn)
-
-  /**
-   * Imports an asynchronous side-effect into a ZIO effect. The side-effect has
-   * the option of returning the value synchronously, which is useful in cases
-   * where it cannot be determined if the effect is synchronous or asynchronous
-   * until the side-effect is actually executed. The effect also has the option
-   * of returning a canceler, which will be used by the runtime to cancel the
-   * asynchronous effect if the fiber executing the effect is interrupted.
-   *
-   * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
-   * function must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
-   */
-  @deprecated("use asyncInterrupt", "2.0.0")
-  def effectAsyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
-    blockingOn: => FiberId = FiberId.None
-  )(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    asyncInterrupt(register, blockingOn)
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
-   * necessary when the effect is itself expressed in terms of `ZIO`.
-   */
-  @deprecated("use asyncZIO", "2.0.0")
-  def effectAsyncM[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => ZIO[R, E, Any]
-  )(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    asyncZIO(register)
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
-   * the value synchronously.
-   *
-   * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
-   * function must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
-   */
-  @deprecated("use asyncMaybe", "2.0.0")
-  def effectAsyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
-    blockingOn: => FiberId = FiberId.None
-  )(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    asyncMaybe(register, blockingOn)
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value.
-   */
-  @deprecated("use attemptBlocking", "2.0.0")
-  def effectBlocking[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
-    blocking(ZIO.attempt(effect))
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value, with
-   * a custom cancel effect.
-   *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via the cancel effect.
-   */
-  @deprecated("use attemptBlockingCancelable", "2.0.0")
-  def effectBlockingCancelable[R, A](effect: => A)(cancel: => URIO[R, Any])(implicit trace: ZTraceElement): RIO[R, A] =
-    attemptBlockingCancelable(effect)(cancel)
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value,
-   * refining the error type to `[[java.io.IOException]]`.
-   */
-  @deprecated("use attemptBlockingIO", "2.0.0")
-  def effectBlockingIO[A](effect: => A)(implicit trace: ZTraceElement): IO[IOException, A] =
-    attemptBlockingIO(effect)
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value.
-   *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via `Thread.interrupt`.
-   *
-   * Note that this adds significant overhead. For performance sensitive
-   * applications consider using `effectBlocking` or `effectBlockingCancel`.
-   */
-  @deprecated("use attemptBlockingInterrupt", "2.0.0")
-  def effectBlockingInterrupt[A](effect: => A)(implicit trace: ZTraceElement): Task[A] =
-    attemptBlockingInterrupt(effect)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. When no environment is required (i.e., when R == Any) it is
-   * conceptually equivalent to `flatten(effect(io))`.
-   */
-  @deprecated("use suspend", "2.0.0")
-  def effectSuspend[R, A](rio: => RIO[R, A])(implicit trace: ZTraceElement): RIO[R, A] =
-    suspend(rio)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. The effect must not throw any exceptions. When no environment is
-   * required (i.e., when R == Any) it is conceptually equivalent to
-   * `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
-   * do not use this method, use [[Task.effectSuspend]] or
-   * [[ZIO.effectSuspend]].
-   */
-  @deprecated("use suspendSucceed", "2.0.0")
-  def effectSuspendTotal[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    suspendSucceed(zio)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. The effect must not throw any exceptions. When no environment is
-   * required (i.e., when R == Any) it is conceptually equivalent to
-   * `flatten(effectTotal(zio))`. If you wonder if the effect throws exceptions,
-   * do not use this method, use [[Task.effectSuspend]] or
-   * [[ZIO.effectSuspend]].
-   */
-  @deprecated("use suspendSucceedWith", "2.0.0")
-  def effectSuspendTotalWith[R, E, A](f: (Platform, Fiber.Id) => ZIO[R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, A] =
-    suspendSucceedWith(f)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. When no environment is required (i.e., when R == Any) it is
-   * conceptually equivalent to `flatten(effect(io))`.
-   */
-  @deprecated("use suspendWith", "2.0.0")
-  def effectSuspendWith[R, A](f: (Platform, Fiber.Id) => RIO[R, A])(implicit trace: ZTraceElement): RIO[R, A] =
-    suspendWith(f)
-
-  /**
-   * Captures a synchronous computation into a lazy effect, which can be
-   * executed later and repeatedly. The synchronous computation must not throw
-   * any exceptions. If you are unsure, then don't use this method, use
-   * [[Task.effect]], [[IO.effect]], or [[ZIO.effect]].
-   *
-   * {{{
-   * val nanoTime: UIO[Long] = IO.succeed(System.nanoTime())
-   * }}}
-   */
-  @deprecated("use succeed", "2.0.0")
-  def effectTotal[A](effect: => A)(implicit trace: ZTraceElement): UIO[A] =
-    succeed(effect)
-
-  /**
-   * The same as [[ZIO.effectTotal]], but also provides access to the underlying
-   * RuntimeConfig and fiber id.
-   */
-  @deprecated("use succeedWith", "2.0.0")
-  def effectTotalWith[A](effect: (Platform, Fiber.Id) => A)(implicit trace: ZTraceElement): UIO[A] =
-    succeedWith(effect)
 
   /**
    * Accesses the whole environment of the effect.
@@ -4013,17 +3278,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Equivalent to `foreach(as)(f).unit`, but without the cost of building the
    * list of results.
    */
-  @deprecated("use foreachDiscard", "2.0.0")
-  def foreach_[R, E, A](as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    foreachDiscard(as)(f)
-
-  /**
-   * Applies the function `f` to each element of the `Iterable[A]` and runs
-   * produced effects sequentially.
-   *
-   * Equivalent to `foreach(as)(f).unit`, but without the cost of building the
-   * list of results.
-   */
   def foreachDiscard[R, E, A](
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
@@ -4118,25 +3372,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Applies the function `f` to each element of the `Iterable[A]` and runs
    * produced effects in parallel, discarding the results.
    *
-   * For a sequential version of this method, see `foreach_`.
-   *
-   * Optimized to avoid keeping full tree of effects, so that method could be
-   * able to handle large input sequences. Behaves almost like this code:
-   *
-   * {{{
-   * as.foldLeft(ZIO.unit) { (acc, a) => acc.zipParLeft(f(a)) }
-   * }}}
-   *
-   * Additionally, interrupts all effects on any failure.
-   */
-  @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachPar_[R, E, A](as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(f)
-
-  /**
-   * Applies the function `f` to each element of the `Iterable[A]` and runs
-   * produced effects in parallel, discarding the results.
-   *
    * For a sequential version of this method, see `foreachDiscard`.
    *
    * Optimized to avoid keeping full tree of effects, so that method could be
@@ -4157,44 +3392,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Applies the function `f` to each element of the `Collection[A]` in
-   * parallel, and returns the results in a new `Collection[B]`.
-   *
-   * Unlike `foreachPar`, this method will use at most up to `n` fibers.
-   */
-  @deprecated("use foreachPar", "2.0.0")
-  def foreachParN[R, E, A, B, Collection[+Element] <: Iterable[Element]](n: => Int)(
-    as: Collection[A]
-  )(
-    fn: A => ZIO[R, E, B]
-  )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: ZTraceElement): ZIO[R, E, Collection[B]] =
-    foreachPar(as)(fn).withParallelism(n)
-
-  /**
-   * Applies the function `f` to each element of the `Iterable[A]` and runs
-   * produced effects in parallel, discarding the results.
-   *
-   * Unlike `foreachPar_`, this method will use at most up to `n` fibers.
-   */
-  @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParN_[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(f).withParallelism(n)
-
-  /**
-   * Applies the function `f` to each element of the `Iterable[A]` and runs
-   * produced effects in parallel, discarding the results.
-   *
-   * Unlike `foreachParDiscard`, this method will use at most up to `n` fibers.
-   */
-  @deprecated("use foreachParDiscard", "2.0.0")
-  def foreachParNDiscard[R, E, A](n: => Int)(as: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, Unit] =
-    foreachParDiscard(as)(f).withParallelism(n)
-
-  /**
    * Returns an effect that forks all of the specified values, and returns a
    * composite fiber that produces a list of their results, in order.
    */
@@ -4207,15 +3404,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO
       .foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
       .map(Fiber.collectAll[E, A, Iterable](_).map(bf.fromSpecific(as)))
-
-  /**
-   * Returns an effect that forks all of the specified values, and returns a
-   * composite fiber that produces unit. This version is faster than [[forkAll]]
-   * in cases where the results of the forked fibers are not needed.
-   */
-  @deprecated("use forkAllDiscard", "2.0.0")
-  def forkAll_[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: ZTraceElement): URIO[R, Unit] =
-    forkAllDiscard(as)
 
   /**
    * Returns an effect that forks all of the specified values, and returns a
@@ -4262,31 +3450,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Creates a `ZIO` value that represents the exit value of the specified
    * fiber.
    */
-  @deprecated("use fromFiberZIO", "2.0.0")
-  def fromFiberM[E, A](fiber: IO[E, Fiber[E, A]])(implicit trace: ZTraceElement): IO[E, A] =
-    fromFiberZIO(fiber)
-
-  /**
-   * Creates a `ZIO` value that represents the exit value of the specified
-   * fiber.
-   */
   def fromFiberZIO[R, E, A](fiber: => ZIO[R, E, Fiber[E, A]])(implicit trace: ZTraceElement): ZIO[R, E, A] =
     ZIO.suspendSucceed(fiber.flatMap(_.join))
-
-  /**
-   * Lifts a function `R => A` into a `URIO[R, A]`.
-   */
-  @deprecated("use access", "2.0.0")
-  def fromFunction[R, A](f: ZEnvironment[R] => A)(implicit trace: ZTraceElement): URIO[R, A] =
-    environmentWith(f)
-
-  /**
-   * Lifts an effectful function whose effect requires no environment into an
-   * effect that requires the input to the function.
-   */
-  @deprecated("use environmentWithZIO", "2.0.0")
-  def fromFunctionM[R, E, A](f: ZEnvironment[R] => IO[E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    environmentWithZIO(f)
 
   /**
    * Imports a function that creates a [[scala.concurrent.Future]] from an
@@ -4423,20 +3588,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.GetStateWithPartiallyApplied[S]
 
   /**
-   * Returns an effect that models failure with the specified `Cause`.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: => Cause[E])(implicit trace: ZTraceElement): IO[E, Nothing] =
-    failCause(cause)
-
-  /**
-   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
-   */
-  @deprecated("use ifZIO", "2.0.0")
-  def ifM[R, E](b: => ZIO[R, E, Boolean]): ZIO.IfZIO[R, E] =
-    ifZIO(b)
-
-  /**
    * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
    */
   def ifZIO[R, E](b: => ZIO[R, E, Boolean]): ZIO.IfZIO[R, E] =
@@ -4446,10 +3597,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Like [[never]], but fibers that running this effect won't be garbage
    * collected unless interrupted.
    */
-  val infinity: UIO[Nothing] =
-    ZIO
-      .sleep(Duration.fromNanos(Long.MaxValue))(ZTraceElement.empty)
-      .zipRight(ZIO.never(ZTraceElement.empty))(ZTraceElement.empty)
+  def infinity(implicit trace: ZTraceElement): UIO[Nothing] =
+    ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
    * Returns an effect that is interrupted as if by the fiber calling this
@@ -4512,15 +3661,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeed(Left(a))
 
   /**
-   * Returns an effect that will execute the specified effect fully on the
-   * provided executor, before returning to the default executor. See
-   * [[ZIO!.lock]].
-   */
-  @deprecated("use onExecutor", "2.0.0")
-  def lock[R, E, A](executor: => Executor)(zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    onExecutor(executor)(zio)
-
-  /**
    * Loops with the specified effectual function, collecting the results into a
    * list. The moral equivalent of:
    *
@@ -4563,25 +3703,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }
    * }}}
    */
-  @deprecated("use loopDiscard", "2.0.0")
-  def loop_[R, E, S](initial: => S)(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, Unit] =
-    loopDiscard(initial)(cont, inc)(body)
-
-  /**
-   * Loops with the specified effectual function purely for its effects. The
-   * moral equivalent of:
-   *
-   * {{{
-   * var s = initial
-   *
-   * while (cont(s)) {
-   *   body(s)
-   *   s = inc(s)
-   * }
-   * }}}
-   */
   def loopDiscard[R, E, S](
     initial: => S
   )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
@@ -4599,68 +3720,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def not[R, E](effect: => ZIO[R, E, Boolean])(implicit trace: ZTraceElement): ZIO[R, E, Boolean] =
     ZIO.suspendSucceed(effect.negate)
-
-  /**
-   * Sequentially zips the specified effects. Specialized version of mapN.
-   */
-  @deprecated("use zip", "2.0.0")
-  def tupled[R, E, A, B](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, (A, B)] =
-    mapN(zio1, zio2)((_, _))
-
-  /**
-   * Sequentially zips the specified effects. Specialized version of mapN.
-   */
-  @deprecated("use zip", "2.0.0")
-  def tupled[R, E, A, B, C](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B], zio3: => ZIO[R, E, C])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, (A, B, C)] =
-    mapN(zio1, zio2, zio3)((_, _, _))
-
-  /**
-   * Sequentially zips the specified effects. Specialized version of mapN.
-   */
-  @deprecated("use zip", "2.0.0")
-  def tupled[R, E, A, B, C, D](
-    zio1: => ZIO[R, E, A],
-    zio2: => ZIO[R, E, B],
-    zio3: => ZIO[R, E, C],
-    zio4: => ZIO[R, E, D]
-  )(implicit trace: ZTraceElement): ZIO[R, E, (A, B, C, D)] =
-    mapN(zio1, zio2, zio3, zio4)((_, _, _, _))
-
-  /**
-   * Zips the specified effects in parallel. Specialized version of mapParN.
-   */
-  @deprecated("use zipPar", "2.0.0")
-  def tupledPar[R, E, A, B](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, (A, B)] =
-    mapParN(zio1, zio2)((_, _))
-
-  /**
-   * Zips the specified effects in parallel. Specialized version of mapParN.
-   */
-  @deprecated("use zipPar", "2.0.0")
-  def tupledPar[R, E, A, B, C](
-    zio1: => ZIO[R, E, A],
-    zio2: => ZIO[R, E, B],
-    zio3: => ZIO[R, E, C]
-  )(implicit trace: ZTraceElement): ZIO[R, E, (A, B, C)] =
-    mapParN(zio1, zio2, zio3)((_, _, _))
-
-  /**
-   * Zips the specified effects in parallel. Specialized version of mapParN.
-   */
-  @deprecated("use zipPar", "2.0.0")
-  def tupledPar[R, E, A, B, C, D](
-    zio1: => ZIO[R, E, A],
-    zio2: => ZIO[R, E, B],
-    zio3: => ZIO[R, E, C],
-    zio4: => ZIO[R, E, D]
-  )(implicit trace: ZTraceElement): ZIO[R, E, (A, B, C, D)] =
-    mapParN(zio1, zio2, zio3, zio4)((_, _, _, _))
 
   /**
    * Logs the specified message at the current log level.
@@ -4820,90 +3879,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     logWarningCause("", cause)
 
   /**
-   * Sequentially zips the specified effects using the specified combiner
-   * function.
-   */
-  @deprecated("use zip", "2.0.0")
-  def mapN[R, E, A, B, C](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B])(f: (A, B) => C)(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, C] =
-    ZIO.suspendSucceed(zio1.zipWith(zio2)(f))
-
-  /**
-   * Sequentially zips the specified effects using the specified combiner
-   * function.
-   */
-  @deprecated("use zip", "2.0.0")
-  def mapN[R, E, A, B, C, D](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B], zio3: => ZIO[R, E, C])(
-    f: (A, B, C) => D
-  )(implicit trace: ZTraceElement): ZIO[R, E, D] =
-    ZIO.suspendSucceed {
-      for {
-        a <- zio1
-        b <- zio2
-        c <- zio3
-      } yield f(a, b, c)
-    }
-
-  /**
-   * Sequentially zips the specified effects using the specified combiner
-   * function.
-   */
-  @deprecated("use zip", "2.0.0")
-  def mapN[R, E, A, B, C, D, F](
-    zio1: => ZIO[R, E, A],
-    zio2: => ZIO[R, E, B],
-    zio3: => ZIO[R, E, C],
-    zio4: => ZIO[R, E, D]
-  )(
-    f: (A, B, C, D) => F
-  )(implicit trace: ZTraceElement): ZIO[R, E, F] =
-    ZIO.suspendSucceed {
-      for {
-        a <- zio1
-        b <- zio2
-        c <- zio3
-        d <- zio4
-      } yield f(a, b, c, d)
-    }
-
-  /**
-   * Returns an effect that executes the specified effects in parallel,
-   * combining their results with the specified `f` function. If any effect
-   * fails, then the other effects will be interrupted.
-   */
-  @deprecated("use zipPar", "2.0.0")
-  def mapParN[R, E, A, B, C](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B])(f: (A, B) => C)(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, C] =
-    ZIO.suspendSucceed(zio1.zipWithPar(zio2)(f))
-
-  /**
-   * Returns an effect that executes the specified effects in parallel,
-   * combining their results with the specified `f` function. If any effect
-   * fails, then the other effects will be interrupted.
-   */
-  @deprecated("use zipPar", "2.0.0")
-  def mapParN[R, E, A, B, C, D](zio1: => ZIO[R, E, A], zio2: => ZIO[R, E, B], zio3: => ZIO[R, E, C])(
-    f: (A, B, C) => D
-  )(implicit trace: ZTraceElement): ZIO[R, E, D] =
-    ZIO.suspendSucceed((zio1 <&> zio2 <&> zio3).map(f.tupled))
-
-  /**
-   * Returns an effect that executes the specified effects in parallel,
-   * combining their results with the specified `f` function. If any effect
-   * fails, then the other effects will be interrupted.
-   */
-  @deprecated("use zipPar", "2.0.0")
-  def mapParN[R, E, A, B, C, D, F](
-    zio1: => ZIO[R, E, A],
-    zio2: => ZIO[R, E, B],
-    zio3: => ZIO[R, E, C],
-    zio4: => ZIO[R, E, D]
-  )(f: (A, B, C, D) => F)(implicit trace: ZTraceElement): ZIO[R, E, F] =
-    ZIO.suspendSucceed((zio1 <&> zio2 <&> zio3 <&> zio4).map(f.tupled))
-
-  /**
    * Returns a memoized version of the specified effectual function.
    */
   def memoize[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): UIO[A => ZIO[R, E, B]] =
@@ -4945,23 +3920,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     in: => Iterable[ZIO[R, E, A]]
   )(zero: => B)(f: (B, A) => B)(implicit trace: ZTraceElement): ZIO[R, E, B] =
     Ref.make(zero).flatMap(acc => foreachParDiscard(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
-
-  /**
-   * Merges an `Iterable[IO]` to a single IO, working in with up to `n` fibers
-   * in parallel.
-   *
-   * Due to the parallel nature of this combinator, `f` must be both:
-   *   - commutative: `f(a, b) == f(b, a)`
-   *   - associative: `f(a, f(b, c)) == f(f(a, b), c)`
-   *
-   * It's unsafe to execute side effects inside `f`, as `f` may be executed more
-   * than once for some of `in` elements during effect execution.
-   */
-  @deprecated("use mergeAllPar", "2.0.0")
-  def mergeAllParN[R, E, A, B](n: => Int)(
-    in: => Iterable[ZIO[R, E, A]]
-  )(zero: => B)(f: (B, A) => B)(implicit trace: ZTraceElement): ZIO[R, E, B] =
-    Ref.make(zero).flatMap(acc => foreachParNDiscard(n)(in)(_.flatMap(a => acc.update(f(_, a)))) *> acc.get)
 
   /**
    * Returns a effect that will never produce anything. The moral equivalent of
@@ -5044,21 +4002,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(ZIO.foreachPar(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn)))
 
   /**
-   * Feeds elements of type `A` to a function `f` that returns an effect.
-   * Collects all successes and failures in parallel and returns the result as a
-   * tuple.
-   *
-   * Unlike [[partitionPar]], this method will use at most up to `n` fibers.
-   */
-  @deprecated("use partitionPar", "2.0.0")
-  def partitionParN[R, E, A, B](
-    n: => Int
-  )(in: => Iterable[A])(
-    f: A => ZIO[R, E, B]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R, Nothing, (Iterable[E], Iterable[B])] =
-    ZIO.suspendSucceed(ZIO.foreachParN(n)(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn)))
-
-  /**
    * Given an environment `R`, returns a function that can supply the
    * environment to programs that require it, removing their need for any
    * specific environment.
@@ -5125,27 +4068,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Reduces an `Iterable[IO]` to a single `IO`, working in up to `n` fibers in
-   * parallel.
-   */
-  @deprecated("use reduceAllPar", "2.0.0")
-  def reduceAllParN[R, R1 <: R, E, A](n: => Int)(a0: => ZIO[R, E, A], as0: => Iterable[ZIO[R1, E, A]])(
-    f: (A, A) => A
-  )(implicit trace: ZTraceElement): ZIO[R1, E, A] =
-    ZIO.suspendSucceed {
-      val a  = a0
-      val as = as0
-
-      def prepend[Z](z: => Z, zs: => Iterable[Z]): Iterable[Z] =
-        new Iterable[Z] {
-          override def iterator: Iterator[Z] = Iterator(z) ++ zs.iterator
-        }
-
-      val all = prepend(a, as)
-      mergeAllParN(n)(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
-    }
-
-  /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
    * an empty `Iterable` will be returned. This method is more efficient than
    * using `List.fill` or similar methods, because the returned `Iterable`
@@ -5160,21 +4082,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Performs this effect the specified number of times and collects the
    * results.
    */
-  @deprecated("use replicateZIO", "2.0.0")
-  def replicateM[R, E, A](n: => Int)(effect: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Iterable[A]] =
-    replicateZIO(n)(effect)
-
-  /**
-   * Performs this effect the specified number of times, discarding the results.
-   */
-  @deprecated("use replicateZIODiscard", "2.0.0")
-  def replicateM_[R, E, A](n: => Int)(effect: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
-    replicateZIODiscard(n)(effect)
-
-  /**
-   * Performs this effect the specified number of times and collects the
-   * results.
-   */
   def replicateZIO[R, E, A](n: => Int)(effect: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Iterable[A]] =
     ZIO.suspendSucceed(ZIO.collectAll(ZIO.replicate(n)(effect)))
 
@@ -5183,14 +4090,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def replicateZIODiscard[R, E, A](n: => Int)(effect: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
     ZIO.collectAllDiscard(ZIO.replicate(n)(effect))
-
-  /**
-   * Requires that the given `ZIO[R, E, Option[A]]` contain a value. If there is
-   * no value, then the specified error will be raised.
-   */
-  @deprecated("use someOrFail", "2.0.0")
-  def require[R, E, A](error: => E)(implicit trace: ZTraceElement): ZIO[R, E, Option[A]] => ZIO[R, E, A] =
-    (io: ZIO[R, E, Option[A]]) => io.flatMap(_.fold[ZIO[R, E, A]](fail[E](error))(succeedNow))
 
   /**
    * Returns an effect with the value on the right part.
@@ -5272,38 +4171,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def serviceAt[Service]: ServiceAtPartiallyApplied[Service] =
     new ServiceAtPartiallyApplied[Service]
-
-  /**
-   * Accesses the specified services in the environment of the effect.
-   */
-  @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag](implicit
-    trace: ZTraceElement
-  ): URIO[A with B, (A, B)] =
-    ZIO.environmentWith(r => (r.get[A], r.get[B]))
-
-  /**
-   * Accesses the specified services in the environment of the effect.
-   */
-  @deprecated("use service", "2.0.0")
-  def services[A: Tag, B: Tag, C: Tag](implicit
-    trace: ZTraceElement
-  ): URIO[A with B with C, (A, B, C)] =
-    ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C]))
-
-  /**
-   * Accesses the specified services in the environment of the effect.
-   */
-  @deprecated("use service", "2.0.0")
-  def services[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag
-  ](implicit
-    trace: ZTraceElement
-  ): URIO[A with B with C with D, (A, B, C, D)] =
-    ZIO.environmentWith(r => (r.get[A], r.get[B], r.get[C], r.get[D]))
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -5500,13 +4367,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   /**
    * The moral equivalent of `if (!p) exp` when `p` has side-effects
    */
-  @deprecated("use unlessZIO", "2.0.0")
-  def unlessM[R, E](p: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
-    unlessZIO(p)
-
-  /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
-   */
   def unlessZIO[R, E](p: => ZIO[R, E, Boolean]): ZIO.UnlessZIO[R, E] =
     new ZIO.UnlessZIO(() => p)
 
@@ -5579,16 +4439,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Feeds elements of type `A` to `f` and accumulates all errors, discarding
    * the successes.
    */
-  @deprecated("use validateDiscard", "2.0.0")
-  def validate_[R, E, A](in: => Iterable[A])(
-    f: A => ZIO[R, E, Any]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R, ::[E], Unit] =
-    validateDiscard(in)(f)
-
-  /**
-   * Feeds elements of type `A` to `f` and accumulates all errors, discarding
-   * the successes.
-   */
   def validateDiscard[R, E, A](in: => Iterable[A])(f: A => ZIO[R, E, Any])(implicit
     ev: CanFail[E],
     trace: ZTraceElement
@@ -5631,16 +4481,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       if (es.isEmpty) ZIO.succeedNow(NonEmptyChunk.nonEmpty(Chunk.fromIterable(bs)))
       else ZIO.fail(::(es.head, es.tail.toList))
     }
-
-  /**
-   * Feeds elements of type `A` to `f` in parallel and accumulates all errors,
-   * discarding the successes.
-   */
-  @deprecated("use validateParDiscard", "2.0.0")
-  def validatePar_[R, E, A](in: => Iterable[A])(
-    f: A => ZIO[R, E, Any]
-  )(implicit ev: CanFail[E], trace: ZTraceElement): ZIO[R, ::[E], Unit] =
-    validateParDiscard(in)(f)
 
   /**
    * Feeds elements of type `A` to `f` in parallel and accumulates all errors,
@@ -5702,27 +4542,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Runs an effect when the supplied `PartialFunction` matches for the given
    * effectful value, otherwise does nothing.
    */
-  @deprecated("use whenCaseZIO", "2.0.0")
-  def whenCaseM[R, E, A, B](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, B]])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, Option[B]] =
-    whenCaseZIO(a)(pf)
-
-  /**
-   * Runs an effect when the supplied `PartialFunction` matches for the given
-   * effectful value, otherwise does nothing.
-   */
   def whenCaseZIO[R, E, A, B](a: => ZIO[R, E, A])(pf: PartialFunction[A, ZIO[R, E, B]])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, Option[B]] =
     ZIO.suspendSucceed(a.flatMap(whenCase(_)(pf)))
-
-  /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
-   */
-  @deprecated("use whenZIO", "2.0.0")
-  def whenM[R, E](p: => ZIO[R, E, Boolean]): ZIO.WhenZIO[R, E] =
-    whenZIO(p)
 
   /**
    * The moral equivalent of `if (p) exp` when `p` has side-effects
@@ -5777,9 +4600,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def yieldNow(implicit trace: ZTraceElement): UIO[Unit] =
     new ZIO.Yield(trace)
 
-  @deprecated("use attempt or succeed", "2.0.0")
-  def apply[A](a: => A)(implicit trace: ZTraceElement): Task[A] = attempt(a)
-
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
 
   private[zio] def identityFn[A]: A => A = _IdentityFn.asInstanceOf[A => A]
@@ -5814,15 +4634,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      */
     def withFinalizerAuto(implicit trace: ZTraceElement): ZIO[R with Scope, E, A] =
       ZIO.acquireRelease(io)(a => ZIO.succeed(a.close()))
-
-    /**
-     * Like `bracket`, safely wraps a use and release of a resource. This
-     * resource will get automatically closed, because it implements
-     * `AutoCloseable`.
-     */
-    @deprecated("use acquireReleaseWithAuto", "2.0.0")
-    def bracketAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
-      acquireReleaseWithAuto(use)
   }
 
   implicit final class ZioRefineToOrDieOps[R, E <: Throwable, A](private val self: ZIO[R, E, A]) extends AnyVal {
@@ -6489,7 +5300,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class Async[R, E, A](
-    val register: (ZIO[R, E, A] => Unit) => Either[Canceler[R], ZIO[R, E, A]],
+    val register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     val blockingOn: FiberId,
     val trace: ZTraceElement
   ) extends ZIO[R, E, A] {
@@ -6645,8 +5456,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final class RaceWith[R, EL, ER, E, A, B, C](
     val left: ZIO[R, EL, A],
     val right: ZIO[R, ER, B],
-    val leftWins: (Exit[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
-    val rightWins: (Exit[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
+    val leftWins: (Fiber[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
+    val rightWins: (Fiber[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
     val trace: ZTraceElement
   ) extends ZIO[R, E, C] {
     def unsafeLog: () => String =

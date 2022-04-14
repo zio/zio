@@ -774,7 +774,7 @@ private[zio] final class FiberContext[E, A](
     fiberRefLocals.get.get(fiberRef).map(_.head._2).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)
 
   private[zio] def unsafeGetRefs(fiberRefLocals: FiberRefLocals): Map[FiberRef[_], Any] =
-    fiberRefLocals.get.transform { case (fiberRef, stack) => fiberRef -> stack.head }
+    fiberRefLocals.get.transform { case (_, stack) => stack.head._2 }
 
   private def unsafeInterruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = {
     val interruptedCause = Cause.interrupt(fiberId)
@@ -914,18 +914,12 @@ private[zio] final class FiberContext[E, A](
     @inline def complete[E0, E1, A, B](
       winner: Fiber[E0, A],
       loser: Fiber[E1, B],
-      cont: (Exit[E0, A], Fiber[E1, B]) => ZIO[R, E, C],
-      winnerExit: Exit[E0, A],
+      cont: (Fiber[E0, A], Fiber[E1, B]) => ZIO[R, E, C],
       ab: AtomicBoolean,
       cb: ZIO[R, E, C] => Any
     ): Any =
       if (ab.compareAndSet(true, false)) {
-        winnerExit match {
-          case exit: Exit.Success[_] =>
-            cb(winner.inheritRefs.flatMap(_ => cont(exit, loser)))
-          case exit: Exit.Failure[_] =>
-            cb(cont(exit, loser))
-        }
+        cb(cont(winner, loser))
       }
 
     val raceIndicator = new AtomicBoolean(true)
@@ -936,23 +930,19 @@ private[zio] final class FiberContext[E, A](
     ZIO
       .async[R, E, C](
         { cb =>
-          val leftRegister = left.unsafeAddObserverMaybe {
-            case exit0: Exit.Success[Exit[EL, A]] =>
-              complete[EL, ER, A, B](left, right, race.leftWins, exit0.value, raceIndicator, cb)
-            case exit: Exit.Failure[_] => complete(left, right, race.leftWins, exit, raceIndicator, cb)
+          val leftRegister = left.unsafeAddObserverMaybe { _ =>
+            complete(left, right, race.leftWins, raceIndicator, cb)
           }
 
           if (leftRegister ne null)
-            complete(left, right, race.leftWins, leftRegister, raceIndicator, cb)
+            complete(left, right, race.leftWins, raceIndicator, cb)
           else {
-            val rightRegister = right.unsafeAddObserverMaybe {
-              case exit0: Exit.Success[Exit[_, _]] =>
-                complete(right, left, race.rightWins, exit0.value, raceIndicator, cb)
-              case exit: Exit.Failure[_] => complete(right, left, race.rightWins, exit, raceIndicator, cb)
+            val rightRegister = right.unsafeAddObserverMaybe { _ =>
+              complete(right, left, race.rightWins, raceIndicator, cb)
             }
 
             if (rightRegister ne null)
-              complete(right, left, race.rightWins, rightRegister, raceIndicator, cb)
+              complete(right, left, race.rightWins, raceIndicator, cb)
           }
         },
         FiberId.combineAll(Set(left.fiberId, right.fiberId))

@@ -34,21 +34,6 @@ trait Console extends Serializable {
 
   def readLine(implicit trace: ZTraceElement): IO[IOException, String]
 
-  @deprecated("use `print`", "2.0.0")
-  def putStr(line: => String)(implicit trace: ZTraceElement): IO[IOException, Unit] = print(line)
-
-  @deprecated("use `printError`", "2.0.0")
-  def putStrErr(line: => String)(implicit trace: ZTraceElement): IO[IOException, Unit] = printError(line)
-
-  @deprecated("use `printLine`", "2.0.0")
-  def putStrLn(line: => String)(implicit trace: ZTraceElement): IO[IOException, Unit] = printLine(line)
-
-  @deprecated("use `printLineError`", "2.0.0")
-  def putStrLnErr(line: => String)(implicit trace: ZTraceElement): IO[IOException, Unit] = printLineError(line)
-
-  @deprecated("use `readLine`", "2.0.0")
-  def getStrLn(implicit trace: ZTraceElement): IO[IOException, String] = readLine
-
   private[zio] def unsafePrint(line: Any): Unit =
     Runtime.default.unsafeRun(print(line)(ZTraceElement.empty))(ZTraceElement.empty)
 
@@ -148,42 +133,4 @@ object Console extends Serializable {
    */
   def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
     ZIO.consoleWith(_.readLine)
-
-  /**
-   * Prints text to the console.
-   */
-  @deprecated("use `print`", "2.0.0")
-  def putStr(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-    print(line)
-
-  /**
-   * Prints text to the standard error console.
-   */
-  @deprecated("use `printError`", "2.0.0")
-  def putStrErr(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-    printError(line)
-
-  /**
-   * Prints a line of text to the console, including a newline character.
-   */
-  @deprecated("use `printLine`", "2.0.0")
-  def putStrLn(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-    printLine(line)
-
-  /**
-   * Prints a line of text to the standard error console, including a newline
-   * character.
-   */
-  @deprecated("use `printLineError`", "2.0.0")
-  def putStrLnErr(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
-    printLineError(line)
-
-  /**
-   * Retrieves a line of input from the console. Fails with an
-   * [[java.io.EOFException]] when the underlying [[java.io.Reader]] returns
-   * null.
-   */
-  @deprecated("use `readLine`", "2.0.0")
-  def getStrLn(implicit trace: ZTraceElement): IO[IOException, String] =
-    readLine
 }

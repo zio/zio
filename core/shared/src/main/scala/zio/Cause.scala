@@ -60,20 +60,12 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
       .reverse
 
-  @deprecated("use isDie", "2.0.0")
-  final def died: Boolean =
-    isDie
-
   /**
    * Returns the `Throwable` associated with the first `Die` in this `Cause` if
    * one exists.
    */
   final def dieOption: Option[Throwable] =
     find { case Die(t, _) => t }
-
-  @deprecated("use isFailure", "2.0.0")
-  final def failed: Boolean =
-    isFailure
 
   /**
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
@@ -225,21 +217,6 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       }
     loop(z, self, Nil)
   }
-
-  /**
-   * Determines if the `Cause` contains an interruption.
-   */
-  @deprecated("use isInterrupted", "2.0.0")
-  final def interrupted: Boolean =
-    isInterrupted
-
-  /**
-   * Determines if the `Cause` contains only interruptions and not any `Die` or
-   * `Fail` causes.
-   */
-  @deprecated("use isInterruptedOnly", "2.0.0")
-  final def interruptedOnly: Boolean =
-    isInterruptedOnly
 
   /**
    * Returns a set of interruptors, fibers that interrupted the fiber described
@@ -507,11 +484,21 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       def unifyFail(fail: Cause.Fail[E]): Unified =
         Unified(fail.trace.fiberId, fail.value.getClass.getName(), fail.value.toString(), fail.trace.toJava)
 
-      def unifyDie(die: Cause.Die): Unified = {
-        val extra =
-          if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
+      def unifyDie(die: Cause.Die): List[Unified] = {
 
-        Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+        @tailrec
+        def loop(die: Cause.Die, result: List[Unified]): List[Unified] = {
+          val extra =
+            if (stackless) Chunk.empty else Chunk.fromArray(die.value.getStackTrace())
+
+          val unified =
+            Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
+
+          if (die.value.getCause eq null) unified :: result
+          else loop(Cause.Die(die.value.getCause, ZTrace.none), unified :: result)
+        }
+
+        loop(die, Nil)
       }
 
       def unifyInterrupt(interrupt: Cause.Interrupt): Unified = {
@@ -528,7 +515,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
         case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
         case (cause @ Fail(_, _)) :: more        => loop(more, fiberId, stackless, unifyFail(cause) :: result)
-        case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) :: result)
+        case (cause @ Die(_, _)) :: more         => loop(more, fiberId, stackless, unifyDie(cause) ::: result)
         case (cause @ Interrupt(_, _)) :: more =>
           loop(more, fiberId, stackless, unifyInterrupt(cause) :: result)
       }

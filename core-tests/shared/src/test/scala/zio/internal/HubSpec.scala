@@ -180,28 +180,28 @@ object HubSpec extends ZIOBaseSpec {
     math.pow(2, nextPow.toDouble).toInt.max(2)
   }
 
-  def publishPoll(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishPoll(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent publish and poll")(
       publishPoll1To1(makeHub, false),
       publishPoll1ToN(makeHub, false),
       publishPollNToN(makeHub, false)
     )
 
-  def publishPollLimitedCapacity(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishPollLimitedCapacity(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("with limited capacity")(
       publishPoll1To1(_ => makeHub(1), false),
       publishPoll1ToN(_ => makeHub(1), false),
       publishPollNToN(_ => makeHub(1), false)
     )
 
-  def publishPollDynamic(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishPollDynamic(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("with concurrent subscribes and unsubscribes")(
       publishPoll1To1(_ => makeHub(1), true),
       publishPoll1ToN(_ => makeHub(1), true),
       publishPollNToN(_ => makeHub(1), true)
     )
 
-  def emptyFull(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def emptyFull(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent isEmpty and isFull")(
       isEmpty(makeHub),
       isFull(makeHub),
@@ -209,51 +209,51 @@ object HubSpec extends ZIOBaseSpec {
       publishNonFull(makeHub)
     )
 
-  def publishAllPollUpTo(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishAllPollUpTo(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent publishAll and pollUpTo")(
       publishAllPollUpTo1To1(makeHub),
       publishAllPollUpToNToN(makeHub)
     )
 
-  def slidingPublishPoll(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishPoll(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent sliding publish and poll")(
       slidingPublishPoll1To1(makeHub, false),
       slidingPublishPoll1ToN(makeHub, false),
       slidingPublishPollNToN(makeHub, false)
     )
 
-  def slidingPublishPollLimitedCapacity(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishPollLimitedCapacity(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("with limited capacity")(
       slidingPublishPoll1To1(_ => makeHub(1), false),
       slidingPublishPoll1ToN(_ => makeHub(1), false),
       slidingPublishPollNToN(_ => makeHub(1), false)
     )
 
-  def slidingPublishPollDynamic(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishPollDynamic(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("with concurrent subscribes and unsubscribes")(
       slidingPublishPoll1To1(_ => makeHub(1), true),
       slidingPublishPoll1ToN(_ => makeHub(1), true),
       slidingPublishPollNToN(_ => makeHub(1), true)
     )
 
-  def slidingPublishAllPollUpTo(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishAllPollUpTo(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent sliding publishAll and pollUpTo")(
       slidingPublishAllPollUpTo1To1(makeHub),
       slidingPublishAllPollUpToNToN(makeHub)
     )
 
-  def concurrentUnsubscribe(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def concurrentUnsubscribe(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent unsubscribe")(
       concurrentPublishUnsubscribe(makeHub),
       concurrentPollUnsubscribe(makeHub)
     )
 
-  def concurrentPoll(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def concurrentPoll(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     suite("concurrent poll")(
       poll("with two pollers")(_ => makeHub(1))
     )
 
-  def publishPoll1To1(makeHub: Int => Hub[Int], dynamic: Boolean): ZSpec[TestEnvironment, Nothing] =
+  def publishPoll1To1(makeHub: Int => Hub[Int], dynamic: Boolean): Spec[TestEnvironment, Nothing] =
     test("with one publisher and one subscriber") {
       check(Gen.listOf1(smallInt)) { as =>
         val hub          = makeHub(as.length)
@@ -272,7 +272,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def publishPoll1ToN(makeHub: Int => Hub[Int], dynamic: Boolean): ZSpec[TestEnvironment, Nothing] =
+  def publishPoll1ToN(makeHub: Int => Hub[Int], dynamic: Boolean): Spec[TestEnvironment, Nothing] =
     test("with one publisher and two subscribers") {
       check(Gen.listOf1(smallInt)) { as =>
         val hub           = makeHub(as.length)
@@ -297,7 +297,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def publishPollNToN(makeHub: Int => Hub[Int], dynamic: Boolean): ZSpec[TestEnvironment, Nothing] =
+  def publishPollNToN(makeHub: Int => Hub[Int], dynamic: Boolean): Spec[TestEnvironment, Nothing] =
     test("with two publishers and two subscribers") {
       check(Gen.listOf1(smallInt)) { as =>
         val hub           = makeHub(as.length * 2)
@@ -326,7 +326,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def isEmpty(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def isEmpty(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("isEmpty always returns false on a subscription that is not empty") {
       check(Gen.listOf(smallInt)) { as =>
         val hub           = makeHub(1000)
@@ -353,7 +353,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def isFull(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def isFull(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("isFull always returns false on a hub that is not full") {
       check(Gen.listOf(smallInt)) { as =>
         val hub           = makeHub(10000)
@@ -377,7 +377,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def publishNonFull(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishNonFull(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("publishing to a hub that is not full always succeeds") {
       check(Gen.listOf(smallInt)) { as =>
         val hub           = makeHub(10000)
@@ -399,7 +399,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def pollNonEmpty(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def pollNonEmpty(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("polling from a hub that is not empty always succeeds") {
       check(Gen.listOf(smallInt)) { as =>
         val hub           = makeHub(1000)
@@ -422,7 +422,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def publishAllPollUpTo1To1(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishAllPollUpTo1To1(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("with one publisher and one subscriber") {
       check(Gen.listOf(Gen.chunkOf(smallInt)), smallInt) { (chunks, chunkSize) =>
         val hub          = makeHub(1000)
@@ -435,7 +435,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def publishAllPollUpToNToN(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def publishAllPollUpToNToN(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("with two publishers and two subscribers") {
       check(Gen.listOf(Gen.chunkOf(smallInt)), smallInt) { (chunks, chunkSize) =>
         val hub           = makeHub(1000)
@@ -455,7 +455,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def poll(label: String)(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def poll(label: String)(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test(label) {
       check(Gen.listOf1(smallInt)) { as =>
         val hub          = makeHub(as.length)
@@ -473,7 +473,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def slidingPublishPoll1To1(makeHub: Int => Hub[Int], dynamic: Boolean): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishPoll1To1(makeHub: Int => Hub[Int], dynamic: Boolean): Spec[TestEnvironment, Nothing] =
     test("with one publisher and one subscriber") {
       check(Gen.listOf1(smallInt)) { as =>
         val hub          = makeHub(as.length)
@@ -490,7 +490,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def slidingPublishPoll1ToN(makeHub: Int => Hub[Int], dynamic: Boolean): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishPoll1ToN(makeHub: Int => Hub[Int], dynamic: Boolean): Spec[TestEnvironment, Nothing] =
     test("with one publisher and two subscribers") {
       check(Gen.listOf1(smallInt)) { as =>
         val hub           = makeHub(as.length)
@@ -511,7 +511,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def slidingPublishPollNToN(makeHub: Int => Hub[Int], dynamic: Boolean): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishPollNToN(makeHub: Int => Hub[Int], dynamic: Boolean): Spec[TestEnvironment, Nothing] =
     test("with two publishers and two subscribers") {
       check(Gen.listOf1(smallInt)) { as =>
         val hub           = makeHub(as.length * 2)
@@ -536,7 +536,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def slidingPublishAllPollUpTo1To1(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishAllPollUpTo1To1(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("with one publisher and one subscriber") {
       check(Gen.listOf(smallInt), smallInt) { (as, chunkSize) =>
         val chunks       = as.sorted.grouped(chunkSize).map(Chunk.fromIterable).toList
@@ -551,7 +551,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def slidingPublishAllPollUpToNToN(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def slidingPublishAllPollUpToNToN(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("with two publishers and two subscribers") {
       check(Gen.listOf(smallInt), smallInt) { (as, chunkSize) =>
         val leftChunks    = as.sorted.grouped(chunkSize).map(Chunk.fromIterable).toList
@@ -574,7 +574,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     }
 
-  def concurrentPublishUnsubscribe(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def concurrentPublishUnsubscribe(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("with publish") {
       val hub          = makeHub(2)
       val subscription = hub.subscribe()
@@ -595,7 +595,7 @@ object HubSpec extends ZIOBaseSpec {
         assert(values)(equalTo(List(2, 3, 4, 5, 6)))
     }
 
-  def concurrentPollUnsubscribe(makeHub: Int => Hub[Int]): ZSpec[TestEnvironment, Nothing] =
+  def concurrentPollUnsubscribe(makeHub: Int => Hub[Int]): Spec[TestEnvironment, Nothing] =
     test("with poll") {
       val hub          = makeHub(2)
       val subscription = hub.subscribe()
@@ -617,7 +617,7 @@ object HubSpec extends ZIOBaseSpec {
         assert(values)(equalTo(List(2, 3, 4, 5, 6)))
     }
 
-  lazy val basicOperationsPow2: ZSpec[TestEnvironment, Nothing] =
+  lazy val basicOperationsPow2: Spec[TestEnvironment, Nothing] =
     suite("basic operations")(
       test("publish and poll a single value") {
         val hub          = Hub.bounded[Int](2)
@@ -666,7 +666,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     )
 
-  lazy val basicOperationsUnbounded: ZSpec[TestEnvironment, Nothing] =
+  lazy val basicOperationsUnbounded: Spec[TestEnvironment, Nothing] =
     suite("basic operations")(
       test("publish and poll a single value") {
         val hub           = Hub.unbounded[Int]
@@ -775,7 +775,7 @@ object HubSpec extends ZIOBaseSpec {
       }
     )
 
-  lazy val basicOperationsSingle: ZSpec[TestEnvironment, Nothing] =
+  lazy val basicOperationsSingle: Spec[TestEnvironment, Nothing] =
     suite("basic operations")(
       test("publish and poll a single value") {
         val hub          = Hub.bounded[Int](1)

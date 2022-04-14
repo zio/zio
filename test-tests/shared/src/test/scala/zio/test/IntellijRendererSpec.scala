@@ -186,15 +186,18 @@ object IntelliJRenderUtils {
   def testFailed(name: String, error: Vector[String]): String =
     s"##teamcity[testFailed name='$name' message='Assertion failed:' details='${escape(error.mkString)}']" + "\n"
 
+  // TODO de-dup layer creation
   def runLog(
-    spec: ZSpec[TestEnvironment, String]
+    spec: Spec[TestEnvironment, String]
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <-
         IntelliJTestRunner(testEnvironment)
           .run(spec)
           .provideLayer[Nothing, TestEnvironment with Scope](
-            TestClock.default ++ (TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ Random.live
+            TestClock.default ++ (TestLogger.fromConsole(
+              Console.ConsoleLive
+            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ Random.live
           )
       output <- TestConsole.output
     } yield output.mkString
@@ -205,7 +208,9 @@ object IntelliJRenderUtils {
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         testEnvironment,
-        (Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        (Console.live >>> TestLogger.fromConsole(
+          Console.ConsoleLive
+        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
       ),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
     )

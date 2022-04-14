@@ -45,17 +45,62 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 As a contributor to ZIO ecosystem libraries, we also should cover these guidelines:
 
 1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace. 
- 
-    Let's see an example of that in the ZIO source code:
 
-    ```diff
-    trait ZIO[-R, +E, +A] {
-    -  def map[B](f: A => B): ZIO[R, E, B] =
-         flatMap(a => ZIO.succeedNow(f(a)))
-    +  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
-         flatMap(a => ZIO.succeedNow(f(a)))
-    }
-    ```
+Let's see an example of that in the ZIO source code:
+
+```diff
+trait ZIO[-R, +E, +A] {
+-  def map[B](f: A => B): ZIO[R, E, B] =
+     flatMap(a => ZIO.succeedNow(f(a)))
++  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
+     flatMap(a => ZIO.succeedNow(f(a)))
+}
+```
+
+Assume we have written the `FooLibrary` as below:
+
+```scala mdoc:silent
+import zio._
+
+object FooLibrary {
+  def foo = bar.flatMap(x => ZIO.succeed(x * 2))  // line 4
+  private def bar = baz.flatMap(x => ZIO.succeed(x * x))  // line 5
+  private def baz = ZIO.fail("Oh uh!").as(5)              // line 6
+}
+```
+
+Without _implicit trace parameter_, the user of our library will get so many unrelated stack trace messages:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = FooLibrary.foo
+}
+// timestamp=2022-04-05T11:37:59.336623325Z level=ERROR thread=#zio-fiber-0 message="" cause="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
+//	at <empty>.FooLibrary.baz(MainApp.scala:6)
+//	at <empty>.FooLibrary.bar(MainApp.scala:5)
+//	at <empty>.FooLibrary.foo(MainApp.scala:4)"
+```
+
+To avoid messing up our user's execution trace, we should add implicit trace parameters to our methods:
+
+```scala mdoc:compile-only
+import zio._
+
+object FooLibrary {
+  def foo(implicit trace: ZTraceElement) = bar.flatMap(x => ZIO.succeed(x * 2))
+  private def bar(implicit trace: ZTraceElement) = baz.flatMap(x => ZIO.succeed(x * x))
+  private def baz(implicit trace: ZTraceElement) = ZIO.fail("Oh uh!").as(5)
+}
+
+object MainApp extends ZIOAppDefault {
+  def run = FooLibrary.foo // line 10
+}
+//timestamp=2022-04-05T11:47:59.773409363Z level=ERROR thread=#zio-fiber-0 message="" cause="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
+//	at <empty>.MainApp.run(MainApp.scala:10)"
+```
+
 2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as a lazy val in our implementation to prevent _double evaluation_. 
     
     The overall pattern in implementing such methods will be:
@@ -166,9 +211,9 @@ Here are some of the most important changes:
 
 - **`Discard` instead of the underscore `_` suffix** — The underscore suffix is another legacy naming convention from Haskell's world. In ZIO 1.x, the underscore suffix means we are going to discard the result. The underscore version works exactly like the one without the underscore, but it discards the result and returns `Unit` in the ZIO context. For example, the `collectAll_` operator renamed to `collectAllDiscard`.
 
-- **`as`, `to`, `into` prefixes** — The `ZIO#asService` method is renamed to `ZIO#toLayer` and also the `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
+- **`as`, `to`, `into` prefixes** — The `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
     1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
-    2. **to** — The `ZIO#to` method and its variants like `ZIO#toLayer` and `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
+    2. **to** — The `ZIO#to` method and its variants like `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
     3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, and `ZStream#intoQueue`)
 
 | ZIO 1.x                        | ZIO 2.x                           |
@@ -196,7 +241,6 @@ Here are some of the most important changes:
 | `ZIO#timeoutHalt`              | `ZIO#timeoutFailCause`            |
 |                                |                                   |
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
-| `ZIO#asService`                | `ZIO#toLayer`            |
 |                                |                                   |
 | `ZIO.accessM`                  | `ZIO.environmentWithZIO`          |
 | `ZIO.fromFunctionM`            | `ZIO.environmentWithZIO`          |
@@ -568,7 +612,7 @@ After running the effect on the specified runtime configuration, it will restore
 
 ## ZLayer
 
-### Functions to Layers
+### Constructing Layers
 
 In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
 
@@ -586,20 +630,7 @@ val live: URLayer[Clock with Console, Logging] =
   }
 ```
 
-ZIO 2.x deprecates all `ZLayer.fromService*` functions:
-
-| ZIO 1.0                          | ZIO 2.x |
-|----------------------------------|---------|
-| `ZLayer.fromService`             | `toLayer` |
-| `ZLayer.fromServices`            | `toLayer` |
-| `ZLayer.fromServiceM`            | `toLayer` |
-| `ZLayer.fromServicesM`           | `toLayer` |
-| `ZLayer.fromServiceMany`         | `toLayer` |
-| `ZLayer.fromServicesMany`        | `toLayer` |
-| `ZLayer.fromServiceManyM`        | `toLayer` |
-| `ZLayer.fromServicesManyM`       | `toLayer` |
-
-Instead, it provides the `toLayer` extension methods for functions:
+ZIO 2.x deprecates all `ZLayer.fromService*` functions. Instead, we use a for comprehension:
 
 ```scala
 case class LoggingLive(console: Console, clock: Clock) extends Logging {
@@ -611,12 +642,15 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 }
 
 object LoggingLive {
-  val layer: ZLayer[Any, Nothing, Logging] =
-    (LoggingLive(_, _)).toLayer[Logging]
+  val layer: ZLayer[Clock with Console, Nothing, Logging] =
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+        clock   <- ZIO.service[Clock]
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
-
-Note that the `LoggingLive(_, _)` is a `Function2` of type `(Console, Clock) => LoggingLive`. As the ZIO 2.x provides the `toLayer` extension method for all `Function` arities, we can call the `toLayer` on any function to convert that to the `ZLayer`. Unlike the `ZLayer.fromService*` functions, this can completely infer the input types, so it saves us from a lot of boilerplates we have had in ZIO 1.x.
 
 ### Accessing a Service from the Environment
 
@@ -721,28 +755,47 @@ case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobSt
 
 object Logging {
   val live: URLayer[Console, Logging] =
-    LoggerImpl.toLayer[Logging]
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+      } yield LoggerImpl(console)
+    }
 }
 
 object Database {
   val live: URLayer[Any, Database] =
-    DatabaseImp.toLayer[Database]
+    ZLayer.succeed(DatabaseImp())
 }
 
 object UserRepo {
   val live: URLayer[Logging with Database, UserRepo] =
-    (UserRepoImpl(_, _)).toLayer[UserRepo]
+    ZLayer {
+      for {
+        logging  <- ZIO.service[Logging]
+        database <- ZIO.service[Database]
+      } yield UserRepoImpl(logging, database)
+    }
 }
 
 
 object BlobStorage {
   val live: URLayer[Logging, BlobStorage] =
-    BlobStorageImpl.toLayer[BlobStorage]
+    ZLayer {
+      for {
+        logging <- ZIO.service[Logging]
+      } yield BlobStorageImpl(logging)
+    }
 }
 
 object DocRepo {
   val live: URLayer[Logging with Database with BlobStorage, DocRepo] =
-    (DocRepoImpl(_, _, _)).toLayer[DocRepo]
+    ZLayer {
+      for {
+        logging     <- ZIO.service[Logging]
+        database    <- ZIO.service[Database]
+        blobStorage <- ZIO.service[BlobStorage]
+      } yield DocRepoImpl(logging, database, blobStorage)
+    }
 }
   
 val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
@@ -1015,7 +1068,12 @@ case class LoggerLive(console: Console) extends Logger {
 }
 
 object LoggerLive {
-  val layer = (LoggerLive.apply _).toLayer[Logger]
+  val layer =
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+      } yield LoggerLive(console)
+    }
 }
 
 object MainApp extends ZIOAppDefault {
@@ -1169,7 +1227,12 @@ case class LoggingLive(console: Console, clock: Clock) extends Logging {
 // Converting the Service Implementation into the ZLayer
 object LoggingLive {
   val layer: URLayer[Console with Clock, Logging] =
-    (LoggingLive(_, _)).toLayer[Logging]
+    ZLayer {
+      for {
+        console <- ZIO.service[Console]
+        clock   <- ZIO.service[Clock]
+      } yield LoggingLive(console, clock)
+    }
 }
 ```
 
@@ -1179,54 +1242,7 @@ As we see, we have the following changes:
 
 2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
-    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we call `toLayer` on the service implementation.
-
-    > **_Note:_**
-    > 
-    > When implementing a service that doesn't have any dependency, our code might not compile:
-    > ```scala
-    > case class LoggingLive() extends Logging {
-    >   override def log(line: String): UIO[Unit] =
-    >     ZIO.attempt(println(line)).orDie
-    > }
-    > 
-    > object LoggingLive {
-    >   val layer: URLayer[Any, Logging] = LoggingLive().toLayer
-    > }
-    >``` 
-    > Compiler Error:
-    > ```
-    > value toLayer is not a member of LoggingLive
-    > val layer: URLayer[Any, Logging] = LoggingLive().toLayer
-    > ```
-    > The problem here is that the companion object won't automatically extend `() => Logging`. So the workaround is doing that manually:
-    > ```scala
-    > object LoggingLive extends (() => Logging) {
-    >   val layer: URLayer[Any, Logging] = LoggingLive.toLayer
-    > }
-    > ```
-    > Or we can just write the `val layer: URLayer[Any, Logging] = (() => Logging).toLayer` to fix that.
- 
-    > **_Note:_**
-    > 
-    > The new pattern encourages us to parametrize _case classes_ to introduce service dependencies and then using `toLayer` syntax as a very simple way that always works. But it doesn't enforce us to do that. We can also just pull whatever services we want from the environment using `ZIO.service` and then implement the service and call `toLayer` on it:
-    > ```scala mdoc:silent:nest
-    > object LoggingLive {
-    >   val layer: ZLayer[Clock with Console, Nothing, Logging] =
-    >     ZLayer {
-    >       for {
-    >         console <- ZIO.service[Console]
-    >         clock   <- ZIO.service[Clock]
-    >       } yield new Logging {
-    >         override def log(line: String): UIO[Unit] =
-    >           for {
-    >             time <- clock.currentDateTime
-    >             _    <- console.printLine(s"$time--$line").orDie
-    >           } yield ()
-    >       }
-    >     }
-    > }
-    > ```
+    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we use a for comprehension.
 
 3. **Separated Interface** — In the _Service Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
@@ -1246,25 +1262,6 @@ As we see, we have the following changes:
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
-   We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
-   
-    ```scala mdoc:silent:nest
-    trait Logging {
-      def log(line: String): UIO[Unit]
-    }
-    
-    object Logging extends Accessible[Logging]
-    
-    def log(line: String): ZIO[Logging with Clock, Nothing, Unit] =
-      for {
-        clock <- ZIO.service[Clock]
-        now   <- clock.localDateTime
-        _     <- Logging(_.log(s"$now-$line"))
-      } yield ()
-    ```
-
-While Scala 3 doesn't support macro annotation like, so instead of using `@accessible`, the `Accessible` trait is a macro-less approach to create accessor methods specially for Scala 3 users.
-
 The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The _Service Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ### Other Changes
@@ -1279,6 +1276,254 @@ Here is list of other deprecated methods:
 | `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
 | `ZLayer.identity`          | `ZLayer.environment`         |
 | `ZLayer.requires`          | `ZLayer.environment`         |
+
+## Scopes
+
+ZIO 2.x introduced a new data type called `Scope`. Scopes are a huge simplification to resource management in ZIO 2.0 that brings new levels of simplicity, power, and performance. They are a replacement for the old `ZManaged` data type in ZIO 1.x.
+
+### ZManaged
+
+In ZIO 1.x, we used a data type called `ZManaged` to provide resource safety. Although inspired by the Managed data type from Haskell, ZIO Managed innovated in a number of ways over both Haskell and Cats Effect Resource:
+
+1. `ZManaged` supported interruptible acquisition, which is useful for concurrent data structures like semaphores, where it is safe to interrupt acquisition because the cleanup can determine (by inspecting the in-memory state) whether the acquisition succeeded or not.
+
+2. `ZManaged` supported parallel operations, all with the most desirable semantics possible. For example, if we acquired resources in parallel, then they would be released in parallel, and if anything went wrong, of course, the acquisition would be aborted and resources released.
+
+3. `ZManaged` has an API almost identical to `ZIO`, by design, so our knowledge of `ZIO` transfers to `Managed`. The main difference is that in `ZManaged`, `flatMap` lets us _use and keep open a resource_, while `use` lets us _use and release the resource (going back to `ZIO`)_.
+
+4. In addition, `ZManaged` has new constructors, so we can create them from a pair of acquire/release actions, or from just a finalizer (which would be invoked during finalization).
+
+Despite the innovation and numerous benefits, however, `ZManaged` presents some serious drawbacks:
+
+- First, `ZManaged` is yet another thing to teach to developers. Many new `ZIO` developers try to avoid using `ZManaged`, because they are not sure exactly what it's for or how it differs from `ZIO`. Those who use it, sometimes wonder when to use `ZIO` versus `ZManaged`.
+
+- Second, all the methods on `ZIO` must be manually and painstakingly re-implemented on `ZManaged`, but with much more complex implementations due to the complications of handling resource-safety in the presence of concurrency. In practice, `ZIO` still has more methods than `ZManaged`.
+
+- Third, `ZManaged` is a layer over `ZIO`, and is slower than `ZIO` itself, because of the additional complications and wrapping. Unlike other approaches, `ZIO` uses an executable encoding, so it's able to avoid double-interpretation, but it still has measurable overhead over `ZIO`.
+
+Despite the drawbacks of `ZManaged`, the benefits of concurrent resource safety are significant, so we documented, supported, and tried to optimize `ZManaged` over the life of ZIO 1.x, not having a suitable alternative.
+
+### Scopes
+
+The concept of scopes has been implicit in ZIO since before ZIO 1.0, including in `ZManaged`, `FiberRef`, interruptibility, and thread pool shifting. In each of these cases we "do something" at the beginning of the scope (e.g. acquire a resource, set a `FiberRef`, change the interruptibility of the thread pool) and "do something else" (release the resource, restore the `FiberRef`, restore the interruptibility or thread pool) at the end of the scope.
+
+However, scopes have not been first-class values, which has required the use of other data types such as `ZManaged` to represent this concept. With ZIO 2.0, all of this is radically changing for the better! Thanks to other ZIO 2.0 innovations, including the [removal of `Has`](#has) (which bakes a compositional environment directly into the ZIO data type), we have found a way to delete `ZManaged` entirely, while preserving all of its benefits!
+
+ZIO 2.x addresses this by introducing the concept of a Scope as a first class value:
+
+```scala
+trait Scope {
+  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
+  def close(exit: Exit[Any, Any]): UIO[Unit]
+}
+```
+
+That is, a `Scope` is something that we can add finalizers to and eventually close, running all of the finalizers in the scope. Operations that acquire resources add their finalizers directly to the current scope, stored in ZIO Environment. So we found that the ZIO Environment is now powerful enough to provide resource-safety by itself!
+
+For example, an operation that opens a file might have this type signature:
+
+```scala
+def openFile(name: String): ZIO[Scope, IOException, FileInputStream] =
+  ZIO.acquireRelease(acquire)(release)
+```
+
+The `openFile` workflow requires a `Scope` to be run and its implementation will add a finalizer to the scope that will close the file. So, in combination with the environment, we can use `Scope` to represent resources.
+
+This allows us to work with the resource and compose it with other resources, much like we do with `ZManaged`. Then, when we are ready to close the scope we use `ZIO.scoped` to provide the scope and eliminate it from the environment, much the same way we do with `use` on `ZManaged`:
+
+```scala
+ZIO.scoped {
+  openFile(name).flatMap(file => useFile(file))  // ZIO[Scoped, IOException, Unit]
+}                                                // ZIO[Any, IOException, Unit]
+```
+
+`ZIO.scoped` eliminates `Scope` from the environment, leaving the rest of the environment unchanged. It converts the type of enclosed effect from `ZIO[Scoped, IOException, Unit]` to `ZIO[Any, IOException, Unit]`. So, we can think of it as an algebraic effect handler that handles the `Scope` effect by eliminating it from the set of algebraic effects being used. This is another use case of [eliminators for environmental effect](#eliminators-for-environmental-effects).
+
+This simple, beautiful, and powerful design gives us bulletproof parallel and concurrent operators that may acquire resources with well-defined and optimal semantics in successful and failure scenarios. All the `ZManaged` semantics arise for free atop `ZIO`.
+
+Scopes are simple because they don't require us to learn any new data types. Scopes are powerful because ZIO has more operators than `ZManaged`, and is always _up to date_ with the latest and greatest. Scopes are fast because there are no layers atop ZIO.
+
+In addition to providing simpler, more powerful, and faster resource management, the replacement of Managed with scopes is going to tremendously simplify the ZIO API: there will not be any more `toManaged`, `mapManaged`, etc, variants. Layers will always be constructed with `ZIO`.
+
+### Migration from `ZManaged` to `Scope`
+
+Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We should follow these steps to migrate the `ZManaged` codebase to `Scope`:
+
+1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`.
+
+Example: 
+
+```diff
+object HttpClient {
+-   def make(): ZManaged[Config, IOException, HttpClient] = ???
++   def make(): ZIO[Config with Scope, IOException, HttpClient] = ???
+}
+```
+
+2. Replace all references to `resource.use(f)` with `ZIO.scoped(resource.flatMap(f))`:
+
+```diff
+- resource.use(f)
++ ZIO.scoped {
++  resource.flatMap(f) 
++ }
+```
+
+Example:
+
+```diff
+- ZManaged
+-  .fromAutoCloseable(zio.blocking.effectBlockingIO(scala.io.Source.fromFile("file.txt")))
+-  .use(x => ZIO.succeed(x.getLines().length))
++ ZIO.scoped {
++   ZIO
++    .fromAutoCloseable(ZIO.attemptBlockingIO(scala.io.Source.fromFile("file.txt")))
++    .flatMap(x => ZIO.succeed(x.getLines().length))
++ }
+```
+
+3. Replace all `ZManaged` constructors with `ZIO.acquireRelease` or one of its variants:
+
+```diff
+- ZManaged.make(acquire)(release)
++ ZIO.acquireRelease(acqurie)(release)
+```
+
+Example: 
+
+```diff
+- ZManaged.fromAutoCloseable(
+-   zio.blocking.effectBlockingIO(new FileInputStream("file.txt")) 
+- )
++ ZIO.fromAutoCloseable(
++   ZIO.attemptBlockingIO(new FileInputStream("file.txt")) 
++ )
+```
+
+4. Replace all usages of `ZLayer(resource)` or `resource.toLayer` with `ZLayer.scoped(resource)`, all references to `ZStream.managed(resource)` with `ZStream.scoped(resource)`, and so on for similar constructors:
+
+```diff
+- ZLayer {
+-   resource // with type of ZManaged[R, E, A]
+- }
++ ZLayer.scoped {
++   resource // with type of ZIO[R with Scope, E, A]
++ }
+
+- resource.toLayer
++ ZLayer.scoped(resource)
+
+- ZStream.managed(resource)
++ ZStream.scoped(resource)
+```
+
+5. Delete all uses of `toManaged_`:
+
+```diff
+- effect.toManaged_
++ effect 
+```
+
+6. Replace all uses of `toManaged(finalizer)` with `withFinalizer(finalizer)`:
+
+```diff
+- effect.toManaged(finalizer)
++ effect.withFinalizer(finalizer)
+```
+
+Example:
+
+```diff
+val effect: ZIO[Any, IOException, FileInputStream] = ???
+- effect.toManaged(is => ZIO.succeed(is.close))
++ effect.withFinalizer(is => ZIO.succeed(is.close()))
+```
+
+Finally, let's try a full example of converting a ZManaged codebase to the Scoped one. Assume we have written the following `transfer` function in ZIO 1.x using `ZManaged`:
+
+```scala
+import zio._
+import zio.blocking._
+
+import java.io._
+
+def close(resource: Closeable): URIO[Blocking, Unit] =
+  effectBlockingIO(resource.close()).orDie
+
+def is(file: String): ZManaged[Blocking, IOException, FileInputStream] =
+  ZManaged.make(effectBlockingIO(new FileInputStream(file)))(close)
+
+def os(file: String): ZManaged[Blocking, IOException, FileOutputStream] =
+  ZManaged.make(effectBlockingIO(new FileOutputStream(file)))(close)
+
+def copy(
+    from: FileInputStream,
+    to: FileOutputStream
+): ZIO[Blocking, IOException, Unit] =
+  effectBlockingIO {
+    val buf = new Array[Byte](1024)
+    var length = 0
+    length = from.read(buf)
+
+    while (length > 0) {
+      to.write(buf, 0, length)
+      length = from.read(buf)
+    }
+  }
+
+def transfer(from: String, to: String): ZIO[Blocking, IOException, Unit] = {
+  val resource = for {
+    from <- is(from)
+    to   <- os(to)
+    _    <- copy(from, to).toManaged_
+  } yield ()
+  resource.useNow
+}
+```
+
+As of ZIO 2.x, we should rewrite it as follows:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io._
+
+def close(resource: Closeable): UIO[Unit] =
+  ZIO.attempt(resource.close()).orDie
+
+def is(file: String): ZIO[Scope, IOException, FileInputStream] =
+  ZIO.acquireRelease(ZIO.attemptBlockingIO(new FileInputStream(file)))(close)
+
+def os(file: String): ZIO[Scope, IOException, FileOutputStream] =
+  ZIO.acquireRelease(ZIO.attemptBlockingIO(new FileOutputStream(file)))(close)
+
+def copy(
+    from: FileInputStream,
+    to: FileOutputStream
+): IO[IOException, Unit] =
+  ZIO.attemptBlockingIO(???)
+
+def transfer(from: String, to: String): IO[Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      from <- is(from)
+      to   <- os(to)
+      _    <- copy(from, to)
+    } yield ()
+  }
+```
+
+As we can see, the migration is quite straightforward, and it doesn't require much extra work.
+
+For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
+
+So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
+```
+
+And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
 
 ## Ref
 
@@ -1306,42 +1551,7 @@ To perform the migration, after renaming these types to the newer ones (e.g. `Re
 
 ## Semaphore and TSemaphore
 
-In ZIO 1.x, we have two versions of Semaphore, `zio.Semaphore` and `zio.stm.TSemaphore`. The former is the ordinary semaphore, and the latter is the STM one.
-
-In ZIO 2.x, we removed the implementation of `zio.stm.Semaphore` and used the `TSemaphore` as its implementation. So, now the `Semaphore` uses the `TSemaphore` in its underlying. So to migrate a `Semaphore` code base to the ZIO 2.x, we just need to commit `STM` values to get back to the `ZIO` world.
-
-ZIO 1.x:
-
-```scala
-import zio._
-import zio.console.Console
-
-val myApp: ZIO[Console, Nothing, Unit] =
-  for {
-    semaphore <- Semaphore.make(4)
-    available <- ZIO.foreach((1 to 10).toList) { _ =>
-      semaphore.withPermit(semaphore.available)
-    }
-    _ <- zio.console.putStrLn(available.toString()).orDie
-  } yield ()
-```
-
-ZIO 2.x:
-
-```scala mdoc:silent:nest
-import zio._
-
-val myApp: ZIO[Any, Nothing, Unit] =
-  for {
-    semaphore <- Semaphore.make(4)
-    available <- ZIO.foreach((1 to 10).toList) { _ =>
-      semaphore.withPermit(semaphore.available.commit)
-    }
-    _ <- Console.printLine(available.toString()).orDie
-  } yield ()
-```
-
-Also, there is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, instead of accepting `STM` values, it accepts only `ZIO` values and returns the `ZIO` value.
+There is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, instead of accepting `STM` values, it accepts only `ZIO` values and returns the `ZIO` value.
 
 | `withPermit` | Input          | Output         |
 |--------------|----------------|----------------|

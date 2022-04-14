@@ -70,10 +70,6 @@ object BoolAlgebraM {
   def failure[A](a: A)(implicit trace: ZTraceElement): BoolAlgebraM[Any, Nothing, A] =
     BoolAlgebraM(ZIO.succeedNow(BoolAlgebra.failure(a)))
 
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, A](effect: ZIO[R, E, A])(implicit trace: ZTraceElement): BoolAlgebraM[R, E, A] =
-    fromZIO(effect)
-
   def fromZIO[R, E, A](effect: ZIO[R, E, A])(implicit trace: ZTraceElement): BoolAlgebraM[R, E, A] =
     BoolAlgebraM(effect.map(BoolAlgebra.success))
 

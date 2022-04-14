@@ -29,37 +29,10 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Option[Sam
   /**
    * A symbolic alias for `zip`.
    */
-  @deprecated("use <*>", "2.0.0")
-  def <&>[R1 <: R, B](
-    that: Sample[R1, B]
-  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Sample[R1, zippable.Out] =
-    self.zip(that)
-
-  /**
-   * A symbolic alias for `zip`.
-   */
   def <*>[R1 <: R, B](
     that: Sample[R1, B]
   )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Sample[R1, zippable.Out] =
     self.zip(that)
-
-  /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings.
-   */
-  @deprecated("use zip", "2.0.0")
-  def cross[R1 <: R, B](
-    that: Sample[R1, B]
-  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Sample[R1, zippable.Out] =
-    self.crossWith(that)(zippable.zip(_, _))
-
-  /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings with the specified function.
-   */
-  @deprecated("use zipWith", "2.0.0")
-  def crossWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C)(implicit trace: ZTraceElement): Sample[R1, C] =
-    self.flatMap(a => that.map(b => f(a, b)))
 
   /**
    * Filters this sample by replacing it with its shrink tree if the value does

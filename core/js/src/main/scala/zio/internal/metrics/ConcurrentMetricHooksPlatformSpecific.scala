@@ -38,7 +38,9 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     val boundaries = Array.ofDim[Double](bounds.length)
     var count      = 0L
     var sum        = 0.0
-    val size       = bounds.length
+    var size       = bounds.length
+    var min        = Double.MaxValue
+    var max        = Double.MinValue
 
     bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
 
@@ -59,6 +61,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       values(from) = values(from) + 1
       count += 1
       sum += value
+      if (value < min) min = value
+      if (value > max) max = value
       ()
     }
 
@@ -76,7 +80,10 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
       builder.result()
     }
 
-    MetricHook(update, () => MetricState.Histogram(getBuckets(), count, sum))
+    MetricHook(
+      update,
+      () => MetricState.Histogram(getBuckets(), count, min, max, sum)
+    )
   }
 
   def summary(key: MetricKey.Summary): MetricHook.Summary = {
@@ -86,10 +93,16 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
     var head   = 0
     var count  = 0L
     var sum    = 0.0
+    var min    = Double.MaxValue
+    var max    = Double.MinValue
 
     val sortedQuantiles: Chunk[Double] = quantiles.sorted(DoubleOrdering)
 
     def getCount(): Long = count
+
+    def getMin(): Double = min
+
+    def getMax(): Double = max
 
     def getSum(): Double = sum
 
@@ -129,6 +142,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
 
       count += 1
       sum += value
+      if (value < min) min = value
+      if (value > max) max = value
       ()
     }
 
@@ -139,6 +154,8 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
           error,
           snapshot(java.time.Instant.now()),
           getCount(),
+          getMin(),
+          getMax(),
           getSum()
         )
     )

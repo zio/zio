@@ -41,15 +41,6 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
   /**
    * A symbolic alias for `zip`.
    */
-  @deprecated("use <*>", "2.0.0")
-  def <&>[R1 <: R, B](
-    that: Gen[R1, B]
-  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Gen[R1, zippable.Out] =
-    self <*> that
-
-  /**
-   * A symbolic alias for `zip`.
-   */
   def <*>[R1 <: R, B](
     that: Gen[R1, B]
   )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Gen[R1, zippable.Out] =
@@ -71,24 +62,6 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
     self.flatMap { a =>
       pf.andThen(Gen.const(_)).applyOrElse[A, Gen[Any, B]](a, _ => Gen.empty)
     }
-
-  /**
-   * Composes this generator with the specified generator to create a cartesian
-   * product of elements.
-   */
-  @deprecated("use zip", "2.0.0")
-  def cross[R1 <: R, B](
-    that: Gen[R1, B]
-  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Gen[R1, zippable.Out] =
-    self.zip(that)
-
-  /**
-   * Composes this generator with the specified generator to create a cartesian
-   * product of elements with the specified function.
-   */
-  @deprecated("use zipWith", "2.0.0")
-  def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: ZTraceElement): Gen[R1, C] =
-    self.zipWith(that)(f)
 
   /**
    * Filters the values produced by this generator, discarding any values that
@@ -127,13 +100,6 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
 
   def map[B](f: A => B)(implicit trace: ZTraceElement): Gen[R, B] =
     Gen(sample.map(_.map(_.map(f))))
-
-  /**
-   * Maps an effectual function over a generator.
-   */
-  @deprecated("use mapZIO", "2.0.0")
-  def mapM[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: ZTraceElement): Gen[R1, B] =
-    mapZIO(f)
 
   /**
    * Maps an effectual function over a generator.
@@ -228,112 +194,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen.stringBounded(min, max)(alphaNumericChar)
 
   /**
-   * A generator US-ASCII strings. Shrinks towards the empty string.
-   */
-  @deprecated("use asciiString", "2.0.0")
-  def anyASCIIString(implicit trace: ZTraceElement): Gen[Sized, String] =
-    Gen.asciiString
-
-  /**
-   * A generator of US-ASCII characters. Shrinks toward '0'.
-   */
-  @deprecated("use asciiChar", "2.0.0")
-  def anyASCIIChar(implicit trace: ZTraceElement): Gen[Any, Char] =
-    Gen.asciiChar
-
-  /**
-   * A generator of bytes. Shrinks toward '0'.
-   */
-  @deprecated("use byte", "2.0.0")
-  def anyByte(implicit trace: ZTraceElement): Gen[Any, Byte] =
-    Gen.byte
-
-  /**
-   * A generator of characters. Shrinks toward '0'.
-   */
-  @deprecated("use char", "2.0.0")
-  def anyChar(implicit trace: ZTraceElement): Gen[Any, Char] =
-    Gen.char
-
-  /**
-   * A generator of doubles. Shrinks toward '0'.
-   */
-  @deprecated("use double", "2.0.0")
-  def anyDouble(implicit trace: ZTraceElement): Gen[Any, Double] =
-    Gen.double
-
-  /**
-   * A generator of floats. Shrinks toward '0'.
-   */
-  @deprecated("use float", "2.0.0")
-  def anyFloat(implicit trace: ZTraceElement): Gen[Any, Float] =
-    Gen.float
-
-  /**
-   * A generator of hex chars(0-9,a-f,A-F).
-   */
-  @deprecated("use hexChar", "2.0.0")
-  def anyHexChar(implicit trace: ZTraceElement): Gen[Any, Char] =
-    Gen.hexChar
-
-  /**
-   * A generator of integers. Shrinks toward '0'.
-   */
-  @deprecated("use int", "2.0.0")
-  def anyInt(implicit trace: ZTraceElement): Gen[Any, Int] =
-    Gen.int
-
-  /**
-   * A generator of longs. Shrinks toward '0'.
-   */
-  @deprecated("use long", "2.0.0")
-  def anyLong(implicit trace: ZTraceElement): Gen[Any, Long] =
-    Gen.long
-
-  /**
-   * A generator of lower hex chars(0-9, a-f).
-   */
-  @deprecated("use hexCharLower", "2.0.0")
-  def anyLowerHexChar(implicit trace: ZTraceElement): Gen[Any, Char] =
-    Gen.hexCharLower
-
-  /**
-   * A generator of shorts. Shrinks toward '0'.
-   */
-  @deprecated("use short", "2.0.0")
-  def anyShort(implicit trace: ZTraceElement): Gen[Any, Short] =
-    Gen.short
-
-  /**
-   * A generator of strings. Shrinks towards the empty string.
-   */
-  @deprecated("use string", "2.0.0")
-  def anyString(implicit trace: ZTraceElement): Gen[Sized, String] =
-    Gen.string
-
-  /**
-   * A generator of Unicode characters. Shrinks toward '0'.
-   */
-  @deprecated("use unicodeChar", "2.0.0")
-  def anyUnicodeChar(implicit trace: ZTraceElement): Gen[Any, Char] =
-    Gen.unicodeChar
-
-  /**
-   * A generator of upper hex chars(0-9, A-F).
-   */
-  @deprecated("use hexCharUpper", "2.0.0")
-  def anyUpperHexChar(implicit trace: ZTraceElement): Gen[Any, Char] =
-    Gen.hexCharUpper
-
-  /**
-   * A generator of universally unique identifiers. The returned generator will
-   * not have any shrinking.
-   */
-  @deprecated("use uuid", "2.0.0")
-  def anyUUID(implicit trace: ZTraceElement): Gen[Any, UUID] =
-    Gen.uuid
-
-  /**
    * A generator of US-ASCII characters. Shrinks toward '0'.
    */
   def asciiChar(implicit trace: ZTraceElement): Gen[Any, Char] =
@@ -363,6 +223,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
+   * A generator of [[java.math.BigDecimal]] inside the specified range: [start,
+   * end]. The shrinker will shrink toward the lower end of the range
+   * ("smallest").
+   *
+   * The values generated will have a precision equal to the precision of the
+   * difference between `max` and `min`.
+   * @see
+   *   See [[bigDecimal]] for implementation.
+   */
+  def bigDecimalJava(min: BigDecimal, max: BigDecimal)(implicit trace: ZTraceElement): Gen[Any, java.math.BigDecimal] =
+    Gen
+      .bigDecimal(min, max)
+      .map(_.underlying)
+
+  /**
    * A generator of big integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -382,6 +257,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         effect.map(Sample.shrinkIntegral(min))
       }
     }
+
+  /**
+   * A generator of [[java.math.BigInteger]] inside the specified range: [start,
+   * end]. The shrinker will shrink toward the lower end of the range
+   * ("smallest").
+   * @see
+   *   See [[bigInt]] for implementation.
+   */
+  def bigIntegerJava(min: BigInt, max: BigInt)(implicit trace: ZTraceElement): Gen[Any, java.math.BigInteger] =
+    Gen
+      .bigInt(min, max)
+      .map(_.underlying)
 
   /**
    * A generator of booleans. Shrinks toward 'false'.
@@ -485,51 +372,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     fromZIOSample(ZIO.succeedNow(sample))
 
   /**
-   * Composes the specified generators to create a cartesian product of elements
-   * with the specified function.
-   */
-  @deprecated("use collectAll", "2.0.0")
-  def crossAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: ZTraceElement): Gen[R, List[A]] =
-    collectAll(gens)
-
-  /**
-   * Composes the specified generators to create a cartesian product of elements
-   * with the specified function.
-   */
-  @deprecated("use cross", "2.0.0")
-  def crossN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C)(implicit trace: ZTraceElement): Gen[R, C] =
-    gen1.crossWith(gen2)(f)
-
-  /**
-   * Composes the specified generators to create a cartesian product of elements
-   * with the specified function.
-   */
-  @deprecated("use cross", "2.0.0")
-  def crossN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(
-    f: (A, B, C) => D
-  )(implicit trace: ZTraceElement): Gen[R, D] =
-    for {
-      a <- gen1
-      b <- gen2
-      c <- gen3
-    } yield f(a, b, c)
-
-  /**
-   * Composes the specified generators to create a cartesian product of elements
-   * with the specified function.
-   */
-  @deprecated("use cross", "2.0.0")
-  def crossN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
-    f: (A, B, C, D) => F
-  )(implicit trace: ZTraceElement): Gen[R, F] =
-    for {
-      a <- gen1
-      b <- gen2
-      c <- gen3
-      d <- gen4
-    } yield f(a, b, c, d)
-
-  /**
    * A generator of doubles. Shrinks toward '0'.
    */
   def double(implicit trace: ZTraceElement): Gen[Any, Double] =
@@ -565,20 +407,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def exponential(implicit trace: ZTraceElement): Gen[Any, Double] =
     uniform.map(n => -math.log(1 - n))
-
-  /**
-   * Constructs a generator from an effect that constructs a value.
-   */
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, A](effect: URIO[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
-    fromZIO(effect)
-
-  /**
-   * Constructs a generator from an effect that constructs a sample.
-   */
-  @deprecated("use fromZIOSample", "2.0.0")
-  def fromEffectSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: ZTraceElement): Gen[R, A] =
-    fromZIOSample(effect)
 
   /**
    * Constructs a deterministic generator that only generates the specified
@@ -1024,163 +852,6 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def whitespaceChars(implicit trace: ZTraceElement): Gen[Any, Char] =
     Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use collectAll", "2.0.0")
-  def zipAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: ZTraceElement): Gen[R, List[A]] =
-    collectAll(gens)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C](gen1: Gen[R, A], gen2: Gen[R, B])(f: (A, B) => C)(implicit trace: ZTraceElement): Gen[R, C] =
-    gen1.zipWith(gen2)(f)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C])(f: (A, B, C) => D)(implicit
-    trace: ZTraceElement
-  ): Gen[R, D] =
-    (gen1 <&> gen2 <&> gen3).map(f.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F](gen1: Gen[R, A], gen2: Gen[R, B], gen3: Gen[R, C], gen4: Gen[R, D])(
-    f: (A, B, C, D) => F
-  )(implicit trace: ZTraceElement): Gen[R, F] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4).map(f.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F, G](
-    gen1: Gen[R, A],
-    gen2: Gen[R, B],
-    gen3: Gen[R, C],
-    gen4: Gen[R, D],
-    gen5: Gen[R, F]
-  )(
-    fn: (A, B, C, D, F) => G
-  )(implicit trace: ZTraceElement): Gen[R, G] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5).map(fn.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F, G, H](
-    gen1: Gen[R, A],
-    gen2: Gen[R, B],
-    gen3: Gen[R, C],
-    gen4: Gen[R, D],
-    gen5: Gen[R, F],
-    gen6: Gen[R, G]
-  )(
-    fn: (A, B, C, D, F, G) => H
-  )(implicit trace: ZTraceElement): Gen[R, H] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6).map(fn.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F, G, H, I](
-    gen1: Gen[R, A],
-    gen2: Gen[R, B],
-    gen3: Gen[R, C],
-    gen4: Gen[R, D],
-    gen5: Gen[R, F],
-    gen6: Gen[R, G],
-    gen7: Gen[R, H]
-  )(
-    fn: (A, B, C, D, F, G, H) => I
-  )(implicit trace: ZTraceElement): Gen[R, I] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7).map(fn.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F, G, H, I, J](
-    gen1: Gen[R, A],
-    gen2: Gen[R, B],
-    gen3: Gen[R, C],
-    gen4: Gen[R, D],
-    gen5: Gen[R, F],
-    gen6: Gen[R, G],
-    gen7: Gen[R, H],
-    gen8: Gen[R, I]
-  )(
-    fn: (A, B, C, D, F, G, H, I) => J
-  )(implicit trace: ZTraceElement): Gen[R, J] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8).map(fn.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F, G, H, I, J, K](
-    gen1: Gen[R, A],
-    gen2: Gen[R, B],
-    gen3: Gen[R, C],
-    gen4: Gen[R, D],
-    gen5: Gen[R, F],
-    gen6: Gen[R, G],
-    gen7: Gen[R, H],
-    gen8: Gen[R, I],
-    gen9: Gen[R, J]
-  )(
-    fn: (A, B, C, D, F, G, H, I, J) => K
-  )(implicit trace: ZTraceElement): Gen[R, K] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9).map(fn.tupled)
-
-  /**
-   * Zips the specified generators together pairwise. The new generator will
-   * generate elements as long as any generator is generating elements, running
-   * the other generators multiple times if necessary.
-   */
-  @deprecated("use zip", "2.0.0")
-  def zipN[R, A, B, C, D, F, G, H, I, J, K, L](
-    gen1: Gen[R, A],
-    gen2: Gen[R, B],
-    gen3: Gen[R, C],
-    gen4: Gen[R, D],
-    gen5: Gen[R, F],
-    gen6: Gen[R, G],
-    gen7: Gen[R, H],
-    gen8: Gen[R, I],
-    gen9: Gen[R, J],
-    gen10: Gen[R, K]
-  )(
-    fn: (A, B, C, D, F, G, H, I, J, K) => L
-  )(implicit trace: ZTraceElement): Gen[R, L] =
-    (gen1 <&> gen2 <&> gen3 <&> gen4 <&> gen5 <&> gen6 <&> gen7 <&> gen8 <&> gen9 <&> gen10).map(fn.tupled)
 
   /**
    * Restricts an integer to the specified range.

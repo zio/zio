@@ -101,10 +101,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.clockWith {
-      case testClock: TestClock => f(testClock)
-      case _                    => ZIO.dieMessage("Defect: TestClock is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestClock]].get))
 
   /**
    * Retrieves the `TestConsole` service for this test.
@@ -117,10 +114,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.consoleWith {
-      case testConsole: TestConsole => f(testConsole)
-      case _                        => ZIO.dieMessage("Defect: TestConsole is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestConsole]].get))
 
   /**
    * Retrieves the `TestRandom` service for this test.
@@ -133,10 +127,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.randomWith {
-      case testRandom: TestRandom => f(testRandom)
-      case _                      => ZIO.dieMessage("Defect: TestRandom is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestRandom]].get))
 
   /**
    * Retrieves the `TestSystem` service for this test.
@@ -149,10 +140,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    ZIO.systemWith {
-      case testSystem: TestSystem => f(testSystem)
-      case _                      => ZIO.dieMessage("Defect: TestSystem is missing")
-    }
+    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestSystem]].get))
 
   /**
    * Transforms this effect with the specified function. The test environment
@@ -251,18 +239,6 @@ package object test extends CompileVariants {
           }
         )
   }
-
-  /**
-   * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
-   * test type is a ZIO effect that requires an `R` and might fail with an `E`.
-   */
-  type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
-
-  /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more test
-   * annotations.
-   */
-  type Annotated[+A] = (A, TestAnnotationMap)
 
   private def traverseResult[A](
     value: => A,
@@ -414,79 +390,6 @@ package object test extends CompileVariants {
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
-   * Checks the effectual test passes for "sufficient" numbers of samples from
-   * the given random variable.
-   */
-  @deprecated("use check", "2.0.0")
-  def checkM[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
-    test: A => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    TestConfig.samples.flatMap(checkNM(_)(rv)(test))
-
-  /**
-   * A version of `checkM` that accepts two random variables.
-   */
-  @deprecated("use check", "2.0.0")
-  def checkM[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (A, B) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2)(test.tupled)
-
-  /**
-   * A version of `checkM` that accepts three random variables.
-   */
-  @deprecated("use check", "2.0.0")
-  def checkM[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (A, B, C) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3)(test.tupled)
-
-  /**
-   * A version of `checkM` that accepts four random variables.
-   */
-  @deprecated("use check", "2.0.0")
-  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D]
-  )(
-    test: (A, B, C, D) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
-
-  /**
-   * A version of `checkM` that accepts five random variables.
-   */
-  @deprecated("use check", "2.0.0")
-  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F]
-  )(
-    test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
-
-  /**
-   * A version of `checkM` that accepts six random variables.
-   */
-  @deprecated("use check", "2.0.0")
-  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G]
-  )(
-    test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
-
-  /**
    * Checks the test passes for all values from the given random variable. This
    * is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
@@ -564,162 +467,6 @@ package object test extends CompileVariants {
     trace: ZTraceElement
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
-
-  /**
-   * Checks the effectual test passes for all values from the given random
-   * variable. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain.
-   */
-  @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: TestConfig, R1 <: R, E, A](
-    rv: Gen[R, A]
-  )(test: A => ZIO[R1, E, TestResult])(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkStream(rv.sample.collectSome)(test)
-
-  /**
-   * A version of `checkAllM` that accepts two random variables.
-   */
-  @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-    test: (A, B) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2)(test.tupled)
-
-  /**
-   * A version of `checkAllM` that accepts three random variables.
-   */
-  @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-    test: (A, B, C) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3)(test.tupled)
-
-  /**
-   * A version of `checkAllM` that accepts four random variables.
-   */
-  @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D]
-  )(
-    test: (A, B, C, D) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
-
-  /**
-   * A version of `checkAllM` that accepts five random variables.
-   */
-  @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F]
-  )(
-    test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
-
-  /**
-   * A version of `checkAllM` that accepts six random variables.
-   */
-  @deprecated("use checkAll", "2.0.0")
-  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G]
-  )(
-    test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
-
-  /**
-   * Checks in parallel the effectual test passes for all values from the given
-   * random variable. This is useful for deterministic `Gen` that
-   * comprehensively explore all possibilities in a given domain.
-   */
-  @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A], parallelism: Int)(
-    test: A => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkStreamPar(rv.sample.collectSome, parallelism)(test)
-
-  /**
-   * A version of `checkAllMPar` that accepts two random variables.
-   */
-  @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
-    test: (A, B) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2, parallelism)(test.tupled)
-
-  /**
-   * A version of `checkAllMPar` that accepts three random variables.
-   */
-  @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    parallelism: Int
-  )(
-    test: (A, B, C) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3, parallelism)(test.tupled)
-
-  /**
-   * A version of `checkAllMPar` that accepts four random variables.
-   */
-  @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    parallelism: Int
-  )(
-    test: (A, B, C, D) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(test.tupled)
-
-  /**
-   * A version of `checkAllMPar` that accepts five random variables.
-   */
-  @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    parallelism: Int
-  )(
-    test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(test.tupled)
-
-  /**
-   * A version of `checkAllMPar` that accepts six random variables.
-   */
-  @deprecated("use checkPar", "2.0.0")
-  def checkAllMPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    parallelism: Int
-  )(
-    test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-  )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-    checkAllMPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
    * Checks in parallel the effectual test passes for all values from the given
@@ -823,14 +570,6 @@ package object test extends CompileVariants {
     new CheckVariants.CheckN(n)
 
   /**
-   * Checks the effectual test passes for the specified number of samples from
-   * the given random variable.
-   */
-  @deprecated("use checkN", "2.0.0")
-  def checkNM(n: Int): CheckVariants.CheckNM =
-    new CheckVariants.CheckNM(n)
-
-  /**
    * A `Runner` that provides a default testable environment.
    */
   val defaultTestRunner: TestRunner[TestEnvironment, Any] = {
@@ -838,7 +577,9 @@ package object test extends CompileVariants {
     TestRunner(
       TestExecutor.default(
         testEnvironment,
-        Console.live >>> TestLogger.fromConsole >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+        TestLogger.fromConsole(
+          Console.ConsoleLive
+        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
       )
     )
   }
@@ -853,7 +594,7 @@ package object test extends CompileVariants {
    * Creates an ignored test result.
    */
   val ignored: UIO[TestSuccess] =
-    ZIO.succeedNow(TestSuccess.Ignored)
+    ZIO.succeedNow(TestSuccess.Ignored())
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -871,21 +612,12 @@ package object test extends CompileVariants {
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: ZTraceElement
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     Spec.labeled(
       label,
       if (specs.isEmpty) Spec.empty
       else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
     )
-
-  /**
-   * Builds an effectual suite containing a number of other specs.
-   */
-  @deprecated("use suite", "2.0.0")
-  def suiteM[R, E, T](label: String)(specs: ZIO[R, E, Iterable[Spec[R, E, T]]])(implicit
-    trace: ZTraceElement
-  ): Spec[R, E, T] =
-    suite(label)(specs)
 
   /**
    * Builds a spec with a single test.
@@ -895,15 +627,6 @@ package object test extends CompileVariants {
     trace: ZTraceElement
   ): testConstructor.Out =
     testConstructor(label)(assertion)
-
-  /**
-   * Builds a spec with a single effectful test.
-   */
-  @deprecated("use test", "2.0.0")
-  def testM[R, E](label: String)(
-    assertion: => ZIO[R, E, TestResult]
-  )(implicit trace: ZTraceElement): ZSpec[R, E] =
-    test(label)(assertion)
 
   /**
    * Passes version specific information to the specified function, which will
@@ -971,57 +694,6 @@ package object test extends CompileVariants {
         trace: ZTraceElement
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
-    }
-
-    final class CheckNM(private val n: Int) extends AnyVal {
-      @deprecated("use checkN", "2.0.0")
-      def apply[R <: TestConfig, R1 <: R, E, A](rv: Gen[R, A])(
-        test: A => ZIO[R1, E, TestResult]
-      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-        checkStream(rv.sample.forever.collectSome.take(n.toLong))(test)
-      @deprecated("use checkN", "2.0.0")
-      def apply[R <: TestConfig, R1 <: R, E, A, B](rv1: Gen[R, A], rv2: Gen[R, B])(
-        test: (A, B) => ZIO[R1, E, TestResult]
-      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2)(test.tupled)
-      @deprecated("use checkN", "2.0.0")
-      def apply[R <: TestConfig, R1 <: R, E, A, B, C](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
-        test: (A, B, C) => ZIO[R1, E, TestResult]
-      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
-      @deprecated("use checkN", "2.0.0")
-      def apply[R <: TestConfig, R1 <: R, E, A, B, C, D](
-        rv1: Gen[R, A],
-        rv2: Gen[R, B],
-        rv3: Gen[R, C],
-        rv4: Gen[R, D]
-      )(
-        test: (A, B, C, D) => ZIO[R1, E, TestResult]
-      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
-      @deprecated("use checkN", "2.0.0")
-      def apply[R <: TestConfig, R1 <: R, E, A, B, C, D, F](
-        rv1: Gen[R, A],
-        rv2: Gen[R, B],
-        rv3: Gen[R, C],
-        rv4: Gen[R, D],
-        rv5: Gen[R, F]
-      )(
-        test: (A, B, C, D, F) => ZIO[R1, E, TestResult]
-      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
-      @deprecated("use checkN", "2.0.0")
-      def apply[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G](
-        rv1: Gen[R, A],
-        rv2: Gen[R, B],
-        rv3: Gen[R, C],
-        rv4: Gen[R, D],
-        rv5: Gen[R, F],
-        rv6: Gen[R, G]
-      )(
-        test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
-      )(implicit trace: ZTraceElement): ZIO[R1, E, TestResult] =
-        checkNM(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
     }
   }
 

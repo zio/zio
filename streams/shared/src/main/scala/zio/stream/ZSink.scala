@@ -157,16 +157,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    * Effectfully transforms this sink's input chunks. `f` must preserve
    * chunking-invariance
    */
-  @deprecated("use contramapChunksZIO", "2.0.0")
-  def contramapChunksM[R1 <: R, E1 >: E, In1](
-    f: Chunk[In1] => ZIO[R1, E1, Chunk[In]]
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z] =
-    contramapChunksZIO(f)
-
-  /**
-   * Effectfully transforms this sink's input chunks. `f` must preserve
-   * chunking-invariance
-   */
   def contramapChunksZIO[R1 <: R, E1 >: E, In1](
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z] = {
@@ -178,15 +168,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
       )
     new ZSink(loop.pipeToOrFail(self.channel))
   }
-
-  /**
-   * Effectfully transforms this sink's input elements.
-   */
-  @deprecated("use contramapZIO", "2.0.0")
-  def contramapM[R1 <: R, E1 >: E, In1](
-    f: In1 => ZIO[R1, E1, In]
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z] =
-    contramapZIO(f)
 
   /**
    * Effectfully transforms this sink's input elements.
@@ -216,33 +197,11 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    * Effectfully transforms both input chunks and result of this sink using the
    * provided functions. `f` and `g` must preserve chunking-invariance
    */
-  @deprecated("use dimapChunksZIO", "2.0.0")
-  def dimapChunksM[R1 <: R, E1 >: E, In1, Z1](
-    f: Chunk[In1] => ZIO[R1, E1, Chunk[In]],
-    g: Z => ZIO[R1, E1, Z1]
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z1] =
-    dimapChunksZIO(f, g)
-
-  /**
-   * Effectfully transforms both input chunks and result of this sink using the
-   * provided functions. `f` and `g` must preserve chunking-invariance
-   */
   def dimapChunksZIO[R1 <: R, E1 >: E, In1, Z1](
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]],
     g: Z => ZIO[R1, E1, Z1]
   )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z1] =
     contramapChunksZIO(f).mapZIO(g)
-
-  /**
-   * Effectfully transforms both inputs and result of this sink using the
-   * provided functions.
-   */
-  @deprecated("use dimapZIO", "2.0.0")
-  def dimapM[R1 <: R, E1 >: E, In1, Z1](
-    f: In1 => ZIO[R1, E1, In],
-    g: Z => ZIO[R1, E1, Z1]
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z1] =
-    dimapZIO(f, g)
 
   /**
    * Effectfully transforms both inputs and result of this sink using the
@@ -256,12 +215,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
 
   def filterInput[In1 <: In](p: In1 => Boolean)(implicit trace: ZTraceElement): ZSink[R, E, In1, L, Z] =
     contramapChunks(_.filter(p))
-
-  @deprecated("use filterInputZIO", "2.0.0")
-  def filterInputM[R1 <: R, E1 >: E, In1 <: In](
-    p: In1 => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZSink[R1, E1, In1, L, Z] =
-    filterInputZIO(p)
 
   def filterInputZIO[R1 <: R, E1 >: E, In1 <: In](
     p: In1 => ZIO[R1, E1, Boolean]
@@ -279,13 +232,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     f: Z => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E1, In1, L1, Z1] =
     foldSink(ZSink.fail(_), f)
-
-  @deprecated("use foldSink", "2.0.0")
-  def foldM[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
-    failure: E => ZSink[R1, E2, In1, L1, Z1],
-    success: Z => ZSink[R1, E2, In1, L1, Z1]
-  )(implicit ev: L <:< In1, trace: ZTraceElement): ZSink[R1, E2, In1, L1, Z1] =
-    foldSink(failure, success)
 
   def foldSink[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
     failure: E => ZSink[R1, E2, In1, L1, Z1],
@@ -326,15 +272,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    */
   def mapError[E2](f: E => E2)(implicit trace: ZTraceElement): ZSink[R, E2, In, L, Z] =
     new ZSink(channel.mapError(f))
-
-  /**
-   * Effectfully transforms this sink's result.
-   */
-  @deprecated("use mapZIO", "2.0.0")
-  def mapM[R1 <: R, E1 >: E, Z1](f: Z => ZIO[R1, E1, Z1])(implicit
-    trace: ZTraceElement
-  ): ZSink[R1, E1, In, L, Z1] =
-    mapZIO(f)
 
   /**
    * Effectfully transforms this sink's result.
@@ -521,15 +458,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
 
   def dropLeftover(implicit trace: ZTraceElement): ZSink[R, E, In, Nothing, Z] =
     new ZSink(channel.drain)
-
-  /**
-   * Creates a sink that produces values until one verifies the predicate `f`.
-   */
-  @deprecated("use untilOutputZIO", "2.0.0")
-  def untilOutputM[R1 <: R, E1 >: E](
-    f: Z => ZIO[R1, E1, Boolean]
-  )(implicit ev: L <:< In, trace: ZTraceElement): ZSink[R1, E1, In, L, Option[Z]] =
-    untilOutputZIO(f)
 
   /**
    * Splits the sink on the specified predicate, returning a new sink that
@@ -725,16 +653,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Accumulates incoming elements into a chunk as long as they verify effectful
    * predicate `p`.
    */
-  @deprecated("use collectAllWhileZIO", "2.0.0")
-  def collectAllWhileM[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
-    trace: ZTraceElement
-  ): ZSink[Env, Err, In, In, Chunk[In]] =
-    collectAllWhileZIO(p)
-
-  /**
-   * Accumulates incoming elements into a chunk as long as they verify effectful
-   * predicate `p`.
-   */
   def collectAllWhileZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
     trace: ZTraceElement
   ): ZSink[Env, Err, In, In, Chunk[In]] =
@@ -792,12 +710,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(loop)
   }
 
-  @deprecated("use dropWhileZIO", "2.0.0")
-  def dropWhileM[R, InErr, In](p: In => ZIO[R, InErr, Boolean])(implicit
-    trace: ZTraceElement
-  ): ZSink[R, InErr, In, In, Any] =
-    dropWhileZIO(p)
-
   def dropWhileZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
   )(implicit trace: ZTraceElement): ZSink[R, InErr, In, In, Any] = {
@@ -813,23 +725,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
     new ZSink(loop)
   }
-
-  /**
-   * Returns a lazily constructed sink that may require effects for its
-   * creation.
-   */
-  @deprecated("use suspend", "2.0.0")
-  def effectSuspendTotal[Env, E, In, Leftover, Done](
-    sink: => ZSink[Env, E, In, Leftover, Done]
-  )(implicit trace: ZTraceElement): ZSink[Env, E, In, Leftover, Done] =
-    suspend(sink)
-
-  /**
-   * Returns a sink that executes a total effect and ends with its result.
-   */
-  @deprecated("use succeed", "2.0.0")
-  def effectTotal[A](a: => A)(implicit trace: ZTraceElement): ZSink[Any, Any, Nothing, Nothing, A] =
-    succeed(a)
 
   /**
    * A sink that always fails with the specified error.
@@ -921,20 +816,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * for the initial value and at the end of processing of each chunk. `f` and
    * `contFn` must preserve chunking-invariance.
    */
-  @deprecated("use foldChunksZIO", "2.0.0")
-  def foldChunksM[Env, Err, In, S](
-    z: => S
-  )(contFn: S => Boolean)(f: (S, Chunk[In]) => ZIO[Env, Err, S])(implicit
-    trace: ZTraceElement
-  ): ZSink[Env, Err, In, In, S] =
-    foldChunksZIO(z)(contFn)(f)
-
-  /**
-   * A sink that effectfully folds its input chunks with the provided function,
-   * termination predicate and initial state. `contFn` condition is checked only
-   * for the initial value and at the end of processing of each chunk. `f` and
-   * `contFn` must preserve chunking-invariance.
-   */
   def foldChunksZIO[Env, Err, In, S](
     z: => S
   )(
@@ -972,16 +853,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its input chunks with the provided function
    * and initial state. `f` must preserve chunking-invariance.
    */
-  @deprecated("use foldLeftChunksZIO", "2.0.0")
-  def foldLeftChunksM[R, Err, In, S](z: => S)(
-    f: (S, Chunk[In]) => ZIO[R, Err, S]
-  )(implicit trace: ZTraceElement): ZSink[R, Err, In, Nothing, S] =
-    foldLeftChunksZIO[R, Err, In, S](z)(f)
-
-  /**
-   * A sink that effectfully folds its input chunks with the provided function
-   * and initial state. `f` must preserve chunking-invariance.
-   */
   def foldLeftChunksZIO[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, Nothing, S] =
@@ -991,30 +862,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that effectfully folds its inputs with the provided function and
    * initial state.
    */
-  @deprecated("use foldLeftZIO", "2.0.0")
-  def foldLeftM[R, Err, In, S](z: => S)(
-    f: (S, In) => ZIO[R, Err, S]
-  )(implicit trace: ZTraceElement): ZSink[R, Err, In, In, S] =
-    foldLeftZIO(z)(f)
-
-  /**
-   * A sink that effectfully folds its inputs with the provided function and
-   * initial state.
-   */
   def foldLeftZIO[R, Err, In, S](z: => S)(
     f: (S, In) => ZIO[R, Err, S]
   )(implicit trace: ZTraceElement): ZSink[R, Err, In, In, S] =
     foldZIO[R, Err, In, S](z)(_ => true)(f)
-
-  /**
-   * A sink that effectfully folds its inputs with the provided function,
-   * termination predicate and initial state.
-   */
-  @deprecated("use foldZIO", "2.0.0")
-  def foldM[Env, Err, In, S](z: => S)(contFn: S => Boolean)(
-    f: (S, In) => ZIO[Env, Err, S]
-  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
-    foldZIO(z)(contFn)(f)
 
   /**
    * Creates a sink that folds elements of type `In` into a structure of type
@@ -1032,18 +883,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         }.map(_._1)
       }
     }
-
-  /**
-   * Creates a sink that effectfully folds elements of type `In` into a
-   * structure of type `S` until `max` elements have been folded.
-   *
-   * Like [[foldWeightedM]], but with a constant cost function of 1.
-   */
-  @deprecated("use foldUntilZIO", "2.0.0")
-  def foldUntilM[Env, Err, In, S](z: => S, max: => Long)(
-    f: (S, In) => ZIO[Env, Err, S]
-  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
-    foldUntilZIO(z, max)(f)
 
   /**
    * Creates a sink that effectfully folds elements of type `In` into a
@@ -1170,28 +1009,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    *
    * See [[foldWeightedDecompose]] for an example.
    */
-  @deprecated("use foldWeightedDecomposeZIO", "2.0.0")
-  def foldWeightedDecomposeM[Env, Err, In, S](z: => S)(
-    costFn: (S, In) => ZIO[Env, Err, Long],
-    max: => Long,
-    decompose: In => ZIO[Env, Err, Chunk[In]]
-  )(f: (S, In) => ZIO[Env, Err, S])(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
-    foldWeightedDecomposeZIO(z)(costFn, max, decompose)(f)
-
-  /**
-   * Creates a sink that effectfully folds elements of type `In` into a
-   * structure of type `S`, until `max` worth of elements (determined by the
-   * `costFn`) have been folded.
-   *
-   * The `decompose` function will be used for decomposing elements that cause
-   * an `S` aggregate to cross `max` into smaller elements. Be vigilant with
-   * this function, it has to generate "simpler" values or the fold may never
-   * end. A value is considered indivisible if `decompose` yields the empty
-   * chunk or a single-valued chunk. In these cases, there is no other choice
-   * than to yield a value that will cross the threshold.
-   *
-   * See [[foldWeightedDecompose]] for an example.
-   */
   def foldWeightedDecomposeZIO[Env, Err, In, S](z: => S)(
     costFn: (S, In) => ZIO[Env, Err, Long],
     max: => Long,
@@ -1244,24 +1061,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
       new ZSink(go(z, 0, false, max))
     }
-
-  /**
-   * Creates a sink that effectfully folds elements of type `In` into a
-   * structure of type `S`, until `max` worth of elements (determined by the
-   * `costFn`) have been folded.
-   *
-   * @note
-   *   Elements that have an individual cost larger than `max` will force the
-   *   sink to cross the `max` cost. See [[foldWeightedDecomposeM]] for a
-   *   variant that can handle these cases.
-   */
-  @deprecated("use foldWeightedZIO", "2.0.0-")
-  def foldWeightedM[Env, Err, In, S](
-    z: => S
-  )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
-    f: (S, In) => ZIO[Env, Err, S]
-  )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
-    foldWeightedZIO(z)(costFn, max)(f)
 
   /**
    * Creates a sink that effectfully folds elements of type `In` into a
@@ -1411,13 +1210,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * Creates a single-value sink produced from an effect
-   */
-  @deprecated("use fromZIO", "2.0.0")
-  def fromEffect[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: ZTraceElement): ZSink[R, E, Any, Nothing, Z] =
-    fromZIO(b)
-
-  /**
    * Creates a sink from a chunk processing function.
    */
   def fromPush[R, E, I, L, Z](
@@ -1497,13 +1289,6 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZSink[Any, Nothing, I, Nothing, Unit] =
     fromQueueWithShutdown(hub)
-
-  /**
-   * Creates a sink halting with a specified cause.
-   */
-  @deprecated("use failCause", "2.0.0")
-  def halt[E](e: => Cause[E])(implicit trace: ZTraceElement): ZSink[Any, Any, E, Nothing, Nothing] =
-    failCause(e)
 
   /**
    * Creates a sink containing the first value.

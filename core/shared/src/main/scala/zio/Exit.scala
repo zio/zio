@@ -69,13 +69,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   final def as[B](b: B): Exit[E, B] = map(_ => b)
 
   /**
-   * Maps over both the error and value type.
-   */
-  @deprecated("use mapBoth", "2.0.0")
-  final def bimap[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
-    mapBoth(f, g)
-
-  /**
    * Returns an option of the cause of failure.
    */
   final def causeOption: Option[Cause[E]] =
@@ -95,13 +88,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
       case Success(a)     => f(a)
       case e @ Failure(_) => e
     }
-
-  /**
-   * Flat maps over the value type.
-   */
-  @deprecated("use flatMapZIO", "2.0.0")
-  final def flatMapM[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
-    flatMapZIO(f)
 
   /**
    * Flat maps over the value type.
@@ -131,16 +117,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * Sequentially zips the this result with the specified result or else returns
    * the failed `Cause[E1]`
    */
-  @deprecated("use foldZIO", "2.0.0")
-  final def foldM[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E1, B] =
-    foldZIO(failed, completed)
-
-  /**
-   * Sequentially zips the this result with the specified result or else returns
-   * the failed `Cause[E1]`
-   */
   final def foldZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
     trace: ZTraceElement
   ): ZIO[R, E1, B] =
@@ -163,13 +139,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     case Success(value) => value
     case Failure(cause) => orElse(cause)
   }
-
-  /**
-   * Determines if the result is interrupted.
-   */
-  @deprecated("use isInterrupted", "2.0.0")
-  final def interrupted: Boolean =
-    isInterrupted
 
   /**
    * Determines if the result is a failure.
@@ -230,13 +199,6 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    */
   final def orElseFail[E1](e1: => E1): Exit[E1, A] =
     mapError(_ => e1)
-
-  /**
-   * Determines if the result is a success.
-   */
-  @deprecated("use isSuccess", "2.0.0")
-  final def succeeded: Boolean =
-    isSuccess
 
   /**
    * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the cause in
@@ -361,10 +323,6 @@ object Exit extends Serializable {
       case scala.util.Success(a) => succeed(a)
       case scala.util.Failure(t) => fail(t)
     }
-
-  @deprecated("use failCause", "2.0.0")
-  def halt[E](cause: Cause[E]): Exit[E, Nothing] =
-    failCause(cause)
 
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 

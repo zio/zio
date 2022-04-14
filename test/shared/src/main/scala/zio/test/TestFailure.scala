@@ -16,20 +16,46 @@
 
 package zio.test
 
-import zio.Cause
+import zio.{Cause, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-sealed abstract class TestFailure[+E]
+sealed abstract class TestFailure[+E] { self =>
+
+  /**
+   * Retrieves the annotations associated with this test failure.
+   */
+  def annotations: TestAnnotationMap
+
+  /**
+   * Annotates this test failure with the specified test annotations.
+   */
+  def annotated(annotations: TestAnnotationMap): TestFailure[E] =
+    self match {
+      case TestFailure.Assertion(result, _) => TestFailure.Assertion(result, self.annotations ++ annotations)
+      case TestFailure.Runtime(cause, _)    => TestFailure.Runtime(cause, self.annotations ++ annotations)
+    }
+
+  /**
+   * Transforms the error type of this test failure with the specified function.
+   */
+  def map[E2](f: E => E2): TestFailure[E2] =
+    self match {
+      case TestFailure.Assertion(result, annotations) => TestFailure.Assertion(result, annotations)
+      case TestFailure.Runtime(cause, annotations)    => TestFailure.Runtime(cause.map(f), annotations)
+    }
+}
 
 object TestFailure {
-  final case class Assertion(result: TestResult) extends TestFailure[Nothing]
-  final case class Runtime[+E](cause: Cause[E])  extends TestFailure[E]
+  final case class Assertion(result: TestResult, annotations: TestAnnotationMap = TestAnnotationMap.empty)
+      extends TestFailure[Nothing]
+  final case class Runtime[+E](cause: Cause[E], annotations: TestAnnotationMap = TestAnnotationMap.empty)
+      extends TestFailure[E]
 
   /**
    * Constructs an assertion failure with the specified result.
    */
   def assertion(result: TestResult): TestFailure[Nothing] =
-    Assertion(result)
+    Assertion(result, TestAnnotationMap.empty)
 
   /**
    * Constructs a runtime failure that dies with the specified `Throwable`.
@@ -47,5 +73,5 @@ object TestFailure {
    * Constructs a runtime failure with the specified cause.
    */
   def failCause[E](cause: Cause[E]): TestFailure[E] =
-    Runtime(cause)
+    Runtime(cause, TestAnnotationMap.empty)
 }

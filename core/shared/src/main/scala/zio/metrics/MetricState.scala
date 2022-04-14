@@ -40,6 +40,8 @@ object MetricState {
   final case class Histogram(
     buckets: Chunk[(Double, Long)],
     count: Long,
+    min: Double,
+    max: Double,
     sum: Double
   ) extends MetricState[MetricKeyType.Histogram]
 
@@ -47,6 +49,8 @@ object MetricState {
     error: Double,
     quantiles: Chunk[(Double, Option[Double])],
     count: Long,
+    min: Double,
+    max: Double,
     sum: Double
   ) extends MetricState[MetricKeyType.Summary]
 }

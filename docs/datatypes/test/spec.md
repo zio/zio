@@ -125,7 +125,7 @@ case class EmbeddedKafka() extends Kafka {
 }
 
 object EmbeddedKafka {
-  val layer = (EmbeddedKafka.apply _).toLayer[Kafka]
+  val layer = ZLayer.succeed(EmbeddedKafka())
 }
 ```
 

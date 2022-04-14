@@ -982,27 +982,6 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-#### Support for Scala 3
-
-As we’ve already mentioned, currently we have no macro support for Scala 3, instead we provide the `Accessible` trait that is a macro-less means of creating accessors from services. We can simply extend the companion object with `Accessible[ServiceName]` and then call `Companion(_.someMethod)` to return a ZIO effect that requires the service in its environment:
-
-```scala mdoc:compile-only
-import zio._
-
-trait ServiceD {
-  def method(input: Int): Task[String]
-  def anotherMethod: UIO[Int]
-}
-
-object ServiceD extends Accessible[ServiceD]
-
-val myApp: ZIO[ServiceD, Throwable, (String, Int)] =
-  for {
-    s <- ServiceD(_.method(3))
-    i <- ServiceD(_.anotherMethod)
-  } yield (s, i)
-```
-
 ### The Three Laws of ZIO Environment
 
 When we are working with the ZIO environment, one question might arise: "When should we use environment and when do we need to use constructors?".
@@ -1138,7 +1117,7 @@ case class HttpServerLive() extends HttpServer {
 }
 
 object HttpServerLive {
-  val layer: URLayer[Any, HttpServer] = (HttpServerLive.apply _).toLayer[HttpServer]
+  val layer: URLayer[Any, HttpServer] = ZLayer.succeed(HttpServerLive())
 }
 
 object MainWebApp extends ZIOAppDefault {
@@ -1200,7 +1179,7 @@ case class DatabaseLive() extends Database {
 }
 
 object DatabaseLive {
-  val layer = (DatabaseLive.apply _).toLayer[Database]
+  val layer = ZLayer.succeed(DatabaseLive())
 }
 
 object MainDatabaseApp extends ZIOAppDefault {

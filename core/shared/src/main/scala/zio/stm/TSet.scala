@@ -63,13 +63,6 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
   /**
    * Atomically folds using a transactional function.
    */
-  @deprecated("use foldSTM", "2.0.0")
-  def foldM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
-    foldSTM(zero)(op)
-
-  /**
-   * Atomically folds using a transactional function.
-   */
   def foldSTM[B, E](zero: B)(op: (B, A) => STM[E, B]): STM[E, B] =
     tmap.foldSTM(zero)((acc, kv) => op(acc, kv._1))
 
@@ -165,13 +158,6 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
    */
   def transform(f: A => A): USTM[Unit] =
     tmap.transform((k, v) => f(k) -> v)
-
-  /**
-   * Atomically updates all elements using a transactional function.
-   */
-  @deprecated("use transformSTM", "2.0.0")
-  def transformM[E](f: A => STM[E, A]): STM[E, Unit] =
-    transformSTM(f)
 
   /**
    * Atomically updates all elements using a transactional function.
