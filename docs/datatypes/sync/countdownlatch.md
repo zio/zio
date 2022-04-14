@@ -22,9 +22,71 @@ reach zero before proceeding, it simply prevents any fiber from proceeding past 
 
 ### Creation
 
-| Method                                                      | Definition                    |
-|-------------------------------------------------------------|-------------------------------|
-| `make(n: Int): IO[Option[Nothing], CountdownLatch]`         | Makes a new `CountdownLatch`. |
+To create a `CountDownLatch` we can simply use the `make` constructor. It takes an initial number, for the countdown counter:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent._
+
+val latch: IO[Option[Nothing], CountdownLatch] = CountdownLatch.make(5)
+```
+
+## Simple on/off Latch
+
+We can simply create an on/off latch using `Promise`. In the following example, we don't want to start the `consume` process before the first `50` number appears in the queue. As it requires a simple on/of latch we can implement that using the `Promise` data type:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def consume(queue: Queue[Int]): UIO[Nothing] =
+    queue.take
+      .flatMap(i => ZIO.debug(s"consumed: $i"))
+      .forever
+
+  def produce(queue: Queue[Int], latch: Promise[Nothing, Unit]): UIO[Nothing] =
+    (Random
+      .nextIntBounded(100)
+      .tap(i => queue.offer(i))
+      .tap(i => ZIO.when(i == 50)(latch.succeed(()))) *> ZIO.sleep(500.millis)).forever
+
+  def run =
+    for {
+      latch <- Promise.make[Nothing, Unit]
+      queue <- Queue.unbounded[Int]
+      _     <- produce(queue, latch) <&> (latch.await *> consume(queue))
+    } yield ()
+}
+```
+
+Alternatively, we can have an on/off latch using `CountDownLatch` with an initial count of _one_:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent._
+
+object MainApp extends ZIOAppDefault {
+
+  def consume(queue: Queue[Int]): UIO[Nothing] =
+    queue.take
+      .flatMap(i => ZIO.debug(s"consumed: $i"))
+      .forever
+
+  def produce(queue: Queue[Int], latch: CountdownLatch): UIO[Nothing] =
+    (Random
+      .nextIntBounded(100)
+      .tap(i => queue.offer(i))
+      .tap(i => ZIO.when(i == 50)(latch.countDown)) *> ZIO.sleep(500.millis)).forever
+
+  def run =
+    for {
+      latch <- CountdownLatch.make(1)
+      queue <- Queue.unbounded[Int]
+      _     <- produce(queue, latch) <&> (latch.await *> consume(queue))
+    } yield ()
+}
+```
 
 ### Use
 
