@@ -99,7 +99,10 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- exits.get
         } yield assert(result)(
           equalTo(
-            List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, StackTrace.none)), Exit.Failure(Cause.Die(ex, StackTrace.none)))
+            List[Exit[Any, Any]](
+              Exit.Failure(Cause.Die(ex, StackTrace.none)),
+              Exit.Failure(Cause.Die(ex, StackTrace.none))
+            )
           )
         )
       } @@ zioTag(errors),
