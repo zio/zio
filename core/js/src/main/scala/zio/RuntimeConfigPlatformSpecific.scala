@@ -1,5 +1,3 @@
-package zio
-
 /*
  * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
