@@ -64,21 +64,18 @@ object TestExecutor {
                   loop(label :: labels, spec, exec, ancestors, sectionId)
 
                 case Spec.ScopedCase(managed) =>
-                  ZIO.debug("scoped case") *>
                   ZIO
                     .scoped(
                       managed
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
-                      ZIO.debug("scoped case error: " + e.prettyPrint) *>
                       sink.process(
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                       )
                     }
 
                 case Spec.MultipleCase(specs) =>
-                  ZIO.debug("Multicase") *>
                   ZIO.uninterruptibleMask(restore =>
                     for {
                       newMultiSectionId <- SuiteId.newRandom
@@ -123,7 +120,7 @@ object TestExecutor {
                 ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x))
               )).annotated
                 .provideSomeLayer[R](freshLayerPerSpec)
-                .provideLayerShared(sharedSpecLayer.debug("Foo"))
+                .provideLayerShared(sharedSpecLayer)
 
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
