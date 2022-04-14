@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{ZIO, ZIO, ZTraceElement}
+import zio.{UIO, ZIO, ZTraceElement}
 
 import scala.annotation.tailrec
 import scala.compiletime.testing.typeChecks
@@ -30,7 +30,7 @@ trait CompileVariants {
    * exception if specified string cannot be parsed or is not a known value at
    * compile time.
    */
-  inline def typeCheck(inline code: String): ZIO[Either[String, Unit]] =
+  inline def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
       if (typeChecks(code)) ZIO.succeedNow(Right(()))
       else ZIO.succeedNow(Left(errorMessage))
