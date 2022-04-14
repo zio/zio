@@ -725,7 +725,7 @@ val s4 = s3.takeRight(3)
 ```scala mdoc:silent
 import zio.stream._
 
-val intStream: UStream[Int] = Stream.fromIterable(0 to 100)
+val intStream: UStream[Int] = ZStream.fromIterable(0 to 100)
 val stringStream: UStream[String] = intStream.map(_.toString)
 ```
 
@@ -1068,7 +1068,7 @@ In the example below, left stream consists of even numbers only:
 
 ```scala mdoc:silent:nest
 val partitionResult: ZIO[Scope, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
-  Stream
+  ZStream
     .fromIterable(0 to 100)
     .partition(_ % 2 == 0, buffer = 50)
 ```
@@ -1126,7 +1126,7 @@ import zio.stream._
   )
 
   val groupByKeyResult: ZStream[Any, Nothing, (Int, Int)] =
-    Stream
+    ZStream
       .fromIterable(examResults)
       .groupByKey(exam => exam.score / 10 * 10) {
         case (k, s) => ZStream.fromZIO(s.runCollect.map(l => k -> l.size))
@@ -1203,7 +1203,7 @@ To partition the stream results with the specified chunk size, we can use the `g
 
 ```scala mdoc:silent:nest
 val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
-  Stream.fromIterable(0 to 8).grouped(3)
+  ZStream.fromIterable(0 to 8).grouped(3)
 
 // Input:  0, 1, 2, 3, 4, 5, 6, 7, 8
 // Output: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7, 8)
@@ -1218,7 +1218,7 @@ import zio.Duration._
 import zio.stream._
 
 val groupedWithinResult: ZStream[Any, Nothing, Chunk[Int]] =
-  Stream.fromIterable(0 to 10)
+  ZStream.fromIterable(0 to 10)
     .repeat(Schedule.spaced(1.seconds))
     .groupedWithin(30, 10.seconds)
 ```
@@ -1672,7 +1672,7 @@ To schedule the output of a stream we use `ZStream#schedule` combinator.
 Let's space between each emission of the given stream:
 
 ```scala mdoc:silent:nest
-val stream = Stream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
+val stream = ZStream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
 ```
 
 ## Consuming a Stream
@@ -1682,7 +1682,7 @@ import zio._
 import zio.Console._
 import zio.stream._
 
-val result: Task[Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
+val result: Task[Unit] = ZStream.fromIterable(0 to 100).foreach(printLine(_))
 ```
 
 ### Using a Sink
@@ -1690,7 +1690,7 @@ val result: Task[Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
 To consume a stream using `ZSink` we can pass `ZSink` to the `ZStream#run` function:
 
 ```scala mdoc:silent
-val sum: UIO[Int] = ZStream(1,2,3).run(Sink.sum)
+val sum: UIO[Int] = ZStream(1,2,3).run(ZSink.sum)
 ```
 
 ### Using fold

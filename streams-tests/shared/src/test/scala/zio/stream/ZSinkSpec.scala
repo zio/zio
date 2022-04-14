@@ -17,7 +17,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("fails if upstream fails") {
             ZStream(1)
               .mapZIO(_ => ZIO.fail("boom!"))
-              .run(Sink.drain)
+              .run(ZSink.drain)
               .exit
               .map(assert(_)(fails(equalTo("boom!"))))
           }

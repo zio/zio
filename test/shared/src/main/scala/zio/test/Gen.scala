@@ -399,7 +399,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
 
   def empty(implicit trace: ZTraceElement): Gen[Any, Nothing] =
-    Gen(Stream.empty)
+    Gen(ZStream.empty)
 
   /**
    * A generator of exponentially distributed doubles with mean `1`. The

@@ -164,8 +164,8 @@ object ClockSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo((1L, 2L)))
       },
       test("zipWithLatest example from documentation") {
-        val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
-        val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
+        val s1 = ZStream.iterate(0)(_ + 1).fixed(100.milliseconds)
+        val s2 = ZStream.iterate(0)(_ + 1).fixed(70.milliseconds)
         val s3 = s1.zipWithLatest(s2)((_, _))
 
         for {
