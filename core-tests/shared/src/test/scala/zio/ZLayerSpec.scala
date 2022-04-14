@@ -508,6 +508,15 @@ object ZLayerSpec extends ZIOBaseSpec {
           x <- getAndIncrement.provide(layer)
           y <- getAndIncrement.provide(layer)
         } yield assertTrue(x == 0 && y == 0)
-      }
+      },
+      test("preserves failures") {
+        val layer1   = ZEnv.live >>> TestEnvironment.live
+        val layer2   = ZLayer.fromZIO(ZIO.fail("fail"))
+        val layer3   = ZEnv.live >>> TestEnvironment.live
+        val combined = layer1 ++ layer2 ++ layer3
+        for {
+          exit <- ZIO.scoped(combined.build).exit
+        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+      } @@ nonFlaky
     )
 }
