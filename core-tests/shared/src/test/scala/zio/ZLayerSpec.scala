@@ -508,15 +508,6 @@ object ZLayerSpec extends ZIOBaseSpec {
           x <- getAndIncrement.provide(layer)
           y <- getAndIncrement.provide(layer)
         } yield assertTrue(x == 0 && y == 0)
-      },
-    test("highlight composed layers construction interruption failure") {
-      val layer1 = ZLayer.fromZIO(ZIO.sleep(2.seconds))
-      val layer2 = ZLayer.fromZIO(ZIO.attempt(???))
-      val composedLayer = layer1 +!+ layer2
-      for {
-        _ <- ZIO.succeed(1).provideLayer(composedLayer)
-      } yield assertCompletes
-    },
-  )
-
+      }
+    )
 }
