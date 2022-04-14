@@ -554,7 +554,7 @@ private[zio] final class FiberContext[E, A](
 
   final def status(implicit trace: Trace): UIO[Fiber.Status] = ZIO.succeed(state.get.status)
 
-  final def trace(implicit trace0: Trace): UIO[ZTrace] = ZIO.succeed(unsafeCaptureTrace(Nil))
+  final def trace(implicit trace0: Trace): UIO[StackTrace] = ZIO.succeed(unsafeCaptureTrace(Nil))
 
   private[zio] def unsafeAddChild(child: FiberContext[_, _])(implicit trace: Trace): Boolean =
     unsafeEvalOn(ZIO.succeed(_children.add(child)))
@@ -592,13 +592,13 @@ private[zio] final class FiberContext[E, A](
       }
     }
 
-  private def unsafeCaptureTrace(prefix: List[Trace]): ZTrace = {
+  private def unsafeCaptureTrace(prefix: List[Trace]): StackTrace = {
     val builder = StackTraceBuilder.unsafeMake()
 
     prefix.foreach(builder += _)
     stack.foreach(k => builder += k.trace)
 
-    ZTrace(fiberId, builder.result())
+    StackTrace(fiberId, builder.result())
   }
 
   @tailrec

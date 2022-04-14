@@ -29,7 +29,7 @@ trait GenZIO {
   ): Gen[R, Cause[E]] = {
     val fiberId           = (Gen.int zip Gen.int zip Gen.const(Trace.empty)).map { case (a, b, c) => FiberId(a, b, c) }
     val zTraceElement     = Gen.string.map(_.asInstanceOf[Trace])
-    val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(ZTrace(_, _))
+    val zTrace            = fiberId.zipWith(Gen.chunkOf(zTraceElement))(StackTrace(_, _))
     val failure           = e.zipWith(zTrace)(Cause.fail(_, _))
     val die               = t.zipWith(zTrace)(Cause.die(_, _))
     val empty             = Gen.const(Cause.empty)

@@ -20,13 +20,13 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
 
-final case class ZTrace(
+final case class StackTrace(
   fiberId: FiberId,
   stackTrace: Chunk[Trace]
 ) { self =>
 
-  def ++(that: ZTrace): ZTrace =
-    ZTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
+  def ++(that: StackTrace): StackTrace =
+    StackTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
   /**
    * Converts the ZIO trace into a Java stack trace, by converting each trace
@@ -36,8 +36,8 @@ final case class ZTrace(
     stackTrace.flatMap(Trace.toJava)
 }
 
-object ZTrace {
+object StackTrace {
 
-  lazy val none: ZTrace =
-    ZTrace(FiberId.None, Chunk.empty)
+  lazy val none: StackTrace =
+    StackTrace(FiberId.None, Chunk.empty)
 }

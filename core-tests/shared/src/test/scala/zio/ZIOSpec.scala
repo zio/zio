@@ -3697,11 +3697,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertM(ZIO.attempt(1).validateWith(ZIO.attempt(2))(_ + _))(equalTo(3))
       },
       test("fails") {
-        assertM(ZIO.attempt(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, ZTrace.none))))
+        assertM(ZIO.attempt(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, StackTrace.none))))
       },
       test("combines both cause") {
         assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
-          isLeft(equalTo(Cause.Then(Cause.Fail(1, ZTrace.none), Cause.Fail(2, ZTrace.none))))
+          isLeft(equalTo(Cause.Then(Cause.Fail(1, StackTrace.none), Cause.Fail(2, StackTrace.none))))
         )
       }
     ),

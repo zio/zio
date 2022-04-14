@@ -21,7 +21,6 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.{EOFException, IOException}
-import zio.ZTrace
 
 /**
  * `TestConsole` provides a testable interface for programs interacting with the

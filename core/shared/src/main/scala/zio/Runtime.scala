@@ -255,7 +255,7 @@ trait Runtime[+R] {
           case Exit.Failure(cause) =>
             val fiberId = cause.trace.fiberId.getOrElse(FiberId.unsafeMake(trace0))
 
-            val trace = ZTrace(fiberId, stackTraceBuilder.value.result())
+            val trace = StackTrace(fiberId, stackTraceBuilder.value.result())
 
             throw new ZIO.ZioError(Exit.failCause(cause.traced(trace)), trace0)
         }

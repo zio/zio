@@ -19,7 +19,6 @@ package zio.test
 import zio.{IO, Layer, Ref, System, UIO, URIO, ZEnv, ZIO, ZLayer, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.ZTrace
 
 /**
  * `TestSystem` supports deterministic testing of effects involving system

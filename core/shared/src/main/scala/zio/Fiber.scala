@@ -511,7 +511,7 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * The trace of the fiber.
      */
-    def trace(implicit trace: Trace): UIO[ZTrace]
+    def trace(implicit trace: Trace): UIO[StackTrace]
   }
 
   private[zio] object Runtime {
@@ -573,7 +573,7 @@ object Fiber extends FiberPlatformSpecific {
       }
   }
 
-  final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: ZTrace) extends Product with Serializable {
+  final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: StackTrace) extends Product with Serializable {
     self =>
 
     /**

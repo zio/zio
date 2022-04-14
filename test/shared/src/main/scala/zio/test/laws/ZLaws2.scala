@@ -19,7 +19,6 @@ package zio.test.laws
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, TestConfig, TestResult, check}
 import zio.{URIO, ZIO, Trace}
-import zio.ZTrace
 
 abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
