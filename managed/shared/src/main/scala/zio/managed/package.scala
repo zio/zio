@@ -38,8 +38,6 @@ package object managed extends ZManagedCompatPlatformSpecific {
   type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
   type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
 
-  val Managed: ZManaged.type = ZManaged
-
   implicit final class ZManagedPromiseCompanionSyntax(private val self: Promise.type) extends AnyVal {
     def makeManaged[E, A](implicit trace: ZTraceElement): ZManaged[Any, Nothing, Promise[E, A]] =
       ZManaged.fromZIO(Promise.make[E, A])
