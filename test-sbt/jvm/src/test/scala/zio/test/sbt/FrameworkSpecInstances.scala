@@ -38,8 +38,6 @@ object FrameworkSpecInstances {
         test("slow test")(
           for {
            _ <- ZIO.sleep(3.seconds)
-//            clock <- testClock
-//            _ <- clock.adjust(4.seconds)
           } yield assertCompletes
         )
       ) @@ TestAspect.withLiveClock @@ TestAspect.timeout(1.second)

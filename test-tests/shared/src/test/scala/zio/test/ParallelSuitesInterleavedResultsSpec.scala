@@ -30,9 +30,9 @@ object BMinimalSpec extends ZIOSpecDefault {
       Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
     },
     test("B 2") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
+      Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
     }
-  )
+  ) @@ TestAspect.timeout(1.second)
 }
 
 object MultiCMinimalSpec extends ZIOSpecDefault {
