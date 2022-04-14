@@ -99,7 +99,7 @@ import java.io.IOException
 val program: ZIO[Any, IOException, Unit] = 
   for {
     promise         <-  Promise.make[Nothing, String]
-    sendHelloWorld  =   (IO.succeed("hello world") <* ZIO.sleep(1.second)).flatMap(promise.succeed)
+    sendHelloWorld  =   (ZIO.succeed("hello world") <* ZIO.sleep(1.second)).flatMap(promise.succeed)
     getAndPrint     =   promise.await.flatMap(Console.printLine(_))
     fiberA          <-  sendHelloWorld.fork
     fiberB          <-  getAndPrint.fork

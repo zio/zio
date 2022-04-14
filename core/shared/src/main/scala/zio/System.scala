@@ -89,35 +89,35 @@ object System extends Serializable {
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
-      IO.attempt(unsafeEnv(variable)).refineToOrDie[SecurityException]
+      ZIO.attempt(unsafeEnv(variable)).refineToOrDie[SecurityException]
 
     def envOrElse(variable: => String, alt: => String)(implicit trace: ZTraceElement): IO[SecurityException, String] =
-      IO.attempt(unsafeEnvOrElse(variable, alt)).refineToOrDie[SecurityException]
+      ZIO.attempt(unsafeEnvOrElse(variable, alt)).refineToOrDie[SecurityException]
 
     def envOrOption(variable: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
     ): IO[SecurityException, Option[String]] =
-      IO.attempt(unsafeEnvOrOption(variable, alt)).refineToOrDie[SecurityException]
+      ZIO.attempt(unsafeEnvOrOption(variable, alt)).refineToOrDie[SecurityException]
 
     def envs(implicit trace: ZTraceElement): IO[SecurityException, Map[String, String]] =
-      IO.attempt(unsafeEnvs()).refineToOrDie[SecurityException]
+      ZIO.attempt(unsafeEnvs()).refineToOrDie[SecurityException]
 
     def lineSeparator(implicit trace: ZTraceElement): UIO[String] =
-      IO.succeed(unsafeLineSeparator())
+      ZIO.succeed(unsafeLineSeparator())
 
     def properties(implicit trace: ZTraceElement): IO[Throwable, Map[String, String]] =
-      IO.attempt(unsafeProperties())
+      ZIO.attempt(unsafeProperties())
 
     def property(prop: => String)(implicit trace: ZTraceElement): IO[Throwable, Option[String]] =
-      IO.attempt(unsafeProperty(prop))
+      ZIO.attempt(unsafeProperty(prop))
 
     def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): IO[Throwable, String] =
-      IO.attempt(unsafePropertyOrElse(prop, alt))
+      ZIO.attempt(unsafePropertyOrElse(prop, alt))
 
     def propertyOrOption(prop: => String, alt: => Option[String])(implicit
       trace: ZTraceElement
     ): IO[Throwable, Option[String]] =
-      IO.attempt(unsafePropertyOrOption(prop, alt))
+      ZIO.attempt(unsafePropertyOrOption(prop, alt))
 
     override private[zio] def unsafeEnv(variable: String): Option[String] =
       Option(JSystem.getenv(variable))

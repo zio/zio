@@ -143,7 +143,7 @@ object Ref extends Serializable {
    * Creates a new `Ref` with the specified value.
    */
   def make[A](a: => A)(implicit trace: ZTraceElement): UIO[Ref[A]] =
-    UIO.succeed(unsafeMake(a))
+    ZIO.succeed(unsafeMake(a))
 
   private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
     Atomic(new AtomicReference(a))

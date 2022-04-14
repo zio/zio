@@ -19,16 +19,16 @@ object BlockingSpec extends ZIOBaseSpec {
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       test("attemptBlockingCancelable completes successfully") {
-        assertM(ZIO.attemptBlockingCancelable(())(UIO.unit))(isUnit)
+        assertM(ZIO.attemptBlockingCancelable(())(ZIO.unit))(isUnit)
       },
       test("attemptBlockingCancelable runs on the blocking thread pool") {
         for {
-          name <- ZIO.attemptBlockingCancelable(Thread.currentThread.getName)(UIO.unit)
+          name <- ZIO.attemptBlockingCancelable(Thread.currentThread.getName)(ZIO.unit)
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       test("attemptBlockingCancelable can be interrupted") {
         val release = new AtomicBoolean(false)
-        val cancel  = UIO.succeed(release.set(true))
+        val cancel  = ZIO.succeed(release.set(true))
         assertM(ZIO.attemptBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero))(isNone)
       },
       test("attemptBlockingInterrupt completes successfully") {

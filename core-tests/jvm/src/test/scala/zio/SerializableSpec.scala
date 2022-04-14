@@ -61,7 +61,7 @@ object SerializableSpec extends ZIOBaseSpec {
     },
     test("IO is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeed(list)
+      val io   = ZIO.succeed(list)
       for {
         returnIO <- serializeAndBack(io)
         result   <- returnIO
@@ -76,7 +76,7 @@ object SerializableSpec extends ZIOBaseSpec {
     } @@ exceptScala212,
     test("FiberStatus is serializable") {
       val list = List("1", "2", "3")
-      val io   = IO.succeed(list)
+      val io   = ZIO.succeed(list)
       for {
         fiber          <- io.fork
         status         <- fiber.await
@@ -207,8 +207,8 @@ object SerializableSpec extends ZIOBaseSpec {
 object SerializableSpecHelpers {
   def serializeAndBack[T](a: T): IO[Any, T] =
     for {
-      obj       <- IO.succeed(serializeToBytes(a))
-      returnObj <- IO.succeed(getObjFromBytes[T](obj))
+      obj       <- ZIO.succeed(serializeToBytes(a))
+      returnObj <- ZIO.succeed(getObjFromBytes[T](obj))
     } yield returnObj
 
   def serializeToBytes[T](a: T): Array[Byte] = {

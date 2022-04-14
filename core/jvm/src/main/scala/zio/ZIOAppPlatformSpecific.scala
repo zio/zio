@@ -15,7 +15,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
       (for {
         fiber <- invoke(Chunk.fromIterable(args0)).provideEnvironment(runtime.environment).fork
         _ <-
-          IO.succeed(Platform.addShutdownHook { () =>
+          ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
 
               if (FiberContext.catastrophicFailure.get) {

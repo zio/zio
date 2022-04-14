@@ -20,12 +20,12 @@ class ArrayFillBenchmark {
     import BenchmarkUtil.unsafeRun
 
     def arrayFill(array: Array[Int])(i: Int): UIO[Unit] =
-      if (i >= array.length) UIO.unit
+      if (i >= array.length) ZIO.unit
       else ZIO.succeed(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
 
     unsafeRun(
       for {
-        array <- IO.succeed[Array[Int]](createTestArray)
+        array <- ZIO.succeed[Array[Int]](createTestArray)
         _     <- arrayFill(array)(0)
       } yield ()
     )

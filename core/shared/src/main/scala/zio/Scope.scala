@@ -271,7 +271,7 @@ object Scope {
         def add(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Finalizer] =
           addIfOpen(finalizer).map {
             case Some(key) => release(key, _)
-            case None      => _ => UIO.unit
+            case None      => _ => ZIO.unit
           }
 
         def addIfOpen(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Option[Key]] =
@@ -279,7 +279,7 @@ object Scope {
             case Exited(nextKey, exit, update) =>
               finalizer(exit).as(None) -> Exited(next(nextKey), exit, update)
             case Running(nextKey, fins, update) =>
-              UIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
+              ZIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
           }.flatten
 
         def get(key: Key)(implicit trace: ZTraceElement): UIO[Option[Finalizer]] =
@@ -290,17 +290,17 @@ object Scope {
 
         def release(key: Key, exit: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Any] =
           ref.modify {
-            case s @ Exited(_, _, _) => (UIO.unit, s)
+            case s @ Exited(_, _, _) => (ZIO.unit, s)
             case s @ Running(_, fins, update) =>
               (
-                fins.get(key).fold(UIO.unit: UIO[Any])(fin => update(fin)(exit)),
+                fins.get(key).fold(ZIO.unit: UIO[Any])(fin => update(fin)(exit)),
                 s.copy(finalizers = fins - key)
               )
           }.flatten
 
         def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[Any] =
           ref.modify {
-            case s @ Exited(_, _, _) => (UIO.unit, s)
+            case s @ Exited(_, _, _) => (ZIO.unit, s)
             case Running(nextKey, fins, update) =>
               execStrategy match {
                 case ExecutionStrategy.Sequential =>
@@ -347,7 +347,7 @@ object Scope {
           ref.modify {
             case Exited(nk, exit, update) => (finalizer(exit).as(None), Exited(nk, exit, update))
             case Running(nk, fins, update) =>
-              (UIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
+              (ZIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
           }.flatten
 
         def updateAll(f: Finalizer => Finalizer)(implicit trace: ZTraceElement): UIO[Unit] =

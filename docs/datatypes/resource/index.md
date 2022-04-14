@@ -22,7 +22,7 @@ import zio.{Scope, Task, UIO, ZIO}
 ```
 
 ```scala mdoc:silent:nest
-def lines(file: String): Task[Long] = Task.attempt {
+def lines(file: String): Task[Long] = ZIO.attempt {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
     new InputStreamReader(new FileInputStream("file.txt")),
@@ -39,7 +39,7 @@ What happens if after opening the file and before closing the file, an exception
 Let's rewrite the above example with `try..finally`:
 
 ```scala mdoc:silent:nest
-def lines(file: String): Task[Long] = Task.attempt {
+def lines(file: String): Task[Long] = ZIO.attempt {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
     new InputStreamReader(new FileInputStream("file.txt")),
@@ -82,15 +82,15 @@ trait Resource
 ```
 
 ```scala mdoc:silent
-def use(resource: Resource): Task[Any] = Task.attempt(???)
-def release(resource: Resource): UIO[Unit] = Task.succeed(???)
-def acquire: Task[Resource]                = Task.attempt(???)
+def use(resource: Resource): Task[Any] = ZIO.attempt(???)
+def release(resource: Resource): UIO[Unit] = ZIO.succeed(???)
+def acquire: Task[Resource]                = ZIO.attempt(???)
 
 val result1: Task[Any] = acquire.acquireReleaseWith(release, use)
 val result2: Task[Any] = acquire.acquireReleaseWith(release)(use) // More ergonomic API
 
-val result3: Task[Any] = Task.acquireReleaseWith(acquire, release, use)
-val result4: Task[Any] = Task.acquireReleaseWith(acquire)(release)(use) // More ergonomic API
+val result3: Task[Any] = ZIO.acquireReleaseWith(acquire, release, use)
+val result4: Task[Any] = ZIO.acquireReleaseWith(acquire)(release)(use) // More ergonomic API
 ```
 
 The acquire release guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
@@ -99,9 +99,9 @@ Let's try a real example. We are going to write a function which count line numb
 
 ```scala:mdoc:silent
 def lines(file: String): Task[Long] = {
-  def countLines(reader: BufferedReader): Task[Long]    = Task.attempt(reader.lines().count())
-  def releaseReader(reader: BufferedReader): UIO[Unit]  = Task.succeed(reader.close())
-  def acquireReader(file: String): Task[BufferedReader] = Task.attempt(new BufferedReader(new FileReader(file), 2048))
+  def countLines(reader: BufferedReader): Task[Long]    = ZIO.attempt(reader.lines().count())
+  def releaseReader(reader: BufferedReader): UIO[Unit]  = ZIO.succeed(reader.close())
+  def acquireReader(file: String): Task[BufferedReader] = ZIO.attempt(new BufferedReader(new FileReader(file), 2048))
 
   Task.acquireReleaseWith(acquireReader(file), releaseReader, countLines)
 }
@@ -110,15 +110,15 @@ def lines(file: String): Task[Long] = {
 Let's write another function which copy a file from source to destination file. We can do that by nesting two acquire releases one for the `FileInputStream` and the other for `FileOutputStream`:
 
 ```scala mdoc:silent
-def is(file: String): Task[FileInputStream]  = Task.attempt(???)
-def os(file: String): Task[FileOutputStream] = Task.attempt(???)
+def is(file: String): Task[FileInputStream]  = ZIO.attempt(???)
+def os(file: String): Task[FileOutputStream] = ZIO.attempt(???)
 
-def close(resource: Closeable): UIO[Unit] = Task.succeed(???)
+def close(resource: Closeable): UIO[Unit] = ZIO.succeed(???)
 def copy(from: FileInputStream, to: FileOutputStream): Task[Unit] = ???
 
 def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
-  Task.acquireReleaseWith(is(src))(close) { in =>
-    Task.acquireReleaseWith(os(dst))(close) { out =>
+  ZIO.acquireReleaseWith(is(src))(close) { in =>
+    ZIO.acquireReleaseWith(os(dst))(close) { out =>
       copy(in, out)
     }
   }
@@ -132,9 +132,9 @@ def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
   is(src)
     .zipPar(os(dst))
     .acquireReleaseWith { case (in, out) =>
-      Task
+      ZIO
         .succeed(in.close())
-        .zipPar(Task.succeed(out.close()))
+        .zipPar(ZIO.succeed(out.close()))
     } { case (in, out) =>
       copy(in, out)
     }

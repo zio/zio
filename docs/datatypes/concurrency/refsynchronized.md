@@ -16,7 +16,7 @@ In the following example, we should pass in `updateEffect` to it which is the de
 import zio._
 for {
   ref <- Ref.Synchronized.make("current")
-  updateEffect = IO.succeed("update")
+  updateEffect = ZIO.succeed("update")
   _ <- ref.updateZIO(_ => updateEffect)
   value <- ref.get
 } yield assert(value == "update")
@@ -43,7 +43,7 @@ object api {
 val meanAge =
   for {
     ref <- Ref.Synchronized.make(0)
-    _ <- IO.foreachPar(users) { user =>
+    _ <- ZIO.foreachPar(users) { user =>
       ref.updateZIO(sumOfAges =>
         api.getAge(user).map(_ + sumOfAges)
       )

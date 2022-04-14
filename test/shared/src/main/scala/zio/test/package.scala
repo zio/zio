@@ -290,7 +290,7 @@ package object test extends CompileVariants {
    * Asserts that the given test was completed.
    */
   def assertCompletesM(implicit trace: ZTraceElement): UIO[TestResult] =
-    assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
+    assertMImpl(ZIO.succeedNow(true))(Assertion.isTrue)
 
   /**
    * Asserts that the given test was never completed.

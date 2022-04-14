@@ -635,7 +635,7 @@ val lines: ZStream[Any, Throwable, String] =
   ZStream
     .acquireReleaseWith(
       ZIO.attempt(Source.fromFile("file.txt")) <* printLine("The file was opened.")
-    )(x => URIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
+    )(x => ZIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
     .flatMap { is =>
       ZStream.fromIterator(is.getLines())
     }
@@ -736,8 +736,8 @@ If our transformation is effectful, we can use `ZStream#mapZIO` instead.
 Let's write a simple page downloader, which download URLs concurrently:
 
 ```scala mdoc:silent:nest
-def fetchUrl(url: URL): Task[String] = Task.succeed(???)
-def getUrls: Task[List[URL]] = Task.succeed(???)
+def fetchUrl(url: URL): Task[String] = ZIO.succeed(???)
+def getUrls: Task[List[URL]] = ZIO.succeed(???)
 
 val pages = ZStream.fromIterableZIO(getUrls).mapZIOPar(8)(fetchUrl)  
 ```

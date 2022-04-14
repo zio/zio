@@ -644,7 +644,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * function.
    */
   def modifyDelay(f: (Out, Duration) => Duration): Schedule.WithState[self.State, Env, In, Out] =
-    modifyDelayZIO((out, duration) => UIO.succeedNow(f(out, duration)))
+    modifyDelayZIO((out, duration) => ZIO.succeedNow(f(out, duration)))
 
   /**
    * Returns a new schedule that modifies the delay using the specified

@@ -103,30 +103,30 @@ object JavaSpec extends ZIOBaseSpec {
     ) @@ zioTag(future),
     suite("`Task.toCompletableFuture` must")(
       test("produce always a successful `IO` of `Future`") {
-        val failedIO = IO.fail[Throwable](new Exception("IOs also can fail"))
+        val failedIO = ZIO.fail[Throwable](new Exception("IOs also can fail"))
         assertM(failedIO.toCompletableFuture)(isSubtype[CompletableFuture[Unit]](anything))
       },
       test("be polymorphic in error type") {
-        val unitIO: Task[Unit]                          = Task.unit
+        val unitIO: Task[Unit]                          = ZIO.unit
         val polyIO: IO[String, CompletableFuture[Unit]] = unitIO.toCompletableFuture
         assert(polyIO)(anything)
       } @@ zioTag(errors),
       test("return a `CompletableFuture` that fails if `IO` fails") {
         val ex                       = new Exception("IOs also can fail")
-        val failedIO: Task[Unit]     = IO.fail[Throwable](ex)
+        val failedIO: Task[Unit]     = ZIO.fail[Throwable](ex)
         val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => ZIO.attempt(f.get()))
         assertM(failedFuture.exit)(
           fails[Throwable](hasField("message", _.getMessage, equalTo("java.lang.Exception: IOs also can fail")))
         )
       } @@ zioTag(errors),
       test("return a `CompletableFuture` that produces the value from `IO`") {
-        val someIO = Task.succeed[Int](42)
+        val someIO = ZIO.succeed[Int](42)
         assertM(someIO.toCompletableFuture.map(_.get()))(equalTo(42))
       }
     ) @@ zioTag(future),
     suite("`Task.toCompletableFutureE` must")(
       test("convert error of type `E` to `Throwable`") {
-        val failedIO: IO[String, Unit] = IO.fail[String]("IOs also can fail")
+        val failedIO: IO[String, Unit] = ZIO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
           failedIO.toCompletableFutureWith(new Exception(_)).flatMap(f => ZIO.attempt(f.get()))
         assertM(failedFuture.exit)(

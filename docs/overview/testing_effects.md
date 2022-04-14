@@ -192,7 +192,7 @@ class TestService extends Database.Service {
     ZIO.attempt(map(id))
 
   def update(id: UserID, profile: UserProfile): Task[Unit] = 
-    Task.attempt { map = map + (id -> profile) }
+    ZIO.attempt { map = map + (id -> profile) }
 }
 trait TestDatabase extends Database {
   val database: TestService = new TestService

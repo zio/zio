@@ -28,7 +28,7 @@ object ZStreamGen extends GenZIO {
 
   def failingStreamGen[R, A](a: Gen[R, A], max: Int): Gen[R with Sized, ZStream[Any, String, A]] =
     max match {
-      case 0 => Gen.const(ZStream.fromZIO(IO.fail("fail-case")))
+      case 0 => Gen.const(ZStream.fromZIO(ZIO.fail("fail-case")))
       case _ =>
         Gen
           .int(1, max)
@@ -37,8 +37,8 @@ object ZStreamGen extends GenZIO {
               i  <- Gen.int(0, n - 1)
               it <- Gen.listOfN(n)(a)
             } yield ZStream.unfoldZIO((i, it)) {
-              case (_, Nil) | (0, _) => IO.fail("fail-case")
-              case (n, head :: rest) => IO.succeedNow(Some((head, (n - 1, rest))))
+              case (_, Nil) | (0, _) => ZIO.fail("fail-case")
+              case (n, head :: rest) => ZIO.succeedNow(Some((head, (n - 1, rest))))
             }
           )
     }

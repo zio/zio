@@ -643,8 +643,8 @@ object ZSTMSpec extends ZIOBaseSpec {
             receiver  <- TRef.makeCommit(0)
             toReceiver = transfer(receiver, sender, 100)
             toSender   = transfer(sender, receiver, 100)
-            f1        <- IO.forkAll(List.fill(10)(toReceiver))
-            f2        <- IO.forkAll(List.fill(10)(toSender))
+            f1        <- ZIO.forkAll(List.fill(10)(toReceiver))
+            f2        <- ZIO.forkAll(List.fill(10)(toSender))
             _         <- sender.update(_ + 50).commit
             _         <- f1.join
             _         <- f2.join
@@ -671,7 +671,7 @@ object ZSTMSpec extends ZIOBaseSpec {
       ) {
         for {
           tvar <- TRef.makeCommit(0)
-          fiber <- IO.forkAll(
+          fiber <- ZIO.forkAll(
                      (0 to 20).map(i =>
                        (for {
                          v <- tvar.get
@@ -707,7 +707,7 @@ object ZSTMSpec extends ZIOBaseSpec {
           val barrier = new UnpureBarrier
           for {
             tvar <- TRef.makeCommit(0)
-            fiber <- IO.forkAll(List.fill(100)((for {
+            fiber <- ZIO.forkAll(List.fill(100)((for {
                        v <- tvar.get
                        _ <- STM.succeed(barrier.open())
                        _ <- STM.check(v < 0)
@@ -758,7 +758,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         tvar2 <- TRef.makeCommit(2)
         oldV1 <- tvar1.get.commit
         oldV2 <- tvar2.get.commit
-        f     <- IO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
+        f     <- ZIO.forkAll(List.fill(100)(permutation(tvar1, tvar2).commit))
         _     <- f.join
         v1    <- tvar1.get.commit
         v2    <- tvar2.get.commit
@@ -769,14 +769,14 @@ object ZSTMSpec extends ZIOBaseSpec {
         for {
           it    <- ZIO.succeed((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(it).commit
-          res   <- UIO.foreachPar(tvars)(_.get.commit)
+          res   <- ZIO.foreachPar(tvars)(_.get.commit)
         } yield assert(res)(equalTo((1 to 100)))
       },
       test("collects a chunk of transactional effects to a single transaction that produces a chunk of values") {
         for {
           it    <- ZIO.succeed((1 to 100).map(TRef.make(_)))
           tvars <- STM.collectAll(Chunk.fromIterable(it)).commit
-          res   <- UIO.foreachPar(tvars)(_.get.commit)
+          res   <- ZIO.foreachPar(tvars)(_.get.commit)
         } yield assert(res)(equalTo(Chunk.fromIterable((1 to 100).toList)))
       }
     ),

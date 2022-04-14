@@ -163,7 +163,7 @@ trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
+    asyncInterrupt(k => register(k).toRight(ZIO.unit), outputBuffer)
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 }

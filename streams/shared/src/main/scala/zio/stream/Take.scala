@@ -30,7 +30,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
    * Transforms `Take[E, A]` to `ZIO[R, E, B]`.
    */
   def done[R](implicit trace: ZTraceElement): ZIO[R, Option[E], Chunk[A]] =
-    IO.done(exit)
+    ZIO.done(exit)
 
   /**
    * Folds over the failure cause, success value and end-of-stream marker to

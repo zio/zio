@@ -97,8 +97,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(unsafeNanoTime())
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
-        Left(UIO.succeed(canceler()))
+        val canceler = globalScheduler.unsafeSchedule(() => cb(ZIO.unit), duration)
+        Left(ZIO.succeed(canceler()))
       }
     def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
@@ -130,9 +130,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(unsafeNanoTime())
 
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
-      UIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
-        Left(UIO.succeed(canceler()))
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.unsafeSchedule(() => cb(ZIO.unit), duration)
+        Left(ZIO.succeed(canceler()))
       }
 
     def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =

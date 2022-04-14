@@ -3,7 +3,7 @@ package zio.stm
 import zio.test.Assertion._
 import zio.test.TestAspect.nonFlaky
 import zio.test._
-import zio.{Chunk, URIO, ZIO, ZIOBaseSpec}
+import zio.{Chunk, ZIO, ZIOBaseSpec}
 
 object TMapSpec extends ZIOBaseSpec {
 
@@ -297,7 +297,7 @@ object TMapSpec extends ZIOBaseSpec {
           tmap <- TMap.make("a" -> 0).commit
           tx    = tmap.transformValues(_ + 1).commit.repeatN(999)
           n     = 2
-          _    <- URIO.collectAllParDiscard(List.fill(n)(tx))
+          _    <- ZIO.collectAllParDiscard(List.fill(n)(tx))
           res  <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },

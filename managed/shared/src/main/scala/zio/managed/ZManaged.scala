@@ -642,7 +642,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                               .releaseAll(Exit.fail(c), ExecutionStrategy.Sequential) *>
                               ZIO.failCause(c),
                           { case (release, a) =>
-                            UIO.succeed(
+                            ZIO.succeed(
                               ZManaged {
                                 ZManaged.currentReleaseMap.get.flatMap { releaseMap =>
                                   releaseMap.add(release).map((_, a))
@@ -970,11 +970,11 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                             .locally(innerReleaseMap)(zio)
                             .raceWith(ZIO.sleep(d).as(None))(
                               (result, sleeper) => sleeper.interrupt *> ZIO.done(result.map(tp => Right(tp._2))),
-                              (_, resultFiber) => UIO.succeed(Left(resultFiber))
+                              (_, resultFiber) => ZIO.succeed(Left(resultFiber))
                             )
                         }
           a <- raceResult match {
-                 case Right(value) => UIO.succeed(Some(value))
+                 case Right(value) => ZIO.succeed(Some(value))
                  case Left(fiber) =>
                    ZIO.fiberId.flatMap { id =>
                      fiber.interrupt
@@ -1302,7 +1302,7 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   type Finalizer = Exit[Any, Any] => UIO[Any]
   object Finalizer {
-    val noop: Finalizer = _ => UIO.unit
+    val noop: Finalizer = _ => ZIO.unit
   }
 
   final class IfManaged[R, E](private val b: () => ZManaged[R, E, Boolean]) extends AnyVal {
@@ -1476,7 +1476,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         def add(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Finalizer] =
           addIfOpen(finalizer).map {
             case Some(key) => release(key, _)
-            case None      => _ => UIO.unit
+            case None      => _ => ZIO.unit
           }
 
         def addIfOpen(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Option[Key]] =
@@ -1484,7 +1484,7 @@ object ZManaged extends ZManagedPlatformSpecific {
             case Exited(nextKey, exit, update) =>
               finalizer(exit).as(None) -> Exited(next(nextKey), exit, update)
             case Running(nextKey, fins, update) =>
-              UIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
+              ZIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
           }.flatten
 
         def get(key: Key)(implicit trace: ZTraceElement): UIO[Option[Finalizer]] =
@@ -1495,17 +1495,17 @@ object ZManaged extends ZManagedPlatformSpecific {
 
         def release(key: Key, exit: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Any] =
           ref.modify {
-            case s @ Exited(_, _, _) => (UIO.unit, s)
+            case s @ Exited(_, _, _) => (ZIO.unit, s)
             case s @ Running(_, fins, update) =>
               (
-                fins.get(key).fold(UIO.unit: UIO[Any])(fin => update(fin)(exit)),
+                fins.get(key).fold(ZIO.unit: UIO[Any])(fin => update(fin)(exit)),
                 s.copy(finalizers = fins - key)
               )
           }.flatten
 
         def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[Any] =
           ref.modify {
-            case s @ Exited(_, _, _) => (UIO.unit, s)
+            case s @ Exited(_, _, _) => (ZIO.unit, s)
             case Running(nextKey, fins, update) =>
               execStrategy match {
                 case ExecutionStrategy.Sequential =>
@@ -1552,7 +1552,7 @@ object ZManaged extends ZManagedPlatformSpecific {
           ref.modify {
             case Exited(nk, exit, update) => (finalizer(exit).as(None), Exited(nk, exit, update))
             case Running(nk, fins, update) =>
-              (UIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
+              (ZIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
           }.flatten
 
         def updateAll(f: Finalizer => Finalizer)(implicit trace: ZTraceElement): UIO[Unit] =
@@ -2628,9 +2628,9 @@ object ZManaged extends ZManagedPlatformSpecific {
     for {
       releaseMap <- ZManaged.releaseMap
       key <- releaseMap
-               .addIfOpen(_ => UIO.unit)
+               .addIfOpen(_ => ZIO.unit)
                .flatMap {
-                 case Some(key) => UIO.succeed(key)
+                 case Some(key) => ZIO.succeed(key)
                  case None      => ZIO.interrupt
                }
                .toManaged
@@ -2638,7 +2638,7 @@ object ZManaged extends ZManagedPlatformSpecific {
                  ZIO.uninterruptibleMask { restore =>
                    for {
                      _ <- releaseMap
-                            .replace(key, _ => UIO.unit)
+                            .replace(key, _ => ZIO.unit)
                             .flatMap(_.map(_.apply(Exit.unit)).getOrElse(ZIO.unit))
                      r     <- ZIO.environment[R]
                      inner <- ReleaseMap.make

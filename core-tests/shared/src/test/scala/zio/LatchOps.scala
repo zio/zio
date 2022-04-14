@@ -9,7 +9,7 @@ trait LatchOps {
       ref   <- Ref.make(true)
       latch <- Promise.make[Nothing, Unit]
       a     <- f(latch.succeed(()).unit, ZIO.uninterruptibleMask(restore => ref.set(false) *> restore(latch.await)))
-      _     <- UIO.whenZIO(ref.get)(latch.await)
+      _     <- ZIO.whenZIO(ref.get)(latch.await)
     } yield a
 }
 

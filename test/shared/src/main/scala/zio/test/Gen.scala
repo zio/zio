@@ -214,7 +214,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def bigDecimal(min: BigDecimal, max: BigDecimal)(implicit trace: ZTraceElement): Gen[Any, BigDecimal] =
     if (min > max)
-      Gen.fromZIO(UIO.die(new IllegalArgumentException("invalid bounds")))
+      Gen.fromZIO(ZIO.die(new IllegalArgumentException("invalid bounds")))
     else {
       val difference = max - min
       val decimals   = difference.scale max 0
@@ -243,7 +243,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def bigInt(min: BigInt, max: BigInt)(implicit trace: ZTraceElement): Gen[Any, BigInt] =
     Gen.fromZIOSample {
-      if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
+      if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val bitLength  = (max - min).bitLength
         val byteLength = ((bitLength.toLong + 7) / 8).toInt
@@ -383,7 +383,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def double(min: Double, max: Double)(implicit trace: ZTraceElement): Gen[Any, Double] =
     if (min > max)
-      Gen.fromZIO(UIO.die(new IllegalArgumentException("invalid bounds")))
+      Gen.fromZIO(ZIO.die(new IllegalArgumentException("invalid bounds")))
     else
       uniform.map { r =>
         val n = min + r * (max - min)
@@ -491,7 +491,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def int(min: Int, max: Int)(implicit trace: ZTraceElement): Gen[Any, Int] =
     Gen.fromZIOSample {
-      if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
+      if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val effect =
           if (max < Int.MaxValue) nextIntBetween(min, max + 1)
@@ -548,7 +548,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def long(min: Long, max: Long)(implicit trace: ZTraceElement): Gen[Any, Long] =
     Gen.fromZIOSample {
-      if (min > max) UIO.die(new IllegalArgumentException("invalid bounds"))
+      if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val effect =
           if (max < Long.MaxValue) nextLongBetween(min, max + 1L)

@@ -1,12 +1,12 @@
 package zio.stm
 
 import zio.test._
-import zio.{UIO, ZIOBaseSpec}
+import zio.{UIO, ZIO, ZIOBaseSpec}
 
 object STMLazinessSpec extends ZIOBaseSpec {
 
   def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
-    UIO.succeed {
+    ZIO.succeed {
       val _ = f(throw new RuntimeException("not lazy"))
       assertCompletes
     }
