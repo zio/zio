@@ -97,7 +97,11 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     testReporter(renderer, TestAnnotationRenderer.default)
   }
 
-  private[zio] def runSpec(
+  /*
+   * Regardless of test assertion or runtime failures, this method will always return a summary
+   * capturing this information
+   */
+  private[zio] def runSpecInfallible(
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
     console: Console

@@ -34,7 +34,7 @@ abstract class BaseTestTask(
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
         summary <- spec
-                     .runSpec(FilteredSpec(spec.spec, args), args, console)
+                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {

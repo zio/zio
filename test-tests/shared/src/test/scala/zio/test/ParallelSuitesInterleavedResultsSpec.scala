@@ -23,6 +23,13 @@ object Spec2 extends ZIOSpecDefault {
     }
 }
 
+object FailingSpec extends ZIOSpecDefault {
+  override def spec =
+    test("Single 2") {
+      assertTrue(false)
+    }
+}
+
 object BMinimalSpec extends ZIOSpecDefault {
 //  override val layer = ZLayer.fromZIO(ZIO.sleep(2.seconds) *> ZIO.succeed(42))
   override def spec = suite("BSpec")(
@@ -97,5 +104,5 @@ object SlowMinimalSpec extends ZIOSpecDefault {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
