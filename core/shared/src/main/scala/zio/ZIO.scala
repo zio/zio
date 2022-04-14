@@ -355,7 +355,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Recovers from all errors.
    *
    * {{{
-   * openFile("config.json").catchAll(_ => IO.succeed(defaultConfig))
+   * openFile("config.json").catchAll(_ => ZIO.succeed(defaultConfig))
    * }}}
    */
   final def catchAll[R1 <: R, E2, A1 >: A](
@@ -375,7 +375,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Recovers from all errors with provided Cause.
    *
    * {{{
-   * openFile("config.json").catchAllCause(_ => IO.succeed(defaultConfig))
+   * openFile("config.json").catchAllCause(_ => ZIO.succeed(defaultConfig))
    * }}}
    *
    * @see
@@ -1737,19 +1737,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * final case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.succeed(5 / 0) *> IO.fail(DomainError())
+   *   ZIO.succeed(5 / 0) *> ZIO.fail(DomainError())
    *
    * val caught: IO[DomainError, Unit] =
    *   veryBadIO.sandbox.mapError(_.untraced).catchAll {
    *     case Cause.Die(_: ArithmeticException) =>
    *       // Caught defect: divided by zero!
-   *       IO.unit
+   *       ZIO.unit
    *     case Cause.Fail(_) =>
    *       // Caught error: DomainError!
-   *       IO.unit
+   *       ZIO.unit
    *     case cause =>
    *       // Caught unknown defects, shouldn't recover!
-   *       IO.failCause(cause)
+   *       ZIO.failCause(cause)
    *   }
    * }}}
    */
@@ -1867,13 +1867,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * case class DomainError()
    *
    * val veryBadIO: IO[DomainError, Unit] =
-   *   IO.succeed(5 / 0) *> IO.fail(DomainError())
+   *   ZIO.succeed(5 / 0) *> ZIO.fail(DomainError())
    *
    * val caught: IO[DomainError, Unit] =
    *   veryBadIO.sandboxWith(_.catchSome {
    *     case Cause.Die(_: ArithmeticException)=>
    *       // Caught defect: divided by zero!
-   *       IO.succeed(0)
+   *       ZIO.succeed(0)
    *   })
    * }}}
    *
@@ -2073,7 +2073,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * be safely interrupted
    *
    * {{{
-   * IO.succeed(1).timeoutTo(None)(Some(_))(1.second)
+   * ZIO.succeed(1).timeoutTo(None)(Some(_))(1.second)
    * }}}
    */
   final def timeoutTo[B](b: => B): ZIO.TimeoutTo[R, E, A, B] =
@@ -3936,15 +3936,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   lazy val none: UIO[Option[Nothing]] = succeedNow(None)
 
   /**
-   * Lifts an Option into a IO. If the option is empty it succeeds with Unit. If
-   * the option is defined it fails with the content.
+   * Lifts an Option into a ZIO. If the option is empty it succeeds with Unit.
+   * If the option is defined it fails with the content.
    */
   def noneOrFail[E](o: => Option[E])(implicit trace: ZTraceElement): IO[E, Unit] =
     getOrFailUnit(o).flip
 
   /**
-   * Lifts an Option into a IO. If the option is empty it succeeds with Unit. If
-   * the option is defined it fails with an error adapted with f.
+   * Lifts an Option into a ZIO. If the option is empty it succeeds with Unit.
+   * If the option is defined it fails with an error adapted with f.
    */
   def noneOrFailWith[E, O](o: => Option[O])(f: O => E)(implicit trace: ZTraceElement): IO[E, Unit] =
     getOrFailUnit(o).flip.mapError(f)
@@ -4626,7 +4626,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def acquireReleaseWithAuto[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit
       trace: ZTraceElement
     ): ZIO[R1, E1, B] =
-      // TODO: Dotty doesn't infer this properly: io.bracket[R1, E1](a => UIO(a.close()))(use)
       acquireReleaseWith(io)(a => ZIO.succeed(a.close()))(use)
 
     /**

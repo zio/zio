@@ -15,7 +15,7 @@ object JavaSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec: Spec[Annotations, Any] = suite("JavaSpec")(
-    suite("`Task.fromFutureJava` must")(
+    suite("`ZIO.fromFutureJava` must")(
       test("be lazy on the `Future` parameter") {
         var evaluated         = false
         def ftr: Future[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
@@ -58,7 +58,7 @@ object JavaSpec extends ZIOBaseSpec {
         } yield assert(n)(equalTo(2))
       }
     ) @@ zioTag(future),
-    suite("`Task.fromCompletionStage` must")(
+    suite("`ZIO.fromCompletionStage` must")(
       test("be lazy on the `Future` parameter") {
         var evaluated                 = false
         def cs: CompletionStage[Unit] = CompletableFuture.supplyAsync(() => evaluated = true)
@@ -101,7 +101,7 @@ object JavaSpec extends ZIOBaseSpec {
         } yield assert(n)(equalTo(2))
       }
     ) @@ zioTag(future),
-    suite("`Task.toCompletableFuture` must")(
+    suite("`ZIO.toCompletableFuture` must")(
       test("produce always a successful `IO` of `Future`") {
         val failedIO = ZIO.fail[Throwable](new Exception("IOs also can fail"))
         assertM(failedIO.toCompletableFuture)(isSubtype[CompletableFuture[Unit]](anything))
@@ -124,7 +124,7 @@ object JavaSpec extends ZIOBaseSpec {
         assertM(someIO.toCompletableFuture.map(_.get()))(equalTo(42))
       }
     ) @@ zioTag(future),
-    suite("`Task.toCompletableFutureE` must")(
+    suite("`ZIO.toCompletableFutureE` must")(
       test("convert error of type `E` to `Throwable`") {
         val failedIO: IO[String, Unit] = ZIO.fail[String]("IOs also can fail")
         val failedFuture: Task[Unit] =
@@ -188,7 +188,7 @@ object JavaSpec extends ZIOBaseSpec {
         assertM(Fiber.fromFutureJava(someValue).join.exit)(succeeds(equalTo(42)))
       }
     ) @@ zioTag(future),
-    suite("`Task.withCompletionHandler` must")(
+    suite("`ZIO.withCompletionHandler` must")(
       test("write and read to and from AsynchronousSocketChannel") {
         val list: List[Byte] = List(13)
         val address          = new InetSocketAddress(54321)

@@ -233,8 +233,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * the condition is not fulfilled. Example:
      * {{{
      *   Stream(1)
-     *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
-     *     .use(ZIO.succeed)                       // UIO[Int] == 5
+     *     .fold(0)(_ <= 4)((s, a) => ZIO.succeed(s + a))  // Managed[Nothing, Int]
+     *     .use(ZIO.succeed)                               // UIO[Int] == 5
      * }}}
      *
      * @param cont

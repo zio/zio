@@ -9,30 +9,6 @@ import scala.scalajs.js.{Promise => JSPromise}
 object JSSpec extends ZIOBaseSpec {
   def spec: Spec[Any, Throwable] = suite("JSSpec")(
     suite("Task.fromPromiseJS must")(
-      test("be lazy on the Promise parameter") {
-        var evaluated          = false
-        def p: JSPromise[Unit] = { evaluated = true; JSPromise.resolve[Unit](()) }
-        assertM(ZIO.fromPromiseJS(p).when(false).as(evaluated))(isFalse)
-      },
-      test("catch exceptions thrown by lazy block") {
-        val ex                              = new Exception("no promise for you!")
-        lazy val noPromise: JSPromise[Unit] = throw ex
-        assertM(ZIO.fromPromiseJS(noPromise).exit)(dies(equalTo(ex)))
-      },
-      test("return a Task that fails if Promise is rejected") {
-        val ex                            = new Exception("no value for you!")
-        lazy val noValue: JSPromise[Unit] = JSPromise.reject(ex)
-        assertM(ZIO.fromPromiseJS(noValue).exit)(fails(equalTo(ex)))
-      },
-      test("return a Task that produces the value from the Promise") {
-        lazy val someValue: JSPromise[Int] = JSPromise.resolve[Int](42)
-        assertM(ZIO.fromPromiseJS(someValue))(equalTo(42))
-      },
-      test("handle null produced by the completed Promise") {
-        lazy val someValue: JSPromise[String] = JSPromise.resolve[String](null)
-        assertM(ZIO.fromPromiseJS(someValue).map(Option(_)))(isNone)
-      }
-    ),
     suite("ZIO.fromPromiseJS must")(
       test("be lazy on the Promise parameter") {
         var evaluated          = false

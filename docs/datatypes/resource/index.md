@@ -97,13 +97,13 @@ The acquire release guarantees us that the `acquiring` and `releasing` of a reso
 
 Let's try a real example. We are going to write a function which count line number of given file. As we are working with file resource, we should separate our logic into three part. At the first part, we create a `BufferedReader`. At the second, we count the file lines with given `BufferedReader` resource, and at the end we close that resource:
 
-```scala:mdoc:silent
+```scala mdoc:silent:nest
 def lines(file: String): Task[Long] = {
   def countLines(reader: BufferedReader): Task[Long]    = ZIO.attempt(reader.lines().count())
   def releaseReader(reader: BufferedReader): UIO[Unit]  = ZIO.succeed(reader.close())
   def acquireReader(file: String): Task[BufferedReader] = ZIO.attempt(new BufferedReader(new FileReader(file), 2048))
 
-  Task.acquireReleaseWith(acquireReader(file), releaseReader, countLines)
+  ZIO.acquireReleaseWith(acquireReader(file), releaseReader, countLines)
 }
 ```
 

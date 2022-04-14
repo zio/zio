@@ -1283,8 +1283,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // URIO[Scope, Int] == 5
+   *     .forever                                        // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => ZIO.succeed(s + a))  // URIO[Scope, Int] == 5
    * }}}
    *
    * @param cont
@@ -1300,8 +1300,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * when the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
+   *     .forever                                        // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => ZIO.succeed(s + a))  // UIO[Int] == 5
    * }}}
    *
    * @param cont

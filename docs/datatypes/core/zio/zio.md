@@ -77,8 +77,6 @@ Many applications will model failures with classes that extend `Throwable` or `E
 val f2 = ZIO.fail(new Exception("Uh oh!"))
 ```
 
-Note that unlike the other effect companion objects, the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
-
 ### From Values
 ZIO contains several constructors which help us to convert various data types into `ZIO` effects.
 
