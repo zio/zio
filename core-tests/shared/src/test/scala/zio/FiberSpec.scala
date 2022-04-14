@@ -13,8 +13,9 @@ object FiberSpec extends ZIOBaseSpec {
     suite("FiberSpec")(
       suite("Create a new Fiber and")(test("scope it") {
         for {
-          ref   <- Ref.make(false)
-          fiber <- withLatch(release => (release *> IO.unit).acquireRelease(ref.set(true))(IO.never).fork)
+          ref <- Ref.make(false)
+          fiber <-
+            withLatch(release => ZIO.acquireReleaseWith(release *> IO.unit)(_ => ref.set(true))(_ => IO.never).fork)
           _     <- ZIO.scoped(fiber.scoped)
           _     <- fiber.await
           value <- ref.get

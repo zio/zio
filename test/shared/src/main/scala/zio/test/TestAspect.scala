@@ -138,7 +138,7 @@ object TestAspect extends TimeoutVariants {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: ZTraceElement
       ): ZIO[R, TestFailure[E], TestSuccess] =
-        before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))).acquireReleaseWith(after)(_ => test)
+        ZIO.acquireReleaseWith(before.catchAllCause(c => ZIO.fail(TestFailure.Runtime(c))))(after)(_ => test)
     }
 
   /**
@@ -385,7 +385,7 @@ object TestAspect extends TimeoutVariants {
               }
           case Left(_) => ZIO.unit
         }
-        acquire.acquireReleaseWith(_ => release) { ref =>
+        ZIO.acquireReleaseWith(acquire)(_ => release) { ref =>
           Supervisor.fibersIn(ref).flatMap(supervisor => test.supervised(supervisor))
         }
       }

@@ -1055,10 +1055,13 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
   def use[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
     ReleaseMap.make.flatMap { releaseMap =>
       ZManaged.currentReleaseMap.locally(releaseMap) {
-        ZManaged.currentReleaseMap.get.acquireReleaseExitWith(
-          (relMap, exit: Exit[E1, B]) => relMap.releaseAll(exit, ExecutionStrategy.Sequential),
-          relMap => zio.flatMap { case (_, a) => f(a) }
-        )
+        ZIO.acquireReleaseExitWith {
+          ZManaged.currentReleaseMap.get
+        } { (relMap, exit: Exit[E1, B]) =>
+          relMap.releaseAll(exit, ExecutionStrategy.Sequential)
+        } { relMap =>
+          zio.flatMap { case (_, a) => f(a) }
+        }
       }
     }
 
