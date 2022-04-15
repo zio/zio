@@ -88,27 +88,38 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-### Use
+## Advanced Latches
 
-| Method                 | Definition                                                                                 |
-|------------------------|--------------------------------------------------------------------------------------------|
-| `await: UIO[Unit]`     | Causes the current fiber to wait until the latch has counted down to zero.                 |
-| `countDown: UIO[Unit]` | Decrements the count of the latch, releasing all waiting fibers if the count reaches zero. |
-| `count: UIO[Int]`      | Returns the current count.                                                                 |
+We can solve more advanced problems by increasing the initial count of `CountdownLatch`.
 
-## Example Usage
+Assume we had several producers concurrently in the previous example and the consumer was required to wait until at least five 50 numbers were added to the queue before they were allowed to consume. We can do this as follows:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
-import zio.concurrent.CountdownLatch
+import zio.concurrent._
 
-for {
-  latch  <- CountdownLatch.make(100)
-  count  <- Ref.make(0)
-  ps     <- ZIO.collectAll(List.fill(10)(Promise.make[Nothing, Unit]))
-  _      <- ZIO.forkAll(ps.map(p => latch.await *> count.update(_ + 1) *> p.succeed(())))
-  _      <- latch.countDown.repeat(Schedule.recurs(99))
-  _      <- ZIO.foreachDiscard(ps)(_.await)
-  result <- count.get
-} yield assert(result == 10)
+object MainApp extends ZIOAppDefault {
+
+  def consume(queue: Queue[Int]): UIO[Nothing] =
+    queue.take
+      .flatMap(i => ZIO.debug(s"consumed: $i"))
+      .forever
+
+  def produce(queue: Queue[Int], latch: CountdownLatch): UIO[Nothing] =
+    (Random
+      .nextIntBounded(100)
+      .tap(i => queue.offer(i))
+      .tap(i => ZIO.when(i == 50)(latch.countDown)) *> ZIO.sleep(500.millis)).forever
+
+  def run =
+    for {
+      latch <- CountdownLatch.make(5)
+      queue <- Queue.unbounded[Int]
+      p = ZIO.collectAllParDiscard(ZIO.replicate(10)(produce(queue, latch)))
+      c = latch.await *> consume(queue)
+      _     <-  p <&> c
+    } yield ()
+}
 ```
+
+In this example, 10 producers are producing numbers concurrently, and the consumer is waiting for its condition to be fulfilled to start the consumption process.
