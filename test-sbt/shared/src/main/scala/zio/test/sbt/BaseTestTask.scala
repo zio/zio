@@ -38,7 +38,7 @@ abstract class BaseTestTask(
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
-               ZIO.fail(new RuntimeException("No tests were executed."))
+               TestLogger.logLine("No tests were executed.")
              }
         _ <- if (summary.fail > 0)
                ZIO.fail(new Exception("Failed tests."))

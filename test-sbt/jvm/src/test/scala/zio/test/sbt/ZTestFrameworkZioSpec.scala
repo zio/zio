@@ -4,16 +4,9 @@ import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
 import zio.test.{Summary, TestAspect, ZIOSpecAbstract}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{
-  RuntimeExceptionDuringLayerConstructionSpec,
-  RuntimeExceptionSpec,
-  SimpleSpec,
-  TimeOutSpec
-}
+import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
 import zio.test.sbt.TestingSupport.{green, red}
 
-import java.net.BindException
-//import zio.test.sbt.TestingSupport.{blue, cyan, red}
 import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
@@ -23,13 +16,15 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       for {
         _      <- loadAndExecuteAll(Seq(SimpleSpec))
         output <- testOutput
-      } yield assertTrue(output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored."))
+      } yield assertTrue(
+        output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
+      ) && assertTrue(output.length == 3)
     ),
     test("displays timeouts")(
       for {
         _      <- loadAndExecuteAll(Seq(TimeOutSpec)).flip
         output <- testOutput
-      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded."))
+      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 3)
     ),
     test("displays runtime exceptions helpfully")(
       for {
@@ -39,8 +34,10 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
       ) && assertTrue(
         output.mkString("").contains("Good luck ;)")
-      )
+      ) && assertTrue(output.length == 3)
     ),
+    // TODO Restore this once
+    //    https://github.com/zio/zio/pull/6614 is merged
 //    test("displays runtime exceptions during spec layer construction")(
 //      for {
 //        returnError <-
@@ -99,7 +96,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             s"""${ConsoleRenderer.render(Summary(1, 0, 0, "", testTime))}"""
           ).mkString("\n")
 
-      } yield assertTrue(output.mkString("").contains(expected))
+      } yield assertTrue(output.mkString("").contains(expected)) && assertTrue(output.length == 3)
     }
   )
 

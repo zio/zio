@@ -85,7 +85,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      summary <- runSpec(spec, testArgs, console)
+      summary <- runSpecInfallible(spec, testArgs, console)
     } yield summary
   }
 

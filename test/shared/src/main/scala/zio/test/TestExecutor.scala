@@ -120,7 +120,16 @@ object TestExecutor {
                 ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x))
               )).annotated
                 .provideSomeLayer[R](freshLayerPerSpec)
-                .provideLayerShared(sharedSpecLayer)
+                .provideLayerShared(sharedSpecLayer.tapErrorCause { e =>
+                  sink.process(
+                    ExecutionEvent.RuntimeFailure(
+                      SuiteId(-1),
+                      List("Top level layer construction failure. No tests will execute."),
+                      TestFailure.Runtime(e),
+                      List.empty
+                    )
+                  )
+                })
 
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)

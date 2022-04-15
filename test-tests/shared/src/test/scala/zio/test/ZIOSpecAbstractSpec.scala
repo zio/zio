@@ -1,26 +1,42 @@
 package zio.test
-import zio.{Scope, ZIO, ZIOAppArgs}
+import zio.{Scope, ZIO, ZIOAppArgs, ZLayer}
 
 object ZIOSpecAbstractSpec extends ZIOSpecDefault {
+  private val basicSpec: ZIOSpecAbstract = new ZIOSpecDefault {
+    override def spec =
+      test("basic test") {
+        assertTrue(true)
+      }
+  }
   override def spec = suite("ZIOSpecAbstractSpec")(
-    test("highlighting composed layer failures")(
+    test("highlighting composed layer failures") {
+      // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
+      val specWithBrokenLayer = new ZIOSpecDefault {
+        override val layer = ZLayer.fromZIO(ZIO.attempt(???))
+        override def spec =
+          test("should never see this label printed") {
+            assertTrue(true)
+          }
+      }
+      val composedSpec: ZIOSpecAbstract = basicSpec <> specWithBrokenLayer <> basicSpec
       for {
-        _                            <- ZIO.debug("==================== New Test Run ====================")
-        composedSpec: ZIOSpecAbstract = Spec1 <> SpecWithBrokenLayer <> Spec2
-        _                            <- ZIO.consoleWith(console => composedSpec.runSpecInfallible(composedSpec.spec, TestArgs.empty, console))
-        console                      <- testConsole
-        output                       <- console.output
-      } yield assertTrue(output.mkString("\n").contains("NotImplementedError"))
-    ) @@ TestAspect.nonFlaky(1000) @@ TestAspect.ignore,
+        _       <- ZIO.debug("==================== New Test Run ====================")
+        _       <- ZIO.consoleWith(console => composedSpec.runSpecInfallible(composedSpec.spec, TestArgs.empty, console))
+        console <- testConsole
+        output  <- console.output.map(_.mkString("\n"))
+      } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
+        assertTrue(
+          output.contains(
+            "at zio.test.ZIOSpecAbstractSpec.spec.specWithBrokenLayer.$anon.layer(ZIOSpecAbstractSpec.scala:15)"
+          )
+        ) &&
+        assertTrue(output.contains("at zio.test.ZIOSpecAbstractSpec.spec(ZIOSpecAbstractSpec.scala:24)")) &&
+        assertTrue(output.contains("java.lang.InterruptedException"))
+    } @@ TestAspect.flaky,
     test("run method reports successes sanely")(
       for {
-        res <- Spec1.run
+        res <- basicSpec.run
       } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
-    ),
-    test("run method reports failures sanely")(
-      for {
-        failureRes <- FailingSpec.run.flip
-      } yield assertTrue(failureRes.contains("Result was false"))
     )
   )
     .provide(

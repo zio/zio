@@ -2,46 +2,6 @@ package zio.test
 
 import zio._
 
-object SpecWithBrokenLayer extends ZIOSpecDefault {
-  override val layer = ZLayer.fromZIO(ZIO.attempt(???))
-  override def spec =
-    test("a") {
-      assertTrue(true)
-    }
-}
-
-object Spec1 extends ZIOSpecDefault {
-  override def spec =
-    test("Single 1") {
-      assertTrue(true)
-    }
-}
-object Spec2 extends ZIOSpecDefault {
-  override def spec =
-    test("Single 2") {
-      assertTrue(true)
-    }
-}
-
-object FailingSpec extends ZIOSpecDefault {
-  override def spec =
-    test("Single 2") {
-      assertTrue(false)
-    }
-}
-
-object BMinimalSpec extends ZIOSpecDefault {
-//  override val layer = ZLayer.fromZIO(ZIO.sleep(2.seconds) *> ZIO.succeed(42))
-  override def spec = suite("BSpec")(
-    test("B 1") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
-    },
-    test("B 2") {
-      Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
-    }
-  ) @@ TestAspect.timeout(1.second)
-}
-
 object MultiCMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("MultiSpec")(
     suite("fast inner suite")(
