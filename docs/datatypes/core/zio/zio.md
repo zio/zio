@@ -544,6 +544,7 @@ def myApp =
 Let's try to write a simple virtual flip function:
 
 ```scala mdoc:compile-only
+import java.io.IOException
 import zio._
 
 def flipTheCoin: ZIO[Any, IOException, Unit] =
@@ -663,6 +664,7 @@ as.reverse
 Let's try some examples:
 
 ```scala mdoc:compile-only
+import java.io.IOException
 import zio._
 
 val r1: ZIO[Any, Nothing, List[Int]] =
@@ -745,6 +747,7 @@ val r2 = ZIO.iterate(1)(_ <= 5)(s => ZIO.succeed(s * 2).debug).debug("result")
 Here's another example. Assume we want to take many names from the user using the terminal. We don't know how many names the user is going to enter. We can ask the user to write "exit" when all inputs are finished. To write such an application, we can use recursion like below:
 
 ```scala mdoc:compile-only
+import java.io.IOException
 import zio._
 
 def getNames: ZIO[Any, IOException, List[String]] =
@@ -772,6 +775,9 @@ def getNames: ZIO[Any, IOException, List[String]] =
 Instead of manually writing recursions, we can rely on well-tested ZIO combinators. So let's rewrite this application using the `ZIO.iterate` operator:
 
 ```scala mdoc:compile-only
+import java.io.IOException
+import zio._
+
 def getNames: ZIO[Any, IOException, List[String]] =
   Console.print("Please enter all names") *>
     Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
@@ -828,6 +834,8 @@ ZIO.acquireReleaseWith(
 This operator guarantees us that if the _resource acquisition (acquire)_  the _release_ effect will be executed whether the _use_ effect succeeded or not:
 
 ```scala mdoc:compile-only
+import java.io.IOException
+import scala.io.Source
 import zio._
 
 def wordCount(fileName: String): ZIO[Any, Throwable, Int] = {
