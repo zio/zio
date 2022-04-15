@@ -37,9 +37,9 @@ abstract class BaseTestTask(
                      .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
-        _ <- if (summary.status == Summary.Failure)
+        _ <- ZIO.when(summary.status == Summary.Failure)(
                ZIO.fail(new Exception("Failed tests."))
-             else ZIO.unit
+             )
       } yield ())
         .provideLayer(
           sharedFilledTestlayer(console)

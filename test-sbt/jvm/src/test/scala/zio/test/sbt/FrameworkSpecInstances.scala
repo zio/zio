@@ -70,7 +70,6 @@ object FrameworkSpecInstances {
 //      )
 //  }
 
-  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def layer = sharedLayer
 
@@ -83,7 +82,6 @@ object FrameworkSpecInstances {
       ) @@ TestAspect.parallel
   }
 
-  lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
   object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def layer = sharedLayer
 
@@ -93,7 +91,6 @@ object FrameworkSpecInstances {
       }
   }
 
-  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
   object MultiLineSharedSpec extends ZIOSpecDefault {
     def spec = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))

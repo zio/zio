@@ -28,8 +28,6 @@ abstract class TestExecutor[+R, E] {
   def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
   ): UIO[Summary]
-
-  def environment: ZLayer[Scope, E, R]
 }
 
 object TestExecutor {
@@ -138,10 +136,6 @@ object TestExecutor {
 
           summary <- sink.getSummary
         } yield summary).provideLayer(sinkLayer)
-
-      // TODO Is this sensible, or just going to set JUnit up for failure?
-      //     Should we have 2 different fields?
-      val environment = sharedSpecLayer ++ freshLayerPerSpec
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
         result match {
