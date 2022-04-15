@@ -11,7 +11,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
   override def spec = suite("ZIOSpecAbstractSpec")(
     test("highlighting composed layer failures") {
       // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
-      val specWithBrokenLayer = new ZIOSpecDefault {
+      val specWithBrokenLayer = new ZIOSpec[Int] {
         override val layer = ZLayer.fromZIO(ZIO.attempt(???))
         override def spec =
           test("should never see this label printed") {
@@ -26,10 +26,10 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
         assertTrue(
           output.contains( // Brittle with the line numbers
-            "at zio.test.ZIOSpecAbstractSpec.spec.specWithBrokenLayer.$anon.layer(ZIOSpecAbstractSpec.scala:15)"
+            "ZIOSpecAbstractSpec.scala:15"
           )
         ) &&
-        assertTrue(output.contains("at zio.test.ZIOSpecAbstractSpec.spec(ZIOSpecAbstractSpec.scala:23)")) &&
+        assertTrue(output.contains("ZIOSpecAbstractSpec.scala:23")) &&
         assertTrue(output.contains("java.lang.InterruptedException"))
     } @@ TestAspect.flaky,
     test("run method reports successes sanely")(
