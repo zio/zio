@@ -16,6 +16,7 @@
 
 package zio.internal
 
+import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ThreadLocalRandom
@@ -27,140 +28,28 @@ import java.util.concurrent.locks.LockSupport
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
-  private[this] val poolSize    = Runtime.getRuntime.availableProcessors
+private final class ZScheduler(val yieldOpCount: Int) extends Executor {
+  private[this] val poolSize    = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val cache       = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
   private[this] val globalQueue = MutableConcurrentQueue.unbounded[Runnable]
   private[this] val idle        = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
   private[this] val state       = new AtomicInteger(poolSize << 16)
   private[this] val workers     = Array.ofDim[ZScheduler.Worker](poolSize)
 
+  @volatile private[this] var blockingLocations: Set[ZTraceElement] = Set.empty
+
   (0 until poolSize).foreach { workerId =>
-    val worker = new ZScheduler.Worker { self =>
-      override def run(): Unit = {
-        var currentOpCount = 0L
-        val random         = ThreadLocalRandom.current
-        var runnable       = null.asInstanceOf[Runnable]
-        var searching      = false
-        while (!isInterrupted) {
-          if ((currentOpCount & 63) == 0) {
-            runnable = globalQueue.poll(null)
-            if (runnable eq null) {
-              if (nextRunnable ne null) {
-                runnable = nextRunnable
-                nextRunnable = null
-              } else {
-                runnable = localQueue.poll(null)
-              }
-            }
-          } else {
-            if (nextRunnable ne null) {
-              runnable = nextRunnable
-              nextRunnable = null
-            } else {
-              runnable = localQueue.poll(null)
-              if (runnable eq null) {
-                runnable = globalQueue.poll(null)
-              }
-            }
-          }
-          if (runnable eq null) {
-            if (!searching) {
-              val currentState  = state.get
-              val currentActive = currentState & 0xffff
-              if (2 * currentActive < poolSize) {
-                state.getAndIncrement()
-                searching = true
-              }
-            }
-            if (searching) {
-              var i      = 0
-              var loop   = true
-              val offset = random.nextInt(poolSize)
-              while (i != poolSize && loop) {
-                val index = (i + offset) % poolSize
-                if (index != workerId) {
-                  val worker = workers(index)
-                  val size   = worker.localQueue.size()
-                  if (size > 0) {
-                    val runnables = worker.localQueue.pollUpTo(size - size / 2)
-                    if (runnables.nonEmpty) {
-                      runnable = runnables.head
-                      if (runnables.tail.nonEmpty) {
-                        localQueue.offerAll(runnables.tail)
-                      }
-                      loop = false
-                    }
-                  }
-                }
-                i += 1
-              }
-              if (runnable eq null) {
-                runnable = globalQueue.poll(null)
-              }
-            }
-          }
-          if (runnable eq null) {
-            val currentState     = if (searching) state.addAndGet(0xfffeffff) else state.addAndGet(0xffff0000)
-            val currentSearching = currentState & 0xffff
-            active = false
-            idle.offer(self)
-            if (currentSearching == 0 && searching) {
-              var i      = 0
-              var notify = false
-              while (i != poolSize && !notify) {
-                val worker = workers(i)
-                notify = !worker.localQueue.isEmpty()
-                i += 1
-              }
-              if (!notify) {
-                notify = !globalQueue.isEmpty()
-              }
-              if (notify) {
-                val currentState     = state.get
-                val currentActive    = (currentState & 0xffff0000) >> 16
-                val currentSearching = currentState & 0xffff
-                if (currentActive != poolSize && currentSearching == 0) {
-                  val worker = idle.poll(null)
-                  if (worker ne null) {
-                    state.getAndAdd(0x10001)
-                    worker.active = true
-                    LockSupport.unpark(worker)
-                  }
-                }
-              }
-            }
-            while (!active && !isInterrupted) {
-              LockSupport.park()
-            }
-            searching = true
-          } else {
-            if (searching) {
-              searching = false
-              val currentState     = state.decrementAndGet()
-              val currentSearching = currentState & 0xffff
-              val currentActive    = (currentState & 0xffff0000) >> 16
-              if (currentActive != poolSize && currentSearching == 0) {
-                val worker = idle.poll(null)
-                if (worker ne null) {
-                  state.getAndAdd(0x10001)
-                  worker.active = true
-                  LockSupport.unpark(worker)
-                }
-              }
-            }
-            runnable.run()
-            runnable = null
-            currentOpCount += 1
-            opCount = currentOpCount
-          }
-        }
-      }
-    }
-    worker.setName(s"ZScheduler-$workerId")
+    val worker = makeWorker()
+    worker.setName(s"ZScheduler-Worker-$workerId")
     worker.setDaemon(true)
     workers(workerId) = worker
   }
   workers.foreach(_.start())
+
+  private[this] val supervisor = makeSupervisor()
+  supervisor.setName("ZScheduler-Supervisor")
+  supervisor.setDaemon(true)
+  supervisor.start()
 
   def unsafeMetrics: Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
@@ -211,65 +100,333 @@ private final class ZScheduler(val yieldOpCount: Int) extends zio.Executor {
     Some(metrics)
   }
 
-  def unsafeSubmit(runnable: Runnable): Boolean = {
-    val currentThread = Thread.currentThread
-    if (currentThread.isInstanceOf[ZScheduler.Worker]) {
-      val worker = currentThread.asInstanceOf[ZScheduler.Worker]
-      if (!worker.localQueue.offer(runnable)) {
-        globalQueue.offerAll(worker.localQueue.pollUpTo(128) :+ runnable)
-      }
+  def unsafeSubmit(runnable: Runnable): Boolean =
+    if (isBlocking(runnable)) {
+      unsafeSubmitBlocking(runnable)
     } else {
-      globalQueue.offer(runnable)
-    }
-    val currentState     = state.get
-    val currentActive    = (currentState & 0xffff0000) >> 16
-    val currentSearching = currentState & 0xffff
-    if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll(null)
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
-      }
-    }
-    true
-  }
-
-  override def unsafeSubmitAndYield(runnable: Runnable): Boolean = {
-    val currentThread = Thread.currentThread
-    var notify        = false
-    if (currentThread.isInstanceOf[ZScheduler.Worker]) {
-      val worker = currentThread.asInstanceOf[ZScheduler.Worker]
-      if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
-        worker.nextRunnable = runnable
-      } else {
-        if (!worker.localQueue.offer(runnable)) {
+      val currentThread = Thread.currentThread
+      if (currentThread.isInstanceOf[ZScheduler.Worker]) {
+        val worker = currentThread.asInstanceOf[ZScheduler.Worker]
+        if (worker.blocking) {
+          globalQueue.offer(runnable)
+        } else if (worker.localQueue.offer(runnable)) {
+          if (worker.blocking) {
+            val runnable = worker.localQueue.poll(null)
+            if (runnable ne null) {
+              globalQueue.offer(runnable)
+            }
+          }
+        } else {
           globalQueue.offerAll(worker.localQueue.pollUpTo(128) :+ runnable)
         }
-        notify = true
+      } else {
+        globalQueue.offer(runnable)
       }
-    } else {
-      globalQueue.offer(runnable)
-      notify = true
-    }
-    if (notify) {
       val currentState     = state.get
       val currentActive    = (currentState & 0xffff0000) >> 16
       val currentSearching = currentState & 0xffff
       if (currentActive != poolSize && currentSearching == 0) {
-        val worker = idle.poll(null)
-        if (worker ne null) {
-          state.getAndAdd(0x10001)
-          worker.active = true
-          LockSupport.unpark(worker)
+        var loop = true
+        while (loop) {
+          val worker = idle.poll(null)
+          if ((worker ne null) && !worker.blocking) {
+            state.getAndAdd(0x10001)
+            worker.active = true
+            LockSupport.unpark(worker)
+            loop = false
+          } else if (worker eq null) {
+            loop = false
+          }
+        }
+      }
+      true
+    }
+
+  override def unsafeSubmitAndYield(runnable: Runnable): Boolean =
+    if (isBlocking(runnable)) {
+      unsafeSubmitBlocking(runnable)
+    } else {
+      val currentThread = Thread.currentThread
+      var notify        = false
+      if (currentThread.isInstanceOf[ZScheduler.Worker]) {
+        val worker = currentThread.asInstanceOf[ZScheduler.Worker]
+        if (worker.blocking) {
+          globalQueue.offer(runnable)
+          notify = true
+        } else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
+          worker.nextRunnable = runnable
+        } else if (worker.localQueue.offer(runnable)) {
+          if (worker.blocking) {
+            val runnable = worker.localQueue.poll(null)
+            if (runnable ne null) {
+              globalQueue.offer(runnable)
+            }
+          }
+          notify = true
+        } else {
+          globalQueue.offerAll(worker.localQueue.pollUpTo(128) :+ runnable)
+          notify = true
+        }
+      } else {
+        globalQueue.offer(runnable)
+        notify = true
+      }
+      if (notify) {
+        val currentState     = state.get
+        val currentActive    = (currentState & 0xffff0000) >> 16
+        val currentSearching = currentState & 0xffff
+        if (currentActive != poolSize && currentSearching == 0) {
+          var loop = true
+          while (loop) {
+            val worker = idle.poll(null)
+            if ((worker ne null) && !worker.blocking) {
+              state.getAndAdd(0x10001)
+              worker.active = true
+              LockSupport.unpark(worker)
+              loop = false
+            } else if (worker eq null) {
+              loop = false
+            }
+          }
+        }
+      }
+      true
+    }
+
+  private[this] def isBlocking(runnable: Runnable): Boolean =
+    if (runnable.isInstanceOf[FiberRunnable]) {
+      val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
+      val location      = fiberRunnable.location
+      blockingLocations.contains(location)
+    } else {
+      false
+    }
+
+  private[this] def makeSupervisor(): ZScheduler.Supervisor =
+    new ZScheduler.Supervisor {
+      override def run(): Unit = {
+        var currentTime      = java.lang.System.currentTimeMillis()
+        val previousOpCounts = Array.fill(poolSize)(-1L)
+        while (!isInterrupted) {
+          var workerId = 0
+          while (workerId != poolSize) {
+            val currentWorker = workers(workerId)
+            if (currentWorker.active) {
+              val currentOpCount  = currentWorker.opCount
+              val previousOpCount = previousOpCounts(workerId)
+              if (currentOpCount == previousOpCount) {
+                val currentRunnable = currentWorker.currentRunnable
+                if (currentRunnable.isInstanceOf[FiberRunnable]) {
+                  val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
+                  val location      = fiberRunnable.location
+                  if (location ne ZTraceElement.empty) {
+                    blockingLocations += location
+                  }
+                }
+                previousOpCounts(workerId) = -1L
+                currentWorker.blocking = true
+                val runnables = currentWorker.localQueue.pollUpTo(256)
+                globalQueue.offerAll(runnables)
+                val worker = cache.poll(null)
+                if (worker eq null) {
+                  state.getAndAdd(0x10000)
+                  val worker = makeWorker()
+                  worker.setName(s"ZScheduler-$workerId")
+                  worker.setDaemon(true)
+                  workers(workerId) = worker
+                  worker.start()
+                } else {
+                  state.getAndAdd(0x10001)
+                  worker.setName(s"ZScheduler-$workerId")
+                  workers(workerId) = worker
+                  worker.blocking = false
+                  worker.active = true
+                  LockSupport.unpark(worker)
+                }
+              } else {
+                previousOpCounts(workerId) = currentOpCount
+              }
+            } else {
+              previousOpCounts(workerId) = -1L
+            }
+            workerId += 1
+          }
+          val deadline = currentTime + 100
+          var loop     = true
+          while (loop) {
+            LockSupport.parkUntil(deadline)
+            currentTime = java.lang.System.currentTimeMillis()
+            loop = currentTime < deadline
+          }
         }
       }
     }
-    true
-  }
+
+  private[this] def makeWorker(): ZScheduler.Worker =
+    new ZScheduler.Worker { self =>
+      override def run(): Unit = {
+        var currentOpCount = 0L
+        val random         = ThreadLocalRandom.current
+        var runnable       = null.asInstanceOf[Runnable]
+        var searching      = false
+        while (!isInterrupted) {
+          if (blocking) {
+            if (nextRunnable ne null) {
+              runnable = nextRunnable
+              nextRunnable = null
+            }
+          } else {
+            if ((currentOpCount & 63) == 0) {
+              runnable = globalQueue.poll(null)
+              if (runnable eq null) {
+                if (nextRunnable ne null) {
+                  runnable = nextRunnable
+                  nextRunnable = null
+                } else {
+                  runnable = localQueue.poll(null)
+                }
+              }
+            } else {
+              if (nextRunnable ne null) {
+                runnable = nextRunnable
+                nextRunnable = null
+              } else {
+                runnable = localQueue.poll(null)
+                if (runnable eq null) {
+                  runnable = globalQueue.poll(null)
+                }
+              }
+            }
+            if (runnable eq null) {
+              if (!searching) {
+                val currentState  = state.get
+                val currentActive = currentState & 0xffff
+                if (2 * currentActive < poolSize) {
+                  state.getAndIncrement()
+                  searching = true
+                }
+              }
+              if (searching) {
+                var i      = 0
+                var loop   = true
+                val offset = random.nextInt(poolSize)
+                while (i != poolSize && loop) {
+                  val index  = (i + offset) % poolSize
+                  val worker = workers(index)
+                  if ((worker ne self) && !worker.blocking) {
+                    val size = worker.localQueue.size()
+                    if (size > 0) {
+                      val runnables = worker.localQueue.pollUpTo(size - size / 2)
+                      if (runnables.nonEmpty) {
+                        runnable = runnables.head
+                        if (runnables.tail.nonEmpty) {
+                          localQueue.offerAll(runnables.tail)
+                        }
+                        if (blocking) {
+                          val runnables = localQueue.pollUpTo(256)
+                          if (runnables.nonEmpty) {
+                            globalQueue.offerAll(runnables)
+                          }
+                        }
+                        loop = false
+                      }
+                    }
+                  }
+                  i += 1
+                }
+                if (runnable eq null) {
+                  runnable = globalQueue.poll(null)
+                }
+              }
+            }
+          }
+          if (runnable eq null) {
+            val currentState     = if (searching) state.addAndGet(0xfffeffff) else state.addAndGet(0xffff0000)
+            val currentSearching = currentState & 0xffff
+            active = false
+            if (blocking) {
+              cache.offer(self)
+            } else {
+              idle.offer(self)
+            }
+            if (currentSearching == 0 && searching) {
+              var i      = 0
+              var notify = false
+              while (i != poolSize && !notify) {
+                val worker = workers(i)
+                notify = !worker.localQueue.isEmpty()
+                i += 1
+              }
+              if (!notify) {
+                notify = !globalQueue.isEmpty()
+              }
+              if (notify) {
+                val currentState     = state.get
+                val currentActive    = (currentState & 0xffff0000) >> 16
+                val currentSearching = currentState & 0xffff
+                if (currentActive != poolSize && currentSearching == 0) {
+                  var loop = true
+                  while (loop) {
+                    val worker = idle.poll(null)
+                    if ((worker ne null) && !worker.blocking) {
+                      state.getAndAdd(0x10001)
+                      worker.active = true
+                      LockSupport.unpark(worker)
+                      loop = false
+                    } else if (worker eq null) {
+                      loop = false
+                    }
+                  }
+                }
+              }
+            }
+            while (!active && !isInterrupted) {
+              LockSupport.park()
+            }
+            searching = true
+          } else {
+            if (searching) {
+              searching = false
+              val currentState     = state.decrementAndGet()
+              val currentSearching = currentState & 0xffff
+              val currentActive    = (currentState & 0xffff0000) >> 16
+              if (currentActive != poolSize && currentSearching == 0) {
+                var loop = true
+                while (loop) {
+                  val worker = idle.poll(null)
+                  if ((worker ne null) && !worker.blocking) {
+                    state.getAndAdd(0x10001)
+                    worker.active = true
+                    LockSupport.unpark(worker)
+                    loop = false
+                  } else if (worker eq null) {
+                    loop = false
+                  }
+                }
+              }
+            }
+            currentRunnable = runnable
+            runnable.run()
+            runnable = null
+            currentRunnable = runnable
+            currentOpCount += 1
+            opCount = currentOpCount
+          }
+        }
+      }
+    }
+
+  private[this] def unsafeSubmitBlocking(runnable: Runnable): Boolean =
+    Blocking.blockingExecutor.unsafeSubmit(runnable)
 }
 
 object ZScheduler {
+
+  /**
+   * A `Supervisor` is a `Thread` that is responsible for monitoring workers and
+   * shifting tasks from workers that are blocking to new workers.
+   */
+  private sealed abstract class Supervisor extends Thread
 
   /**
    * A `Worker` is a `Thread` that is responsible for executing actions
@@ -283,6 +440,20 @@ object ZScheduler {
     @volatile
     var active: Boolean =
       true
+
+    /**
+     * Whether this worker is currently blocking.
+     */
+    @volatile
+    var blocking: Boolean =
+      false
+
+    /**
+     * The current task being executed by this worker.
+     */
+    @volatile
+    var currentRunnable: Runnable =
+      null
 
     /**
      * The local work queue for this worker.

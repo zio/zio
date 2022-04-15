@@ -1262,25 +1262,6 @@ As we see, we have the following changes:
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
-   We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
-   
-    ```scala mdoc:silent:nest
-    trait Logging {
-      def log(line: String): UIO[Unit]
-    }
-    
-    object Logging extends Accessible[Logging]
-    
-    def log(line: String): ZIO[Logging with Clock, Nothing, Unit] =
-      for {
-        clock <- ZIO.service[Clock]
-        now   <- clock.localDateTime
-        _     <- Logging(_.log(s"$now-$line"))
-      } yield ()
-    ```
-
-While Scala 3 doesn't support macro annotation like, so instead of using `@accessible`, the `Accessible` trait is a macro-less approach to create accessor methods specially for Scala 3 users.
-
 The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The _Service Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ### Other Changes
