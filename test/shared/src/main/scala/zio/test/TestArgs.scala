@@ -23,11 +23,19 @@ final case class TestArgs(
   tagSearchTerms: List[String],
   testTaskPolicy: Option[String],
   testRenderer: Option[String],
-  printSummary: Boolean
+  printSummary: Boolean,
+  timed: Boolean
 )
 
 object TestArgs {
-  def empty: TestArgs = TestArgs(List.empty[String], List.empty[String], None, None, printSummary = true)
+  def empty: TestArgs = TestArgs(
+    testSearchTerms = Nil,
+    tagSearchTerms = Nil,
+    testTaskPolicy = None,
+    testRenderer = None,
+    printSummary = true,
+    timed = false
+  )
 
   def parse(args: Array[String]): TestArgs = {
     // TODO: Add a proper command-line parser
@@ -39,6 +47,7 @@ object TestArgs {
         case Array("-policy", name)   => ("policy", name)
         case Array("-renderer", name) => ("renderer", name)
         case Array("-summary", flag)  => ("summary", flag)
+        case Array("-timed", flag)    => ("timed", flag)
       }
       .toList
       .groupBy(_._1)
@@ -51,6 +60,7 @@ object TestArgs {
     val testTaskPolicy = parsedArgs.getOrElse("policy", Nil).headOption
     val testRenderer   = parsedArgs.getOrElse("renderer", Nil).headOption.map(_.toLowerCase)
     val printSummary   = parsedArgs.getOrElse("summary", Nil).headOption.forall(_.toBoolean)
-    TestArgs(terms, tags, testTaskPolicy, testRenderer, printSummary)
+    val timed          = parsedArgs.getOrElse("timed", Nil).headOption.forall(_.toBoolean)
+    TestArgs(terms, tags, testTaskPolicy, testRenderer, printSummary, timed)
   }
 }

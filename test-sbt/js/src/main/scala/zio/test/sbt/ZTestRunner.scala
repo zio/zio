@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.test.{FilteredSpec, Summary, TestArgs, TestAspect, TestEnvironment, TestLogger, ZIOSpecAbstract}
 import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
@@ -95,10 +95,14 @@ sealed class ZTestTask(
       constructLayer[zioSpec.Environment](zioSpec.layer, zio.Console.ConsoleLive)
 
     Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
+      val filteredSpec = FilteredSpec(zioSpec.spec, args)
+
+      val specToRun = if (args.timed) filteredSpec @@ TestAspect.timed else filteredSpec
+
       val logic =
         for {
           summary <- zioSpec
-                       .runSpec(FilteredSpec(zioSpec.spec, args), args, zio.Console.ConsoleLive)
+                       .runSpec(specToRun, args, zio.Console.ConsoleLive)
                        .provideLayer(
                          fullLayer
                        )

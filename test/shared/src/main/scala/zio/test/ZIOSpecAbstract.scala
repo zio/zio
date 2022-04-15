@@ -109,6 +109,8 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
+    val specToRun = if (testArgs.timed) filteredSpec @@ TestAspect.timed else filteredSpec
+
     for {
       runtime <-
         ZIO.runtime[
@@ -132,7 +134,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       summary <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+        runner.withReporter(testReporter).run(aspects.foldLeft(specToRun)(_ @@ _))
     } yield summary
   }
 
