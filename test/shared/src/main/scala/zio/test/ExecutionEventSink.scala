@@ -21,7 +21,7 @@ object ExecutionEventSink {
 
   def ExecutionEventSinkLive(testOutput: TestOutput): ZIO[Any, Nothing, ExecutionEventSink] =
     for {
-      summary <- Ref.make[Summary](Summary(0, 0, 0, ""))
+      summary <- Ref.make[Summary](Summary(0, 0, 0, "", Summary.Success))
     } yield new ExecutionEventSink {
 
       override def process(

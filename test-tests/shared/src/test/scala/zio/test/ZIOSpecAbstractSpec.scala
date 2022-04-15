@@ -20,23 +20,22 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       }
       val composedSpec: ZIOSpecAbstract = basicSpec <> specWithBrokenLayer <> basicSpec
       for {
-        _       <- ZIO.debug("==================== New Test Run ====================")
         _       <- ZIO.consoleWith(console => composedSpec.runSpecInfallible(composedSpec.spec, TestArgs.empty, console))
         console <- testConsole
         output  <- console.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
         assertTrue(
-          output.contains(
+          output.contains( // Brittle with the line numbers
             "at zio.test.ZIOSpecAbstractSpec.spec.specWithBrokenLayer.$anon.layer(ZIOSpecAbstractSpec.scala:15)"
           )
         ) &&
-        assertTrue(output.contains("at zio.test.ZIOSpecAbstractSpec.spec(ZIOSpecAbstractSpec.scala:24)")) &&
+        assertTrue(output.contains("at zio.test.ZIOSpecAbstractSpec.spec(ZIOSpecAbstractSpec.scala:23)")) &&
         assertTrue(output.contains("java.lang.InterruptedException"))
     } @@ TestAspect.flaky,
     test("run method reports successes sanely")(
       for {
         res <- basicSpec.run
-      } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
+      } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "", Summary.Success)))
     )
   )
     .provide(

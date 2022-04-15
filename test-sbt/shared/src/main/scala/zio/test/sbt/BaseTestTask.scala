@@ -3,7 +3,7 @@ package zio.test.sbt
 import sbt.testing.{EventHandler, Logger, Task, TaskDef}
 import zio.{CancelableFuture, Console, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
-import zio.test.{FilteredSpec, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -37,10 +37,7 @@ abstract class BaseTestTask(
                      .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
-        _ <- ZIO.when(summary.fail == 0 && summary.success == 0 && summary.ignore == 0) {
-               TestLogger.logLine("No tests were executed.")
-             }
-        _ <- if (summary.fail > 0)
+        _ <- if (summary.status == Summary.Failure)
                ZIO.fail(new Exception("Failed tests."))
              else ZIO.unit
       } yield ())

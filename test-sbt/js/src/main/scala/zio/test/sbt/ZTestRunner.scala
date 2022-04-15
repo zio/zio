@@ -95,7 +95,7 @@ sealed class ZTestTask(
             _ <- sendSummary.provide(ZLayer.succeed(summary))
             // TODO Confirm if/how these events needs to be handled in #6481
             //    Check XML behavior
-            _ <- ZIO.when(summary.fail > 0) {
+            _ <- ZIO.when(summary.status == Summary.Failure) {
                    ZIO.fail("Failed tests")
                  }
           } yield ())
