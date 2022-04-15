@@ -18,20 +18,32 @@ wait until N fibers have completed some action, or some action has been complete
 A useful property of a `CountDownLatch` is that it doesn't require that fibers calling `countDown` wait for the count to
 reach zero before proceeding, it simply prevents any fiber from proceeding past an `await`until all fibers could pass.
 
-## Operations
-
-### Creation
+## Creation
 
 To create a `CountDownLatch` we can simply use the `make` constructor. It takes an initial number, for the countdown counter:
 
-```scala mdoc:compile-only
-import zio._
-import zio.concurrent._
-
-val latch: IO[Option[Nothing], CountdownLatch] = CountdownLatch.make(5)
+```scala
+object CountdownLatch {
+  def make(n: Int): IO[Option[Nothing], CountdownLatch]
+}
 ```
 
-## Simple on/off Latch
+## Operations
+
+There are two important operations defined on `CountdownLatch`:
+
+```scala
+class CountdownLatch {
+  val countDown: UIO[Unit]
+  val await: UIO[Unit]
+}
+```
+
+The **`countDown`** operation decrements the count of the latch, releasing all waiting fibers if the count reaches zero, and the **`await`** operation causes the current fiber to wait until the latch has counted down to zero.
+
+## Examples
+
+### Simple on/off Latch
 
 We can simply create an on/off latch using `Promise`. In the following example, we don't want to start the `consume` process before the first `50` number appears in the queue. As it requires a simple on/of latch we can implement that using the `Promise` data type:
 
@@ -88,7 +100,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-## Advanced Latches
+### Advanced Latches
 
 We can solve more advanced problems by increasing the initial count of `CountdownLatch`.
 
