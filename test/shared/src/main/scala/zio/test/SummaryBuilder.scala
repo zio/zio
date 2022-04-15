@@ -38,13 +38,12 @@ object SummaryBuilder {
     }
     val failures = extractFailures(reporterEvent)
 
-    val rendered =
+    val rendered: String =
       ConsoleRenderer
         .render(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
-    val newSummaryStatus = if (failures.isEmpty) Summary.Success else Summary.Failure
-    val newSummary = Summary(success, fail, ignore, rendered, newSummaryStatus)
+    val newSummary = Summary(success, fail, ignore, rendered)
     oldSummary.add(newSummary)
   }
 
@@ -72,7 +71,7 @@ object SummaryBuilder {
         }
       case RuntimeFailure(_, _, _, _) =>
         Seq(reporterEvent)
-      case _                          =>
+      case _ =>
         Seq.empty
     }
 }

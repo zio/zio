@@ -6,7 +6,7 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("MultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
-        assertTrue(true)
+        assertTrue(false)
       },
       test("fast test 2") {
         assertTrue(true)
@@ -24,14 +24,13 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
 }
 
 object SmallMinimalSpec extends ZIOSpecDefault {
-  override val layer = ZLayer.fromZIO(ZIO.attempt(???))
   override def spec = suite("SmallMultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
         assertTrue(true)
       }
-    ),
-  )
+    )
+  ) @@ TestAspect.ignore
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {
@@ -60,5 +59,5 @@ object SlowMinimalSpec extends ZIOSpecDefault {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  )
+  ) @@ TestAspect.ignore
 }

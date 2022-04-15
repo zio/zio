@@ -35,7 +35,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
     test("run method reports successes sanely")(
       for {
         res <- basicSpec.run
-      } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "", Summary.Success)))
+      } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
     )
   )
     .provide(
