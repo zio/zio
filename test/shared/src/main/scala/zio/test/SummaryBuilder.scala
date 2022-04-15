@@ -72,8 +72,7 @@ object SummaryBuilder {
         }
       case RuntimeFailure(_, _, _, _) =>
         Seq(reporterEvent)
-      case other                          =>
-        println("Other: " + other)
+      case _                          =>
         Seq.empty
     }
 }

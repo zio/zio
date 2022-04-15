@@ -93,7 +93,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
           List(
             s"${green("+")} some suite",
             s"    ${green("+")} passing test",
-            s"""${ConsoleRenderer.render(Summary(1, 0, 0, "", testTime))}"""
+            s"""${ConsoleRenderer.render(Summary(1, 0, 0, "", Summary.Success, testTime))}"""
           ).mkString("\n")
 
       } yield assertTrue(output.mkString("").contains(expected)) && assertTrue(output.length == 3)
