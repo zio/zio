@@ -175,7 +175,9 @@ object ZPool {
                       case Exit.Success(item) =>
                         invalidated.get.flatMap { set =>
                           if (set.contains(item))
-                            state.update(state => state.copy(free = state.free + 1)) *>
+                            acquired.forEach(a => invalidated.update(_ - a)) *>
+                              acquired.finalizer *>
+                              state.update(state => state.copy(free = state.free + 1)) *>
                               allocate *>
                               acquire
                           else
