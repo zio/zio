@@ -5770,9 +5770,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   private def groupBy[K, V](values: Iterable[V])(f: V => K): Chunk[(K, Chunk[V])] = {
 
     class GroupedBuilder extends Function1[K, ChunkBuilder[V]] { self =>
-      val builder = ChunkBuilder.make[(K, ChunkBuilder[V])]
+      val builder = ChunkBuilder.make[(K, ChunkBuilder[V])]()
       def apply(key: K): ChunkBuilder[V] = {
-        val builder = ChunkBuilder.make[V]
+        val builder = ChunkBuilder.make[V]()
         self.builder += key -> builder
         builder
       }
