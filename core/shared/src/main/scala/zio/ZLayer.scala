@@ -1362,21 +1362,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     ZLayer.fromZIOEnvironment(ZIO.environment[A])
 
   /**
-   * A layer that constructs a scope and closes it when the workflow the layer
-   * is provided to completes execution, whether by success, failure, or
-   * interruption. This can be used to close a scope when providing a layer to a
-   * workflow.
-   */
-  val scope: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.scopedEnvironment(
-      ZIO
-        .acquireReleaseExit(Scope.make(ZTraceElement.empty))((scope, exit) => scope.close(exit)(ZTraceElement.empty))(
-          ZTraceElement.empty
-        )
-        .map(ZEnvironment(_))(ZTraceElement.empty)
-    )(ZTraceElement.empty)
-
-  /**
    * Constructs a layer from the specified scoped effect.
    */
   def scoped[R]: ScopedPartiallyApplied[R] =
