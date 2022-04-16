@@ -12,7 +12,7 @@ trait DefaultJvmMetrics {
 
   /** A ZIO application that periodically updates the JVM metrics */
   lazy val app: ZIOAppDefault = new ZIOAppDefault {
-    override val layer: ZLayer[ZIOAppArgs, Any, Any]             = live
+    override val environmentLayer: ZLayer[ZIOAppArgs, Any, Any]  = live
     override def run: ZIO[Environment with ZIOAppArgs, Any, Any] = ZIO.unit
   }
 

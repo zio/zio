@@ -22,7 +22,7 @@ object FrameworkSpecInstances {
     }
 
   object SimpleSpec extends zio.test.ZIOSpec[Int] {
-    override def layer = ZLayer.succeed(1)
+    override def environmentLayer = ZLayer.succeed(1)
 
     def spec =
       suite("simple suite")(
@@ -43,7 +43,7 @@ object FrameworkSpecInstances {
   }
 
   object RuntimeExceptionSpec extends zio.test.ZIOSpec[Int] {
-    override def layer = ZLayer.succeed(1)
+    override def environmentLayer = ZLayer.succeed(1)
 
     def spec =
       suite("explording suite")(
@@ -71,7 +71,7 @@ object FrameworkSpecInstances {
 //  }
 
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
-    override def layer = sharedLayer
+    override def environmentLayer = sharedLayer
 
     def spec =
       suite("suite with shared layer")(
@@ -83,7 +83,7 @@ object FrameworkSpecInstances {
   }
 
   object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
-    override def layer = sharedLayer
+    override def environmentLayer = sharedLayer
 
     def spec =
       zio.test.test("test completes with shared layer 2") {
