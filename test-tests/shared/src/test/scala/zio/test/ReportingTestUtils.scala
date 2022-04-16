@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.render.TestRenderer
-import zio.{Cause, Console, Random, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Cause, Console, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -51,11 +51,6 @@ object ReportingTestUtils {
       _ <-
         TestTestRunner(testEnvironment, console)
           .run(spec)
-          .provideLayer(
-            (TestLogger.fromConsole(
-              console
-            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live
-          )
       output <- TestConsole.output
     } yield output.mkString
 
@@ -65,11 +60,6 @@ object ReportingTestUtils {
       summary <-
         TestTestRunner(testEnvironment, console)
           .run(spec)
-          .provideLayer(
-            Scope.default >>> ((TestLogger.fromConsole(
-              console
-            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live)
-          )
     } yield summary.summary
 
   private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment], console: Console)(implicit
@@ -77,10 +67,9 @@ object ReportingTestUtils {
   ) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
-        testEnvironment,
-        (Console.live >>> TestLogger.fromConsole(
-          console
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        Scope.default >>> testEnvironment,
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
+        sinkLayerWithConsole(console)
       ),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )

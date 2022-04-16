@@ -38,23 +38,13 @@ object SummaryBuilder {
     }
     val failures = extractFailures(reporterEvent)
 
-    val rendered =
+    val rendered: String =
       ConsoleRenderer
         .render(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
-    val newSummaryPiece = Summary(success, fail, ignore, rendered)
-    Summary(
-      oldSummary.success + newSummaryPiece.success,
-      oldSummary.fail + newSummaryPiece.fail,
-      oldSummary.ignore + newSummaryPiece.ignore,
-      oldSummary.summary +
-        (if (newSummaryPiece.summary.trim.isEmpty)
-           ""
-         else
-           "\n" + newSummaryPiece.summary)
-    )
-
+    val newSummary = Summary(success, fail, ignore, rendered)
+    oldSummary.add(newSummary)
   }
 
   private def countTestResults(
@@ -79,7 +69,9 @@ object SummaryBuilder {
           case _ =>
             Seq.empty
         }
-      case RuntimeFailure(_, _, _, _) => Seq(reporterEvent)
-      case _                          => Seq.empty
+      case RuntimeFailure(_, _, _, _) =>
+        Seq(reporterEvent)
+      case _ =>
+        Seq.empty
     }
 }

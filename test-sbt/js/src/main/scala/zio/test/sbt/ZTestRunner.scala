@@ -85,30 +85,24 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
-    val zioSpec = spec
-
-    val fullLayer: Layer[
-      Error,
-      zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
-    ] =
-      constructLayer[zioSpec.Environment](zioSpec.layer, zio.Console.ConsoleLive)
-
-    Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
+  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
+    Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunAsyncWith {
       val logic =
-        for {
-          summary <- zioSpec
-                       .runSpec(FilteredSpec(zioSpec.spec, args), args, zio.Console.ConsoleLive)
-                       .provideLayer(
-                         fullLayer
-                       )
-          _ <- sendSummary.provide(ZLayer.succeed(summary))
-          // TODO Confirm if/how these events needs to be handled in #6481
-          //    Check XML behavior
-          _ <- ZIO.when(summary.fail > 0) {
-                 ZIO.fail("Failed tests")
-               }
-        } yield ()
+        ZIO.consoleWith { console =>
+          (for {
+            summary <- spec
+                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, zio.Console.ConsoleLive)
+            _ <- sendSummary.provide(ZLayer.succeed(summary))
+            // TODO Confirm if/how these events needs to be handled in #6481
+            //    Check XML behavior
+            _ <- ZIO.when(summary.status == Summary.Failure) {
+                   ZIO.fail("Failed tests")
+                 }
+          } yield ())
+            .provideLayer(
+              sharedFilledTestlayer(console)
+            )
+        }
       logic
     } { exit =>
       exit match {
@@ -117,7 +111,6 @@ sealed class ZTestTask(
       }
       continuation(Array())
     }
-  }
 }
 object ZTestTask {
   def apply(

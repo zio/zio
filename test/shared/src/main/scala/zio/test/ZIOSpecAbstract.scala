@@ -85,7 +85,7 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      summary <- runSpec(spec, testArgs, console)
+      summary <- runSpecInfallible(spec, testArgs, console)
     } yield summary
   }
 
@@ -97,14 +97,18 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     testReporter(renderer, TestAnnotationRenderer.default)
   }
 
-  private[zio] def runSpec(
+  /*
+   * Regardless of test assertion or runtime failures, this method will always return a summary
+   * capturing this information
+   */
+  private[zio] def runSpecInfallible(
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
     console: Console
   )(implicit
     trace: ZTraceElement
   ): URIO[
-    Environment with TestEnvironment with ZIOAppArgs with Scope,
+    TestEnvironment with ZIOAppArgs with Scope,
     Summary
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
@@ -112,21 +116,26 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     for {
       runtime <-
         ZIO.runtime[
-          Environment with TestEnvironment with ZIOAppArgs with Scope
+          TestEnvironment with ZIOAppArgs with Scope
         ]
-      environment   = runtime.environment
-      runtimeConfig = hook(runtime.runtimeConfig)
+      environment0: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
+      environment1: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
+      runtimeConfig                                     = hook(runtime.runtimeConfig)
+      sharedLayer: ZLayer[Any, Any, Environment] =
+        ZLayer.succeedEnvironment(environment0) >>> layer
+      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
+                       .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
+      executionEventSinkLayer = sinkLayerWithConsole(console)
       runner =
         TestRunner(
           TestExecutor
             .default[
-              Environment with TestEnvironment with ZIOAppArgs with Scope,
+              Environment,
               Any
             ](
-              ZLayer.succeedEnvironment(environment) +!+ (Scope.default >>> testEnvironment),
-              (TestLogger.fromConsole(
-                console
-              ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+              sharedLayer,
+              perTestLayer,
+              executionEventSinkLayer
             ),
           runtimeConfig
         )

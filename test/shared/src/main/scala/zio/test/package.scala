@@ -569,6 +569,16 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
+  val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] =
+    sinkLayerWithConsole(Console.ConsoleLive)(ZTraceElement.empty)
+
+  def sinkLayerWithConsole(console: Console)(implicit
+    trace: ZTraceElement
+  ): ZLayer[Any, Nothing, ExecutionEventSink] =
+    TestLogger.fromConsole(
+      console
+    ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+
   /**
    * A `Runner` that provides a default testable environment.
    */
@@ -576,10 +586,9 @@ package object test extends CompileVariants {
     implicit val trace = ZTraceElement.empty
     TestRunner(
       TestExecutor.default(
-        testEnvironment,
-        TestLogger.fromConsole(
-          Console.ConsoleLive
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+        Scope.default >>> testEnvironment,
+        (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
+        sinkLayer
       )
     )
   }

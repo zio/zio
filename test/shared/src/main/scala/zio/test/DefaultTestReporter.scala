@@ -145,7 +145,12 @@ object DefaultTestReporter {
 
                 case Left(TestFailure.Runtime(cause, _)) =>
                   Some(
-                    renderRuntimeCause(cause, labels.reverse.mkString(" - "), depth, includeCause)
+                    renderRuntimeCause(
+                      cause,
+                      labels.reverse.headOption.getOrElse("Unlabeled failure"),
+                      depth,
+                      includeCause
+                    )
                   )
               }
               renderedResult.map(r => r.lines).getOrElse(Nil)
@@ -153,9 +158,13 @@ object DefaultTestReporter {
           )
         )
       case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+        val depth = reporterEvent.labels.length
+        val label = reporterEvent.labels.lastOption.getOrElse("Top-level defect prevented test execution")
         failure match {
-          case TestFailure.Assertion(_, _) => throw new NotImplementedError("Assertion failures are not supported")
-          case TestFailure.Runtime(_, _)   => throw new NotImplementedError("Runtime failures are not supported")
+          case TestFailure.Assertion(result, _) =>
+            Seq(renderAssertFailure(result, label, depth))
+          case TestFailure.Runtime(cause, _) =>
+            Seq(renderRuntimeCause(cause, label, depth, includeCause))
         }
       case SectionEnd(_, _, _) =>
         Nil
@@ -182,7 +191,7 @@ object DefaultTestReporter {
 
   private def renderRuntimeCause[E](cause: Cause[E], label: String, depth: Int, includeCause: Boolean)(implicit
     trace: ZTraceElement
-  ) = {
+  ): ExecutionResult = {
     val failureDetails =
       Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
 

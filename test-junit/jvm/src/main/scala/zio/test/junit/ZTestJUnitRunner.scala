@@ -96,15 +96,14 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
-        .runSpec(
+        .runSpecInfallible(
           instrumented,
           TestArgs.empty,
           Console.ConsoleLive
         )
         .provide(
           Scope.default >>> (ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          ZIOAppArgs.empty,
-          spec.layer
+          ZIOAppArgs.empty
         )
     }
   }
