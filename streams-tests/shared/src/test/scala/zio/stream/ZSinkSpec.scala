@@ -97,6 +97,30 @@ object ZSinkSpec extends ZIOBaseSpec {
               .map(assert(_)(equalTo(Chunk(Map.empty[Int, Int]))))
           }
         ),
+        test("dropUntil")(
+          assertM(
+            ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
+              .pipeThrough(ZSink.dropUntil[Int](_ >= 3))
+              .runCollect
+          )(equalTo(Chunk(4, 5, 1, 2, 3, 4, 5)))
+        ),
+        suite("dropUntilZIO")(
+          test("happy path")(
+            assertM(
+              ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
+                .pipeThrough(ZSink.dropUntilZIO(x => ZIO.succeed(x >= 3)))
+                .runCollect
+            )(equalTo(Chunk(4, 5, 1, 2, 3, 4, 5)))
+          ),
+          test("error")(
+            assertM {
+              (ZStream(1, 2, 3) ++ ZStream.fail("Aie") ++ ZStream(5, 1, 2, 3, 4, 5))
+                .pipeThrough(ZSink.dropUntilZIO[Any, String, Int](x => ZIO.succeed(x >= 2)))
+                .either
+                .runCollect
+            }(equalTo(Chunk(Right(3), Left("Aie"))))
+          )
+        ),
         test("dropWhile")(
           assertM(
             ZStream(1, 2, 3, 4, 5, 1, 2, 3, 4, 5)
@@ -291,13 +315,29 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertM(ZStream("1", "a").run(parser).either)(isLeft(hasMessage(equalTo("For input string: \"a\""))))
         } @@ zioTag(errors)
       ),
+      test("collectAllUntil") {
+        val sink   = ZSink.collectAllUntil[Int](_ > 4)
+        val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
+        val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
+        assertM(result)(
+          equalTo(Chunk(Chunk(3, 4, 5), Chunk(6), Chunk(7), Chunk(2, 3, 4, 5), Chunk(6), Chunk(5), Chunk(4, 3, 2)))
+        )
+      },
+      test("collectAllUntilZIO") {
+        val sink   = ZSink.collectAllUntilZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i > 4))
+        val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
+        val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
+        assertM(result)(
+          equalTo(Chunk(Chunk(3, 4, 5), Chunk(6), Chunk(7), Chunk(2, 3, 4, 5), Chunk(6), Chunk(5), Chunk(4, 3, 2)))
+        )
+      },
       test("collectAllWhile") {
         val sink   = ZSink.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
         assertM(result)(equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2))))
       },
-      test("collectAllWhileM") {
+      test("collectAllWhileZIO") {
         val sink   = ZSink.collectAllWhileZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i < 5))
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
