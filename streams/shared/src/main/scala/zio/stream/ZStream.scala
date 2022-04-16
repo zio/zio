@@ -26,6 +26,7 @@ import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
@@ -1556,16 +1557,42 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def groupBy[R1 <: R, E1 >: E, K, V](
     f: A => ZIO[R1, E1, (K, V)],
-    buffer0: => Int = 16
-  ): ZStream.GroupBy[R1, E1, K, V] = {
-    type A1 = A
+    buffer: => Int = 16
+  ): ZStream.GroupBy[R1, E1, K, V] =
     new ZStream.GroupBy[R1, E1, K, V] {
-      type A = A1
-      def stream = self
-      def key    = f
-      def buffer = buffer0
+      def grouped(implicit trace: ZTraceElement): ZStream[R1, E1, (K, Dequeue[Take[E1, V]])] =
+        ZStream.unwrapScoped[R1] {
+          for {
+            decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]]
+            out <-
+              ZIO.acquireRelease(Queue.bounded[Exit[Option[E1], (K, Dequeue[Take[E1, V]])]](buffer))(_.shutdown)
+            ref <- Ref.make[Map[K, UniqueKey]](Map())
+            add <- self
+                     .mapZIO(f)
+                     .distributedWithDynamic(
+                       buffer,
+                       (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
+                       out.offer
+                     )
+            _ <- decider.succeed { case (k, _) =>
+                   ref.get.map(_.get(k)).flatMap {
+                     case Some(idx) => ZIO.succeedNow(_ == idx)
+                     case None =>
+                       add.flatMap { case (idx, q) =>
+                         (ref.update(_ + (k -> idx)) *>
+                           out.offer(
+                             Exit.succeed(
+                               k -> ZStream.mapDequeue(q)(exit =>
+                                 Take(exit.map { case (_, value) => Chunk.single(value) })
+                               )
+                             )
+                           )).as(_ == idx)
+                       }
+                   }
+                 }
+          } yield ZStream.fromQueueWithShutdown(out).flattenExitOption
+        }
     }
-  }
 
   /**
    * Partition a stream using a function and process each stream individually.
@@ -1593,7 +1620,49 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     f: A => K,
     buffer: => Int = 16
   ): ZStream.GroupBy[R, E, K, A] =
-    self.groupBy(a => ZIO.succeedNow((f(a), a)), buffer)
+    new ZStream.GroupBy[R, E, K, A] {
+      def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Take[E, A]])] = {
+
+        def groupByKey(
+          map: mutable.Map[K, Queue[Take[E, A]]],
+          outerQueue: Queue[Take[E, (K, Queue[Take[E, A]])]]
+        ): ZChannel[R, E, Chunk[A], Any, E, Any, Any] =
+          ZChannel.readWithCause(
+            in =>
+              ZChannel.fromZIO {
+                ZIO.foreachDiscard(ZStream.groupBy(in)(f)) { case (key, values) =>
+                  map.get(key) match {
+                    case Some(innerQueue) =>
+                      innerQueue.offer(Take.chunk(values))
+                    case None =>
+                      Queue.bounded[Take[E, A]](buffer).flatMap { innerQueue =>
+                        ZIO.succeed(map += key -> innerQueue) *>
+                          outerQueue.offer(Take.single(key -> innerQueue)) *>
+                          innerQueue.offer(Take.chunk(values)).catchSomeCause {
+                            case cause if cause.isInterruptedOnly => ZIO.unit
+                          }
+                      }
+                  }
+                }
+              } *> groupByKey(map, outerQueue),
+            e => ZChannel.fromZIO(outerQueue.offer(Take.failCause(e))),
+            _ =>
+              ZChannel.fromZIO {
+                ZIO.foreachDiscard(map) { case (_, innerQueue) =>
+                  innerQueue.offer(Take.end).catchSomeCause { case cause if cause.isInterruptedOnly => ZIO.unit }
+                } *> outerQueue.offer(Take.end)
+              }
+          )
+
+        ZStream.unwrapScoped[R] {
+          for {
+            map   <- ZIO.succeed(mutable.Map.empty[K, Queue[Take[E, A]]])
+            queue <- Queue.unbounded[Take[E, (K, Queue[Take[E, A]])]].withFinalizer(_.shutdown)
+            _     <- (self.channel >>> groupByKey(map, queue)).drain.runScoped.forkScoped
+          } yield ZStream.fromQueueWithShutdown(queue).flattenTake
+        }
+      }
+    }
 
   /**
    * Partitions the stream with specified chunkSize
@@ -4866,49 +4935,25 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   sealed trait GroupBy[-R, +E, +K, +V] { self =>
 
-    type A
+    protected def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Take[E, V]])]
 
-    protected def stream: ZStream[R, E, A]
-    protected def key: A => ZIO[R, E, (K, V)]
-    protected def buffer: Int
-
-    def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
-      ZStream.unwrapScoped[R] {
-        for {
-          decider <- Promise.make[Nothing, (K, V) => UIO[UniqueKey => Boolean]]
-          out <-
-            ZIO.acquireRelease(Queue.bounded[Exit[Option[E], (K, Dequeue[Exit[Option[E], V]])]](buffer))(_.shutdown)
-          ref <- Ref.make[Map[K, UniqueKey]](Map())
-          add <- stream
-                   .mapZIO(key)
-                   .distributedWithDynamic(
-                     buffer,
-                     (kv: (K, V)) => decider.await.flatMap(_.tupled(kv)),
-                     out.offer
-                   )
-          _ <- decider.succeed { case (k, _) =>
-                 ref.get.map(_.get(k)).flatMap {
-                   case Some(idx) => ZIO.succeedNow(_ == idx)
-                   case None =>
-                     add.flatMap { case (idx, q) =>
-                       (ref.update(_ + (k -> idx)) *>
-                         out.offer(Exit.succeed(k -> mapDequeue(q)(_.map(_._2))))).as(_ == idx)
-                     }
-                 }
-               }
-        } yield ZStream.fromQueueWithShutdown(out).flattenExitOption
+    /**
+     * Run the function across all groups, collecting the results in an
+     * arbitrary order.
+     */
+    final def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A], buffer: => Int = 16)(implicit
+      trace: ZTraceElement
+    ): ZStream[R1, E1, A] =
+      grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) { case (k, q) =>
+        f(k, ZStream.fromQueueWithShutdown(q).flattenTake)
       }
 
     /**
      * Only consider the first n groups found in the stream.
      */
-    def first(n: => Int): GroupBy[R, E, K, V] =
+    final def first(n: => Int): GroupBy[R, E, K, V] =
       new GroupBy[R, E, K, V] {
-        type A = self.A
-        def stream: ZStream[R, E, A]    = self.stream
-        def key: A => ZIO[R, E, (K, V)] = self.key
-        def buffer: Int                 = self.buffer
-        override def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
+        override def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Take[E, V]])] =
           self.grouped.zipWithIndex.filterZIO { case elem @ ((_, q), i) =>
             if (i < n) ZIO.succeedNow(elem).as(true)
             else q.shutdown.as(false)
@@ -4918,28 +4963,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     /**
      * Filter the groups to be processed.
      */
-    def filter(f: K => Boolean): GroupBy[R, E, K, V] =
+    final def filter(f: K => Boolean): GroupBy[R, E, K, V] =
       new GroupBy[R, E, K, V] {
-        type A = self.A
-        def stream: ZStream[R, E, A]    = self.stream
-        def key: A => ZIO[R, E, (K, V)] = self.key
-        def buffer: Int                 = self.buffer
-        override def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Exit[Option[E], V]])] =
+        override def grouped(implicit trace: ZTraceElement): ZStream[R, E, (K, Dequeue[Take[E, V]])] =
           self.grouped.filterZIO { case elem @ (k, q) =>
             if (f(k)) ZIO.succeedNow(elem).as(true)
             else q.shutdown.as(false)
           }
-      }
-
-    /**
-     * Run the function across all groups, collecting the results in an
-     * arbitrary order.
-     */
-    def apply[R1 <: R, E1 >: E, A](f: (K, ZStream[Any, E, V]) => ZStream[R1, E1, A])(implicit
-      trace: ZTraceElement
-    ): ZStream[R1, E1, A] =
-      grouped.flatMapPar[R1, E1, A](Int.MaxValue, buffer) { case (k, q) =>
-        f(k, ZStream.fromQueueWithShutdown(q).flattenExitOption)
       }
   }
 
@@ -5733,4 +5763,34 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[B]] =
         dequeue.takeUpTo(max).map(_.map(f))
     }
+
+  /**
+   * A variant of `groupBy` that retains the insertion order of keys.
+   */
+  private def groupBy[K, V](values: Iterable[V])(f: V => K): Chunk[(K, Chunk[V])] = {
+
+    class GroupedBuilder extends Function1[K, ChunkBuilder[V]] { self =>
+      val builder = ChunkBuilder.make[(K, ChunkBuilder[V])]
+      def apply(key: K): ChunkBuilder[V] = {
+        val builder = ChunkBuilder.make[V]
+        self.builder += key -> builder
+        builder
+      }
+      def result(): Chunk[(K, Chunk[V])] = {
+        val chunk = builder.result()
+        chunk.map { case (key, builder) => key -> builder.result() }
+      }
+    }
+
+    val groupedBuilder = new GroupedBuilder
+    val iterator       = values.iterator
+    val map            = mutable.Map.empty[K, ChunkBuilder[V]]
+    while (iterator.hasNext) {
+      val value   = iterator.next()
+      val key     = f(value)
+      val builder = map.getOrElseUpdate(key, groupedBuilder(key))
+      builder += value
+    }
+    groupedBuilder.result()
+  }
 }
