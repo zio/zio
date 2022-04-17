@@ -121,9 +121,8 @@ sealed class ZTestTask(
       logic
     } { exit =>
       exit match {
-        case Exit.Failure(cause) =>
-          Console.err.println(s"$runnerType failed.")
-        case _ =>
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
+        case _                   =>
       }
       continuation(Array())
     }
