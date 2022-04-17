@@ -23,7 +23,7 @@ import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-final class ZTestRunner(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
+final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
