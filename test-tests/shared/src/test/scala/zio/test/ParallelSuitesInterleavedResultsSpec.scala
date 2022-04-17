@@ -3,10 +3,11 @@ package zio.test
 import zio._
 
 object MultiCMinimalSpec extends ZIOSpecDefault {
+//  override val layer = ZLayer.fromZIO(ZIO.attempt(???))
   override def spec = suite("MultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
-        assertTrue(false)
+        assertTrue(true)
       },
       test("fast test 2") {
         assertTrue(true)
@@ -20,7 +21,7 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
 
 object SmallMinimalSpec extends ZIOSpecDefault {
@@ -30,14 +31,14 @@ object SmallMinimalSpec extends ZIOSpecDefault {
         assertTrue(true)
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("SM")(
     suite("SMFast ")(
       test("SMF 1") {
-        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
+        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(false))
       },
       test("SMF 2") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
@@ -59,5 +60,5 @@ object SlowMinimalSpec extends ZIOSpecDefault {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
