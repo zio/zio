@@ -39,17 +39,10 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = ZTraceElement.empty
 
-    for {
-      summary <-
-        runSpec.provideSomeLayer[ZIOAppArgs with Scope](
-          (ZLayer.environment[ZIOAppArgs with Scope] +!+
-            (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive)))
-            .catchAllCause(layerError =>
-              ZLayer.fail(layerError.prettyPrint) // TODO Discuss this Any => String error mapping.  Probably not good.
-            )
-        )
-      _ <- ZIO.when(summary.status == Summary.Failure)(ZIO.fail(summary.summary))
-    } yield summary
+    runSpec.provideSomeLayer[ZIOAppArgs with Scope](
+      ZLayer.environment[ZIOAppArgs with Scope] +!+
+        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive))
+    )
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
