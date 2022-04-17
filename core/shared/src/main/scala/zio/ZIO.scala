@@ -4101,7 +4101,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       environment   <- environment[R]
       runtimeConfig <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
       executor      <- executor
-    } yield Runtime(environment, runtimeConfig.copy(executor = executor))
+      fiberRefs     <- ZIO.getFiberRefs
+    } yield Runtime(environment, runtimeConfig.copy(executor = executor), fiberRefs)
 
   /**
    * Retrieves the runtimeConfig that this effect is running on.
