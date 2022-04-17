@@ -301,6 +301,8 @@ Here are some of the most important changes:
 |                                |                                   |
 | `ZIO.validate_`                | `ZIO.validateDiscard`             |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`          |
+|                                |                                   |
+| `ZIO.tapCause`                 | `ZIO.tapErrorCause`               |
 
 ### Lazy Evaluation of Parameters
 
