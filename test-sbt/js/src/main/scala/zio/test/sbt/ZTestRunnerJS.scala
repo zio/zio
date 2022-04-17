@@ -51,12 +51,10 @@ sealed abstract class ZTestRunnerJS(
     None
   }
 
-
-
   override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef())
 
-  // This currently prevents us from utilizing merged Specs.
+  // This is what prevents us from utilizing merged Specs.
   // When we try to round trip, we only deserialize the first task, so all the others
   // that were merged in are lost.
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
@@ -96,24 +94,25 @@ sealed class ZTestTask(
         ZIO.consoleWith { console =>
           (for {
             summary <- spec
-              .runSpecInfallible(FilteredSpec(spec.spec, args), args, zio.Console.ConsoleLive)
+                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, zio.Console.ConsoleLive)
             _ <- sendSummary.provide(ZLayer.succeed(summary))
             // TODO Confirm if/how these events needs to be handled in #6481
             //    Check XML behavior
             _ <- ZIO.when(summary.status == Summary.Failure) {
-              ZIO.attempt(
-                eventHandler.handle(
-                  ZTestEvent(
-                    fullyQualifiedName = "zio.test.PlaceHolder",
-                    selector = taskDef.selectors().head,
-                    status = Status.Failure,
-                    maybeThrowable = None,
-                    duration = 0L,
-                    fingerprint = ZioSpecFingerprint
-                  ).asInstanceOf[Event]
-                )
-              )
-            }
+                   ZIO.attempt(
+                     eventHandler.handle(
+                       ZTestEvent(
+                         fullyQualifiedName = taskDef.fullyQualifiedName(),
+                         // taskDef.selectors() is "one to many" so we can expect nonEmpty here
+                         selector = taskDef.selectors().head,
+                         status = Status.Failure,
+                         maybeThrowable = None,
+                         duration = 0L,
+                         fingerprint = ZioSpecFingerprint
+                       )
+                     )
+                   )
+                 }
           } yield ())
             .provideLayer(
               sharedFilledTestlayer(console)
@@ -124,7 +123,7 @@ sealed class ZTestTask(
       exit match {
         case Exit.Failure(cause) =>
           Console.err.println(s"$runnerType failed.")
-        case _               =>
+        case _ =>
       }
       continuation(Array())
     }
