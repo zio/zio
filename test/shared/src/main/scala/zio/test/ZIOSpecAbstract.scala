@@ -39,10 +39,17 @@ abstract class ZIOSpecAbstract extends ZIOApp {
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = ZTraceElement.empty
 
-    runSpec.provideSomeLayer[ZIOAppArgs with Scope](
-      ZLayer.environment[ZIOAppArgs with Scope] +!+
-        (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive))
-    )
+    for {
+      summary <-
+        runSpec.provideSomeLayer[ZIOAppArgs with Scope](
+          (ZLayer.environment[ZIOAppArgs with Scope] +!+
+            (ZEnv.live >>> TestEnvironment.live +!+ layer +!+ TestLogger.fromConsole(Console.ConsoleLive)))
+            .catchAllCause(layerError =>
+              ZLayer.fail(layerError.prettyPrint) // TODO Discuss this Any => String error mapping.  Probably not good.
+            )
+        )
+      _ <- ZIO.when(summary.status == Summary.Failure)(ZIO.fail(summary.summary))
+    } yield summary
   }
 
   final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
@@ -51,15 +58,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
 
       def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
         self.layer +!+ that.layer
-
-      override def runSpec: ZIO[
-        Environment with TestEnvironment with ZIOAppArgs with Scope,
-        Any,
-        Summary
-      ] =
-        self.runSpec.zipPar(that.runSpec).map { case (summary1, summary2) =>
-          summary1
-        }
 
       def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
