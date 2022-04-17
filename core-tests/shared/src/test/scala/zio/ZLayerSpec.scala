@@ -509,15 +509,12 @@ object ZLayerSpec extends ZIOBaseSpec {
           y <- getAndIncrement.provide(layer)
         } yield assertTrue(x == 0 && y == 0)
       },
-      suite("fromFunction")(
-        test("case class without return type specified") {
-          final case class Person(name: String, age: Int)
-          val layer: ZLayer[String with Int, Nothing, Person] =
-            ZLayer.fromFunction(Person(_, _))
-          for {
-            person <- (ZLayer.succeed("Jane Doe") ++ ZLayer.succeed(42) >>> layer).build
-          } yield assertTrue(person == ZEnvironment(Person("Jane Doe", 42)))
-        }
-      )
+      test("fromFunction") {
+        final case class Person(name: String, age: Int)
+        val layer: ZLayer[String with Int, Nothing, Person] = ZLayer.fromFunction(Person(_, _))
+        for {
+          person <- (ZLayer.succeed("Jane Doe") ++ ZLayer.succeed(42) >>> layer).build
+        } yield assertTrue(person == ZEnvironment(Person("Jane Doe", 42)))
+      }
     )
 }
