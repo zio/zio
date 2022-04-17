@@ -94,9 +94,9 @@ sealed class ZTestTask(
                        .onError(e => ZIO.succeed(println(e.prettyPrint)))
                    }
         _ <- sendSummary.provide(ZLayer.succeed(summary))
-        _ <- (if (summary.fail > 0)
-                ZIO.fail(new Exception("Failed tests."))
-              else ZIO.unit)
+        _ <- ZIO.when(summary.status == Summary.Failure)(
+               ZIO.fail(new Exception("Failed tests."))
+             )
       } yield ()
 
     } { exit =>

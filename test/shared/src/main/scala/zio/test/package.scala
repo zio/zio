@@ -240,18 +240,6 @@ package object test extends CompileVariants {
         )
   }
 
-  /**
-   * A `ZSpec[R, E]` is the canonical spec for testing ZIO programs. The spec's
-   * test type is a ZIO effect that requires an `R` and might fail with an `E`.
-   */
-  type ZSpec[-R, +E] = Spec[R, TestFailure[E], TestSuccess]
-
-  /**
-   * An `Annotated[A]` contains a value of type `A` along with zero or more test
-   * annotations.
-   */
-  type Annotated[+A] = (A, TestAnnotationMap)
-
   private def traverseResult[A](
     value: => A,
     assertResult: AssertResult,
@@ -581,6 +569,16 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
+  val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] =
+    sinkLayerWithConsole(Console.ConsoleLive)(ZTraceElement.empty)
+
+  def sinkLayerWithConsole(console: Console)(implicit
+    trace: ZTraceElement
+  ): ZLayer[Any, Nothing, ExecutionEventSink] =
+    TestLogger.fromConsole(
+      console
+    ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+
   /**
    * A `Runner` that provides a default testable environment.
    */
@@ -588,10 +586,9 @@ package object test extends CompileVariants {
     implicit val trace = ZTraceElement.empty
     TestRunner(
       TestExecutor.default(
-        testEnvironment,
-        TestLogger.fromConsole(
-          Console.ConsoleLive
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+        Scope.default >>> testEnvironment,
+        (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
+        sinkLayer
       )
     )
   }
@@ -606,7 +603,7 @@ package object test extends CompileVariants {
    * Creates an ignored test result.
    */
   val ignored: UIO[TestSuccess] =
-    ZIO.succeedNow(TestSuccess.Ignored)
+    ZIO.succeedNow(TestSuccess.Ignored())
 
   /**
    * Passes platform specific information to the specified function, which will
@@ -624,7 +621,7 @@ package object test extends CompileVariants {
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: ZTraceElement
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     Spec.labeled(
       label,
       if (specs.isEmpty) Spec.empty

@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Console, Random, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -188,16 +188,14 @@ object IntelliJRenderUtils {
 
   // TODO de-dup layer creation
   def runLog(
-    spec: ZSpec[TestEnvironment, String]
+    spec: Spec[TestEnvironment, String]
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <-
         IntelliJTestRunner(testEnvironment)
           .run(spec)
           .provideLayer[Nothing, TestEnvironment with Scope](
-            TestClock.default ++ (TestLogger.fromConsole(
-              Console.ConsoleLive
-            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ Random.live
+            TestClock.default ++ sinkLayer ++ Random.live
           )
       output <- TestConsole.output
     } yield output.mkString
@@ -207,10 +205,9 @@ object IntelliJRenderUtils {
   )(implicit trace: ZTraceElement) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
-        testEnvironment,
-        (Console.live >>> TestLogger.fromConsole(
-          Console.ConsoleLive
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        Scope.default >>> testEnvironment,
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
+        sinkLayer
       ),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
     )

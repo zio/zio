@@ -3,7 +3,7 @@ id: overview_index
 title:  "Summary"
 ---
 
-ZIO is a library for asynchronous and concurrent programming that is based on pure functional programming. 
+ZIO is a library for asynchronous and concurrent programming.
 
 > For background on how pure functional programming deals with effects like input and output, see the [Background](background.md) section.
 
@@ -11,11 +11,11 @@ At the core of ZIO is `ZIO`, a powerful effect type inspired by Haskell's `IO` m
 
 ## ZIO 
 
-The `ZIO[R, E, A]` data type has three type parameters:
+The `ZIO` data type has three type parameters: `ZIO[R, E, A]`. The parameters are defined as follows:
 
- - **`R` - Environment Type**. The effect requires an environment of type `R`. If this type parameter is `Any`, it means the effect has no requirements, because you can run the effect with any value (for example, the unit value `()`).
- - **`E` - Failure Type**. The effect may fail with a value of type `E`. Some applications will use `Throwable`. If this type parameter is `Nothing`, it means the effect cannot fail, because there are no values of type `Nothing`.
- - **`A` - Success Type**. The effect may succeed with a value of type `A`. If this type parameter is `Unit`, it means the effect produces no useful information, while if it is `Nothing`, it means the effect runs forever (or until failure).
+ - **`R` - Environment Type**. Represents the environment required by the effect. If this type parameter is `Any`, the environment has no requirements, meaning you can run the effect with any value (for example, the unit value `()`).
+ - **`E` - Failure Type**. Represents the value of the effect's potential failure. If this type parameter is `Nothing`, it means the effect cannot fail as there are no values of type `Nothing`. Or, as another example, some applications will use `Throwable` to indicate a failure which may throw.
+ - **`A` - Success Type**. Represents the potential success value of the effect. If this type parameter is `Unit`, it means the effect produces no useful information, while if it is `Nothing`, it means the effect runs forever (or until failure).
 
 For example, an effect of type `ZIO[Any, IOException, Byte]` has no requirements, may fail with a value of type `IOException`, or may succeed with a value of type `Byte`.
 
@@ -25,21 +25,22 @@ A value of type `ZIO[R, E, A]` is like an effectful version of the following fun
 R => Either[E, A]
 ```
 
-This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, because they model complex effects, like asynchronous and concurrent effects.
+This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, because they model complex effects like asynchronous and concurrent effects.
 
 ## Type Aliases
 
 The `ZIO` data type is the only effect type in ZIO. However, there are a family of type aliases and companion objects that simplify common cases:
 
- - `UIO[A]` — This is a type alias for `ZIO[Any, Nothing, A]`, which represents an effect that has no requirements, and cannot fail, but can succeed with an `A`.
- - `URIO[R, A]` — This is a type alias for `ZIO[R, Nothing, A]`, which represents an effect that requires an `R`, and cannot fail, but can succeed with an `A`.
- - `Task[A]` — This is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
- - `RIO[R, A]` — This is a type alias for `ZIO[R, Throwable, A]`, which represents an effect that requires an `R`, and may fail with a `Throwable` value, or succeed with an `A`.
- - `IO[E, A]` — This is a type alias for `ZIO[Any, E, A]`, which represents an effect that has no requirements, and may fail with an `E`, or succeed with an `A`.
+ - `UIO[A]` — A type alias for `ZIO[Any, Nothing, A]`, representing an effect that has no requirements, cannot fail, and can succeed with an `A`.
+ - `URIO[R, A]` — A type alias for `ZIO[R, Nothing, A]`, representing an effect that requires an `R`, cannot fail, and can succeed with an `A`.
+ - `Task[A]` — A type alias for `ZIO[Any, Throwable, A]`, representing an effect that has no requirements, may fail with a `Throwable` value, or succeed with an `A`.
+ - `RIO[R, A]` — A type alias for `ZIO[R, Throwable, A]`, representing an effect that requires an `R`, may fail with a `Throwable` value, or succeed with an `A`.
+ - `IO[E, A]` — A type alias for `ZIO[Any, E, A]`, representing an effect that has no requirements, may fail with an `E`, or succeed with an `A`.
 
-These type aliases all have companion objects, and these companion objects have methods that can be used to construct values of the appropriate type.
 
-If you are new to functional effects, we recommend starting with the `Task` type, which has a single type parameter, and corresponds most closely to the `Future` data type built into Scala's standard library.
+**Tips For Getting Started With Type Aliases**
+
+If you are new to functional effects, we recommend starting with the `Task` type, which has a single type parameter and corresponds most closely to the `Future` data type built into Scala's standard library.
 
 If you are using _Cats Effect_ libraries, you may find the `RIO` type useful, since it allows you to thread environments through third-party libraries and your application.
 
@@ -49,4 +50,4 @@ Finally, if you are an experienced functional programmer, then direct use of the
 
 ## Next Steps
 
-If you are comfortable with the ZIO data type, and its family of type aliases, the next step is learning how to [create effects](creating_effects.md).
+If you are comfortable with the `ZIO` data type, and its family of type aliases, the next step is learning how to [create effects](creating_effects.md).

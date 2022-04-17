@@ -38,6 +38,6 @@ abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract { self =>
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: ZTraceElement
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError, suiteConstructor.OutSuccess] =
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     zio.test.suite(label)(specs: _*)
 }

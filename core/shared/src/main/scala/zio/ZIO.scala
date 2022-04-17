@@ -521,20 +521,18 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    self.tapBoth(
-      error => ZIO.succeed(println(s"<FAIL> $error")),
-      value => ZIO.succeed(println(value))
-    )
+    self
+      .tap(value => ZIO.succeed(println(value)))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
    * Prefixes the output with the given message.
    */
   final def debug(prefix: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
-    self.tapBoth(
-      error => ZIO.succeed(println(s"<FAIL> $prefix: $error")),
-      value => ZIO.succeed(println(s"$prefix: $value"))
-    )
+    self
+      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
+      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
 
   /**
    * Returns an effect that is delayed from this effect by the specified

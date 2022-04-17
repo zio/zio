@@ -49,14 +49,14 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       test("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction[Int, String](_.toString)
+        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction((n: Int) => n.toString)
 
         testSize(layer, 1)
       },
       test("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (ZLayer.fromFunction[Int, String](_.toString) ++
-            ZLayer.fromFunction[Int, Boolean](_ % 2 == 0))
+          (ZLayer.fromFunction((n: Int) => n.toString) ++
+            ZLayer.fromFunction((n: Int) => n % 2 == 0))
 
         testSize(layer, 2)
       },
@@ -285,7 +285,7 @@ object ZLayerSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       test("passthrough") {
         val layer: ZLayer[Int, Nothing, String] =
-          ZLayer.fromFunction[Int, String](_.toString)
+          ZLayer.fromFunction((n: Int) => n.toString)
         val live: ZLayer[Any, Nothing, Int with String] =
           ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
@@ -467,13 +467,13 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("caching values in dependencies") {
         case class Config(value: Int)
         case class A(value: Int)
-        val aLayer = ZLayer.fromFunction[Config, A](env => A(env.value))
+        val aLayer = ZLayer.fromFunction((config: Config) => A(config.value))
 
         case class B(value: Int)
-        val bLayer = ZLayer.fromFunction[A, B](env => B(env.value))
+        val bLayer = ZLayer.fromFunction((a: A) => B(a.value))
 
         case class C(value: Int)
-        val cLayer = ZLayer.fromFunction[A, C](env => C(env.value))
+        val cLayer = ZLayer.fromFunction((a: A) => C(a.value))
 
         val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
         val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
@@ -495,6 +495,26 @@ object ZLayerSpec extends ZIOBaseSpec {
           release <- ref.get
         } yield assertTrue(acquire == Vector("Acquiring Module 1")) &&
           assertTrue(release == Vector("Acquiring Module 1", "Releasing Module 1"))
+      },
+      test("succeed is lazy") {
+        import java.util.concurrent.atomic.AtomicInteger
+        final case class Counter(ref: AtomicInteger) {
+          def getAndIncrement: UIO[Int] = ZIO.succeed(ref.getAndIncrement())
+        }
+        val layer = ZLayer.succeed(Counter(new AtomicInteger(0)))
+        def getAndIncrement: ZIO[Counter, Nothing, Int] =
+          ZIO.serviceWithZIO(_.getAndIncrement)
+        for {
+          x <- getAndIncrement.provide(layer)
+          y <- getAndIncrement.provide(layer)
+        } yield assertTrue(x == 0 && y == 0)
+      },
+      test("fromFunction") {
+        final case class Person(name: String, age: Int)
+        val layer: ZLayer[String with Int, Nothing, Person] = ZLayer.fromFunction(Person(_, _))
+        for {
+          person <- (ZLayer.succeed("Jane Doe") ++ ZLayer.succeed(42) >>> layer).build
+        } yield assertTrue(person == ZEnvironment(Person("Jane Doe", 42)))
       }
     )
 }

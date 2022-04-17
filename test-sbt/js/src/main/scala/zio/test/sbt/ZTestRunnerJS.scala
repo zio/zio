@@ -22,7 +22,7 @@ import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
-sealed abstract class ZTestRunner(
+sealed abstract class ZTestRunnerJS(
   val args: Array[String],
   val remoteArgs: Array[String],
   testClassLoader: ClassLoader,
@@ -54,12 +54,15 @@ sealed abstract class ZTestRunner(
   override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef())
 
+  // This is what prevents us from utilizing merged Specs.
+  // When we try to round trip, we only deserialize the first task, so all the others
+  // that were merged in are lost.
   override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
     ZTestTask(deserializer(task), testClassLoader, runnerType, sendSummary, TestArgs.parse(args))
 }
 
-final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
-    extends ZTestRunner(args, remoteArgs, testClassLoader, "master") {
+final class ZMasterTestRunnerJS(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
+    extends ZTestRunnerJS(args, remoteArgs, testClassLoader, "master") {
 
   //This implementation seems to be used when there's only single spec to run
   override val sendSummary: SendSummary = SendSummary.fromSend { summary =>
@@ -69,12 +72,12 @@ final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], te
 
 }
 
-final class ZSlaveTestRunner(
+final class ZSlaveTestRunnerJS(
   args: Array[String],
   remoteArgs: Array[String],
   testClassLoader: ClassLoader,
   val sendSummary: SendSummary
-) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
+) extends ZTestRunnerJS(args, remoteArgs, testClassLoader, "slave") {}
 
 sealed class ZTestTask(
   taskDef: TaskDef,
@@ -85,39 +88,44 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
-    val zioSpec = spec
-
-    val fullLayer: Layer[
-      Error,
-      zioSpec.Environment with ZIOAppArgs with TestEnvironment with Scope with TestLogger
-    ] =
-      constructLayer[zioSpec.Environment](zioSpec.layer, zio.Console.ConsoleLive)
-
-    Runtime(ZEnvironment.empty, zioSpec.hook(zioSpec.runtime.runtimeConfig)).unsafeRunAsyncWith {
+  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
+    Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunAsyncWith {
       val logic =
-        for {
-          summary <- zioSpec
-                       .runSpec(FilteredSpec(zioSpec.spec, args), args, zio.Console.ConsoleLive)
-                       .provideLayer(
-                         fullLayer
+        ZIO.consoleWith { console =>
+          (for {
+            summary <- spec
+                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, zio.Console.ConsoleLive)
+            _ <- sendSummary.provide(ZLayer.succeed(summary))
+            // TODO Confirm if/how these events needs to be handled in #6481
+            //    Check XML behavior
+            _ <- ZIO.when(summary.status == Summary.Failure) {
+                   ZIO.attempt(
+                     eventHandler.handle(
+                       ZTestEvent(
+                         fullyQualifiedName = taskDef.fullyQualifiedName(),
+                         // taskDef.selectors() is "one to many" so we can expect nonEmpty here
+                         selector = taskDef.selectors().head,
+                         status = Status.Failure,
+                         maybeThrowable = None,
+                         duration = 0L,
+                         fingerprint = ZioSpecFingerprint
                        )
-          _ <- sendSummary.provide(ZLayer.succeed(summary))
-          // TODO Confirm if/how these events needs to be handled in #6481
-          //    Check XML behavior
-          _ <- ZIO.when(summary.fail > 0) {
-                 ZIO.fail("Failed tests")
-               }
-        } yield ()
+                     )
+                   )
+                 }
+          } yield ())
+            .provideLayer(
+              sharedFilledTestlayer(console)
+            )
+        }
       logic
     } { exit =>
       exit match {
-        case Exit.Failure(_) => Console.err.println(s"$runnerType failed.")
-        case _               =>
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
+        case _                   =>
       }
       continuation(Array())
     }
-  }
 }
 object ZTestTask {
   def apply(

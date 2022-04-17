@@ -18,8 +18,20 @@ package zio.test
 
 import zio.{Duration, ZTraceElement}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.Summary.{Failure, Success}
 
-final case class Summary(success: Int, fail: Int, ignore: Int, summary: String, duration: Duration = Duration.Zero) {
+final case class Summary(
+  success: Int,
+  fail: Int,
+  ignore: Int,
+  summary: String,
+  duration: Duration = Duration.Zero
+) {
+  val status: Summary.Status =
+    if (summary.trim.isEmpty)
+      Summary.Success
+    else
+      Summary.Failure
   def total: Int = success + fail + ignore
 
   def add(executionEvent: ExecutionEvent)(implicit trace: ZTraceElement): Summary =
@@ -30,6 +42,16 @@ final case class Summary(success: Int, fail: Int, ignore: Int, summary: String, 
       success + other.success,
       fail + other.fail,
       ignore + other.ignore,
-      summary + other.summary
+      summary +
+        (if (other.summary.trim.isEmpty)
+           ""
+         else
+           "\n" + other.summary)
     )
+}
+
+object Summary {
+  sealed trait Status
+  object Success extends Status
+  object Failure extends Status
 }

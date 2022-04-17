@@ -563,6 +563,24 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
 object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
+   * Accesses the whole environment of the sink.
+   */
+  def environment[R](implicit trace: ZTraceElement): ZSink[R, Nothing, Any, Nothing, ZEnvironment[R]] =
+    fromZIO(ZIO.environment[R])
+
+  /**
+   * Accesses the environment of the sink.
+   */
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the sink in the context of an effect.
+   */
+  def environmentWithZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    new EnvironmentWithZIOPartiallyApplied[R]
+
+  /**
    * Accesses the environment of the sink in the context of a sink.
    */
   def environmentWithSink[R]: EnvironmentWithSinkPartiallyApplied[R] =
@@ -636,6 +654,32 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foldWeighted[In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
+   * Accumulates incoming elements into a chunk until predicate `p` is
+   * satisfied.
+   */
+  def collectAllUntil[In](p: In => Boolean)(implicit
+    trace: ZTraceElement
+  ): ZSink[Any, Nothing, In, In, Chunk[In]] =
+    fold[In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+      (a :: as, !p(a))
+    }.map { case (is, _) =>
+      Chunk.fromIterable(is.reverse)
+    }
+
+  /**
+   * Accumulates incoming elements into a chunk until effectful predicate `p` is
+   * satisfied.
+   */
+  def collectAllUntilZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
+    trace: ZTraceElement
+  ): ZSink[Env, Err, In, In, Chunk[In]] =
+    foldZIO[Env, Err, In, (List[In], Boolean)]((Nil, true))(_._2) { case ((as, _), a) =>
+      p(a).map(bool => (a :: as, !bool))
+    }.map { case (is, _) =>
+      Chunk.fromIterable(is.reverse)
+    }
+
+  /**
    * Accumulates incoming elements into a chunk as long as they verify predicate
    * `p`.
    */
@@ -695,6 +739,46 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(loop)
   }
 
+  /**
+   * Drops incoming elements until the predicate `p` is satisfied.
+   */
+  def dropUntil[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
+    lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+      ZChannel.readWith(
+        (in: Chunk[In]) => {
+          val leftover = in.dropUntil(p)
+          val more     = leftover.isEmpty
+          if (more) loop
+          else ZChannel.write(leftover) *> ZChannel.identity[ZNothing, Chunk[In], Any]
+        },
+        (e: ZNothing) => ZChannel.fail(e),
+        (_: Any) => ZChannel.unit
+      )
+    new ZSink(loop)
+  }
+
+  /**
+   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   */
+  def dropUntilZIO[R, InErr, In](
+    p: In => ZIO[R, InErr, Boolean]
+  )(implicit trace: ZTraceElement): ZSink[R, InErr, In, In, Any] = {
+    lazy val loop: ZChannel[R, InErr, Chunk[In], Any, InErr, Chunk[In], Any] = ZChannel.readWith(
+      (in: Chunk[In]) =>
+        ZChannel.unwrap(in.dropUntilZIO(p).map { leftover =>
+          val more = leftover.isEmpty
+          if (more) loop else ZChannel.write(leftover) *> ZChannel.identity[InErr, Chunk[In], Any]
+        }),
+      (e: InErr) => ZChannel.fail(e),
+      (_: Any) => ZChannel.unit
+    )
+
+    new ZSink(loop)
+  }
+
+  /**
+   * Drops incoming elements as long as the predicate `p` is satisfied.
+   */
   def dropWhile[In](p: In => Boolean)(implicit trace: ZTraceElement): ZSink[Any, Nothing, In, In, Any] = {
     lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel.readWith(
@@ -710,6 +794,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(loop)
   }
 
+  /**
+   * Drops incoming elements as long as the effectful predicate `p` is
+   * satisfied.
+   */
   def dropWhileZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
   )(implicit trace: ZTraceElement): ZSink[R, InErr, In, In, Any] = {
@@ -1411,6 +1499,38 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.never)
 
   /**
+   * Accesses the specified service in the environment of the effect.
+   */
+  def service[Z: Tag](implicit trace: ZTraceElement): ZSink[Z, Nothing, Any, Nothing, Z] =
+    ZSink.serviceWith(identity)
+
+  /**
+   * Accesses the service corresponding to the specified key in the environment.
+   */
+  def serviceAt[Service]: ZStream.ServiceAtPartiallyApplied[Service] =
+    new ZStream.ServiceAtPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the sink.
+   */
+  def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
+    new ServiceWithPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the sink in the
+   * context of an effect.
+   */
+  def serviceWithZIO[Service]: ServiceWithZIOPartiallyApplied[Service] =
+    new ServiceWithZIOPartiallyApplied[Service]
+
+  /**
+   * Accesses the specified service in the environment of the sink in the
+   * context of a sink.
+   */
+  def serviceWithSink[Service]: ServiceWithSinkPartiallyApplied[Service] =
+    new ServiceWithSinkPartiallyApplied[Service]
+
+  /**
    * A sink that immediately ends with the specified value.
    */
   def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZSink[Any, Nothing, Any, Nothing, Z] =
@@ -1463,11 +1583,59 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def unwrapScoped[R]: UnwrapScopedPartiallyApplied[R] =
     new UnwrapScopedPartiallyApplied[R]
 
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Z](
+      f: ZEnvironment[R] => Z
+    )(implicit trace: ZTraceElement): ZSink[R, Nothing, Any, Nothing, Z] =
+      ZSink.environment[R].map(f)
+  }
+
+  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R1 <: R, E, Z](
+      f: ZEnvironment[R] => ZIO[R1, E, Z]
+    )(implicit trace: ZTraceElement): ZSink[R with R1, E, Any, Nothing, Z] =
+      ZSink.environment[R].mapZIO(f)
+  }
+
   final class EnvironmentWithSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[R1 <: R, E, In, L, Z](
       f: ZEnvironment[R] => ZSink[R1, E, In, L, Z]
     )(implicit trace: ZTraceElement): ZSink[R with R1, E, In, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.environmentWith[R](f(_).channel)))
+  }
+
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Key](
+      key: => Key
+    )(implicit
+      tag: EnvironmentTag[Map[Key, Service]],
+      trace: ZTraceElement
+    ): ZSink[Map[Key, Service], Nothing, Any, Nothing, Option[Service]] =
+      ZSink.environmentWith(_.getAt(key))
+  }
+
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Z](f: Service => Z)(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZSink[Service, Nothing, Any, Nothing, Z] =
+      ZSink.fromZIO(ZIO.serviceWith[Service](f))
+  }
+
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R <: Service, E, Z](f: Service => ZIO[R, E, Z])(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZSink[R with Service, E, Any, Nothing, Z] =
+      ZSink.fromZIO(ZIO.serviceWithZIO[Service](f))
+  }
+
+  final class ServiceWithSinkPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R <: Service, E, In, L, Z](f: Service => ZSink[R, E, In, L, Z])(implicit
+      tag: Tag[Service],
+      trace: ZTraceElement
+    ): ZSink[R with Service, E, In, L, Z] =
+      new ZSink(ZChannel.unwrap(ZIO.serviceWith[Service](f(_).channel)))
   }
 
   final class UnwrapScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {

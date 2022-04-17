@@ -56,18 +56,11 @@ package object zio
   }
 
   object Tag extends TagVersionSpecific {
-    def apply[A](implicit tag0: EnvironmentTag[A], isNotIntersection: IsNotIntersection[A]): Tag[A] =
+    def apply[A](implicit tag0: EnvironmentTag[A]): Tag[A] =
       new Tag[A] {
-        def tag: zio.LightTypeTag = tag0.tag
-
+        def tag: zio.LightTypeTag           = tag0.tag
         override def closestClass: Class[_] = tag0.closestClass
       }
-  }
-
-  trait IsNotIntersection[A] extends Serializable
-
-  object IsNotIntersection extends IsNotIntersectionVersionSpecific {
-    def apply[A: IsNotIntersection]: IsNotIntersection[A] = implicitly[IsNotIntersection[A]]
   }
 
   private[zio] type Callback[E, A] = (Exit[E, A], FiberRefs) => Any

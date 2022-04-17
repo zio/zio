@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.collection.immutable.LongMap
 
 /**
@@ -30,19 +32,19 @@ trait Scope extends Serializable { self =>
    * Adds a finalizer to this scope. The finalizer is guaranteed to be run when
    * the scope is closed.
    */
-  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
+  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
 
   /**
    * Forks a new scope that is a child of this scope. The child scope will
    * automatically be closed when this scope is closed.
    */
-  def fork: UIO[Scope.Closeable]
+  def fork(implicit trace: ZTraceElement): UIO[Scope.Closeable]
 
   /**
    * A simplified version of `addFinalizerWith` when the `finalizer` does not
    * depend on the `Exit` value that the scope is closed with.
    */
-  final def addFinalizer(finalizer: => UIO[Any]): UIO[Unit] =
+  final def addFinalizer(finalizer: => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
     addFinalizerExit(_ => finalizer)
 
   /**
@@ -63,7 +65,7 @@ object Scope {
      * Closes a scope with the specified exit value, running all finalizers that
      * have been added to the scope.
      */
-    def close(exit: => Exit[Any, Any]): UIO[Unit]
+    def close(exit: => Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit]
 
     /**
      * Uses the scope by providing it to a `ZIO` workflow that needs a scope,
@@ -78,13 +80,15 @@ object Scope {
   /**
    * Accesses a scope in the environment and adds a finalizer to it.
    */
-  def addFinalizer(finalizer: => UIO[Any]): ZIO[Scope, Nothing, Unit] =
+  def addFinalizer(finalizer: => UIO[Any])(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizer(finalizer))
 
   /**
    * Accesses a scope in the environment and adds a finalizer to it.
    */
-  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): ZIO[Scope, Nothing, Unit] =
+  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit
+    trace: ZTraceElement
+  ): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizerExit(finalizer))
 
   /**
@@ -93,8 +97,14 @@ object Scope {
    * interruption. This can be used to close a scope when providing a layer to a
    * workflow.
    */
-  val default: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.scope
+  val default: ZLayer[Any, Nothing, Scope] =
+    ZLayer.scopedEnvironment(
+      ZIO
+        .acquireReleaseExit(Scope.make(ZTraceElement.empty))((scope, exit) => scope.close(exit)(ZTraceElement.empty))(
+          ZTraceElement.empty
+        )
+        .map(ZEnvironment[Scope](_))(ZTraceElement.empty)
+    )(ZTraceElement.empty)
 
   /**
    * The global scope which is never closed. Finalizers added to this scope will
@@ -102,11 +112,11 @@ object Scope {
    */
   val global: Scope.Closeable =
     new Scope.Closeable {
-      def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit] =
+      def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.unit
-      def close(exit: => Exit[Any, Any]): UIO[Unit] =
+      def close(exit: => Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
         ZIO.unit
-      def fork: UIO[Scope.Closeable] =
+      def fork(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
         make
     }
 
@@ -115,21 +125,21 @@ object Scope {
    * the reverse of the order in which they were added when this scope is
    * closed.
    */
-  def make: UIO[Scope.Closeable] =
+  def make(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
     makeWith(ExecutionStrategy.Sequential)
 
   /**
    * Makes a scope. Finalizers added to this scope will be run according to the
    * specified `ExecutionStrategy`.
    */
-  def makeWith(executionStrategy: => ExecutionStrategy): UIO[Scope.Closeable] =
+  def makeWith(executionStrategy: => ExecutionStrategy)(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
     ReleaseMap.make.map { releaseMap =>
       new Scope.Closeable { self =>
-        def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit] =
+        def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
           releaseMap.add(finalizer).unit
-        def close(exit: => Exit[Any, Any]): UIO[Unit] =
+        def close(exit: => Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
           ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
-        def fork: UIO[Scope.Closeable] =
+        def fork(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
           ZIO.uninterruptible {
             for {
               scope     <- Scope.make
@@ -144,16 +154,16 @@ object Scope {
    * Makes a scope. Finalizers added to this scope will be run in parallel when
    * this scope is closed.
    */
-  def parallel: UIO[Scope.Closeable] =
+  def parallel(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
     makeWith(ExecutionStrategy.Parallel)
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
-    def apply[E, A](zio: => ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope)))
   }
 
   final class UsePartiallyApplied[R](private val scope: Scope.Closeable) extends AnyVal {
-    def apply[E, A](zio: => ZIO[Scope with R, E, A]): ZIO[R, E, A] =
+    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       scope.extend[R](zio).onExit(scope.close(_))
   }
 
