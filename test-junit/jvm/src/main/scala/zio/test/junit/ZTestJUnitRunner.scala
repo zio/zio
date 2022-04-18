@@ -134,7 +134,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         .fold(details =>
           rendered(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(details, 0).lines: _*)
         )(_ && _, _ || _, !_)
-        .lines
+        .streamingLines
     )
 
   private def testDescription(label: String, path: Vector[String]): Description = {
