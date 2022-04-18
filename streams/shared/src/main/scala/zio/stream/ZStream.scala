@@ -250,7 +250,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           }
       }
 
-      ZStream.scoped[R]((self.channel >>> handoffProducer).runScoped.forkDaemon) *>
+      ZStream.scoped[R]((self.channel >>> handoffProducer).runScoped.forkScoped) *>
         new ZStream(scheduledAggregator(None))
     }
   }
@@ -308,7 +308,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     for {
       hub    <- Hub.bounded[Take[E, A]](maximumLag)
       queues <- ZIO.collectAll(Chunk.fill(n)(hub.subscribe))
-      _      <- self.runIntoHubScoped(hub).fork
+      _      <- self.runIntoHubScoped(hub).forkScoped
     } yield queues
 
   /**
@@ -499,7 +499,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         start <- Promise.make[Nothing, Unit]
         _     <- start.succeed(())
         ref   <- Ref.make(start)
-        _     <- (channel >>> producer(queue, ref)).runScoped.fork
+        _     <- (channel >>> producer(queue, ref)).runScoped.forkScoped
       } yield consumer(queue)
     }
   }
@@ -848,8 +848,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           right    <- ZStream.Handoff.make[Exit[Option[E1], A2]]
           latchL   <- ZStream.Handoff.make[Unit]
           latchR   <- ZStream.Handoff.make[Unit]
-          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.fork
-          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.fork
+          _        <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left, latchL)).runScoped.forkScoped
+          _        <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right, latchR)).runScoped.forkScoped
           pullLeft  = latchL.offer(()) *> left.take.flatMap(ZIO.done(_))
           pullRight = latchR.offer(()) *> right.take.flatMap(ZIO.done(_))
         } yield ZStream.unfoldZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
@@ -889,8 +889,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           right    <- ZStream.Handoff.make[Take[E1, A2]]
           latchL   <- ZStream.Handoff.make[Unit]
           latchR   <- ZStream.Handoff.make[Unit]
-          _        <- (self.channel >>> producer(left, latchL)).runScoped.fork
-          _        <- (that.channel >>> producer(right, latchR)).runScoped.fork
+          _        <- (self.channel >>> producer(left, latchL)).runScoped.forkScoped
+          _        <- (that.channel >>> producer(right, latchR)).runScoped.forkScoped
           pullLeft  = latchL.offer(()) *> left.take.flatMap(_.done)
           pullRight = latchR.offer(()) *> right.take.flatMap(_.done)
         } yield ZStream.unfoldChunkZIO(s)(s => f(s, pullLeft, pullRight).flatMap(ZIO.done(_).unsome)).channel
@@ -1091,7 +1091,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                    cause => finalize(Exit.failCause(cause.map(Some(_)))),
                    _ => finalize(Exit.fail(None))
                  )
-                 .fork
+                 .forkScoped
         } yield queuesLock.withPermit(newQueue.get.flatten)
       }
     } yield add
@@ -1784,8 +1784,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         for {
           left  <- ZStream.Handoff.make[Take[E1, A1]]
           right <- ZStream.Handoff.make[Take[E1, A1]]
-          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runScoped.fork
-          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runScoped.fork
+          _     <- (self.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(left)).runScoped.forkScoped
+          _     <- (that.channel.concatMap(ZChannel.writeChunk(_)) >>> producer(right)).runScoped.forkScoped
         } yield {
           def process(leftDone: Boolean, rightDone: Boolean): ZChannel[R1, E1, Boolean, Any, E1, Chunk[A1], Unit] =
             ZChannel.readWithCause[R1, E1, Boolean, Any, E1, Chunk[A1], Unit](
@@ -2379,7 +2379,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
       for {
-        _ <- self.runScoped(consumer).fork
+        _ <- self.runScoped(consumer).forkScoped
         z <- p.await
       } yield (z, new ZStream(producer))
     }).flatten
@@ -3268,7 +3268,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               }
             )
 
-          ZStream.scoped[R]((self.channel >>> producer).runScoped.fork) *>
+          ZStream.scoped[R]((self.channel >>> producer).runScoped.forkScoped) *>
             new ZStream(consumer(NotStarted))
         }
       }
@@ -3326,7 +3326,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Hub[Take[E1, A1]]] =
     for {
       hub <- ZIO.acquireRelease(Hub.bounded[Take[E1, A1]](capacity))(_.shutdown)
-      _   <- self.runIntoHubScoped(hub).fork
+      _   <- self.runIntoHubScoped(hub).forkScoped
     } yield hub
 
   /**
@@ -3398,7 +3398,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- ZIO.acquireRelease(Queue.bounded[Take[E, A]](capacity))(_.shutdown)
-      _     <- self.runIntoQueueScoped(queue).fork
+      _     <- self.runIntoQueueScoped(queue).forkScoped
     } yield queue
 
   /**
@@ -3411,7 +3411,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- ZIO.acquireRelease(Queue.dropping[Take[E, A]](capacity))(_.shutdown)
-      _     <- self.runIntoQueueScoped(queue).fork
+      _     <- self.runIntoQueueScoped(queue).forkScoped
     } yield queue
 
   /**
@@ -3423,7 +3423,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Exit[Option[E], A]]] =
     for {
       queue <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](capacity))(_.shutdown)
-      _     <- self.runIntoQueueElementsScoped(queue).fork
+      _     <- self.runIntoQueueElementsScoped(queue).forkScoped
     } yield queue
 
   /**
@@ -3435,7 +3435,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- ZIO.acquireRelease(Queue.sliding[Take[E, A]](capacity))(_.shutdown)
-      _     <- self.runIntoQueueScoped(queue).fork
+      _     <- self.runIntoQueueScoped(queue).forkScoped
     } yield queue
 
   /**
@@ -3445,7 +3445,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def toQueueUnbounded(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Dequeue[Take[E, A]]] =
     for {
       queue <- ZIO.acquireRelease(Queue.unbounded[Take[E, A]])(_.shutdown)
-      _     <- self.runIntoQueueScoped(queue).fork
+      _     <- self.runIntoQueueScoped(queue).forkScoped
     } yield queue
 
   /**
