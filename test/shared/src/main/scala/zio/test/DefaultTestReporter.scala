@@ -145,6 +145,7 @@ object DefaultTestReporter {
 
                 case Left(TestFailure.Runtime(cause, _)) =>
                   Some(
+                    // TODO Pass all labels so that we can generate the streaming output *and* summary output
                     renderRuntimeCause(
                       cause,
                       labels.reverse.headOption.getOrElse("Unlabeled failure"),
