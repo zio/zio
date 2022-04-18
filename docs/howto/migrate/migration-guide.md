@@ -1268,8 +1268,8 @@ The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The
 
 Here is list of other deprecated methods:
 
-| ZIO 1.x                             | ZIO 2.x                               |
-|-------------------------------------|---------------------------------------|
+| ZIO 1.x                    | ZIO 2.x                      |
+|----------------------------|------------------------------|
 | `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
@@ -1551,8 +1551,8 @@ As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subt
 
 To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
-| ZIO 1.x                  | ZIO 2.x                                 |
-|--------------------------|-----------------------------------------|
+| ZIO 1.x                  | ZIO 2.x                               |
+|--------------------------|---------------------------------------|
 | `RefM#dequeueRef`       | `Ref.Synchronized#SubscriptionRef`     |
 | `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
 | `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
