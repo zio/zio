@@ -30,7 +30,7 @@ object SmallMinimalSpec extends ZIOSpecDefault {
         assertTrue(true)
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {

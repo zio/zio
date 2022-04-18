@@ -43,7 +43,7 @@ trait ConsoleRenderer extends TestRenderer {
     }
 
 
-  override def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
+  def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
       val message = Message(result.summaryLines).intersperse(Line.fromString("\n"))
 
