@@ -1525,6 +1525,20 @@ libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
 
 And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
 
+## Simplification of Concurrent Data Types
+
+Even though highly polymorphic versions of ZIO concurrent data structures (e.g. `ZRef`, `ZQueue`) were elegant, they were used rarely. There was also some cost associated with polymorphism, such as errors, readability, and maintainability.
+
+Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
+
+| ZIO 1.x (removed)                   | ZIO 2.x              |
+|-------------------------------------|----------------------|
+|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
+|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
+|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
+|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
+|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
+
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
