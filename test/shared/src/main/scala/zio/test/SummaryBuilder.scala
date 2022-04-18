@@ -38,7 +38,6 @@ object SummaryBuilder {
     }
     val failures = extractFailures(reporterEvent)
 
-    // TODO Hook in here?
     val rendered: String =
       ConsoleRenderer
         .renderForSummary(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)

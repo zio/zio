@@ -77,7 +77,7 @@ object ExecutionResult {
       offset,
       annotations,
       lines,
-      lines // Same as lines for now.
+      lines // Re-uses lines when we don't have summary-specific output
     )
 
   sealed abstract class Status
