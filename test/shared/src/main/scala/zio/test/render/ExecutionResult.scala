@@ -62,7 +62,7 @@ case class ExecutionResult(
     self.copy(annotations = annotations)
 }
 object ExecutionResult {
-  def apply(
+  def withoutSummarySpecificOutput(
              resultType: ResultType,
              label: String,
              status: Status,

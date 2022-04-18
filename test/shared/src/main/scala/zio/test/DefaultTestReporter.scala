@@ -51,7 +51,7 @@ object DefaultTestReporter {
           case Nil => Seq.empty
           case nonEmptyList =>
             Seq(
-              ExecutionResult(
+              ExecutionResult.withoutSummarySpecificOutput(
                 ResultType.Suite,
                 label = nonEmptyList.last,
                 // We no longer know if the suite has passed here, because the output is streamed
