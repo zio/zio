@@ -66,19 +66,17 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         Chunk.empty
     }
 
-  protected def runSpec: ZIO[
+  protected final def runSpec(implicit trace: ZTraceElement): ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
     Any,
     Summary
-  ] = {
-    implicit val trace = ZTraceElement.empty
+  ] =
     for {
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecInfallible(spec, testArgs, console)
     } yield summary
-  }
 
   private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {
     val renderer = rendererName match {
