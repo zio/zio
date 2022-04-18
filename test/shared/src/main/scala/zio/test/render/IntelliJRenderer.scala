@@ -16,6 +16,8 @@ trait IntelliJRenderer extends TestRenderer {
   override def render(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     mkTree(results).flatMap(renderTree)
 
+  def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] = ???
+
   private def renderTree(t: Node[ExecutionResult]): List[String] =
     t.value.resultType match {
       case ResultType.Suite =>

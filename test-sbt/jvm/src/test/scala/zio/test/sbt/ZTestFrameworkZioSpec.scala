@@ -1,13 +1,11 @@
 package zio.test.sbt
 
 import sbt.testing.{SuiteSelector, TaskDef}
-import zio.{Duration, ZIO}
-import zio.test.{Summary, TestAspect, ZIOSpecAbstract}
+import zio.{Duration, Scope, ZIO}
+import zio.test.{Spec, Summary, TestAspect, TestEnvironment, ZIOSpecAbstract, ZIOSpecDefault, assertCompletes, assertNever, assertTrue, testConsole}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
+import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleFailingSharedSpec, SimpleSpec, TimeOutSpec}
 import zio.test.sbt.TestingSupport.{green, red}
-
-import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
@@ -20,6 +18,14 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
       ) && assertTrue(output.length == 3)
     ),
+    test("basic failure reporting"){
+      for {
+        _      <- loadAndExecuteAll(Seq(SimpleFailingSharedSpec)).flip
+        output <- testOutputFenced
+      } yield assertTrue(
+        output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
+      ) && assertTrue(output.length == 3)
+    },
     test("displays timeouts")(
       for {
         _      <- loadAndExecuteAll(Seq(TimeOutSpec)).flip
@@ -120,6 +126,13 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     for {
       console <- testConsole
       output  <- console.output
+    } yield output
+
+  private val testOutputFenced =
+    for {
+      _ <- ZIO.debug("====================")
+      output  <- testOutput.debug
+      _ <- ZIO.debug("====================")
     } yield output
 
   private def loadAndExecuteAll[T <: ZIOSpecAbstract](

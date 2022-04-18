@@ -21,6 +21,7 @@ import zio.test.{Summary, TestAnnotationRenderer}
 
 trait TestRenderer {
   def render(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String]
+  def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String]
   def render(summary: Summary): String
 }
 object TestRenderer {

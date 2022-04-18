@@ -42,6 +42,24 @@ trait ConsoleRenderer extends TestRenderer {
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 
+
+  override def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
+    results.map { result =>
+      val message = Message(result.summaryLines).intersperse(Line.fromString("\n"))
+
+      val output = result.resultType match {
+        case ResultType.Suite =>
+          renderSuite(result.status, result.offset, message)
+        case ResultType.Test =>
+          renderTest(result.status, result.offset, message)
+        case ResultType.Other =>
+          Message(result.lines)
+      }
+
+      val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
+      renderToStringLines(output ++ renderedAnnotations).mkString
+    }
+
   private def renderSuite(status: Status, offset: Int, message: Message): Message =
     status match {
       case Status.Passed => withOffset(offset)(info("+") + sp) +: message

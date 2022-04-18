@@ -28,7 +28,8 @@ case class ExecutionResult(
   status: Status,
   offset: Int,
   annotations: List[TestAnnotationMap],
-  lines: List[Line]
+  lines: List[Line],
+  summaryLines: List[Line]
 ) {
   self =>
 
@@ -61,6 +62,24 @@ case class ExecutionResult(
     self.copy(annotations = annotations)
 }
 object ExecutionResult {
+  def apply(
+             resultType: ResultType,
+             label: String,
+             status: Status,
+             offset: Int,
+             annotations: List[TestAnnotationMap],
+             lines: List[Line]
+           ): ExecutionResult =
+    ExecutionResult(
+      resultType,
+      label,
+      status,
+      offset,
+      annotations,
+      lines,
+      lines // Same as lines for now.
+    )
+
   sealed abstract class Status
   object Status {
     case object Failed  extends Status

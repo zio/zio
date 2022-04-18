@@ -36,13 +36,42 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       for {
         res <- basicSpec.run
       } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
-    )
+    ),
+    test("runSpec method reports failures sanely") {
+      val failingSpec = new ZIOSpecDefault {
+        override def spec: Spec[TestEnvironment with Scope, Any] = suite("parent") (test("failing test") {
+          assertTrue(false)
+        }
+        )
+      }
+      for {
+        res <-
+          ZIO.consoleWith(console =>
+            basicSpec.runSpecInfallible(failingSpec.spec, TestArgs.empty, console)).debug
+        _ <- testOutputFenced
+      } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, ""))) &&
+        assertTrue(res.summary.contains("parent"))
+    }
   )
     .provide(
       ZIOAppArgs.empty,
       testEnvironment,
       Scope.default
     )
+
+  private val testOutput =
+    for {
+      console <- testConsole
+      output  <- console.output
+    } yield output
+
+  private val testOutputFenced =
+    for {
+      _ <- ZIO.debug("================================")
+      output  <- testOutput.debug
+      _ <- ZIO.debug("================================")
+    } yield output
+
 
   private def equalsTimeLess(a: Summary, b: Summary) =
     a.success == b.success &&
