@@ -9,7 +9,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val renames =
     Map(
-      "access"          -> "environment",
+      "access"                 -> "environment",
       "accessManaged"          -> "environmentWithManaged",
       "accessM"                -> "environmentWithZIO",
       "accessZIO"              -> "environmentWithZIO",
@@ -91,6 +91,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "retryWhileM"            -> "retryWhileZIO",
       "someOrElseM"            -> "someOrElseZIO",
       "tapM"                   -> "tapZIO",
+      "tapCause"               -> "tapErrorCause",
       "testM"                  -> "test",
       "toManaged"              -> "toManagedWith",
       "toManaged_"             -> "toManaged",
@@ -103,7 +104,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "validate_"              -> "validateDiscard",
       "whenCaseM"              -> "whenCaseZIO",
       "whenM"                  -> "whenZIO",
-      "serviceWith"               -> "serviceWithZIO"
+      "serviceWith"            -> "serviceWithZIO"
     )
 
   lazy val scopes = List(
@@ -191,7 +192,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "collectAll_"   -> "collectAllDiscard",
       "foldM"         -> "foldSTM",
       "foreach_"      -> "foreachDiscard",
-      "fromFunction"  -> "environmentWith", // TODO Check STM specifics
+      "fromFunction"  -> "environmentWith",    // TODO Check STM specifics
       "fromFunctionM" -> "environmentWithSTM", // TODO Check STM specifics
       "ifM"           -> "ifSTM",
       "loop_"         -> "loopDiscard",
@@ -204,74 +205,74 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "whenM"         -> "whenSTM"
     )
   )
-  
+
   val StreamRenames = Renames(
     List("zio.stream.ZStream"),
     Map(
-      "access" -> "environmentWith",
-      "accessM" -> "environmentWithZIO",
-      "accessZIO" -> "environmentWithZIO", // RC only
-      "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
-      "findM" -> "findZIO", // RC only, cannot test
-      "fold"         -> "runFold",
-      "foldM"         -> "runFoldZIO", // RC only
-      "foldManaged" -> "runFoldManaged",
-      "foldManagedM"         -> "runFoldManagedZIO",
-      "foldManagedZIO" -> "runFoldManagedZIO",
-      "foldWhile" -> "runFoldWhile",
-      "foldWhileM" -> "runFoldWhileZIO",
-      "foldWhileManagedM" -> "runFoldWhileManagedZIO",
-      "foldWhileManagedZIO" -> "runFoldWhileManagedZIO", // RC only
-      "foldWhileZIO" -> "runFoldWhileZIO", // RC only
-      "foldWhileManaged" -> "runFoldWhileManaged",
-      "foldZIO" -> "runFoldZIO", // RC only
-      "foreachChunk" -> "runForeachChunk",
-      "foreachChunkManaged" -> "runForeachChunkManaged",
-      "foreachManaged" -> "runForeachManaged",
-      "foreachWhile" -> "runForeachWhile",
-      "foreachWhileManaged" -> "runForeachWhileManaged",
-      "mapM"          -> "mapZIO",
-      "collectWhileM" -> "collectWhileZIO",
-      "collectUntilM" -> "collectUntilZIO",
-      "accessStream" -> "environmentWithStream",
-      "runInto" -> "runIntoQueue", // RC only
-      "runIntoElementsManaged" -> "runIntoQueueElementsManaged", // RC only
-      "runFoldM" -> "runFoldZIO", // RC only
-      "runFoldManagedM" -> "runFoldManagedZIO",
-      "runFoldWhileM" -> "runFoldWhileZIO", // RC only
-      "runFoldWhileManagedM" -> "runFoldWhileManagedZIO", // RC only
-      "chunkN" -> "rechunk", // RC only
-      "intoHub" -> "runIntoHub",
-      "intoHubManaged" -> "runIntoHubManaged",
-      "intoManaged" -> "runIntoQueueManaged",
-      "runIntoManaged" -> "runIntoQueueManaged", // RC only
-      "intoQueue" -> "runIntoQueue",
-      "intoQueueManaged" -> "runIntoQueueManaged", // RC only
-      "lock" -> "onExecutor",
-      "mapAccumM" -> "mapAccumZIO",
-      "mapChunksM" -> "mapChunksZIO",
-      "mapConcatChunkM" -> "mapConcatChunkZIO",
-      "mapMPartitioned" -> "mapZIOPartitioned", 
-      "scanM" -> "scanZIO",
-      "scanReduceM" -> "scanReduceZIO",
-      "takeUntilM" -> "takeUntilZIO",
-      "throttleEnforceM" -> "throttleEnforceZIO",
-      "throttleShapeM" -> "throttleShapeZIO",
-      "timeoutError" -> "timeoutFail",
-      "timeoutErrorCause" -> "timeoutFailCause",
-      "timeoutHalt" -> "timeoutFailCause", // RC only
-      "fromInputStreamEffect" -> "fromInputStreamZIO",
-      "fromIteratorEffect" -> "fromIteratorZIO",
-      "fromJavaIteratorEffect" -> "fromJavaIteratorZIO",
-      "fromJavaIteratorTotal" -> "fromJavaIteratorSucceed",
-      "halt" -> "failCause",
+      "access"                  -> "environmentWith",
+      "accessM"                 -> "environmentWithZIO",
+      "accessZIO"               -> "environmentWithZIO",          // RC only
+      "dropWhileM"              -> "dropWhileZIO",                // RC only, cannot test
+      "findM"                   -> "findZIO",                     // RC only, cannot test
+      "fold"                    -> "runFold",
+      "foldM"                   -> "runFoldZIO",                  // RC only
+      "foldManaged"             -> "runFoldManaged",
+      "foldManagedM"            -> "runFoldManagedZIO",
+      "foldManagedZIO"          -> "runFoldManagedZIO",
+      "foldWhile"               -> "runFoldWhile",
+      "foldWhileM"              -> "runFoldWhileZIO",
+      "foldWhileManagedM"       -> "runFoldWhileManagedZIO",
+      "foldWhileManagedZIO"     -> "runFoldWhileManagedZIO",      // RC only
+      "foldWhileZIO"            -> "runFoldWhileZIO",             // RC only
+      "foldWhileManaged"        -> "runFoldWhileManaged",
+      "foldZIO"                 -> "runFoldZIO",                  // RC only
+      "foreachChunk"            -> "runForeachChunk",
+      "foreachChunkManaged"     -> "runForeachChunkManaged",
+      "foreachManaged"          -> "runForeachManaged",
+      "foreachWhile"            -> "runForeachWhile",
+      "foreachWhileManaged"     -> "runForeachWhileManaged",
+      "mapM"                    -> "mapZIO",
+      "collectWhileM"           -> "collectWhileZIO",
+      "collectUntilM"           -> "collectUntilZIO",
+      "accessStream"            -> "environmentWithStream",
+      "runInto"                 -> "runIntoQueue",                // RC only
+      "runIntoElementsManaged"  -> "runIntoQueueElementsManaged", // RC only
+      "runFoldM"                -> "runFoldZIO",                  // RC only
+      "runFoldManagedM"         -> "runFoldManagedZIO",
+      "runFoldWhileM"           -> "runFoldWhileZIO",             // RC only
+      "runFoldWhileManagedM"    -> "runFoldWhileManagedZIO",      // RC only
+      "chunkN"                  -> "rechunk",                     // RC only
+      "intoHub"                 -> "runIntoHub",
+      "intoHubManaged"          -> "runIntoHubManaged",
+      "intoManaged"             -> "runIntoQueueManaged",
+      "runIntoManaged"          -> "runIntoQueueManaged",         // RC only
+      "intoQueue"               -> "runIntoQueue",
+      "intoQueueManaged"        -> "runIntoQueueManaged",         // RC only
+      "lock"                    -> "onExecutor",
+      "mapAccumM"               -> "mapAccumZIO",
+      "mapChunksM"              -> "mapChunksZIO",
+      "mapConcatChunkM"         -> "mapConcatChunkZIO",
+      "mapMPartitioned"         -> "mapZIOPartitioned",
+      "scanM"                   -> "scanZIO",
+      "scanReduceM"             -> "scanReduceZIO",
+      "takeUntilM"              -> "takeUntilZIO",
+      "throttleEnforceM"        -> "throttleEnforceZIO",
+      "throttleShapeM"          -> "throttleShapeZIO",
+      "timeoutError"            -> "timeoutFail",
+      "timeoutErrorCause"       -> "timeoutFailCause",
+      "timeoutHalt"             -> "timeoutFailCause",            // RC only
+      "fromInputStreamEffect"   -> "fromInputStreamZIO",
+      "fromIteratorEffect"      -> "fromIteratorZIO",
+      "fromJavaIteratorEffect"  -> "fromJavaIteratorZIO",
+      "fromJavaIteratorTotal"   -> "fromJavaIteratorSucceed",
+      "halt"                    -> "failCause",
       "repeatEffectChunkOption" -> "repeatZIOChunkOption",
-      "repeatWith" -> "repeatWithSchedule",
-      "unfoldChunkM" -> "unfoldChunkZIO",
-      "whenCaseM" -> "whenCaseZIO",
+      "repeatWith"              -> "repeatWithSchedule",
+      "unfoldChunkM"            -> "unfoldChunkZIO",
+      "whenCaseM"               -> "whenCaseZIO"
       // TODO Look at restructuring calls to ZStream.cross with the method version
       // TODO Look into fromBlocking* refactors
-      
+
     )
   )
 
@@ -283,8 +284,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "contramapM"    -> "contramapZIO",
       "delayedM"      -> "delayedZIO",
       "dimapM"        -> "dimapZIO",
-      "dropWhileM" -> "dropWhileZIO", // RC only, cannot test
-      "findM" -> "findZIO", // RC only, cannot test
+      "dropWhileM"    -> "dropWhileZIO", // RC only, cannot test
+      "findM"         -> "findZIO",      // RC only, cannot test
       "foldM"         -> "foldZIO",
       "mapM"          -> "mapZIO",
       "modifyDelayM"  -> "modifyDelayZIO",
@@ -324,7 +325,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "someOrElseM"               -> "someOrElseManaged",
       "unlessM"                   -> "unlessManaged",
       "whenCaseM"                 -> "whenCaseManaged",
-      "whenM"                     -> "whenManaged",
+      "whenM"                     -> "whenManaged"
     )
   )
 
@@ -437,18 +438,20 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   object BuiltInServiceFixer { // TODO Handle all built-in services?
 
     object ImporteeRenamer {
-        
+
       def importeeRenames(implicit sdoc: SemanticDocument): PartialFunction[Tree, Option[Patch]] = {
         val pf: SymbolMatcher => PartialFunction[Tree, Patch] =
-          (symbolMatcher: SymbolMatcher) => {
-            case t @ ImporteeNameOrRename(symbolMatcher(_)) =>
-              Patch.removeImportee(t)
+          (symbolMatcher: SymbolMatcher) => { case t @ ImporteeNameOrRename(symbolMatcher(_)) =>
+            Patch.removeImportee(t)
           }
 
-        val pf1:PartialFunction[Tree, Option[Patch]] = { case (_: Tree) => None }
-        val pf2: Function2[PartialFunction[Tree, Option[Patch]], PartialFunction[Tree, Patch], PartialFunction[Tree, Option[Patch]]] = {
-          case (totalPatch, nextPatch) => {
-            case (tree: Tree) => nextPatch.lift(tree).orElse(totalPatch(tree))
+        val pf1: PartialFunction[Tree, Option[Patch]] = { case (_: Tree) => None }
+        val pf2
+          : Function2[PartialFunction[Tree, Option[Patch]], PartialFunction[Tree, Patch], PartialFunction[Tree, Option[
+            Patch
+          ]]] = {
+          case (totalPatch, nextPatch) => { case (tree: Tree) =>
+            nextPatch.lift(tree).orElse(totalPatch(tree))
           }
         }
 
@@ -468,7 +471,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
           testLiveMigrator
         ).foldLeft(List[SymbolMatcher](hasNormalized)) { case (serviceMatchers, serviceMigrator) =>
           serviceMatchers ++ List(serviceMigrator.normalizedOld, serviceMigrator.normalizedOldService)
-        }.map(pf).foldLeft {pf1} {pf2}
+        }.map(pf)
+          .foldLeft(pf1)(pf2)
       }
 
       def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
@@ -604,95 +608,94 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch = {
+  override def fix(implicit doc: SemanticDocument): Patch =
     Zio2ZIOSpec.fix +
-    doc.tree.collect {
-      case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
+      doc.tree.collect {
+        case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
 
-      case ZIORenames.Matcher(patch)       => patch
-      case ZManagedRenames.Matcher(patch)  => patch
-      case STMRenames.Matcher(patch)       => patch
-      case ScheduleRenames.Matcher(patch)  => patch
-      case StreamRenames.Matcher(patch)  => patch
-      case UniversalRenames.Matcher(patch) => patch
+        case ZIORenames.Matcher(patch)       => patch
+        case ZManagedRenames.Matcher(patch)  => patch
+        case STMRenames.Matcher(patch)       => patch
+        case ScheduleRenames.Matcher(patch)  => patch
+        case StreamRenames.Matcher(patch)    => patch
+        case UniversalRenames.Matcher(patch) => patch
 
-      case BuiltInServiceFixer(patch) => patch
+        case BuiltInServiceFixer(patch) => patch
 
-      // Replace >>= with flatMap. For some reason, this doesn't work with the
-      // technique used above.
-      case t @ q"$lhs >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
-        Patch.replaceTree(t, s"$lhs flatMap $rhs")
-      case t @ q"$lhs.>>=($rhs)" if lhs.symbol.owner.value.startsWith("zio") =>
-        Patch.replaceTree(t, s"$lhs.flatMap($rhs)")
+        // Replace >>= with flatMap. For some reason, this doesn't work with the
+        // technique used above.
+        case t @ q"$lhs >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
+          Patch.replaceTree(t, s"$lhs flatMap $rhs")
+        case t @ q"$lhs.>>=($rhs)" if lhs.symbol.owner.value.startsWith("zio") =>
+          Patch.replaceTree(t, s"$lhs.flatMap($rhs)")
 
-      case t @ q"$lhs.collectAllParN($n)($as)" =>
-        Patch.replaceTree(t, s"$lhs.collectAllPar($as).withParallelism($n)")
+        case t @ q"$lhs.collectAllParN($n)($as)" =>
+          Patch.replaceTree(t, s"$lhs.collectAllPar($as).withParallelism($n)")
 
-      case t @ q"$lhs.collectAllParN_($n)($as)" =>
-        Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
-      case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
-        Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
+        case t @ q"$lhs.collectAllParN_($n)($as)" =>
+          Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
+        case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
+          Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
 
-      case foreachParN.Matcher(patch)             => patch
-      case collectAllParN.Matcher(patch)          => patch
-      case collectAllSuccessesParN.Matcher(patch) => patch
-      case collectAllWithParN.Matcher(patch)      => patch
-      case partitionParN.Matcher(patch)           => patch
-      case reduceAllParN.Matcher(patch)           => patch
-      case mergeAllParN.Matcher(patch)            => patch
+        case foreachParN.Matcher(patch)             => patch
+        case collectAllParN.Matcher(patch)          => patch
+        case collectAllSuccessesParN.Matcher(patch) => patch
+        case collectAllWithParN.Matcher(patch)      => patch
+        case partitionParN.Matcher(patch)           => patch
+        case reduceAllParN.Matcher(patch)           => patch
+        case mergeAllParN.Matcher(patch)            => patch
 
-      case t @ q"import zio.blocking._" =>
-        Patch.removeTokens(t.tokens)
+        case t @ q"import zio.blocking._" =>
+          Patch.removeTokens(t.tokens)
 
-      case t @ q"import zio.blocking.Blocking" =>
-        Patch.removeTokens(t.tokens)
+        case t @ q"import zio.blocking.Blocking" =>
+          Patch.removeTokens(t.tokens)
 
-      case t @ Blocking_Old_Exact(Name(_)) =>
-        Patch.replaceTree(unwindSelect(t), s"Any")
+        case t @ Blocking_Old_Exact(Name(_)) =>
+          Patch.replaceTree(unwindSelect(t), s"Any")
 
-      case t @ FiberId_Old_Exact(Name(_)) =>
-        Patch.replaceTree(unwindSelect(t), "FiberId") +
-          Patch.addGlobalImport(newFiberId)
+        case t @ FiberId_Old_Exact(Name(_)) =>
+          Patch.replaceTree(unwindSelect(t), "FiberId") +
+            Patch.addGlobalImport(newFiberId)
 
-      case t @ q"import zio.console._" =>
-        Patch.replaceTree(t, "") +
-          Patch.addGlobalImport(wildcardImport(q"zio.Console"))
+        case t @ q"import zio.console._" =>
+          Patch.replaceTree(t, "") +
+            Patch.addGlobalImport(wildcardImport(q"zio.Console"))
 
-      case t @ q"import zio.test.environment._" =>
-        Patch.removeTokens(t.tokens)
+        case t @ q"import zio.test.environment._" =>
+          Patch.removeTokens(t.tokens)
 
-      case t @ q"Fiber.Id" =>
-        Patch.replaceTree(t, "FiberId") +
-          Patch.addGlobalImport(Symbol("zio/FiberId#"))
+        case t @ q"Fiber.Id" =>
+          Patch.replaceTree(t, "FiberId") +
+            Patch.addGlobalImport(Symbol("zio/FiberId#"))
 
-      case t @ q"import zio.duration.Duration" =>
-        Patch.replaceTree(t, "import zio.Duration")
+        case t @ q"import zio.duration.Duration" =>
+          Patch.replaceTree(t, "import zio.Duration")
 
-      case t @ q"zio.duration.Duration" =>
-        Patch.replaceTree(t, "zio.Duration")
+        case t @ q"zio.duration.Duration" =>
+          Patch.replaceTree(t, "zio.Duration")
 
-      case t @ q"import zio.clock.Clock" =>
-        Patch.replaceTree(t, "import zio.Clock")
+        case t @ q"import zio.clock.Clock" =>
+          Patch.replaceTree(t, "import zio.Clock")
 
-      case t @ q"zio.internal.Executor" =>
-        Patch.replaceTree(t, "zio.Executor")
+        case t @ q"zio.internal.Executor" =>
+          Patch.replaceTree(t, "zio.Executor")
 
-      case t @ q"Platform.fromExecutor" =>
-        Patch.replaceTree(t, "RuntimeConfig.fromExecutor")
+        case t @ q"Platform.fromExecutor" =>
+          Patch.replaceTree(t, "RuntimeConfig.fromExecutor")
 
-      case t @ q"zio.internal.Platform" =>
-        Patch.replaceTree(t, "zio.RuntimeConfig")
+        case t @ q"zio.internal.Platform" =>
+          Patch.replaceTree(t, "zio.RuntimeConfig")
 
-      case t @ q"zio.internal.Tracing" =>
-        Patch.replaceTree(t, "zio.internal.tracing.Tracing")
+        case t @ q"zio.internal.Tracing" =>
+          Patch.replaceTree(t, "zio.internal.tracing.Tracing")
 
-      case t @ q"import zio.internal.Tracing" =>
-        Patch.replaceTree(t, "import zio.internal.tracing.Tracing")
+        case t @ q"import zio.internal.Tracing" =>
+          Patch.replaceTree(t, "import zio.internal.tracing.Tracing")
 
-      case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
+        case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
-    }.asPatch + replaceSymbols
-  }
+      }.asPatch + replaceSymbols
 
   /*
      Since this is now just a simple rename, I'm keeping this around a bit longer
@@ -706,13 +709,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   def fixProvides(implicit doc: SemanticDocument): Patch =
     doc.tree.collect {
       case Term.Apply(
-          Term.Select(
-            // TODO Keep an eye out for more Term types that `a` might be
-            a @ (Term.ApplyType(_, _) | Term.Select(_, _) | Term.Apply(_, _)) ,
-            p @ Term.Name("provide")
-          ),
-          List(args)
-        ) if a.symbol.owner.value.startsWith("zio") =>
+            Term.Select(
+              // TODO Keep an eye out for more Term types that `a` might be
+              a @ (Term.ApplyType(_, _) | Term.Select(_, _) | Term.Apply(_, _)),
+              p @ Term.Name("provide")
+            ),
+            List(args)
+          ) if a.symbol.owner.value.startsWith("zio") =>
         Patch.addGlobalImport(Symbol("zio/ZEnvironment#")) +
           Patch.replaceTree(p, "provideEnvironment") +
           Patch.replaceTree(args, s"ZEnvironment($args)")
@@ -727,13 +730,13 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     case Some(t: Term.Select) => unwindSelect(t)
     case _                    => t
   }
-  
-  object Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration"){
+
+  object Zio2ZIOSpec extends SemanticRule("ZIOSpecMigration") {
     val zio2UpgradeRule = new Zio2Upgrade()
     val AbstractRunnableSpecRenames = zio2UpgradeRule.Renames(
-      List("zio.test.DefaultRunnableSpec" /* TODO What other types here? */),
+      List("zio.test.DefaultRunnableSpec" /* TODO What other types here? */ ),
       Map(
-        "Failure"            -> "Any",
+        "Failure" -> "Any"
       )
     )
 
