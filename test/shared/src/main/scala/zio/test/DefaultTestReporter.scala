@@ -43,7 +43,7 @@ object DefaultTestReporter {
   def render(
     reporterEvent: ExecutionEvent,
     includeCause: Boolean
-  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
+  )(implicit trace: ZTraceElement): Seq[ExecutionResult] =
     reporterEvent match {
       case SectionStart(labelsReversed, _, ancestors) =>
         val depth = labelsReversed.length - 1
@@ -98,13 +98,16 @@ object DefaultTestReporter {
       case SectionEnd(_, _, _) =>
         Nil
     }
-  }
 
-  private def testCaseOutput(labels: List[String], results: Either[TestFailure[Any], TestSuccess], includeCause: Boolean)(implicit
-                                                                                                                          trace: ZTraceElement
+  private def testCaseOutput(
+    labels: List[String],
+    results: Either[TestFailure[Any], TestSuccess],
+    includeCause: Boolean
+  )(implicit
+    trace: ZTraceElement
   ): (List[Line], List[Line]) = {
-    val depth = labels.length
-    val label = labels.last
+    val depth     = labels.length
+    val label     = labels.last
     val flatLabel = labels.mkString(" - ")
 
     val renderedResult = results match {
@@ -159,7 +162,7 @@ object DefaultTestReporter {
                 Failed,
                 depth,
                 renderFailure(label, depth, details).lines.toList,
-                renderFailure(flatLabel, depth, details).lines.toList, // Fully-qualified label
+                renderFailure(flatLabel, depth, details).lines.toList // Fully-qualified label
               )
             )(
               _ && _,
@@ -179,9 +182,7 @@ object DefaultTestReporter {
           )
         )
     }
-    (renderedResult.map(r => r.lines).getOrElse(Nil),
-      renderedResult.map(r => r.summaryLines).getOrElse(Nil)
-      )
+    (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
   private def renderSuiteIgnored(label: String, offset: Int) =
@@ -312,7 +313,7 @@ object DefaultTestReporter {
             _ || _,
             !_
           )
-          .lines
+          .streamingLines
       }
     }
 
@@ -394,12 +395,12 @@ object DefaultTestReporter {
     ExecutionResult(caseType, label, result, offset, Nil, lines.toList, lines.toList)
 
   def renderedWithSummary(
-                caseType: ResultType,
-                label: String,
-                result: Status,
-                offset: Int,
-                lines: List[Line],
-                summaryLines: List[Line]
-              ): ExecutionResult =
+    caseType: ResultType,
+    label: String,
+    result: Status,
+    offset: Int,
+    lines: List[Line],
+    summaryLines: List[Line]
+  ): ExecutionResult =
     ExecutionResult(caseType, label, result, offset, Nil, lines, summaryLines)
 }

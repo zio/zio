@@ -73,8 +73,8 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
             res <- extractSingleExecutionResult(result)
           } yield assertTrue(res.resultType == Test) && assertTrue(res.status == Failed) && assertTrue(
             res.label == expectedLabel
-          ) && assertTrue(res.lines.exists(_.fragments.exists(_.text.contains(expectedLabel)))) && assertTrue(
-            res.lines.exists(_.fragments.exists(_.text.contains(expectedExceptionMessage)))
+          ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel)))) && assertTrue(
+            res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedExceptionMessage)))
           )
         },
         test("ExecutionEvent.RuntimeFailure  Assertion does not swallow error") {
@@ -102,7 +102,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
             res <- extractSingleExecutionResult(result)
           } yield assertTrue(res.resultType == Test) && assertTrue(res.status == Failed) && assertTrue(
             res.label == expectedLabel
-          ) && assertTrue(res.lines.exists(_.fragments.exists(_.text.contains(expectedLabel))))
+          ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel))))
         }
       )
     ) @@ silent

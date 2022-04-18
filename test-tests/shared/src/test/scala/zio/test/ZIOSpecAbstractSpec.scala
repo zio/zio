@@ -39,17 +39,17 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
     ),
     test("runSpec produces a summary with fully-qualified failures") {
       val suiteName = "parent"
-      val testName = "failing test"
+      val testName  = "failing test"
       val failingSpec: ZIOSpecDefault = new ZIOSpecDefault {
-        override def spec = suite(suiteName) (test(testName) (
-          assertTrue(false)
-        )
+        override def spec = suite(suiteName)(
+          test(testName)(
+            assertTrue(false)
+          )
         )
       }
       for {
         res <-
-          ZIO.consoleWith(console =>
-            failingSpec.runSpecInfallible(failingSpec.spec, TestArgs.empty, console))
+          ZIO.consoleWith(console => failingSpec.runSpecInfallible(failingSpec.spec, TestArgs.empty, console))
       } yield assertTrue(res.fail == 1) &&
         assertTrue(res.summary.contains(s"$suiteName - $testName"))
     }
