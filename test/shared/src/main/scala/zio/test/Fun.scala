@@ -56,9 +56,10 @@ private[test] object Fun {
    * `hashCode` in a way that is consistent with equality.
    */
   def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int)(implicit trace: ZTraceElement): ZIO[R, Nothing, Fun[A, B]] =
-    ZIO.runtime[R].map { runtime =>
-      val funRuntime = withFunExecutor(runtime)
-      Fun(a => funRuntime.unsafeRun(f(a)), hash)
+    ZIO.onExecutor(funExecutor) {
+      ZIO.runtime[R].map { runtime =>
+        Fun(a => runtime.unsafeRun(f(a)), hash)
+      }
     }
 
   /**
@@ -70,15 +71,13 @@ private[test] object Fun {
   /**
    * Constructs a new runtime that synchronously executes effects.
    */
-  private def withFunExecutor[R](runtime: Runtime[R]): Runtime[R] =
-    runtime.withExecutor {
-      Executor.fromExecutionContext(Int.MaxValue) {
-        new ExecutionContext {
-          def execute(runnable: Runnable): Unit =
-            runnable.run()
-          def reportFailure(cause: Throwable): Unit =
-            cause.printStackTrace()
-        }
+  private val funExecutor: Executor =
+    Executor.fromExecutionContext(Int.MaxValue) {
+      new ExecutionContext {
+        def execute(runnable: Runnable): Unit =
+          runnable.run()
+        def reportFailure(cause: Throwable): Unit =
+          cause.printStackTrace()
       }
     }
 }
