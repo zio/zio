@@ -52,15 +52,6 @@ abstract class ZIOSpecAbstract extends ZIOApp {
       def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
         self.layer +!+ that.layer
 
-      override def runSpec: ZIO[
-        Environment with TestEnvironment with ZIOAppArgs with Scope,
-        Any,
-        Summary
-      ] =
-        self.runSpec.zipPar(that.runSpec).map { case (summary1, summary2) =>
-          summary1
-        }
-
       def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
@@ -75,19 +66,17 @@ abstract class ZIOSpecAbstract extends ZIOApp {
         Chunk.empty
     }
 
-  protected def runSpec: ZIO[
+  protected final def runSpec(implicit trace: ZTraceElement): ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
     Any,
     Summary
-  ] = {
-    implicit val trace = ZTraceElement.empty
+  ] =
     for {
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecInfallible(spec, testArgs, console)
     } yield summary
-  }
 
   private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {
     val renderer = rendererName match {
