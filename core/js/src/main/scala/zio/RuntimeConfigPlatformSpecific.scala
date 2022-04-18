@@ -92,7 +92,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       Set.empty,
       reportFatal,
       Set.empty,
-      Set(logger),
+      Set(logger.filterLogLevel(_ >= LogLevel.Info)),
       Set(RuntimeConfigFlag.EnableFiberRoots)
     )
   }
