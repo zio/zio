@@ -5,21 +5,23 @@ title: "CyclicBarrier"
 
 A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
 
-CyclicBarriers are useful in programs involving a fixed sized party of fibers that must occasionally wait for each
-other. The barrier is called cyclic because it can be re-used after the waiting fibers are released.
-
-A CyclicBarrier supports an optional action command that is run once per barrier point, after the last fiber in the
-party arrives, but before any fibers are released. This barrier action is useful for updating shared-state before any of
-the parties continue.
+CyclicBarriers are useful in programs involving a fixed sized party of fibers that must occasionally wait for each other. The barrier is called cyclic because it can be re-used after the waiting fibers are released.
 
 ## Operations
 
 ### Creation
 
-| Method                                                      | Definition                                       |
-|-------------------------------------------------------------|--------------------------------------------------|
-| `make(parties: Int): UIO[CyclicBarrier]`                    | Makes an `CyclicBarrier` with n parties          | 
-| `make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier]`  | Makes an `CyclicBarrier` with parties and action | 
+To create a `CyclicBarrier` we must provide the number of parties, and we can also provide an optional action:
+
+1. **number of parties**— The fibers that need to synchronize their execution are called _parties_. This number denotes how many parties must occasionally wait for each other. In other words, it specifies the number of parties required to trip the barrier.
+2. **action**— An optional action command that is run once per barrier point, after the last fiber in the party arrives, but before any fibers are released. This action is useful for updating the shared state before any of the parties continue.
+
+```scala
+object CyclicBarrier {
+  def make(parties: Int)                  : UIO[CyclicBarrier] = ???
+  def make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier] = ???
+}
+```
 
 ### Use
 
