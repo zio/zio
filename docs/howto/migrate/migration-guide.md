@@ -1270,8 +1270,8 @@ The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The
 
 Here is list of other deprecated methods:
 
-| ZIO 1.x                             | ZIO 2.x                               |
-|-------------------------------------|---------------------------------------|
+| ZIO 1.x                    | ZIO 2.x                      |
+|----------------------------|------------------------------|
 | `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
@@ -1527,6 +1527,20 @@ libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
 
 And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
 
+## Simplification of Concurrent Data Types
+
+Even though highly polymorphic versions of ZIO concurrent data structures (e.g. `ZRef`, `ZQueue`) were elegant, they were used rarely. There was also some cost associated with polymorphism, such as errors, readability, and maintainability.
+
+Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
+
+| ZIO 1.x (removed)                   | ZIO 2.x              |
+|-------------------------------------|----------------------|
+|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
+|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
+|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
+|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
+|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
+
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
@@ -1539,9 +1553,9 @@ As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subt
 
 To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
-| ZIO 1.x                  | ZIO 2.x                                 |
-|--------------------------|-----------------------------------------|
-| `RefM#dequeueRef`       | `Ref.Synchronized#SubscriptionRef`     |
+| ZIO 1.x                 | ZIO 2.x                                |
+|-------------------------|----------------------------------------|
+| `RefM#dequeueRef`       | `zio.stream.SubscriptionRef#changes`   |
 | `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
 | `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
 | `RefM#modify`           | `Ref.Synchronized#modifyZIO`           |
