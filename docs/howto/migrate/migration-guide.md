@@ -1551,9 +1551,9 @@ As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subt
 
 To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
-| ZIO 1.x                  | ZIO 2.x                               |
-|--------------------------|---------------------------------------|
-| `RefM#dequeueRef`       | `Ref.Synchronized#SubscriptionRef`     |
+| ZIO 1.x                 | ZIO 2.x                                |
+|-------------------------|----------------------------------------|
+| `RefM#dequeueRef`       | `zio.stream.SubscriptionRef#changes`   |
 | `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
 | `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
 | `RefM#modify`           | `Ref.Synchronized#modifyZIO`           |
