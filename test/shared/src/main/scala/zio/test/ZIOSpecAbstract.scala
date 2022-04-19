@@ -134,4 +134,92 @@ abstract class ZIOSpecAbstract extends ZIOApp {
     } yield summary
   }
 
+  private[zio] def runSpecInfallibleZ(
+                                      spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
+                                      testArgs: TestArgs,
+                                      console: Console,
+                                      runtime: Runtime[_]
+                                    )(implicit
+                                      trace: ZTraceElement
+                                    ): URIO[
+    TestEnvironment with ZIOAppArgs with Scope,
+    Summary
+  ] = {
+    val filteredSpec = FilteredSpec(spec, testArgs)
+
+    val castedRuntime: Runtime[Environment with ZIOAppArgs with Scope with ExecutionEventSink] = runtime.asInstanceOf[Runtime[Environment with ZIOAppArgs with Scope with ExecutionEventSink]]
+
+    for {
+      _ <- ZIO.debug("runSpecInfallibleZ")
+      environment1: ZEnvironment[ZIOAppArgs with Scope] = castedRuntime.environment
+      runtimeConfig                                     = hook(castedRuntime.runtimeConfig)
+      sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
+        ZLayer.succeedEnvironment(castedRuntime.environment)
+      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
+        .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
+      executionEventSinkLayer = sharedLayer
+      runner =
+        TestRunner(
+          TestExecutor
+            .default[
+              Environment,
+              Any
+            ](
+              sharedLayer,
+              perTestLayer,
+              executionEventSinkLayer
+            ),
+          runtimeConfig
+        )
+      testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
+      summary <-
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+    } yield summary
+  }
+
+  private[zio] def runSpecInfallible(
+                                      spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
+                                      testArgs: TestArgs,
+                                      console: Console,
+                                      sharedLayer: Layer[Nothing, Environment with ZIOAppArgs with Scope],
+                                    )(implicit
+                                      trace: ZTraceElement
+                                    ): URIO[
+    TestEnvironment with ZIOAppArgs with Scope,
+    Summary
+  ] = {
+    val filteredSpec = FilteredSpec(spec, testArgs)
+
+    for {
+      runtime <-
+        ZIO.runtime[
+          TestEnvironment with ZIOAppArgs with Scope
+        ]
+      environment0: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
+      environment1: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
+      runtimeConfig                                     = hook(runtime.runtimeConfig)
+      sharedLayer: ZLayer[Any, Any, Environment] =
+        ZLayer.succeedEnvironment(environment0) >>> layer
+      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
+        .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
+      executionEventSinkLayer = sinkLayerWithConsole(console)
+      runner =
+        TestRunner(
+          TestExecutor
+            .default[
+              Environment,
+              Any
+            ](
+              sharedLayer,
+              perTestLayer,
+              executionEventSinkLayer
+            ),
+          runtimeConfig
+        )
+      testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
+      summary <-
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+    } yield summary
+  }
+
 }

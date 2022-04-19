@@ -9,12 +9,13 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class BaseTestTask(
+abstract class BaseTestTask[T](
   val taskDef: TaskDef,
   val testClassLoader: ClassLoader,
   val sendSummary: SendSummary,
   val args: TestArgs,
-  val spec: ZIOSpecAbstract
+  val spec: ZIOSpecAbstract,
+  val runtime: zio.Runtime[T]
 ) extends Task {
 
   protected def sharedFilledTestlayer(
@@ -27,14 +28,14 @@ abstract class BaseTestTask(
   } +!+ Scope.default
 
   protected def run(
-    eventHandler: EventHandler,
+    eventHandler: EventHandler, // TODO Use this more now.
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.consoleWith { console =>
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
         summary <- spec
-                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
+                     .runSpecInfallibleZ(FilteredSpec(spec.spec, args), args, console, runtime)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.status == Summary.Failure)(
@@ -50,10 +51,14 @@ abstract class BaseTestTask(
     implicit val trace                    = ZTraceElement.empty
     var resOutter: CancelableFuture[Unit] = null
     try {
-      val res: CancelableFuture[Unit] =
-        Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
+      val res: CancelableFuture[Unit] = {
+        runtime.unsafeRunToFuture {
           executeZ(eventHandler)
         }
+//        Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
+//          executeZ(eventHandler)
+//        }
+      }
 
       resOutter = res
       Await.result(res, Duration.Inf)

@@ -570,14 +570,24 @@ package object test extends CompileVariants {
     new CheckVariants.CheckN(n)
 
   val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] =
-    sinkLayerWithConsole(Console.ConsoleLive)(ZTraceElement.empty)
+    sinkLayerWithConsoleIgnore(Console.ConsoleLive)(ZTraceElement.empty)
 
   def sinkLayerWithConsole(console: Console)(implicit
     trace: ZTraceElement
-  ): ZLayer[Any, Nothing, ExecutionEventSink] =
+  ): ZLayer[Any, Nothing, ExecutionEventSink] = {
+    println("Creating new sink. Should only see this once when layers are decomposed properly.")
     TestLogger.fromConsole(
       console
     ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+  }
+
+  def sinkLayerWithConsoleIgnore(console: Console)(implicit
+                                             trace: ZTraceElement
+  ): ZLayer[Any, Nothing, ExecutionEventSink] = {
+    TestLogger.fromConsole(
+      console
+    ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+  }
 
   /**
    * A `Runner` that provides a default testable environment.
