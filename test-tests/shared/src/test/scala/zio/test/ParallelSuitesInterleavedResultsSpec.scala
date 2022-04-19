@@ -20,7 +20,7 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
 
 object SmallMinimalSpec extends ZIOSpecDefault {
@@ -30,7 +30,7 @@ object SmallMinimalSpec extends ZIOSpecDefault {
         assertTrue(true)
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {
@@ -59,5 +59,5 @@ object SlowMinimalSpec extends ZIOSpecDefault {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  ) @@ TestAspect.ignore
+  )
 }

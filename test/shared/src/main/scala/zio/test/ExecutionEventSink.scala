@@ -30,7 +30,7 @@ object ExecutionEventSink {
         summary.update(
           _.add(event)
         ) *>
-          ZIO.debug("Sink: " + this) *>
+//          ZIO.debug("Sink: " + this) *>
           testOutput.print(
             event
           )

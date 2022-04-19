@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ExecutionResult.ResultType.Suite
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -96,6 +96,8 @@ object DefaultTestReporter {
             Seq(renderRuntimeCause(cause, label, depth, includeCause))
         }
       case SectionEnd(_, _, _) =>
+        Nil
+      case TopLevelFlush(labelsReversed, id, ancestors) =>
         Nil
     }
 

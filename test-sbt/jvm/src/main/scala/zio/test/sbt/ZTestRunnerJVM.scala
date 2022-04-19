@@ -53,18 +53,21 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs)(ZTraceElement.empty).toArray
 
-  private[sbt] def tasksZ(defs: Array[TaskDef])(implicit trace: ZTraceElement): Array[ZTestTask[ZIOSpecAbstract#Environment with ExecutionEventSink]] = {
-    val testArgs                = TestArgs.parse(args)
+  private[sbt] def tasksZ(
+    defs: Array[TaskDef]
+  )(implicit trace: ZTraceElement): Array[ZTestTask[ZIOSpecAbstract#Environment with ExecutionEventSink]] = {
+    val testArgs = TestArgs.parse(args)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayer: ZLayer[Any, Any, ZIOSpecAbstract#Environment with ExecutionEventSink] =
       (Scope.default ++ ZIOAppArgs.empty) >>>
         specTasks.map(_.layer).reduce(_ +!+ _) ++ sinkLayerWithConsole(zio.Console.ConsoleLive)
 
+    val runtime: zio.Runtime[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink] =
+      zio.Runtime.unsafeFromLayer(sharedLayer)
 
-    val runtime: zio.Runtime[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink] = zio.Runtime.unsafeFromLayer(sharedLayer)
-
-    val tasks: Array[ZTestTask[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink]] = defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
+    val tasks: Array[ZTestTask[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink]] =
+      defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
 //    val entrypointClass: String = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
 //    val taskPolicy = getClass.getClassLoader
 //      .loadClass(entrypointClass)
@@ -94,7 +97,7 @@ final class ZTestTask[T](
   testArgs: TestArgs,
   spec: ZIOSpecAbstract,
   runtime: zio.Runtime[T]
-                     ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, runtime)
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, runtime)
 
 object ZTestTask {
   def apply[T](

@@ -54,6 +54,9 @@ object TestOutput {
       executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
+
+        case flush: ExecutionEvent.TopLevelFlush =>
+          printOrFlushZ(flush)
         case other =>
           printOrQueue(other)
       }
@@ -78,6 +81,21 @@ object TestOutput {
           }
 
         _ <- reporters.relinquishPrintingControl(end.id)
+      } yield ()
+
+    private def printOrFlushZ(
+      end: ExecutionEvent.TopLevelFlush
+    ): ZIO[Any, Nothing, Unit] =
+      for {
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
+        _ <-
+          ZIO.when(suiteIsPrinting)(
+            for {
+              sectionOutput <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
+              _             <- printToConsole(sectionOutput)
+            } yield ()
+          )
+
       } yield ()
 
     private def printOrQueue(
