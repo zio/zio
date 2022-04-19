@@ -729,6 +729,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   object FunctionConstructor {
     type WithOut[In, Out0] = FunctionConstructor[In] { type Out = Out0 }
 
+    implicit def function0Constructor[A: Tag]: FunctionConstructor.WithOut[() => A, ZLayer[Any, Nothing, A]] =
+      new FunctionConstructor[() => A] {
+        type Out = ZLayer[Any, Nothing, A]
+        def apply(f: () => A)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, A] =
+          ZLayer.succeed(f())
+      }
+
     implicit def function1Constructor[A: Tag, B: Tag]: FunctionConstructor.WithOut[A => B, ZLayer[A, Nothing, B]] =
       new FunctionConstructor[A => B] {
         type Out = ZLayer[A, Nothing, B]
