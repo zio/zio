@@ -37,7 +37,7 @@ abstract class BaseTestTask[T](
         summary <- spec
                      .runSpecInfallibleZ(FilteredSpec(spec.spec, args), args, console, runtime)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-        _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
+//        _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.status == Summary.Failure)(
                ZIO.fail(new Exception("Failed tests."))
              )

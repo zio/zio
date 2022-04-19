@@ -45,6 +45,7 @@ object TestExecutor {
       ] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
+          summary <- Ref.make[Summary](Summary(0, 0, 0, ""))
           topParent = SuiteId(-100)
           _ <- {
             def loop(
@@ -68,8 +69,13 @@ object TestExecutor {
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
-                      sink.process(
+                      val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                      summary.update(
+                        _.add(event)
+                      ) *>
+                      sink.process(
+                        event
                       )
                     }
 
@@ -96,20 +102,29 @@ object TestExecutor {
                     ) =>
                   (for {
                     result <- test.either
+                    event =
+                      ExecutionEvent
+                        .Test(
+                          labels,
+                          result,
+                          staticAnnotations ++ extractAnnotations(result),
+                          ancestors,
+                          1L,
+                          sectionId
+                        )
                     _ <-
+                      summary.update(
+                        _.add(event)
+                      ) *>
                       sink.process(
-                        ExecutionEvent
-                          .Test(
-                            labels,
-                            result,
-                            staticAnnotations ++ extractAnnotations(result),
-                            ancestors,
-                            1L,
-                            sectionId
-                          )
+                          event
                       )
                   } yield ()).catchAllCause { e =>
-                    sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+                    val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                    summary.update(
+                      _.add(event)
+                    ) *>
+                      sink.process(event)
                   }
               }
 
@@ -141,7 +156,7 @@ object TestExecutor {
               )
           }
 
-          summary <- sink.getSummary
+          summary <- summary.get
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
