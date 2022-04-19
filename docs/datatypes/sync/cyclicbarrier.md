@@ -33,6 +33,33 @@ object CyclicBarrier {
 | `reset: UIO[Unit]`       | Resets the barrier to its initial state. Breaks any waiting party.                          |
 | `isBroken: UIO[Boolean]` | Queries if this barrier is in a broken state.                                               |
 
+In the following example, we started three tasks, each one has a different working time, but they won't return until the other parties finished their jobs:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent._
+
+object MainApp extends ZIOAppDefault {
+  def task(name: String) =
+    for {
+      b <- ZIO.service[CyclicBarrier]
+      _ <- ZIO.debug(s"task-$name: started my job right now!")
+      d <- Random.nextLongBetween(1000, 10000)
+      _ <- ZIO.sleep(Duration.fromMillis(d))
+      _ <- ZIO.debug(s"task-$name: finished my job and waiting for other parties to finish their jobs.")
+      _ <- b.await
+      _ <- ZIO.debug(s"task-$name: the barrier is just broken, so I'm going to exit immediately!")
+    } yield ()
+
+  def run =
+    for {
+      b    <- CyclicBarrier.make(3)
+      tasks = task("1") <&> task("2") <&> task("3")
+      _    <- tasks.provideService(b)
+    } yield ()
+}
+```
+
 ## Example Usage
 
 Construction:
