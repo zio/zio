@@ -12,6 +12,7 @@ import java.util.UUID
 case class SuiteId(id: Int)
 
 object SuiteId {
+  val global: SuiteId = SuiteId(0)
 
   val newRandom: ZIO[Any, Nothing, SuiteId] =
     for {

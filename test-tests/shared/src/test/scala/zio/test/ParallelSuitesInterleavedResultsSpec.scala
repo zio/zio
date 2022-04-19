@@ -3,20 +3,20 @@ package zio.test
 import zio._
 
 object MultiCMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("MultiSpec")(
-    suite("fast inner suite")(
-      test("fast test 1") {
+  override def spec = suite("M")(
+    suite("MF")(
+      test("MF 1") {
         assertTrue(false)
       },
-      test("fast test 2") {
+      test("MF 2") {
         assertTrue(true)
       }
     ),
-    suite("slow suite")(
-      test("slow 1") {
+    suite("MS")(
+      test("MS 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("slow 2") {
+      test("MS 2") {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
@@ -24,9 +24,9 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
 }
 
 object SmallMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("SmallMultiSpec")(
-    suite("fast inner suite")(
-      test("fast test 1") {
+  override def spec = suite("SM")(
+    suite("SMS")(
+      test("SMS 1") {
         assertTrue(true)
       }
     )
@@ -34,28 +34,28 @@ object SmallMinimalSpec extends ZIOSpecDefault {
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("SM")(
-    suite("SMFast ")(
-      test("SMF 1") {
+  override def spec = suite("SS")(
+    suite("SSFast ")(
+      test("SSF 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("SMF 2") {
+      test("SSF 2") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       }
     ),
-    suite("SMMedium")(
-      test("SMM 1") {
+    suite("SSMedium")(
+      test("SSM 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("SMM 2") {
+      test("SSM 2") {
         Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       }
     ),
-    suite("SMSlow")(
-      test("SMS 1") {
+    suite("SSSlow")(
+      test("SSS 1") {
         Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       },
-      test("SMS 2") {
+      test("SSS 2") {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )

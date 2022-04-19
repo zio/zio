@@ -56,7 +56,7 @@ object TestOutput {
           printOrFlush(end)
 
         case flush: ExecutionEvent.TopLevelFlush =>
-          printOrFlushZ(flush)
+          printOrFlushZ2(flush)
         case other =>
           printOrQueue(other)
       }
@@ -75,6 +75,7 @@ object TestOutput {
               case Some(parentId) =>
                 appendToSectionContents(parentId, sectionOutput)
               case None =>
+                ZIO.debug("flushing, but no parent available") *>
                 // TODO If we can't find cause of failure in CI, unsafely print to console instead of failing
                 ZIO.dieMessage("Suite tried to send its output to a nonexistent parent. ExecutionEvent: " + end)
             }
@@ -96,6 +97,32 @@ object TestOutput {
             } yield ()
           )
 
+      } yield ()
+
+    private def printOrFlushZ2(
+                                end: ExecutionEvent.TopLevelFlush
+                            ): ZIO[Any, Nothing, Unit] =
+      for {
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
+        sectionOutput   <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
+        _ <-
+          if (suiteIsPrinting)
+            printToConsole(sectionOutput)
+          else {
+            end.ancestors.headOption match {
+              case Some(parentId) =>
+                appendToSectionContents(parentId, sectionOutput)
+              case None =>
+                appendToSectionContents(SuiteId.global, sectionOutput) *>
+                // TODO If we can't find cause of failure in CI, unsafely print to console instead of failing
+                ZIO.when(end.id == SuiteId.global)(
+                  ZIO.debug("Looping around and re-submitting to global parent")
+                )
+
+            }
+          }
+
+        _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
 
     private def printOrQueue(
