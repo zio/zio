@@ -206,9 +206,9 @@ object Differ {
         else if (second == empty) first
         else first.andThen(second)
       def diff(oldValue: A, newValue: A): A => A =
-        if (oldValue == newValue) identity else constant(newValue)
+        if (oldValue == newValue) empty else Function.const(newValue)
       def empty: A => A =
-        identity
+        ZIO.identityFn
       def patch(patch: A => A)(oldValue: A): A =
         f(oldValue, patch(oldValue))
     }
@@ -542,16 +542,4 @@ object Differ {
     private final case class Empty[A]()                                          extends SetPatch[A]
     private final case class Remove[A](value: A)                                 extends SetPatch[A]
   }
-
-  /**
-   * The constant function.
-   */
-  private def constant[A](a: A): A => A =
-    _ => a
-
-  /**
-   * The identity function.
-   */
-  private def identity[A]: A => A =
-    ZIO.identityFn
 }

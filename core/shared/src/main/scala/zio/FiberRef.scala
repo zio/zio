@@ -339,7 +339,7 @@ object FiberRef {
 
   private[zio] def unsafeMake[A](
     initial: A,
-    fork: A => A = (a: A) => a,
+    fork: A => A = ZIO.identityFn[A],
     join: (A, A) => A = ((_: A, a: A) => a)
   ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
