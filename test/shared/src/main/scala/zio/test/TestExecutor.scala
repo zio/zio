@@ -145,20 +145,16 @@ object TestExecutor {
                 })
 
             ZIO.scoped {
-              loop(List.empty, scopedSpec, defExec, List.empty, topParent)
+              loop(List.empty, scopedSpec, defExec, List(SuiteId.global), topParent)
             } *>
               sink.process(
                 ExecutionEvent.TopLevelFlush(
-                  List("Flushing top level"),
                   topParent,
-                  List.empty
                 )
               ) *>
               sink.process(
                 ExecutionEvent.TopLevelFlush(
-                  List("Flushing top level"),
                   SuiteId.global,
-                  List.empty
                 )
               )
           }

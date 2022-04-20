@@ -24,9 +24,9 @@ object MultiCMinimalSpec extends ZIOSpecDefault {
 }
 
 object SmallMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("SM")(
-    suite("SMS")(
-      test("SMS 1") {
+  override def spec = suite("A")(
+    suite("AS")(
+      test("AS 1") {
         assertTrue(true)
       }
     )
@@ -34,28 +34,28 @@ object SmallMinimalSpec extends ZIOSpecDefault {
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("SS")(
-    suite("SSFast ")(
-      test("SSF 1") {
+  override def spec = suite("F")(
+    suite("F1")(
+      test("F1 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("SSF 2") {
+      test("F1 2") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       }
     ),
-    suite("SSMedium")(
-      test("SSM 1") {
+    suite("F2")(
+      test("F2 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("SSM 2") {
+      test("F2 2") {
         Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       }
     ),
-    suite("SSSlow")(
-      test("SSS 1") {
+    suite("F3")(
+      test("F3 1") {
         Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       },
-      test("SSS 2") {
+      test("F3 2") {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
