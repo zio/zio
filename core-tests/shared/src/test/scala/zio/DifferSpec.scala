@@ -1,6 +1,5 @@
 package zio
 
-import zio._
 import zio.test._
 
 object DifferSpec extends ZIOSpecDefault {
@@ -25,7 +24,9 @@ object DifferSpec extends ZIOSpecDefault {
     }
   )
 
-  def diffLaws[Environment, Value, Patch](differ: Differ[Value, Patch])(gen: Gen[Environment, Value]) =
+  def diffLaws[Environment, Value, Patch](differ: Differ[Value, Patch])(
+    gen: Gen[Environment, Value]
+  ): Spec[Environment with TestConfig, Nothing] =
     suite("differ laws")(
       test("combining patches is associative") {
         check(gen, gen, gen, gen) { (value1, value2, value3, value4) =>
