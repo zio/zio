@@ -30,7 +30,6 @@ object ExecutionEventSink {
         summary.update(
           _.add(event)
         ) *>
-//          ZIO.debug("Sink: " + this) *>
           testOutput.print(
             event
           )
@@ -42,7 +41,6 @@ object ExecutionEventSink {
   val live: ZLayer[TestOutput, Nothing, ExecutionEventSink] =
     ZLayer.fromZIO(
       for {
-        _          <- ZIO.debug("Creating new sink. Should only see this once when layers are decomposed properly.")
         testOutput <- ZIO.service[TestOutput]
         sink       <- ExecutionEventSinkLive(testOutput)
       } yield sink

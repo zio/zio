@@ -83,7 +83,7 @@ sealed class ZTestTask(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.global) {
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
   def execute(continuation: Array[Task] => Unit): Unit =
     Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRunAsyncWith {

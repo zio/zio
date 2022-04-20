@@ -51,23 +51,22 @@ object TestOutput {
     def print(
       executionEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
-//      ZIO.debug("Printer in play: " + executionEventPrinter) *>
-      (executionEvent match {
+      executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
 
         case flush: ExecutionEvent.TopLevelFlush =>
-          printOrFlushZ2(flush)
+          flushGlobalOutputIfPossible(flush)
         case other =>
           printOrQueue(other)
-      })
+      }
 
     private def printOrFlush(
       end: ExecutionEvent.SectionEnd
     ): ZIO[Any, Nothing, Unit] =
       for {
         suiteIsPrinting <-
-          reporters.attemptToGetPrintingControl(end.id, end.ancestors) //.debug("printOrFlush id: " + end.id)
+          reporters.attemptToGetPrintingControl(end.id, end.ancestors)
         sectionOutput <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
         _ <-
           if (suiteIsPrinting)
@@ -75,11 +74,9 @@ object TestOutput {
           else {
             end.ancestors.headOption match {
               case Some(parentId) =>
-//                ZIO.debug(s"${end.id} is sending its output to $parentId") *>
                 appendToSectionContents(parentId, sectionOutput)
               case None =>
                 // TODO If we can't find cause of failure in CI, unsafely print to console instead of failing
-//                appendToSectionContents(SuiteId.global, sectionOutput)
                 ZIO.dieMessage("Suite tried to send its output to a nonexistent parent. ExecutionEvent: " + end)
             }
           }
@@ -87,14 +84,14 @@ object TestOutput {
         _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
 
-    private def printOrFlushZ2(
+    private def flushGlobalOutputIfPossible(
       end: ExecutionEvent.TopLevelFlush
     ): ZIO[Any, Nothing, Unit] =
       for {
         sectionOutput <- getAndRemoveSectionOutput(end.id)
         _             <- appendToSectionContents(SuiteId.global, sectionOutput)
         suiteIsPrinting <-
-          reporters.attemptToGetPrintingControl(SuiteId.global, List.empty) //.debug("printOrFlushZ2 id: " + end.id)
+          reporters.attemptToGetPrintingControl(SuiteId.global, List.empty)
         _ <-
           if (suiteIsPrinting) {
             for {
@@ -105,8 +102,6 @@ object TestOutput {
           } else {
             ZIO.unit
           }
-
-//        _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
 
     private def printOrQueue(
@@ -117,7 +112,7 @@ object TestOutput {
         suiteIsPrinting <- reporters.attemptToGetPrintingControl(
                              reporterEvent.id,
                              reporterEvent.ancestors
-                           ) //.debug("printOrQueue id: " + reporterEvent.id)
+                           )
         _ <- ZIO.when(suiteIsPrinting)(
                for {
                  currentOutput <- getAndRemoveSectionOutput(reporterEvent.id)
@@ -128,7 +123,6 @@ object TestOutput {
 
     private def printToConsole(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
-//        ZIO.debug("Sending to print: " + event) *>
         executionEventPrinter.print(event)
       }
 
