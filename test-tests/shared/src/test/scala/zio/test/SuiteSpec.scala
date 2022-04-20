@@ -1,10 +1,11 @@
 package zio.test
 import zio._
 
-object SweetSpec extends ZIOSpecDefault {
+object SuiteSpec extends ZIOSpecDefault {
 
-  def spec: Spec[Any, Any] =
+  def spec =
     suiteAll("SweetSpec!") {
+
       val hello = "hello"
 
       test("test")(
@@ -13,7 +14,14 @@ object SweetSpec extends ZIOSpecDefault {
 
       val cool = 123
 
-      suiteAll("Nested") {
+      test("another test")(
+        assertTrue(hello.startsWith("h"))
+      )
+
+      suite("Nested") {
+
+        val another = 123
+
         test("test 2")(
           ZIO.service[Int].map { int =>
             assertTrue(cool == int)
@@ -22,7 +30,7 @@ object SweetSpec extends ZIOSpecDefault {
 
         test("test 3")(
           ZIO.service[Int].map { int =>
-            assertTrue(cool == int)
+            assertTrue(another == int)
           }
         )
       }

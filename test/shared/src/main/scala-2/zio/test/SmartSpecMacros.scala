@@ -2,6 +2,7 @@ package zio.test
 
 import zio.{Chunk, ZIO}
 
+import scala.annotation.tailrec
 import scala.reflect.macros.whitebox
 
 class SmartSpecMacros(val c: whitebox.Context) {
@@ -35,6 +36,7 @@ class SmartSpecMacros(val c: whitebox.Context) {
   def suiteImpl(name: c.Expr[String])(spec: c.Tree): c.Tree = {
     val result = collectTests(spec)
 
+    @tailrec
     def loop(remaining: List[TestOrStatement], acc: List[Tree], names: List[String]): Tree =
       remaining match {
         case head :: tail =>

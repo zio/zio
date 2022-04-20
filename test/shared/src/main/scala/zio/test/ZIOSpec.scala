@@ -35,12 +35,12 @@ abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract { self =>
   ): testConstructor.Out =
     zio.test.test(label)(assertion)
 
-  def suite[In](label: String)(spec: In, specs: In*)(implicit
+  def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: ZTraceElement
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
-    zio.test.suite(label)((spec +: specs): _*)
+    zio.test.suite(label)(specs: _*)
 
-  def suiteAll(name: String)(spec: Any): Spec[Nothing, Any] =
+  def suiteAll(name: String)(spec: Any): Spec[Nothing, Nothing] =
     macro SmartSpecMacros.suiteImpl
 }
