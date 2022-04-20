@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ExecutionResult.ResultType.Suite
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -63,11 +63,11 @@ object DefaultTestReporter {
             )
         }
 
-      case Test(labelsReversed, results, annotations, _, _, _) =>
+      case Test(labelsReversed, results, annotations, _, _, suiteId) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
-          testCaseOutput(labels, results, includeCause)
+          testCaseOutput(labels, results, includeCause, suiteId)
         Seq(
           ExecutionResult(
             ResultType.Test,
@@ -97,12 +97,15 @@ object DefaultTestReporter {
         }
       case SectionEnd(_, _, _) =>
         Nil
+      case TopLevelFlush(_) =>
+        Nil
     }
 
   private def testCaseOutput(
     labels: List[String],
     results: Either[TestFailure[Any], TestSuccess],
-    includeCause: Boolean
+    includeCause: Boolean,
+    suiteId: SuiteId
   )(implicit
     trace: ZTraceElement
   ): (List[Line], List[Line]) = {

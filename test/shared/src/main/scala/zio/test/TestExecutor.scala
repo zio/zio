@@ -44,8 +44,9 @@ object TestExecutor {
         Summary
       ] =
         (for {
-          sink      <- ZIO.service[ExecutionEventSink]
-          topParent <- SuiteId.newRandom
+          sink     <- ZIO.service[ExecutionEventSink]
+          summary  <- Ref.make[Summary](Summary(0, 0, 0, ""))
+          topParent = SuiteId.global
           _ <- {
             def loop(
               labels: List[String],
@@ -68,9 +69,14 @@ object TestExecutor {
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
-                      sink.process(
+                      val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
-                      )
+                      summary.update(
+                        _.add(event)
+                      ) *>
+                        sink.process(
+                          event
+                        )
                     }
 
                 case Spec.MultipleCase(specs) =>
@@ -96,20 +102,29 @@ object TestExecutor {
                     ) =>
                   (for {
                     result <- test.either
+                    event =
+                      ExecutionEvent
+                        .Test(
+                          labels,
+                          result,
+                          staticAnnotations ++ extractAnnotations(result),
+                          ancestors,
+                          1L,
+                          sectionId
+                        )
                     _ <-
-                      sink.process(
-                        ExecutionEvent
-                          .Test(
-                            labels,
-                            result,
-                            staticAnnotations ++ extractAnnotations(result),
-                            ancestors,
-                            1L,
-                            sectionId
-                          )
-                      )
+                      summary.update(
+                        _.add(event)
+                      ) *>
+                        sink.process(
+                          event
+                        )
                   } yield ()).catchAllCause { e =>
-                    sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+                    val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                    summary.update(
+                      _.add(event)
+                    ) *>
+                      sink.process(event)
                   }
               }
 
@@ -131,10 +146,15 @@ object TestExecutor {
 
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-            }
+            } *>
+              sink.process(
+                ExecutionEvent.TopLevelFlush(
+                  topParent
+                )
+              )
           }
 
-          summary <- sink.getSummary
+          summary <- summary.get
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =

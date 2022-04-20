@@ -54,6 +54,9 @@ object TestOutput {
       executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
+
+        case flush: ExecutionEvent.TopLevelFlush =>
+          flushGlobalOutputIfPossible(flush)
         case other =>
           printOrQueue(other)
       }
@@ -62,8 +65,9 @@ object TestOutput {
       end: ExecutionEvent.SectionEnd
     ): ZIO[Any, Nothing, Unit] =
       for {
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)
-        sectionOutput   <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
+        suiteIsPrinting <-
+          reporters.attemptToGetPrintingControl(end.id, end.ancestors)
+        sectionOutput <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
         _ <-
           if (suiteIsPrinting)
             printToConsole(sectionOutput)
@@ -80,12 +84,35 @@ object TestOutput {
         _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
 
+    private def flushGlobalOutputIfPossible(
+      end: ExecutionEvent.TopLevelFlush
+    ): ZIO[Any, Nothing, Unit] =
+      for {
+        sectionOutput <- getAndRemoveSectionOutput(end.id)
+        _             <- appendToSectionContents(SuiteId.global, sectionOutput)
+        suiteIsPrinting <-
+          reporters.attemptToGetPrintingControl(SuiteId.global, List.empty)
+        _ <-
+          if (suiteIsPrinting) {
+            for {
+              globalOutput <- getAndRemoveSectionOutput(SuiteId.global)
+              _            <- printToConsole(globalOutput)
+            } yield ()
+
+          } else {
+            ZIO.unit
+          }
+      } yield ()
+
     private def printOrQueue(
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
-        _               <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(reporterEvent.id, reporterEvent.ancestors)
+        _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(
+                             reporterEvent.id,
+                             reporterEvent.ancestors
+                           )
         _ <- ZIO.when(suiteIsPrinting)(
                for {
                  currentOutput <- getAndRemoveSectionOutput(reporterEvent.id)

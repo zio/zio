@@ -9,12 +9,13 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class BaseTestTask(
+abstract class BaseTestTask[T](
   val taskDef: TaskDef,
   val testClassLoader: ClassLoader,
   val sendSummary: SendSummary,
   val args: TestArgs,
-  val spec: ZIOSpecAbstract
+  val spec: ZIOSpecAbstract,
+  val runtime: zio.Runtime[T]
 ) extends Task {
 
   protected def sharedFilledTestlayer(
@@ -34,9 +35,8 @@ abstract class BaseTestTask(
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
         summary <- spec
-                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
+                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-        _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.status == Summary.Failure)(
                ZIO.fail(new Exception("Failed tests."))
              )
@@ -51,7 +51,7 @@ abstract class BaseTestTask(
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
-        Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
+        runtime.unsafeRunToFuture {
           executeZ(eventHandler)
         }
 
