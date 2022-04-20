@@ -1,6 +1,6 @@
-package zio
+package zio.test
 
-trait ZIOAppVersionSpecific {
+trait ZIOSpecAbstractVersionSpecific {
 
   /**
    * This implicit conversion macro will ensure that the provided ZIO effect
@@ -9,7 +9,7 @@ trait ZIOAppVersionSpecific {
    * If it is missing requirements, it will report a descriptive error message.
    * Otherwise, the effect will be returned unmodified.
    */
-  implicit def validateEnv[R1, R, E, A](zio: ZIO[R, E, A]): ZIO[R1, E, A] =
-    macro internal.macros.LayerMacros.validate[R1, R]
+  implicit def validateEnv[R1, R, E](spec: Spec[R, E]): Spec[R1, E] =
+    macro SpecLayerMacros.validate[R1, R]
 
 }

@@ -337,16 +337,6 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Provides each test in this spec with the single service it requires. If
-   * this spec requires multiple services use `provideEnvironment` instead.
-   */
-  final def provideService[Service <: R](service: Service)(implicit
-    tag: Tag[Service],
-    trace: ZTraceElement
-  ): Spec[Any, E] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Transforms the environment being provided to each test in this spec with
    * the specified function.
    */

@@ -1,9 +1,9 @@
-package zio
+package zio.test
 
 import scala.quoted._
 import zio.internal.TerminalRendering
 
-trait ZIOAppVersionSpecific {
+trait ZIOSpecAbstractVersionSpecific {
 
   /**
    * This implicit conversion macro will ensure that the provided ZIO effect
@@ -12,21 +12,21 @@ trait ZIOAppVersionSpecific {
    * If it is missing requirements, it will report a descriptive error message.
    * Otherwise, the effect will be returned unmodified.
    */
-  inline implicit def validateEnv[R1, R, E, A](inline zio: ZIO[R, E, A]): ZIO[R1, E, A] =
-    ${ ZIOAppVersionSpecificMacros.validate[R1, R, E, A]('zio) }
+  inline implicit def validateEnv[R1, R, E, A](inline spec: Spec[R, E]): Spec[R1, E] =
+    ${ ZIOSpecAbstractSpecificMacros.validate[R1, R, E]('spec) }
 
 }
 
-object ZIOAppVersionSpecificMacros {
-  def validate[Provided: Type, Required: Type, E: Type, A: Type](zio: Expr[ZIO[Required, E, A]])(using ctx: Quotes) =
-    new ZIOAppVersionSpecificMacros(ctx).validate[Provided, Required, E, A](zio)
+object ZIOSpecAbstractSpecificMacros {
+  def validate[Provided: Type, Required: Type, E: Type](spec: Expr[Spec[Required, E]])(using ctx: Quotes) =
+    new ZIOSpecAbstractSpecificMacros(ctx).validate[Provided, Required, E](spec)
 }
 
-class ZIOAppVersionSpecificMacros(val ctx: Quotes) {
+class ZIOSpecAbstractSpecificMacros(val ctx: Quotes) {
   given Quotes = ctx
   import ctx.reflect._
 
-  def validate[Provided: Type, Required: Type, E: Type, A: Type](zio: Expr[ZIO[Required, E, A]]) = {
+  def validate[Provided: Type, Required: Type, E: Type](spec: Expr[Spec[Required, E]]) = {
 
     val required = flattenAnd(TypeRepr.of[Required])
     val provided = flattenAnd(TypeRepr.of[Provided])
@@ -35,11 +35,11 @@ class ZIOAppVersionSpecificMacros(val ctx: Quotes) {
       required.toSet -- provided.toSet
 
     if (missing.nonEmpty) {
-      val message = TerminalRendering.missingLayersForZIOApp(missing.map(_.show))
+      val message = TerminalRendering.missingLayersForZIOSpec(missing.map(_.show))
       report.errorAndAbort(message)
     }
 
-    zio.asInstanceOf[Expr[ZIO[Provided, E, A]]]
+    spec.asInstanceOf[Expr[Spec[Provided, E]]]
   }
 
 

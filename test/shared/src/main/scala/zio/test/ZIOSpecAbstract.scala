@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render._
 
 @EnableReflectiveInstantiation
-abstract class ZIOSpecAbstract extends ZIOApp {
+abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
   self =>
 
   def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
