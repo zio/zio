@@ -153,14 +153,15 @@ object ZTestFrameworkSbtSpec {
 
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.global
         )
       }
       .head
@@ -176,14 +177,15 @@ object ZTestFrameworkSbtSpec {
     val runner = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.global
         )
       }
       .head
