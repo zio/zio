@@ -2423,18 +2423,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(channel.provideEnvironment(r))
 
   /**
-   * Provides the stream with the single service it requires. If the stream
-   * requires multiple services use `provideEnvironment` instead.
-   */
-  final def provideService[Service <: R](
-    service: Service
-  )(implicit
-    tag: Tag[Service],
-    trace: ZTraceElement
-  ): ZStream[Any, E, A] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Provides a layer to the stream, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0](

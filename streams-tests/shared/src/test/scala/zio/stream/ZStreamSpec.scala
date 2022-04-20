@@ -1428,7 +1428,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s = ZStream.finalizer(fins.update(1 :: _)) *>
                     ZStream.finalizer(fins.update(2 :: _))
               result <- Scope.make.flatMap { scope =>
-                          s.toPull.provideService(scope).flatMap { pull =>
+                          scope.extend(s.toPull).flatMap { pull =>
                             pull *> scope.close(Exit.unit) *> fins.get
                           }
                         }
