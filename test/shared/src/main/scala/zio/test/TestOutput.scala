@@ -17,7 +17,8 @@ object TestOutput {
   val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
       for {
-        executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
+        _ <- ZIO.debug("Creating new TestOutput. Should only see this once.")
+        executionEventPrinter <- ZIO.service[ExecutionEventPrinter].debug("ExecutionEventPrinter")
         outputLive            <- TestOutputLive.make(executionEventPrinter)
       } yield outputLive
     )
@@ -50,8 +51,9 @@ object TestOutput {
 
     def print(
       executionEvent: ExecutionEvent
-    ): ZIO[Any, Nothing, Unit] =
-      executionEvent match {
+    ): ZIO[Any, Nothing, Unit] = {
+//      ZIO.debug("Printer in play: " + executionEventPrinter) *>
+        (executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
 
@@ -59,7 +61,8 @@ object TestOutput {
           printOrFlushZ2(flush)
         case other =>
           printOrQueue(other)
-      }
+      })
+    }
 
     private def printOrFlush(
       end: ExecutionEvent.SectionEnd
@@ -73,11 +76,11 @@ object TestOutput {
           else {
             end.ancestors.headOption match {
               case Some(parentId) =>
-                ZIO.debug(s"${end.id} is sending its output to $parentId") *>
+//                ZIO.debug(s"${end.id} is sending its output to $parentId") *>
                 appendToSectionContents(parentId, sectionOutput)
               case None =>
-                ZIO.debug("flushing, but no parent available") *>
                 // TODO If we can't find cause of failure in CI, unsafely print to console instead of failing
+//                appendToSectionContents(SuiteId.global, sectionOutput)
                 ZIO.dieMessage("Suite tried to send its output to a nonexistent parent. ExecutionEvent: " + end)
             }
           }
@@ -90,18 +93,18 @@ object TestOutput {
                                 end: ExecutionEvent.TopLevelFlush
                             ): ZIO[Any, Nothing, Unit] =
       for {
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, List.empty)//.debug("printOrFlushZ2 id: " + end.id)
         sectionOutput <- getAndRemoveSectionOutput(end.id)
+        _ <- appendToSectionContents(SuiteId.global, sectionOutput)
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(SuiteId.global, List.empty)//.debug("printOrFlushZ2 id: " + end.id)
         _ <-
           if (suiteIsPrinting) {
             for {
-              _ <- printToConsole(sectionOutput)
               globalOutput <- getAndRemoveSectionOutput(SuiteId.global)
               _ <- printToConsole(globalOutput)
             } yield ()
 
           } else {
-            appendToSectionContents(SuiteId.global, sectionOutput)
+            ZIO.unit
           }
 
 //        _ <- reporters.relinquishPrintingControl(end.id)
@@ -123,6 +126,7 @@ object TestOutput {
 
     private def printToConsole(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
+//        ZIO.debug("Sending to print: " + event) *>
         executionEventPrinter.print(event)
       }
 

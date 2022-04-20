@@ -46,7 +46,7 @@ object TestExecutor {
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
           summary <- Ref.make[Summary](Summary(0, 0, 0, ""))
-          topParent <- SuiteId.newRandom
+          topParent = SuiteId.global
           _ <- {
             def loop(
               labels: List[String],
@@ -145,16 +145,11 @@ object TestExecutor {
                 })
 
             ZIO.scoped {
-              loop(List.empty, scopedSpec, defExec, List(SuiteId.global), topParent)
+              loop(List.empty, scopedSpec, defExec, List.empty, topParent)
             } *>
               sink.process(
                 ExecutionEvent.TopLevelFlush(
                   topParent,
-                )
-              ) *>
-              sink.process(
-                ExecutionEvent.TopLevelFlush(
-                  SuiteId.global,
                 )
               )
           }

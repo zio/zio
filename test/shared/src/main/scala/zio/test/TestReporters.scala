@@ -3,8 +3,10 @@ package zio.test
 import zio.{Ref, ZIO}
 
 object TestReporters {
-  val make: ZIO[Any, Nothing, TestReporters] =
-    Ref.make(List.empty[SuiteId]).map(TestReporters(_))
+  val make: ZIO[Any, Nothing, TestReporters] = {
+    // TODO This is *extremely* surprising/bad. Fix in final solution.
+    Ref.make(List(SuiteId.global)).map(TestReporters(_))
+  }
 }
 
 case class TestReporters(reportersStack: Ref[List[SuiteId]]) {
@@ -16,7 +18,8 @@ case class TestReporters(reportersStack: Ref[List[SuiteId]]) {
 
       case reporters if ancestors.nonEmpty && reporters.head == ancestors.head =>
         id :: reporters
-    }.map(_.head == id)
+    }.debug("Attempting speaker: " + id + "  ancestors: " + ancestors.mkString(",") + "\n")
+      .map(_.head == id)
 
   def relinquishPrintingControl(id: SuiteId): ZIO[Any, Nothing, Unit] =
     reportersStack.updateSome {
