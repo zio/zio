@@ -14,13 +14,25 @@ CyclicBarriers are useful in programs involving a fixed sized party of fibers th
 To create a `CyclicBarrier` we must provide the number of parties, and we can also provide an optional action:
 
 1. **number of parties**— The fibers that need to synchronize their execution are called _parties_. This number denotes how many parties must occasionally wait for each other. In other words, it specifies the number of parties required to trip the barrier.
-2. **action**— An optional action command that is run once per barrier point, after the last fiber in the party arrives, but before any fibers are released. This action is useful for updating the shared state before any of the parties continue.
+2. **action**— An optional command that is run once per barrier point, after the last fiber in the party arrives, but before any fibers are released. This action is useful for updating the shared state before any of the parties continue.
 
 ```scala
 object CyclicBarrier {
   def make(parties: Int)                  : UIO[CyclicBarrier] = ???
   def make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier] = ???
 }
+```
+
+If we create a barrier and don't call `await` on that, the barrier is not going to be released (broken) and the number of `waiting` fibers remains zero:
+
+```scala mdoc:silent
+import zio.concurrent.CyclicBarrier
+
+for {
+  barrier  <- CyclicBarrier.make(100, ZIO.debug("This is a release action!"))
+  isBroken <- barrier.isBroken  
+  waiting  <- barrier.waiting
+} yield assert(!isBroken && waiting == 0)
 ```
 
 ### Use
@@ -108,17 +120,6 @@ If we add another concurrent task (e.g. `task("6")`) to our list of tasks, final
 
 ## Example Usage
 
-Construction:
-
-```scala mdoc:silent
-import zio.concurrent.CyclicBarrier
-
-for {
-  barrier  <- CyclicBarrier.make(100)
-  isBroken <- barrier.isBroken  
-  waiting  <- barrier.waiting
-} yield assert(!isBroken && waiting == 0)
-```
 
 Releasing the barrier:
 
