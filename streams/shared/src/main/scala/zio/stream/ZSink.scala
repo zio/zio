@@ -1409,10 +1409,28 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
+    logAnnotate(LogAnnotation(key, value))(sink)
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate[R, E, In, L, Z](annotation: => LogAnnotation, annotations: LogAnnotation*)(
+    sink: ZSink[R, E, In, L, Z]
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
+    logAnnotate(Set(annotation) ++ annotations.toSet)(sink)
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate[R, E, In, L, Z](annotations: => Set[LogAnnotation])(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapScoped {
-      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
-        FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value)).as(sink)
-      }
+      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.flatMap(LogAnnotation.unapply)).as(sink)
     }
 
   /**
