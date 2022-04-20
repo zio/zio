@@ -63,15 +63,17 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
 
   private[sbt] def tasksZ(
     defs: Array[TaskDef]
-  )(implicit trace: ZTraceElement): Array[ZTestTask[ZIOSpecAbstract#Environment with ExecutionEventSink]] = {
+  )(implicit trace: ZTraceElement): Array[ZTestTask[ExecutionEventSink]] = {
     val testArgs = TestArgs.parse(args)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
-    val sharedLayer: ZLayer[Any, Any, ZIOSpecAbstract#Environment with ExecutionEventSink] =
-      (Scope.default ++ ZIOAppArgs.empty) >>>
-        specTasks.map(_.layer).reduce(_ +!+ _) ++ sinkLayerWithConsole(zio.Console.ConsoleLive)
+    val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
+      (Scope.default ++ ZIOAppArgs.empty) >>> specTasks.map(_.layer).reduce(_ +!+ _)
 
-    val runtime: zio.Runtime[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink] =
+    val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
+      sharedLayerFromSpecs +!+ sinkLayerWithConsole(zio.Console.ConsoleLive)
+
+    val runtime: zio.Runtime[ExecutionEventSink] =
       zio.Runtime.unsafeFromLayer(sharedLayer)
 
     defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
