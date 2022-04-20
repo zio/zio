@@ -39,7 +39,7 @@ In the following example, we started three tasks, each one has a different worki
 
 ```scala mdoc:compile-only
 import zio._
-import zio.concurrent._
+import zio.concurrent.CyclicBarrier
 
 object MainApp extends ZIOAppDefault {
   def task(name: String) =
@@ -67,8 +67,8 @@ object MainApp extends ZIOAppDefault {
 ّIf we change the previous example and add more than three tasks, the first three arriving tasks will be blocked and wait for synchronization. After the barrier is broken, the next three tasks will be blocked on the next barrier. **This process will be executed again and again for further tasks. This is why we say that the barrier is cyclic**:
 
 ```scala mdoc:compile-only
-import zio.concurrent._
 import zio._
+import zio.concurrent.CyclicBarrier
 
 object MainApp extends ZIOAppDefault {
 
@@ -85,12 +85,18 @@ object MainApp extends ZIOAppDefault {
 
   def run =
     for {
-      b <- CyclicBarrier.make(3)
+      b <- CyclicBarrier.make(
+             parties = 3,
+             action = ZIO.debug(
+               "The barrier is released right now!" +
+                 "I can do some effectful actions on release of barrier."
+             )
+           )
       tasks = task("1") <&>
-        task("2") <&>
-        task("3") <&>
-        task("4") <&>
-        task("5")
+                task("2") <&>
+                task("3") <&>
+                task("4") <&>
+                task("5")
       _ <- tasks.provideService(b)
     } yield ()
 }
