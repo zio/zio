@@ -118,66 +118,9 @@ In this example after breakage of the barrier by proceeding with `task 1`, `task
 
 If we add another concurrent task (e.g. `task("6")`) to our list of tasks, finally the next group of jobs that are waiting for each other will trip the barrier.
 
-## Example Usage
+## Barrier Break on Resets
 
-
-Releasing the barrier:
-
-```scala mdoc:silent
-import zio.concurrent.CyclicBarrier
-import zio._
-
-for {
-  barrier <- CyclicBarrier.make(2)
-  f1      <- barrier.await.fork
-  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-  f2      <- barrier.await.fork
-  ticket1 <- f1.join
-  ticket2 <- f2.join
-} yield assert(ticket1 == 1 && ticket2 == 0)
-```
-
-Releasing the barrier and performing the action:
-
-```scala mdoc:silent
-import zio.concurrent.CyclicBarrier
-import zio._
-
-for {
-  promise <- Promise.make[Nothing, Unit]
-  barrier <- CyclicBarrier.make(2, promise.succeed(()))
-  f1      <- barrier.await.fork
-  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-  f2      <- barrier.await.fork
-  _       <- f1.join
-  _       <- f2.join
-  isComplete <- promise.isDone
-} yield assert(isComplete)
-```
-
-Releases the barrier and cycles:
-
-```scala mdoc:silent
-import zio.concurrent.CyclicBarrier
-
-for {
-  barrier <- CyclicBarrier.make(2)
-  f1      <- barrier.await.fork
-  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-  f2      <- barrier.await.fork
-  ticket1 <- f1.join
-  ticket2 <- f2.join
-  f3      <- barrier.await.fork
-  _       <- f3.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-  f4      <- barrier.await.fork
-  ticket3 <- f3.join
-  ticket4 <- f4.join
-} yield assert(ticket1 == 1 && ticket2 == 0 && ticket3 == 1 && ticket4 == 0)
-```
-
-Breaks on reset:
-
-```scala mdoc:silent
+```scala mdoc:mdoc:compile-only
 import zio.concurrent.CyclicBarrier
 
 for {
@@ -192,9 +135,9 @@ for {
 } yield ()
 ```
 
-Breaks on party interruption:
+## Barrier Break on Party Interruption
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio.concurrent.CyclicBarrier
 import zio._
 import zio.test.TestClock
