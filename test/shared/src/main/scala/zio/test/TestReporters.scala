@@ -18,7 +18,7 @@ case class TestReporters(reportersStack: Ref[List[SuiteId]]) {
 
       case reporters if ancestors.nonEmpty && reporters.head == ancestors.head =>
         id :: reporters
-    }.debug("Attempting speaker: " + id + "  ancestors: " + ancestors.mkString(",") + "\n")
+    }
       .map(_.head == id)
 
   def relinquishPrintingControl(id: SuiteId): ZIO[Any, Nothing, Unit] =

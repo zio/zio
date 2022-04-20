@@ -22,6 +22,7 @@ import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLay
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.render.ConsoleRenderer
 
 final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
     extends Runner {
@@ -40,14 +41,21 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val total  = allSummaries.map(_.total).sum
     val ignore = allSummaries.map(_.ignore).sum
 
+    val compositeSummary =
+      allSummaries.foldLeft(Summary(0,0,0,""))(_.add(_))
+
+    val renderedSummary = ConsoleRenderer.render(compositeSummary)
+
     if (allSummaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
-    else
+    else {
+      renderedSummary +
       allSummaries
         .map(_.summary)
         .filter(_.nonEmpty)
         .flatMap(summary => colored(summary) :: "\n" :: Nil)
         .mkString("", "", "Done")
+    }
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
@@ -66,16 +74,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val runtime: zio.Runtime[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink] =
       zio.Runtime.unsafeFromLayer(sharedLayer)
 
-    val tasks: Array[ZTestTask[zio.test.ZIOSpecAbstract#Environment with ExecutionEventSink]] =
-      defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
-//    val entrypointClass: String = testArgs.testTaskPolicy.getOrElse(classOf[ZTestTaskPolicyDefaultImpl].getName)
-//    val taskPolicy = getClass.getClassLoader
-//      .loadClass(entrypointClass)
-//      .getConstructor()
-//      .newInstance()
-//      .asInstanceOf[ZTestTaskPolicy]
-//    taskPolicy.merge(tasks)
-    tasks
+    defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
   }
 
   private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
@@ -122,37 +121,3 @@ object ZTestTask {
       .asInstanceOf[ZIOSpecAbstract]
   }
 }
-
-//abstract class ZTestTaskPolicy {
-//  def merge(zioTasks: Array[ZTestTask[_]])(implicit trace: ZTraceElement): Option[ZTestTask[ZIOSpecAbstract#Environment]]
-//}
-
-//class ZTestTaskPolicyDefaultImpl extends ZTestTaskPolicy {
-//
-//  override def merge(zioTasks: Array[ZTestTask[_]])(implicit trace: ZTraceElement): Option[ZTestTask[ZIOSpecAbstract#Environment]] = {
-//    val res =
-//      zioTasks.foldLeft(Option.empty[ZTestTask[ZIOSpecAbstract#Environment]]) { case (newTests, nextSpec) =>
-//        newTests match {
-//          case Some(composedTask) =>
-//            Some(
-//              new ZTestTask[ZIOSpecAbstract#Environment](
-//                composedTask.taskDef,
-//                composedTask.testClassLoader,
-//                composedTask.sendSummary,
-//                composedTask.args,
-//                composedTask.spec <> nextSpec.spec,
-//                ???
-//              )
-//            )
-//          case None =>
-//            Some(nextSpec)
-//        }
-//      }
-//
-//    val scope = Scope.default
-//    val appArgs = ZIOAppArgs.empty
-//    val runtime: zio.Runtime[zio.test.ZIOSpecAbstract#Environment] = zio.Runtime.unsafeFromLayer( (Scope.default ++ ZIOAppArgs.empty) >>> res.get.spec.layer)
-//    res
-//  }
-//
-//}

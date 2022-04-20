@@ -37,7 +37,6 @@ abstract class BaseTestTask[T](
         summary <- spec
                      .runSpecInfallibleZ(FilteredSpec(spec.spec, args), args, console, runtime)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
-//        _ <- TestLogger.logLine(ConsoleRenderer.render(summary))
         _ <- ZIO.when(summary.status == Summary.Failure)(
                ZIO.fail(new Exception("Failed tests."))
              )
@@ -51,14 +50,10 @@ abstract class BaseTestTask[T](
     implicit val trace                    = ZTraceElement.empty
     var resOutter: CancelableFuture[Unit] = null
     try {
-      val res: CancelableFuture[Unit] = {
+      val res: CancelableFuture[Unit] =
         runtime.unsafeRunToFuture {
           executeZ(eventHandler)
         }
-//        Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunToFuture {
-//          executeZ(eventHandler)
-//        }
-      }
 
       resOutter = res
       Await.result(res, Duration.Inf)
