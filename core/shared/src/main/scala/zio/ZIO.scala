@@ -4854,7 +4854,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class LogAnnotate(val annotations: () => Set[LogAnnotation]) { self =>
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      FiberRef.currentLogAnnotations.locallyWith(_ ++ annotations().flatMap(LogAnnotation.unapply))(zio)
+      FiberRef.currentLogAnnotations.locallyWith(_ ++ annotations().map { case LogAnnotation(key, value) =>
+        key -> value
+      })(zio)
   }
 
   @inline

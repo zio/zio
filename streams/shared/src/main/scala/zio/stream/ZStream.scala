@@ -4483,7 +4483,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZStream[Any, Nothing, Unit] =
     ZStream.scoped {
-      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.flatMap(LogAnnotation.unapply))
+      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) =>
+        key -> value
+      })
     }
 
   /**

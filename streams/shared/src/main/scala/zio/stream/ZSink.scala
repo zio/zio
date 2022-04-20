@@ -1430,7 +1430,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapScoped {
-      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.flatMap(LogAnnotation.unapply)).as(sink)
+      FiberRef.currentLogAnnotations
+        .locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) => key -> value })
+        .as(sink)
     }
 
   /**
