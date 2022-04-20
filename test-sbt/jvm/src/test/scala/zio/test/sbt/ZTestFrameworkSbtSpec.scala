@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.Assertion.equalTo
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
@@ -51,6 +51,7 @@ object ZTestFrameworkSbtSpec {
           case RuntimeFailure(_, _, _, _)    => false
           case SectionStart(_, _, _)         => false
           case SectionEnd(_, _, _)           => false
+          case TopLevelFlush(_)              => false
         }
       ),
       s"reported events should have positive durations: $reported"
