@@ -3,61 +3,61 @@ package zio.test
 import zio._
 
 object MultiCMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("M")(
-    suite("MF")(
-      test("MF 1") {
+  override def spec = suite("MultiSpec")(
+    suite("fast inner suite")(
+      test("fast test 1") {
         assertTrue(false)
       },
-      test("MF 2") {
+      test("fast test 2") {
         assertTrue(true)
       }
     ),
-    suite("MS")(
-      test("MS 1") {
+    suite("slow suite")(
+      test("slow 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("MS 2") {
+      test("slow 2") {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  )
+  ) @@ TestAspect.ignore
 }
 
 object SmallMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("A")(
-    suite("AS")(
-      test("AS 1") {
+  override def spec = suite("SmallMultiSpec")(
+    suite("fast inner suite")(
+      test("fast test 1") {
         assertTrue(true)
       }
     )
-  )
+  ) @@ TestAspect.ignore
 }
 
 object SlowMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("F")(
-    suite("F1")(
-      test("F1 1") {
+  override def spec = suite("SM")(
+    suite("SMFast ")(
+      test("SMF 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("F1 2") {
+      test("SMF 2") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       }
     ),
-    suite("F2")(
-      test("F2 1") {
+    suite("SMMedium")(
+      test("SMM 1") {
         Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       },
-      test("F2 2") {
+      test("SMM 2") {
         Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       }
     ),
-    suite("F3")(
-      test("F3 1") {
+    suite("SMSlow")(
+      test("SMS 1") {
         Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
       },
-      test("F3 2") {
+      test("SMS 2") {
         Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
       }
     )
-  )
+  ) @@ TestAspect.ignore
 }

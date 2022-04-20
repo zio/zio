@@ -42,7 +42,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val ignore = allSummaries.map(_.ignore).sum
 
     val compositeSummary =
-      allSummaries.foldLeft(Summary(0,0,0,""))(_.add(_))
+      allSummaries.foldLeft(Summary(0, 0, 0, ""))(_.add(_))
 
     val renderedSummary = ConsoleRenderer.render(compositeSummary)
 
@@ -50,11 +50,11 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else {
       renderedSummary +
-      allSummaries
-        .map(_.summary)
-        .filter(_.nonEmpty)
-        .flatMap(summary => colored(summary) :: "\n" :: Nil)
-        .mkString("", "", "Done")
+        allSummaries
+          .map(_.summary)
+          .filter(_.nonEmpty)
+          .flatMap(summary => colored(summary) :: "\n" :: Nil)
+          .mkString("", "", "Done")
     }
   }
 

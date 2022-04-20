@@ -17,7 +17,7 @@ object TestOutput {
   val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
       for {
-        _ <- ZIO.debug("Creating new TestOutput. Should only see this once.")
+        _                     <- ZIO.debug("Creating new TestOutput. Should only see this once.")
         executionEventPrinter <- ZIO.service[ExecutionEventPrinter].debug("ExecutionEventPrinter")
         outputLive            <- TestOutputLive.make(executionEventPrinter)
       } yield outputLive
@@ -51,9 +51,9 @@ object TestOutput {
 
     def print(
       executionEvent: ExecutionEvent
-    ): ZIO[Any, Nothing, Unit] = {
+    ): ZIO[Any, Nothing, Unit] =
 //      ZIO.debug("Printer in play: " + executionEventPrinter) *>
-        (executionEvent match {
+      (executionEvent match {
         case end: ExecutionEvent.SectionEnd =>
           printOrFlush(end)
 
@@ -62,14 +62,14 @@ object TestOutput {
         case other =>
           printOrQueue(other)
       })
-    }
 
     private def printOrFlush(
       end: ExecutionEvent.SectionEnd
     ): ZIO[Any, Nothing, Unit] =
       for {
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(end.id, end.ancestors)//.debug("printOrFlush id: " + end.id)
-        sectionOutput   <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
+        suiteIsPrinting <-
+          reporters.attemptToGetPrintingControl(end.id, end.ancestors) //.debug("printOrFlush id: " + end.id)
+        sectionOutput <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
         _ <-
           if (suiteIsPrinting)
             printToConsole(sectionOutput)
@@ -88,19 +88,19 @@ object TestOutput {
         _ <- reporters.relinquishPrintingControl(end.id)
       } yield ()
 
-
     private def printOrFlushZ2(
-                                end: ExecutionEvent.TopLevelFlush
-                            ): ZIO[Any, Nothing, Unit] =
+      end: ExecutionEvent.TopLevelFlush
+    ): ZIO[Any, Nothing, Unit] =
       for {
         sectionOutput <- getAndRemoveSectionOutput(end.id)
-        _ <- appendToSectionContents(SuiteId.global, sectionOutput)
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(SuiteId.global, List.empty)//.debug("printOrFlushZ2 id: " + end.id)
+        _             <- appendToSectionContents(SuiteId.global, sectionOutput)
+        suiteIsPrinting <-
+          reporters.attemptToGetPrintingControl(SuiteId.global, List.empty) //.debug("printOrFlushZ2 id: " + end.id)
         _ <-
           if (suiteIsPrinting) {
             for {
               globalOutput <- getAndRemoveSectionOutput(SuiteId.global)
-              _ <- printToConsole(globalOutput)
+              _            <- printToConsole(globalOutput)
             } yield ()
 
           } else {
@@ -114,8 +114,11 @@ object TestOutput {
       reporterEvent: ExecutionEvent
     ): ZIO[Any, Nothing, Unit] =
       for {
-        _               <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
-        suiteIsPrinting <- reporters.attemptToGetPrintingControl(reporterEvent.id, reporterEvent.ancestors)//.debug("printOrQueue id: " + reporterEvent.id)
+        _ <- appendToSectionContents(reporterEvent.id, Chunk(reporterEvent))
+        suiteIsPrinting <- reporters.attemptToGetPrintingControl(
+                             reporterEvent.id,
+                             reporterEvent.ancestors
+                           ) //.debug("printOrQueue id: " + reporterEvent.id)
         _ <- ZIO.when(suiteIsPrinting)(
                for {
                  currentOutput <- getAndRemoveSectionOutput(reporterEvent.id)

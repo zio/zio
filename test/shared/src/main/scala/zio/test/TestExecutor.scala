@@ -45,7 +45,7 @@ object TestExecutor {
       ] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
-          summary <- Ref.make[Summary](Summary(0, 0, 0, ""))
+          summary  <- Ref.make[Summary](Summary(0, 0, 0, ""))
           topParent = SuiteId.global
           _ <- {
             def loop(
@@ -74,9 +74,9 @@ object TestExecutor {
                       summary.update(
                         _.add(event)
                       ) *>
-                      sink.process(
-                        event
-                      )
+                        sink.process(
+                          event
+                        )
                     }
 
                 case Spec.MultipleCase(specs) =>
@@ -116,9 +116,9 @@ object TestExecutor {
                       summary.update(
                         _.add(event)
                       ) *>
-                      sink.process(
+                        sink.process(
                           event
-                      )
+                        )
                   } yield ()).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     summary.update(
@@ -149,7 +149,7 @@ object TestExecutor {
             } *>
               sink.process(
                 ExecutionEvent.TopLevelFlush(
-                  topParent,
+                  topParent
                 )
               )
           }

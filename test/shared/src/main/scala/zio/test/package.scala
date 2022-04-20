@@ -574,11 +574,10 @@ package object test extends CompileVariants {
 
   def sinkLayerWithConsole(console: Console)(implicit
     trace: ZTraceElement
-  ): ZLayer[Any, Nothing, ExecutionEventSink] = {
+  ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(
       console
     ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
-  }
 
   /**
    * A `Runner` that provides a default testable environment.

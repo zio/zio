@@ -31,7 +31,7 @@ object ExecutionEvent {
 
   final case class TopLevelFlush(id: SuiteId) extends ExecutionEvent {
 //    val id = SuiteId.global
-    val labels: List[String] = List.empty
+    val labels: List[String]     = List.empty
     val ancestors: List[SuiteId] = List.empty
   }
 
