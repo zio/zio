@@ -344,7 +344,7 @@ object FiberRef {
   ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
       initial,
-      Differ.update[A](join),
+      Differ.updateWith[A](join),
       fork
     )
 
