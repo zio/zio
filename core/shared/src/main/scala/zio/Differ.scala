@@ -202,7 +202,9 @@ object Differ {
   def updateWith[A](f: (A, A) => A): Differ[A, A => A] =
     new Differ[A, A => A] {
       def combine(first: A => A, second: A => A): A => A =
-        a => second(first(a))
+        if (first == empty) second
+        else if (second == empty) first
+        else first.andThen(second)
       def diff(oldValue: A, newValue: A): A => A =
         if (oldValue == newValue) identity else constant(newValue)
       def empty: A => A =
