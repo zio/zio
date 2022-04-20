@@ -389,7 +389,7 @@ trait ZStreamPlatformSpecificConstructors {
                       }
                     )
                   }
-                  .flatMap(scopedConn => scopedConn.provideService(registerConnection))
+                  .flatMap(scopedConn => registerConnection.extend(scopedConn))
               }
     } yield conn
 
