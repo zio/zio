@@ -58,7 +58,6 @@ object DefaultTestReporter {
                 Status.Passed,
                 offset = depth * 2,
                 List(TestAnnotationMap.empty), // TODO Examine all results to get this
-//                lines = List(fr(nonEmptyList.last + "  " + reporterEvent.id).toLine)
                 lines = List(fr(nonEmptyList.last).toLine)
               )
             )
@@ -123,7 +122,6 @@ object DefaultTestReporter {
             Passed,
             depth,
             fr(labels.last).toLine
-//              fr(labels.last + "  " + suiteId).toLine
           )
         )
       case Right(TestSuccess.Ignored(_)) =>

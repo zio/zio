@@ -77,16 +77,16 @@ object TestOutputSpec extends ZIOSpecDefault {
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
         _            <- ZIO.service[ExecutionEventPrinter].debug("Printer in test")
       } yield
-//        assertTrue(
-//        outputEvents ==
-//          List(
-//            Start(parent),
-//            Start(child1),
-//            Test(child1),
-//            Test(child1),
-//            End(child1)
-//          )
-//      ) &&
+        assertTrue(
+        outputEvents ==
+          List(
+            Start(parent),
+            Start(child1),
+            Test(child1),
+            Test(child1),
+            End(child1)
+          )
+      ) &&
       sane(outputEvents)
     },
     test("nested events with flushing") {

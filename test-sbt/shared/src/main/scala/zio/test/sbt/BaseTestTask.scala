@@ -28,7 +28,7 @@ abstract class BaseTestTask[T](
   } +!+ Scope.default
 
   protected def run(
-    eventHandler: EventHandler, // TODO Use this more now.
+    eventHandler: EventHandler,
     spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.consoleWith { console =>

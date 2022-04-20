@@ -17,8 +17,7 @@ object TestOutput {
   val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
       for {
-        _                     <- ZIO.debug("Creating new TestOutput. Should only see this once.")
-        executionEventPrinter <- ZIO.service[ExecutionEventPrinter].debug("ExecutionEventPrinter")
+        executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
         outputLive            <- TestOutputLive.make(executionEventPrinter)
       } yield outputLive
     )

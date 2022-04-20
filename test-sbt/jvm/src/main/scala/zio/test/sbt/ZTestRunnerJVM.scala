@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.{Scope, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
-import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayerWithConsole, testClock}
+import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer, sinkLayerWithConsole, testClock}
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
@@ -71,7 +71,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
       (Scope.default ++ ZIOAppArgs.empty) >>> specTasks.map(_.layer).reduce(_ +!+ _)
 
     val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
-      sharedLayerFromSpecs +!+ sinkLayerWithConsole(zio.Console.ConsoleLive)
+      sharedLayerFromSpecs +!+ sinkLayer
 
     val runtime: zio.Runtime[ExecutionEventSink] =
       zio.Runtime.unsafeFromLayer(sharedLayer)
