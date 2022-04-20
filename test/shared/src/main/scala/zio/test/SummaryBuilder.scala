@@ -58,7 +58,7 @@ object SummaryBuilder {
 
       case SectionStart(_, _, _)  => 0
       case SectionEnd(_, _, _)    => 0
-      case TopLevelFlush(_, _, _) => 0
+      case TopLevelFlush(_) => 0
     }
 
   private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =

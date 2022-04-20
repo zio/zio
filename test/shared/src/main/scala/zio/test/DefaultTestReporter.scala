@@ -58,16 +58,16 @@ object DefaultTestReporter {
                 Status.Passed,
                 offset = depth * 2,
                 List(TestAnnotationMap.empty), // TODO Examine all results to get this
-                lines = List(fr(nonEmptyList.last).toLine)
+                lines = List(fr(nonEmptyList.last + "  " + reporterEvent.id).toLine)
               )
             )
         }
 
-      case Test(labelsReversed, results, annotations, _, _, _) =>
+      case Test(labelsReversed, results, annotations, _, _, suiteId) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
-          testCaseOutput(labels, results, includeCause)
+          testCaseOutput(labels, results, includeCause, suiteId)
         Seq(
           ExecutionResult(
             ResultType.Test,
@@ -97,14 +97,15 @@ object DefaultTestReporter {
         }
       case SectionEnd(_, _, _) =>
         Nil
-      case TopLevelFlush(labelsReversed, id, ancestors) =>
+      case TopLevelFlush(_) =>
         Nil
     }
 
   private def testCaseOutput(
     labels: List[String],
     results: Either[TestFailure[Any], TestSuccess],
-    includeCause: Boolean
+    includeCause: Boolean,
+    suiteId: SuiteId
   )(implicit
     trace: ZTraceElement
   ): (List[Line], List[Line]) = {
@@ -120,7 +121,7 @@ object DefaultTestReporter {
             label,
             Passed,
             depth,
-            fr(labels.last).toLine
+            fr(labels.last + "  " + suiteId).toLine
           )
         )
       case Right(TestSuccess.Ignored(_)) =>

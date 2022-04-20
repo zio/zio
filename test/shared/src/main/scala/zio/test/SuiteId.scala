@@ -18,6 +18,6 @@ object SuiteId {
     for {
       // TODO  Consider counting up from 0, rather than completely random ints
 //      random <- zio.Random.nextInt
-      random <- zio.Random.RandomLive.nextInt
+      random <- zio.Random.RandomLive.nextInt.map(_ % 1000)
     } yield SuiteId(random)
 }
