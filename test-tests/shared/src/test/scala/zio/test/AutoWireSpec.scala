@@ -11,7 +11,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
   def spec =
     suite("AutoWireSpec")(
-      suite("inject")(
+      suite(".provide")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
@@ -91,6 +91,17 @@ object AutoWireSpec extends ZIOBaseSpec {
           )
         } @@ TestAspect.exceptScala3
       ),
+      suite(".provideSome") {
+        val stringLayer = ZLayer.succeed("10")
+
+        val myTest: Spec[Int, Nothing] = test("provides some") {
+          ZIO.environment[Int with String].map { env =>
+            assertTrue(env.get[String].toInt == env.get[Int])
+          }
+        }.provideSome[Int](stringLayer)
+
+        myTest.provide(ZLayer.succeed(10))
+      },
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
         val refLayer = ZLayer(Ref.make(1))
