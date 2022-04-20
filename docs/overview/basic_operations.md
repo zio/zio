@@ -6,6 +6,7 @@ title:  "Basic Operations"
 ```scala mdoc:invisible
 import zio._
 import zio.Console._
+import java.io.IOException
 ```
 
 ## Mapping
