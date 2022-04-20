@@ -33,6 +33,8 @@ object CyclicBarrier {
 | `reset: UIO[Unit]`       | Resets the barrier to its initial state. Breaks any waiting party.                          |
 | `isBroken: UIO[Boolean]` | Queries if this barrier is in a broken state.                                               |
 
+## Simple Example
+
 In the following example, we started three tasks, each one has a different working time, but they won't return until the other parties finished their jobs:
 
 ```scala mdoc:compile-only
@@ -46,9 +48,9 @@ object MainApp extends ZIOAppDefault {
       _ <- ZIO.debug(s"task-$name: started my job right now!")
       d <- Random.nextLongBetween(1000, 10000)
       _ <- ZIO.sleep(Duration.fromMillis(d))
-      _ <- ZIO.debug(s"task-$name: finished my job and waiting for other parties to finish their jobs.")
-      _ <- b.await
-      _ <- ZIO.debug(s"task-$name: the barrier is just broken, so I'm going to exit immediately!")
+      _ <- ZIO.debug(s"task-$name: finished my job and waiting for other parties to finish their jobs")
+      _ <- b.await 
+      _ <- ZIO.debug(s"task-$name: the barrier is now broken, so I'm going to exit immediately!")
     } yield ()
 
   def run =
@@ -59,6 +61,44 @@ object MainApp extends ZIOAppDefault {
     } yield ()
 }
 ```
+
+## Cyclic Example
+
+ّIf we change the previous example and add more than three tasks, the first three arriving tasks will be blocked and wait for synchronization. After the barrier is broken, the next three tasks will be blocked on the next barrier. **This process will be executed again and again for further tasks. This is why we say that the barrier is cyclic**:
+
+```scala mdoc:compile-only
+import zio.concurrent._
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def task(name: String) =
+    for {
+      b <- ZIO.service[CyclicBarrier]
+      _ <- ZIO.debug(s"task-$name: started my job right now!")
+      d <- Random.nextLongBetween(1000, 10000)
+      _ <- ZIO.sleep(Duration.fromMillis(d))
+      _ <- ZIO.debug(s"task-$name: finished my job and waiting for other parties to finish their jobs")
+      _ <- b.await
+      _ <- ZIO.debug(s"task-$name: the barrier is now broken, so I'm going to exit immediately!")
+    } yield ()
+
+  def run =
+    for {
+      b <- CyclicBarrier.make(3)
+      tasks = task("1") <&>
+        task("2") <&>
+        task("3") <&>
+        task("4") <&>
+        task("5")
+      _ <- tasks.provideService(b)
+    } yield ()
+}
+```
+
+In this example after breakage of the barrier by proceeding with `task 1`, `task 2`, and `task 3`, the `CyclicBarrier` will be reset to the initial state, so other tasks can come in and `await` on the barrier. So here, `task 4` and `task 5`, proceed with their job and finally wait for all parties to come into the barrier point, but in this example, as we didn't provide `task 6`, the remaining tasks will block the execution of the whole program, infinitely; because the number of waiting fibers are not equal to `parties`.
+
+If we add another concurrent task (e.g. `task("6")`) to our list of tasks, finally the next group of jobs that are waiting for each other will trip the barrier.
 
 ## Example Usage
 
