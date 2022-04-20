@@ -12,10 +12,10 @@ trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
     ${SpecLayerMacros.provideImpl[Any, R, E1]('self, 'layer)}
 
   def provideSome[R0] =
-    new provideSomePartiallyApplied[R0, R, E](self)
+    new ProvideSomePartiallyApplied[R0, R, E](self)
 
   def provideSomeShared[R0] =
-    new provideSomeSharedPartiallyApplied[R0, R, E](self)
+    new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
 
   /**
    * Automatically constructs the part of the environment that is not part of the
@@ -67,12 +67,12 @@ trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
     ${SpecLayerMacros.provideSharedImpl[TestEnvironment, R, E1]('self, 'layer)}
 }
 
-private final class provideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     ${SpecLayerMacros.provideImpl[R0, R, E1]('self, 'layer)}
 }
 
-private final class provideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     ${SpecLayerMacros.provideSharedImpl[R0, R, E1]('self, 'layer)}
 }
