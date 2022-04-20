@@ -99,7 +99,13 @@ object TerminalRendering {
        |""".stripMargin
   }
 
-  def missingLayersForZIOApp(value: Set[String]): String = {
+  def missingLayersForZIOApp(value: Set[String]): String =
+    missingLayersCustomError(value, "effect", "ZIO APP ERROR")
+
+  def missingLayersForZIOSpec(value: Set[String]): String =
+    missingLayersCustomError(value, "suite", "ZIO SPEC ERROR")
+
+  def missingLayersCustomError(value: Set[String], effectType: String, titleString: String): String = {
 
     val missingLayers = value.toList.map(_.magenta.bold)
     val missingLayersString = missingLayers.zipWithIndex.map { case (layer, index) =>
@@ -109,21 +115,21 @@ object TerminalRendering {
 
     val message =
       if (missingLayers.size > 1)
-        s"Your effect requires services that are not in the environment.\n".bold +
+        s"Your $effectType requires services that are not in the environment.\n".bold +
           s"Please provide layers for the following ${missingLayers.size.toString.underlined} types:"
       else
-        s"Your effect requires a service that is not in the environment.\n".bold +
+        s"Your $effectType requires a service that is not in the environment.\n".bold +
           s"Please provide a layer for the following type:"
 
     s"""
        |
-       |${title("ZIO App Error").red}
+       |${title(titleString).red}
        |
        |${message.indent(1)}
        |
        |$missingLayersString
        |
-       | Call your effect's ${"provide".green.bold} method with the layers you need.
+       | Call your $effectType's ${"provide".green.bold} method with the layers you need.
        | You can read more about layers and providing services here:
        | 
        |   https://zio.dev/next/datatypes/contextual/
