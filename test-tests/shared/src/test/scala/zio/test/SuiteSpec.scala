@@ -8,10 +8,9 @@ object SuiteSpec extends ZIOSpecDefault {
 
       val hello = "hello"
 
-        test("test 1 ")(
-          assertTrue(hello.startsWith("h"))
-        )
-
+      test("test 1 ")(
+        assertTrue(hello.startsWith("h"))
+      )
 
       val cool = 123
 
@@ -31,9 +30,7 @@ object SuiteSpec extends ZIOSpecDefault {
         )
       }
 
-
-
     }
-  .provide(ZLayer.succeed(123))
+      .provide(ZLayer.succeed(123))
 
 }
