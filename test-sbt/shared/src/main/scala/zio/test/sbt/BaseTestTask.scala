@@ -38,7 +38,7 @@ abstract class BaseTestTask[T](
 
   private[zio] def run(
     eventHandlerZ: ZTestEventHandler
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
+  )(implicit trace: ZTraceElement): ZIO[Any, Nothing, Unit] =
     ZIO.consoleWith { console =>
       (for {
         summary <- spec

@@ -68,7 +68,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   protected final def runSpec(implicit trace: ZTraceElement): ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
-    Any,
+    Throwable,
     Summary
   ] =
     for {
