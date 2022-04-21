@@ -7,9 +7,7 @@ A synchronization aid that allows a set of fibers to all wait for each other to 
 
 CyclicBarriers are useful in programs involving a fixed sized party of fibers that must occasionally wait for each other. The barrier is called cyclic because it can be re-used after the waiting fibers are released.
 
-## Operations
-
-### Creation
+## Creation
 
 To create a `CyclicBarrier` we must provide the number of parties, and we can also provide an optional action:
 
@@ -26,6 +24,7 @@ object CyclicBarrier {
 If we create a barrier and don't call `await` on that, the barrier is not going to be released (broken) and the number of `waiting` fibers remains zero:
 
 ```scala mdoc:silent
+import zio._
 import zio.concurrent.CyclicBarrier
 
 for {
@@ -35,7 +34,40 @@ for {
 } yield assert(!isBroken && waiting == 0)
 ```
 
-### Use
+## Internals
+
+Each `CyclicBarrier` has the following internal _private_ properties, knowing them helps us to have a deep understanding of how `CyclicBarrier` works:
+
+```scala mdoc:compile-only
+class CyclicBarrier private (
+  private val _parties: Int,
+  private val _waiting: Ref[Int],
+  private val _lock: Ref[Promise[Unit, Unit]],
+  private val _action: UIO[Any],
+  private val _broken: Ref[Boolean]
+)
+```
+
+Let's introduce each one:
+
+1. `_parties`— The fibers that need to synchronize their execution are called _parties_. It is an immutable property and will be assigned when we create a `CyclicBarrier` using one of the `make` constructors of the `CyclicBarrier`.
+2. `_waiting`— This is a mutable property that denotes the number of already fibers waiting for the release of the barrier:
+  1. When we call `reset` on a `CyclicBarrier` this number will be reset to zero.
+  2. When we call `await` on a `CyclicBarrier` inside a fiber, it will return a value of type `IO[Unit, Int]`:
+     - If the barrier isn't broken, it will suspend the fiber (`waiting`) until all parties have invoked `await` on this barrier. When the number of '_waiting` fibers reaches the number of '_parties', all parties that are suspended due to the `await` method will resume and continue processing. Before resuming all waiting fibers, the `_waiting` number will be reset to zero.
+     - If the barrier is broken, it will fail with the type of `Unit`.
+  3. To access this property, we can use the `waiting` member of a `CyclicBarrier` which returns `UIO[Int]`.
+3. `_lock`— This is a mutable property that contains a `Promise[Unit, Unit]`:
+  - When a barrier is _released_, the value of this promise internally will be succeeded with a `Unit` value.
+  - When a barrier is _broken_, the value of this promise internally will be failed with a `Unit` value.
+  - There is no public API for changing the value of this property.
+4. `_action`— When we create a `CyclicBarrier` we can provide an effectful _action_ which will be executed when the barrier is released before any of the parties continue.
+5. `_broken`— This is a mutable property which denotes that whether the barrier is broken or not:
+  - The default value of `_broken` is `false`.
+  - When one of the `_waiting` fibers is interrupted, the barrier will be broken and the value of `_broken` will be changed to `true`.
+  - We can access this value using `isBroken` method on a `CyclicBarrier`.
+
+## Operations
 
 | Method                   | Definition                                                                                  |
 |--------------------------|---------------------------------------------------------------------------------------------|
@@ -120,7 +152,11 @@ If we add another concurrent task (e.g. `task("6")`) to our list of tasks, final
 
 ## Barrier Break on Resets
 
-```scala mdoc:mdoc:compile-only
+If we call `reset` method on a `CyclicBarrier` two following cases might happen:
+- If number of `waiting` fibers is more than zero, then j
+
+```scala mdoc:compile-only
+import zio._
 import zio.concurrent.CyclicBarrier
 
 for {
@@ -135,11 +171,13 @@ for {
 } yield ()
 ```
 
-## Barrier Break on Party Interruption
+## All-or-None Breakage Model
+
+The `CyclicBarrier` uses an all-or-none breakage model for failed synchronization attempts: If a fiber leaves a barrier point prematurely because of interruption, failure, or timeout, all other fibers waiting at that barrier point will also leave abnormally:
 
 ```scala mdoc:compile-only
-import zio.concurrent.CyclicBarrier
 import zio._
+import zio.concurrent.CyclicBarrier
 import zio.test.TestClock
 
 for {
