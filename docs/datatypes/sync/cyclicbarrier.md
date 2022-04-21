@@ -52,12 +52,14 @@ Let's introduce each one:
 
 1. `_parties`— The fibers that need to synchronize their execution are called _parties_. It is an immutable property and will be assigned when we create a `CyclicBarrier` using one of the `make` constructors of the `CyclicBarrier`.
 2. `_waiting`— This is a mutable property that denotes the number of already fibers waiting for the release of the barrier:
-  1. When we call `reset` on a `CyclicBarrier` this number will be reset to zero.
+  1. When we call `reset` on a `CyclicBarrier` `_waiting` number will be reset to zero.
+    1. If the number of `_waiting` is more than zero, the `_lock` will be failed with value of `Unit`. So all fibers that are in _waiting_ state due to the call to `await` method will be failed accordingly.
+    2. Then, it will reset the barrier to its initial state: the number of `_waiting` fibers will be zero and the `_broken` state is `false`.
   2. When we call `await` on a `CyclicBarrier` inside a fiber, it will return a value of type `IO[Unit, Int]`:
      - If the barrier is broken, it will fail with the type of `Unit`.
      - If the barrier isn't broken:
-       - If the number of `_waiting` fibers reaches the number of `_parties`, first the `_action` effect will be performed, then all parties that are in _waiting_ state due to the call to `await` method will resume and continue processing. Before resuming all waiting fibers, the `_waiting` number will be reset to zero.
-       - If the number of `_waiting` fibers doesn't reach the number of `_parties`, it will suspend the fiber (and become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier.
+       - If the number of `_waiting` fibers reaches the number of `_parties`, first the `_action` effect will be performed. Accordingly, the `_lock` will be succeeded with value of `Unit`, so then all parties that are in _waiting_ state due to the call to `await` method will resume and continue processing. Before resuming all waiting fibers, the `_waiting` number will be reset to zero, so there is no fiber in the _waiting_ state.
+       - If the number of `_waiting` fibers doesn't reach the number of `_parties`, it will suspend the fiber (and become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier. If any waiting fibers interrupted, breakage happens.
   3. To access this property, we can use the `waiting` member of a `CyclicBarrier` which returns `UIO[Int]`.
 3. `_lock`— This is a mutable property that contains a `Promise[Unit, Unit]`:
   - When a barrier is _released_, the value of this promise internally will be succeeded with a `Unit` value.
@@ -154,8 +156,7 @@ If we add another concurrent task (e.g. `task("6")`) to our list of tasks, final
 
 ## Barrier Break on Resets
 
-If we call `reset` method on a `CyclicBarrier` two following cases might happen:
-- If number of `waiting` fibers is more than zero, then j
+If we call `reset` method on a `CyclicBarrier` while the number of _waiting_ fibers is not reached the number of _parties_, the call to the `reset` will fail:
 
 ```scala mdoc:compile-only
 import zio._
