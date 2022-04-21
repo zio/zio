@@ -54,8 +54,10 @@ Let's introduce each one:
 2. `_waiting`— This is a mutable property that denotes the number of already fibers waiting for the release of the barrier:
   1. When we call `reset` on a `CyclicBarrier` this number will be reset to zero.
   2. When we call `await` on a `CyclicBarrier` inside a fiber, it will return a value of type `IO[Unit, Int]`:
-     - If the barrier isn't broken, it will suspend the fiber (`waiting`) until all parties have invoked `await` on this barrier. When the number of '_waiting` fibers reaches the number of '_parties', all parties that are suspended due to the `await` method will resume and continue processing. Before resuming all waiting fibers, the `_waiting` number will be reset to zero.
      - If the barrier is broken, it will fail with the type of `Unit`.
+     - If the barrier isn't broken:
+       - If the number of `_waiting` fibers reaches the number of `_parties`, first the `_action` effect will be performed, then all parties that are in _waiting_ state due to the call to `await` method will resume and continue processing. Before resuming all waiting fibers, the `_waiting` number will be reset to zero.
+       - If the number of `_waiting` fibers doesn't reach the number of `_parties`, it will suspend the fiber (and become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier.
   3. To access this property, we can use the `waiting` member of a `CyclicBarrier` which returns `UIO[Int]`.
 3. `_lock`— This is a mutable property that contains a `Promise[Unit, Unit]`:
   - When a barrier is _released_, the value of this promise internally will be succeeded with a `Unit` value.
