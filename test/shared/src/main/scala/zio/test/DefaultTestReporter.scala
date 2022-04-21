@@ -43,7 +43,7 @@ object DefaultTestReporter {
   def render(
     reporterEvent: ExecutionEvent,
     includeCause: Boolean
-  )(implicit trace: ZTraceElement): Seq[ExecutionResult] =
+  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = // This should return a single/Option ExecutionResult now.
     reporterEvent match {
       case SectionStart(labelsReversed, _, ancestors) =>
         val depth = labelsReversed.length - 1

@@ -68,7 +68,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   protected final def runSpec(implicit trace: ZTraceElement): ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
-    Any,
+    Throwable,
     Summary
   ] =
     for {
@@ -77,6 +77,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       testArgs = TestArgs.parse(args.getArgs.toArray)
       _       <- ZIO.debug("runSpec")
       summary <- runSpecInfallible(spec, testArgs, console)
+      _ <- ZIO.when(summary.status == Summary.Failure)(
+             ZIO.fail(new Exception("Failed tests."))
+           )
     } yield summary
 
   private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {
@@ -125,7 +128,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             ](
               sharedLayer,
               perTestLayer,
-              executionEventSinkLayer
+              executionEventSinkLayer,
+              _ => ZIO.unit
             ),
           runtimeConfig
         )
@@ -139,7 +143,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
     console: Console,
-    runtime: Runtime[_]
+    runtime: Runtime[_],
+    eventHandlerZ: ZTestEventHandler
   )(implicit
     trace: ZTraceElement
   ): URIO[
@@ -169,7 +174,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             ](
               sharedLayer,
               perTestLayer,
-              executionEventSinkLayer
+              executionEventSinkLayer,
+              eventHandlerZ
             ),
           runtimeConfig
         )
