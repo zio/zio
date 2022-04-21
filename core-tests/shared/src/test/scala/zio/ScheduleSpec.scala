@@ -598,6 +598,20 @@ object ScheduleSpec extends ZIOBaseSpec {
         actual  = delays.scanLeft(now)((now, delay) => now.plus(delay)).tail
       } yield assert(actual.map(_.getHour))(forall(equalTo(4))) &&
         assert(actual.map(_.getMinute))(forall(equalTo(20)))
+    },
+    test("union composes") {
+      val monday            = Schedule.dayOfWeek(1)
+      val wednesday         = Schedule.dayOfWeek(3)
+      val friday            = Schedule.dayOfWeek(5)
+      val mondayOrWednesday = monday || wednesday
+      val wednesdayOrFriday = wednesday || friday
+      val alsoWednesday     = mondayOrWednesday && wednesdayOrFriday
+      for {
+        now      <- ZIO.succeed(OffsetDateTime.now)
+        in        = Chunk(1, 2, 3, 4, 5)
+        actual   <- alsoWednesday.delays.run(now, in)
+        expected <- wednesday.delays.run(now, in)
+      } yield assert(actual)(equalTo(expected))
     }
   )
 
