@@ -19,7 +19,7 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract { self =>
+abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract with ZIOSpecVersionSpecific[R] { self =>
   type Environment = R
 
   final val tag: EnvironmentTag[R] = EnvironmentTag[R]
@@ -41,6 +41,4 @@ abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract { self =>
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     zio.test.suite(label)(specs: _*)
 
-  def suiteAll(name: String)(spec: Any): Spec[Nothing, Nothing] =
-    macro SmartSpecMacros.suiteImpl
 }

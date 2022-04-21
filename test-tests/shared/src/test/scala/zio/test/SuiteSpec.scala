@@ -8,33 +8,32 @@ object SuiteSpec extends ZIOSpecDefault {
 
       val hello = "hello"
 
-      test("test")(
-        assertTrue(hello.startsWith("h"))
-      )
+        test("test 1 ")(
+          assertTrue(hello.startsWith("h"))
+        )
+
 
       val cool = 123
 
       test("another test")(
-        assertTrue(hello.startsWith("h"))
+        ZIO.service[Int].map { x =>
+          assertTrue(x == cool)
+        }
       )
 
-      suite("Nested") {
-
-        val another = 123
-
-        test("test 2")(
-          ZIO.service[Int].map { int =>
-            assertTrue(cool == int)
-          }
+      suiteAll("NEST") {
+        test("nest test 1")(
+          assertTrue(hello.endsWith("o"))
         )
 
-        test("test 3")(
-          ZIO.service[Int].map { int =>
-            assertTrue(another == int)
-          }
+        test("nest test 2")(
+          assertCompletes
         )
       }
+
+
+
     }
-      .provide(ZLayer.succeed(123))
+  .provide(ZLayer.succeed(123))
 
 }

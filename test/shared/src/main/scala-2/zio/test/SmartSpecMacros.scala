@@ -53,7 +53,7 @@ class SmartSpecMacros(val c: whitebox.Context) {
           q"""
 ..${acc.reverse}
 suite($name)(
-  ..${names.reverse.map(name => Ident(TermName(name))).reduce[Tree]((a, b) => q"$a + $b")}
+  ..${names.reverse.map(name => Ident(TermName(name)))}
 )"""
       }
 
