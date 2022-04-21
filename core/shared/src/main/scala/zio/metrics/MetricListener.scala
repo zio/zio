@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 John A. De Goes and the ZIO Contributors
+ * Copyright 2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package zio.metrics
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.UIO
+import java.time.Instant
 
-/**
- * A [[MetricListener]] is capable of taking some action in response to a metric
- * being recorded, such as sending that metric to a third-party service.
- */
-private[zio] trait MetricListener { self =>
-  def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit
+trait MetricListener {
 
-  // TODO: Implement caching
-  final def unsafeUpdateCached[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit =
-    unsafeUpdate(key)
+  def update(events: Set[MetricEvent]): UIO[Unit]
 }

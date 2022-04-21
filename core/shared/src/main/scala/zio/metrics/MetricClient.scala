@@ -16,42 +16,139 @@
 
 package zio.metrics
 
+import zio._
 import zio.internal.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import java.time.Instant
 
 /**
  * A `MetricClient` provides the functionality to consume metrics produced by
  * ZIO applications. `MetricClient` supports two ways of consuming metrics,
  * corresponding to the two ways that third party metrics services use metrics.
  *
- * First, metrics services can poll for the current state of all recorded
- * metrics using the `unsafeSnapshot` method, which provides a snapshot, as of a
- * point in time, of all metrics recorded by the ZIO application.
+ * First, metrics services can query the latest snapshot that has been extracted
+ * from the underlying metric registry.
  *
- * Second, metrics services can install a listener that will be notified every
- * time a metric is updated.
+ * Second, metrics services can install a listener that will be called with the
+ * complete set of metrics whenever it has been updated from the underlying
+ * registry.
  *
- * `MetricClient` is a lower level interface and is intended to be used by
- * implementers of integrations with third party metrics services but not by end
- * users.
+ * The default implementation abstracts the underlying, performance optimized
+ * API so that it is easier to implement arbitrary metric backends. The default
+ * implementation queries the underlying metric registry on a regular basis and
+ * caches the result, so that subsequent snapshot() calls will not NOT trigger
+ * any activity on the metric registry itself.
+ *
+ * As a consequence, calls to snapshot() will not yield the most recent value.
+ * From a users perspective this should be acceptable as most metric backends
+ * operate on a scheduled refresh interval.
  */
-private[zio] object MetricClient {
+trait MetricClient {
 
   /**
-   * Unsafely installs the specified metric listener.
+   * Get the most recent snapshot. Tis method is typically used by backend
+   * implementations that require the current metric state on demand - such as
+   * Prometheus.
    */
-  final def unsafeInstallListener(listener: MetricListener): Unit =
-    metricRegistry.installListener(listener)
+  def snapshot(implicit trace: ZTraceElement): UIO[Set[MetricPair.Untyped]]
 
   /**
-   * Unsafely removes the specified metric listener.
+   * Register a new listener that can consume metrics. The most common use case
+   * is to push these metrics to a backend in the backend specific format.
    */
-  final def unsafeRemoveListener(listener: MetricListener): Unit =
-    metricRegistry.removeListener(listener)
+  def registerListener(listener: MetricListener)(implicit trace: ZTraceElement): UIO[Unit]
 
   /**
-   * Unsafely captures a snapshot of all metrics recorded by the application.
+   * Deregister a metric listener.
    */
-  final def unsafeSnapshot(): Set[MetricPair.Untyped] =
-    metricRegistry.snapshot()
+  def deregisterListener(listener: MetricListener)(implicit trace: ZTraceElement): UIO[Unit]
+}
+
+object MetricClient {
+
+  final case class Settings(
+    pollingInterval: Duration
+  )
+
+  object Settings {
+    val default = Settings(
+      10.seconds
+    )
+  }
+
+  class ZIOMetricClient private[MetricClient] (
+    settings: MetricClient.Settings,
+    listeners: Ref[Chunk[MetricListener]],
+    latestSnapshot: Ref[Set[MetricPair.Untyped]]
+  ) extends MetricClient {
+
+    def deregisterListener(l: MetricListener)(implicit trace: ZTraceElement): UIO[Unit] =
+      listeners.update(cur => cur :+ l)
+
+    def registerListener(l: MetricListener)(implicit trace: ZTraceElement): UIO[Unit] =
+      listeners.update(cur => cur.filterNot(_.equals(l)))
+
+    def snapshot(implicit trace: ZTraceElement): UIO[Set[MetricPair.Untyped]] =
+      latestSnapshot.get
+
+    private def update(implicit trace: ZTraceElement): UIO[Unit] = for {
+      next       <- retrieveNext
+      registered <- listeners.get
+      _          <- ZIO.foreachPar(registered)(l => l.update(next))
+    } yield ()
+
+    private def retrieveNext(implicit
+      trace: ZTraceElement
+    ): UIO[Set[MetricEvent]] = for {
+      // first we get the state for all the counters that we had captured in the last run
+      oldMap <- latestSnapshot.get.map(old => stateMap(old))
+      ts     <- ZIO.clockWith(_.instant)
+      // then we get the snapshot from the underlying metricRegistry
+      next = metricRegistry.snapshot()
+      res  = events(ts, oldMap, next)
+      _   <- latestSnapshot.set(next)
+    } yield res
+
+    // This will create a map for the metrics captured in the last snapshot
+    private def stateMap(metrics: Set[MetricPair.Untyped]): Map[MetricKey.Untyped, MetricState.Untyped] = {
+
+      val builder = scala.collection.mutable.Map[MetricKey.Untyped, MetricState.Untyped]()
+      val it      = metrics.iterator
+      while (it.hasNext) {
+        val e = it.next()
+        builder.update(e.metricKey, e.metricState)
+      }
+
+      builder.toMap
+    }
+
+    private def events(
+      timestamp: Instant,
+      oldState: Map[MetricKey.Untyped, MetricState.Untyped],
+      metrics: Set[MetricPair.Untyped]
+    ): Set[MetricEvent] =
+      metrics.map { mp =>
+        oldState.get(mp.metricKey) match {
+          case None => MetricEvent.New(mp, timestamp)
+          case Some(o) =>
+            if (o.equals(mp.metricState)) {
+              MetricEvent.Unchanged(mp, timestamp)
+            } else {
+              MetricEvent.Updated(mp.metricKey, o, mp.metricState, timestamp)
+            }
+        }
+      }
+
+    def run(implicit trace: ZTraceElement): UIO[Unit] =
+      update.schedule(Schedule.fixed(settings.pollingInterval)).forkDaemon.unit
+
+  }
+
+  def live(implicit trace: ZTraceElement): ZLayer[Settings, Nothing, MetricClient] = ZLayer.fromZIO(
+    for {
+      settings  <- ZIO.service[Settings]
+      listeners <- Ref.make[Chunk[MetricListener]](Chunk.empty)
+      snapshot  <- Ref.make(Set.empty[MetricPair.Untyped])
+    } yield new ZIOMetricClient(settings, listeners, snapshot)
+  )
 }
