@@ -19,6 +19,7 @@ package zio.metrics
 import zio._
 import zio.internal.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import java.time.Instant
 
 /**
  * A `MetricClient` provides the functionality to consume metrics produced by
@@ -93,48 +94,48 @@ object MetricClient {
     private def update(implicit trace: ZTraceElement): UIO[Unit] = for {
       next       <- retrieveNext
       registered <- listeners.get
-      _          <- latestSnapshot.set(next)
       _          <- ZIO.foreachPar(registered)(l => l.update(next))
     } yield ()
 
     private def retrieveNext(implicit
       trace: ZTraceElement
-    ): UIO[Set[MetricPair.Untyped]] = for {
+    ): UIO[Set[MetricEvent]] = for {
       // first we get the state for all the counters that we had captured in the last run
-      cnt <- latestSnapshot.get.map(old => counters(old))
+      oldMap <- latestSnapshot.get.map(old => stateMap(old))
+      ts     <- ZIO.clockWith(_.instant)
       // then we get the snapshot from the underlying metricRegistry
       next = metricRegistry.snapshot()
-      res  = snapshotWithDeltas(cnt, next)
+      res  = events(ts, oldMap, next)
+      _   <- latestSnapshot.set(next)
     } yield res
 
-    // This will produce a map of all counters in a set of metrics and their state
-    private def counters(metrics: Set[MetricPair.Untyped]): Map[MetricKey.Counter, MetricState.Counter] = {
+    // This will create a map for the metrics captured in the last snapshot
+    private def stateMap(metrics: Set[MetricPair.Untyped]): Map[MetricKey.Untyped, MetricState.Untyped] = {
 
-      val builder = scala.collection.mutable.Map[MetricKey.Counter, MetricState.Counter]()
+      val builder = scala.collection.mutable.Map[MetricKey.Untyped, MetricState.Untyped]()
       val it      = metrics.iterator
       while (it.hasNext) {
         val e = it.next()
-        e.metricState match {
-          case c: MetricState.Counter => builder.update(e.metricKey.asInstanceOf[MetricKey.Counter], c)
-          case _                      => // do nothing
-        }
+        builder.update(e.metricKey, e.metricState)
       }
 
       builder.toMap
     }
 
-    // take a map of counters and a set of metrics, update all counters in the set with a delta
-    // nexCounterValue - oldCounterValue
-    private def snapshotWithDeltas(
-      oldCounters: Map[MetricKey.Counter, MetricState.Counter],
+    private def events(
+      timestamp: Instant,
+      oldState: Map[MetricKey.Untyped, MetricState.Untyped],
       metrics: Set[MetricPair.Untyped]
-    ): Set[MetricPair.Untyped] =
+    ): Set[MetricEvent] =
       metrics.map { mp =>
-        mp.metricState match {
-          case c: MetricState.Counter =>
-            val lastValue = oldCounters.get(mp.metricKey.asInstanceOf[MetricKey.Counter]).map(_.count).getOrElse(0d)
-            MetricPair.unsafeMake(mp.metricKey, c.copy(delta = c.count - lastValue))
-          case o => mp
+        oldState.get(mp.metricKey) match {
+          case None => MetricEvent.New(mp, timestamp)
+          case Some(o) =>
+            if (o.equals(mp.metricState)) {
+              MetricEvent.Unchanged(mp, timestamp)
+            } else {
+              MetricEvent.Updated(mp.metricKey, o, mp.metricState, timestamp)
+            }
         }
       }
 

@@ -20,5 +20,5 @@ import java.time.Instant
 
 trait MetricListener {
 
-  def update(metrics: Set[(MetricPair.Untyped, MetricPair.Untyped)]): UIO[Unit]
+  def update(events: Set[MetricEvent]): UIO[Unit]
 }
