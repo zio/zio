@@ -1,7 +1,9 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{ExecutionEvent, TestSuccess}
+import zio.test.render.LogLine.Message
+import zio.test.render.{ConsoleRenderer, ExecutionResult}
+import zio.test.{DefaultTestReporter, ExecutionEvent, TestAnnotation, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -15,25 +17,35 @@ final case class ZTestEvent(
 }
 
 object ZTestEvent {
-  def convertEvent(executionEvent: ExecutionEvent.Test[_], taskDef: TaskDef): Event = {
-    taskDef.selectors().foreach(println(_))
+  def convertEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef): Event = {
+    val status = statusFrom(test)
+    val maybeThrowable = status match {
+      case Status.Failure =>
+        val failureMsg =
+          ConsoleRenderer
+            .renderToStringLines(Message(DefaultTestReporter.render(test, true).head.summaryLines))
+            .mkString("\n")
+        Some(new Exception(failureMsg))
+      case _ => None
+    }
+
     ZTestEvent(
       fullyQualifiedName = taskDef.fullyQualifiedName(),
-      // taskDef.selectors() is "one to many" so we can expect nonEmpty here
-      selector = taskDef.selectors().head,
-      status = statusFrom(executionEvent),
-      maybeThrowable = None,
-      duration = 0L,
+      selector = new TestSelector(test.labels.mkString(" - ")),
+      status = status,
+      maybeThrowable = maybeThrowable, // TODO More complete error message based on rendered failure
+      duration = test.annotations.get(TestAnnotation.timing).toMillis,
       fingerprint = ZioSpecFingerprint
     )
   }
 
-  def statusFrom(test: ExecutionEvent.Test[_]) =
+  private def statusFrom(test: ExecutionEvent.Test[_]): Status =
     test.test match {
-      case Left(value) => Status.Failure
-      case Right(value) => value match {
-        case TestSuccess.Succeeded(result, annotations) => Status.Success
-        case TestSuccess.Ignored(annotations) => Status.Ignored
-      }
+      case Left(_) => Status.Failure
+      case Right(value) =>
+        value match {
+          case TestSuccess.Succeeded(_, _) => Status.Success
+          case TestSuccess.Ignored(_)      => Status.Ignored
+        }
     }
 }

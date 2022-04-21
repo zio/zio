@@ -141,7 +141,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     testArgs: TestArgs,
     console: Console,
     runtime: Runtime[_],
-    eventHandlerZ: ExecutionEvent.Test[_] => zio.Task[Unit]
+    eventHandlerZ: ZTestEventHandler
   )(implicit
     trace: ZTraceElement
   ): URIO[
