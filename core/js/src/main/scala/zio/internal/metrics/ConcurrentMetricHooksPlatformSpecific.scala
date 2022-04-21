@@ -23,7 +23,10 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     var sum = 0.0
 
-    MetricHook(v => sum += v, () => MetricState.Counter(sum))
+    // We are populating the delta to zero here. Our standard `MetricClient`
+    // implementation will populate the delta by comparing the current value
+    // to the value recorded before.
+    MetricHook(v => sum += v, () => MetricState.Counter(sum, 0))
   }
 
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge = {
