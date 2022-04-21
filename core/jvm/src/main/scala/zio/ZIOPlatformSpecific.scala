@@ -140,10 +140,20 @@ private[zio] trait ZIOCompanionPlatformSpecific {
    */
   def fromFutureJava[A](future: => Future[A])(implicit trace: ZTraceElement): Task[A] = javaz.fromFutureJava(future)
 
-  def readFile(path: Path)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
+  def readFile(path: Path)(implicit trace: ZTraceElement): ZIO[Any, IOException, String] =
     readFile(path.toString)
 
-  def readFile(path: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
+  def readFile(path: String)(implicit trace: ZTraceElement): ZIO[Any, IOException, String] =
+    ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(scala.io.Source.fromFile(path)))(s =>
+      ZIO.attemptBlocking(s.close()).orDie
+    ) { s =>
+      ZIO.attemptBlockingIO(s.mkString)
+    }
+
+  def readFileInputStream(path: Path)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
+    readFileInputStream(path.toString)
+
+  def readFileInputStream(path: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
     ZIO
       .acquireRelease(
         ZIO.attemptBlockingIO {
@@ -153,17 +163,7 @@ private[zio] trait ZIOCompanionPlatformSpecific {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readFileString(path: Path)(implicit trace: ZTraceElement): ZIO[Any, IOException, String] =
-    readFileString(path.toString)
-
-  def readFileString(path: String)(implicit trace: ZTraceElement): ZIO[Any, IOException, String] =
-    ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(scala.io.Source.fromFile(path)))(s =>
-      ZIO.attemptBlocking(s.close()).orDie
-    ) { s =>
-      ZIO.attemptBlockingIO(s.mkString)
-    }
-
-  def readURL(url: URL)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
+  def readURLInputStream(url: URL)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
     ZIO
       .acquireRelease(
         ZIO.attemptBlockingIO {
@@ -173,16 +173,26 @@ private[zio] trait ZIOCompanionPlatformSpecific {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def readURL(url: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
-    ZIO.succeed(new URL(url)).flatMap(readURL)
+  def readURLInputStream(url: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
+    ZIO.succeed(new URL(url)).flatMap(readURLInputStream)
 
-  def readURI(uri: URI)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
+  def readURIInputStream(uri: URI)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZInputStream] =
     for {
       isAbsolute <- ZIO.attemptBlockingIO(uri.isAbsolute)
-      is         <- if (isAbsolute) readURL(uri.toURL) else readFile(uri.toString)
+      is         <- if (isAbsolute) readURLInputStream(uri.toURL) else readFileInputStream(uri.toString)
     } yield is
 
-  def writeFile(path: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZOutputStream] =
+  def writeFile(path: String, content: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, Unit] =
+    ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path)))(f =>
+      ZIO.attemptBlocking(f.close()).orDie
+    ) { f =>
+      ZIO.attemptBlockingIO(f.write(content))
+    }
+
+  def writeFileString(path: Path, content: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, Unit] =
+    writeFile(path.toString, content)
+
+  def writeFileOutputStream(path: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZOutputStream] =
     ZIO
       .acquireRelease(
         ZIO.attemptBlockingIO {
@@ -192,17 +202,7 @@ private[zio] trait ZIOCompanionPlatformSpecific {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
-  def writeFile(path: Path)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZOutputStream] =
-    writeFile(path.toString)
-
-  def writeFileString(path: String, content: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, Unit] =
-    ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path)))(f =>
-      ZIO.attemptBlocking(f.close()).orDie
-    ) { f =>
-      ZIO.attemptBlockingIO(f.write(content))
-    }
-
-  def writeFileString(path: Path, content: String)(implicit trace: ZTraceElement): ZIO[Scope, IOException, Unit] =
-    writeFileString(path.toString, content)
+  def writeFileOutputStream(path: Path)(implicit trace: ZTraceElement): ZIO[Scope, IOException, ZOutputStream] =
+    writeFileOutputStream(path.toString)
 
 }
