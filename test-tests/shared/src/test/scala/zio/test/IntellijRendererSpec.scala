@@ -207,7 +207,8 @@ object IntelliJRenderUtils {
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,
         (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
-        sinkLayer
+        sinkLayer,
+        _ => ZIO.unit // TODO
       ),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
     )

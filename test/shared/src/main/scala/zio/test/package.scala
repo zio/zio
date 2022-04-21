@@ -588,7 +588,8 @@ package object test extends CompileVariants {
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer
+        sinkLayer,
+        _ => ZIO.unit // TODO Figure out what makes sense here.
       )
     )
   }

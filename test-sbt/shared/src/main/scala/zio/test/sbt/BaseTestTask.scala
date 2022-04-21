@@ -1,9 +1,9 @@
 package zio.test.sbt
 
-import sbt.testing.{Event, EventHandler, Logger, Task, TaskDef}
+import sbt.testing.{Event, EventHandler, Logger, Status, Task, TaskDef}
 import zio.{CancelableFuture, Console, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
-import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
+import zio.test.{ExecutionEvent, FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -28,13 +28,18 @@ abstract class BaseTestTask[T](
   } +!+ Scope.default
 
   private[zio] def run(
-    eventHandler: EventHandler,
-  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
+    eventHandler: Event => zio.Task[Unit]
+  )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] = {
+    val eventHandlerZ = (executionEvent: ExecutionEvent.Test[_]) => {
+      ZIO.debug("handling event: " + executionEvent) *>
+      eventHandler(ZTestEvent.convertEvent(executionEvent, taskDef))
+    }
+
     ZIO.consoleWith { console =>
       (for {
         _ <- ZIO.succeed("TODO pass this where needed to resolve #6481: " + eventHandler)
         summary <- spec
-                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime)
+                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime, eventHandlerZ)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
         _ <- ZIO.when(summary.status == Summary.Failure)(
                ZIO.fail(new Exception("Failed tests."))
@@ -44,6 +49,7 @@ abstract class BaseTestTask[T](
           sharedFilledTestlayer(console)
         )
     }
+  }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     implicit val trace                    = ZTraceElement.empty
@@ -52,7 +58,7 @@ abstract class BaseTestTask[T](
     try {
       val res: CancelableFuture[Unit] =
         runtime.unsafeRunToFuture {
-          run(eventHandler)
+          run(blah)
         }
 
       resOutter = res

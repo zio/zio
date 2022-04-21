@@ -35,7 +35,8 @@ object TestExecutor {
   def default[R, E](
     sharedSpecLayer: ZLayer[Any, E, R],
     freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
-    sinkLayer: Layer[Nothing, ExecutionEventSink]
+    sinkLayer: Layer[Nothing, ExecutionEventSink],
+    eventHandlerZ: ExecutionEvent.Test[_] => ZIO[Any, Throwable, Unit]
   ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] =
     new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
       def run(spec: Spec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
@@ -118,7 +119,8 @@ object TestExecutor {
                       ) *>
                         sink.process(
                           event
-                        )
+                        ) *>
+                    eventHandlerZ(event)
                   } yield ()).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     summary.update(

@@ -125,7 +125,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             ](
               sharedLayer,
               perTestLayer,
-              executionEventSinkLayer
+              executionEventSinkLayer,
+              _ => ZIO.unit
             ),
           runtimeConfig
         )
@@ -139,7 +140,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
     console: Console,
-    runtime: Runtime[_]
+    runtime: Runtime[_],
+    eventHandlerZ: ExecutionEvent.Test[_] => zio.Task[Unit]
   )(implicit
     trace: ZTraceElement
   ): URIO[
@@ -169,7 +171,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
             ](
               sharedLayer,
               perTestLayer,
-              executionEventSinkLayer
+              executionEventSinkLayer,
+              eventHandlerZ
             ),
           runtimeConfig
         )
