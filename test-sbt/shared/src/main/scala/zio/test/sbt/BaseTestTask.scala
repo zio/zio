@@ -1,6 +1,6 @@
 package zio.test.sbt
 
-import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import sbt.testing.{Event, EventHandler, Logger, Task, TaskDef}
 import zio.{CancelableFuture, Console, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 import zio.test.render.ConsoleRenderer
 import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
@@ -27,9 +27,8 @@ abstract class BaseTestTask[T](
     )
   } +!+ Scope.default
 
-  protected def run(
+  private[zio] def run(
     eventHandler: EventHandler,
-    spec: ZIOSpecAbstract
   )(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
     ZIO.consoleWith { console =>
       (for {
@@ -48,11 +47,12 @@ abstract class BaseTestTask[T](
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     implicit val trace                    = ZTraceElement.empty
+    val blah: Event => zio.Task[Unit] = (event: Event) => ZIO.attempt(eventHandler.handle(event))
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
         runtime.unsafeRunToFuture {
-          executeZ(eventHandler)
+          run(eventHandler)
         }
 
       resOutter = res
@@ -64,9 +64,6 @@ abstract class BaseTestTask[T](
         throw t
     }
   }
-
-  def executeZ(eventHandler: EventHandler)(implicit trace: ZTraceElement): ZIO[Any, Throwable, Unit] =
-    run(eventHandler, spec)
 
   override def tags(): Array[String] = Array.empty
 }

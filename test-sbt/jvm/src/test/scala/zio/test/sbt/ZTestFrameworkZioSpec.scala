@@ -135,7 +135,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     new ZTestFramework()
       .runner(testArgs, Array(), getClass.getClassLoader)
       .tasksZ(tasks)
-      .map(_.executeZ(FrameworkSpecInstances.dummyHandler))
+      .map(_.run(FrameworkSpecInstances.dummyHandler))
       .headOption
       .getOrElse(ZIO.unit)
   }
