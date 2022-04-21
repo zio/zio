@@ -34,53 +34,6 @@ for {
 } yield assert(!isBroken && waiting == 0)
 ```
 
-## Internals
-
-Each `CyclicBarrier` has the following internal _private_ properties, knowing them helps us to have a deep understanding of how `CyclicBarrier` works:
-
-```scala mdoc:compile-only
-class CyclicBarrier private (
-  private val _parties: Int,
-  private val _waiting: Ref[Int],
-  private val _lock: Ref[Promise[Unit, Unit]],
-  private val _action: UIO[Any],
-  private val _broken: Ref[Boolean]
-)
-```
-
-Let's introduce each one:
-
-1. `_parties`— The fibers that need to synchronize their execution are called _parties_. It is an immutable property and will be assigned when we create a `CyclicBarrier` using one of the `make` constructors of the `CyclicBarrier`.
-2. `_waiting`— This is a mutable property that denotes the number of already fibers waiting for the release of the barrier:
-  1. When we call `reset` on a `CyclicBarrier` `_waiting` number will be reset to zero.
-    1. If the number of `_waiting` is more than zero, the `_lock` will be failed with value of `Unit`. So all fibers that are in _waiting_ state due to the call to `await` method will be failed accordingly.
-    2. Then, it will reset the barrier to its initial state: the number of `_waiting` fibers will be zero and the `_broken` state is `false`.
-  2. When we call `await` on a `CyclicBarrier` inside a fiber, it will return a value of type `IO[Unit, Int]`:
-     - If the barrier is broken, it will fail with the type of `Unit`.
-     - If the barrier isn't broken:
-       - If the number of `_waiting` fibers reaches the number of `_parties`, first the `_action` effect will be performed. Accordingly, the `_lock` will be succeeded with value of `Unit`, so then all parties that are in _waiting_ state due to the call to `await` method will resume and continue processing. Before resuming all waiting fibers, the `_waiting` number will be reset to zero, so there is no fiber in the _waiting_ state.
-       - If the number of `_waiting` fibers doesn't reach the number of `_parties`, it will suspend the fiber (and become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier. If any waiting fibers interrupted, breakage happens.
-  3. To access this property, we can use the `waiting` member of a `CyclicBarrier` which returns `UIO[Int]`.
-3. `_lock`— This is a mutable property that contains a `Promise[Unit, Unit]`:
-  - When a barrier is _released_, the value of this promise internally will be succeeded with a `Unit` value.
-  - When a barrier is _broken_, the value of this promise internally will be failed with a `Unit` value.
-  - There is no public API for changing the value of this property.
-4. `_action`— When we create a `CyclicBarrier` we can provide an effectful _action_ which will be executed when the barrier is released before any of the parties continue.
-5. `_broken`— This is a mutable property which denotes that whether the barrier is broken or not:
-  - The default value of `_broken` is `false`.
-  - When one of the `_waiting` fibers is interrupted, the barrier will be broken and the value of `_broken` will be changed to `true`.
-  - We can access this value using `isBroken` method on a `CyclicBarrier`.
-
-## Operations
-
-| Method                   | Definition                                                                                  |
-|--------------------------|---------------------------------------------------------------------------------------------|
-| `parties: Int`           | The number of parties required to trip this barrier.                                        |
-| `waiting: UIO[Int]`      | The number of parties currently waiting at the barrier.                                     |
-| `await: IO[Unit, Int]`   | Waits until all parties have invoked await on this barrier. Fails if the barrier is broken. |
-| `reset: UIO[Unit]`       | Resets the barrier to its initial state. Breaks any waiting party.                          |
-| `isBroken: UIO[Boolean]` | Queries if this barrier is in a broken state.                                               |
-
 ## Simple Example
 
 In the following example, we started three tasks, each one has a different working time, but they won't return until the other parties finished their jobs:
@@ -154,9 +107,55 @@ In this example after breakage of the barrier by proceeding with `task 1`, `task
 
 If we add another concurrent task (e.g. `task("6")`) to our list of tasks, finally the next group of jobs that are waiting for each other will trip the barrier.
 
-## Barrier Break on Resets
+## Internals
 
-If we call `reset` method on a `CyclicBarrier` while the number of _waiting_ fibers is not reached the number of _parties_, the call to the `reset` will fail:
+Each `CyclicBarrier` has the following internal _private_ properties, knowing them helps us to have a deep understanding of how `CyclicBarrier` works:
+
+```scala mdoc:compile-only
+class CyclicBarrier private (
+  private val _parties: Int,
+  private val _waiting: Ref[Int],
+  private val _lock: Ref[Promise[Unit, Unit]],
+  private val _action: UIO[Any],
+  private val _broken: Ref[Boolean]
+)
+```
+
+Let's introduce each one:
+
+1. `_parties`— The fibers that need to synchronize their execution are called _parties_. It is an immutable property and will be assigned when we create a `CyclicBarrier` using one of the `make` constructors of the `CyclicBarrier`.
+2. `_waiting`— This is a mutable property that denotes the number of already fibers waiting for the release of the barrier. These fibers are waiting together for synchronization purpose. To access this property, we can use the `waiting` member of a `CyclicBarrier` which returns `UIO[Int]`.
+3. `_lock`— This is a mutable property that contains a `Promise[Unit, Unit]`:
+  - When a barrier is _released_, the value of this promise internally will be succeeded with a `Unit` value.
+  - When a barrier is _broken_, the value of this promise internally will be failed with a `Unit` value.
+  - There is no public API for changing the value of this property.
+4. `_action`— When we create a `CyclicBarrier` we can provide an effectful _action_ of type `UIO[Any]` which will be executed when the barrier is released before any of the parties continue.
+5. `_broken`— This is a mutable property which denotes that whether the barrier is broken or not:
+  - The default value of `_broken` is `false`.
+  - When one of the `_waiting` fibers is interrupted, the barrier will be broken and the value of `_broken` will be changed to `true`.
+  - We can access this value using `isBroken` method on a `CyclicBarrier`.
+
+## Operations
+
+Let's take a look at the operations defined on a `CyclicBarrier`, then we'll drill down to the important ones:
+
+| Method                   | Definition                                                                                  |
+|--------------------------|---------------------------------------------------------------------------------------------|
+| `parties: Int`           | The number of parties required to trip this barrier.                                        |
+| `waiting: UIO[Int]`      | The number of parties currently waiting at the barrier.                                     |
+| `await: IO[Unit, Int]`   | Waits until all parties have invoked await on this barrier. Fails if the barrier is broken. |
+| `reset: UIO[Unit]`       | Resets the barrier to its initial state. Breaks any waiting party.                          |
+| `isBroken: UIO[Boolean]` | Queries if this barrier is in a broken state.                                               |
+
+### reset
+
+When we reset a barrier, the barrier will be reset to its _initial state_ through the following uninterruptible steps:
+- It breaks any waiting party. So all _waiting_ fibers will be failed correspondingly.
+- The barrier will be ready to synchronize the next groups of parties. So further `await` calls will be accepted for synchronization. This is why we say that the barrier is cyclic.
+- Number of `waiting` fibers will be reset to zero, so there is no fiber in a _waiting_ state.
+- If the barrier is broken, it will set its _broken status_ to `false`.
+
+Here is an example shows the mechanism of `reset` method:
 
 ```scala mdoc:compile-only
 import zio._
@@ -174,9 +173,24 @@ for {
 } yield ()
 ```
 
-## All-or-None Breakage Model
+### await
 
-The `CyclicBarrier` uses an all-or-none breakage model for failed synchronization attempts: If a fiber leaves a barrier point prematurely because of interruption, failure, or timeout, all other fibers waiting at that barrier point will also leave abnormally:
+When we call `await` on a `CyclicBarrier`, it will return a value of type `IO[Unit, Int]` through the following uninterruptible steps:
+- If the barrier is broken, it will fail with the type of `Unit`.
+- Then, it will wait until all parties have invoked `await` on this barrier:
+  - If the number of _waiting_ fibers reaches the number of _parties_:
+    - First, the optional `action` effect will be performed.
+    - Before resuming all `waiting` fibers, the barrier will be reset to its _initial state_ using the `reset` method.
+    - Accordingly, all parties that are in _waiting_ state due to the call to `await` method will resume and continue processing.
+  - If the number of `waiting` fibers is not reached the number of `parties`, it will suspend the fiber (and that fiber will become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier. During this process, if any waiting fibers are interrupted, [the barrier will be broken](#barrier-breakage-model).
+
+### Barrier Breakage Model
+
+A barrier can be broken in one of the following cases:
+1. The `CyclicBarrier` uses an _all-or-none breakage model_ for failed synchronization attempts: If a fiber leaves a barrier point prematurely because of interruption, failure, or timeout, all other fibers waiting at that barrier point will break other parties.
+2. Manual reset of a barrier will break all waiting parties.
+
+An example:
 
 ```scala mdoc:compile-only
 import zio._
