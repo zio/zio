@@ -26,10 +26,7 @@ class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     val adder = new DoubleAdder
 
-    // We are populating the delta to zero here. Our standard `MetricClient`
-    // implementation will populate the delta by comparing the current value
-    // to the value recorded before.
-    MetricHook(v => adder.add(v), () => MetricState.Counter(adder.sum(), 0d))
+    MetricHook(v => adder.add(v), () => MetricState.Counter(adder.sum()))
   }
 
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge = {

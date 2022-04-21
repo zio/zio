@@ -29,7 +29,7 @@ sealed trait MetricState[+Type]
 object MetricState {
   type Untyped = MetricState[Any]
 
-  final case class Counter(count: Double, delta: Double) extends MetricState[MetricKeyType.Counter]
+  final case class Counter(count: Double) extends MetricState[MetricKeyType.Counter]
 
   final case class Frequency(
     occurrences: Map[String, Long]
