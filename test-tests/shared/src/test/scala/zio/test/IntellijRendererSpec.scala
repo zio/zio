@@ -208,7 +208,7 @@ object IntelliJRenderUtils {
         Scope.default >>> testEnvironment,
         (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
         sinkLayer,
-        _ => ZIO.unit // TODO
+        _ => ZIO.unit // Does Intellij need to report events?
       ),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
     )

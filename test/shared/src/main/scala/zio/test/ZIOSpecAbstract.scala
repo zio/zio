@@ -77,6 +77,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       testArgs = TestArgs.parse(args.getArgs.toArray)
       _       <- ZIO.debug("runSpec")
       summary <- runSpecInfallible(spec, testArgs, console)
+      _ <- ZIO.when(summary.status == Summary.Failure)(
+             ZIO.fail(new Exception("Failed tests."))
+           )
     } yield summary
 
   private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {

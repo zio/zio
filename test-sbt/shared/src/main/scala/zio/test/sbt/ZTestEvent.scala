@@ -21,6 +21,7 @@ object ZTestEvent {
     val status = statusFrom(test)
     val maybeThrowable = status match {
       case Status.Failure =>
+        // Includes ansii colors
         val failureMsg =
           ConsoleRenderer
             .renderToStringLines(Message(DefaultTestReporter.render(test, true).head.summaryLines))
@@ -33,7 +34,7 @@ object ZTestEvent {
       fullyQualifiedName = taskDef.fullyQualifiedName(),
       selector = new TestSelector(test.labels.mkString(" - ")),
       status = status,
-      maybeThrowable = maybeThrowable, // TODO More complete error message based on rendered failure
+      maybeThrowable = maybeThrowable,
       duration = test.annotations.get(TestAnnotation.timing).toMillis,
       fingerprint = ZioSpecFingerprint
     )

@@ -589,7 +589,7 @@ package object test extends CompileVariants {
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
         sinkLayer,
-        _ => ZIO.unit // TODO Figure out what makes sense here.
+        _ => ZIO.unit // There is no EventHandler available here, so we can't do much.
       )
     )
   }

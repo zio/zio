@@ -70,7 +70,7 @@ object ReportingTestUtils {
         Scope.default >>> testEnvironment,
         (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
         sinkLayerWithConsole(console),
-        _ => ZIO.unit // TODO
+        _ => ZIO.unit // Might be useful for additional testing
       ),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
