@@ -103,7 +103,7 @@ object MainApp extends ZIOAppDefault {
     for {
       b    <- CyclicBarrier.make(3)
       tasks = task("1") <&> task("2") <&> task("3")
-      _    <- tasks.provideService(b)
+      _    <- tasks.provide(ZLayer.succeed(b))
     } yield ()
 }
 ```
@@ -143,7 +143,7 @@ object MainApp extends ZIOAppDefault {
                 task("3") <&>
                 task("4") <&>
                 task("5")
-      _ <- tasks.provideService(b)
+      _ <- tasks.provide(ZLayer.succeed(b))
     } yield ()
 }
 ```
