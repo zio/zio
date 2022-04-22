@@ -1276,8 +1276,8 @@ Here is list of other deprecated methods:
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
 | `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
-| `ZLayer.identity`          | `ZLayer.environment`         |
-| `ZLayer.requires`          | `ZLayer.environment`         |
+| `ZLayer.identity`          | `ZLayer.service`             |
+| `ZLayer.requires`          | `ZLayer.service`             |
 
 ## Scopes
 
