@@ -16,6 +16,7 @@
 
 package zio.test.render
 
+import zio.Cause
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
@@ -114,5 +115,17 @@ trait ConsoleRenderer extends TestRenderer {
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
        |Executed in ${summary.duration.render}
        |""".stripMargin
+
+  def render(cause: Cause[_], labels: List[String]): Option[String] =
+    cause match {
+      case _: Cause.Interrupt =>
+        val renderedInterruption =
+          ConsoleRenderer.renderToStringLines(
+            Message(Seq(LogLine.Line(Vector(LogLine.Fragment(labels.mkString(" - "), Style.Error)))))
+          )
+
+        Some("Interrupted during execution: " + renderedInterruption.mkString("\n"))
+      case _ => None
+    }
 }
 object ConsoleRenderer extends ConsoleRenderer

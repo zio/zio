@@ -18,6 +18,9 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.render.{ConsoleRenderer, LogLine}
+import zio.test.render.LogLine.Fragment.Style
+import zio.test.render.LogLine.Message
 import zio.{ExecutionStrategy, ZIO, ZTraceElement}
 
 /**
@@ -123,6 +126,7 @@ object TestExecutor {
                         eventHandlerZ.handle(event)
                   } yield ()).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                    ConsoleRenderer.render(e, labels).foreach(println)
                     summary.update(
                       _.add(event)
                     ) *>
@@ -155,7 +159,6 @@ object TestExecutor {
                 )
               )
           }
-
           summary <- summary.get
         } yield summary).provideLayer(sinkLayer)
 
