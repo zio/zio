@@ -152,7 +152,7 @@ Let's take a look at the operations defined on a `CyclicBarrier`, then we'll dri
 When we reset a barrier, the barrier will be reset to its _initial state_ through the following uninterruptible steps:
 - It breaks any waiting party. So all _waiting_ fibers will be interrupted correspondingly.
 - The barrier will be ready to synchronize the next groups of parties. So further `await` calls will be accepted for synchronization. This is why we say that the barrier is cyclic.
-- Number of `waiting` fibers will be reset to zero, so there is no fiber in a _waiting_ state.
+- Number of _waiting_ fibers will be reset to zero, so there is no fiber in a _waiting_ state.
 - If the barrier is broken, it will set its _broken status_ to `false`.
 
 Here is an example shows the mechanism of `reset` method:
@@ -205,10 +205,10 @@ When we call `await` on a `CyclicBarrier`, it will return a value of type `IO[Un
 - If the barrier is broken, it will fail with the type of `Unit`.
 - Then, it will wait until all parties have invoked `await` on this barrier:
   - If the number of _waiting_ fibers reaches the number of _parties_:
-    - First, the optional `action` effect will be performed.
-    - Before resuming all `waiting` fibers, the barrier will be reset to its _initial state_ using the `reset` method.
+    - First, the optional _action_ effect will be performed.
+    - Before resuming all _waiting_ fibers, the barrier will be reset to its _initial state_ using the `reset` method.
     - Accordingly, all parties that are in _waiting_ state due to the call to `await` method will resume and continue processing.
-  - If the number of `waiting` fibers is not reached the number of `parties`, it will suspend the fiber (and that fiber will become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier. During this process, if any waiting fibers are interrupted, [the barrier will be broken](#barrier-breakage-model).
+  - If the number of _waiting_ fibers is not reached the number of _parties_, it will suspend the fiber (and that fiber will become one of the _waiting_ fibers) until all parties have invoked `await` on this barrier. During this process, if any waiting fibers are interrupted, [the barrier will be broken](#barrier-breakage-model).
 
 ### Barrier Breakage Model
 
