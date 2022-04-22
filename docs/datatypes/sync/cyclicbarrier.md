@@ -182,7 +182,7 @@ object MainApp extends ZIOAppDefault {
           .onInterrupt(
             ZIO.debug(
               "task-3: I started my job with some delay! " +
-                "so before get the chance to await on barrier, " +
+                "so before getting the chance to await on the barrier, " +
                 "the reset operation interrupted me!"
             )
           )
