@@ -2086,7 +2086,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       if (chunkIterator.hasNextAt(index))
         ZChannel.unwrap {
           val a = chunkIterator.nextAt(index)
-          f(chunkIterator.nextAt(index)).map { a1 =>
+          f(a).map { a1 =>
             ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
           }
         }
@@ -3020,7 +3020,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       if (chunkIterator.hasNextAt(index))
         ZChannel.unwrap {
           val a = chunkIterator.nextAt(index)
-          f(chunkIterator.nextAt(index)).map { b =>
+          f(a).map { b =>
             if (b) ZChannel.write(Chunk.single(a))
             else ZChannel.write(Chunk.single(a)) *> loop(chunkIterator, index + 1)
           }
