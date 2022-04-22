@@ -150,7 +150,7 @@ Let's take a look at the operations defined on a `CyclicBarrier`, then we'll dri
 ### reset
 
 When we reset a barrier, the barrier will be reset to its _initial state_ through the following uninterruptible steps:
-- It breaks any waiting party. So all _waiting_ fibers will be failed correspondingly.
+- It breaks any waiting party. So all _waiting_ fibers will be interrupted correspondingly.
 - The barrier will be ready to synchronize the next groups of parties. So further `await` calls will be accepted for synchronization. This is why we say that the barrier is cyclic.
 - Number of `waiting` fibers will be reset to zero, so there is no fiber in a _waiting_ state.
 - If the barrier is broken, it will set its _broken status_ to `false`.
