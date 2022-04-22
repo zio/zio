@@ -34,7 +34,7 @@ Most applications are not greenfield, meaning they must integrate with legacy co
 
 In these cases, a better solution for running effects is to create a `Runtime`, which can be passed around and used to run effects wherever required.
 
-ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, `Scheduler`, and `Blocking` on the JVM), and it can run effects that require any combination of these modules.
+ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, and `Scheduler`), and it can run effects that require any combination of these modules.
 
 To access it, merely use
 
