@@ -70,14 +70,14 @@ sealed trait TestArrow[-A, +B] { self =>
   def >>>[C](that: TestArrow[B, C]): TestArrow[A, C] =
     AndThen[A, B, C](self, that)
 
-  def &&(that: TestArrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
-    And(self.asInstanceOf[TestArrow[Any, Boolean]], that)
+  def &&[A1 <: A](that: TestArrow[A1, Boolean])(implicit ev: B <:< Boolean): TestArrow[A1, Boolean] =
+    And(self.asInstanceOf[TestArrow[A1, Boolean]], that)
 
-  def ||(that: TestArrow[Any, Boolean])(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
-    Or(self.asInstanceOf[TestArrow[Any, Boolean]], that)
+  def ||[A1 <: A](that: TestArrow[A1, Boolean])(implicit ev: B <:< Boolean): TestArrow[A1, Boolean] =
+    Or(self.asInstanceOf[TestArrow[A1, Boolean]], that)
 
-  def unary_!(implicit ev: Any <:< A, ev2: B <:< Boolean): TestArrow[Any, Boolean] =
-    Not(self.asInstanceOf[TestArrow[Any, Boolean]])
+  def unary_![A1 <: A](implicit ev: B <:< Boolean): TestArrow[A1, Boolean] =
+    Not(self.asInstanceOf[TestArrow[A1, Boolean]])
 }
 
 object TestArrow {
@@ -153,10 +153,10 @@ object TestArrow {
     code: Option[String],
     location: Option[String]
   ) extends TestArrow[A, B]
-  case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])            extends TestArrow[A, B]
-  case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])           extends TestArrow[A, C]
-  case class And(left: TestArrow[Any, Boolean], right: TestArrow[Any, Boolean]) extends TestArrow[Any, Boolean]
-  case class Or(left: TestArrow[Any, Boolean], right: TestArrow[Any, Boolean])  extends TestArrow[Any, Boolean]
-  case class Not(arrow: TestArrow[Any, Boolean])                                extends TestArrow[Any, Boolean]
-  case class Suspend[A, B](f: A => TestArrow[Any, B])                           extends TestArrow[A, B]
+  case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])           extends TestArrow[A, B]
+  case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]
+  case class And[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean]) extends TestArrow[A, Boolean]
+  case class Or[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean])  extends TestArrow[A, Boolean]
+  case class Not[A](arrow: TestArrow[A, Boolean])                              extends TestArrow[A, Boolean]
+  case class Suspend[A, B](f: A => TestArrow[Any, B])                          extends TestArrow[A, B]
 }

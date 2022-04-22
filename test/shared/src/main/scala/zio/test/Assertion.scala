@@ -379,7 +379,7 @@ object Assertion extends AssertionVariants {
    * specified assertion.
    */
   def hasKeys[K, V](assertion: Assertion[Iterable[K]]): Assertion[Map[K, V]] =
-    Assertion.assertionRec("hasKeys")()(assertion)(actual => Some(actual.keys))
+    Assertion.assertionRec("hasKeys")(param(assertion))(assertion)(actual => Some(actual.keys))
 
   /**
    * Makes a new assertion that requires an Iterable to contain the last element

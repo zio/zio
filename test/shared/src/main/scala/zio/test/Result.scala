@@ -84,20 +84,18 @@ object FailureCase {
       case _ => Chunk.empty
     }
 
-  def fromTrace(trace: Trace[Boolean]): Chunk[FailureCase] =
+  def fromTrace(trace: Trace[Boolean], path: Chunk[(String, Any)]): Chunk[FailureCase] =
     trace match {
       case node: Trace.Node[Boolean] =>
-        Chunk(fromNode(node, Chunk.empty))
-      case andThen @ Trace.AndThen(_, right) =>
-        val node = rightmostNode(right)
-        val path = getPath(andThen).reverse.drop(1)
-        Chunk(fromNode(node, path))
+        Chunk(fromNode(node, path.reverse))
+      case Trace.AndThen(left, right) =>
+        fromTrace(right, path ++ getPath(left))
       case Trace.And(left, right) =>
-        fromTrace(left) ++ fromTrace(right)
+        fromTrace(left, path) ++ fromTrace(right, path)
       case Trace.Or(left, right) =>
-        fromTrace(left) ++ fromTrace(right)
+        fromTrace(left, path) ++ fromTrace(right, path)
       case Trace.Not(trace) =>
-        fromTrace(trace)
+        fromTrace(trace, path)
     }
 
   private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, Any)]): FailureCase = {
@@ -113,7 +111,7 @@ object FailureCase {
       location = node.location.getOrElse("<LOCATION>"),
       path = path,
       span = node.span.getOrElse(Span(0, 0)),
-      nestedFailures = node.children.map(fromTrace).getOrElse(Chunk.empty),
+      nestedFailures = node.children.map(fromTrace(_, Chunk.empty)).getOrElse(Chunk.empty),
       result = node.result
     )
   }

@@ -16,11 +16,9 @@ object ErrorMessage {
   def value(value: Any): ErrorMessage                        = Value(value)
 
   val did: ErrorMessage    = choice("did", "did not")
-  val does: ErrorMessage   = choice("does", "does not")
   val equals: ErrorMessage = choice("was equal to", "was not equal to")
-  val is: ErrorMessage     = choice("is", "is not")
-  val valid: ErrorMessage  = choice("Valid", "Invalid")
   val was: ErrorMessage    = choice("was", "was not")
+  val had: ErrorMessage    = choice("had", "did not have")
 
   private final case class Choice(success: String, failure: String)                        extends ErrorMessage
   private final case class Combine(lhs: ErrorMessage, rhs: ErrorMessage, spacing: Int = 1) extends ErrorMessage

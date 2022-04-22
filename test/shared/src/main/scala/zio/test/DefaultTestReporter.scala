@@ -218,7 +218,9 @@ object DefaultTestReporter {
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
     assertionResult match {
       case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
-        val failures = FailureCase.fromTrace(trace)
+        val failures = FailureCase.fromTrace(trace, Chunk.empty)
+//        println(s"trace: $trace")
+//        println(s"failures: $failures")
         failures
           .map(fc =>
             renderGenFailureDetails(genFailureDetails, offset) ++
