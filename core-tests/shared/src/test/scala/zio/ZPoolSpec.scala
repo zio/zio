@@ -112,7 +112,7 @@ object ZPoolSpec extends ZIOBaseSpec {
           for {
             count <- Ref.make(0)
             get    = ZIO.acquireRelease(count.updateAndGet(_ + 1))(_ => count.update(_ - 1))
-            pool   <- ZPool.make(get, 10)
+            pool  <- ZPool.make(get, 10)
             _     <- pool.get.repeatN(9)
             fiber <- pool.get.fork
             _     <- fiber.interrupt
