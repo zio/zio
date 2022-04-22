@@ -12,7 +12,7 @@ CyclicBarriers are useful in programs involving a fixed sized party of fibers th
 To create a `CyclicBarrier` we must provide the number of parties, and we can also provide an optional action:
 
 1. **number of parties**— The fibers that need to synchronize their execution are called _parties_. This number denotes how many parties must occasionally wait for each other. In other words, it specifies the number of parties required to trip the barrier.
-2. **action**— An optional command that is run once per barrier point, after the last fiber in the party arrives, but before any fibers are released. This action is useful for updating the shared state before any of the parties continue.
+2. **action**— An optional command that is run once per barrier point, after the last fiber in the party arrives, but before any fibers are resumed. This action is useful for updating the shared state before any of the parties continue.
 
 ```scala
 object CyclicBarrier {
@@ -21,7 +21,7 @@ object CyclicBarrier {
 }
 ```
 
-If we create a barrier and don't call `await` on that, the barrier is not going to be released (broken) and the number of `waiting` fibers remains zero:
+If we create a barrier and don't call `await` on that, the barrier is not going to be released and the number of `waiting` fibers remains zero:
 
 ```scala mdoc:silent
 import zio._
@@ -161,16 +161,42 @@ Here is an example shows the mechanism of `reset` method:
 import zio._
 import zio.concurrent.CyclicBarrier
 
-for {
-  barrier <- CyclicBarrier.make(100)
-  f1      <- barrier.await.fork
-  f2      <- barrier.await.fork
-  _       <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-  _       <- f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
-  _       <- barrier.reset
-  res1    <- f1.await
-  res2    <- f2.await
-} yield ()
+object MainApp extends ZIOAppDefault {
+  def task(name: String, b: CyclicBarrier) =
+    for {
+      _ <- ZIO.debug(s"task-$name: started my job right now!")
+      _ <- b.await
+      _ <- ZIO.debug(
+             s"task-$name: the barrier is now released, " +
+               s"so I'm going to exit immediately!"
+           )
+    } yield ()
+
+  def run =
+    for {
+      b  <- CyclicBarrier.make(3)
+      f1 <- task("1", b).fork
+      f2 <- task("2", b).fork
+      f3 <-
+        (ZIO.sleep(1.second) *> task("3", b))
+          .onInterrupt(
+            ZIO.debug(
+              "task-3: I started my job with some delay! " +
+                "so before get the chance to await on barrier, " +
+                "the reset operation interrupted me!"
+            )
+          )
+          .fork
+      _ <- f1.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+      _ <- f2.status.repeatWhile(!_.isInstanceOf[Fiber.Status.Suspended])
+      _ <- b.waiting.debug("waiting fibers before reset")
+      _ <- ZIO.whenZIO(f3.status.map(_.isInstanceOf[Fiber.Status.Running]))(b.reset)
+      _ <- b.waiting.debug("waiting fibers after reset")
+      _ <- f1.join
+      _ <- f2.join
+      _ <- f3.join
+    } yield ()
+}
 ```
 
 ### await
