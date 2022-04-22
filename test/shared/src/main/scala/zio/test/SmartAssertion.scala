@@ -1,4 +1,4 @@
-package zio.test.internal
+package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Render
