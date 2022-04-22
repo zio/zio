@@ -699,53 +699,29 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   )(implicit trace: ZTraceElement): ZStream[R, E, (K, NonEmptyChunk[A])] =
     self >>> ZPipeline.groupAdjacentBy(f)
 
-  private def loopOnChunks[R1 <: R, E1 >: E, A1](
-    f: Chunk[A] => ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A1], Boolean]
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] = {
-    lazy val loop: ZChannel[R1, E1, Chunk[A], Any, E1, Chunk[A1], Boolean] =
-      ZChannel.readWith[R1, E1, Chunk[A], Any, E1, Chunk[A1], Boolean](
-        chunk => f(chunk).flatMap(continue => if (continue) loop else ZChannel.succeedNow(false)),
-        ZChannel.fail(_),
-        _ => ZChannel.succeed(false)
-      )
-    new ZStream(self.channel >>> loop)
-  }
-
-  private def loopOnPartialChunks[R1 <: R, E1 >: E, A1](
-    f: (Chunk[A], A1 => UIO[Unit]) => ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
-    loopOnChunks(chunk =>
-      ZChannel.unwrap {
-        ZIO.suspendSucceed {
-          val outputChunk           = ChunkBuilder.make[A1](chunk.size)
-          val emit: A1 => UIO[Unit] = (a: A1) => ZIO.succeed(outputChunk += a).unit
-          f(chunk, emit).map { continue =>
-            ZChannel.write(outputChunk.result()) *> ZChannel.succeedNow(continue)
-          }.catchAll { failure =>
-            ZIO.succeed {
-              val partialResult = outputChunk.result()
-              if (partialResult.nonEmpty)
-                ZChannel.write(partialResult) *> ZChannel.fail(failure)
-              else
-                ZChannel.fail(failure)
-            }
-          }
-        }
-      }
-    )
-
-  private def loopOnPartialChunksElements[R1 <: R, E1 >: E, A1](
-    f: (A, A1 => UIO[Unit]) => ZIO[R1, E1, Unit]
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
-    loopOnPartialChunks((chunk, emit) => ZIO.foreachDiscard(chunk)(value => f(value, emit)).as(true))
-
   /**
    * Performs an effectful filter and map in a single step.
    */
   final def collectZIO[R1 <: R, E1 >: E, A1](pf: PartialFunction[A, ZIO[R1, E1, A1]])(implicit
     trace: ZTraceElement
-  ): ZStream[R1, E1, A1] =
-    loopOnPartialChunksElements((a, emit) => pf.andThen(_.flatMap(emit).unit).applyOrElse(a, (_: A) => ZIO.unit))
+  ): ZStream[R1, E1, A1] = {
+
+    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          pf.andThen(_.map(a1 => ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)))
+            .applyOrElse(a, (_: A) => ZIO.succeed(loop(chunkIterator, index + 1)))
+        }
+      else
+        ZChannel.readWithCause(
+          elem => loop(elem.chunkIterator, 0),
+          err => ZChannel.failCause(err),
+          done => ZChannel.succeed(done)
+        )
+
+    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
+  }
 
   /**
    * Transforms all elements of the stream for as long as the specified partial
@@ -805,17 +781,24 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def collectWhileZIO[R1 <: R, E1 >: E, A1](
     pf: PartialFunction[A, ZIO[R1, E1, A1]]
-  )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
-    loopOnPartialChunks { (chunk, emit) =>
-      val pfSome = (a: A) => pf.andThen(_.flatMap(emit).as(true)).applyOrElse(a, (_: A) => ZIO.succeed(false))
+  )(implicit trace: ZTraceElement): ZStream[R1, E1, A1] = {
 
-      def loop(chunk: Chunk[A]): ZIO[R1, E1, Boolean] =
-        if (chunk.isEmpty) ZIO.succeed(true)
-        else
-          pfSome(chunk.head).flatMap(continue => if (continue) loop(chunk.tail) else ZIO.succeed(false))
+    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          pf.andThen(_.map(a1 => ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)))
+            .applyOrElse(a, (_: A) => ZIO.succeed(ZChannel.unit))
+        }
+      else
+        ZChannel.readWithCause(
+          elem => loop(elem.chunkIterator, 0),
+          err => ZChannel.failCause(err),
+          done => ZChannel.succeed(done)
+        )
 
-      loop(chunk)
-    }
+    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
+  }
 
   /**
    * Combines the elements from this stream and the specified stream by
@@ -1399,8 +1382,26 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Effectfully filters the elements emitted by this stream.
    */
-  def filterZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    loopOnPartialChunksElements((a, emit) => f(a).flatMap(r => if (r) emit(a) else ZIO.unit))
+  def filterZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] = {
+
+    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { b =>
+            if (b) ZChannel.write(Chunk.single(a)) *> loop(chunkIterator, index + 1)
+            else loop(chunkIterator, index + 1)
+          }
+        }
+      else
+        ZChannel.readWithCause(
+          elem => loop(elem.chunkIterator, 0),
+          err => ZChannel.failCause(err),
+          done => ZChannel.succeed(done)
+        )
+
+    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
+  }
 
   /**
    * Filters this stream by the specified predicate, removing all elements for
@@ -2079,8 +2080,25 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Maps over elements of the stream with the specified effectful function.
    */
-  def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: ZTraceElement): ZStream[R1, E1, A1] =
-    loopOnPartialChunksElements((a, emit) => f(a).flatMap(emit))
+  def mapZIO[R1 <: R, E1 >: E, A1](f: A => ZIO[R1, E1, A1])(implicit trace: ZTraceElement): ZStream[R1, E1, A1] = {
+
+    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { a1 =>
+            ZChannel.write(Chunk.single(a1)) *> loop(chunkIterator, index + 1)
+          }
+        }
+      else
+        ZChannel.readWithCause(
+          elem => loop(elem.chunkIterator, 0),
+          err => ZChannel.failCause(err),
+          done => ZChannel.succeed(done)
+        )
+
+    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
+  }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
@@ -2994,13 +3012,28 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Takes all elements of the stream until the specified effectual predicate
    * evaluates to `true`.
    */
-  def takeUntilZIO[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit trace: ZTraceElement): ZStream[R1, E1, A] =
-    loopOnPartialChunks { (chunk, emit) =>
-      for {
-        taken <- chunk.takeWhileZIO(v => emit(v) *> f(v).map(!_))
-        last   = chunk.drop(taken.length).take(1)
-      } yield last.isEmpty
-    }
+  def takeUntilZIO[R1 <: R, E1 >: E](
+    f: A => ZIO[R1, E1, Boolean]
+  )(implicit trace: ZTraceElement): ZStream[R1, E1, A] = {
+
+    def loop(chunkIterator: Chunk.ChunkIterator[A], index: Int): ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+      if (chunkIterator.hasNextAt(index))
+        ZChannel.unwrap {
+          val a = chunkIterator.nextAt(index)
+          f(a).map { b =>
+            if (b) ZChannel.write(Chunk.single(a))
+            else ZChannel.write(Chunk.single(a)) *> loop(chunkIterator, index + 1)
+          }
+        }
+      else
+        ZChannel.readWithCause(
+          elem => loop(elem.chunkIterator, 0),
+          err => ZChannel.failCause(err),
+          done => ZChannel.succeed(done)
+        )
+
+    new ZStream(self.channel >>> loop(Chunk.ChunkIterator.empty, 0))
+  }
 
   /**
    * Takes all elements of the stream for as long as the specified predicate
