@@ -7,7 +7,7 @@ ZIO provides several different ways of running effects in your application.
 
 ## App
 
-If you construct a single effect for your whole program, then the most natural way to run the effect is to extend `zio.App`. 
+If you construct a single effect for your whole program, the most natural way to run the effect is to extend `zio.App`. 
 
 This class provides Scala with a main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method, which will be passed all command-line arguments in a `List`:
 
@@ -26,15 +26,15 @@ object MyApp extends zio.ZIOAppDefault {
 }
 ```
 
-If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provide`) before you return it from `run`, because `App` does not know how to supply custom environments.
+If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provide`) before you return it from `run`. `App` does not know how to supply custom environments.
 
 ## Default Runtime
 
-Most applications are not greenfield, and must integrate with legacy code, and procedural libraries and frameworks.
+Most applications are not greenfield, meaning they must integrate with legacy code and procedural libraries and frameworks.
 
 In these cases, a better solution for running effects is to create a `Runtime`, which can be passed around and used to run effects wherever required.
 
-ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, `Scheduler`, and on the JVM, `Blocking`), and it can run effects that require any combination of these modules.
+ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, `Scheduler`, and `Blocking` on the JVM), and it can run effects that require any combination of these modules.
 
 To access it, merely use
 
@@ -48,18 +48,18 @@ Once you have a runtime, you can use it to execute effects:
 runtime.unsafeRun(ZIO.attempt(println("Hello World!")))
 ```
 
-In addition to the `unsafeRun` method, there are other methods that allow executing effects asynchronously or into `Future` values.
+In addition to `unsafeRun`, there are other methods which allow the asynchonous execution of effects or the ability to transform them into `Future`s.
 
 ## Custom Runtime
 
-If you are using a custom environment for your application, then you may find it useful to create a `Runtime` specifically tailored for that environment.
+If you are using a custom environment for your application, you may find it useful to create a `Runtime` specifically tailored for that environment.
 
 A custom `Runtime[R]` can be created with two values:
 
- - **`R` Environment**. This is the environment that will be provided to effects when they are executed.
- - **`RuntimeConfig`**. This is a runtime configuration that is required by ZIO in order to bootstrap the runtime system.
+ - **`R` Environment**. This represents the environment that will be provided to effects when they are executed.
+ - **`RuntimeConfig`**. This is the runtime configuration that is required by ZIO in order to bootstrap the runtime system.
 
-For example, the following creates a `Runtime` that can provide an `Int` to effects, using the default `RuntimeConfig` provided by ZIO:
+For example, the following creates a `Runtime` that can provide an `Int` to effects using the default `RuntimeConfig` provided by ZIO:
 
 ```scala mdoc:silent
 val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), RuntimeConfig.default)
@@ -67,14 +67,12 @@ val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), RuntimeConfig.defau
 
 ## Error Reporting
 
-In the `RuntimeConfig` that is a part of every runtime, there is an error reporter that will be called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter, which can log unhandled errors to a file.
+In the `RuntimeConfig` that is a part of every runtime, there is an error reporter that is called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter that can log unhandled errors to a file.
 
-The default unhandled error reporter merely logs the error to standard error.
+The default unhandled error reporter merely logs the error to standard error (`stderr`).
 
 ## Next Steps
 
-If you are comfortable with running effects, then congratulations!
-
-You are now ready to dive into other sections on the ZIO website, covering data types, use cases, and interop with other systems. 
+If you are comfortable with running effects, congratulations! You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. 
 
 Refer to the Scaladoc for detailed documentation on all the core ZIO types and methods.
