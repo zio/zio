@@ -804,6 +804,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               s = ZStream
                     .range(1, 1000)
                     .tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 999))
+                    .rechunk(1000)
                     .bufferUnbounded
               l1 <- s.take(2).runCollect
               _  <- latch.await
@@ -3329,7 +3330,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               case 2 => ZIO.fail("boom")
               case _ => UIO.succeed(false)
             }.either.runCollect
-          )(equalTo(Chunk(Right(1), Right(2), Left("boom"))))
+          )(equalTo(Chunk(Right(1), Left("boom"))))
         },
         suite("takeWhile")(
           test("takeWhile")(check(streamOfInts, Gen.function(Gen.boolean)) { (s, p) =>
