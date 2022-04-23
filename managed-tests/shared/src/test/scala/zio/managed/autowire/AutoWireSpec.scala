@@ -4,7 +4,7 @@ import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.managed._
 import zio.test.Assertion.{equalTo, isLeft}
-import zio.test.AssertionM.Render.param
+import zio.test.AssertionZIO.Render.param
 import zio.test._
 
 object AutoWireSpec extends ZIOBaseSpec {
@@ -29,7 +29,7 @@ object AutoWireSpec extends ZIOBaseSpec {
 
             val program  = ZManaged.service[Int]
             val provided = program.provide(intLayer, stringLayer, doubleLayer)
-            assertM(provided.useNow)(equalTo(128))
+            assertZIO(provided.useNow)(equalTo(128))
           },
           test("automatically memoizes non-val layers") {
             def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
@@ -50,14 +50,14 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                                                   = program
 
             val checked = typeCheck("program.provide(ZLayer.succeed(3))")
-            assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
+            assertZIO(checked)(isLeft(containsStringWithoutAnsi("String")))
           } @@ TestAspect.exceptScala3,
           test("reports multiple missing top-level layers") {
             val program: ZManaged[String with Int, Nothing, String] = ZManaged.succeed("test")
             val _                                                   = program
 
             val checked = typeCheck("program.provide()")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
             )
           } @@ TestAspect.exceptScala3,
@@ -67,7 +67,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                                    = program
 
             val checked = typeCheck("program.provide(OldLady.live)")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("zio.managed.autowire.AutoWireSpec.TestLayer.Fly") &&
                   containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
@@ -80,7 +80,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                                    = program
 
             val checked = typeCheck("program.provide(OldLady.live, Fly.live)")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("zio.managed.autowire.AutoWireSpec.TestLayer.Spider") &&
                   containsStringWithoutAnsi("Required by TestLayer.Fly.live")
@@ -93,7 +93,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                                    = program
 
             val checked = typeCheck("program.provide(OldLady.live, Fly.manEatingFly)")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("TestLayer.Fly.manEatingFly") &&
                   containsStringWithoutAnsi("OldLady.live") &&
@@ -111,7 +111,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val provided = TestConsole.feedLines("Your Lucky Number is:").toManaged *>
               program.provide(stringLayer)
 
-            assertM(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
+            assertZIO(provided.useNow)(equalTo("Your Lucky Number is: -1295463240"))
           }
         ),
         suite(".unit")(

@@ -15,7 +15,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
             cap <- sem.available
           } yield cap
 
-          assertM(actual.commit)(equalTo(expected))
+          assertZIO(actual.commit)(equalTo(expected))
         }
       }
     ),
@@ -27,7 +27,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
             _   <- sem.acquire *> sem.release
             cap <- sem.available
           } yield cap
-          assertM(actual.commit)(equalTo(expected))
+          assertZIO(actual.commit)(equalTo(expected))
         }
       },
       test("used capacity must be equal to the # of acquires minus # of releases") {
@@ -39,7 +39,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           } yield cap
 
           val usedCapacity = acquire - release
-          assertM(actual.commit)(equalTo(capacity - usedCapacity))
+          assertZIO(actual.commit)(equalTo(capacity - usedCapacity))
         }
       },
       test("acquireN/releaseN(n) is acquire/release repeated N times") {

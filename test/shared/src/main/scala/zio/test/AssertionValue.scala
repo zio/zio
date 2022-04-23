@@ -29,7 +29,7 @@ sealed abstract class AssertionValue {
   def value: Value
   def expression: Option[String]
   def sourceLocation: Option[String]
-  protected def assertion: AssertionM[Value]
+  protected def assertion: AssertionZIO[Value]
   def result: AssertResult
 
   def printAssertion: String = assertion.toString
@@ -45,22 +45,22 @@ sealed abstract class AssertionValue {
 
 object AssertionValue {
   def apply[A](
-    assertion: AssertionM[A],
-    value: => A,
-    result: => AssertResult,
-    expression: Option[String] = None,
-    sourceLocation: Option[String] = None
+                assertion: AssertionZIO[A],
+                value: => A,
+                result: => AssertResult,
+                expression: Option[String] = None,
+                sourceLocation: Option[String] = None
   ): AssertionValue = {
     def inner(
-      assertion0: AssertionM[A],
-      value0: => A,
-      result0: => AssertResult,
-      expression0: Option[String],
-      sourceLocation0: Option[String]
+               assertion0: AssertionZIO[A],
+               value0: => A,
+               result0: => AssertResult,
+               expression0: Option[String],
+               sourceLocation0: Option[String]
     ) =
       new AssertionValue {
         type Value = A
-        protected val assertion: AssertionM[Value]  = assertion0
+        protected val assertion: AssertionZIO[Value]  = assertion0
         lazy val value: Value                       = value0
         lazy val result: AssertResult               = result0
         override val expression: Option[String]     = expression0

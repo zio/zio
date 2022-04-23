@@ -31,7 +31,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           _     <- queue.offerAll(as)
           empty <- queue.isEmpty
         } yield empty
-        assertM(transaction.commit)(equalTo(as.isEmpty))
+        assertZIO(transaction.commit)(equalTo(as.isEmpty))
       }
     },
     test("nonEmpty") {
@@ -41,7 +41,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           _        <- queue.offerAll(as)
           nonEmpty <- queue.nonEmpty
         } yield nonEmpty
-        assertM(transaction.commit)(equalTo(as.nonEmpty))
+        assertZIO(transaction.commit)(equalTo(as.nonEmpty))
       }
     },
     test("offerAll and takeAll") {
@@ -51,7 +51,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           _      <- queue.offerAll(as)
           values <- queue.takeAll
         } yield values
-        assertM(transaction.commit)(hasSameElements(as) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     test("removeIf") {
@@ -61,7 +61,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           _     <- queue.removeIf(f)
           list  <- queue.toChunk
         } yield list
-        assertM(transaction.commit)(hasSameElements(as.filterNot(f)) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as.filterNot(f)) && isSorted)
       }
     },
     test("retainIf") {
@@ -71,7 +71,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           _     <- queue.retainIf(f)
           list  <- queue.toList
         } yield list
-        assertM(transaction.commit)(hasSameElements(as.filter(f)) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as.filter(f)) && isSorted)
       }
     },
     test("take") {
@@ -80,7 +80,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           queue <- TPriorityQueue.fromIterable(as)
           takes <- STM.collectAll(STM.replicate(as.length)(queue.take))
         } yield takes
-        assertM(transaction.commit)(hasSameElements(as) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     test("takeUpTo") {
@@ -94,7 +94,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           left  <- queue.takeUpTo(n)
           right <- queue.takeAll
         } yield left ++ right
-        assertM(transaction.commit)(hasSameElements(as) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     test("toChunk") {
@@ -103,7 +103,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toChunk
         } yield list
-        assertM(transaction.commit)(hasSameElements(as) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     test("toList") {
@@ -112,7 +112,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toList
         } yield list
-        assertM(transaction.commit)(hasSameElements(as) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     },
     test("toVector") {
@@ -121,7 +121,7 @@ object TPriorityQueueSpec extends ZIOBaseSpec {
           queue <- TPriorityQueue.fromIterable(as)
           list  <- queue.toVector
         } yield list
-        assertM(transaction.commit)(hasSameElements(as) && isSorted)
+        assertZIO(transaction.commit)(hasSameElements(as) && isSorted)
       }
     }
   )

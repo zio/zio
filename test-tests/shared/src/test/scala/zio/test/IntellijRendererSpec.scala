@@ -12,31 +12,31 @@ object IntellijRendererSpec extends ZIOBaseSpec {
   def spec =
     suite("IntelliJ Renderer")(
       test("correctly reports a successful test") {
-        assertM(runLog(test1))(equalTo(test1Expected.mkString))
+        assertZIO(runLog(test1))(equalTo(test1Expected.mkString))
       },
       test("correctly reports a failed test") {
-        assertM(runLog(test3))(equalTo(test3Expected.mkString))
+        assertZIO(runLog(test3))(equalTo(test3Expected.mkString))
       },
       test("correctly reports successful test suite") {
-        assertM(runLog(suite1))(equalTo(suite1Expected.mkString))
+        assertZIO(runLog(suite1))(equalTo(suite1Expected.mkString))
       },
       test("correctly reports failed test suite") {
-        assertM(runLog(suite2))(equalTo(suite2Expected.mkString))
+        assertZIO(runLog(suite2))(equalTo(suite2Expected.mkString))
       },
       test("correctly reports multiple test suites") {
-        assertM(runLog(suite3))(equalTo(suite3Expected.mkString))
+        assertZIO(runLog(suite3))(equalTo(suite3Expected.mkString))
       },
       test("correctly reports empty test suite") {
-        assertM(runLog(suite4))(equalTo(suite4Expected.mkString))
+        assertZIO(runLog(suite4))(equalTo(suite4Expected.mkString))
       },
       test("correctly reports failure of simple assertion") {
-        assertM(runLog(test5))(equalTo(test5Expected.mkString))
+        assertZIO(runLog(test5))(equalTo(test5Expected.mkString))
       },
       test("correctly reports multiple nested failures") {
-        assertM(runLog(test6))(equalTo(test6Expected.mkString))
+        assertZIO(runLog(test6))(equalTo(test6Expected.mkString))
       },
       test("correctly reports labeled failures") {
-        assertM(runLog(test7))(equalTo(test7Expected.mkString))
+        assertZIO(runLog(test7))(equalTo(test7Expected.mkString))
       },
       test("correctly reports negated failures") {
         runLog(test8).map(str => assertTrue(str == test8Expected.mkString))

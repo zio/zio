@@ -89,7 +89,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
           val pipeline = ZPipeline.mapChunksZIO[Any, Nothing, Int, String] { chunk =>
             ZIO.succeed(chunk.map(_.toString.reverse))
           }
-          assertM(
+          assertZIO(
             pipeline(ZStream(12, 23, 34)).runCollect
           )(equalTo(Chunk("21", "32", "43")))
         }
@@ -98,43 +98,43 @@ object ZPipelineSpec extends ZIOBaseSpec {
         test("preserves data")(check(Gen.chunkOf(Gen.string.filter(!_.contains("|")).filter(_.nonEmpty))) { lines =>
           val data     = lines.mkString("|")
           val pipeline = ZPipeline.splitOn("|")
-          assertM(pipeline(ZStream.fromChunks(Chunk.single(data))).runCollect)(equalTo(lines))
+          assertZIO(pipeline(ZStream.fromChunks(Chunk.single(data))).runCollect)(equalTo(lines))
         }),
         test("handles leftovers") {
           val pipeline = ZPipeline.splitOn("\n")
-          assertM(pipeline(ZStream.fromChunks(Chunk("ab", "c\nb"), Chunk("c"))).runCollect)(equalTo(Chunk("abc", "bc")))
+          assertZIO(pipeline(ZStream.fromChunks(Chunk("ab", "c\nb"), Chunk("c"))).runCollect)(equalTo(Chunk("abc", "bc")))
         },
         test("works") {
-          assertM(
+          assertZIO(
             ZStream("abc", "delimiter", "bc", "delimiter", "bcd", "bcd")
               .via(ZPipeline.splitOn("delimiter"))
               .runCollect
           )(equalTo(Chunk("abc", "bc", "bcdbcd")))
         },
         test("single newline edgecase") {
-          assertM(
+          assertZIO(
             ZStream("test").via(ZPipeline.splitOn("test")).runCollect
           )(equalTo(Chunk("")))
         },
         test("no delimiter in data") {
-          assertM(
+          assertZIO(
             ZStream("abc", "abc", "abc").via(ZPipeline.splitOn("hello")).runCollect
           )(equalTo(Chunk("abcabcabc")))
         },
         test("delimiter on the boundary") {
-          assertM(
+          assertZIO(
             ZStream("abc<", ">abc").via(ZPipeline.splitOn("<>")).runCollect
           )(equalTo(Chunk("abc", "abc")))
         }
       ),
       suite("take")(
         test("it takes the correct number of elements") {
-          assertM(
+          assertZIO(
             ZStream(1, 2, 3, 4, 5).via(ZPipeline.take(3)).runCollect
           )(equalTo(Chunk(1, 2, 3)))
         },
         test("it takes all elements if n is larger than the ZStream") {
-          assertM(
+          assertZIO(
             ZStream(1, 2, 3, 4, 5).via(ZPipeline.take(100)).runCollect
           )(equalTo(Chunk(1, 2, 3, 4, 5)))
         }

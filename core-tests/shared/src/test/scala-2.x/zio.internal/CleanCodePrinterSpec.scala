@@ -6,7 +6,7 @@ import zio.internal.CleanCodePrinterSpec.A.B.C
 import zio.internal.macros.MacroUnitTestUtils.showTree
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
-import zio.test.AssertionM.Render.param
+import zio.test.AssertionZIO.Render.param
 import zio.test._
 
 object CleanCodePrinterSpec extends ZIOBaseSpec {
