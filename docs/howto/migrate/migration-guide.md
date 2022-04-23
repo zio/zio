@@ -327,7 +327,7 @@ The newbie user expects that this program prints 3 different random numbers, whi
 1085597917
 ```
 
-This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acuqire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
+This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acquire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
 
 ```scala
 def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
