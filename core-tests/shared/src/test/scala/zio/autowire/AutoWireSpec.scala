@@ -9,7 +9,7 @@ import zio.test._
 object AutoWireSpec extends ZIOBaseSpec {
 
   def containsStringWithoutAnsi(element: String): Assertion[String] =
-    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
+    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.unstyled.contains(element))
 
   def spec =
     suite("AutoWireSpec")(

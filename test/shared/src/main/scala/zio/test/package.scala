@@ -39,7 +39,7 @@ import scala.util.Try
  * {{{
  *   import zio.test._
  *   import zio.Clock.nanoTime
- *   import Assertion.isGreaterThan
+ *   import OldAssertion.isGreaterThan
  *
  *   object MyTest extends DefaultRunnableSpec {
  *     def spec = suite("clock")(
@@ -275,28 +275,35 @@ package object test extends CompileVariants {
   override private[zio] def assertImpl[A](
     value: => A,
     expression: Option[String] = None
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult = {
+  )(assertion: OldAssertion[A])(implicit trace: ZTraceElement): TestResult = {
     lazy val tryValue = Try(value)
     traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression)
   }
+
+  private[zio] def newAssertImpl[A](
+    value: => A,
+    codeString: Option[String] = None,
+    assertionString: Option[String] = None
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult =
+    Assertion.smartAssert(value, codeString, assertionString)(assertion)
 
   /**
    * Asserts that the given test was completed.
    */
   def assertCompletes(implicit trace: ZTraceElement): TestResult =
-    assertImpl(true)(Assertion.isTrue)
+    newAssertImpl(true)(Assertion.isTrue)
 
   /**
    * Asserts that the given test was completed.
    */
   def assertCompletesM(implicit trace: ZTraceElement): UIO[TestResult] =
-    assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
+    assertMImpl(UIO.succeedNow(true))(OldAssertion.isTrue)
 
   /**
    * Asserts that the given test was never completed.
    */
   def assertNever(message: String)(implicit trace: ZTraceElement): TestResult =
-    assertImpl(true)(Assertion.isFalse.label(message))
+    assertImpl(true)(OldAssertion.isFalse.label(message))
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
@@ -740,7 +747,7 @@ package object test extends CompileVariants {
               BoolAlgebra.success {
                 FailureDetailsResult(
                   FailureDetails(
-                    ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
+                    ::(AssertionValue(OldAssertion.anything, (), OldAssertion.anything.run(())), Nil)
                   )
                 )
               }

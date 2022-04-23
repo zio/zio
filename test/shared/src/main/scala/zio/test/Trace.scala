@@ -6,6 +6,21 @@ import zio.test.TestArrow.Span
 import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
+  def values: List[Any] =
+    self.asInstanceOf[Trace[Any]] match {
+      case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _) =>
+        List(value)
+      case Trace.Node(_, _, _, _, _, _, _, _, _) =>
+        List()
+      case Trace.AndThen(left, right) =>
+        left.values ++ right.values
+      case Trace.And(left, right) =>
+        left.values ++ right.values
+      case Trace.Or(left, right) =>
+        left.values ++ right.values
+      case Trace.Not(trace) =>
+        trace.values
+    }
 
   def isFailure: Boolean = !isSuccess
 
@@ -70,18 +85,37 @@ sealed trait Trace[+A] { self =>
   /**
    * Apply the code to every node in the tree.
    */
-  final def withCode(code: Option[String]): Trace[A] =
+  final def withCode(fullCode: Option[String]): Trace[A] =
     self match {
       case node: Trace.Node[_] =>
-        node.copy(fullCode = code, children = node.children.map(_.withCode(code)))
+        node.copy(fullCode = fullCode.orElse(node.fullCode), children = node.children.map(_.withCode(fullCode)))
       case Trace.AndThen(left, right) =>
-        Trace.AndThen(left.withCode(code), right.withCode(code))
+        Trace.AndThen(left.withCode(fullCode), right.withCode(fullCode))
       case and: Trace.And =>
-        Trace.And(and.left.withCode(code), and.right.withCode(code)).asInstanceOf[Trace[A]]
+        Trace.And(and.left.withCode(fullCode), and.right.withCode(fullCode)).asInstanceOf[Trace[A]]
       case or: Trace.Or =>
-        Trace.Or(or.left.withCode(code), or.right.withCode(code)).asInstanceOf[Trace[A]]
+        Trace.Or(or.left.withCode(fullCode), or.right.withCode(fullCode)).asInstanceOf[Trace[A]]
       case not: Trace.Not =>
-        Trace.Not(not.trace.withCode(code)).asInstanceOf[Trace[A]]
+        Trace.Not(not.trace.withCode(fullCode)).asInstanceOf[Trace[A]]
+    }
+
+  /**
+   * Apply the code to every node in the tree.
+   */
+  final def withCompleteCode(completeCode: Option[String]): Trace[A] =
+    self match {
+      case node: Trace.Node[_] =>
+        node.copy(completeCode = completeCode, children = node.children.map(_.withCompleteCode(completeCode)))
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withCompleteCode(completeCode), right.withCompleteCode(completeCode))
+      case and: Trace.And =>
+        Trace
+          .And(and.left.withCompleteCode(completeCode), and.right.withCompleteCode(completeCode))
+          .asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace.Or(or.left.withCompleteCode(completeCode), or.right.withCompleteCode(completeCode)).asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withCompleteCode(completeCode)).asInstanceOf[Trace[A]]
     }
 
   @tailrec
@@ -123,13 +157,13 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _) if bool == negated =>
+      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _) if bool == negated =>
         Some(node.copy(children = node.children.flatMap(prune(_, negated))))
 
-      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _, _, _) =>
         None
 
-      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -175,7 +209,8 @@ object Trace {
     parentSpan: Option[Span] = None,
     fullCode: Option[String] = None,
     location: Option[String] = None,
-    annotations: Set[Annotation] = Set.empty
+    annotations: Set[Annotation] = Set.empty,
+    completeCode: Option[String] = None
   ) extends Trace[A] {
 
     def renderResult: Any =

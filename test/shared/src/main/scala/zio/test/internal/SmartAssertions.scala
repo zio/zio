@@ -10,7 +10,7 @@ import zio.test.{ErrorMessage => M, SmartAssertionOps => _, _}
 
 object SmartAssertions {
 
-  def anything: TestArrow[Any, Boolean] =
+  val anything: TestArrow[Any, Boolean] =
     TestArrow.make[Any, Boolean](_ => Trace.boolean(true)(M.was + "anything"))
 
   def approximatelyEquals[A: Numeric](reference: A, tolerance: A): TestArrow[A, Boolean] =

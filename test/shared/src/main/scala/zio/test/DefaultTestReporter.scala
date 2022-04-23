@@ -246,8 +246,8 @@ object DefaultTestReporter {
           errorMessageLines ++
             Chunk(Line.fromString(testLabel.fold(codeString)(l => s"""$codeString ?? "$l""""))) ++
             nested.flatMap(renderFailureCase(_, offset, None)).map(_.withOffset(1)) ++
-            Chunk.fromIterable(path.flatMap { case (label, value) =>
-              Chunk.fromIterable(PrettyPrint(value).split("\n").map(primary(_).toLine)) match {
+            Chunk.fromIterable(path.filterNot(t => t._1 == t._2).flatMap { case (label, value) =>
+              Chunk.fromIterable(value.split("\n").map(primary(_).toLine)) match {
                 case head +: lines => (dim(s"${label.trim} = ") +: head) +: lines
                 case _             => Vector.empty
               }

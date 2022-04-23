@@ -22,18 +22,18 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 sealed abstract class AssertionData {
   type Value
   def value: Value
-  val assertion: Assertion[Value]
+  val assertion: OldAssertion[Value]
 
   lazy val asFailure: AssertResult = BoolAlgebra.failure(AssertionValue(assertion, value, result = asFailure))
   lazy val asSuccess: AssertResult = BoolAlgebra.success(AssertionValue(assertion, value, result = asSuccess))
 }
 
 object AssertionData {
-  def apply[A](assertion0: Assertion[A], value0: => A): AssertionData =
+  def apply[A](assertion0: OldAssertion[A], value0: => A): AssertionData =
     new AssertionData {
       type Value = A
-      lazy val value: Value           = value0
-      val assertion: Assertion[Value] = assertion0
+      lazy val value: Value              = value0
+      val assertion: OldAssertion[Value] = assertion0
     }
 }
 

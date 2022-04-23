@@ -1,13 +1,14 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet
 import scala.util.{Failure, Success}
 
 object AssertionSpec extends ZIOBaseSpec {
+
+  val failing = TestAspect.failing
 
   def spec: Spec[Annotations, TestFailure[Any]] =
     suite("AssertionSpec")(
@@ -91,7 +92,7 @@ object AssertionSpec extends ZIOBaseSpec {
               )
           )
         )
-      } @@ scala2Only,
+      } @@ TestAspect.scala2Only,
       test("exists must succeed when at least one element of iterable satisfy specified assertion") {
         assert(Seq(1, 42, 5))(exists(equalTo(42)))
       },
@@ -574,12 +575,6 @@ object AssertionSpec extends ZIOBaseSpec {
       test("should implement equals without exception") {
         assert(nameStartsWithU.equals(new Object))(isFalse)
       },
-      test("should never be equal to AssertionM") {
-        val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
-        val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
-        assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
-        assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
-      },
       test("hasThrowableCause must succeed when supplied value has matching cause") {
         val cause = new Exception("cause")
         val t     = new Exception("result", cause)
@@ -615,6 +610,7 @@ object AssertionSpec extends ZIOBaseSpec {
   trait Cat extends Animal
 
   val animal: Animal = new Animal {}
-  val dog: Dog       = new Dog {}
-  val cat: Cat       = new Cat {}
+
+  val dog: Dog = new Dog {}
+  val cat: Cat = new Cat {}
 }

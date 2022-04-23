@@ -38,17 +38,19 @@ sealed trait TestArrow[-A, +B] { self =>
     span: Option[Span] = None,
     parentSpan: Option[Span] = None,
     code: Option[String] = None,
-    location: Option[String] = None
+    location: Option[String] = None,
+    completeCode: Option[String] = None
   ): TestArrow[A, B] = self match {
     case meta: Meta[A, B] =>
       meta.copy(
         span = meta.span.orElse(span),
         parentSpan = meta.parentSpan.orElse(parentSpan),
-        code = meta.code.orElse(code),
-        location = meta.location.orElse(location)
+        code = code.orElse(meta.code),
+        location = meta.location.orElse(location),
+        completeCode = meta.completeCode.orElse(completeCode)
       )
     case _ =>
-      Meta(arrow = self, span = span, parentSpan = parentSpan, code = code, location = location)
+      Meta(arrow = self, span = span, parentSpan = parentSpan, code = code, location = location, completeCode)
   }
 
   def span(span: (Int, Int)): TestArrow[A, B] =
@@ -56,6 +58,9 @@ sealed trait TestArrow[-A, +B] { self =>
 
   def withCode(code: String): TestArrow[A, B] =
     meta(code = Some(code))
+
+  def withCompleteCode(completeCode: String): TestArrow[A, B] =
+    meta(completeCode = Some(completeCode))
 
   def withLocation(implicit trace: ZTraceElement): TestArrow[A, B] =
     trace match {
@@ -133,12 +138,13 @@ object TestArrow {
             run(f(value), in)
         }
 
-      case Meta(arrow, span, parentSpan, code, location) =>
+      case Meta(arrow, span, parentSpan, code, location, completeCode) =>
         run(arrow, in)
           .withSpan(span)
           .withCode(code)
           .withParentSpan(parentSpan)
           .withLocation(location)
+          .withCompleteCode(completeCode)
     }
   }
 
@@ -151,7 +157,8 @@ object TestArrow {
     span: Option[Span],
     parentSpan: Option[Span],
     code: Option[String],
-    location: Option[String]
+    location: Option[String],
+    completeCode: Option[String]
   ) extends TestArrow[A, B]
   case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])           extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]

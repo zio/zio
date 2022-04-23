@@ -17,15 +17,15 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Assertion.Render._
+import zio.test.OldAssertion.Render._
 
 trait AssertionVariants {
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
-    Assertion.assertion("equalTo")(param(expected)) { actual =>
+  final def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): OldAssertion[B] =
+    OldAssertion.assertion("equalTo")(param(expected)) { actual =>
       (actual, expected) match {
         case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
         case (left, right)                     => left == right

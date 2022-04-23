@@ -13,7 +13,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
    * Switch TestAspect.failing to TestAspect.identity to easily preview
    * the error messages.
    */
-  val failing: TestAspectPoly = TestAspect.identity
+  val failing: TestAspectPoly = TestAspect.failing
 
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 

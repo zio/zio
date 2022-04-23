@@ -33,7 +33,7 @@ trait CompileVariants {
   private[zio] def assertImpl[A](
     value: => A,
     expression: Option[String] = None
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
+  )(assertion: OldAssertion[A])(implicit trace: ZTraceElement): TestResult
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
@@ -51,14 +51,25 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
-//  def assert(expr: Boolean): TestResult = assert[Boolean](expr)(Assertion.isTrue)
+  def oldAssert[A](expr: => A)(assertion: OldAssertion[A]): TestResult =
+    macro Macros.assert_impl
+
+  /**
+   * Checks the assertion holds for the given value.
+   */
+  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult =
+    macro Macros.new_assert_impl
+//  Assertion.smartAssert(expr)(assertion)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
-    macro Macros.assertM_impl
+  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, E, Assert] =
+    Assertion.smartAssertM(effect)(assertion)
+//  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
+//    macro Macros.assertM_impl
 
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }
@@ -69,9 +80,14 @@ trait CompileVariants {
 object CompileVariants {
 
   def assertProxy[A](value: => A, expression: String)(
-    assertion: Assertion[A]
+    assertion: OldAssertion[A]
   )(implicit trace: ZTraceElement): TestResult =
     zio.test.assertImpl(value, Some(expression))(assertion)
+
+  def newAssertProxy[A](value: => A, codeString: String, assertionString: String)(
+    assertion: Assertion[A]
+  )(implicit trace: ZTraceElement): TestResult =
+    zio.test.newAssertImpl(value, Some(codeString), Some(assertionString))(assertion)
 
   def assertMProxy[R, E, A](effect: ZIO[R, E, A])(
     assertion: AssertionM[A]
