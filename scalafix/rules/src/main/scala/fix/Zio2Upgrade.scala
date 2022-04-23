@@ -135,7 +135,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.stream.Take",
     "zio.stream.ZPipeline",
     "zio.test.TestFailure",
-    "zio.Runtime"
+    "zio.Runtime",
+    "zio.ZLayer" 
   )
   /*
     TODO
@@ -186,6 +187,14 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     )
   )
 
+  val ZLayerRenames = Renames(
+    List("zio.ZLayer"),
+    Map(
+      "requires" -> "service",
+      "identity" -> "service"
+    )
+  )
+  
   val STMRenames = Renames(
     List("zio.stm.ZSTM", "zio.stm.STM"),
     Map(
@@ -619,6 +628,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case ScheduleRenames.Matcher(patch)  => patch
         case StreamRenames.Matcher(patch)    => patch
         case UniversalRenames.Matcher(patch) => patch
+        case ZLayerRenames.Matcher(patch)    => patch
 
         case BuiltInServiceFixer(patch) => patch
 
