@@ -102,7 +102,7 @@ package object laws {
 
   object Laws {
     type Law1[-Caps[_]]  = ZLaws.Law1[Caps]
-    type Law1IO[-Caps[_]] = ZLaws.Law1ZIO[Caps, Any]
+    type Law1ZIO[-Caps[_]] = ZLaws.Law1ZIO[Caps, Any]
     type Law2[-Caps[_]]  = ZLaws.Law2[Caps]
     type Law2ZIO[-Caps[_]] = ZLaws.Law2ZIO[Caps, Any]
     type Law3[-Caps[_]]  = ZLaws.Law3[Caps]
