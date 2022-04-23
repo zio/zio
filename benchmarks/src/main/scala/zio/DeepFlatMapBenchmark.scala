@@ -10,6 +10,9 @@ import scala.concurrent.Await
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
+@Fork(1)
 class BroadFlatMapBenchmark {
   @Param(Array("20"))
   var depth: Int = _

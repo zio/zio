@@ -20,6 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 package object internal {
+  type FiberStatusIndicator <: Int
 
   /**
    * Returns an effect that models success with the specified value.
