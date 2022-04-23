@@ -183,9 +183,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZStream.Handoff.make[HandoffSignal] <*>
         Ref.make[SinkEndReason](SinkEnd) <*>
         Ref.make(Chunk[A1]()) <*>
-        schedule.driver
+        schedule.driver <*>
+        Ref.make(false)
 
-    ZStream.fromZIO(layer).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver) =>
+    ZStream.fromZIO(layer).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed) =>
       lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
           (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer,
@@ -197,61 +198,113 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         ZChannel.unwrap(
           sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
             if (leftovers.nonEmpty) {
-              UIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
+              consumed.set(true) *> UIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
             } else
               handoff.take.map {
-                case Emit(chunk) => ZChannel.write(chunk) *> handoffConsumer
+                case Emit(chunk) => ZChannel.fromZIO(consumed.set(true)) *> ZChannel.write(chunk) *> handoffConsumer
                 case Halt(cause) => ZChannel.failCause(cause)
                 case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason))
               }
           }
         )
 
+      def timeout(lastB: Option[B]) =
+        scheduleDriver.next(lastB)
+
       def scheduledAggregator(
-        lastB: Option[B]
+        sinkFiber: Fiber.Runtime[E1, (Chunk[Chunk[A1]], B)],
+        scheduleFiber: Fiber.Runtime[None.type, C]
       ): ZChannel[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Any] = {
-        val timeout =
-          scheduleDriver
-            .next(lastB)
-            .foldCauseZIO(
-              _.failureOrCause match {
-                case Left(_)      => handoff.offer(End(ScheduleTimeout))
-                case Right(cause) => handoff.offer(Halt(cause))
-              },
-              c => handoff.offer(End(ScheduleEnd(c)))
-            )
 
-        ZChannel
-          .unwrapScoped[R1] {
-            timeout.forkScoped.map { fiber =>
-              (handoffConsumer pipeToOrFail sink.channel).doneCollect.flatMap { case (leftovers, b) =>
-                ZChannel.fromZIO(fiber.interrupt *> sinkLeftovers.set(leftovers.flatten)) *>
-                  ZChannel.unwrap {
-                    sinkEndReason.modify {
-                      case ScheduleEnd(c) =>
-                        (ZChannel.write(Chunk(Right(b), Left(c))).as(Some(b)), SinkEnd)
+        val forkSink =
+          consumed.set(false) *> (handoffConsumer pipeToOrFail sink.channel).doneCollect.runScoped.forkScoped
 
-                      case ScheduleTimeout =>
-                        (ZChannel.write(Chunk(Right(b))).as(Some(b)), SinkEnd)
-
-                      case SinkEnd =>
-                        (ZChannel.write(Chunk(Right(b))).as(Some(b)), SinkEnd)
-
-                      case UpstreamEnd =>
-                        (ZChannel.write(Chunk(Right(b))).as(None), UpstreamEnd) // leftovers??
-                    }
-                  }
+        def handleSide(leftovers: Chunk[Chunk[A1]], b: B) =
+          ZChannel.unwrap(
+            sinkLeftovers.set(leftovers.flatten) *>
+              sinkEndReason.modify {
+                case ScheduleEnd(c) =>
+                  (
+                    ZChannel.unwrapScoped[R1] {
+                      for {
+                        consumed      <- consumed.get
+                        sinkFiber     <- forkSink
+                        scheduleFiber <- timeout(Some(b)).forkScoped
+                      } yield
+                        if (consumed)
+                          ZChannel
+                            .write(Chunk(Right(b), Left(c))) *> scheduledAggregator(sinkFiber, scheduleFiber)
+                        else scheduledAggregator(sinkFiber, scheduleFiber)
+                    },
+                    SinkEnd
+                  )
+                case ScheduleTimeout =>
+                  (
+                    ZChannel.unwrapScoped[R1] {
+                      for {
+                        consumed      <- consumed.get
+                        sinkFiber     <- forkSink
+                        scheduleFiber <- timeout(Some(b)).forkScoped
+                      } yield
+                        if (consumed) ZChannel.write(Chunk(Right(b))) *> scheduledAggregator(sinkFiber, scheduleFiber)
+                        else scheduledAggregator(sinkFiber, scheduleFiber)
+                    },
+                    SinkEnd
+                  )
+                case SinkEnd =>
+                  (
+                    ZChannel.unwrapScoped[R1] {
+                      for {
+                        consumed      <- consumed.get
+                        sinkFiber     <- forkSink
+                        scheduleFiber <- timeout(Some(b)).forkScoped
+                      } yield
+                        if (consumed) ZChannel.write(Chunk(Right(b))) *> scheduledAggregator(sinkFiber, scheduleFiber)
+                        else scheduledAggregator(sinkFiber, scheduleFiber)
+                    },
+                    SinkEnd
+                  )
+                case UpstreamEnd =>
+                  (
+                    ZChannel.unwrapScoped[R1] {
+                      for {
+                        consumed <- consumed.get
+                      } yield
+                        if (consumed) ZChannel.write(Chunk(Right(b)))
+                        else ZChannel.unit
+                    },
+                    UpstreamEnd // leftovers??
+                  )
               }
-            }
-          }
-          .flatMap {
-            case None        => ZChannel.unit
-            case s @ Some(_) => scheduledAggregator(s)
-          }
+          )
+
+        ZChannel.unwrap {
+          sinkFiber.join.raceWith(scheduleFiber.join)(
+            (sinkExit, scheduleFiber) =>
+              scheduleFiber.interrupt *>
+                ZIO.done(sinkExit).map { case (leftovers, b) => handleSide(leftovers, b) },
+            (scheduleExit, sinkFiber) =>
+              ZIO
+                .done(scheduleExit)
+                .foldCauseZIO(
+                  _.failureOrCause match {
+                    case Left(_)      => handoff.offer(End(ScheduleTimeout))
+                    case Right(cause) => handoff.offer(Halt(cause))
+                  },
+                  c => handoff.offer(End(ScheduleEnd(c)))
+                )
+                .forkDaemon *> sinkFiber.join.map { case (leftovers, b) => handleSide(leftovers, b) }
+          )
+        }
       }
 
-      ZStream.scoped[R]((self.channel >>> handoffProducer).runScoped.forkScoped) *>
-        new ZStream(scheduledAggregator(None))
+      ZStream.unwrapScoped[R1] {
+        for {
+          _             <- (self.channel >>> handoffProducer).runScoped.forkScoped
+          sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).doneCollect.runScoped.forkScoped
+          scheduleFiber <- timeout(None).forkScoped
+        } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber))
+      }
     }
   }
 
