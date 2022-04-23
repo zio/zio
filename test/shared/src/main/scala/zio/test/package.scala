@@ -54,7 +54,7 @@ import scala.util.Try
  */
 package object test extends CompileVariants {
   type AssertResultZIO = BoolAlgebraZIO[Any, Nothing, AssertionValue]
-  type AssertResult  = BoolAlgebra[AssertionValue]
+  type AssertResult    = BoolAlgebra[AssertionValue]
 
   type TestEnvironment = Annotations with Live with Sized with TestConfig
 
@@ -241,10 +241,10 @@ package object test extends CompileVariants {
   }
 
   private def traverseResult[A](
-                                 value: => A,
-                                 assertResult: AssertResult,
-                                 assertion: AssertionZIO[A],
-                                 expression: Option[String]
+    value: => A,
+    assertResult: AssertResult,
+    assertion: AssertionZIO[A],
+    expression: Option[String]
   )(implicit trace: ZTraceElement): TestResult = {
     val sourceLocation = Option(trace).collect { case ZTraceElement(_, file, line) =>
       s"$file:$line"

@@ -335,13 +335,17 @@ object ZSinkSpec extends ZIOBaseSpec {
         val sink   = ZSink.collectAllWhile[Int](_ < 5)
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
-        assertZIO(result)(equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2))))
+        assertZIO(result)(
+          equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2)))
+        )
       },
       test("collectAllWhileZIO") {
         val sink   = ZSink.collectAllWhileZIO[Any, Nothing, Int]((i: Int) => ZIO.succeed(i < 5))
         val input  = List(Chunk(3, 4, 5, 6, 7, 2), Chunk.empty, Chunk(3, 4, 5, 6, 5, 4, 3, 2), Chunk.empty)
         val result = ZStream.fromChunks(input: _*).transduce(sink).runCollect
-        assertZIO(result)(equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2))))
+        assertZIO(result)(
+          equalTo(Chunk(Chunk(3, 4), Chunk(), Chunk(), Chunk(2, 3, 4), Chunk(), Chunk(), Chunk(4, 3, 2)))
+        )
       },
       test("foldLeft equivalence with Chunk#foldLeft")(
         check(

@@ -45,26 +45,26 @@ sealed abstract class AssertionValue {
 
 object AssertionValue {
   def apply[A](
-                assertion: AssertionZIO[A],
-                value: => A,
-                result: => AssertResult,
-                expression: Option[String] = None,
-                sourceLocation: Option[String] = None
+    assertion: AssertionZIO[A],
+    value: => A,
+    result: => AssertResult,
+    expression: Option[String] = None,
+    sourceLocation: Option[String] = None
   ): AssertionValue = {
     def inner(
-               assertion0: AssertionZIO[A],
-               value0: => A,
-               result0: => AssertResult,
-               expression0: Option[String],
-               sourceLocation0: Option[String]
+      assertion0: AssertionZIO[A],
+      value0: => A,
+      result0: => AssertResult,
+      expression0: Option[String],
+      sourceLocation0: Option[String]
     ) =
       new AssertionValue {
         type Value = A
-        protected val assertion: AssertionZIO[Value]  = assertion0
-        lazy val value: Value                       = value0
-        lazy val result: AssertResult               = result0
-        override val expression: Option[String]     = expression0
-        override val sourceLocation: Option[String] = sourceLocation0
+        protected val assertion: AssertionZIO[Value] = assertion0
+        lazy val value: Value                        = value0
+        lazy val result: AssertResult                = result0
+        override val expression: Option[String]      = expression0
+        override val sourceLocation: Option[String]  = sourceLocation0
       }
     inner(assertion, value, result, expression, sourceLocation)
   }

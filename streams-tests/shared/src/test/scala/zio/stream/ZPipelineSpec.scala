@@ -102,7 +102,9 @@ object ZPipelineSpec extends ZIOBaseSpec {
         }),
         test("handles leftovers") {
           val pipeline = ZPipeline.splitOn("\n")
-          assertZIO(pipeline(ZStream.fromChunks(Chunk("ab", "c\nb"), Chunk("c"))).runCollect)(equalTo(Chunk("abc", "bc")))
+          assertZIO(pipeline(ZStream.fromChunks(Chunk("ab", "c\nb"), Chunk("c"))).runCollect)(
+            equalTo(Chunk("abc", "bc"))
+          )
         },
         test("works") {
           assertZIO(

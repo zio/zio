@@ -23,8 +23,8 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
- * An `AssertionZIO[A]` is capable of producing assertion results on an `A`. As a
- * proposition, assertions compose using logical conjunction and disjunction,
+ * An `AssertionZIO[A]` is capable of producing assertion results on an `A`. As
+ * a proposition, assertions compose using logical conjunction and disjunction,
  * and can be negated.
  */
 abstract class AssertionZIO[-A] { self =>
@@ -55,7 +55,7 @@ abstract class AssertionZIO[-A] { self =>
 
   override def equals(that: Any): Boolean = that match {
     case that: AssertionZIO[_] if that.canEqual(this) => this.toString == that.toString
-    case _                                          => false
+    case _                                            => false
   }
 
   override def hashCode: Int =
@@ -84,7 +84,7 @@ object AssertionZIO {
   import zio.test.AssertionZIO.Render._
 
   def apply[A](_render: Render, _runZIO: (=> A) => AssertResultZIO): AssertionZIO[A] = new AssertionZIO[A] {
-    val render: Render                = _render
+    val render: Render                    = _render
     val runZIO: (=> A) => AssertResultZIO = _runZIO
   }
 
@@ -164,12 +164,12 @@ object AssertionZIO {
   sealed abstract class RenderParam {
     override final def toString: String = this match {
       case RenderParam.AssertionZIO(assertion) => assertion.toString
-      case RenderParam.Value(value)          => value.toString
+      case RenderParam.Value(value)            => value.toString
     }
   }
   object RenderParam {
     final case class AssertionZIO[A](assertion: zio.test.AssertionZIO[A]) extends RenderParam
-    final case class Value(value: Any)                                extends RenderParam
+    final case class Value(value: Any)                                    extends RenderParam
   }
 
   /**

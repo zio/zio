@@ -53,7 +53,7 @@ object AssertionZIOData {
   def apply[A](assertion0: AssertionZIO[A], value0: => A): AssertionZIOData =
     new AssertionZIOData {
       type Value = A
-      lazy val value: Value            = value0
+      lazy val value: Value              = value0
       val assertion: AssertionZIO[Value] = assertion0
     }
 }

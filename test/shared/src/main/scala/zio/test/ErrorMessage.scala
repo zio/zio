@@ -26,7 +26,7 @@ object ErrorMessage {
   private final case class Combine(lhs: ErrorMessage, rhs: ErrorMessage, spacing: Int = 1) extends ErrorMessage
   private final case class CombineMessage(lhs: ErrorMessage, rhs: ErrorMessage)            extends ErrorMessage
   private final case class Custom(string: String)                                          extends ErrorMessage
-  private final case class ThrowableZIO(throwable: Throwable)                                extends ErrorMessage
+  private final case class ThrowableZIO(throwable: Throwable)                              extends ErrorMessage
   private final case class Value(value: Any)                                               extends ErrorMessage
 }
 

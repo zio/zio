@@ -574,7 +574,7 @@ object AssertionSpec extends ZIOBaseSpec {
       assert(nameStartsWithU.equals(new Object))(isFalse)
     },
     test("should never be equal to AssertionZIO") {
-      val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
+      val assertion    = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
       val assertionZIO = AssertionZIO.assertionDirect[Unit]("sameName")()(_ => ???)
       assert(assertion.equals(assertionZIO))(isFalse ?? "assertion != assertionZIO") &&
       assert(assertionZIO.equals(assertion))(isFalse ?? "assertionZIO != assertion")

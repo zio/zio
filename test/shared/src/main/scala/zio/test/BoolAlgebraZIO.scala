@@ -23,22 +23,22 @@ import zio.test.BoolAlgebraZIO._
 final case class BoolAlgebraZIO[-R, +E, +A](run: ZIO[R, E, BoolAlgebra[A]]) { self =>
 
   def &&[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraZIO[R1, E1, A1])(implicit
-                                                                      trace: ZTraceElement
+    trace: ZTraceElement
   ): BoolAlgebraZIO[R1, E1, A1] =
     BoolAlgebraZIO(run.zipWith(that.run)(_ && _))
 
   def ||[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraZIO[R1, E1, A1])(implicit
-                                                                      trace: ZTraceElement
+    trace: ZTraceElement
   ): BoolAlgebraZIO[R1, E1, A1] =
     BoolAlgebraZIO(run.zipWith(that.run)(_ || _))
 
   def ==>[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraZIO[R1, E1, A1])(implicit
-                                                                       trace: ZTraceElement
+    trace: ZTraceElement
   ): BoolAlgebraZIO[R1, E1, A1] =
     BoolAlgebraZIO(run.zipWith(that.run)(_ ==> _))
 
   def <==>[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraZIO[R1, E1, A1])(implicit
-                                                                        trace: ZTraceElement
+    trace: ZTraceElement
   ): BoolAlgebraZIO[R1, E1, A1] =
     BoolAlgebraZIO(run.zipWith(that.run)(_ <==> _))
 
@@ -49,12 +49,12 @@ final case class BoolAlgebraZIO[-R, +E, +A](run: ZIO[R, E, BoolAlgebra[A]]) { se
     map(_ => b)
 
   def flatMap[R1 <: R, E1 >: E, B](f: A => BoolAlgebraZIO[R1, E1, B])(implicit
-                                                                      trace: ZTraceElement
+    trace: ZTraceElement
   ): BoolAlgebraZIO[R1, E1, B] =
     BoolAlgebraZIO(run.flatMap(_.flatMapZIO(f(_).run)))
 
   def implies[R1 <: R, E1 >: E, A1 >: A](that: BoolAlgebraZIO[R1, E1, A1])(implicit
-                                                                           trace: ZTraceElement
+    trace: ZTraceElement
   ): BoolAlgebraZIO[R1, E1, A1] =
     BoolAlgebraZIO(run.zipWith(that.run)(_ implies _))
 

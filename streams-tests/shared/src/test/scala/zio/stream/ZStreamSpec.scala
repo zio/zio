@@ -3314,11 +3314,11 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               streamTakeUntilZIO <- s.takeUntilZIO(p).runCollect.exit
               chunkTakeUntilZIO <- s.runCollect
-                                   .flatMap(as =>
-                                     as.takeWhileZIO(p(_).map(!_))
-                                       .zipWith(as.dropWhileZIO(p(_).map(!_)).map(_.take(1)))(_ ++ _)
-                                   )
-                                   .exit
+                                     .flatMap(as =>
+                                       as.takeWhileZIO(p(_).map(!_))
+                                         .zipWith(as.dropWhileZIO(p(_).map(!_)).map(_.take(1)))(_ ++ _)
+                                     )
+                                     .exit
             } yield assert(chunkTakeUntilZIO.isSuccess)(isTrue) implies assert(streamTakeUntilZIO)(
               equalTo(chunkTakeUntilZIO)
             )
@@ -4332,7 +4332,9 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("dies if the given partial function throws an exception") {
             val exception = new Exception
-            assertZIO(ZStream.whenCaseZIO(ZIO.unit) { case _ => throw exception }.runDrain.exit)(dies(equalTo(exception)))
+            assertZIO(ZStream.whenCaseZIO(ZIO.unit) { case _ => throw exception }.runDrain.exit)(
+              dies(equalTo(exception))
+            )
           },
           test("infers types correctly") {
             trait R
