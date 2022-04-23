@@ -13,7 +13,7 @@ Before you migrate your own codebase, confirm that all of your ZIO-related depen
 
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
-ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
+ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
 1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://zio-ecosystem.herokuapp.com/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
 
@@ -126,7 +126,7 @@ object MainApp extends ZIOAppDefault {
 
 The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
 
-For example, in the ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
+For example, in ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
 
 ```scala
 val userRepo: ZLayer[Has[Logging] with Has[Random] with Has[Database], Throwable, Has[UserRepo]] = ???
@@ -144,7 +144,7 @@ trait Logging
 val userRepo: ZLayer[Logging with Random with Database, Throwable, UserRepo] = ???
 ```
 
-Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into the ZIO. Let's see how this changes the way we can provide a service to the environment.
+Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into ZIO. Let's see how this changes the way we can provide a service to the environment.
 
 Using the following code snippet, we demonstrate how we used to access and provide instances of `Config` service to the application environment using ZIO 1.x:
 
@@ -1731,7 +1731,7 @@ val bigSuite = fooSuite + barSuite + bazSuite
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
 
-So far, before ZIO 2.0, the ZIO Stream has included three main abstractions:
+So far, before ZIO 2.0, ZIO Stream has included three main abstractions:
 1. **`ZStream`** — represents the source of elements
 2. **`ZSink`** — represents consumers of elements that can be composed together to create composite consumers
 3. **`ZTransducer`** — represents generalized stateful and effectful stream processing
@@ -1922,7 +1922,7 @@ ZStream.from(ZIO.succeed(List(1,2,3)))
 
 ### ZState
 
-`ZState` is a new data type that the ZIO 2.0 introduced:
+`ZState` is a new data type that ZIO 2.0 introduced:
 
 ```scala
 sealed trait ZState[S] {
@@ -2146,7 +2146,7 @@ object TracingExample extends ZIOAppDefault {
 }
 ```
 
-The output is more descriptive than the ZIO 1.x. It is similar to the Java stacktrace:
+The output is more descriptive than in ZIO 1.x. It is similar to the Java stacktrace:
 
 ```
 Hello!
@@ -2158,7 +2158,7 @@ timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-163990230
 
 As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
 
-In ZIO 2.x, the tracing is not optional, and unlike the ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
+In ZIO 2.x, the tracing is not optional, and unlike in ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
 
 Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
 
