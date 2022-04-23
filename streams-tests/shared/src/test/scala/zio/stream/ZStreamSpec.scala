@@ -2735,18 +2735,27 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
-        test("peel") {
-          val sink: ZSink[Any, Nothing, Int, Int, Any] = ZSink.take(3)
+        suite("peel")(
+          test("peel") {
+            val sink: ZSink[Any, Nothing, Int, Int, Any] = ZSink.take(3)
 
-          ZIO.scoped {
-            ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6)).peel(sink).flatMap { case (chunk, rest) =>
-              rest.runCollect.map { rest =>
-                assert(chunk)(equalTo(Chunk(1, 2, 3))) &&
-                assert(rest)(equalTo(Chunk(4, 5, 6)))
+            ZIO.scoped {
+              ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6)).peel(sink).flatMap { case (chunk, rest) =>
+                rest.runCollect.map { rest =>
+                  assert(chunk)(equalTo(Chunk(1, 2, 3))) &&
+                  assert(rest)(equalTo(Chunk(4, 5, 6)))
+                }
               }
             }
+          },
+          test("propagates errors") {
+            val stream = ZStream.repeatZIO(ZIO.fail("fail"))
+            val sink   = ZSink.fold[Byte, Chunk[Byte]](Chunk.empty)(_ => true)(_ :+ _)
+            for {
+              exit <- stream.peel(sink).exit
+            } yield assert(exit)(fails(equalTo("fail")))
           }
-        },
+        ),
         test("onError") {
           for {
             flag   <- Ref.make(false)

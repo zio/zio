@@ -2397,7 +2397,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
       for {
-        _ <- self.runScoped(consumer).forkScoped
+        _ <- self.tapErrorCause(cause => p.failCause(cause)).runScoped(consumer).forkScoped
         z <- p.await
       } yield (z, new ZStream(producer))
     }).flatten
