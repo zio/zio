@@ -68,6 +68,6 @@ object ZIORocksDBExample extends zio.App {
   override def run(args: List[String]): URIO[zio.ZEnv, Int] =
     (job1 <*> job2)
       .provideCustom(transactional_db ++ rocks_db)
-      .foldCauseM(cause => putStrLn(cause.prettyPrint) *> ZIO.succeed(1), _ => ZIO.succeed(0))
+      .foldCauseZIO(cause => putStrLn(cause.prettyPrint) *> ZIO.succeed(1), _ => ZIO.succeed(0))
 }
 ```
