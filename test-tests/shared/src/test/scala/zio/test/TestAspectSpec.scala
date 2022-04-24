@@ -84,6 +84,9 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("exceptNative runs tests on all platforms except ScalaNative") {
       assert(TestPlatform.isNative)(isFalse)
     } @@ exceptNative,
+    test("exceptGraalVM runs tests on all platforms except GraalVM") {
+      assert(TestPlatform.isGraalVM)(isFalse)
+    } @@ exceptGraalVM,
     test("exceptScala2 runs tests on all versions except Scala 2") {
       assert(TestVersion.isScala2)(isFalse)
     } @@ exceptScala2,
@@ -216,6 +219,19 @@ object TestAspectSpec extends ZIOBaseSpec {
       val spec   = test("JVM-only")(assert(TestPlatform.isJVM)(isTrue)) @@ jvmOnly
       val result = if (TestPlatform.isJVM) succeeded(spec) else isIgnored(spec)
       assertZIO(result)(isTrue)
+    },
+    test("graalVM applies test aspect only on GraalVM") {
+      for {
+        ref    <- Ref.make(false)
+        spec    = test("test")(assert(true)(isTrue)) @@ graalVM(after(ref.set(true)))
+        _      <- execute(spec)
+        result <- ref.get
+      } yield assert(if (TestPlatform.isGraalVM) result else !result)(isTrue)
+    },
+    test("graalVMOnly runs tests only on GraalVM") {
+      val spec   = test("GraalVM-only")(assert(TestPlatform.isGraalVM)(isTrue)) @@ graalVMOnly
+      val result = if (TestPlatform.isGraalVM) succeeded(spec) else isIgnored(spec)
+      assertM(result)(isTrue)
     },
     test("native applies test aspect only on ScalaNative") {
       for {

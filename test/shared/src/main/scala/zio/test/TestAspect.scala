@@ -292,6 +292,12 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) ignore else identity
 
   /**
+   * An aspect that runs tests on all platforms except GraalVM.
+   */
+  val exceptGraalVM: TestAspectAtLeastR[Annotations] =
+    if (TestPlatform.isGraalVM) ignore else identity
+
+  /**
    * An aspect that runs tests on all platforms except ScalaNative.
    */
   val exceptNative: TestAspectAtLeastR[Annotations] =
@@ -546,6 +552,20 @@ object TestAspect extends TimeoutVariants {
    */
   val jvmOnly: TestAspectAtLeastR[Annotations] =
     if (TestPlatform.isJVM) identity else ignore
+
+  /**
+   * An aspect that applies the specified aspect on GraalVM.
+   */
+  def graalVM[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (TestPlatform.isGraalVM) that else identity
+
+  /**
+   * An aspect that only runs tests on GraalVM.
+   */
+  val graalVMOnly: TestAspectAtLeastR[Annotations] =
+    if (TestPlatform.isGraalVM) identity else ignore
 
   /**
    * An aspect that runs only on operating systems accepted by the specified

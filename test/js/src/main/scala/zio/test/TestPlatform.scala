@@ -38,4 +38,10 @@ object TestPlatform {
    * Returns whether the current platform is Scala Native.
    */
   final val isNative = false
+
+  /**
+   * Returns whether the current platform is GraalVM native.
+   */
+  final val isGraalVM = false
+
 }

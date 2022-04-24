@@ -17,6 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import java.lang.{System => JSystem}
 
 /**
  * `TestPlatform` provides information about the platform tests are being run on
@@ -38,4 +39,12 @@ object TestPlatform {
    * Returns whether the current platform is Scala Native.
    */
   final val isNative = false
+
+  /**
+   * Returns whether the current platform is GraalVM native.
+   */
+  final val isGraalVM =
+    Option(JSystem.getProperty("java.vm.version")).exists(_.toLowerCase.contains("graalvm")) &&
+      Option(JSystem.getProperty("org.graalvm.nativeimage.imagecode")).contains("runtime")
+
 }
