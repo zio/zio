@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.AssertionM.RenderParam
+import zio.test.AssertionZIO.RenderParam
 import zio.{Cause, Exit, ZIO, ZTraceElement}
 
 import scala.reflect.ClassTag
@@ -31,11 +31,11 @@ import scala.util.{Failure, Success, Try}
 final class Assertion[-A] private (
   val render: Assertion.Render,
   val run: (=> A) => AssertResult
-) extends AssertionM[A]
+) extends AssertionZIO[A]
     with ((=> A) => AssertResult) { self =>
   import zio.test.Assertion.Render._
 
-  def runM: (=> A) => AssertResultM = a => BoolAlgebraM(ZIO.succeed(run(a))(ZTraceElement.empty))
+  def runZIO: (=> A) => AssertResultZIO = a => BoolAlgebraZIO(ZIO.succeed(run(a))(ZTraceElement.empty))
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
@@ -61,7 +61,7 @@ final class Assertion[-A] private (
   def apply(a: => A): AssertResult =
     run(a)
 
-  override def canEqual(that: AssertionM[_]): Boolean = that match {
+  override def canEqual(that: AssertionZIO[_]): Boolean = that match {
     case _: Assertion[_] => true
     case _               => false
   }
@@ -100,8 +100,8 @@ final class Assertion[-A] private (
 }
 
 object Assertion extends AssertionVariants {
-  type Render = AssertionM.Render
-  val Render = AssertionM.Render
+  type Render = AssertionZIO.Render
+  val Render = AssertionZIO.Render
   import Render._
 
   /**

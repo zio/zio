@@ -895,7 +895,7 @@ test("an expectation based on input arguments") {
 }
 ```
 
-### `valueM`
+### `valueZIO`
 
 Expecting a value based on the input arguments and also the result of an effectful operation:
 
@@ -908,7 +908,7 @@ test("effectful expectation") {
   val sut     = UserService.recentUsers(3)
   val mockEnv = MockUserService.RecentUsers(
     Assertion.isPositive,
-    Expectation.valueM(n =>
+    Expectation.valueZIO(n =>
       ZIO.foreach(1 to n) { n =>
         Random
           .nextUUID
@@ -977,7 +977,7 @@ test("failure expectation") {
 }
 ```
 
-There are also `failureF` and `failureM` variants like what we described for `value` expectation.
+There are also `failureF` and `failureZIO` variants like what we described for `value` expectation.
 
 ### `never`
 

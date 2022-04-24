@@ -52,8 +52,8 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionM[A]
+  private[test] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
+    assertion: AssertionZIO[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
 
   inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
@@ -61,7 +61,7 @@ trait CompileVariants {
   inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = 
     ${Macros.assert_impl('value)('assertion)}
 
-  inline def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] = ${Macros.assertM_impl('effect)('assertion)}
+  inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionZIO[A]): ZIO[R, E, TestResult] = ${Macros.assertZIO_impl('effect)('assertion)}
 
   private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
 }
@@ -81,8 +81,8 @@ object CompileVariants {
   )(implicit trace: ZTraceElement): TestResult =
     zio.test.assertImpl(value, Some(expression))(assertion)
 
-  def assertMProxy[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionM[A]
+  def assertZIOProxy[R, E, A](effect: ZIO[R, E, A])(
+    assertion: AssertionZIO[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
-    zio.test.assertMImpl(effect)(assertion)
+    zio.test.assertZIOImpl(effect)(assertion)
 }

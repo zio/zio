@@ -10,7 +10,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
   def spec = suite("AccessibleMSpec")(
     suite("AccessibleM macro")(
       test("compiles when applied to object with empty Service") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -20,7 +20,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("fails when applied to object without a Service") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module
@@ -28,7 +28,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("success when applied to trait") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             trait Module[F[_]]
@@ -36,7 +36,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("fails when applied to class") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             class Module[F[_]]
@@ -44,7 +44,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("fails when applied to object with Service without type param") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -54,7 +54,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("fails when applied to Service with Service without suitable type param") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -64,7 +64,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("fails when applied to Service with Service with multiple suitable type params") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -74,7 +74,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("fails when applied to non-ZIO type param") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[List]
             object Module {
@@ -84,7 +84,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("generates accessor for values") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -101,7 +101,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for functions") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -118,7 +118,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for varargs functions") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -135,7 +135,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("compiles when applied to method with simple return type") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -152,7 +152,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessors for members returning ZManaged") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[TaskManaged]
             object Module {
@@ -169,7 +169,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with default method implementations") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[Task]
              object Module {
@@ -189,7 +189,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with one type param other than F") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[Task]
              object Module {
@@ -224,7 +224,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with covariant type param") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[UIO]
              object Module {
@@ -241,7 +241,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with two type params and type bounds") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              trait Foo
              trait Bar
@@ -279,7 +279,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessors for ZIO capabilities") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -313,7 +313,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessors for ZManaged capabilities") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UManaged]
             object Module {
@@ -349,7 +349,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessors for method capabilities") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessibleM[UIO]
             object Module {
@@ -365,7 +365,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("preserves type constructor covariance") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[UIO]
              object Module {
@@ -389,7 +389,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("preserves Service covariance") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[UIO]
              object Module {
@@ -412,7 +412,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("preserves Service contravariance") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[UIO]
              object Module {
@@ -437,7 +437,7 @@ object AccessibleMSpec extends ZIOSpecDefault {
       // this test mimics the situation when covariant type appears in contravariant position
       // in reality, the code will not compile due to true variance check, but in tests `c.typecheck` doesn't check it
       test("fails when contravariant type appears in covariant position") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessibleM[UIO]
              object Module {

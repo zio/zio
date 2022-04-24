@@ -28,7 +28,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  def sendSummary(implicit trace: ZTraceElement): SendSummary = SendSummary.fromSendM(summary =>
+  def sendSummary(implicit trace: ZTraceElement): SendSummary = SendSummary.fromSendZIO(summary =>
     ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()

@@ -11,11 +11,11 @@ object TQueueSpec extends ZIOBaseSpec {
       test("bounded") {
         val capacity = 5
         val tq       = TQueue.bounded[Int](capacity).map(_.capacity)
-        assertM(tq.commit)(equalTo(capacity))
+        assertZIO(tq.commit)(equalTo(capacity))
       },
       test("unbounded") {
         val tq = TQueue.unbounded[Int].map(_.capacity)
-        assertM(tq.commit)(equalTo(Int.MaxValue))
+        assertZIO(tq.commit)(equalTo(Int.MaxValue))
       }
     ),
     suite("insertion and removal")(
@@ -29,7 +29,7 @@ object TQueueSpec extends ZIOBaseSpec {
           two   <- tq.take
           three <- tq.take
         } yield List(one, two, three)
-        assertM(tx.commit)(equalTo(List(1, 2, 3)))
+        assertZIO(tx.commit)(equalTo(List(1, 2, 3)))
       },
       test("takeUpTo") {
         val tx = for {
@@ -38,7 +38,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.takeUpTo(3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
+        assertZIO(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
       },
       test("offerAll & takeAll") {
         val tx = for {
@@ -46,7 +46,7 @@ object TQueueSpec extends ZIOBaseSpec {
           _   <- tq.offerAll(List(1, 2, 3, 4, 5))
           ans <- tq.takeAll
         } yield ans
-        assertM(tx.commit)(equalTo(Chunk(1, 2, 3, 4, 5)))
+        assertZIO(tx.commit)(equalTo(Chunk(1, 2, 3, 4, 5)))
       },
       test("takeUpTo") {
         val tx = for {
@@ -55,7 +55,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.takeUpTo(3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
+        assertZIO(tx.commit)(equalTo((Chunk(1, 2, 3), 2)))
       },
       test("takeUpTo larger than container") {
         val tx = for {
@@ -64,7 +64,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.takeUpTo(7)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((Chunk(1, 2, 3, 4, 5), 0)))
+        assertZIO(tx.commit)(equalTo((Chunk(1, 2, 3, 4, 5), 0)))
       },
       test("poll value") {
         val tx = for {
@@ -72,14 +72,14 @@ object TQueueSpec extends ZIOBaseSpec {
           _   <- tq.offerAll(List(1, 2, 3))
           ans <- tq.poll
         } yield ans
-        assertM(tx.commit)(isSome(equalTo(1)))
+        assertZIO(tx.commit)(isSome(equalTo(1)))
       },
       test("poll empty queue") {
         val tx = for {
           tq  <- TQueue.bounded[Int](5)
           ans <- tq.poll
         } yield ans
-        assertM(tx.commit)(isNone)
+        assertZIO(tx.commit)(isNone)
       },
       test("seek element") {
         val tx = for {
@@ -88,7 +88,7 @@ object TQueueSpec extends ZIOBaseSpec {
           ans  <- tq.seek(_ == 3)
           size <- tq.size
         } yield (ans, size)
-        assertM(tx.commit)(equalTo((3, 2)))
+        assertZIO(tx.commit)(equalTo((3, 2)))
       }
     ),
     suite("lookup")(
@@ -98,7 +98,7 @@ object TQueueSpec extends ZIOBaseSpec {
           _    <- tq.offerAll(List(1, 2, 3, 4, 5))
           size <- tq.size
         } yield size
-        assertM(tx.commit)(equalTo(5))
+        assertZIO(tx.commit)(equalTo(5))
       },
       test("peek the next value") {
         val tx = for {
@@ -107,7 +107,7 @@ object TQueueSpec extends ZIOBaseSpec {
           next <- tq.peek
           size <- tq.size
         } yield (next, size)
-        assertM(tx.commit)(equalTo((1, 5)))
+        assertZIO(tx.commit)(equalTo((1, 5)))
       },
       test("peekOption value") {
         val tx = for {
@@ -116,14 +116,14 @@ object TQueueSpec extends ZIOBaseSpec {
           next <- tq.peekOption
           size <- tq.size
         } yield (next, size)
-        assertM(tx.commit)(equalTo((Some(1), 5)))
+        assertZIO(tx.commit)(equalTo((Some(1), 5)))
       },
       test("peekOption empty queue") {
         val tx = for {
           tq   <- TQueue.bounded[Int](5)
           next <- tq.peekOption
         } yield next
-        assertM(tx.commit)(isNone)
+        assertZIO(tx.commit)(isNone)
       },
       test("check isEmpty") {
         val tx = for {
@@ -133,7 +133,7 @@ object TQueueSpec extends ZIOBaseSpec {
           qb1 <- tq1.isEmpty
           qb2 <- tq2.isEmpty
         } yield (qb1, qb2)
-        assertM(tx.commit)(equalTo((false, true)))
+        assertZIO(tx.commit)(equalTo((false, true)))
       },
       test("check isFull") {
         val tx = for {
@@ -143,7 +143,7 @@ object TQueueSpec extends ZIOBaseSpec {
           qb1 <- tq1.isFull
           qb2 <- tq2.isFull
         } yield (qb1, qb2)
-        assertM(tx.commit)(equalTo((true, false)))
+        assertZIO(tx.commit)(equalTo((true, false)))
       }
     )
   )

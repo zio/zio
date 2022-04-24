@@ -15,16 +15,16 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
   def spec =
     suite("SummaryBuilderSpec")(
       test("doesn't generate summary for a successful test") {
-        assertM(runSummary(test1))(equalTo(""))
+        assertZIO(runSummary(test1))(equalTo(""))
       },
       test("includes a failed test") {
         runSummary(test3).map(str => assertTrue(str == summarize(test3Expected)))
       },
       test("doesn't generate summary for a successful test suite") {
-        assertM(runSummary(suite1))(equalTo(""))
+        assertZIO(runSummary(suite1))(equalTo(""))
       },
       test("correctly reports failed test suite") {
-        assertM(runSummary(suite2))(equalTo(summarize(suite2Expected)))
+        assertZIO(runSummary(suite2))(equalTo(summarize(suite2Expected)))
       },
       test("correctly reports multiple test suites") {
         runSummary(suite3).map(str => assertTrue(str == summarize(suite3Expected)))

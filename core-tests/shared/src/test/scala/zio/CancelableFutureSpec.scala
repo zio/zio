@@ -26,7 +26,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         val result = roundtrip.orDie.as(0)
 
-        assertM(Live.live(result))(equalTo(0))
+        assertZIO(Live.live(result))(equalTo(0))
       } @@ nonFlaky @@ zioTag(supervision, regression),
       test("auto-kill regression 2") {
         val effect = Clock.nanoTime.map(_.toString()).delay(10.millisecond)
@@ -38,7 +38,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         val result = roundtrip.orDie.forever
 
-        assertM(Live.live(result.timeout(1.seconds)))(isNone)
+        assertZIO(Live.live(result.timeout(1.seconds)))(isNone)
       } @@ zioTag(supervision, regression),
       test("unsafeRunToFuture interruptibility") {
         for {
