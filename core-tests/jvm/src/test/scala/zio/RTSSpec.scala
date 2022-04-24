@@ -27,7 +27,7 @@ object RTSSpec extends ZIOBaseSpec {
           accum <- Ref.make(Set.empty[Thread])
           b     <- runAndTrack(accum).repeatUntil(_ == true)
         } yield b
-      assertM(Live.live(io))(isTrue)
+      assertZIO(Live.live(io))(isTrue)
     },
     test("blocking IO is effect blocking") {
       for {
@@ -55,7 +55,7 @@ object RTSSpec extends ZIOBaseSpec {
           result <- release.await
         } yield result == 42
 
-      assertM(io)(isTrue)
+      assertZIO(io)(isTrue)
     } @@ nonFlaky,
     test("Fiber dump looks correct") {
       for {
@@ -91,7 +91,7 @@ object RTSSpec extends ZIOBaseSpec {
           exitValue  <- exitLatch.await
         } yield (startValue + exitValue) == 42
 
-      assertM(io)(isTrue)
+      assertZIO(io)(isTrue)
     } @@ zioTag(interruption) @@ nonFlaky,
     test("deadlock regression 1") {
       import java.util.concurrent.Executors
@@ -108,7 +108,7 @@ object RTSSpec extends ZIOBaseSpec {
         }
       }
 
-      assertM(ZIO.attempt(e.shutdown()))(isUnit)
+      assertZIO(ZIO.attempt(e.shutdown()))(isUnit)
     } @@ zioTag(regression),
     test("second callback call is ignored") {
       for {
@@ -140,7 +140,7 @@ object RTSSpec extends ZIOBaseSpec {
                  .repeatUntil(_ >= 1) <* f.interrupt
         } yield c
 
-      assertM(Live.live(zio))(isGreaterThanEqualTo(1))
+      assertZIO(Live.live(zio))(isGreaterThanEqualTo(1))
     } @@ zioTag(interruption, regression)
   )
 }

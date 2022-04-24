@@ -104,7 +104,7 @@ class TReentrantLockBenchmark {
   def zioLockRead(): Unit = {
     val io = for {
       lock <- zioLock
-      _    <- ZIO.scoped(lock.readLock *> doWorkM())
+      _    <- ZIO.scoped(lock.readLock *> doWorkZIO())
     } yield ()
 
     unsafeRun(io)
@@ -114,7 +114,7 @@ class TReentrantLockBenchmark {
   def zioLockWrite(): Unit = {
     val io = for {
       lock <- zioLock
-      _    <- ZIO.scoped(lock.writeLock.flatMap(_ => doWorkM()))
+      _    <- ZIO.scoped(lock.writeLock.flatMap(_ => doWorkZIO()))
     } yield ()
 
     unsafeRun(io)
@@ -141,7 +141,7 @@ class TReentrantLockBenchmark {
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-  def doWorkM(): UIO[Unit] = ZIO.succeed(doWork())
+  def doWorkZIO(): UIO[Unit] = ZIO.succeed(doWork())
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
   def doWork(): Unit = Blackhole.consumeCPU(100L)

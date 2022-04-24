@@ -37,23 +37,23 @@ object AssertionData {
     }
 }
 
-sealed abstract class AssertionMData {
+sealed abstract class AssertionZIOData {
   type Value
   def value: Value
-  val assertion: AssertionM[Value]
+  val assertion: AssertionZIO[Value]
 
   lazy val asFailure: AssertResult = BoolAlgebra.failure(AssertionValue(assertion, value, result = asFailure))
   lazy val asSuccess: AssertResult = BoolAlgebra.success(AssertionValue(assertion, value, result = asSuccess))
 
-  def asFailureM(implicit trace: ZTraceElement): AssertResultM = BoolAlgebraM(ZIO.succeed(asFailure))
-  def asSuccessM(implicit trace: ZTraceElement): AssertResultM = BoolAlgebraM(ZIO.succeed(asSuccess))
+  def asFailureZIO(implicit trace: ZTraceElement): AssertResultZIO = BoolAlgebraZIO(ZIO.succeed(asFailure))
+  def asSuccessZIO(implicit trace: ZTraceElement): AssertResultZIO = BoolAlgebraZIO(ZIO.succeed(asSuccess))
 }
 
-object AssertionMData {
-  def apply[A](assertion0: AssertionM[A], value0: => A): AssertionMData =
-    new AssertionMData {
+object AssertionZIOData {
+  def apply[A](assertion0: AssertionZIO[A], value0: => A): AssertionZIOData =
+    new AssertionZIOData {
       type Value = A
-      lazy val value: Value            = value0
-      val assertion: AssertionM[Value] = assertion0
+      lazy val value: Value              = value0
+      val assertion: AssertionZIO[Value] = assertion0
     }
 }

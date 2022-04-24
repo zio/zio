@@ -1659,7 +1659,7 @@ import zio.test._
 suite("Ref") {
   test("updateAndGet") {
     val result = Ref.make(0).flatMap(_.updateAndGet(_ + 1))
-    assertM(result)(Assertion.equalTo(1))
+    assertZIO(result)(Assertion.equalTo(1))
   }
 }
 ```

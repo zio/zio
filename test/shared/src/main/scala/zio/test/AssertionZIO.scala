@@ -23,39 +23,39 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 /**
- * An `AssertionM[A]` is capable of producing assertion results on an `A`. As a
- * proposition, assertions compose using logical conjunction and disjunction,
+ * An `AssertionZIO[A]` is capable of producing assertion results on an `A`. As
+ * a proposition, assertions compose using logical conjunction and disjunction,
  * and can be negated.
  */
-abstract class AssertionM[-A] { self =>
-  import zio.test.AssertionM.Render._
+abstract class AssertionZIO[-A] { self =>
+  import zio.test.AssertionZIO.Render._
 
-  def render: AssertionM.Render
-  def runM: (=> A) => AssertResultM
+  def render: AssertionZIO.Render
+  def runZIO: (=> A) => AssertResultZIO
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
    */
-  def &&[A1 <: A](that: => AssertionM[A1])(implicit trace: ZTraceElement): AssertionM[A1] =
-    AssertionM(infix(param(self), "&&", param(that)), actual => self.runM(actual) && that.runM(actual))
+  def &&[A1 <: A](that: => AssertionZIO[A1])(implicit trace: ZTraceElement): AssertionZIO[A1] =
+    AssertionZIO(infix(param(self), "&&", param(that)), actual => self.runZIO(actual) && that.runZIO(actual))
 
   /**
    * A symbolic alias for `label`.
    */
-  def ??(string: String): AssertionM[A] =
+  def ??(string: String): AssertionZIO[A] =
     label(string)
 
   /**
    * Returns a new assertion that succeeds if either assertion succeeds.
    */
-  def ||[A1 <: A](that: => AssertionM[A1])(implicit trace: ZTraceElement): AssertionM[A1] =
-    AssertionM(infix(param(self), "||", param(that)), actual => self.runM(actual) || that.runM(actual))
+  def ||[A1 <: A](that: => AssertionZIO[A1])(implicit trace: ZTraceElement): AssertionZIO[A1] =
+    AssertionZIO(infix(param(self), "||", param(that)), actual => self.runZIO(actual) || that.runZIO(actual))
 
-  def canEqual(that: AssertionM[_]): Boolean = that != null
+  def canEqual(that: AssertionZIO[_]): Boolean = that != null
 
   override def equals(that: Any): Boolean = that match {
-    case that: AssertionM[_] if that.canEqual(this) => this.toString == that.toString
-    case _                                          => false
+    case that: AssertionZIO[_] if that.canEqual(this) => this.toString == that.toString
+    case _                                            => false
   }
 
   override def hashCode: Int =
@@ -64,14 +64,14 @@ abstract class AssertionM[-A] { self =>
   /**
    * Labels this assertion with the specified string.
    */
-  def label(string: String): AssertionM[A] =
-    AssertionM(infix(param(self), "??", param(quoted(string))), runM)
+  def label(string: String): AssertionZIO[A] =
+    AssertionZIO(infix(param(self), "??", param(quoted(string))), runZIO)
 
   /**
    * Returns the negation of this assertion.
    */
-  def negate(implicit trace: ZTraceElement): AssertionM[A] =
-    AssertionM.not(self)
+  def negate(implicit trace: ZTraceElement): AssertionZIO[A] =
+    AssertionZIO.not(self)
 
   /**
    * Provides a meaningful string rendering of the assertion.
@@ -80,12 +80,12 @@ abstract class AssertionM[-A] { self =>
     render.toString
 }
 
-object AssertionM {
-  import zio.test.AssertionM.Render._
+object AssertionZIO {
+  import zio.test.AssertionZIO.Render._
 
-  def apply[A](_render: Render, _runM: (=> A) => AssertResultM): AssertionM[A] = new AssertionM[A] {
-    val render: Render                = _render
-    val runM: (=> A) => AssertResultM = _runM
+  def apply[A](_render: Render, _runZIO: (=> A) => AssertResultZIO): AssertionZIO[A] = new AssertionZIO[A] {
+    val render: Render                    = _render
+    val runZIO: (=> A) => AssertResultZIO = _runZIO
   }
 
   /**
@@ -137,10 +137,10 @@ object AssertionM {
       Render.Infix(left, op, right)
 
     /**
-     * Construct a `RenderParam` from an `AssertionM`.
+     * Construct a `RenderParam` from an `AssertionZIO`.
      */
-    def param[A](assertion: AssertionM[A]): RenderParam =
-      RenderParam.AssertionM(assertion)
+    def param[A](assertion: AssertionZIO[A]): RenderParam =
+      RenderParam.AssertionZIO(assertion)
 
     /**
      * Construct a `RenderParam` from a value.
@@ -163,61 +163,61 @@ object AssertionM {
 
   sealed abstract class RenderParam {
     override final def toString: String = this match {
-      case RenderParam.AssertionM(assertion) => assertion.toString
-      case RenderParam.Value(value)          => value.toString
+      case RenderParam.AssertionZIO(assertion) => assertion.toString
+      case RenderParam.Value(value)            => value.toString
     }
   }
   object RenderParam {
-    final case class AssertionM[A](assertion: zio.test.AssertionM[A]) extends RenderParam
-    final case class Value(value: Any)                                extends RenderParam
+    final case class AssertionZIO[A](assertion: zio.test.AssertionZIO[A]) extends RenderParam
+    final case class Value(value: Any)                                    extends RenderParam
   }
 
   /**
-   * Makes a new `AssertionM` from a pretty-printing and a function.
+   * Makes a new `AssertionZIO` from a pretty-printing and a function.
    */
-  def assertionM[R, E, A](
+  def assertionZIO[R, E, A](
     name: String
-  )(params: RenderParam*)(run: (=> A) => UIO[Boolean])(implicit trace: ZTraceElement): AssertionM[A] = {
-    lazy val assertion: AssertionM[A] = assertionDirect(name)(params: _*) { actual =>
+  )(params: RenderParam*)(run: (=> A) => UIO[Boolean])(implicit trace: ZTraceElement): AssertionZIO[A] = {
+    lazy val assertion: AssertionZIO[A] = assertionDirect(name)(params: _*) { actual =>
       lazy val tryActual = Try(actual)
-      BoolAlgebraM.fromZIO(run(tryActual.get)).flatMap { p =>
+      BoolAlgebraZIO.fromZIO(run(tryActual.get)).flatMap { p =>
         lazy val result: AssertResult =
           if (p) BoolAlgebra.success(AssertionValue(assertion, tryActual.get, result))
           else BoolAlgebra.failure(AssertionValue(assertion, tryActual.get, result))
-        BoolAlgebraM(ZIO.succeed(result))
+        BoolAlgebraZIO(ZIO.succeed(result))
       }
     }
     assertion
   }
 
   /**
-   * Makes a new `AssertionM` from a pretty-printing and a function.
+   * Makes a new `AssertionZIO` from a pretty-printing and a function.
    */
   def assertionDirect[A](
     name: String
-  )(params: RenderParam*)(run: (=> A) => AssertResultM): AssertionM[A] =
-    AssertionM(function(name, List(params.toList)), run)
+  )(params: RenderParam*)(run: (=> A) => AssertResultZIO): AssertionZIO[A] =
+    AssertionZIO(function(name, List(params.toList)), run)
 
-  def assertionRecM[R, E, A, B](
+  def assertionRecZIO[R, E, A, B](
     name: String
   )(params: RenderParam*)(
-    assertion: AssertionM[B]
+    assertion: AssertionZIO[B]
   )(
     get: (=> A) => ZIO[Any, Nothing, Option[B]],
-    orElse: AssertionMData => AssertResultM = _.asFailureM(ZTraceElement.empty)
-  )(implicit trace: ZTraceElement): AssertionM[A] = {
-    lazy val resultAssertion: AssertionM[A] = assertionDirect(name)(params: _*) { a =>
+    orElse: AssertionZIOData => AssertResultZIO = _.asFailureZIO(ZTraceElement.empty)
+  )(implicit trace: ZTraceElement): AssertionZIO[A] = {
+    lazy val resultAssertion: AssertionZIO[A] = assertionDirect(name)(params: _*) { a =>
       lazy val tryA = Try(a)
-      BoolAlgebraM.fromZIO(get(tryA.get)).flatMap {
+      BoolAlgebraZIO.fromZIO(get(tryA.get)).flatMap {
         case Some(b) =>
-          BoolAlgebraM(assertion.runM(b).run.map { p =>
+          BoolAlgebraZIO(assertion.runZIO(b).run.map { p =>
             lazy val result: AssertResult =
               if (p.isSuccess) BoolAlgebra.success(AssertionValue(resultAssertion, tryA.get, result))
               else BoolAlgebra.failure(AssertionValue(assertion, b, p))
             result
           })
         case None =>
-          orElse(AssertionMData(resultAssertion, tryA.get))
+          orElse(AssertionZIOData(resultAssertion, tryA.get))
       }
     }
     resultAssertion
@@ -226,7 +226,7 @@ object AssertionM {
   /**
    * Makes a new assertion that negates the specified assertion.
    */
-  def not[A](assertion: AssertionM[A])(implicit trace: ZTraceElement): AssertionM[A] =
-    AssertionM.assertionDirect("not")(param(assertion))(!assertion.runM(_))
+  def not[A](assertion: AssertionZIO[A])(implicit trace: ZTraceElement): AssertionZIO[A] =
+    AssertionZIO.assertionDirect("not")(param(assertion))(!assertion.runZIO(_))
 
 }
