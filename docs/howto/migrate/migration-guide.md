@@ -13,7 +13,7 @@ Before you migrate your own codebase, confirm that all of your ZIO-related depen
 
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
-ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
+ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
 1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://zio-ecosystem.herokuapp.com/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
 
@@ -126,7 +126,7 @@ object MainApp extends ZIOAppDefault {
 
 The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
 
-For example, in the ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
+For example, in ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
 
 ```scala
 val userRepo: ZLayer[Has[Logging] with Has[Random] with Has[Database], Throwable, Has[UserRepo]] = ???
@@ -144,7 +144,7 @@ trait Logging
 val userRepo: ZLayer[Logging with Random with Database, Throwable, UserRepo] = ???
 ```
 
-Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into the ZIO. Let's see how this changes the way we can provide a service to the environment.
+Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into ZIO. Let's see how this changes the way we can provide a service to the environment.
 
 Using the following code snippet, we demonstrate how we used to access and provide instances of `Config` service to the application environment using ZIO 1.x:
 
@@ -301,6 +301,8 @@ Here are some of the most important changes:
 |                                |                                   |
 | `ZIO.validate_`                | `ZIO.validateDiscard`             |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`          |
+|                                |                                   |
+| `ZIO.tapCause`                 | `ZIO.tapErrorCause`               |
 
 ### Lazy Evaluation of Parameters
 
@@ -325,7 +327,7 @@ The newbie user expects that this program prints 3 different random numbers, whi
 1085597917
 ```
 
-This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acuqire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
+This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acquire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
 
 ```scala
 def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
@@ -1262,39 +1264,20 @@ As we see, we have the following changes:
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
-   We also have accessor methods on the fly, by extending the companion object of the service interface with `Accessible`, e.g. `object Logging extends Accessible[Logging]`. So then we can simply access the `log` method by calling the `Logging(_.log(line))` method:
-   
-    ```scala mdoc:silent:nest
-    trait Logging {
-      def log(line: String): UIO[Unit]
-    }
-    
-    object Logging extends Accessible[Logging]
-    
-    def log(line: String): ZIO[Logging with Clock, Nothing, Unit] =
-      for {
-        clock <- ZIO.service[Clock]
-        now   <- clock.localDateTime
-        _     <- Logging(_.log(s"$now-$line"))
-      } yield ()
-    ```
-
-While Scala 3 doesn't support macro annotation like, so instead of using `@accessible`, the `Accessible` trait is a macro-less approach to create accessor methods specially for Scala 3 users.
-
 The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The _Service Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
 ### Other Changes
 
 Here is list of other deprecated methods:
 
-| ZIO 1.x                             | ZIO 2.x                               |
-|-------------------------------------|---------------------------------------|
+| ZIO 1.x                    | ZIO 2.x                      |
+|----------------------------|------------------------------|
 | `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
 | `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
-| `ZLayer.identity`          | `ZLayer.environment`         |
-| `ZLayer.requires`          | `ZLayer.environment`         |
+| `ZLayer.identity`          | `ZLayer.service`             |
+| `ZLayer.requires`          | `ZLayer.service`             |
 
 ## Scopes
 
@@ -1544,6 +1527,20 @@ libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
 
 And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
 
+## Simplification of Concurrent Data Types
+
+Even though highly polymorphic versions of ZIO concurrent data structures (e.g. `ZRef`, `ZQueue`) were elegant, they were used rarely. There was also some cost associated with polymorphism, such as errors, readability, and maintainability.
+
+Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
+
+| ZIO 1.x (removed)                   | ZIO 2.x              |
+|-------------------------------------|----------------------|
+|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
+|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
+|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
+|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
+|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
+
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
@@ -1556,9 +1553,9 @@ As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subt
 
 To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
-| ZIO 1.x                  | ZIO 2.x                                 |
-|--------------------------|-----------------------------------------|
-| `RefM#dequeueRef`       | `Ref.Synchronized#SubscriptionRef`     |
+| ZIO 1.x                 | ZIO 2.x                                |
+|-------------------------|----------------------------------------|
+| `RefM#dequeueRef`       | `zio.stream.SubscriptionRef#changes`   |
 | `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
 | `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
 | `RefM#modify`           | `Ref.Synchronized#modifyZIO`           |
@@ -1662,7 +1659,7 @@ import zio.test._
 suite("Ref") {
   test("updateAndGet") {
     val result = Ref.make(0).flatMap(_.updateAndGet(_ + 1))
-    assertM(result)(Assertion.equalTo(1))
+    assertZIO(result)(Assertion.equalTo(1))
   }
 }
 ```
@@ -1734,7 +1731,7 @@ val bigSuite = fooSuite + barSuite + bazSuite
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
 
-So far, before ZIO 2.0, the ZIO Stream has included three main abstractions:
+So far, before ZIO 2.0, ZIO Stream has included three main abstractions:
 1. **`ZStream`** — represents the source of elements
 2. **`ZSink`** — represents consumers of elements that can be composed together to create composite consumers
 3. **`ZTransducer`** — represents generalized stateful and effectful stream processing
@@ -1925,7 +1922,7 @@ ZStream.from(ZIO.succeed(List(1,2,3)))
 
 ### ZState
 
-`ZState` is a new data type that the ZIO 2.0 introduced:
+`ZState` is a new data type that ZIO 2.0 introduced:
 
 ```scala
 sealed trait ZState[S] {
@@ -2057,7 +2054,7 @@ ZIO Logging calculates the running duration of that span and includes that in th
 
 ### Compile-time Execution Tracing
 
-ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that it not helpful to the user is understanding where in their code an error occurred.
+ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that is not helpful to the user is understanding where in their code an error occurred.
 
 Let's say we have the following application, in ZIO 1.x:
 
@@ -2149,7 +2146,7 @@ object TracingExample extends ZIOAppDefault {
 }
 ```
 
-The output is more descriptive than the ZIO 1.x. It is similar to the Java stacktrace:
+The output is more descriptive than in ZIO 1.x. It is similar to the Java stacktrace:
 
 ```
 Hello!
@@ -2161,7 +2158,7 @@ timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-163990230
 
 As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
 
-In ZIO 2.x, the tracing is not optional, and unlike the ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
+In ZIO 2.x, the tracing is not optional, and unlike in ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
 
 Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
 

@@ -1260,15 +1260,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     }
 
   /**
-   * Provides the `ZIO` effect with the single service it requires. If the
-   * effect requires multiple services use `provideEnvironment` instead.
-   */
-  final def provideService[Service <: R](
-    service: => Service
-  )(implicit tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Transforms the environment being provided to this effect with the specified
    * function.
    */
@@ -2486,18 +2477,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
-   * When this effect represents acquisition of a resource (for example, opening
-   * a file, launching a thread, etc.), `acquireReleaseWith` can be used to
-   * ensure the acquisition is not interrupted and the resource is always
+   * Given an effect representing acquisition of a resource (for example,
+   * opening a file, launching a thread, etc.), `acquireReleaseWith` can be used
+   * to ensure the acquisition is not interrupted and the resource is always
    * released.
    *
    * The function does two things:
    *
-   *   1. Ensures this effect, which acquires the resource, will not be
-   *      interrupted. Of course, acquisition may fail for internal reasons (an
-   *      uncaught exception). 2. Ensures the `release` effect will not be
-   *      interrupted, and will be executed so long as this effect successfully
-   *      acquires the resource.
+   *   1. Ensures this `acquire` effect will not be interrupted. Of course,
+   *      acquisition may fail for internal reasons (an uncaught exception).
+   *
+   *   1. Ensures the `release` effect will not be interrupted, and will be
+   *      executed so long as this effect successfully acquires the resource.
    *
    * In between acquisition and release of the resource, the `use` effect is
    * executed.
@@ -2507,7 +2498,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * produced by the `release` effect can be caught and ignored.
    *
    * {{{
-   * openFile("data.json").acquireReleaseWith(closeFile) { file =>
+   * ZIO.acquireReleaseWith(openFile("data.json"))(closeFile) { file =>
    *   for {
    *     header <- readHeader(file)
    *     ...

@@ -2,38 +2,11 @@ package zio.test
 
 import zio._
 
-object AMinimalSpec extends ZIOSpecDefault {
-
-  override def spec = suite("ASpec")(
-    test("test before delay") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
-    },
-    test("test after delay") {
-      Live.live(ZIO.sleep(3.second)).map(_ => assertTrue(true))
-    },
-    test("test after big delay") {
-      Live.live(ZIO.sleep(5.second)).map(_ => assertTrue(true))
-    }
-  ) @@ TestAspect.ignore
-
-}
-
-object BMinimalSpec extends ZIOSpecDefault {
-  override def spec = suite("BSpec")(
-    test("B 1") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
-    },
-    test("B 2") {
-      Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
-    }
-  ) @@ TestAspect.ignore
-}
-
 object MultiCMinimalSpec extends ZIOSpecDefault {
   override def spec = suite("MultiSpec")(
     suite("fast inner suite")(
       test("fast test 1") {
-        assertTrue(true)
+        assertTrue(false)
       },
       test("fast test 2") {
         assertTrue(true)
@@ -55,11 +28,6 @@ object SmallMinimalSpec extends ZIOSpecDefault {
     suite("fast inner suite")(
       test("fast test 1") {
         assertTrue(true)
-      }
-    ),
-    suite("slow suite")(
-      test("slow 1") {
-        Live.live(ZIO.sleep(1.second)).map(_ => assertTrue(true))
       }
     )
   ) @@ TestAspect.ignore
@@ -92,12 +60,4 @@ object SlowMinimalSpec extends ZIOSpecDefault {
       }
     )
   ) @@ TestAspect.ignore
-}
-
-object SingleMinimalSpec extends ZIOSpecDefault {
-  override def spec =
-    test("Single spec not in a suite") {
-      Live.live(ZIO.sleep(2.second)).map(_ => assertTrue(true))
-    } @@ TestAspect.ignore
-
 }

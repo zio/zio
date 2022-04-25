@@ -22,7 +22,7 @@ import zio.{Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
-sealed abstract class ZTestRunner(
+sealed abstract class ZTestRunnerNative(
   val args: Array[String],
   val remoteArgs: Array[String],
   testClassLoader: ClassLoader,
@@ -59,7 +59,7 @@ sealed abstract class ZTestRunner(
 }
 
 final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
-    extends ZTestRunner(args, remoteArgs, testClassLoader, "master") {
+    extends ZTestRunnerNative(args, remoteArgs, testClassLoader, "master") {
 
   //This implementation seems to be used when there's only single spec to run
   override val sendSummary: SendSummary = SendSummary.fromSend { summary =>
@@ -74,7 +74,7 @@ final class ZSlaveTestRunner(
   remoteArgs: Array[String],
   testClassLoader: ClassLoader,
   val sendSummary: SendSummary
-) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
+) extends ZTestRunnerNative(args, remoteArgs, testClassLoader, "slave") {}
 
 sealed class ZTestTask(
   taskDef: TaskDef,
@@ -83,7 +83,7 @@ sealed class ZTestTask(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
   def execute(continuation: Array[Task] => Unit): Unit =
     Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRunAsyncWith {
@@ -94,9 +94,9 @@ sealed class ZTestTask(
                        .onError(e => ZIO.succeed(println(e.prettyPrint)))
                    }
         _ <- sendSummary.provide(ZLayer.succeed(summary))
-        _ <- (if (summary.fail > 0)
-                ZIO.fail(new Exception("Failed tests."))
-              else ZIO.unit)
+        _ <- ZIO.when(summary.status == Summary.Failure)(
+               ZIO.fail(new Exception("Failed tests."))
+             )
       } yield ()
 
     } { exit =>

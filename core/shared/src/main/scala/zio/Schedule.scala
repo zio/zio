@@ -713,16 +713,6 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule with the single service it requires provided to it.
-   * If the schedule requires multiple services use `provideEnvironment`
-   * instead.
-   */
-  def provideService[Service <: Env](
-    service: Service
-  )(implicit tag: Tag[Service]): Schedule.WithState[self.State, Any, In, Out] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Transforms the environment being provided to this schedule with the
    * specified function.
    */

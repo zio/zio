@@ -45,7 +45,7 @@ private[managed] trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E
 
 }
 
-private final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
+final class ProvideSomeLayerManagedPartiallyApplied[R0, -R, +E, +A](
   val self: ZManaged[R, E, A]
 ) extends AnyVal {
 

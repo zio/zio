@@ -716,7 +716,7 @@ import zio.test.{ test, _ }
 test("customized number of samples") {
   for {
     ref <- Ref.make(0)
-    _ <- check(Gen.int)(_ => assertM(ref.update(_ + 1))(Assertion.anything))
+    _ <- check(Gen.int)(_ => assertZIO(ref.update(_ + 1))(Assertion.anything))
     value <- ref.get
   } yield assertTrue(value == 50)
 } @@ TestAspect.samples(50)
