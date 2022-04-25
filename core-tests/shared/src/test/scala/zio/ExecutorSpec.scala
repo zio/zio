@@ -72,10 +72,10 @@ object ExecutorSpec extends ZIOBaseSpec {
         assert(Executor.fromExecutionContext(1)(TestExecutor.ec).unsafeSubmit(TestExecutor.runnable))(
           not(throwsA[RejectedExecutionException])
         )
+      },
+      test("When converted to Java, it accepts Runnables") {
+        assert(TestExecutor.y.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
       }
-//      test("When converted to Java, it accepts Runnables") {
-//        assert(TestExecutor.y.asJava.execute(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
-//      }
     ),
     suite("Create an unyielding executor and check that:")(
       test("Runnables can be submitted") {

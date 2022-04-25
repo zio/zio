@@ -1679,7 +1679,7 @@ val option = Option.empty[Int]
 
 suite("ZIO 1.x Test Assertions")(
   test("contains")(assert(list)(Assertion.contains(5))),
-  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")()(actual => actual % 2 == 0)))),
+  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")(actual => actual % 2 == 0)))),
   test("less than")(assert(number)(Assertion.isLessThan(0))),
   test("isSome")(assert(option)(Assertion.equalTo(Some(3))))
 )

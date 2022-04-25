@@ -12,6 +12,7 @@ import scala.util.Try
 // zio.test.DefaultTestReporterSpec
 // zio.test.TestAspectSpec
 final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
+
   def &&[A1 <: A](that: Assertion[A1]): Assertion[A1] =
     Assertion(arrow && that.arrow)
 
@@ -68,7 +69,7 @@ object Assertion extends AssertionVariants {
   }
 
   /**
-   * Makes a new `OldAssertion` from a pretty-printing and a function.
+   * Makes a new `Assertion` from a function.
    */
   def assertion[A](name: String)(run: (=> A) => Boolean): Assertion[A] =
     Assertion(
@@ -87,7 +88,7 @@ object Assertion extends AssertionVariants {
   // val hasLengthGreaterThan10 = assertion[String](_.length > 10)
   // assertTrue(hasLengthGreaterThan10("hello"))
 
-  // ASSERTIONS
+  // # ASSERTIONS
 
   /**
    * Makes a new assertion that always succeeds.

@@ -46,7 +46,7 @@ object DefaultTestReporter {
     includeCause: Boolean
   )(implicit trace: ZTraceElement): Seq[ExecutionResult] = // This should return a single/Option ExecutionResult now.
     reporterEvent match {
-      case SectionStart(labelsReversed, _, ancestors) =>
+      case SectionStart(labelsReversed, _, _) =>
         val depth = labelsReversed.length - 1
         labelsReversed.reverse match {
           case Nil => Seq.empty
@@ -170,9 +170,8 @@ object DefaultTestReporter {
     rendered(Suite, label, Passed, offset, fr(label).toLine)
 
   def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
-    val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
-    val summaryLabel   = labels.mkString(" - ")
-//    result.fold { details =>
+    val streamingLabel           = labels.lastOption.getOrElse("Top-level defect prevented test execution")
+    val summaryLabel             = labels.mkString(" - ")
     val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result).lines.toList
     val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result).lines.toList
     renderedWithSummary(
@@ -183,11 +182,6 @@ object DefaultTestReporter {
       streamingRenderedFailure,
       summaryRenderedFailure
     )
-//    }(
-//      _ && _,
-//      _ || _,
-//      !_
-//    )
   }
 
   private def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit

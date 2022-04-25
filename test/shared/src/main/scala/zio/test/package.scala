@@ -34,7 +34,7 @@ import scala.language.implicitConversions
  * {{{
  *   import zio.test._
  *   import zio.Clock.nanoTime
- *   import OldAssertion.isGreaterThan
+ *   import Assertion.isGreaterThan
  *
  *   object MyTest extends DefaultRunnableSpec {
  *     def spec = suite("clock")(
