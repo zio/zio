@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.test.Assertion.equalTo
-import zio.test.{Assertion, TestResult, assert}
+import zio.test.{Assertion, Assert, assert}
 import zio.{IO, UIO}
 
 object SinkUtils {
@@ -18,7 +18,7 @@ object SinkUtils {
     stream: ZStream[Any, Nothing, A],
     s1: ZSink[Any, E, A, L, A],
     s2: ZSink[Any, E, A, L, A]
-  ): UIO[TestResult] =
+  ): UIO[Assert] =
     for {
       r1 <- stream.run(s1).either
       r2 <- stream.run(s2).either
@@ -39,7 +39,7 @@ object SinkUtils {
     s: ZStream[Any, Nothing, A],
     sink1: ZSink[Any, E, A, A, B],
     sink2: ZSink[Any, E, A, A, C]
-  ): UIO[TestResult] =
+  ): UIO[Assert] =
     for {
       zb  <- s.run(sink1).either
       zc  <- s.run(sink2).either

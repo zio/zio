@@ -4,13 +4,12 @@ import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.managed._
 import zio.test.Assertion.{equalTo, isLeft}
-import zio.test.AssertionZIO.Render.param
 import zio.test._
 
 object AutoWireSpec extends ZIOBaseSpec {
 
   def containsStringWithoutAnsi(element: String): Assertion[String] =
-    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.unstyled.contains(element))
+    Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
     suite("AutoWireSpec")(

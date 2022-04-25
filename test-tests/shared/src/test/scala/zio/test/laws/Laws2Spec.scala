@@ -7,10 +7,10 @@ object Laws2Spec extends ZIOBaseSpec {
   type AnyF[_] = Any
 
   def equalTo[A: Equal](expected: A): Assertion[A] =
-    Assertion.assertion("equalTo")(AssertionZIO.Render.param(expected))(_ === expected)
+    Assertion.assertion("equalTo")(_ === expected)
 
   implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
-    def <->(that: A)(implicit eq: Equal[A]): TestResult =
+    def <->(that: A)(implicit eq: Equal[A]): Assert =
       assert(self)(equalTo(that))
   }
 
@@ -39,13 +39,13 @@ object Laws2Spec extends ZIOBaseSpec {
 
     val leftIdentity: Laws2.Law1Left[Equivalence, Equal, AnyF] =
       new Laws2.Law1Left[Equivalence, Equal, AnyF]("leftIdentity") {
-        def apply[A: Equal, B: AnyF](a1: A)(implicit Equivalence: Equivalence[A, B]): TestResult =
+        def apply[A: Equal, B: AnyF](a1: A)(implicit Equivalence: Equivalence[A, B]): Assert =
           Equivalence.from(Equivalence.to(a1)) <-> a1
       }
 
     val rightIdentity: Laws2.Law1Right[Equivalence, AnyF, Equal] =
       new Laws2.Law1Right[Equivalence, AnyF, Equal]("rightIdentity") {
-        def apply[A: AnyF, B: Equal](b1: B)(implicit Equivalence: Equivalence[A, B]): TestResult =
+        def apply[A: AnyF, B: Equal](b1: B)(implicit Equivalence: Equivalence[A, B]): Assert =
           Equivalence.to(Equivalence.from(b1)) <-> b1
       }
 

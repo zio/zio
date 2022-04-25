@@ -5,7 +5,7 @@ import zio.test._
 
 object StreamLazinessSpec extends ZIOBaseSpec {
 
-  def assertLazy(f: (=> Nothing) => Any): UIO[TestResult] =
+  def assertLazy(f: (=> Nothing) => Any): UIO[Assert] =
     UIO.succeed {
       val _ = f(throw new RuntimeException("not lazy"))
       assertCompletes

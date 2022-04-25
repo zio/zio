@@ -6,6 +6,7 @@ import zio.test.TestArrow.Span
 import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
+
   def values: List[Any] =
     self.asInstanceOf[Trace[Any]] match {
       case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _) =>
@@ -22,12 +23,20 @@ sealed trait Trace[+A] { self =>
         trace.values
     }
 
-  def isFailure: Boolean = !isSuccess
+  def isFailure(implicit ev: A <:< Boolean): Boolean = !isSuccess
 
-  def isSuccess: Boolean = self.result match {
-    case Result.Succeed(true) => true
-    case _                    => false
-  }
+  def isSuccess(implicit ev: A <:< Boolean): Boolean =
+    Trace.prune(ev.liftCo(self), false).isEmpty
+
+  def isDie: Boolean =
+    self.asInstanceOf[Trace[_]] match {
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _) => true
+      case Trace.Node(_, _, _, _, _, _, _, _, _)             => false
+      case Trace.AndThen(left, right)                        => left.isDie || right.isDie
+      case Trace.And(left, right)                            => left.isDie || right.isDie
+      case Trace.Or(left, right)                             => left.isDie || right.isDie
+      case Trace.Not(trace)                                  => trace.isDie
+    }
 
   /**
    * Apply the metadata to the rightmost node in the trace.
@@ -179,17 +188,18 @@ object Trace {
 
       case and: Trace.And =>
         (prune(and.left, negated), prune(and.right, negated)) match {
-          case (None, right)             => right
-          case (left, None)              => left
-          case (Some(left), Some(right)) => Some(Trace.And(left, right))
+          case (None, Some(right)) if !negated => Some(right)
+          case (Some(left), None) if !negated  => Some(left)
+          case (Some(left), Some(right))       => Some(Trace.And(left, right))
+          case _                               => None
         }
 
       case or: Trace.Or =>
         (prune(or.left, negated), prune(or.right, negated)) match {
-          case (Some(left), Some(right))                         => Some(Trace.Or(left, right))
-          case (Some(left), _) if negated || left.result.isDie   => Some(left)
-          case (_, Some(right)) if negated || right.result.isDie => Some(right)
-          case (_, _)                                            => None
+          case (Some(left), Some(right))                  => Some(Trace.Or(left, right))
+          case (Some(left), _) if negated || left.isDie   => Some(left)
+          case (_, Some(right)) if negated || right.isDie => Some(right)
+          case (_, _)                                     => None
         }
 
       case not: Trace.Not =>
@@ -264,27 +274,4 @@ object Trace {
   def die(throwable: Throwable): Trace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
 
-  object Halt {
-    def unapply[A](trace: Trace[A]): Boolean =
-      trace.result match {
-        case Result.Fail => true
-        case _           => false
-      }
-  }
-
-  object Fail {
-    def unapply[A](trace: Trace[A]): Option[Throwable] =
-      trace.result match {
-        case Result.Die(err) => Some(err)
-        case _               => None
-      }
-  }
-
-  object Succeed {
-    def unapply[A](trace: Trace[A]): Option[A] =
-      trace.result match {
-        case Result.Succeed(value) => Some(value)
-        case _                     => None
-      }
-  }
 }

@@ -3740,7 +3740,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             check(tinyListOf(Gen.chunkOf(Gen.byte))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZIO.scoped {
-                ZStream.fromChunks(chunks: _*).toInputStream.flatMap[Scope, Throwable, TestResult] { is =>
+                ZStream.fromChunks(chunks: _*).toInputStream.flatMap[Scope, Throwable, Assert] { is =>
                   ZIO.succeedNow(
                     assert(Iterator.continually(is.read()).takeWhile(_ != -1).map(_.toByte).toList)(
                       equalTo(content)
@@ -3754,7 +3754,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             check(tinyListOf(Gen.chunkOf(Gen.byte))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZIO.scoped {
-                ZStream.fromChunks(chunks: _*).toInputStream.flatMap[Scope, Throwable, TestResult] { is =>
+                ZStream.fromChunks(chunks: _*).toInputStream.flatMap[Scope, Throwable, Assert] { is =>
                   val batches: List[(Array[Byte], Int)] = Iterator.continually {
                     val buf = new Array[Byte](10)
                     val res = is.read(buf, 0, 4)
@@ -3772,7 +3772,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .fromIterable((1 to 10).map(_.toByte))
                 .rechunk(3)
                 .toInputStream
-                .flatMap[Scope, Throwable, TestResult](is =>
+                .flatMap[Scope, Throwable, Assert](is =>
                   ZIO.attempt {
                     val cold = is.available()
                     is.read()
@@ -3894,7 +3894,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             check(tinyListOf(Gen.chunkOf(Gen.char))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZIO.scoped {
-                ZStream.fromChunks(chunks: _*).toReader.flatMap[Scope, Throwable, TestResult] { reader =>
+                ZStream.fromChunks(chunks: _*).toReader.flatMap[Scope, Throwable, Assert] { reader =>
                   ZIO.succeedNow(
                     assert(Iterator.continually(reader.read()).takeWhile(_ != -1).map(_.toChar).toList)(
                       equalTo(content)
@@ -3908,7 +3908,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             check(tinyListOf(Gen.chunkOf(Gen.char))) { chunks =>
               val content = chunks.flatMap(_.toList)
               ZIO.scoped {
-                ZStream.fromChunks(chunks: _*).toReader.flatMap[Scope, Throwable, TestResult] { reader =>
+                ZStream.fromChunks(chunks: _*).toReader.flatMap[Scope, Throwable, Assert] { reader =>
                   val batches: List[(Array[Char], Int)] = Iterator.continually {
                     val buf = new Array[Char](10)
                     val res = reader.read(buf, 0, 4)
@@ -5030,8 +5030,8 @@ object ZStreamSpec extends ZIOBaseSpec {
   def assertWithChunkCoordination[A](
     chunks: List[Chunk[A]]
   )(
-    assertion: ChunkCoordination[A] => ZIO[Any, Nothing, TestResult]
-  ): ZIO[Any, Nothing, TestResult] =
+    assertion: ChunkCoordination[A] => ZIO[Any, Nothing, Assert]
+  ): ZIO[Any, Nothing, Assert] =
     for {
       q  <- Queue.unbounded[Exit[Option[Nothing], Chunk[A]]]
       ps <- Queue.unbounded[Unit]

@@ -5,10 +5,10 @@ import zio.test._
 object LawsFSpec extends ZIOBaseSpec {
 
   def equalTo[A: Equal](expected: A): Assertion[A] =
-    Assertion.assertion("equalTo")(AssertionZIO.Render.param(expected))(_ === expected)
+    Assertion.assertion("equalTo")(_ === expected)
 
   implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
-    def <->(that: A)(implicit eq: Equal[A]): TestResult =
+    def <->(that: A)(implicit eq: Equal[A]): Assert =
       assert(self)(equalTo(that))
   }
 
@@ -65,7 +65,7 @@ object LawsFSpec extends ZIOBaseSpec {
 
     val identityLaw: LawsF.Covariant[CovariantEqualF, Equal] =
       new LawsF.Covariant.Law1[CovariantEqualF, Equal]("identityLaw") {
-        def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): TestResult =
+        def apply[F[+_]: CovariantEqualF, A: Equal](fa: F[A]): Assert =
           fa.map(identity) <-> fa
       }
 
@@ -75,7 +75,7 @@ object LawsFSpec extends ZIOBaseSpec {
           fa: F[A],
           f: A => B,
           g: B => C
-        ): TestResult =
+        ): Assert =
           fa.map(f).map(g) <-> fa.map(f andThen g)
       }
 

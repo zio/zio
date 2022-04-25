@@ -17,7 +17,7 @@
 package zio.test.laws
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{Gen, TestConfig, TestResult, check}
+import zio.test.{Gen, TestConfig, Assert, check}
 import zio.{URIO, ZIO}
 import zio.ZTraceElement
 
@@ -36,7 +36,7 @@ object ZLawsF2 {
     def run[R1 <: R with TestConfig, F[-_, +_]: CapsF, A: CapsLeft, B: CapsRight](
       genF: GenF2[R1, F],
       gen: Gen[R1, B]
-    )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult]
+    )(implicit trace: ZTraceElement): ZIO[R1, Nothing, Assert]
 
     /**
      * Combine these laws with the specified laws to produce a set of laws that
@@ -58,9 +58,9 @@ object ZLawsF2 {
       override final def run[R1 <: R with TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R1, F],
         gen: Gen[R1, B]
-      )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] = {
-        val lhs: ZIO[R1, Nothing, TestResult] = left.run(genF, gen)
-        val rhs: ZIO[R1, Nothing, TestResult] = right.run(genF, gen)
+      )(implicit trace: ZTraceElement): ZIO[R1, Nothing, Assert] = {
+        val lhs: ZIO[R1, Nothing, Assert] = left.run(genF, gen)
+        val rhs: ZIO[R1, Nothing, Assert] = right.run(genF, gen)
         lhs.zipWith(rhs)(_ && _)
       }
     }
@@ -76,19 +76,19 @@ object ZLawsF2 {
         fa: F[A, B],
         f: A => A1,
         g: A1 => A2
-      ): TestResult
+      ): Assert
 
       final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: Caps, B: Caps, A1: Caps, A2: Caps](
         genF: GenF2[R, F],
         genB: Gen[R, B],
         genA1: Gen[R, A1],
         genA2: Gen[R, A2]
-      )(implicit trace: ZTraceElement): URIO[R, TestResult] =
+      )(implicit trace: ZTraceElement): URIO[R, Assert] =
         check(
           genF[R, A, B](genB),
           Gen.function[R, A, A1](genA1),
           Gen.function[R, A1, A2](genA2)
-        )(apply(_, _, _).map(_.label(label)))
+        )(apply(_, _, _).label(label))
     }
 
     /**
@@ -96,13 +96,13 @@ object ZLawsF2 {
      */
     abstract class Law1[-CapsBothF[_[-_, +_]], -CapsLeft[_], -CapsRight[_]](label: String)
         extends Divariant[CapsBothF, CapsLeft, CapsRight, Any] { self =>
-      def apply[F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](fa: F[A, B]): TestResult
+      def apply[F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](fa: F[A, B]): Assert
 
       final def run[R <: TestConfig, F[-_, +_]: CapsBothF, A: CapsLeft, B: CapsRight](
         genF: GenF2[R, F],
         gen: Gen[R, B]
-      )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF[R, A, B](gen))(apply(_).map(_.label(label)))
+      )(implicit trace: ZTraceElement): URIO[R, Assert] =
+        check(genF[R, A, B](gen))(apply(_).label(label))
     }
   }
 }

@@ -30,17 +30,12 @@ trait CompileVariants {
   final def typeCheck(code: String): UIO[Either[String, Unit]] =
     macro Macros.typeCheck_impl
 
-  private[zio] def assertImpl[A](
-    value: => A,
-    expression: Option[String] = None
-  )(assertion: OldAssertion[A])(implicit trace: ZTraceElement): TestResult
-
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
   private[test] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionZIO[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
+    assertion: Assertion[A]
+  )(implicit trace: ZTraceElement): ZIO[R, E, Assert]
 
   /**
    * Checks the assertion holds for the given value.
@@ -51,13 +46,7 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def oldAssert[A](expr: => A)(assertion: OldAssertion[A]): TestResult =
-    macro Macros.assert_impl
-
-  /**
-   * Checks the assertion holds for the given value.
-   */
-  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult =
+  def assert[A](expr: => A)(assertion: Assertion[A]): Assert =
     macro Macros.new_assert_impl
 
   /**
@@ -76,18 +65,13 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String)(
-    assertion: OldAssertion[A]
-  )(implicit trace: ZTraceElement): TestResult =
-    zio.test.assertImpl(value, Some(expression))(assertion)
-
   def newAssertProxy[A](value: => A, codeString: String, assertionString: String)(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult =
-    zio.test.newAssertImpl(value, Some(codeString), Some(assertionString))(assertion)
+  )(implicit trace: ZTraceElement): Assert =
+    zio.test.assertImpl(value, Some(codeString), Some(assertionString))(assertion)
 
   def assertZIOProxy[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionZIO[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
+    assertion: Assertion[A]
+  )(implicit trace: ZTraceElement): ZIO[R, E, Assert] =
     zio.test.assertZIOImpl(effect)(assertion)
 }

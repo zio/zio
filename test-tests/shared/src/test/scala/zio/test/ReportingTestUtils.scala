@@ -48,10 +48,8 @@ object ReportingTestUtils {
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       console <- ZIO.console
-      _ <-
-        TestTestRunner(testEnvironment, console)
-          .run(spec)
-      output <- TestConsole.output
+      _       <- TestTestRunner(testEnvironment, console).run(spec)
+      output  <- TestConsole.output
     } yield output.mkString
 
   def runSummary(spec: Spec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
@@ -145,10 +143,10 @@ object ReportingTestUtils {
   )
 
   def test9(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("labeled failures") {
-    assertTrue(1 == 1).map(_.label("first")) &&
-    assertTrue(1 == 1).map(_.label("second")) &&
-    assertTrue(1 == 0).map(_.label("third")) &&
-    assertTrue(1 == 0).map(_.label("fourth"))
+    assertTrue(1 == 1).label("first") &&
+    assertTrue(1 == 1).label("second") &&
+    assertTrue(1 == 0).label("third") &&
+    assertTrue(1 == 0).label("fourth")
   }
 
   def suite1(implicit trace: ZTraceElement): Spec[Any, Nothing] =

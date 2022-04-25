@@ -231,13 +231,12 @@ class SmartAssertMacros(ctx: Quotes)  {
 
 object Macros {
   def assertZIO_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[AssertionZIO[A]])
-                                               (using ctx: Quotes): Expr[ZIO[R, E, TestResult]] = {
+                                               (using ctx: Quotes): Expr[ZIO[R, E, Assert]] = {
     import quotes.reflect._
     '{_root_.zio.test.CompileVariants.assertZIOProxy($effect)($assertion)}
   }
 
-  // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[Assert] = {
     import quotes.reflect._
     val code = showExpr(value)
     Expr.summon[ZTraceElement] match {

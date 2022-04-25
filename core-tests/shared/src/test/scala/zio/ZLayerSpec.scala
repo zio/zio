@@ -8,7 +8,7 @@ object ZLayerSpec extends ZIOBaseSpec {
 
   import ZIOTag._
 
-  def testSize[R](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[TestResult] =
+  def testSize[R](layer: Layer[Nothing, R], n: Int, label: String = ""): UIO[Assert] =
     ZIO.scoped {
       layer.build.flatMap { env =>
         ZIO.succeed(assert(env.size)(if (label == "") equalTo(n) else equalTo(n) ?? label))

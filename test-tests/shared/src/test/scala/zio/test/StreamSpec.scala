@@ -140,7 +140,7 @@ object StreamSpec extends ZIOBaseSpec {
   def assertEqualStream[R, E, A](
     left: ZStream[R, E, Option[A]],
     right: ZStream[R, E, Option[A]]
-  ): ZIO[R, E, TestResult] =
+  ): ZIO[R, E, Assert] =
     for {
       actual   <- runCollectUnordered(100)(left)
       expected <- runCollectUnordered(100)(right)

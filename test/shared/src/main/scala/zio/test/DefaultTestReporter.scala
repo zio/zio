@@ -68,6 +68,7 @@ object DefaultTestReporter {
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
           testCaseOutput(labels, results, includeCause, suiteId)
+
         Seq(
           ExecutionResult(
             ResultType.Test,
@@ -76,8 +77,8 @@ object DefaultTestReporter {
               case Left(_) => Status.Failed
               case Right(value: TestSuccess) =>
                 value match {
-                  case TestSuccess.Succeeded(_, _) => Status.Passed
-                  case TestSuccess.Ignored(_)      => Status.Ignored
+                  case TestSuccess.Succeeded(_) => Status.Passed
+                  case TestSuccess.Ignored(_)   => Status.Ignored
                 }
             },
             initialDepth * 2,
@@ -113,7 +114,7 @@ object DefaultTestReporter {
     val flatLabel = labels.mkString(" - ")
 
     val renderedResult = results match {
-      case Right(TestSuccess.Succeeded(_, _)) =>
+      case Right(TestSuccess.Succeeded(_)) =>
         Some(
           rendered(
             ResultType.Test,
@@ -134,44 +135,16 @@ object DefaultTestReporter {
           )
         )
       case Left(TestFailure.Assertion(result, _)) =>
-        result
-          .fold[Option[TestResult]] {
-            case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
-            case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
-              Trace
-                .prune(trace, false)
-                .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
-          }(
-            {
-              case (Some(a), Some(b)) => Some(a && b)
-              case (Some(a), None)    => Some(a)
-              case (None, Some(b))    => Some(b)
-              case _                  => None
-            },
-            {
-              case (Some(a), Some(b)) => Some(a || b)
-              case (Some(a), None)    => Some(a)
-              case (None, Some(b))    => Some(b)
-              case _                  => None
-            },
-            _.map(!_)
+        result.failures.map { result =>
+          renderedWithSummary(
+            ResultType.Test,
+            label,
+            Failed,
+            depth,
+            renderFailure(label, depth, result).lines.toList,
+            renderFailure(flatLabel, depth, result).lines.toList // Fully-qualified label
           )
-          .map {
-            _.fold(details =>
-              renderedWithSummary(
-                ResultType.Test,
-                label,
-                Failed,
-                depth,
-                renderFailure(label, depth, details).lines.toList,
-                renderFailure(flatLabel, depth, details).lines.toList // Fully-qualified label
-              )
-            )(
-              _ && _,
-              _ || _,
-              !_
-            )
-          }
+        }
 
       case Left(TestFailure.Runtime(cause, _)) =>
         Some(
@@ -195,25 +168,25 @@ object DefaultTestReporter {
   private def renderSuiteSucceeded(label: String, offset: Int) =
     rendered(Suite, label, Passed, offset, fr(label).toLine)
 
-  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
+  def renderAssertFailure(result: Assert, labels: List[String], depth: Int): ExecutionResult = {
     val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel   = labels.mkString(" - ")
-    result.fold { details =>
-      val streamingRenderedFailure = renderFailure(streamingLabel, depth, details).lines.toList
-      val summaryRenderedFailure   = renderFailure(summaryLabel, depth, details).lines.toList
-      renderedWithSummary(
-        ResultType.Test,
-        streamingLabel,
-        Failed,
-        depth,
-        streamingRenderedFailure,
-        summaryRenderedFailure
-      )
-    }(
-      _ && _,
-      _ || _,
-      !_
+//    result.fold { details =>
+    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result).lines.toList
+    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result).lines.toList
+    renderedWithSummary(
+      ResultType.Test,
+      streamingLabel,
+      Failed,
+      depth,
+      streamingRenderedFailure,
+      summaryRenderedFailure
     )
+//    }(
+//      _ && _,
+//      _ || _,
+//      !_
+//    )
   }
 
   private def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
@@ -242,23 +215,15 @@ object DefaultTestReporter {
     )
   }
 
-  def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
-    assertionResult match {
-      case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
-        val failures = FailureCase.fromTrace(trace, Chunk.empty)
-//        println(s"trace: $trace")
-//        println(s"failures: $failures")
-        failures
-          .map(fc =>
-            renderGenFailureDetails(genFailureDetails, offset) ++
-              Message(renderFailureCase(fc, offset, label))
-          )
-          .foldLeft(Message.empty)(_ ++ _)
-
-      case AssertionResult.FailureDetailsResult(failureDetails, genFailureDetails) =>
-        renderGenFailureDetails(genFailureDetails, offset) ++
-          renderFailureDetails(failureDetails, offset)
-    }
+  def renderAssertionResult(assertionResult: Trace[Boolean], offset: Int): Message = {
+    val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
+    failures
+      .map(fc =>
+//        renderGenFailureDetails(genFailureDetails, offset) ++
+        Message(renderFailureCase(fc, offset, None))
+      )
+      .foldLeft(Message.empty)(_ ++ _)
+  }
 
   def renderFailureCase(failureCase: FailureCase, offset: Int, testLabel: Option[String]): Chunk[Line] =
     failureCase match {
@@ -284,32 +249,6 @@ object DefaultTestReporter {
         result.map(_.withOffset(offset + 1))
     }
 
-  private def renderAssertionFailureDetails(failureDetails: ::[AssertionValue], offset: Int): Message = {
-    @tailrec
-    def loop(failureDetails: List[AssertionValue], rendered: Message): Message =
-      failureDetails match {
-        case fragment :: whole :: failureDetails =>
-          loop(whole :: failureDetails, rendered :+ renderWhole(fragment, whole, offset))
-        case _ =>
-          rendered
-      }
-
-    renderFragment(failureDetails.head, offset).toMessage ++ loop(
-      failureDetails,
-      Message.empty
-    ) ++ renderAssertionLocation(failureDetails.last, offset)
-  }
-
-  private def renderAssertionLocation(av: AssertionValue, offset: Int) = av.sourceLocation.fold(Message()) { location =>
-    detail(s"at $location").toLine
-      .withOffset(offset + 1)
-      .toMessage
-  }
-
-  private def renderSatisfied(assertionValue: AssertionValue): Fragment =
-    if (assertionValue.result.isSuccess) Fragment(" satisfied ")
-    else Fragment(" did not satisfy ")
-
   def renderCause(cause: Cause[Any], offset: Int)(implicit trace: ZTraceElement): Message = {
     val defects = cause.defects
     val timeouts = defects.collect { case TestTimeoutException(message) =>
@@ -334,29 +273,11 @@ object DefaultTestReporter {
     }
   }
 
-  def renderTestFailure(label: String, testResult: TestResult): Message =
-    testResult.failures.fold(Message.empty) { details =>
-      Message {
-        details
-          .fold(assertionResult =>
-            rendered(ResultType.Test, label, Failed, 0, renderFailure(label, 0, assertionResult).lines: _*)
-          )(
-            _ && _,
-            _ || _,
-            !_
-          )
-          .streamingLines
-      }
-    }
-
-  private def renderFailure(label: String, offset: Int, details: AssertionResult): Message =
+  private def renderFailure(label: String, offset: Int, details: Trace[Boolean]): Message =
     renderFailureLabel(label, offset) +: renderAssertionResult(details, offset) :+ Line.empty
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)
-
-  def renderFailureDetails(failureDetails: FailureDetails, offset: Int): Message =
-    renderAssertionFailureDetails(failureDetails.assertion, offset)
 
   private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
     failureDetails match {
@@ -376,46 +297,6 @@ object DefaultTestReporter {
           )
       case None => Message.empty
     }
-
-  private def renderFragment(fragment: AssertionValue, offset: Int): Line =
-    withOffset(offset + 1) {
-      primary(renderValue(fragment)) +
-        renderSatisfied(fragment) +
-        detail(fragment.printAssertion)
-    }
-
-  private def renderWhole(fragment: AssertionValue, whole: AssertionValue, offset: Int): Line =
-    withOffset(offset + 1) {
-      primary(renderValue(whole)) +
-        renderSatisfied(whole) ++
-        highlight(detail(whole.printAssertion), fragment.printAssertion)
-    }
-
-  private def highlight(fragment: Fragment, substring: String, style: Fragment.Style = Fragment.Style.Warning): Line = {
-    val parts = fragment.text.split(Pattern.quote(substring))
-    if (parts.size == 1) fragment.toLine
-    else
-      parts.foldLeft(Line.empty) { (line, part) =>
-        if (line.fragments.size < parts.size * 2 - 2)
-          line + Fragment(part, fragment.style) + Fragment(substring, style)
-        else line + Fragment(part, fragment.style)
-      }
-  }
-
-  private def renderValue(av: AssertionValue) = (av.value, av.expression) match {
-    case (v, Some(expression)) if !expressionRedundant(v.toString, expression) => s"`$expression` = $v"
-    case (v, _)                                                                => v.toString
-  }
-
-  private def expressionRedundant(valueStr: String, expression: String) = {
-    // toString drops double quotes, and for tuples and collections doesn't include spaces after the comma
-    def strip(s: String) = s
-      .replace("\"", "")
-      .replace(" ", "")
-      .replace("\n", "")
-      .replace("\\n", "")
-    strip(valueStr) == strip(expression)
-  }
 
   def rendered(
     caseType: ResultType,

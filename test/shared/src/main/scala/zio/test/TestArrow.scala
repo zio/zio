@@ -7,12 +7,37 @@ import scala.language.implicitConversions
 import scala.util.{Failure, Success, Try}
 import zio.ZTraceElement
 
-case class Assert(arrow: TestArrow[Any, Boolean]) {
+import scala.util.control.NonFatal
+
+case class Assert(arrow: TestArrow[Any, Boolean]) { self =>
+
+  lazy val result: Trace[Boolean] = TestArrow.run(arrow, Right(()))
+
+  lazy val failures: Option[Trace[Boolean]] = Trace.prune(result, false)
+
+  def isFailure: Boolean = failures.isDefined
+
+  def isSuccess: Boolean = failures.isEmpty
+
   def &&(that: Assert): Assert = Assert(arrow && that.arrow)
 
   def ||(that: Assert): Assert = Assert(arrow || that.arrow)
 
   def unary_! : Assert = Assert(!arrow)
+
+  def implies(that: Assert): Assert = !self || that
+
+  def ==>(that: Assert): Assert = self.implies(that)
+
+  def iff(that: Assert): Assert =
+    (self ==> that) && (that ==> self)
+
+  def <==>(that: Assert): Assert =
+    self.iff(that)
+
+  def ??(message: String): Assert = self.label(message)
+
+  def label(message: String): Assert = Assert(arrow.label(message))
 }
 
 object Assert {
@@ -20,22 +45,12 @@ object Assert {
 
   def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
 
-  implicit def trace2TestResult(assert: Assert): TestResult = {
-    val trace = TestArrow.run(assert.arrow, Right(()))
-    Trace.prune(trace, false) match {
-      case Some(_) =>
-        BoolAlgebra.failure(AssertionResult.TraceResult(trace))
-      case None =>
-        BoolAlgebra.success(AssertionResult.TraceResult(trace))
-    }
-  }
-
-  implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
-    zio.map(trace2TestResult)
-
 }
 
 sealed trait TestArrow[-A, +B] { self =>
+  def ??(message: String): TestArrow[A, B]    = self.label(message)
+  def label(message: String): TestArrow[A, B] = self // TODO: Implement
+
   import TestArrow._
 
   def meta(
@@ -106,10 +121,21 @@ object TestArrow {
       case Right(value) => onSucceed(value)
     }
 
-  private def attempt[A](f: => Trace[A]): Trace[A] =
-    Try(f) match {
-      case Failure(exception) => Trace.die(exception)
-      case Success(value)     => value
+  private def attempt[A](expr: => Trace[A]): Trace[A] =
+    try {
+      expr
+    } catch {
+      case NonFatal(exception) =>
+        val trace = exception.getStackTrace
+        var met   = false
+        val newTrace = trace.filterNot { trace =>
+          if (trace.toString.contains("zio.test.TestArrow")) {
+            met = true
+          }
+          met
+        }
+        exception.setStackTrace(newTrace)
+        Trace.die(exception)
     }
 
   def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {

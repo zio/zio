@@ -307,7 +307,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreach(List(1, 2, 3, 4))(res)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
       },
       test("Runs finalizers") {
         testFinalizersPar(4, res => ZManaged.foreach(List(1, 2, 3, 4))(_ => res))
@@ -327,14 +327,14 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreach(Some(3))(res)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(Some(3)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(Some(3)))))
       },
       test("Returns nothing if None") {
         def res(int: Int) =
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreach(None)(res)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(None))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(None))))
       },
       test("Runs finalizers") {
         testFinalizersPar(1, res => ZManaged.foreach(Some(4))(_ => res))
@@ -346,7 +346,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreachPar(List(1, 2, 3, 4))(res)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
       },
       test("Runs finalizers") {
         testFinalizersPar(4, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res))
@@ -367,7 +367,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.foreachPar(List(1, 2, 3, 4))(res).withParallelism(2)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
       },
       test("Uses at most n fibers for reservation") {
         testFinalizersPar(4, res => ZManaged.foreachPar(List(1, 2, 3, 4))(_ => res)).withParallelism(2)
@@ -521,7 +521,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.mergeAll(List(1, 2, 3, 4).map(res))(List[Int]()) { case (acc, a) => a :: acc }
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(4, 3, 2, 1)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(List(4, 3, 2, 1)))))
       },
       test("Runs finalizers") {
         testFinalizersPar(4, res => ZManaged.mergeAll(List.fill(4)(res))(()) { case (_, b) => b })
@@ -533,7 +533,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
 
         val managed = ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(List[Int]()) { case (acc, a) => a :: acc }
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Runs reservations in parallel") {
         testReservePar(4, res => ZManaged.mergeAllPar(List.fill(4)(res))(()) { case (_, b) => b })
@@ -551,7 +551,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           ZManaged.succeed(int)
         val managed =
           ZManaged.mergeAllPar(List(1, 2, 3, 4).map(res))(List[Int]()) { case (acc, a) => a :: acc }.withParallelism(2)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Uses at most n fibers for reservation") {
         testReservePar(2, res => ZManaged.mergeAllPar(List.fill(4)(res))(0) { case (a, _) => a }).withParallelism(2)
@@ -741,7 +741,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.reduceAll(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (a1, a2) =>
           a1 ++ a2
         }
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(equalTo(List(1, 2, 3, 4)))))
       },
       test("Runs finalizers") {
         testFinalizersPar(
@@ -758,7 +758,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val managed = ZManaged.reduceAllPar(ZManaged.succeed(Nil), List(1, 2, 3, 4).map(res)) { case (a1, a2) =>
           a1 ++ a2
         }
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(1, 2, 3, 4)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(hasSameElements(List(1, 2, 3, 4)))))
       },
       test("Runs reservations in parallel") {
         testReservePar(
@@ -789,7 +789,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             a ++ acc
           }
           .withParallelism(2)
-        managed.use[Any, Nothing, TestResult](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
+        managed.use[Any, Nothing, Assert](res => ZIO.succeed(assert(res)(hasSameElements(List(4, 3, 2, 1)))))
       },
       test("Uses at most n fibers for reservation") {
         testFinalizersPar(
@@ -1425,7 +1425,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             flatten1 <- ZManaged.succeed(ZManaged.succeed(str)).flatten
             flatten2 <- ZManaged.flatten(ZManaged.succeed(ZManaged.succeed(str)))
           } yield assert(flatten1)(equalTo(flatten2))
-          test.use[Any, Nothing, TestResult](r => ZIO.succeed(r))
+          test.use[Any, Nothing, Assert](r => ZIO.succeed(r))
         }
       }
     ),
@@ -1437,7 +1437,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             abs1 <- managedEither.absolve
             abs2 <- ZManaged.absolve(managedEither)
           } yield assert(abs1)(equalTo(abs2))
-          test.use[Any, Nothing, TestResult](result => ZIO.succeed(result))
+          test.use[Any, Nothing, Assert](result => ZIO.succeed(result))
         }
       }
     ),
@@ -1891,7 +1891,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def doInterrupt(
     managed: IO[Nothing, Unit] => ZManaged[Any, Nothing, Unit],
     expected: FiberId => Option[Exit[Nothing, Unit]]
-  ): ZIO[Live, Nothing, TestResult] =
+  ): ZIO[Live, Nothing, Assert] =
     for {
       fiberId            <- ZIO.fiberId
       never              <- Promise.make[Nothing, Unit]
@@ -1912,7 +1912,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testFinalizersPar[R, E](
     n: Int,
     f: ZManaged[Any, Nothing, Unit] => ZManaged[R, E, Any]
-  ): ZIO[R, E, TestResult] =
+  ): ZIO[R, E, Assert] =
     for {
       releases <- Ref.make[Int](0)
       baseRes   = ZManaged.acquireReleaseWith(ZIO.succeed(()))(_ => releases.update(_ + 1))
@@ -1924,7 +1924,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testAcquirePar[R, E](
     n: Int,
     f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, Any]
-  ): ZIO[R with Live, Nothing, TestResult] =
+  ): ZIO[R with Live, Nothing, Assert] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1941,7 +1941,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testReservePar[R, E, A](
     n: Int,
     f: ZManaged[Live, Nothing, Unit] => ZManaged[R, E, A]
-  ): ZIO[R with Live, Nothing, TestResult] =
+  ): ZIO[R with Live, Nothing, Assert] =
     for {
       effects      <- Ref.make(0)
       countDown    <- countDownLatch(n + 1)
@@ -1956,7 +1956,7 @@ object ZManagedSpec extends ZIOBaseSpec {
   def testParallelNestedFinalizerOrdering(
     listLength: Int,
     f: List[ZManaged[Any, Nothing, Ref[List[Int]]]] => ZManaged[Any, Nothing, List[Ref[List[Int]]]]
-  ): ZIO[Any, Nothing, TestResult] = {
+  ): ZIO[Any, Nothing, Assert] = {
     val inner = Ref.make(List[Int]()).toManaged.flatMap { ref =>
       ZManaged.finalizer(ref.update(1 :: _)) *>
         ZManaged.finalizer(ref.update(2 :: _)) *>

@@ -48,7 +48,7 @@ import zio.ZTraceElement
  *
  * {{{
  * val transitivityLaw = ZLaws.Laws3[Equal]("transitivityLaw") {
- *   def apply[A: Equal](a1: A, a2: A, a3: A): TestResult =
+ *   def apply[A: Equal](a1: A, a2: A, a3: A): Assert =
  *     ???
  * }
  * }}}
@@ -168,7 +168,7 @@ package object laws {
    */
   def checkAllLaws[Caps[_], R <: TestConfig, R1 <: R, A: Caps](
     lawful: ZLawful[Caps, R]
-  )(gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
+  )(gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, Assert] =
     lawful.laws.run(gen)
 
   /**
@@ -180,12 +180,12 @@ package object laws {
   )(a: Gen[R1, A], b: Gen[R1, B])(implicit
     CapsBoth: CapsBoth[A, B],
     trace: ZTraceElement
-  ): ZIO[R1, Nothing, TestResult] =
+  ): ZIO[R1, Nothing, Assert] =
     lawful.laws.run(a, b)
 
   def checkAllLaws[CapsF[_[+_]], Caps[_], R <: TestConfig, R1 <: R, F[+_]: CapsF, A: Caps](
     lawful: ZLawfulF.Covariant[CapsF, Caps, R]
-  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
+  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, Assert] =
     lawful.laws.run(genF, gen)
 
   /**
@@ -194,7 +194,7 @@ package object laws {
    */
   def checkAllLaws[CapsF[_[-_]], Caps[_], R <: TestConfig, R1 <: R, F[-_]: CapsF, A: Caps](
     lawful: ZLawfulF.Contravariant[CapsF, Caps, R]
-  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
+  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, Assert] =
     lawful.laws.run(genF, gen)
 
   /**
@@ -203,6 +203,6 @@ package object laws {
    */
   def checkAllLaws[CapsF[_[_]], Caps[_], R <: TestConfig, R1 <: R, F[_]: CapsF, A: Caps](
     lawful: ZLawfulF.Invariant[CapsF, Caps, R]
-  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
+  )(genF: GenF[R1, F], gen: Gen[R1, A])(implicit trace: ZTraceElement): ZIO[R1, Nothing, Assert] =
     lawful.laws.run(genF, gen)
 }

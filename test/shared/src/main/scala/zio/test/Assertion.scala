@@ -2,8 +2,6 @@ package zio.test
 
 import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.AssertionZIO.RenderParam
-import zio.test.AssertionZIO.Render
 import zio.{Cause, Exit, ZIO, ZTraceElement}
 import zio.test.{ErrorMessage => M, _}
 import zio.test.internal.SmartAssertions
@@ -72,12 +70,13 @@ object Assertion {
   /**
    * Makes a new `OldAssertion` from a pretty-printing and a function.
    */
-  def assertion[A](name: String)(params: RenderParam*)(run: (=> A) => Boolean): Assertion[A] =
+  def assertion[A](name: String)(run: (=> A) => Boolean): Assertion[A] =
     Assertion(
       TestArrow
         .make[A, Boolean] { a =>
-          Trace.boolean(run(a)) {
-            M.custom("Custom Assertion: ") + M.value(name)
+          val result = run(a)
+          Trace.boolean(result) {
+            M.text("Custom Assertion") + M.value(name) + M.choice("succeeded", "failed")
           }
         }
         .withCode(name)

@@ -3,11 +3,10 @@ package zio.test
 import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
-import zio.test.AssertionZIO.Render.param
 
 object AutoWireSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
-    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.unstyled.contains(element))
+    Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
     suite("AutoWireSpec")(

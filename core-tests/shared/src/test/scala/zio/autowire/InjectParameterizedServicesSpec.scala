@@ -12,12 +12,12 @@ object InjectParameterizedServicesSpec extends ZIOSpecDefault {
       ParameterizedService.something[String].as(assertCompletes)
     }.provide(ParameterisedServiceWithoutTypeAlias.live),
     test("compiles using the type alias directly") {
-      val huh: ZIO[ParameterizedService[ParameterizedServiceWithTypeAlias.Alias], Nothing, TestResult] =
+      val huh: ZIO[ParameterizedService[ParameterizedServiceWithTypeAlias.Alias], Nothing, Assert] =
         ParameterizedService.something[ParameterizedServiceWithTypeAlias.Alias].as(assertCompletes)
       huh
     }.provide(ParameterizedServiceWithTypeAlias.live),
     test("fails to compile using the type directly") {
-      val huh: ZIO[ParameterizedService[String], Nothing, TestResult] =
+      val huh: ZIO[ParameterizedService[String], Nothing, Assert] =
         ParameterizedService.something[String].as(assertCompletes)
       huh
     }.provide(ParameterizedServiceWithTypeAlias.live),
