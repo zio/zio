@@ -3048,7 +3048,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * method.
    */
   def fiberId(implicit trace: ZTraceElement): UIO[FiberId] =
-    descriptorWith(descriptor => succeedNow(descriptor.id))
+    fiberIdWith(fiberId => ZIO.succeedNow(fiberId))
+
+  /**
+   * Constructs an effect based on the `FiberId` of the fiber executing the
+   * effect that calls this method.
+   */
+  def fiberIdWith[R, E, A](f: FiberId => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.descriptorWith(descriptor => f(descriptor.id))
 
   /**
    * Filters the collection using the specified effectual predicate.
