@@ -41,11 +41,11 @@ trait CompileVariants {
   private val errorMessage =
     "Reporting of compilation error messages on Scala 3 is not currently supported due to instability of the underlying APIs."
 
-  inline def assertTrue(inline exprs: => Boolean*): TestResult =
-    ${SmartAssertMacros.smartAssert('exprs)}
+  inline def assertTrue(inline exprs: => Boolean*)(implicit trace: ZTraceElement): TestResult =
+    ${SmartAssertMacros.smartAssert('exprs, 'trace)}
 
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult =
-    ${Macros.assert_impl('value)('assertion)}
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult =
+    ${Macros.assert_impl('value)('assertion, 'trace)}
 
   inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
      ${Macros.assertZIO_impl('effect)('assertion)}

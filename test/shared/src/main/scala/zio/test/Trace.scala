@@ -9,9 +9,9 @@ sealed trait Trace[+A] { self =>
 
   def values: List[Any] =
     self.asInstanceOf[Trace[Any]] match {
-      case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _, _, _) =>
         List(value)
-      case Trace.Node(_, _, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(_, _, _, _, _, _, _, _, _, _, _) =>
         List()
       case Trace.AndThen(left, right) =>
         left.values ++ right.values
@@ -30,12 +30,12 @@ sealed trait Trace[+A] { self =>
 
   def isDie: Boolean =
     self.asInstanceOf[Trace[_]] match {
-      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _) => true
-      case Trace.Node(_, _, _, _, _, _, _, _, _, _)             => false
-      case Trace.AndThen(left, right)                           => left.isDie || right.isDie
-      case Trace.And(left, right)                               => left.isDie || right.isDie
-      case Trace.Or(left, right)                                => left.isDie || right.isDie
-      case Trace.Not(trace)                                     => trace.isDie
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) => true
+      case Trace.Node(_, _, _, _, _, _, _, _, _, _, _)             => false
+      case Trace.AndThen(left, right)                              => left.isDie || right.isDie
+      case Trace.And(left, right)                                  => left.isDie || right.isDie
+      case Trace.Or(left, right)                                   => left.isDie || right.isDie
+      case Trace.Not(trace)                                        => trace.isDie
     }
 
   /**
@@ -147,6 +147,36 @@ sealed trait Trace[+A] { self =>
         Trace.Not(not.trace.withCompleteCode(completeCode)).asInstanceOf[Trace[A]]
     }
 
+  final def withGenFailureDetails(genFailureDetails: Option[GenFailureDetails]): Trace[A] =
+    self match {
+      case node: Trace.Node[_] =>
+        node.copy(
+          genFailureDetails = node.genFailureDetails.orElse(genFailureDetails),
+          children = node.children.map(_.withGenFailureDetails(genFailureDetails))
+        )
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withGenFailureDetails(genFailureDetails), right.withGenFailureDetails(genFailureDetails))
+      case and: Trace.And =>
+        Trace
+          .And(and.left.withGenFailureDetails(genFailureDetails), and.right.withGenFailureDetails(genFailureDetails))
+          .asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace
+          .Or(or.left.withGenFailureDetails(genFailureDetails), or.right.withGenFailureDetails(genFailureDetails))
+          .asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withGenFailureDetails(genFailureDetails)).asInstanceOf[Trace[A]]
+    }
+
+  def getGenFailureDetails: Option[GenFailureDetails] =
+    self match {
+      case node: Trace.Node[_]        => node.genFailureDetails
+      case Trace.AndThen(left, right) => left.getGenFailureDetails.orElse(right.getGenFailureDetails)
+      case and: Trace.And             => and.left.getGenFailureDetails.orElse(and.right.getGenFailureDetails)
+      case or: Trace.Or               => or.left.getGenFailureDetails.orElse(or.right.getGenFailureDetails)
+      case not: Trace.Not             => not.trace.getGenFailureDetails
+    }
+
   @tailrec
   final def annotate(annotation: Trace.Annotation*): Trace[A] =
     self match {
@@ -186,16 +216,16 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _) =>
+      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _, _) =>
         if (bool == negated) {
           Some(node.copy(children = node.children.flatMap(prune(_, negated))))
         } else
           None
 
-      case Trace.Node(Result.Fail, _, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Fail, _, _, _, _, _, _, _, _, _, _) =>
         if (negated) None else Some(trace)
 
-      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -244,7 +274,8 @@ object Trace {
     location: Option[String] = None,
     annotations: Set[Annotation] = Set.empty,
     completeCode: Option[String] = None,
-    customLabel: Option[String] = None
+    customLabel: Option[String] = None,
+    genFailureDetails: Option[GenFailureDetails] = None
   ) extends Trace[A] {
 
     def renderResult: Any =

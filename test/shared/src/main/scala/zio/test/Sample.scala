@@ -93,7 +93,7 @@ object Sample {
     Sample(a, ZStream.empty)
 
   def shrinkFractional[A](smallest: A)(a: A)(implicit F: Fractional[A], trace: ZTraceElement): Sample[Any, A] =
-    Sample.unfold((a)) { max =>
+    Sample.unfold(a) { max =>
       (
         max,
         ZStream.unfold(smallest) { min =>
@@ -106,7 +106,7 @@ object Sample {
     }
 
   def shrinkIntegral[A](smallest: A)(a: A)(implicit I: Integral[A], trace: ZTraceElement): Sample[Any, A] =
-    Sample.unfold((a)) { max =>
+    Sample.unfold(a) { max =>
       (
         max,
         ZStream.unfold(smallest) { min =>

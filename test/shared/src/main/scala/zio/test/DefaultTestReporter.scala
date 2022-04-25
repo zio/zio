@@ -220,8 +220,8 @@ object DefaultTestReporter {
     val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
     failures
       .map(fc =>
-//        renderGenFailureDetails(genFailureDetails, offset) ++
-        Message(renderFailureCase(fc, offset, None))
+        renderGenFailureDetails(assertionResult.getGenFailureDetails, offset) ++
+          Message(renderFailureCase(fc, offset, None))
       )
       .foldLeft(Message.empty)(_ ++ _)
   }
@@ -283,7 +283,7 @@ object DefaultTestReporter {
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)
 
-  private def renderGenFailureDetails[A](failureDetails: Option[GenFailureDetails], offset: Int): Message =
+  private def renderGenFailureDetails(failureDetails: Option[GenFailureDetails], offset: Int): Message =
     failureDetails match {
       case Some(details) =>
         val shrunken = details.shrunkenInput.toString

@@ -668,8 +668,7 @@ package object test extends CompileVariants {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
           initial.foreach(input =>
             test(input)
-              // TODO: FIX THIS
-//              .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
+              .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
               .either
           )
         }
@@ -690,9 +689,7 @@ package object test extends CompileVariants {
           .filter(_.fold(_ => true, _.isFailure))
           .lastOption
           .fold[ZIO[R, E, TestResult]](
-            ZIO.succeedNow {
-              assertImpl(true)(Assertion.isTrue)
-            }
+            ZIO.succeedNow(assertCompletes)
           )(ZIO.fromEither(_))
       }
 
@@ -705,9 +702,7 @@ package object test extends CompileVariants {
           .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
               test(input)
-                // TODO: ADD .setGenFailureDetails(GenFailureDetails(initial.value, input, index)) to the TestResults
-//                .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
-//                .map((a: TestResult) => a.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
+                .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure
             }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))

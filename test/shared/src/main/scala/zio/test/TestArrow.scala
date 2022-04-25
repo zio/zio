@@ -36,6 +36,9 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
   def ??(message: String): TestResult = self.label(message)
 
   def label(message: String): TestResult = TestResult(arrow.label(message))
+
+  def setGenFailureDetails(details: GenFailureDetails): TestResult =
+    TestResult(arrow.setGenFailureDetails(details))
 }
 
 object TestResult {
@@ -50,6 +53,9 @@ sealed trait TestArrow[-A, +B] { self =>
 
   def label(message: String): TestArrow[A, B] = self.meta(customLabel = Some(message))
 
+  def setGenFailureDetails(details: GenFailureDetails): TestArrow[A, B] =
+    self.meta(genFailureDetails = Some(details))
+
   import TestArrow._
 
   def meta(
@@ -58,7 +64,8 @@ sealed trait TestArrow[-A, +B] { self =>
     code: Option[String] = None,
     location: Option[String] = None,
     completeCode: Option[String] = None,
-    customLabel: Option[String] = None
+    customLabel: Option[String] = None,
+    genFailureDetails: Option[GenFailureDetails] = None
   ): TestArrow[A, B] = self match {
     case meta: Meta[A, B] =>
       meta.copy(
@@ -67,7 +74,8 @@ sealed trait TestArrow[-A, +B] { self =>
         code = code.orElse(meta.code),
         location = meta.location.orElse(location),
         completeCode = meta.completeCode.orElse(completeCode),
-        customLabel = meta.customLabel.orElse(customLabel)
+        customLabel = meta.customLabel.orElse(customLabel),
+        genFailureDetails = meta.genFailureDetails.orElse(genFailureDetails)
       )
     case _ =>
       Meta(
@@ -77,7 +85,8 @@ sealed trait TestArrow[-A, +B] { self =>
         code = code,
         location = location,
         completeCode = completeCode,
-        customLabel = customLabel
+        customLabel = customLabel,
+        genFailureDetails = genFailureDetails
       )
   }
 
@@ -177,7 +186,7 @@ object TestArrow {
             run(f(value), in)
         }
 
-      case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel) =>
+      case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
         run(arrow, in)
           .withSpan(span)
           .withCode(code)
@@ -185,6 +194,7 @@ object TestArrow {
           .withLocation(location)
           .withCompleteCode(completeCode)
           .withCustomLabel(customLabel)
+          .withGenFailureDetails(genFailureDetails)
     }
 
   }
@@ -200,7 +210,8 @@ object TestArrow {
     code: Option[String],
     location: Option[String],
     completeCode: Option[String],
-    customLabel: Option[String]
+    customLabel: Option[String],
+    genFailureDetails: Option[GenFailureDetails]
   ) extends TestArrow[A, B]
   case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])           extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]

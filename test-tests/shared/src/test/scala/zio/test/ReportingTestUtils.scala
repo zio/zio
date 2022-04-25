@@ -84,11 +84,11 @@ object ReportingTestUtils {
     test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
   def test3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("Value falls within range"),
-    s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}",
-    s"${blue("52")} did not satisfy ${yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10))")}",
+    s"52 did not satisfy equalTo(42)",
+    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
     assertSourceLocation(),
     s"52 was not less than 10",
-    s"${blue("52")} did not satisfy ${cyan("equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan(")")}",
+    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
     assertSourceLocation()
   )
 
