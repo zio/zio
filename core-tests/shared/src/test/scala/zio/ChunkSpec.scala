@@ -84,7 +84,7 @@ object ChunkSpec extends ZIOBaseSpec {
           val effect   = ZIO.succeed(bs.foldLeft(as)(_ :+ _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
           val expected = as ++ bs
-          assertM(actual)(forall(equalTo(expected)))
+          assertZIO(actual)(forall(equalTo(expected)))
         }
       },
       test("equals") {
@@ -140,7 +140,7 @@ object ChunkSpec extends ZIOBaseSpec {
           val effect   = ZIO.succeed(as.foldRight(bs)(_ +: _))
           val actual   = ZIO.collectAllPar(ZIO.replicate(100)(effect))
           val expected = as ++ bs
-          assertM(actual)(forall(equalTo(expected)))
+          assertZIO(actual)(forall(equalTo(expected)))
         }
       },
       test("equals") {
@@ -273,7 +273,7 @@ object ChunkSpec extends ZIOBaseSpec {
               val (s1, b) = f(s0, a)
               (s1, bs :+ b)
             }
-            assertM(actual)(equalTo(expected))
+            assertZIO(actual)(equalTo(expected))
         }
       },
       test("mapAccumZIO error") {
@@ -373,7 +373,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("dropWhileZIO")(
       test("dropWhileZIO happy path") {
-        assertM(Chunk(1, 2, 3, 4, 5).dropWhileZIO(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(2, 3, 4, 5)))
+        assertZIO(Chunk(1, 2, 3, 4, 5).dropWhileZIO(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(2, 3, 4, 5)))
       },
       test("dropWhileZIO error") {
         Chunk(1, 1, 1).dropWhileZIO(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -386,7 +386,7 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     suite("takeWhileZIO")(
       test("takeWhileZIO happy path") {
-        assertM(Chunk(1, 2, 3, 4, 5).takeWhileZIO(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(1)))
+        assertZIO(Chunk(1, 2, 3, 4, 5).takeWhileZIO(el => UIO.succeed(el % 2 == 1)))(equalTo(Chunk(1)))
       },
       test("takeWhileZIO error") {
         Chunk(1, 1, 1).dropWhileZIO(_ => IO.fail("Ouch")).either.map(assert(_)(isLeft(equalTo("Ouch"))))
@@ -430,7 +430,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectZIO")(
       test("collectZIO empty Chunk") {
-        assertM(Chunk.empty[Nothing].collectZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
+        assertZIO(Chunk.empty[Nothing].collectZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       test("collectZIO chunk") {
         val pfGen = Gen.partialFunction[Sized, Int, UIO[Int]](Gen.successes(intGen))
@@ -458,7 +458,7 @@ object ChunkSpec extends ZIOBaseSpec {
     ),
     suite("collectWhileZIO")(
       test("collectWhileZIO empty Chunk") {
-        assertM(Chunk.empty[Nothing].collectWhileZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
+        assertZIO(Chunk.empty[Nothing].collectWhileZIO { case _ => UIO.succeed(1) })(equalTo(Chunk.empty))
       },
       test("collectWhileZIO chunk") {
         val pfGen = Gen.partialFunction[Sized, Int, UIO[Int]](Gen.successes(intGen))
@@ -626,7 +626,7 @@ object ChunkSpec extends ZIOBaseSpec {
       assert(array)(anything)
     },
     test("foldWhileZIO") {
-      assertM(
+      assertZIO(
         Chunk
           .fromIterable(List(2))
           .foldWhileZIO(0)(i => i <= 2) { case (i: Int, i1: Int) =>
@@ -650,7 +650,7 @@ object ChunkSpec extends ZIOBaseSpec {
       )(equalTo(Chunk.fromIterable(0 to 9)))
     },
     test("unfoldZIO") {
-      assertM(
+      assertZIO(
         Chunk.unfoldZIO(0)(n => if (n < 10) IO.some((n, n + 1)) else IO.none)
       )(equalTo(Chunk.fromIterable(0 to 9)))
     },

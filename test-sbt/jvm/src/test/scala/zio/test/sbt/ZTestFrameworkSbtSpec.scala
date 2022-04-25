@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.Assertion.equalTo
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
@@ -51,6 +51,7 @@ object ZTestFrameworkSbtSpec {
           case RuntimeFailure(_, _, _, _)    => false
           case SectionStart(_, _, _)         => false
           case SectionEnd(_, _, _)           => false
+          case TopLevelFlush(_)              => false
         }
       ),
       s"reported events should have positive durations: $reported"
@@ -153,14 +154,15 @@ object ZTestFrameworkSbtSpec {
 
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.default
         )
       }
       .head
@@ -176,14 +178,15 @@ object ZTestFrameworkSbtSpec {
     val runner = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.default
         )
       }
       .head

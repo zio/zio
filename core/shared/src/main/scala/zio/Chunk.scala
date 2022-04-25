@@ -571,15 +571,6 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Statefully and effectfully maps over the elements of this chunk to produce
    * new elements.
    */
-  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, E, (S1, Chunk[B])] =
-    mapAccumZIO(s1)(f1)
-
-  /**
-   * Statefully and effectfully maps over the elements of this chunk to produce
-   * new elements.
-   */
   final def mapAccumZIO[R, E, S1, B](
     s1: S1
   )(f1: (S1, A) => ZIO[R, E, (S1, B)])(implicit trace: ZTraceElement): ZIO[R, E, (S1, Chunk[B])] =

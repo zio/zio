@@ -17,12 +17,12 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Exit, Layer, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
+import zio.{Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
-sealed abstract class ZTestRunner(
+sealed abstract class ZTestRunnerNative(
   val args: Array[String],
   val remoteArgs: Array[String],
   testClassLoader: ClassLoader,
@@ -59,7 +59,7 @@ sealed abstract class ZTestRunner(
 }
 
 final class ZMasterTestRunner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader)
-    extends ZTestRunner(args, remoteArgs, testClassLoader, "master") {
+    extends ZTestRunnerNative(args, remoteArgs, testClassLoader, "master") {
 
   //This implementation seems to be used when there's only single spec to run
   override val sendSummary: SendSummary = SendSummary.fromSend { summary =>
@@ -74,7 +74,7 @@ final class ZSlaveTestRunner(
   remoteArgs: Array[String],
   testClassLoader: ClassLoader,
   val sendSummary: SendSummary
-) extends ZTestRunner(args, remoteArgs, testClassLoader, "slave") {}
+) extends ZTestRunnerNative(args, remoteArgs, testClassLoader, "slave") {}
 
 sealed class ZTestTask(
   taskDef: TaskDef,
@@ -83,35 +83,31 @@ sealed class ZTestTask(
   sendSummary: SendSummary,
   testArgs: TestArgs,
   spec: ZIOSpecAbstract
-) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec) {
+) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    Runtime(ZEnvironment.empty, spec.hook(spec.runtime.runtimeConfig)).unsafeRunAsyncWith {
-      val logic =
-        ZIO.consoleWith { console =>
-          (for {
-            summary <- spec
-                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, zio.Console.ConsoleLive)
-            _ <- sendSummary.provide(ZLayer.succeed(summary))
-            // TODO Confirm if/how these events needs to be handled in #6481
-            //    Check XML behavior
-            _ <- ZIO.when(summary.status == Summary.Failure) {
-                   ZIO.fail("Failed tests")
-                 }
-          } yield ())
-            .provideLayer(
-              sharedFilledTestlayer(console)
-            )
-        }
-      logic
+  def execute(continuation: Array[Task] => Unit): Unit =
+    Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRunAsyncWith {
+      for {
+        summary <- ZIO.scoped {
+                     spec.run
+                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
+                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
+                   }
+        _ <- sendSummary.provide(ZLayer.succeed(summary))
+        _ <- ZIO.when(summary.status == Summary.Failure)(
+               ZIO.fail(new Exception("Failed tests."))
+             )
+      } yield ()
+
     } { exit =>
       exit match {
-        case Exit.Failure(_) => Console.err.println(s"$runnerType failed.")
-        case _               =>
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+        case _                   =>
       }
       continuation(Array())
     }
 }
+
 object ZTestTask {
   def apply(
     taskDef: TaskDef,
@@ -127,6 +123,7 @@ object ZTestTask {
   private def disectTask(taskDef: TaskDef, testClassLoader: ClassLoader): ZIOSpecAbstract = {
     import org.portablescala.reflect._
     val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
+    // Creating the class from magic ether
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))

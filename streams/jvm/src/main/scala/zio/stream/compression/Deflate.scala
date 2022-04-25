@@ -23,7 +23,7 @@ import java.util.zip.Deflater
 import java.{util => ju}
 import scala.annotation.tailrec
 
-object Deflate {
+private[compression] object Deflate {
 
   def makeDeflater(
     bufferSize: Int = 64 * 1024,

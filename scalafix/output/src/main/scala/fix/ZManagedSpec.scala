@@ -1129,7 +1129,7 @@ object ZManagedSpec extends ZIOSpecDefault {
       test("effectually peeks at the cause of the failure of the acquired resource") {
         (for {
           ref    <- Ref.make(false).toManaged
-          result <- ZManaged.dieMessage("die").tapCause(_ => ref.set(true).toManaged).exit
+          result <- ZManaged.dieMessage("die").tapErrorCause(_ => ref.set(true).toManaged).exit
           effect <- ref.get.toManaged
         } yield assert(result)(dies(hasMessage(equalTo("die")))) &&
           assert(effect)(isTrue)).use(ZIO.succeed(_))

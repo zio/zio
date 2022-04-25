@@ -40,10 +40,10 @@ object SpecSpec extends ZIOBaseSpec {
       test("does not acquire the environment if the suite is ignored") {
         val spec = suite("suite")(
           test("test1") {
-            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
+            assertZIO(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           },
           test("test2") {
-            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
+            assertZIO(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           }
         )
         for {
@@ -62,7 +62,7 @@ object SpecSpec extends ZIOBaseSpec {
             assert(1)(Assertion.equalTo(1))
           },
           test("test3") {
-            assertM(ZIO.service[Int])(Assertion.equalTo(42))
+            assertZIO(ZIO.service[Int])(Assertion.equalTo(42))
           }
         ).provideLayerShared(ZLayer.succeed(43))
         for {
@@ -113,7 +113,7 @@ object SpecSpec extends ZIOBaseSpec {
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
         ).provideSomeLayerShared[TestEnvironment](specLayer) @@ silent
-        assertM(succeeded(spec))(isTrue)
+        assertZIO(succeeded(spec))(isTrue)
       },
       test("releases resources as soon as possible") {
         for {
@@ -125,18 +125,18 @@ object SpecSpec extends ZIOBaseSpec {
           spec = suite("spec")(
                    suite("suite1")(
                      test("test1") {
-                       assertM(update)(equalTo(1))
+                       assertZIO(update)(equalTo(1))
                      },
                      test("test2") {
-                       assertM(update)(equalTo(2))
+                       assertZIO(update)(equalTo(2))
                      }
                    ).provideCustomLayerShared(specLayer),
                    suite("suite2")(
                      test("test1") {
-                       assertM(update)(equalTo(1))
+                       assertZIO(update)(equalTo(1))
                      },
                      test("test2") {
-                       assertM(update)(equalTo(2))
+                       assertZIO(update)(equalTo(2))
                      }
                    ).provideCustomLayerShared(specLayer)
                  ) @@ sequential
@@ -160,7 +160,7 @@ object SpecSpec extends ZIOBaseSpec {
               )
             )
           ).provideCustomLayerShared(ZLayer.scoped[Any](ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
-        assertM(succeeded(spec))(isTrue)
+        assertZIO(succeeded(spec))(isTrue)
       }
     ),
     suite("iterable constructor") {

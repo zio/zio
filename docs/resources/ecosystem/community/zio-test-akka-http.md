@@ -10,7 +10,7 @@ title: "ZIO Test Akka HTTP"
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "info.senia" %% "zio-test-akka-http" % "1.0.2"
+libraryDependencies += "info.senia" %% "zio-test-akka-http" % "2.0.0-RC5"
 ```
 
 ## Example
@@ -22,13 +22,13 @@ import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.server.Directives.complete
 import zio.test.Assertion._
 import zio.test._
-import zio.test.akkahttp.DefaultAkkaRunnableSpec
+import zio.test.akkahttp.AkkaZIOSpecDefault
 
-object MySpec extends DefaultAkkaRunnableSpec {
+object MySpec extends AkkaZIOSpecDefault {
   def spec =
     suite("MySpec")(
-      testM("my test") {
-        assertM(Get() ~> complete(HttpResponse()))(
+      test("my test") {
+        assertZIO(Get() ~> complete(HttpResponse()))(
           handled(
             response(equalTo(HttpResponse()))
           )

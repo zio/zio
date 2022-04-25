@@ -53,15 +53,15 @@ import scala.util.Try
  * }}}
  */
 package object test extends CompileVariants {
-  type AssertResultM = BoolAlgebraM[Any, Nothing, AssertionValue]
-  type AssertResult  = BoolAlgebra[AssertionValue]
+  type AssertResultZIO = BoolAlgebraZIO[Any, Nothing, AssertionValue]
+  type AssertResult    = BoolAlgebra[AssertionValue]
 
   type TestEnvironment = Annotations with Live with Sized with TestConfig
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZLayer[ZEnv with Scope, Nothing, TestEnvironment] = {
+    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
@@ -77,7 +77,7 @@ package object test extends CompileVariants {
 
   val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
 
-  val testEnvironment: ZLayer[Scope, Nothing, TestEnvironment] = {
+  val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
     ZEnv.live >>> TestEnvironment.live
   }
@@ -243,7 +243,7 @@ package object test extends CompileVariants {
   private def traverseResult[A](
     value: => A,
     assertResult: AssertResult,
-    assertion: AssertionM[A],
+    assertion: AssertionZIO[A],
     expression: Option[String]
   )(implicit trace: ZTraceElement): TestResult = {
     val sourceLocation = Option(trace).collect { case ZTraceElement(_, file, line) =>
@@ -289,8 +289,8 @@ package object test extends CompileVariants {
   /**
    * Asserts that the given test was completed.
    */
-  def assertCompletesM(implicit trace: ZTraceElement): UIO[TestResult] =
-    assertMImpl(UIO.succeedNow(true))(Assertion.isTrue)
+  def assertCompletesZIO(implicit trace: ZTraceElement): UIO[TestResult] =
+    assertZIOImpl(UIO.succeedNow(true))(Assertion.isTrue)
 
   /**
    * Asserts that the given test was never completed.
@@ -301,12 +301,12 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  override private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionM[A]
+  override private[test] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
+    assertion: AssertionZIO[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     for {
       value        <- effect
-      assertResult <- assertion.runM(value).run
+      assertResult <- assertion.runZIO(value).run
     } yield traverseResult(value, assertResult, assertion, None)
 
   /**
@@ -482,7 +482,7 @@ package object test extends CompileVariants {
     checkStreamPar(rv.sample.collectSome, parallelism)(a => checkConstructor(test(a)))
 
   /**
-   * A version of `checkAllMPar` that accepts two random variables.
+   * A version of `checkAllPar` that accepts two random variables.
    */
   def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => In
@@ -493,7 +493,7 @@ package object test extends CompileVariants {
     checkAllPar(rv1 <*> rv2, parallelism)(test.tupled)
 
   /**
-   * A version of `checkAllMPar` that accepts three random variables.
+   * A version of `checkAllPar` that accepts three random variables.
    */
   def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, In](
     rv1: Gen[R, A],
@@ -509,7 +509,7 @@ package object test extends CompileVariants {
     checkAllPar(rv1 <*> rv2 <*> rv3, parallelism)(test.tupled)
 
   /**
-   * A version of `checkAllMPar` that accepts four random variables.
+   * A version of `checkAllPar` that accepts four random variables.
    */
   def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, In](
     rv1: Gen[R, A],
@@ -526,7 +526,7 @@ package object test extends CompileVariants {
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4, parallelism)(test.tupled)
 
   /**
-   * A version of `checkAllMPar` that accepts five random variables.
+   * A version of `checkAllPar` that accepts five random variables.
    */
   def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, In](
     rv1: Gen[R, A],
@@ -544,7 +544,7 @@ package object test extends CompileVariants {
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5, parallelism)(test.tupled)
 
   /**
-   * A version of `checkAllMPar` that accepts six random variables.
+   * A version of `checkAllPar` that accepts six random variables.
    */
   def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
@@ -588,7 +588,8 @@ package object test extends CompileVariants {
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer
+        sinkLayer,
+        _ => ZIO.unit // There is no EventHandler available here, so we can't do much.
       )
     )
   }

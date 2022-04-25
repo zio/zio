@@ -37,7 +37,7 @@ final case class Summary(
   def add(executionEvent: ExecutionEvent)(implicit trace: ZTraceElement): Summary =
     SummaryBuilder.buildSummary(executionEvent, this)
 
-  def add(other: Summary)(implicit trace: ZTraceElement): Summary =
+  def add(other: Summary): Summary =
     Summary(
       success + other.success,
       fail + other.fail,
@@ -46,7 +46,8 @@ final case class Summary(
         (if (other.summary.trim.isEmpty)
            ""
          else
-           "\n" + other.summary)
+           "\n" + other.summary),
+      duration.plus(other.duration)
     )
 }
 

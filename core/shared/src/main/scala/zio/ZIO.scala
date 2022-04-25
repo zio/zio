@@ -988,6 +988,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     f(self.left).unleft
 
   /**
+   * Adjusts the label for the current logging span.
+   * {{{
+   * parseRequest(req).logSpan("parsing")
+   * }}}
+   */
+  def logSpan(label: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.logSpan(label)(self)
+
+  /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] =
@@ -1258,15 +1267,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       scope =>
         layer.build(scope).flatMap(r => self.provideEnvironment(r))
     }
-
-  /**
-   * Provides the `ZIO` effect with the single service it requires. If the
-   * effect requires multiple services use `provideEnvironment` instead.
-   */
-  final def provideService[Service <: R](
-    service: => Service
-  )(implicit tag: Tag[Service], trace: ZTraceElement): IO[E, A] =
-    provideEnvironment(ZEnvironment(service))
 
   /**
    * Transforms the environment being provided to this effect with the specified
@@ -2388,15 +2388,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     val g = (b: B, a: A) => f(a, b)
 
-    ZIO.transplant { graft =>
-      ZIO.descriptorWith { d =>
-        new ZIO.RaceWith(
-          graft(self),
-          graft(that),
-          coordinate(d.id, f, true),
-          coordinate(d.id, g, false),
-          trace
-        )
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.transplant { graft =>
+        ZIO.fiberIdWith { fiberId =>
+          new ZIO.RaceWith(
+            graft(restore(self)),
+            graft(restore(that)),
+            coordinate(fiberId, f, true),
+            coordinate(fiberId, g, false),
+            trace
+          )
+        }
       }
     }
   }
@@ -2484,18 +2486,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(acquire.ensuring(ZIO.addFinalizerExit(release)))
 
   /**
-   * When this effect represents acquisition of a resource (for example, opening
-   * a file, launching a thread, etc.), `acquireReleaseWith` can be used to
-   * ensure the acquisition is not interrupted and the resource is always
+   * Given an effect representing acquisition of a resource (for example,
+   * opening a file, launching a thread, etc.), `acquireReleaseWith` can be used
+   * to ensure the acquisition is not interrupted and the resource is always
    * released.
    *
    * The function does two things:
    *
-   *   1. Ensures this effect, which acquires the resource, will not be
-   *      interrupted. Of course, acquisition may fail for internal reasons (an
-   *      uncaught exception). 2. Ensures the `release` effect will not be
-   *      interrupted, and will be executed so long as this effect successfully
-   *      acquires the resource.
+   *   1. Ensures this `acquire` effect will not be interrupted. Of course,
+   *      acquisition may fail for internal reasons (an uncaught exception).
+   *
+   *   1. Ensures the `release` effect will not be interrupted, and will be
+   *      executed so long as this effect successfully acquires the resource.
    *
    * In between acquisition and release of the resource, the `use` effect is
    * executed.
@@ -2505,7 +2507,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * produced by the `release` effect can be caught and ignored.
    *
    * {{{
-   * openFile("data.json").acquireReleaseWith(closeFile) { file =>
+   * ZIO.acquireReleaseWith(openFile("data.json"))(closeFile) { file =>
    *   for {
    *     header <- readHeader(file)
    *     ...
@@ -3057,7 +3059,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * method.
    */
   def fiberId(implicit trace: ZTraceElement): UIO[FiberId] =
-    descriptorWith(descriptor => succeedNow(descriptor.id))
+    fiberIdWith(fiberId => ZIO.succeedNow(fiberId))
+
+  /**
+   * Constructs an effect based on the `FiberId` of the fiber executing the
+   * effect that calls this method.
+   */
+  def fiberIdWith[R, E, A](f: FiberId => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.descriptorWith(descriptor => f(descriptor.id))
 
   /**
    * Filters the collection using the specified effectual predicate.
@@ -3743,7 +3752,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Annotates each log in this effect with the specified log annotation.
    */
   def logAnnotate(key: => String, value: => String): LogAnnotate =
-    new LogAnnotate(() => key, () => value)
+    logAnnotate(LogAnnotation(key, value))
+
+  /**
+   * Annotates each log in this effect with the specified log annotation.
+   */
+  def logAnnotate(logAnnotation: => LogAnnotation, logAnnotations: LogAnnotation*): LogAnnotate =
+    logAnnotate(Set(logAnnotation) ++ logAnnotations.toSet)
+
+  /**
+   * Annotates each log in this effect with the specified log annotation.
+   */
+  def logAnnotate(logAnnotations: => Set[LogAnnotation]): LogAnnotate =
+    new LogAnnotate(() => logAnnotations)
 
   /**
    * Retrieves the log annotations associated with the current scope.
@@ -4028,7 +4049,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(zio.raceAll(ios))
 
   /**
-   * Retreives the `Random` service for this workflow.
+   * Returns an effect that races this effect with all the specified effects,
+   * yielding the first result to complete, whether by success or failure. If
+   * neither effect completes, then the composed effect will not complete.
+   *
+   * WARNING: The raced effect will safely interrupt the "losers", but will not
+   * resume until the losers have been cleanly terminated. If early return is
+   * desired, then instead of performing `ZIO.raceFirst(l, rs)`, perform
+   * `ZIO.raceFirst(l.disconnect, rs.map(_.disconnect))`, which disconnects left
+   * and rights interrupt signal, allowing a fast return, with interruption
+   * performed in the background.
+   */
+  def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: Iterable[ZIO[R1, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E, A] =
+    (zio.exit raceAll ios.map(_.exit)).flatMap(ZIO.done(_))
+
+  /**
+   * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
    */
   def random(implicit trace: ZTraceElement): UIO[Random] =
     ZIO.randomWith(ZIO.succeedNow)
@@ -4400,6 +4438,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def updateState[S: EnvironmentTag](f: S => S)(implicit trace: ZTraceElement): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWithZIO(_.update(f))
+
+  /**
+   * Scopes all resources acquired by `resource` to the lifetime of `use`
+   * without effecting the scope of any resources acquired by `use`.
+   */
+  def using[R]: UsingPartiallyApplied[R] =
+    new ZIO.UsingPartiallyApplied[R]
 
   /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
@@ -4788,6 +4833,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       Scope.make.flatMap(_.use[R](zio))
   }
 
+  final class UsingPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R1, E, A, B](
+      resource: ZIO[R with Scope, E, A]
+    )(use: A => ZIO[R1, E, B])(implicit trace: ZTraceElement): ZIO[R with R1, E, B] =
+      ZIO.acquireReleaseExitWith {
+        Scope.make
+      } { (scope: Scope.Closeable, exit: Exit[Any, Any]) =>
+        scope.close(exit)
+      } { scope =>
+        scope.extend[R](resource).flatMap(use)
+      }
+  }
+
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Key](
       key: => Key
@@ -4840,11 +4898,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
-  final class LogAnnotate(val key: () => String, val value: () => String) {
+  final class LogAnnotate(val annotations: () => Set[LogAnnotation]) { self =>
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
-        FiberRef.currentLogAnnotations.locally(annotations.updated(key(), value()))(zio)
-      }
+      FiberRef.currentLogAnnotations.locallyWith(_ ++ annotations().map { case LogAnnotation(key, value) =>
+        key -> value
+      })(zio)
   }
 
   @inline

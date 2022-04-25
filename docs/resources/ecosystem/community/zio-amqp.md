@@ -14,7 +14,7 @@ ZIO AMQP is a ZIO-based wrapper around the RabbitMQ client. It provides a stream
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "nl.vroste" %% "zio-amqp" % "0.2.0"
+libraryDependencies += "nl.vroste" %% "zio-amqp" % "0.3.0"
 ```
 
 ## Example
@@ -31,48 +31,42 @@ Now we can run the example below:
 
 ```scala
 import nl.vroste.zio.amqp._
+import nl.vroste.zio.amqp.model._
 import zio._
-import zio.blocking._
-import zio.clock.Clock
-import zio.console._
-import zio.duration.durationInt
-import zio.random.Random
 
 import java.net.URI
 
-object ZIOAMQPExample extends zio.App {
+object ZIOAMQPExample extends ZIOAppDefault {
 
-  val channelM: ZManaged[Blocking, Throwable, Channel] = for {
+  val channel: ZIO[Scope, Throwable, Channel] = for {
     connection <- Amqp.connect(URI.create("amqp://localhost:5672"))
-    channel <- Amqp.createChannel(connection)
+    channel    <- Amqp.createChannel(connection)
   } yield channel
 
-  val myApp: ZIO[Blocking with Console with Clock with Random, Throwable, Unit] =
-    channelM.use { channel =>
-      val producer: ZIO[Blocking with Random with Clock, Throwable, Long] =
-        zio.random.nextUUID
-          .flatMap(uuid =>
-            channel.publish("my_exchange", uuid.toString.getBytes)
-              .map(_ => ())
-          ).schedule(Schedule.spaced(1.seconds))
-
-      val consumer: ZIO[Blocking with Console, Throwable, Unit] = channel
-        .consume(queue = "my_queue", consumerTag = "my_consumer")
-        .mapM { record =>
-          val deliveryTag = record.getEnvelope.getDeliveryTag
-          putStrLn(s"Received $deliveryTag: ${new String(record.getBody)}") *>
-            channel.ack(deliveryTag)
-        }
-        .runDrain
-
+  val myApp: ZIO[Any, Throwable, Unit] =
+    ZIO.scoped {
       for {
-        p <- producer.fork
-        c <- consumer.fork
-        _ <- p.zip(c).join
+        channel                            <- channel
+        producer: ZIO[Any, Throwable, Long] =
+          Random.nextUUID
+            .flatMap(uuid => channel.publish(ExchangeName("my_exchange"), uuid.toString.getBytes).unit)
+            .schedule(Schedule.spaced(1.seconds))
+
+        consumer: ZIO[Any, Throwable, Unit] =
+          channel
+            .consume(queue = QueueName("my_queue"), consumerTag = ConsumerTag("my_consumer"))
+            .mapZIO { record =>
+              val deliveryTag = record.getEnvelope.getDeliveryTag
+              Console.printLine(s"Received $deliveryTag: ${new String(record.getBody)}") *>
+                channel.ack(DeliveryTag(deliveryTag))
+            }
+            .runDrain
+        p                                  <- producer.fork
+        c                                  <- consumer.fork
+        _                                  <- p.zip(c).join
       } yield ()
     }
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.exitCode
+  override def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] = myApp
 }
 ```

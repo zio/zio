@@ -131,6 +131,24 @@ final class TReentrantLock private (data: TRef[LockState]) {
     }
 
   /**
+   * Runs the specified workflow with a lock.
+   */
+  def withLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    withWriteLock(zio)
+
+  /**
+   * Runs the specified workflow with a read lock.
+   */
+  def withReadLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask(restore => restore(acquireRead.commit) *> restore(zio).ensuring(releaseRead.commit))
+
+  /**
+   * Runs the specified workflow with a write lock.
+   */
+  def withWriteLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask(restore => restore(acquireWrite.commit) *> restore(zio).ensuring(releaseWrite.commit))
+
+  /**
    * Obtains a write lock in a scoped context.
    */
   def writeLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =

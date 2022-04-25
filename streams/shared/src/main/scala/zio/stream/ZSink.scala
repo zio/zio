@@ -976,7 +976,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * Creates a sink that effectfully folds elements of type `In` into a
    * structure of type `S` until `max` elements have been folded.
    *
-   * Like [[foldWeightedM]], but with a constant cost function of 1.
+   * Like [[foldWeightedZIO]], but with a constant cost function of 1.
    */
   def foldUntilZIO[Env, Err, In, S](z: => S, max: => Long)(
     f: (S, In) => ZIO[Env, Err, S]
@@ -1027,7 +1027,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * the empty chunk or a single-valued chunk. In these cases, there is no other
    * choice than to yield a value that will cross the threshold.
    *
-   * The [[foldWeightedDecomposeM]] allows the decompose function to return a
+   * The [[foldWeightedDecomposeZIO]] allows the decompose function to return a
    * `ZIO` value, and consequently it allows the sink to fail.
    */
   def foldWeightedDecompose[In, S](
@@ -1157,7 +1157,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    *
    * @note
    *   Elements that have an individual cost larger than `max` will force the
-   *   sink to cross the `max` cost. See [[foldWeightedDecomposeM]] for a
+   *   sink to cross the `max` cost. See [[foldWeightedDecomposeZIO]] for a
    *   variant that can handle these cases.
    */
   def foldWeightedZIO[Env, Err, In, S](
@@ -1175,7 +1175,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: ZTraceElement): ZSink[Env, Err, In, In, S] =
     ZSink.suspend {
-      def foldChunkSplitM(z: S, chunk: Chunk[In])(
+      def foldChunkSplitZIO(z: S, chunk: Chunk[In])(
         contFn: S => Boolean
       )(f: (S, In) => ZIO[Env, Err, S]): ZIO[Env, Err, (S, Option[Chunk[In]])] = {
         def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): ZIO[Env, Err, (S, Option[Chunk[In]])] =
@@ -1197,7 +1197,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         else
           ZChannel.readWith(
             (in: Chunk[In]) =>
-              ZChannel.fromZIO(foldChunkSplitM(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
+              ZChannel.fromZIO(foldChunkSplitZIO(s, in)(contFn)(f)).flatMap { case (nextS, leftovers) =>
                 leftovers match {
                   case Some(l) => ZChannel.write(l).as(nextS)
                   case None    => reader(nextS)
@@ -1409,10 +1409,30 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: ZTraceElement
   ): ZSink[R, E, In, L, Z] =
+    logAnnotate(LogAnnotation(key, value))(sink)
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate[R, E, In, L, Z](annotation: => LogAnnotation, annotations: LogAnnotation*)(
+    sink: ZSink[R, E, In, L, Z]
+  )(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
+    logAnnotate(Set(annotation) ++ annotations.toSet)(sink)
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate[R, E, In, L, Z](annotations: => Set[LogAnnotation])(sink: ZSink[R, E, In, L, Z])(implicit
+    trace: ZTraceElement
+  ): ZSink[R, E, In, L, Z] =
     ZSink.unwrapScoped {
-      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
-        FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value)).as(sink)
-      }
+      FiberRef.currentLogAnnotations
+        .locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) => key -> value })
+        .as(sink)
     }
 
   /**

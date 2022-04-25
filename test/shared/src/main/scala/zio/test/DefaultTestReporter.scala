@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ExecutionResult.ResultType.Suite
 import zio.test.render.ExecutionResult.Status.{Failed, Ignored, Passed}
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -43,7 +43,7 @@ object DefaultTestReporter {
   def render(
     reporterEvent: ExecutionEvent,
     includeCause: Boolean
-  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = {
+  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = // This should return a single/Option ExecutionResult now.
     reporterEvent match {
       case SectionStart(labelsReversed, _, ancestors) =>
         val depth = labelsReversed.length - 1
@@ -51,7 +51,7 @@ object DefaultTestReporter {
           case Nil => Seq.empty
           case nonEmptyList =>
             Seq(
-              ExecutionResult(
+              ExecutionResult.withoutSummarySpecificOutput(
                 ResultType.Suite,
                 label = nonEmptyList.last,
                 // We no longer know if the suite has passed here, because the output is streamed
@@ -63,9 +63,11 @@ object DefaultTestReporter {
             )
         }
 
-      case Test(labelsReversed, results, annotations, _, _, _) =>
+      case Test(labelsReversed, results, annotations, _, _, suiteId) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
+        val (streamingOutput, summaryOutput) =
+          testCaseOutput(labels, results, includeCause, suiteId)
         Seq(
           ExecutionResult(
             ResultType.Test,
@@ -79,96 +81,109 @@ object DefaultTestReporter {
                 }
             },
             initialDepth * 2,
-            List(annotations), {
-              val depth = labels.length
-              val label = labels.last
-
-              val renderedResult = results match {
-                case Right(TestSuccess.Succeeded(_, _)) =>
-                  Some(
-                    rendered(
-                      ResultType.Test,
-                      label,
-                      Passed,
-                      depth,
-                      fr(labels.last).toLine
-                    )
-                  )
-                case Right(TestSuccess.Ignored(_)) =>
-                  Some(
-                    rendered(
-                      ResultType.Test,
-                      label,
-                      Ignored,
-                      depth,
-                      warn(label).toLine
-                    )
-                  )
-                case Left(TestFailure.Assertion(result, _)) =>
-                  result
-                    .fold[Option[TestResult]] {
-                      case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
-                      case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
-                        Trace
-                          .prune(trace, false)
-                          .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
-                    }(
-                      {
-                        case (Some(a), Some(b)) => Some(a && b)
-                        case (Some(a), None)    => Some(a)
-                        case (None, Some(b))    => Some(b)
-                        case _                  => None
-                      },
-                      {
-                        case (Some(a), Some(b)) => Some(a || b)
-                        case (Some(a), None)    => Some(a)
-                        case (None, Some(b))    => Some(b)
-                        case _                  => None
-                      },
-                      _.map(!_)
-                    )
-                    .map {
-                      _.fold(details =>
-                        rendered(
-                          ResultType.Test,
-                          label,
-                          Failed,
-                          depth,
-                          renderFailure(label, depth, details).lines: _*
-                        )
-                      )(
-                        _ && _,
-                        _ || _,
-                        !_
-                      )
-                    }
-
-                case Left(TestFailure.Runtime(cause, _)) =>
-                  Some(
-                    renderRuntimeCause(
-                      cause,
-                      labels.reverse.headOption.getOrElse("Unlabeled failure"),
-                      depth,
-                      includeCause
-                    )
-                  )
-              }
-              renderedResult.map(r => r.lines).getOrElse(Nil)
-            }
+            List(annotations),
+            streamingOutput,
+            summaryOutput
           )
         )
-      case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+      case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = reporterEvent.labels.length
-        val label = reporterEvent.labels.lastOption.getOrElse("Top-level defect prevented test execution")
         failure match {
           case TestFailure.Assertion(result, _) =>
-            Seq(renderAssertFailure(result, label, depth))
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
           case TestFailure.Runtime(cause, _) =>
-            Seq(renderRuntimeCause(cause, label, depth, includeCause))
+            Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
         }
       case SectionEnd(_, _, _) =>
         Nil
+      case TopLevelFlush(_) =>
+        Nil
     }
+
+  private def testCaseOutput(
+    labels: List[String],
+    results: Either[TestFailure[Any], TestSuccess],
+    includeCause: Boolean,
+    suiteId: SuiteId
+  )(implicit
+    trace: ZTraceElement
+  ): (List[Line], List[Line]) = {
+    val depth     = labels.length
+    val label     = labels.last
+    val flatLabel = labels.mkString(" - ")
+
+    val renderedResult = results match {
+      case Right(TestSuccess.Succeeded(_, _)) =>
+        Some(
+          rendered(
+            ResultType.Test,
+            label,
+            Passed,
+            depth,
+            fr(labels.last).toLine
+          )
+        )
+      case Right(TestSuccess.Ignored(_)) =>
+        Some(
+          rendered(
+            ResultType.Test,
+            label,
+            Ignored,
+            depth,
+            warn(label).toLine
+          )
+        )
+      case Left(TestFailure.Assertion(result, _)) =>
+        result
+          .fold[Option[TestResult]] {
+            case result: AssertionResult.FailureDetailsResult => Some(BoolAlgebra.success(result))
+            case AssertionResult.TraceResult(trace, genFailureDetails, label) =>
+              Trace
+                .prune(trace, false)
+                .map(a => BoolAlgebra.success(AssertionResult.TraceResult(a, genFailureDetails, label)))
+          }(
+            {
+              case (Some(a), Some(b)) => Some(a && b)
+              case (Some(a), None)    => Some(a)
+              case (None, Some(b))    => Some(b)
+              case _                  => None
+            },
+            {
+              case (Some(a), Some(b)) => Some(a || b)
+              case (Some(a), None)    => Some(a)
+              case (None, Some(b))    => Some(b)
+              case _                  => None
+            },
+            _.map(!_)
+          )
+          .map {
+            _.fold(details =>
+              renderedWithSummary(
+                ResultType.Test,
+                label,
+                Failed,
+                depth,
+                renderFailure(label, depth, details).lines.toList,
+                renderFailure(flatLabel, depth, details).lines.toList // Fully-qualified label
+              )
+            )(
+              _ && _,
+              _ || _,
+              !_
+            )
+          }
+
+      case Left(TestFailure.Runtime(cause, _)) =>
+        Some(
+          renderRuntimeCause(
+            cause,
+            labels,
+            depth,
+            includeCause
+          )
+        )
+    }
+    (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
   private def renderSuiteIgnored(label: String, offset: Int) =
@@ -180,22 +195,51 @@ object DefaultTestReporter {
   private def renderSuiteSucceeded(label: String, offset: Int) =
     rendered(Suite, label, Passed, offset, fr(label).toLine)
 
-  def renderAssertFailure(result: TestResult, label: String, depth: Int): ExecutionResult =
-    result.fold(details =>
-      rendered(ResultType.Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*)
-    )(
+  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
+    val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
+    val summaryLabel   = labels.mkString(" - ")
+    result.fold { details =>
+      val streamingRenderedFailure = renderFailure(streamingLabel, depth, details).lines.toList
+      val summaryRenderedFailure   = renderFailure(summaryLabel, depth, details).lines.toList
+      renderedWithSummary(
+        ResultType.Test,
+        streamingLabel,
+        Failed,
+        depth,
+        streamingRenderedFailure,
+        summaryRenderedFailure
+      )
+    }(
       _ && _,
       _ || _,
       !_
     )
+  }
 
-  private def renderRuntimeCause[E](cause: Cause[E], label: String, depth: Int, includeCause: Boolean)(implicit
+  private def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
     trace: ZTraceElement
   ): ExecutionResult = {
-    val failureDetails =
-      Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
+    val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
+    val summaryLabel   = labels.mkString(" - ")
 
-    rendered(ResultType.Test, label, Failed, depth, failureDetails: _*)
+    val failureDetails =
+      Seq(renderFailureLabel(streamingLabel, depth)) ++ Seq(renderCause(cause, depth))
+        .filter(_ => includeCause)
+        .flatMap(_.lines)
+
+    val summaryFailureDetails =
+      Seq(renderFailureLabel(summaryLabel, depth)) ++ Seq(renderCause(cause, depth))
+        .filter(_ => includeCause)
+        .flatMap(_.lines)
+
+    renderedWithSummary(
+      ResultType.Test,
+      streamingLabel,
+      Failed,
+      depth,
+      failureDetails.toList,
+      summaryFailureDetails.toList
+    )
   }
 
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =
@@ -299,7 +343,7 @@ object DefaultTestReporter {
             _ || _,
             !_
           )
-          .lines
+          .streamingLines
       }
     }
 
@@ -378,5 +422,15 @@ object DefaultTestReporter {
     offset: Int,
     lines: Line*
   ): ExecutionResult =
-    ExecutionResult(caseType, label, result, offset, Nil, lines.toList)
+    ExecutionResult(caseType, label, result, offset, Nil, lines.toList, lines.toList)
+
+  def renderedWithSummary(
+    caseType: ResultType,
+    label: String,
+    result: Status,
+    offset: Int,
+    lines: List[Line],
+    summaryLines: List[Line]
+  ): ExecutionResult =
+    ExecutionResult(caseType, label, result, offset, Nil, lines, summaryLines)
 }

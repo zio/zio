@@ -18,7 +18,7 @@ object TaggedSpec extends ZIOBaseSpec {
             }
             """
       }
-      assertM(result)(isRight(isUnit))
+      assertZIO(result)(isRight(isUnit))
     } @@ exceptScala3
   )
 }

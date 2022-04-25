@@ -28,7 +28,8 @@ case class ExecutionResult(
   status: Status,
   offset: Int,
   annotations: List[TestAnnotationMap],
-  lines: List[Line]
+  streamingLines: List[Line],
+  summaryLines: List[Line]
 ) {
   self =>
 
@@ -36,7 +37,7 @@ case class ExecutionResult(
     (self.status, that.status) match {
       case (Ignored, _)     => that
       case (_, Ignored)     => self
-      case (Failed, Failed) => self.copy(lines = self.lines ++ that.lines.tail)
+      case (Failed, Failed) => self.copy(streamingLines = self.streamingLines ++ that.streamingLines.tail)
       case (Passed, _)      => that
       case (_, Passed)      => self
     }
@@ -45,7 +46,7 @@ case class ExecutionResult(
     (self.status, that.status) match {
       case (Ignored, _)     => that
       case (_, Ignored)     => self
-      case (Failed, Failed) => self.copy(lines = self.lines ++ that.lines.tail)
+      case (Failed, Failed) => self.copy(streamingLines = self.streamingLines ++ that.streamingLines.tail)
       case (Passed, _)      => self
       case (_, Passed)      => that
     }
@@ -61,6 +62,24 @@ case class ExecutionResult(
     self.copy(annotations = annotations)
 }
 object ExecutionResult {
+  def withoutSummarySpecificOutput(
+    resultType: ResultType,
+    label: String,
+    status: Status,
+    offset: Int,
+    annotations: List[TestAnnotationMap],
+    lines: List[Line]
+  ): ExecutionResult =
+    ExecutionResult(
+      resultType,
+      label,
+      status,
+      offset,
+      annotations,
+      lines,
+      lines // Re-uses lines when we don't have summary-specific output
+    )
+
   sealed abstract class Status
   object Status {
     case object Failed  extends Status
