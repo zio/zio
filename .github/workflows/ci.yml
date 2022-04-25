@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 60
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v2.4.0
+      uses: actions/checkout@v3.0.2
     - name: Setup Java
       uses: actions/setup-java@v2.5.0
       with:
@@ -37,7 +37,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.0.2
       - name: Setup Java
         uses: actions/setup-java@v2.5.0
         with:
@@ -54,7 +54,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.0.2
       - name: Setup Java
         uses: actions/setup-java@v2.5.0
         with:
@@ -71,7 +71,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.0.2
       - name: Setup Java
         uses: actions/setup-java@v2.5.0
         with:
@@ -94,7 +94,7 @@ jobs:
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v2.4.0
+      uses: actions/checkout@v3.0.2
     - name: Setup Java
       uses: actions/setup-java@v2.5.0
       with:
@@ -126,7 +126,7 @@ jobs:
         platform: ['JVM']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.0.2
       - name: Setup Java
         uses: actions/setup-java@v2.5.0
         with:
@@ -150,7 +150,7 @@ jobs:
       NODE_OPTIONS: --max_old_space_size=6144
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.0.2
       - name: Setup Java
         uses: actions/setup-java@v2.5.0
         with:
@@ -176,7 +176,7 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.0.2
         with:
           fetch-depth: 0
       - name: Setup Java
