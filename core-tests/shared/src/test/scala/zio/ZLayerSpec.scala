@@ -515,6 +515,15 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           person <- (ZLayer.succeed("Jane Doe") ++ ZLayer.succeed(42) >>> layer).build
         } yield assertTrue(person == ZEnvironment(Person("Jane Doe", 42)))
-      }
+      },
+      test("preserves failures") {
+        val layer1   = ZEnv.live >>> TestEnvironment.live
+        val layer2   = ZLayer.fromZIO(ZIO.fail("fail"))
+        val layer3   = ZEnv.live >>> TestEnvironment.live
+        val combined = layer1 ++ layer2 ++ layer3
+        for {
+          exit <- ZIO.scoped(combined.build).exit
+        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+      } @@ nonFlaky
     )
 }

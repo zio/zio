@@ -351,7 +351,17 @@ object ZIOSpec extends ZIOBaseSpec {
           ops6     = ops3.zipPar(ops3)
           res     <- ops6
         } yield assert(res._1)(not(equalTo(res._2)))
-      }
+      },
+      test("preserves failures") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          left      = promise2.await
+          right1    = promise1.await *> ZIO.fail("fail")
+          right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
+          exit     <- ZIO.collectAllPar(List(left, ZIO.collectAllPar(List(right1, right2)))).exit
+        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+      } @@ nonFlaky
     ),
     suite("collectAllParN")(
       test("returns results in the same order") {
@@ -3839,7 +3849,17 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(interrupted)(isFalse) && assert(leftResult)(succeeds(equalTo("foo"))) && assert(rightResult)(
           equalTo(42)
         )
-      }
+      },
+      test("preserves failures") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          left      = promise2.await
+          right1    = promise1.await *> ZIO.fail("fail")
+          right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
+          exit     <- left.zipPar(right1.zipPar(right2)).exit
+        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+      } @@ nonFlaky
     ),
     suite("toFuture")(
       test("should fail with ZTrace attached") {
