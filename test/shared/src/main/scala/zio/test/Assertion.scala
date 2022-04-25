@@ -452,7 +452,7 @@ object Assertion {
     Assertion[Unit](
       TestArrow
         .make[Unit, Boolean] { value =>
-          Trace.boolean(value == ())(M.value(value) + M.was + M.value("unit"))
+          Trace.boolean(true)(M.value(value) + M.was + M.value("unit"))
         }
         .withCode("isUnit")
     )

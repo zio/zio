@@ -128,7 +128,7 @@ object ReportingTestUtils {
   def test7Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("labeled failures"),
     s"0 was not equal to 1",
-    s"${blue("c")} did not satisfy isSome(equalTo(1)).label(\"third\")",
+    s"""${blue("c")} did not satisfy isSome(equalTo(1)).label("third")""",
     assertSourceLocation()
   )
 

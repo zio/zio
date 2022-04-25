@@ -26,7 +26,7 @@ sealed trait Trace[+A] { self =>
   def isFailure(implicit ev: A <:< Boolean): Boolean = !isSuccess
 
   def isSuccess(implicit ev: A <:< Boolean): Boolean =
-    Trace.prune(ev.liftCo(self), false).isEmpty
+    Trace.prune(self.asInstanceOf[Trace[Boolean]], false).isEmpty
 
   def isDie: Boolean =
     self.asInstanceOf[Trace[_]] match {
