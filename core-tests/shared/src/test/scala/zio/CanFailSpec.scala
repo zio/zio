@@ -15,7 +15,7 @@ object CanFailSpec extends ZIOBaseSpec {
             io.orElse(uio)
             """
       }
-      assertM(result)(isRight(anything))
+      assertZIO(result)(isRight(anything))
     },
     test("useless combinators don't compile") {
       val result = typeCheck {
@@ -26,7 +26,7 @@ object CanFailSpec extends ZIOBaseSpec {
             uio.orElse(io)
             """
       }
-      assertM(result)(isLeft(anything))
+      assertZIO(result)(isLeft(anything))
     }
   )
 }

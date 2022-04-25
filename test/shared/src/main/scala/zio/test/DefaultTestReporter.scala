@@ -86,14 +86,13 @@ object DefaultTestReporter {
             summaryOutput
           )
         )
-      case ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+      case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = reporterEvent.labels.length
-        val label = reporterEvent.labels.lastOption.getOrElse("Top-level defect prevented test execution")
         failure match {
           case TestFailure.Assertion(result, _) =>
-            Seq(renderAssertFailure(result, label, depth))
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
           case TestFailure.Runtime(cause, _) =>
-            Seq(renderRuntimeCause(cause, label, depth, includeCause))
+            Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
         }
       case SectionEnd(_, _, _) =>
         Nil
@@ -176,10 +175,9 @@ object DefaultTestReporter {
 
       case Left(TestFailure.Runtime(cause, _)) =>
         Some(
-          // TODO Pass all labels so that we can generate the streaming output *and* summary output
           renderRuntimeCause(
             cause,
-            labels.reverse.headOption.getOrElse("Unlabeled failure"),
+            labels,
             depth,
             includeCause
           )
@@ -197,22 +195,51 @@ object DefaultTestReporter {
   private def renderSuiteSucceeded(label: String, offset: Int) =
     rendered(Suite, label, Passed, offset, fr(label).toLine)
 
-  def renderAssertFailure(result: TestResult, label: String, depth: Int): ExecutionResult =
-    result.fold(details =>
-      rendered(ResultType.Test, label, Failed, depth, renderFailure(label, depth, details).lines: _*)
-    )(
+  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
+    val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
+    val summaryLabel   = labels.mkString(" - ")
+    result.fold { details =>
+      val streamingRenderedFailure = renderFailure(streamingLabel, depth, details).lines.toList
+      val summaryRenderedFailure   = renderFailure(summaryLabel, depth, details).lines.toList
+      renderedWithSummary(
+        ResultType.Test,
+        streamingLabel,
+        Failed,
+        depth,
+        streamingRenderedFailure,
+        summaryRenderedFailure
+      )
+    }(
       _ && _,
       _ || _,
       !_
     )
+  }
 
-  private def renderRuntimeCause[E](cause: Cause[E], label: String, depth: Int, includeCause: Boolean)(implicit
+  private def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
     trace: ZTraceElement
   ): ExecutionResult = {
-    val failureDetails =
-      Seq(renderFailureLabel(label, depth)) ++ Seq(renderCause(cause, depth)).filter(_ => includeCause).flatMap(_.lines)
+    val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
+    val summaryLabel   = labels.mkString(" - ")
 
-    rendered(ResultType.Test, label, Failed, depth, failureDetails: _*)
+    val failureDetails =
+      Seq(renderFailureLabel(streamingLabel, depth)) ++ Seq(renderCause(cause, depth))
+        .filter(_ => includeCause)
+        .flatMap(_.lines)
+
+    val summaryFailureDetails =
+      Seq(renderFailureLabel(summaryLabel, depth)) ++ Seq(renderCause(cause, depth))
+        .filter(_ => includeCause)
+        .flatMap(_.lines)
+
+    renderedWithSummary(
+      ResultType.Test,
+      streamingLabel,
+      Failed,
+      depth,
+      failureDetails.toList,
+      summaryFailureDetails.toList
+    )
   }
 
   def renderAssertionResult(assertionResult: AssertionResult, offset: Int): Message =

@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet

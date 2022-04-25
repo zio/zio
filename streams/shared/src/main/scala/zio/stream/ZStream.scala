@@ -125,8 +125,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * upstream fiber will feed elements into the sink until it signals
    * completion.
    *
-   * Any sink can be used here, but see [[ZSink.foldWeightedM]] and
-   * [[ZSink.foldUntilM]] for sinks that cover the common usecases.
+   * Any sink can be used here, but see [[ZSink.foldWeightedZIO]] and
+   * [[ZSink.foldUntilZIO]] for sinks that cover the common usecases.
    */
   final def aggregateAsync[R1 <: R, E1 >: E, A1 >: A, B](
     sink: => ZSink[R1, E1, A1, A1, B]
@@ -2397,7 +2397,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       )
 
       for {
-        _ <- self.runScoped(consumer).forkScoped
+        _ <- self.tapErrorCause(cause => p.failCause(cause)).runScoped(consumer).forkScoped
         z <- p.await
       } yield (z, new ZStream(producer))
     }).flatten
@@ -2750,7 +2750,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Statefully and effectfully maps over the elements of this stream to produce
    * all intermediate results.
    *
-   * See also [[ZStream#scanM]].
+   * See also [[ZStream#scanZIO]].
    */
   def scanReduceZIO[R1 <: R, E1 >: E, A1 >: A](
     f: (A1, A) => ZIO[R1, E1, A1]
