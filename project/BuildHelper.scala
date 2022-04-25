@@ -78,14 +78,6 @@ object BuildHelper {
       else
         Seq()
     },
-    Compile / doc / sources := {
-      val old = (Compile / doc / sources).value
-      if (scalaVersion.value == Scala3) {
-        Nil
-      } else {
-        old
-      }
-    },
     Test / parallelExecution := {
       val old = (Test / parallelExecution).value
       if (scalaVersion.value == Scala3) {
