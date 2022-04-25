@@ -157,13 +157,16 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _) if bool == negated =>
-        Some(node.copy(children = node.children.flatMap(prune(_, negated))))
+      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _) =>
+        if (bool == negated) {
+          Some(node.copy(children = node.children.flatMap(prune(_, negated))))
+        } else
+          None
 
-      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _, _, _) =>
-        None
+      case Trace.Node(Result.Fail, _, _, _, _, _, _, _, _) =>
+        if (negated) None else Some(trace)
 
-      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -183,10 +186,10 @@ object Trace {
 
       case or: Trace.Or =>
         (prune(or.left, negated), prune(or.right, negated)) match {
-          case (Some(left), Some(right))                               => Some(Trace.Or(left, right))
-          case (Some(left), _) if negated || left.result.isFailOrDie   => Some(left)
-          case (_, Some(right)) if negated || right.result.isFailOrDie => Some(right)
-          case (_, _)                                                  => None
+          case (Some(left), Some(right))                         => Some(Trace.Or(left, right))
+          case (Some(left), _) if negated || left.result.isDie   => Some(left)
+          case (_, Some(right)) if negated || right.result.isDie => Some(right)
+          case (_, _)                                            => None
         }
 
       case not: Trace.Not =>

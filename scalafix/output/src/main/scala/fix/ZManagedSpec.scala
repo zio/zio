@@ -49,12 +49,12 @@ object ZManagedSpec extends ZIOSpecDefault {
         trait R2 extends R1
         trait E
         trait A
-        def acquire1: ZIO[R, E, A]               = ???
-        def acquire2: ZIO[R1, E, A]              = ???
-        def acquire3: ZIO[R2, E, A]              = ???
-        def release1: A => URIO[R, Any]          = ???
-        def release2: A => ZIO[R1, Nothing, Any] = ???
-        def release3: A => ZIO[R2, Nothing, Any] = ???
+        def acquire1: ZIO[R, E, A]               = ZIO.unit
+        def acquire2: ZIO[R1, E, A]              = ZIO.unit
+        def acquire3: ZIO[R2, E, A]              = ZIO.unit
+        def release1: A => URIO[R, Any]          = _ => ZIO.unit
+        def release2: A => ZIO[R1, Nothing, Any] = _ => ZIO.unit
+        def release3: A => ZIO[R2, Nothing, Any] = _ => ZIO.unit
         def managed1: ZManaged[R with R1, E, A]  = ZManaged.acquireReleaseWith(acquire1)(release2)
         def managed2: ZManaged[R with R1, E, A]  = ZManaged.acquireReleaseWith(acquire2)(release1)
         def managed3: ZManaged[R2, E, A]         = ZManaged.acquireReleaseWith(acquire2)(release3)

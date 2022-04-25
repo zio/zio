@@ -2,8 +2,8 @@ package zio.test
 
 import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.AssertionM.RenderParam
-import zio.test.AssertionM.Render
+import zio.test.AssertionZIO.RenderParam
+import zio.test.AssertionZIO.Render
 import zio.{Cause, Exit, ZIO, ZTraceElement}
 import zio.test.{ErrorMessage => M, _}
 import zio.test.internal.SmartAssertions
@@ -30,8 +30,11 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
     TestArrow.run(arrow.withLocation, Right(value)).isSuccess
 
   // TODO: IMPLEMENT LABELING
-  def label(string: String): Assertion[A] =
+  def label(message: String): Assertion[A] =
     self
+
+  def ??(message: String): Assertion[A] =
+    self.label(message)
 
   def run(value: => A)(implicit trace: ZTraceElement): Assert =
     Assertion.smartAssert(value)(self)
@@ -59,7 +62,7 @@ object Assertion {
     )
   }
 
-  def smartAssertM[R, E, A](
+  def smartAssertZIO[R, E, A](
     expr: => ZIO[R, E, A]
   )(assertion: Assertion[A])(implicit trace: ZTraceElement): ZIO[R, E, Assert] = {
     lazy val value0 = expr
@@ -556,6 +559,15 @@ object Assertion {
     fails(isSubtype[E](anything)).withCode("failsWithA")
 
   /**
+   * Makes a new assertion that requires an exit value to fail with a cause that
+   * meets the specified assertion.
+   */
+  def failsCause[E](assertion: Assertion[Cause[E]]): Assertion[Exit[E, Any]] =
+    Assertion[Exit[E, Any]](
+      SmartAssertions.asExitCause[E].withCode("failsCause") >>> assertion.arrow
+    )
+
+  /**
    * Makes a new assertion that requires an Iterable contain only elements
    * satisfying the given assertion.
    */
@@ -899,5 +911,45 @@ object Assertion {
    */
   def throwsA[E: ClassTag]: Assertion[Any] =
     throws(isSubtype[E](anything))
+
+  /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isInterrupted: Assertion[Exit[Any, Any]] =
+    Assertion[Exit[Any, Any]](
+      TestArrow
+        .make[Exit[Any, Any], Boolean] {
+          case Exit.Failure(cause) =>
+            Trace.boolean(cause.isInterrupted) {
+              M.value("Exit") + M.was + "interrupted"
+            }
+          case _ =>
+            Trace.fail {
+              M.value("Exit") + M.was + "interrupted"
+            }
+        }
+        .withCode("isInterrupted")
+    )
+
+  /**
+   * Makes a new assertion that requires an exit value to be interrupted.
+   */
+  def isJustInterrupted: Assertion[Exit[Any, Any]] =
+//    OldAssertion.assertion("isJustInterrupted")() {
+//      case Exit.Failure(Cause.Interrupt(_, _)) => true
+//      case _                                   => false
+//    }
+    Assertion[Exit[Any, Any]](
+      TestArrow
+        .make[Exit[Any, Any], Boolean] {
+          case Exit.Failure(Cause.Interrupt(_, _)) =>
+            Trace.succeed(true)
+          case _ =>
+            Trace.fail {
+              M.value("Exit") + M.was + "just interrupted"
+            }
+        }
+        .withCode("isJustInterrupted")
+    )
 
 }

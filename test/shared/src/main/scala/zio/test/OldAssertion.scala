@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.AssertionM.RenderParam
+import zio.test.AssertionZIO.RenderParam
 import zio.{Cause, Exit, ZIO, ZTraceElement}
 
 import scala.reflect.ClassTag
@@ -31,11 +31,11 @@ import scala.util.{Failure, Success, Try}
 final class OldAssertion[-A] private (
   val render: OldAssertion.Render,
   val run: (=> A) => AssertResult
-) extends AssertionM[A]
+) extends AssertionZIO[A]
     with ((=> A) => AssertResult) { self =>
   import zio.test.OldAssertion.Render._
 
-  def runM: (=> A) => AssertResultM = a => BoolAlgebraM(ZIO.succeed(run(a))(ZTraceElement.empty))
+  def runZIO: (=> A) => AssertResultZIO = a => BoolAlgebraZIO(ZIO.succeed(run(a))(ZTraceElement.empty))
 
   /**
    * Returns a new assertion that succeeds only if both assertions succeed.
@@ -61,7 +61,7 @@ final class OldAssertion[-A] private (
   def apply(a: => A): AssertResult =
     run(a)
 
-  override def canEqual(that: AssertionM[_]): Boolean = that match {
+  override def canEqual(that: AssertionZIO[_]): Boolean = that match {
     case _: OldAssertion[_] => true
     case _                  => false
   }
@@ -100,8 +100,8 @@ final class OldAssertion[-A] private (
 }
 
 object OldAssertion extends AssertionVariants {
-  type Render = AssertionM.Render
-  val Render = AssertionM.Render
+  type Render = AssertionZIO.Render
+  val Render = AssertionZIO.Render
   import Render._
 
   /**
@@ -147,20 +147,20 @@ object OldAssertion extends AssertionVariants {
   )(params: RenderParam*)(
     assertion: OldAssertion[B]
   )(get: (=> A) => Option[B], orElse: AssertionData => AssertResult = _.asFailure): OldAssertion[A] = {
-    lazy val resultOldAssertion: OldAssertion[A] = assertionDirect(name)(params: _*) { a =>
+    lazy val resultAssertion: OldAssertion[A] = assertionDirect(name)(params: _*) { a =>
       lazy val tryA = Try(a)
       get(tryA.get) match {
         case Some(b) =>
           val innerResult = assertion.run(b)
           lazy val result: AssertResult =
-            if (innerResult.isSuccess) BoolAlgebra.success(AssertionValue(resultOldAssertion, tryA.get, result))
+            if (innerResult.isSuccess) BoolAlgebra.success(AssertionValue(resultAssertion, tryA.get, result))
             else BoolAlgebra.failure(AssertionValue(assertion, b, innerResult))
           result
         case None =>
-          orElse(AssertionData(resultOldAssertion, tryA.get))
+          orElse(AssertionData(resultAssertion, tryA.get))
       }
     }
-    resultOldAssertion
+    resultAssertion
   }
 
   /**
@@ -380,7 +380,7 @@ object OldAssertion extends AssertionVariants {
    * specified assertion.
    */
   def hasKeys[K, V](assertion: OldAssertion[Iterable[K]]): OldAssertion[Map[K, V]] =
-    OldAssertion.assertionRec("hasKeys")(param(assertion))(assertion)(actual => Some(actual.keys))
+    OldAssertion.assertionRec("hasKeys")()(assertion)(actual => Some(actual.keys))
 
   /**
    * Makes a new assertion that requires an Iterable to contain the last element

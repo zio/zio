@@ -1,7 +1,6 @@
 package zio.test
 
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.{Chunk, Exit}
 
 import scala.collection.immutable.SortedSet
@@ -84,7 +83,7 @@ object AssertionSpec extends ZIOBaseSpec {
       },
       test("equalTo must not compile when comparing two unrelated types") {
         val result = typeCheck("assert(1)(equalTo(\"abc\"))")
-        assertM(result)(
+        assertZIO(result)(
           isLeft(
             (containsString("found   : zio.test.Assertion[String]") &&
               containsString("required: zio.test.Assertion[Int]")) ||
@@ -490,7 +489,7 @@ object AssertionSpec extends ZIOBaseSpec {
       },
       test("isUnit must not compile when supplied value is not ()") {
         val result = typeCheck("assert(10)(isUnit)")
-        assertM(result)(isLeft(anything))
+        assertZIO(result)(isLeft(anything))
       },
       test("isWithin must succeed when supplied value is within range (inclusive)") {
         assert(10)(isWithin(0, 10))

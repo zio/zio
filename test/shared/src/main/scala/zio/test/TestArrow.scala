@@ -22,8 +22,12 @@ object Assert {
 
   implicit def trace2TestResult(assert: Assert): TestResult = {
     val trace = TestArrow.run(assert.arrow, Right(()))
-    if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
-    else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
+    Trace.prune(trace, false) match {
+      case Some(_) =>
+        BoolAlgebra.failure(AssertionResult.TraceResult(trace))
+      case None =>
+        BoolAlgebra.success(AssertionResult.TraceResult(trace))
+    }
   }
 
   implicit def traceM2TestResult[R, E](zio: ZIO[R, E, Assert])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =

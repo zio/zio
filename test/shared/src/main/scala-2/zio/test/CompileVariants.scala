@@ -59,17 +59,14 @@ trait CompileVariants {
    */
   def assert[A](expr: => A)(assertion: Assertion[A]): TestResult =
     macro Macros.new_assert_impl
-//  Assertion.smartAssert(expr)(assertion)
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
+  def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
     trace: ZTraceElement
   ): ZIO[R, E, Assert] =
-    Assertion.smartAssertM(effect)(assertion)
-//  def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionZIO[A]): ZIO[R, E, TestResult] =
-//    macro Macros.assertZIO_impl
+    Assertion.smartAssertZIO(effect)(assertion)
 
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }
