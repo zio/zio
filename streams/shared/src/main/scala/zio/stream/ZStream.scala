@@ -4513,10 +4513,28 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def logAnnotate(key: => String, value: => String)(implicit
     trace: ZTraceElement
   ): ZStream[Any, Nothing, Unit] =
+    logAnnotate(LogAnnotation(key, value))
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate(annotation: => LogAnnotation, annotations: LogAnnotation*)(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Nothing, Unit] =
+    logAnnotate(Set(annotation) ++ annotations.toSet)
+
+  /**
+   * Annotates each log in streams composed after this with the specified log
+   * annotation.
+   */
+  def logAnnotate(annotations: => Set[LogAnnotation])(implicit
+    trace: ZTraceElement
+  ): ZStream[Any, Nothing, Unit] =
     ZStream.scoped {
-      FiberRef.currentLogAnnotations.get.flatMap { annotations =>
-        FiberRef.currentLogAnnotations.locallyScoped(annotations.updated(key, value))
-      }
+      FiberRef.currentLogAnnotations.locallyScopedWith(_ ++ annotations.map { case LogAnnotation(key, value) =>
+        key -> value
+      })
     }
 
   /**
