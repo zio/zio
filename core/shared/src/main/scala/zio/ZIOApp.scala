@@ -102,15 +102,17 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
       }
     }.ignore
 
-  protected def invokeWith(runtime: Runtime[Any])(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[Any, Any, Any] =
+  protected def invokeWith(
+    runtime: Runtime[Any]
+  )(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[Any, Any, Any] =
     ZIO.suspendSucceed {
       val newLayer =
         Scope.default +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
           layer +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
       for {
-        _          <- installSignalHandlers(runtime)
-        result     <- runtime.run(run.provideLayer(newLayer))
+        _      <- installSignalHandlers(runtime)
+        result <- runtime.run(run.provideLayer(newLayer))
       } yield result
     }
 }
