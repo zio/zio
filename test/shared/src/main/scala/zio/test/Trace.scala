@@ -9,9 +9,9 @@ sealed trait Trace[+A] { self =>
 
   def values: List[Any] =
     self.asInstanceOf[Trace[Any]] match {
-      case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _, _) =>
         List(value)
-      case Trace.Node(_, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(_, _, _, _, _, _, _, _, _, _) =>
         List()
       case Trace.AndThen(left, right) =>
         left.values ++ right.values
@@ -30,12 +30,12 @@ sealed trait Trace[+A] { self =>
 
   def isDie: Boolean =
     self.asInstanceOf[Trace[_]] match {
-      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _) => true
-      case Trace.Node(_, _, _, _, _, _, _, _, _)             => false
-      case Trace.AndThen(left, right)                        => left.isDie || right.isDie
-      case Trace.And(left, right)                            => left.isDie || right.isDie
-      case Trace.Or(left, right)                             => left.isDie || right.isDie
-      case Trace.Not(trace)                                  => trace.isDie
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _) => true
+      case Trace.Node(_, _, _, _, _, _, _, _, _, _)             => false
+      case Trace.AndThen(left, right)                           => left.isDie || right.isDie
+      case Trace.And(left, right)                               => left.isDie || right.isDie
+      case Trace.Or(left, right)                                => left.isDie || right.isDie
+      case Trace.Not(trace)                                     => trace.isDie
     }
 
   /**
@@ -90,6 +90,26 @@ sealed trait Trace[+A] { self =>
   } else {
     self
   }
+
+  def withCustomLabel(customLabel: Option[String]): Trace[A] =
+    if (customLabel.isDefined) {
+      self match {
+        case node: Trace.Node[_] =>
+          node.copy(customLabel = customLabel, children = node.children.map(_.withCustomLabel(customLabel)))
+        case Trace.AndThen(left, right) =>
+          Trace.AndThen(left.withCustomLabel(customLabel), right.withCustomLabel(customLabel))
+        case and: Trace.And =>
+          Trace
+            .And(and.left.withCustomLabel(customLabel), and.right.withCustomLabel(customLabel))
+            .asInstanceOf[Trace[A]]
+        case or: Trace.Or =>
+          Trace.Or(or.left.withCustomLabel(customLabel), or.right.withCustomLabel(customLabel)).asInstanceOf[Trace[A]]
+        case not: Trace.Not =>
+          Trace.Not(not.trace.withCustomLabel(customLabel)).asInstanceOf[Trace[A]]
+      }
+    } else {
+      self
+    }
 
   /**
    * Apply the code to every node in the tree.
@@ -166,16 +186,16 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _) =>
+      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _) =>
         if (bool == negated) {
           Some(node.copy(children = node.children.flatMap(prune(_, negated))))
         } else
           None
 
-      case Trace.Node(Result.Fail, _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Fail, _, _, _, _, _, _, _, _, _) =>
         if (negated) None else Some(trace)
 
-      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -223,7 +243,8 @@ object Trace {
     fullCode: Option[String] = None,
     location: Option[String] = None,
     annotations: Set[Annotation] = Set.empty,
-    completeCode: Option[String] = None
+    completeCode: Option[String] = None,
+    customLabel: Option[String] = None
   ) extends Trace[A] {
 
     def renderResult: Any =

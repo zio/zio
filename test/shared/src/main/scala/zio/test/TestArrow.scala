@@ -48,8 +48,9 @@ object Assert {
 }
 
 sealed trait TestArrow[-A, +B] { self =>
-  def ??(message: String): TestArrow[A, B]    = self.label(message)
-  def label(message: String): TestArrow[A, B] = self // TODO: Implement
+  def ??(message: String): TestArrow[A, B] = self.label(message)
+
+  def label(message: String): TestArrow[A, B] = self.meta(customLabel = Some(message))
 
   import TestArrow._
 
@@ -58,7 +59,8 @@ sealed trait TestArrow[-A, +B] { self =>
     parentSpan: Option[Span] = None,
     code: Option[String] = None,
     location: Option[String] = None,
-    completeCode: Option[String] = None
+    completeCode: Option[String] = None,
+    customLabel: Option[String] = None
   ): TestArrow[A, B] = self match {
     case meta: Meta[A, B] =>
       meta.copy(
@@ -66,10 +68,19 @@ sealed trait TestArrow[-A, +B] { self =>
         parentSpan = meta.parentSpan.orElse(parentSpan),
         code = code.orElse(meta.code),
         location = meta.location.orElse(location),
-        completeCode = meta.completeCode.orElse(completeCode)
+        completeCode = meta.completeCode.orElse(completeCode),
+        customLabel = meta.customLabel.orElse(customLabel)
       )
     case _ =>
-      Meta(arrow = self, span = span, parentSpan = parentSpan, code = code, location = location, completeCode)
+      Meta(
+        arrow = self,
+        span = span,
+        parentSpan = parentSpan,
+        code = code,
+        location = location,
+        completeCode = completeCode,
+        customLabel = customLabel
+      )
   }
 
   def span(span: (Int, Int)): TestArrow[A, B] =
@@ -168,14 +179,16 @@ object TestArrow {
             run(f(value), in)
         }
 
-      case Meta(arrow, span, parentSpan, code, location, completeCode) =>
+      case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel) =>
         run(arrow, in)
           .withSpan(span)
           .withCode(code)
           .withParentSpan(parentSpan)
           .withLocation(location)
           .withCompleteCode(completeCode)
+          .withCustomLabel(customLabel)
     }
+
   }
 
   case class Span(start: Int, end: Int) {
@@ -188,7 +201,8 @@ object TestArrow {
     parentSpan: Option[Span],
     code: Option[String],
     location: Option[String],
-    completeCode: Option[String]
+    completeCode: Option[String],
+    customLabel: Option[String]
   ) extends TestArrow[A, B]
   case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])           extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]

@@ -29,7 +29,7 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
 
   // TODO: IMPLEMENT LABELING
   def label(message: String): Assertion[A] =
-    self
+    Assertion(self.arrow.label(message))
 
   def ??(message: String): Assertion[A] =
     self.label(message)
@@ -924,10 +924,6 @@ object Assertion extends AssertionVariants {
    * Makes a new assertion that requires an exit value to be interrupted.
    */
   def isJustInterrupted: Assertion[Exit[Any, Any]] =
-//    OldAssertion.assertion("isJustInterrupted")() {
-//      case Exit.Failure(Cause.Interrupt(_, _)) => true
-//      case _                                   => false
-//    }
     Assertion[Exit[Any, Any]](
       TestArrow
         .make[Exit[Any, Any], Boolean] {

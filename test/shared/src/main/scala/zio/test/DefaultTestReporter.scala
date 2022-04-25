@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ExecutionResult.ResultType.Suite
@@ -227,15 +228,18 @@ object DefaultTestReporter {
 
   def renderFailureCase(failureCase: FailureCase, offset: Int, testLabel: Option[String]): Chunk[Line] =
     failureCase match {
-      case FailureCase(errorMessage, codeString, location, path, _, nested, _) =>
+      case FailureCase(errorMessage, codeString, location, path, _, nested, _, customLabel) =>
         val errorMessageLines =
           Chunk.fromIterable(errorMessage.lines) match {
-            case head +: tail => (error("✗ ") +: head) +: tail.map(error("  ") +: _)
-            case _            => Chunk.empty
+            case head +: tail =>
+              (error("✗ ") +: head) +: tail.map(error("  ") +: _)
+            case _ => Chunk.empty
           }
 
+        val labelLines = Chunk.fromIterable(customLabel.map(label => Line.fromString(label.bold.yellow)))
+
         val result =
-          errorMessageLines ++
+          errorMessageLines ++ labelLines ++
             Chunk(Line.fromString(testLabel.fold(codeString)(l => s"""$codeString ?? "$l""""))) ++
             nested.flatMap(renderFailureCase(_, offset, None)).map(_.withOffset(1)) ++
             Chunk.fromIterable(path.filterNot(t => t._1 == t._2).flatMap { case (label, value) =>

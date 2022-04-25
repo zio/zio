@@ -50,7 +50,8 @@ case class FailureCase(
   path: Chunk[(String, String)],
   span: Span,
   nestedFailures: Chunk[FailureCase],
-  result: Any
+  result: Any,
+  customLabel: Option[String]
 )
 
 object FailureCase {
@@ -132,7 +133,8 @@ object FailureCase {
       path = path,
       span = node.span.getOrElse(Span(0, 0)),
       nestedFailures = node.children.map(fromTrace(_, Chunk.empty)).getOrElse(Chunk.empty),
-      result = node.result
+      result = node.result,
+      customLabel = node.customLabel
     )
   }
 }

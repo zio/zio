@@ -43,14 +43,14 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
         test("multiple nested failures") {
           runLog(test6).map(res => test6Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
-//        test("labeled failures") {
-//          runLog(test7).map(res => test7Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
-//        },
-//        test("labeled failures for assertTrue") {
-//          for {
-//            log <- runLog(test9)
-//          } yield assertTrue(log.contains("""?? "third""""), log.contains("""?? "fourth""""))
-//        },
+        test("labeled failures") {
+          runLog(test7).map(res => test7Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+        },
+        test("labeled failures for assertTrue") {
+          for {
+            log <- runLog(test9)
+          } yield assertTrue(log.contains("third"), log.contains("fourth"))
+        },
         test("negated failures") {
           runLog(test8).map(res => test8Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         }
@@ -79,35 +79,26 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
           ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel)))) && assertTrue(
             res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedExceptionMessage)))
           )
+        },
+        test("ExecutionEvent.RuntimeFailure  Assertion does not swallow error") {
+          val expectedLabel = "RuntimeFailure assertion label"
+          for {
+            result <- ZIO.succeed(
+                        DefaultTestReporter.render(
+                          ExecutionEvent.RuntimeFailure(
+                            SuiteId(1),
+                            labelsReversed = List(expectedLabel),
+                            failure = TestFailure.assertion(assertTrue(true)),
+                            ancestors = List.empty
+                          ),
+                          true
+                        )
+                      )
+            res <- extractSingleExecutionResult(result)
+          } yield assertTrue(res.resultType == Test) && assertTrue(res.status == Failed) && assertTrue(
+            res.label == expectedLabel
+          ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel))))
         }
-        // TODO: FIX THIS?
-//        test("ExecutionEvent.RuntimeFailure  Assertion does not swallow error") {
-//          val expectedLabel = "RuntimeFailure assertion label"
-//          for {
-//            result <- ZIO.succeed(
-//                        DefaultTestReporter.render(
-//                          ExecutionEvent.RuntimeFailure(
-//                            SuiteId(1),
-//                            labelsReversed = List(expectedLabel),
-//                            failure = TestFailure.assertion(
-//                              BoolAlgebra.success {
-//                                FailureDetailsResult(
-//                                  FailureDetails(
-//                                    ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
-//                                  )
-//                                )
-//                              }
-//                            ),
-//                            ancestors = List.empty
-//                          ),
-//                          true
-//                        )
-//                      )
-//            res <- extractSingleExecutionResult(result)
-//          } yield assertTrue(res.resultType == Test) && assertTrue(res.status == Failed) && assertTrue(
-//            res.label == expectedLabel
-//          ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel))))
-//        }
       )
     ) @@ silent
 

@@ -53,9 +53,13 @@ object LogLine {
     def apply(lineText: String): Message = Fragment(lineText).toLine.toMessage
     val empty: Message                   = Message()
   }
-  case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
-    def +:(fragment: Fragment): Line       = Line(fragment +: fragments)
-    def :+(fragment: Fragment): Line       = Line(fragments :+ fragment)
+  case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) { self =>
+    def +:(fragment: Fragment): Line = Line(fragment +: fragments)
+    def :+(fragment: Fragment): Line = Line(fragments :+ fragment)
+    def :+(string: Option[String]): Line = string match {
+      case Some(string) => Line(fragments :+ Fragment(string))
+      case None         => self
+    }
     def +(fragment: Fragment): Line        = Line(fragments :+ fragment)
     def prepend(message: Message): Message = Message(this +: message.lines)
     def +(line: Line): Message             = Message(Vector(this, line))
