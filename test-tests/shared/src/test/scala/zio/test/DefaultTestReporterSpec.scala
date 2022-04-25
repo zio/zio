@@ -10,7 +10,7 @@ import zio.{ZIO, ZTrace, ZTraceElement}
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
-  def containsUnstyled(string: String, substring: String)(implicit trace: ZTraceElement): Assert =
+  def containsUnstyled(string: String, substring: String)(implicit trace: ZTraceElement): TestResult =
     assertTrue(string.unstyled.contains(substring.unstyled))
 
   def spec =

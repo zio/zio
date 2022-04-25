@@ -201,7 +201,7 @@ object TestOutputSpec extends ZIOSpecDefault {
     }
   ).provide(fakePrinterLayer >+> TestOutput.live) @@ TestAspect.ignore
 
-  def sane(events: Seq[ExecutionEvent]): Assert = {
+  def sane(events: Seq[ExecutionEvent]): TestResult = {
     type CompleteSuites   = List[SuiteId]
     type ActiveSuiteStack = List[SuiteId]
     case class InvalidEvent(event: ExecutionEvent, reason: String)

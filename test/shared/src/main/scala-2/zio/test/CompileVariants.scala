@@ -33,13 +33,13 @@ trait CompileVariants {
   /**
    * Checks the assertion holds for the given value.
    */
-  def assertTrue(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
-  def assertTrue(expr: Boolean): Assert = macro SmartAssertMacros.assertOne_impl
+  def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
+  def assertTrue(expr: Boolean): TestResult = macro SmartAssertMacros.assertOne_impl
 
   /**
    * Checks the assertion holds for the given value.
    */
-  def assert[A](expr: => A)(assertion: Assertion[A]): Assert =
+  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult =
     macro Macros.new_assert_impl
 
   /**
@@ -47,7 +47,7 @@ trait CompileVariants {
    */
   def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
     trace: ZTraceElement
-  ): ZIO[R, E, Assert] =
+  ): ZIO[R, E, TestResult] =
     Assertion.smartAssertZIO(effect)(assertion)
 
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
@@ -60,11 +60,11 @@ object CompileVariants {
 
   def newAssertProxy[A](value: => A, codeString: String, assertionString: String)(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): Assert =
+  )(implicit trace: ZTraceElement): TestResult =
     zio.test.assertImpl(value, Some(codeString), Some(assertionString))(assertion)
 
   def assertZIOProxy[R, E, A](effect: ZIO[R, E, A])(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, Assert] =
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     zio.test.assertZIOImpl(effect)(assertion)
 }

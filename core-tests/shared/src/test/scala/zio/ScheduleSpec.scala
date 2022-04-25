@@ -601,7 +601,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     }
   )
 
-  def checkDelays[Env](schedule: Schedule[Env, Any, Duration]): URIO[Env, Assert] =
+  def checkDelays[Env](schedule: Schedule[Env, Any, Duration]): URIO[Env, TestResult] =
     for {
       now      <- ZIO.succeed(OffsetDateTime.now)
       in        = Chunk(1, 2, 3, 4, 5)
@@ -609,7 +609,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       expected <- schedule.delays.run(now, in)
     } yield assert(actual)(equalTo(expected))
 
-  def checkRepetitions[Env](schedule: Schedule[Env, Any, Long]): URIO[Env, Assert] =
+  def checkRepetitions[Env](schedule: Schedule[Env, Any, Long]): URIO[Env, TestResult] =
     for {
       now      <- ZIO.succeed(OffsetDateTime.now)
       in        = Chunk(1, 2, 3, 4, 5)
@@ -680,7 +680,7 @@ object ScheduleSpec extends ZIOBaseSpec {
     loop(schedule.initial, inputs, Nil)
   }
 
-  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any, Nothing, Assert] =
+  def checkRepeat[B](schedule: Schedule[Any, Int, B], expected: B): ZIO[Any, Nothing, TestResult] =
     assertZIO(repeat(schedule))(equalTo(expected))
 
   /**

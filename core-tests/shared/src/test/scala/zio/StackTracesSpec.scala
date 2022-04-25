@@ -1,7 +1,7 @@
 package zio
 
 import zio.test.Assertion.{containsString, matchesRegex}
-import zio.test.{Assert, assert, assertTrue}
+import zio.test.{TestResult, assert, assertTrue}
 import zio.test.TestAspect.sequential
 
 object StackTracesSpec extends ZIOBaseSpec {
@@ -105,10 +105,10 @@ object StackTracesSpec extends ZIOBaseSpec {
       println(trace.prettyPrint)
     }
 
-  private def assertHasExceptionInThreadZioFiber(trace: String): String => Assert =
+  private def assertHasExceptionInThreadZioFiber(trace: String): String => TestResult =
     errorMessage => assert(trace)(matchesRegex(s"""(?s)^Exception in thread\\s"zio-fiber-\\d*"\\s$errorMessage.*"""))
 
-  private def assertHasStacktraceFor(trace: String): String => Assert = subject =>
+  private def assertHasStacktraceFor(trace: String): String => TestResult = subject =>
     assert(trace)(matchesRegex(s"""(?s).*at zio\\.StackTracesSpec.?\\.$subject.*\\(.*:\\d*\\).*"""))
 
   private def numberOfOccurrences(text: String): String => Int = stack =>

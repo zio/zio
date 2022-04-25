@@ -23,10 +23,10 @@ import scala.quoted._
 import scala.reflect.ClassTag
 
 object SmartAssertMacros {
-  def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[Assert] =
+  def smartAssertSingle(expr: Expr[Boolean])(using ctx: Quotes): Expr[TestResult] =
     new SmartAssertMacros(ctx).smartAssertSingle_impl(expr)
 
-  def smartAssert(exprs: Expr[Seq[Boolean]])(using ctx: Quotes): Expr[Assert] =
+  def smartAssert(exprs: Expr[Seq[Boolean]])(using ctx: Quotes): Expr[TestResult] =
     new SmartAssertMacros(ctx).smartAssert_impl(exprs)
 }
 
@@ -199,7 +199,7 @@ class SmartAssertMacros(ctx: Quotes)  {
        '{TestArrow.succeed($expr).span($span)}
     }
 
-  def smartAssertSingle_impl(value: Expr[Boolean]): Expr[Assert] = {
+  def smartAssertSingle_impl(value: Expr[Boolean]): Expr[TestResult] = {
     val code = Macros.showExpr(value)
 
     implicit val ptx = PositionContext(value.asTerm)
@@ -207,10 +207,10 @@ class SmartAssertMacros(ctx: Quotes)  {
     val ast = transform(value)
 
     val arrow = ast.asExprOf[TestArrow[Any, Boolean]]
-    '{Assert($arrow.withCode(${Expr(code)}).withLocation)}
+    '{TestResult($arrow.withCode(${Expr(code)}).withLocation)}
   }
 
-  def smartAssert_impl(values: Expr[Seq[Boolean]]): Expr[Assert] = {
+  def smartAssert_impl(values: Expr[Seq[Boolean]]): Expr[TestResult] = {
     import quotes.reflect._
 
     values match {
@@ -231,14 +231,14 @@ class SmartAssertMacros(ctx: Quotes)  {
 
 object Macros {
   def assertZIO_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[Assertion[A]])
-                                               (using ctx: Quotes): Expr[ZIO[R, E, Assert]] = {
+                                               (using ctx: Quotes): Expr[ZIO[R, E, TestResult]] = {
     import quotes.reflect._
     val code = Expr(showExpr(effect))
     val assertionCode = Expr(showExpr(assertion))
     '{_root_.zio.test.CompileVariants.assertZIOProxy($effect, $code, $assertionCode)($assertion)}
   }
 
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[Assert] = {
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
     import quotes.reflect._
     val code = showExpr(value)
     val assertionCode = showExpr(assertion)

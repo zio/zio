@@ -7,23 +7,23 @@ import zio.{Exit, UIO, URIO, ZIO}
 
 object GenUtils {
 
-  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): URIO[R, Assert] = {
+  def alwaysShrinksTo[R, A](gen: Gen[R, A])(a: A): URIO[R, TestResult] = {
     val shrinks = if (TestPlatform.isJS) 1 else 100
     ZIO.collectAll(List.fill(shrinks)(shrinksTo(gen))).map(assert(_)(forall(equalTo(a))))
   }
 
   def checkFinite[A, B](
     gen: Gen[Any, A]
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[Assert] =
+  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
     assertZIO(gen.sample.collectSome.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
 
   def checkSample[A, B](
     gen: Gen[Sized, A],
     size: Int = 100
-  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[Assert] =
+  )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
     assertZIO(provideSize(sample100(gen).map(f))(size))(assertion)
 
-  def checkShrink[A](gen: Gen[Sized, A])(a: A): UIO[Assert] =
+  def checkShrink[A](gen: Gen[Sized, A])(a: A): UIO[TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)
 
   val deterministic: Gen[Sized, Gen[Any, Int]] =

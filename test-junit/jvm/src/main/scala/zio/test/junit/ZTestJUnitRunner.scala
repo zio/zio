@@ -122,13 +122,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     notifier: JUnitNotifier,
     path: Vector[String],
     label: String,
-    result: Assert
+    result: TestResult
   ): UIO[Unit] = {
     val rendered = renderFailureDetails(label, result)
     notifier.fireTestFailure(label, path, renderToString(rendered))
   }
 
-  private def renderFailureDetails(label: String, result: Assert): Message =
+  private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
       rendered(
         Test,

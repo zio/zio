@@ -9,7 +9,7 @@ object LawsSpec extends ZIOBaseSpec {
     Assertion.assertion(s"equalTo(${PrettyPrint(expected)})")(_ === expected)
 
   implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
-    def <->(that: A)(implicit eq: Equal[A], trace: ZTraceElement): Assert =
+    def <->(that: A)(implicit eq: Equal[A], trace: ZTraceElement): TestResult =
       assert(self)(equalTo(that))
   }
 

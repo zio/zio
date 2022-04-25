@@ -9,9 +9,9 @@ import scala.reflect.macros.blackbox
 class SmartAssertMacros(val c: blackbox.Context) {
   import c.universe._
 
-  private val SA     = q"_root_.zio.test.internal.SmartAssertions"
-  private val Arrow  = q"_root_.zio.test.TestArrow"
-  private val Assert = q"_root_.zio.test.Assert"
+  private val SA         = q"_root_.zio.test.internal.SmartAssertions"
+  private val Arrow      = q"_root_.zio.test.TestArrow"
+  private val TestResult = q"_root_.zio.test.TestResult"
 
   def assert_impl(expr: c.Expr[Boolean], exprs: c.Expr[Boolean]*): c.Tree =
     exprs.map(assertOne_impl).foldLeft(assertOne_impl(expr)) { (acc, assert) =>
@@ -213,7 +213,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
     val block =
       q"""
 ..$stmts
-$Assert($ast.withCode($codeString).withLocation)
+$TestResult($ast.withCode($codeString).withLocation)
         """
 
     block

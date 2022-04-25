@@ -34,7 +34,7 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
   def ??(message: String): Assertion[A] =
     self.label(message)
 
-  def run(value: => A)(implicit trace: ZTraceElement): Assert =
+  def run(value: => A)(implicit trace: ZTraceElement): TestResult =
     Assertion.smartAssert(value)(self)
 
   private[test] def withCode(code: String): Assertion[A] =
@@ -46,7 +46,7 @@ object Assertion extends AssertionVariants {
 
   def smartAssert[A](expr: => A, codeString: Option[String] = None, assertionString: Option[String] = None)(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): Assert = {
+  )(implicit trace: ZTraceElement): TestResult = {
     lazy val value0 = expr
     val completeString =
       codeString.flatMap(code =>
@@ -54,7 +54,7 @@ object Assertion extends AssertionVariants {
           code.blue + " did not satisfy " + assertion.cyan
         }
       )
-    Assert(
+    TestResult(
       (TestArrow.succeed(value0).withCode(codeString.getOrElse("input")) >>> assertion.arrow).withLocation
         .withCompleteCode(completeString.getOrElse("<CODE>"))
     )
@@ -62,7 +62,7 @@ object Assertion extends AssertionVariants {
 
   def smartAssertZIO[R, E, A](
     expr: => ZIO[R, E, A]
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): ZIO[R, E, Assert] = {
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] = {
     lazy val value0 = expr
     value0.map(smartAssert(_)(assertion))
   }

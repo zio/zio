@@ -147,7 +147,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
     .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
 
-  def testSplitLines(input: Seq[Chunk[String]]): ZIO[Any, Nothing, Assert] = {
+  def testSplitLines(input: Seq[Chunk[String]]): ZIO[Any, Nothing, TestResult] = {
     val str      = input.flatMap(_.mkString).mkString
     val expected = Chunk.fromIterable(Source.fromString(str).getLines().toList)
     ZStream.fromChunks(input: _*).via(ZPipeline.splitLines).runCollect.map { res =>

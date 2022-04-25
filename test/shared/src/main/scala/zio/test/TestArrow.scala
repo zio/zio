@@ -1,15 +1,13 @@
 package zio.test
 
-import zio.ZIO
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import scala.util.{Failure, Success, Try}
 import zio.ZTraceElement
 
 import scala.util.control.NonFatal
 
-case class Assert(arrow: TestArrow[Any, Boolean]) { self =>
+case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   lazy val result: Trace[Boolean] = TestArrow.run(arrow, Right(()))
 
@@ -19,31 +17,31 @@ case class Assert(arrow: TestArrow[Any, Boolean]) { self =>
 
   def isSuccess: Boolean = failures.isEmpty
 
-  def &&(that: Assert): Assert = Assert(arrow && that.arrow)
+  def &&(that: TestResult): TestResult = TestResult(arrow && that.arrow)
 
-  def ||(that: Assert): Assert = Assert(arrow || that.arrow)
+  def ||(that: TestResult): TestResult = TestResult(arrow || that.arrow)
 
-  def unary_! : Assert = Assert(!arrow)
+  def unary_! : TestResult = TestResult(!arrow)
 
-  def implies(that: Assert): Assert = !self || that
+  def implies(that: TestResult): TestResult = !self || that
 
-  def ==>(that: Assert): Assert = self.implies(that)
+  def ==>(that: TestResult): TestResult = self.implies(that)
 
-  def iff(that: Assert): Assert =
+  def iff(that: TestResult): TestResult =
     (self ==> that) && (that ==> self)
 
-  def <==>(that: Assert): Assert =
+  def <==>(that: TestResult): TestResult =
     self.iff(that)
 
-  def ??(message: String): Assert = self.label(message)
+  def ??(message: String): TestResult = self.label(message)
 
-  def label(message: String): Assert = Assert(arrow.label(message))
+  def label(message: String): TestResult = TestResult(arrow.label(message))
 }
 
-object Assert {
-  def all(asserts: Assert*): Assert = asserts.reduce(_ && _)
+object TestResult {
+  def all(asserts: TestResult*): TestResult = asserts.reduce(_ && _)
 
-  def any(asserts: Assert*): Assert = asserts.reduce(_ || _)
+  def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
 
 }
 

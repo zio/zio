@@ -41,13 +41,13 @@ trait CompileVariants {
   private val errorMessage =
     "Reporting of compilation error messages on Scala 3 is not currently supported due to instability of the underlying APIs."
 
-  inline def assertTrue(inline exprs: => Boolean*): Assert = 
+  inline def assertTrue(inline exprs: => Boolean*): TestResult =
     ${SmartAssertMacros.smartAssert('exprs)}
 
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): Assert =
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult =
     ${Macros.assert_impl('value)('assertion)}
 
-  inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, Assert] =
+  inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
      ${Macros.assertZIO_impl('effect)('assertion)}
 
   private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
@@ -60,11 +60,11 @@ object CompileVariants {
 
   def assertProxy[A](value: => A, expression: String, assertionCode: String)(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): Assert =
+  )(implicit trace: ZTraceElement): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(assertionCode))(assertion)
 
   def assertZIOProxy[R, E, A](effect: ZIO[R, E, A], expression: String, assertionCode: String)(
     assertion: Assertion[A],
-  )(implicit trace: ZTraceElement): ZIO[R, E, Assert] =
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
     zio.test.assertZIOImpl(effect, Some(expression), Some(assertionCode))(assertion)
 }

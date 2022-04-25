@@ -169,7 +169,7 @@ object DefaultTestReporter {
   private def renderSuiteSucceeded(label: String, offset: Int) =
     rendered(Suite, label, Passed, offset, fr(label).toLine)
 
-  def renderAssertFailure(result: Assert, labels: List[String], depth: Int): ExecutionResult = {
+  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
     val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel   = labels.mkString(" - ")
 //    result.fold { details =>

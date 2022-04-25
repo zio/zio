@@ -45,7 +45,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
   def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Sized, NonEmptyList[A]] =
     DeriveGen[NonEmptyList[A]]
 
-  def assertDeriveGen[A: DeriveGen]: Assert = assertCompletes
+  def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes
 
   def spec = suite("DeriveGenSpec")(
     suite("derivation")(

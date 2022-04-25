@@ -60,7 +60,7 @@ object CheckSpec extends ZIOBaseSpec {
     test("tests with filtered generators terminate") {
       check(Gen.int.filter(_ > 0), Gen.int.filter(_ > 0))((a, b) => assert(a)(equalTo(b)))
     } @@ failing,
-    // TODO: Add genFailureDetails to Assert
+    // TODO: Add genFailureDetails to TestResult
 //    test("failing tests contain gen failure details") {
 //      check(Gen.int)(a => assert(a)(isGreaterThan(0))).map {
 //        _.failures match {

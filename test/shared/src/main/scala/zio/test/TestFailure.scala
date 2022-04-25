@@ -46,7 +46,7 @@ sealed abstract class TestFailure[+E] { self =>
 }
 
 object TestFailure {
-  final case class Assertion(result: Assert, annotations: TestAnnotationMap = TestAnnotationMap.empty)
+  final case class Assertion(result: TestResult, annotations: TestAnnotationMap = TestAnnotationMap.empty)
       extends TestFailure[Nothing]
   final case class Runtime[+E](cause: Cause[E], annotations: TestAnnotationMap = TestAnnotationMap.empty)
       extends TestFailure[E]
@@ -54,7 +54,7 @@ object TestFailure {
   /**
    * Constructs an assertion failure with the specified result.
    */
-  def assertion(result: Assert): TestFailure[Nothing] =
+  def assertion(result: TestResult): TestFailure[Nothing] =
     Assertion(result, TestAnnotationMap.empty)
 
   /**
