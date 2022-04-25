@@ -4393,6 +4393,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.serviceWithZIO(_.update(f))
 
   /**
+   * Scopes all resources acquired by `resource` to the lifetime of `use`
+   * without effecting the scope of any resources acquired by `use`.
+   */
+  def using[R]: UsingPartiallyApplied[R] =
+    new ZIO.UsingPartiallyApplied[R]
+
+  /**
    * Feeds elements of type `A` to `f` and accumulates all errors in error
    * channel or successes in success channel.
    *
@@ -4777,6 +4784,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
       Scope.make.flatMap(_.use[R](zio))
+  }
+
+  final class UsingPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R1, E, A, B](
+      resource: ZIO[R with Scope, E, A]
+    )(use: A => ZIO[R1, E, B])(implicit trace: ZTraceElement): ZIO[R with R1, E, B] =
+      ZIO.acquireReleaseExitWith {
+        Scope.make
+      } { (scope: Scope.Closeable, exit: Exit[Any, Any]) =>
+        scope.close(exit)
+      } { scope =>
+        scope.extend[R](resource).flatMap(use)
+      }
   }
 
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
