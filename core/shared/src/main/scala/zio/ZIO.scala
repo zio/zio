@@ -988,6 +988,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     f(self.left).unleft
 
   /**
+   * Adjusts the label for the current logging span.
+   * {{{
+   * parseRequest(req).logSpan("parsing")
+   * }}}
+   */
+  def logSpan(label: => String)(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    ZIO.logSpan(label)(self)
+
+  /**
    * Returns an effect whose success is mapped by the specified `f` function.
    */
   def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] =
