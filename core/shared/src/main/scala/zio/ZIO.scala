@@ -2381,12 +2381,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
-        ZIO.descriptorWith { d =>
+        ZIO.fiberIdWith { fiberId =>
           new ZIO.RaceWith(
             graft(restore(self)),
             graft(restore(that)),
-            coordinate(d.id, f, true),
-            coordinate(d.id, g, false),
+            coordinate(fiberId, f, true),
+            coordinate(fiberId, g, false),
             trace
           )
         }
