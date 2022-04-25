@@ -174,19 +174,19 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     sink: => ZSink[R1, E1, A1, A1, B],
     schedule: => Schedule[R1, Option[B], C]
   )(implicit trace: ZTraceElement): ZStream[R1, E1, Either[C, B]] = {
-    type HandoffSignal = ZStream.HandoffSignal[C, E1, A]
+    type HandoffSignal = ZStream.HandoffSignal[E1, A]
     import ZStream.HandoffSignal._
-    type SinkEndReason = ZStream.SinkEndReason[C]
+    type SinkEndReason = ZStream.SinkEndReason
     import ZStream.SinkEndReason._
 
     val layer =
       ZStream.Handoff.make[HandoffSignal] <*>
-        Ref.make[Boolean](false) <*>
+        Ref.make[SinkEndReason](ScheduleEnd) <*>
         Ref.make(Chunk[A1]()) <*>
         schedule.driver <*>
         Ref.make(false)
 
-    ZStream.fromZIO(layer).flatMap { case (handoff, upstreamEnd, sinkLeftovers, scheduleDriver, consumed) =>
+    ZStream.fromZIO(layer).flatMap { case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed) =>
       lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
         ZChannel.readWithCause(
           (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer,
@@ -198,16 +198,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         ZChannel.unwrap(
           sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
             if (leftovers.nonEmpty) {
-              consumed.set(true) *> UIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
+              consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
             } else
               handoff.take.map {
                 case Emit(chunk) => ZChannel.fromZIO(consumed.set(true)) *> ZChannel.write(chunk) *> handoffConsumer
                 case Halt(cause) => ZChannel.failCause(cause)
-                case End(reason) =>
-                  reason match {
-                    case UpstreamEnd => ZChannel.fromZIO(upstreamEnd.set(true))
-                    case _           => ZChannel.unit
-                  }
+                case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason))
               }
           }
         )
@@ -226,16 +222,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         def handleSide(leftovers: Chunk[Chunk[A1]], b: B, c: Option[C]) =
           ZChannel.unwrap(
             sinkLeftovers.set(leftovers.flatten) *>
-              upstreamEnd.get.map { p =>
-                if (p)
-                  ZChannel.unwrapScoped[R1] {
-                    for {
-                      consumed <- consumed.get
-                    } yield
-                      if (consumed) ZChannel.write(Chunk(Right(b)))
-                      else ZChannel.unit
-                  }
-                else
+              sinkEndReason.get.map {
+                case ScheduleEnd =>
                   ZChannel.unwrapScoped[R1] {
                     for {
                       consumed      <- consumed.get
@@ -247,6 +235,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                         ZChannel
                           .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber)
                       else scheduledAggregator(sinkFiber, scheduleFiber)
+                  }
+                case UpstreamEnd =>
+                  ZChannel.unwrap {
+                    consumed.get.map { p =>
+                      if (p) ZChannel.write(Chunk(Right(b)))
+                      else ZChannel.unit
+                    }
                   }
               }
           )
@@ -262,16 +257,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                 .foldCauseZIO(
                   _.failureOrCause match {
                     case Left(_) =>
-                      handoff.offer(End(ScheduleTimeout)).forkDaemon *> sinkFiber.join.map {
-                        case (leftovers, b) => handleSide(leftovers, b, None)
+                      handoff.offer(End(ScheduleEnd)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
+                        handleSide(leftovers, b, None)
                       }
                     case Right(cause) =>
-                      handoff.offer(Halt(cause)).forkDaemon *> sinkFiber.join.map {
-                        case (leftovers, b) => handleSide(leftovers, b, None)
+                      handoff.offer(Halt(cause)).forkDaemon *> sinkFiber.join.map { case (leftovers, b) =>
+                        handleSide(leftovers, b, None)
                       }
                   },
                   c =>
-                    handoff.offer(End(ScheduleEnd(c))).forkDaemon *>
+                    handoff.offer(End(ScheduleEnd)).forkDaemon *>
                       sinkFiber.join.map { case (leftovers, b) => handleSide(leftovers, b, Some(c)) }
                 )
           )
@@ -3254,7 +3249,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       ZIO.transplant { grafter =>
         for {
           d       <- ZIO.succeed(d)
-          handoff <- ZStream.Handoff.make[HandoffSignal[Unit, E, A]]
+          handoff <- ZStream.Handoff.make[HandoffSignal[E, A]]
         } yield {
           def enqueue(last: Chunk[A]) =
             for {
@@ -3291,7 +3286,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                   }
                 case Previous(fiber) =>
                   fiber.join
-                    .raceWith[R, E, E, HandoffSignal[Unit, E, A], ZChannel[
+                    .raceWith[R, E, E, HandoffSignal[E, A], ZChannel[
                       R,
                       Any,
                       Any,
@@ -5491,26 +5486,24 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
-  private[zio] sealed trait SinkEndReason[+C]
+  private[zio] sealed trait SinkEndReason
   private[zio] object SinkEndReason {
-    case object SinkEnd             extends SinkEndReason[Nothing]
-    case object ScheduleTimeout     extends SinkEndReason[Nothing]
-    case class ScheduleEnd[C](c: C) extends SinkEndReason[C]
-    case object UpstreamEnd         extends SinkEndReason[Nothing]
+    case object ScheduleEnd extends SinkEndReason
+    case object UpstreamEnd extends SinkEndReason
   }
 
-  private[zio] sealed trait HandoffSignal[C, E, A]
+  private[zio] sealed trait HandoffSignal[E, A]
   private[zio] object HandoffSignal {
-    case class Emit[C, E, A](els: Chunk[A])           extends HandoffSignal[C, E, A]
-    case class Halt[C, E, A](error: Cause[E])         extends HandoffSignal[C, E, A]
-    case class End[C, E, A](reason: SinkEndReason[C]) extends HandoffSignal[C, E, A]
+    case class Emit[E, A](els: Chunk[A])        extends HandoffSignal[E, A]
+    case class Halt[E, A](error: Cause[E])      extends HandoffSignal[E, A]
+    case class End[E, A](reason: SinkEndReason) extends HandoffSignal[E, A]
   }
 
   private[zio] sealed trait DebounceState[+E, +A]
   private[zio] object DebounceState {
-    case object NotStarted                                               extends DebounceState[Nothing, Nothing]
-    case class Previous[A](fiber: Fiber[Nothing, Chunk[A]])              extends DebounceState[Nothing, A]
-    case class Current[E, A](fiber: Fiber[E, HandoffSignal[Unit, E, A]]) extends DebounceState[E, A]
+    case object NotStarted                                         extends DebounceState[Nothing, Nothing]
+    case class Previous[A](fiber: Fiber[Nothing, Chunk[A]])        extends DebounceState[Nothing, A]
+    case class Current[E, A](fiber: Fiber[E, HandoffSignal[E, A]]) extends DebounceState[E, A]
   }
 
   /**
