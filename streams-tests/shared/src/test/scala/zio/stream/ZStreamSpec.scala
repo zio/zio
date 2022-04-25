@@ -122,7 +122,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .aggregateAsync(ZSink.collectAllN[Int](2))
                 .runCollect
             )(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
-          }
+          } @@ nonFlaky
         ),
         suite("transduce")(
           test("simple example") {
@@ -169,7 +169,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 )
                 .runCollect
             )(
-              equalTo(Chunk(Right(List(2, 1, 1, 1, 1)), Right(List(2)), Right(List())))
+              equalTo(Chunk(Right(List(2, 1, 1, 1, 1)), Right(List(2))))
             )
           },
           test("fails fast") {
@@ -2068,7 +2068,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("group immediately when chunk size is reached") {
             assertZIO(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
-              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4), Chunk()))
+              equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
             )
           }
         ),
