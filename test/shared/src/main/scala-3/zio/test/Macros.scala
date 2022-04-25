@@ -230,17 +230,20 @@ class SmartAssertMacros(ctx: Quotes)  {
 }
 
 object Macros {
-  def assertZIO_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[AssertionZIO[A]])
+  def assertZIO_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[Assertion[A]])
                                                (using ctx: Quotes): Expr[ZIO[R, E, Assert]] = {
     import quotes.reflect._
-    '{_root_.zio.test.CompileVariants.assertZIOProxy($effect)($assertion)}
+    val code = Expr(showExpr(effect))
+    val assertionCode = Expr(showExpr(assertion))
+    '{_root_.zio.test.CompileVariants.assertZIOProxy($effect, $code, $assertionCode)($assertion)}
   }
 
   def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]])(using ctx: Quotes, tp: Type[A]): Expr[Assert] = {
     import quotes.reflect._
     val code = showExpr(value)
+    val assertionCode = showExpr(assertion)
     Expr.summon[ZTraceElement] match {
-      case Some(trace) => '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)})($assertion)($trace)}
+      case Some(trace) => '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(assertionCode)})($assertion)($trace)}
       case None => throw new Exception("Unable to summon the implicit ZTraceElement. Ensure the function calling this macro defines it.")
     }
   }

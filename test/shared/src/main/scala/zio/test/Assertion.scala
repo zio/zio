@@ -42,7 +42,7 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
 
 }
 
-object Assertion {
+object Assertion extends AssertionVariants {
 
   def smartAssert[A](expr: => A, codeString: Option[String] = None, assertionString: Option[String] = None)(
     assertion: Assertion[A]
@@ -82,6 +82,11 @@ object Assertion {
         .withCode(name)
     )
 
+  // TODO: Extend Syntax
+  // def assertion[A](expr: A => Boolean): Assertion[A]
+  // val hasLengthGreaterThan10 = assertion[String](_.length > 10)
+  // assertTrue(hasLengthGreaterThan10("hello"))
+
   // ASSERTIONS
 
   /**
@@ -96,21 +101,6 @@ object Assertion {
     Assertion[Seq[A]](
       SmartAssertions.hasAt(pos).withCode(s"hasAt($pos)") >>>
         assertion.arrow
-    )
-
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
-    Assertion[B](
-      TestArrow
-        .make[B, Boolean] { actual =>
-          val result = (actual, expected) match {
-            case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
-            case (left, right)                     => left == right
-          }
-          Trace.boolean(result) {
-            M.pretty(actual) + M.equals + M.pretty(expected)
-          }
-        }
-        .withCode("equalTo")
     )
 
   /**

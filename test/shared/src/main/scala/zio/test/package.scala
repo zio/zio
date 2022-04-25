@@ -233,11 +233,15 @@ package object test extends CompileVariants {
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  private[zio] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
+  private[zio] def assertZIOImpl[R, E, A](
+    effect: ZIO[R, E, A],
+    codeString: Option[String] = None,
+    assertionString: Option[String] = None
+  )(
     assertion: Assertion[A]
   )(implicit trace: ZTraceElement): ZIO[R, E, Assert] =
     effect.map { value =>
-      assertImpl(value, None, None)(assertion)
+      assertImpl(value, codeString, assertionString)(assertion)
     }
 
   /**

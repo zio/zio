@@ -31,13 +31,6 @@ trait CompileVariants {
     macro Macros.typeCheck_impl
 
   /**
-   * Checks the assertion holds for the given effectfully-computed value.
-   */
-  private[test] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, Assert]
-
-  /**
    * Checks the assertion holds for the given value.
    */
   def assertTrue(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
