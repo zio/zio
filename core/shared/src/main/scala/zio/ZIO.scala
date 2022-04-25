@@ -4060,7 +4060,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * and rights interrupt signal, allowing a fast return, with interruption
    * performed in the background.
    */
-  def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: Iterable[ZIO[R1, E, A]])(implicit trace: ZTraceElement): ZIO[R1, E, A] =
+  def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: Iterable[ZIO[R1, E, A]])(implicit
+    trace: ZTraceElement
+  ): ZIO[R1, E, A] =
     (zio.exit raceAll ios.map(_.exit)).flatMap(ZIO.done(_))
 
   /**
