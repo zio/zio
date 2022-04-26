@@ -14,7 +14,7 @@
         <encoding>UTF-8</encoding>
         <scala.version>2.13.8</scala.version>
         <scala.compat.version>2.12</scala.compat.version>
-        <zio.version>1.0.13</zio.version>
+        <zio.version>1.0.14</zio.version>
     </properties>
 
     <dependencies>

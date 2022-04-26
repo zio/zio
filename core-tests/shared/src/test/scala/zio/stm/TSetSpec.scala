@@ -10,33 +10,33 @@ object TSetSpec extends ZIOBaseSpec {
     suite("factories")(
       test("apply") {
         val tx = TSet.make(1, 2, 2, 3).flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
+        assertZIO(tx.commit)(hasSameElements(List(1, 2, 3)))
       },
       test("empty") {
         val tx = TSet.empty[Int].flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit)(isEmpty)
+        assertZIO(tx.commit)(isEmpty)
       },
       test("fromIterable") {
         val tx = TSet.fromIterable(List(1, 2, 2, 3)).flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
+        assertZIO(tx.commit)(hasSameElements(List(1, 2, 3)))
       }
     ),
     suite("lookups")(
       test("contains existing element") {
         val tx = TSet.make(1, 2, 3, 4).flatMap[Any, Nothing, Boolean](_.contains(1))
-        assertM(tx.commit)(isTrue)
+        assertZIO(tx.commit)(isTrue)
       },
       test("contains non-existing element") {
         val tx = TSet.make(1, 2, 3, 4).flatMap[Any, Nothing, Boolean](_.contains(0))
-        assertM(tx.commit)(isFalse)
+        assertZIO(tx.commit)(isFalse)
       },
       test("collect all elements") {
         val tx = TSet.make(1, 2, 3, 4).flatMap[Any, Nothing, List[Int]](_.toList)
-        assertM(tx.commit)(hasSameElements(List(1, 2, 3, 4)))
+        assertZIO(tx.commit)(hasSameElements(List(1, 2, 3, 4)))
       },
       test("cardinality") {
         val tx = TSet.make(1, 2, 3, 4).flatMap[Any, Nothing, Int](_.size)
-        assertM(tx.commit)(equalTo(4))
+        assertZIO(tx.commit)(equalTo(4))
       }
     ),
     suite("insertion and removal")(
@@ -48,7 +48,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1)))
+        assertZIO(tx.commit)(hasSameElements(List(1)))
       },
       test("add duplicate element") {
         val tx =
@@ -58,7 +58,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1)))
+        assertZIO(tx.commit)(hasSameElements(List(1)))
       },
       test("remove existing element") {
         val tx =
@@ -68,7 +68,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(2)))
+        assertZIO(tx.commit)(hasSameElements(List(2)))
       },
       test("remove non-existing element") {
         val tx =
@@ -78,7 +78,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1, 2)))
+        assertZIO(tx.commit)(hasSameElements(List(1, 2)))
       }
     ),
     suite("transformations")(
@@ -92,7 +92,7 @@ object TSetSpec extends ZIOBaseSpec {
             aaa     <- tset.contains("aaa")
           } yield (removed, a, aa, aaa)
 
-        assertM(tx.commit)(equalTo((Chunk("aaa", "a"), false, true, false)))
+        assertZIO(tx.commit)(equalTo((Chunk("aaa", "a"), false, true, false)))
       },
       test("retainIfDiscard") {
         val tx =
@@ -104,7 +104,7 @@ object TSetSpec extends ZIOBaseSpec {
             aaa  <- tset.contains("aaa")
           } yield (a, aa, aaa)
 
-        assertM(tx.commit)(equalTo((false, true, false)))
+        assertZIO(tx.commit)(equalTo((false, true, false)))
       },
       test("removeIf") {
         val tx =
@@ -116,7 +116,7 @@ object TSetSpec extends ZIOBaseSpec {
             aaa     <- tset.contains("aaa")
           } yield (removed, a, aa, aaa)
 
-        assertM(tx.commit)(equalTo((Chunk("aa"), true, false, true)))
+        assertZIO(tx.commit)(equalTo((Chunk("aa"), true, false, true)))
       },
       test("removeIfDiscard") {
         val tx =
@@ -128,7 +128,7 @@ object TSetSpec extends ZIOBaseSpec {
             aaa  <- tset.contains("aaa")
           } yield (a, aa, aaa)
 
-        assertM(tx.commit)(equalTo((true, false, true)))
+        assertZIO(tx.commit)(equalTo((true, false, true)))
       },
       test("transform") {
         val tx =
@@ -138,7 +138,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(2, 4, 6)))
+        assertZIO(tx.commit)(hasSameElements(List(2, 4, 6)))
       },
       test("transform and shrink") {
         val tx =
@@ -148,7 +148,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1)))
+        assertZIO(tx.commit)(hasSameElements(List(1)))
       },
       test("transformSTM") {
         val tx =
@@ -158,7 +158,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(2, 4, 6)))
+        assertZIO(tx.commit)(hasSameElements(List(2, 4, 6)))
       },
       test("transformSTM and shrink") {
         val tx =
@@ -168,7 +168,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1)))
+        assertZIO(tx.commit)(hasSameElements(List(1)))
       }
     ),
     suite("folds")(
@@ -179,7 +179,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.fold(0)(_ + _)
           } yield res
 
-        assertM(tx.commit)(equalTo(6))
+        assertZIO(tx.commit)(equalTo(6))
       },
       test("fold on empty set") {
         val tx =
@@ -188,7 +188,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.fold(0)(_ + _)
           } yield res
 
-        assertM(tx.commit)(equalTo(0))
+        assertZIO(tx.commit)(equalTo(0))
       },
       test("foldSTM on non-empty set") {
         val tx =
@@ -197,7 +197,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.foldSTM(0)((acc, a) => STM.succeed(acc + a))
           } yield res
 
-        assertM(tx.commit)(equalTo(6))
+        assertZIO(tx.commit)(equalTo(6))
       },
       test("foldSTM on empty set") {
         val tx =
@@ -206,7 +206,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.foldSTM(0)((acc, a) => STM.succeed(acc + a))
           } yield res
 
-        assertM(tx.commit)(equalTo(0))
+        assertZIO(tx.commit)(equalTo(0))
       },
       test("toSet") {
         val set = Set(1, 2, 3)
@@ -217,7 +217,7 @@ object TSetSpec extends ZIOBaseSpec {
             res  <- tset.toSet
           } yield res
 
-        assertM(tx.commit)(hasSameElements(set))
+        assertZIO(tx.commit)(hasSameElements(set))
       }
     ),
     suite("set operations")(
@@ -230,7 +230,7 @@ object TSetSpec extends ZIOBaseSpec {
             res   <- tset1.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(2, 3)))
+        assertZIO(tx.commit)(hasSameElements(List(2, 3)))
       },
       test("intersect") {
         val tx =
@@ -241,7 +241,7 @@ object TSetSpec extends ZIOBaseSpec {
             res   <- tset1.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1)))
+        assertZIO(tx.commit)(hasSameElements(List(1)))
       },
       test("union") {
         val tx =
@@ -252,7 +252,7 @@ object TSetSpec extends ZIOBaseSpec {
             res   <- tset1.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(1, 2, 3, 4, 5)))
+        assertZIO(tx.commit)(hasSameElements(List(1, 2, 3, 4, 5)))
       }
     )
   )

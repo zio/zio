@@ -97,8 +97,14 @@ object Scope {
    * interruption. This can be used to close a scope when providing a layer to a
    * workflow.
    */
-  val default: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.scope
+  val default: ZLayer[Any, Nothing, Scope] =
+    ZLayer.scopedEnvironment(
+      ZIO
+        .acquireReleaseExit(Scope.make(ZTraceElement.empty))((scope, exit) => scope.close(exit)(ZTraceElement.empty))(
+          ZTraceElement.empty
+        )
+        .map(ZEnvironment[Scope](_))(ZTraceElement.empty)
+    )(ZTraceElement.empty)
 
   /**
    * The global scope which is never closed. Finalizers added to this scope will

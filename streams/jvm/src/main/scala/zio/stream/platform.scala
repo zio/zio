@@ -30,7 +30,7 @@ import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
 import scala.annotation.tailrec
 
-trait ZStreamPlatformSpecificConstructors {
+private[stream] trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
   /**
@@ -389,7 +389,7 @@ trait ZStreamPlatformSpecificConstructors {
                       }
                     )
                   }
-                  .flatMap(scopedConn => scopedConn.provideService(registerConnection))
+                  .flatMap(scopedConn => registerConnection.extend(scopedConn))
               }
     } yield conn
 
@@ -524,7 +524,7 @@ trait ZStreamPlatformSpecificConstructors {
   }
 }
 
-trait ZSinkPlatformSpecificConstructors {
+private[stream] trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
@@ -677,7 +677,7 @@ trait ZSinkPlatformSpecificConstructors {
 
 }
 
-trait ZPipelinePlatformSpecificConstructors {
+private[stream] trait ZPipelinePlatformSpecificConstructors {
   def deflate(
     bufferSize: => Int = 64 * 1024,
     noWrap: => Boolean = false,

@@ -121,7 +121,7 @@ trait LoggingService {
 }
 
 val schedulingLayer: ZLayer[LoggingService, Nothing, SchedulingService] =
-  ZLayer.fromFunction { loggingService =>
+  ZLayer.fromFunction { (loggingService: LoggingService) =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))

@@ -22,6 +22,7 @@ import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
 import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
+import scala.annotation.tailrec
 
 /**
  * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes
@@ -87,7 +88,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
 
         self.step(now, in1, state._1).zipWith(that.step(now, in2, state._2)) {
           case ((lState, out, Continue(lInterval)), (rState, out2, Continue(rInterval))) =>
-            val interval = lInterval.union(rInterval).getOrElse(lInterval.min(rInterval))
+            val interval = lInterval.union(rInterval)
             ((lState, rState), out -> out2, Continue(interval))
           case ((lState, out, _), (rState, out2, _)) =>
             ((lState, rState), out -> out2, Done)
@@ -208,7 +209,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
   ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
-    (self unionWith that)((l, r) => (l union r).getOrElse(l min r))
+    (self unionWith that)(_ union _)
 
   /**
    * Returns a new schedule that chooses between two schedules with a common
@@ -534,7 +535,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    */
   def intersectWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
-  )(f: (Interval, Interval) => Interval)(implicit
+  )(f: (Intervals, Intervals) => Intervals)(implicit
     zippable: Zippable[Out, Out2]
   ): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     new Schedule[Env1, In1, zippable.Out] {
@@ -545,10 +546,10 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
         in: In1,
         lState: self.State,
         out: Out,
-        lInterval: Interval,
+        lInterval: Intervals,
         rState: that.State,
         out2: Out2,
-        rInterval: Interval
+        rInterval: Intervals
       )(implicit trace: ZTraceElement): ZIO[Env1, Nothing, (State, zippable.Out, Decision)] = {
         val combined = f(lInterval, rInterval)
         if (combined.nonEmpty)
@@ -713,16 +714,6 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule with the single service it requires provided to it.
-   * If the schedule requires multiple services use `provideEnvironment`
-   * instead.
-   */
-  def provideService[Service <: Env](
-    service: Service
-  )(implicit tag: Tag[Service]): Schedule.WithState[self.State, Any, In, Out] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Transforms the environment being provided to this schedule with the
    * specified function.
    */
@@ -881,7 +872,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   def unionWith[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
   )(
-    f: (Interval, Interval) => Interval
+    f: (Intervals, Intervals) => Intervals
   )(implicit zippable: Zippable[Out, Out2]): Schedule.WithState[(self.State, that.State), Env1, In1, zippable.Out] =
     new Schedule[Env1, In1, zippable.Out] {
       type State = (self.State, that.State)
@@ -1578,14 +1569,6 @@ object Schedule {
       !isEmpty
 
     final def size: Duration = Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
-
-    final def union(that: Interval): Option[Interval] = {
-      val istart = Interval.max(self.start, that.start)
-      val iend   = Interval.min(self.end, that.end)
-
-      if (istart.compareTo(iend) <= 0) None
-      else Some(Interval(istart, iend))
-    }
   }
 
   object Interval extends Function2[OffsetDateTime, OffsetDateTime, Interval] {
@@ -1611,6 +1594,135 @@ object Schedule {
     private def max(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime = if (l.compareTo(r) >= 0) l else r
   }
 
+  /**
+   * Intervals represents a set of intervals.
+   */
+  sealed abstract case class Intervals private (intervals: List[Interval]) { self =>
+
+    /**
+     * A symbolic alias for `intersect`.
+     */
+    def &&(that: Intervals): Intervals =
+      self.intersect(that)
+
+    /**
+     * A symbolic alias for `union`.
+     */
+    def ||(that: Intervals): Intervals =
+      self.union(that)
+
+    /**
+      * The union of this set of intervals and the specified set of intervals
+      */
+    def union(that: Intervals): Intervals = {
+
+      @tailrec
+      def loop(left: List[Interval], right: List[Interval], interval: Interval, acc: List[Interval]): Intervals =
+        (left, right) match {
+          case (Nil, Nil) =>
+            Intervals((interval :: acc).reverse)
+          case (Nil, right :: rights)   =>
+            if (interval.end.isBefore(right.start)) loop(Nil, rights, right, interval :: acc)
+            else loop(Nil, rights, Interval(interval.start, right.end), acc)
+          case (left :: lefts, Nil)   =>
+            if (interval.end.isBefore(left.start)) loop(lefts, Nil, left, interval :: acc)
+            else loop(lefts, Nil, Interval(interval.start, left.end), acc)
+          case (left :: lefts, right :: rights) if left.start.isBefore(right.start) =>
+            if (interval.end.isBefore(left.start)) loop(lefts, right :: rights, left, interval :: acc)
+            else loop(lefts, right :: rights, Interval(interval.start, left.end), acc)
+          case (left :: lefts, right :: rights) =>
+            if (interval.end.isBefore(right.start)) loop(left :: lefts, rights, right, interval :: acc)
+            else loop(left :: lefts, rights, Interval(interval.start, right.end), acc)
+        }
+
+      (self.intervals, that.intervals) match {
+        case (left, Nil) =>
+          Intervals(left)
+        case (Nil, right) =>
+          Intervals(right)
+        case (left :: lefts, right :: rights) if left.start.isBefore(right.start) =>
+          loop(lefts, right :: rights, left, List.empty)
+        case (left :: lefts, right :: rights) =>
+          loop(left :: lefts, rights, right, List.empty)
+      }
+    }
+
+    /**
+      * The intersection of this set of intervals and the specified set of
+      * intervals.
+      */
+    def intersect(that: Intervals): Intervals = {
+
+      @tailrec
+      def loop(left: List[Interval], right: List[Interval], acc: List[Interval]): Intervals =
+        (left, right) match {
+          case (Nil, _) =>
+            Intervals(acc.reverse)
+          case (_, Nil)   =>
+            Intervals(acc.reverse)
+          case (left :: lefts, right :: rights) =>
+            val interval = left.intersect(right)
+            val intervals = if (interval.isEmpty) acc else interval :: acc
+            if (left < right) loop(lefts, right :: rights, intervals)
+            else loop(left :: lefts, rights, intervals)
+        }
+
+      loop(self.intervals, that.intervals, List.empty)
+    }
+
+    /**
+      * The start of the earliest interval in this set.
+      */
+    def start: OffsetDateTime =
+      intervals.headOption.getOrElse(Interval.empty).start
+
+    /**
+      * The end of the latest interval in this set.
+      */
+    def end: OffsetDateTime =
+      intervals.headOption.getOrElse(Interval.empty).end
+
+    /**
+      * Whether the start of this set of intervals is before the start of the
+      * specified set of intervals
+      */
+    def <(that: Intervals): Boolean =
+      self.start.isBefore(that.start)
+
+    /**
+      * Whether this set of intervals is empty.
+      */
+    def nonEmpty: Boolean =
+      intervals.nonEmpty
+
+    /**
+     * The set of intervals that starts last.
+     */
+    def max(that: Intervals): Intervals =
+      if (self < that) that else self
+  }
+
+  object Intervals {
+
+    /**
+     * Constructs a set of intervals from the specified intervals.
+     */
+    def apply(intervals: Interval*): Intervals =
+      intervals.foldLeft(Intervals.empty) { (intervals, interval) =>
+        intervals.union(Intervals(List(interval)))
+      }
+
+    /**
+      * The empty set of intervals.
+      */
+    val empty: Intervals =
+      Intervals(List.empty)
+
+    private def apply(intervals: List[Interval]): Intervals =
+      new Intervals(intervals) {}
+  }
+
+
   def minOffsetDateTime(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime =
     if (l.compareTo(r) <= 0) l else r
 
@@ -1629,7 +1741,13 @@ object Schedule {
   sealed trait Decision
 
   object Decision {
-    final case class Continue(interval: Interval) extends Decision
+
+    final case class Continue(interval: Intervals) extends Decision
+    object Continue {
+      def apply(interval: Interval): Decision =
+        Continue(Intervals(interval))
+    }
+
     case object Done                              extends Decision
   }
 

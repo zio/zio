@@ -400,7 +400,7 @@ val inputs: ZStream[Any, IOException, String] = ZStream.unfoldZIO(()) { _ =>
 }   
 ```
 
-`ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
+`ZStream.unfoldChunk`, and `ZStream.unfoldChunkZIO` are other variants of `unfold` operations but for `Chunk` data type.
 
 #### Pagination
 
@@ -412,7 +412,7 @@ val stream = ZStream.paginate(0) { s =>
 }
 ```
 
-Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateM`, `ZStream.paginateChunk` and `ZStream.paginateChunkM`.
+Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateZIO`, `ZStream.paginateChunk` and `ZStream.paginateChunkZIO`.
 
 #### Unfolding vs. Pagination
 
@@ -755,7 +755,7 @@ val stream = chunked.mapChunks(x => x.tail)
 // Output:    2, 3,    5,    7, 8, 9
 ```
 
-If our transformation is effectful we can use `mapChunkM` combinator.
+If our transformation is effectful we can use `mapChunksZIO` combinator.
 
 **mapAccum** — It is similar to a `map`, but it **transforms elements statefully**. `mapAccum` allows us to _map_ and _accumulate_ in the same operation.
 
@@ -787,9 +787,9 @@ val numbers: UStream[Int] =
 // Output: 1, 2, 3, 4, 5, 6
 ```
 
-The effectful version of `mapConcat` is `mapConcatM`. 
+The effectful version of `mapConcat` is `mapConcatZIO`. 
 
-`ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
+`ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkZIO`.
 
 **as** — The `ZStream#as` method maps the success values of this stream to the specified constant value.
 

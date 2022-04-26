@@ -4,7 +4,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.{CompressionException, Gunzipper}
 import zio.{Chunk, ZIO, ZTraceElement}
 
-object Gunzip {
+private object Gunzip {
   def makeGunzipper[Done](
     bufferSize: Int = 64 * 1024
   )(implicit

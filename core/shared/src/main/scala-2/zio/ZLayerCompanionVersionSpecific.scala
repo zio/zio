@@ -45,14 +45,14 @@ private[zio] trait ZLayerCompanionVersionSpecific {
     new MakeSomePartiallyApplied[R0, R]
 }
 
-private[zio] final class MakePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
+final class MakePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
   def apply[E](
     layer: ZLayer[_, E, _]*
   )(implicit dummyKRemainder: DummyK[Any], dummyK: DummyK[R]): ZLayer[Any, E, R] =
     macro ZLayerMakeMacros.makeImpl[E, Any, R]
 }
 
-private[zio] final class MakeSomePartiallyApplied[R0, R](
+final class MakeSomePartiallyApplied[R0, R](
   val dummy: Boolean = true
 ) extends AnyVal {
   def apply[E](

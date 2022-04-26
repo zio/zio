@@ -12,7 +12,7 @@ package object sbt {
     def fromSend(send: Summary => Unit): SendSummary =
       ZIO.serviceWithZIO(summary => ZIO.succeed(send(summary)))
 
-    def fromSendM(send: Summary => UIO[Unit]): SendSummary =
+    def fromSendZIO(send: Summary => UIO[Unit]): SendSummary =
       ZIO.serviceWithZIO(send)
 
     def noop: SendSummary =

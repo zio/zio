@@ -127,7 +127,7 @@ for {
 
 ZIO provides many operations for performing effects in parallel. These methods are all named with a `Par` suffix that helps you identify opportunities to parallelize your code.
 
-For example, the ordinary `ZIO#zip` method zips two effects together, sequentially. But there is also a `ZIO#zipPar` method, which zips two effects together in parallel.
+For example, the ordinary `ZIO#zip` method zips two effects together sequentially. But there is also a `ZIO#zipPar` method, which zips two effects together in parallel.
 
 The following table summarizes some of the sequential operations and their corresponding parallel versions:
 
@@ -141,7 +141,7 @@ The following table summarizes some of the sequential operations and their corre
 | Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
 | Merges many values             | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
 
-For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation.
+For all parallel operations, if one effect fails, others will be interrupted to minimize unnecessary computation.
 
 If the fail-fast behavior is not desired, potentially failing effects can be first converted into infallible effects using the `ZIO#either` or `ZIO#option` methods.
 
@@ -169,4 +169,4 @@ If an effect times out, then instead of continuing to execute in the background,
 
 ## Next Steps
 
-If you are comfortable with basic concurrency, then the next step is to learn about [testing effects](testing_effects.md).
+If you are comfortable with basic concurrency, the next step is to learn about [testing effects](testing_effects.md).

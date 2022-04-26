@@ -10,10 +10,11 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
    */
   final def main(args0: Array[String]): Unit = {
     implicit val trace: ZTraceElement = ZTraceElement.empty
+    val newRuntime                    = runtime.mapRuntimeConfig(hook)
 
-    runtime.unsafeRun {
+    newRuntime.unsafeRun {
       (for {
-        fiber <- invoke(Chunk.fromIterable(args0)).provideEnvironment(runtime.environment).fork
+        fiber <- invokeWith(newRuntime)(Chunk.fromIterable(args0)).provideEnvironment(newRuntime.environment).fork
         _ <-
           ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
@@ -27,7 +28,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
                     "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
                 )
               } else {
-                try runtime.unsafeRunSync(fiber.interrupt)
+                try newRuntime.unsafeRunSync(fiber.interrupt)
                 catch { case _: Throwable => }
               }
 

@@ -19,7 +19,7 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
    * }}}
    */
   def provideSome[R0] =
-    new provideSomeZManagedPartiallyApplied[R0, R, E, A](self)
+    new ProvideSomeZManagedPartiallyApplied[R0, R, E, A](self)
 
   /**
    * Automatically assembles a layer for the ZManaged effect,
@@ -29,7 +29,7 @@ trait ZManagedVersionSpecific[-R, +E, +A] { self: ZManaged[R, E, A] =>
     ${ZManagedMacros.provideImpl[Any, R, E1, A]('self, 'layer)}
 }
 
-private final class provideSomeZManagedPartiallyApplied[R0, -R, +E, +A](val self: ZManaged[R, E, A]) extends AnyVal {
+final class ProvideSomeZManagedPartiallyApplied[R0, -R, +E, +A](val self: ZManaged[R, E, A]) extends AnyVal {
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZManaged[R0, E1, A] =
     ${ZManagedMacros.provideImpl[R0, R, E1, A]('self, 'layer)}
 }

@@ -75,6 +75,7 @@ object TestOutputSpec extends ZIOSpecDefault {
       for {
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
+        _            <- ZIO.service[ExecutionEventPrinter].debug("Printer in test")
       } yield assertTrue(
         outputEvents ==
           List(
@@ -84,7 +85,8 @@ object TestOutputSpec extends ZIOSpecDefault {
             Test(child1),
             End(child1)
           )
-      ) && sane(outputEvents)
+      ) &&
+        sane(outputEvents)
     },
     test("nested events with flushing") {
       val events =
@@ -197,7 +199,7 @@ object TestOutputSpec extends ZIOSpecDefault {
           )
       )
     }
-  ).provide(fakePrinterLayer >+> TestOutput.live)
+  ).provide(fakePrinterLayer >+> TestOutput.live) @@ TestAspect.ignore
 
   def sane(events: Seq[ExecutionEvent]): Assert = {
     type CompleteSuites   = List[SuiteId]

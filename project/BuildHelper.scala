@@ -72,13 +72,11 @@ object BuildHelper {
       else
         Seq()
     },
-    Compile / doc / sources := {
-      val old = (Compile / doc / sources).value
-      if (scalaVersion.value == Scala3) {
-        Nil
-      } else {
-        old
-      }
+    scalacOptions --= {
+      if (scalaVersion.value == Scala3)
+        Seq("-Xfatal-warnings")
+      else
+        Seq()
     },
     Test / parallelExecution := {
       val old = (Test / parallelExecution).value

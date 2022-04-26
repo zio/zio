@@ -11,7 +11,7 @@ object BlockingSpec extends ZIOBaseSpec {
   def spec = suite("BlockingSpec")(
     suite("Make a Blocking Service and verify that")(
       test("attemptBlocking completes successfully") {
-        assertM(ZIO.attemptBlocking(()))(isUnit)
+        assertZIO(ZIO.attemptBlocking(()))(isUnit)
       },
       test("attemptBlocking runs on the blocking thread pool") {
         for {
@@ -19,7 +19,7 @@ object BlockingSpec extends ZIOBaseSpec {
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       test("attemptBlockingCancelable completes successfully") {
-        assertM(ZIO.attemptBlockingCancelable(())(ZIO.unit))(isUnit)
+        assertZIO(ZIO.attemptBlockingCancelable(())(ZIO.unit))(isUnit)
       },
       test("attemptBlockingCancelable runs on the blocking thread pool") {
         for {
@@ -29,10 +29,10 @@ object BlockingSpec extends ZIOBaseSpec {
       test("attemptBlockingCancelable can be interrupted") {
         val release = new AtomicBoolean(false)
         val cancel  = ZIO.succeed(release.set(true))
-        assertM(ZIO.attemptBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero))(isNone)
+        assertZIO(ZIO.attemptBlockingCancelable(blockingAtomic(release))(cancel).timeout(Duration.Zero))(isNone)
       },
       test("attemptBlockingInterrupt completes successfully") {
-        assertM(ZIO.attemptBlockingInterrupt(()))(isUnit)
+        assertZIO(ZIO.attemptBlockingInterrupt(()))(isUnit)
       },
       test("attemptBlockingInterrupt runs on the blocking thread pool") {
         for {
@@ -40,7 +40,7 @@ object BlockingSpec extends ZIOBaseSpec {
         } yield assert(name)(containsString("zio-default-blocking"))
       },
       test("attemptBlockingInterrupt can be interrupted") {
-        assertM(ZIO.attemptBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
+        assertZIO(ZIO.attemptBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
       } @@ nonFlaky
     )
   )

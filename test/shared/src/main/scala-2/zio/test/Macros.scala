@@ -36,9 +36,9 @@ private[test] object Macros {
 
   private[test] val fieldInAnonymousClassPrefix = "$anon.this."
 
-  def assertM_impl(c: blackbox.Context)(effect: c.Tree)(assertion: c.Tree): c.Tree = {
+  def assertZIO_impl(c: blackbox.Context)(effect: c.Tree)(assertion: c.Tree): c.Tree = {
     import c.universe._
-    q"_root_.zio.test.CompileVariants.assertMProxy($effect)($assertion)"
+    q"_root_.zio.test.CompileVariants.assertZIOProxy($effect)($assertion)"
   }
 
   def assert_impl(c: blackbox.Context)(expr: c.Tree)(assertion: c.Tree): c.Tree = {
