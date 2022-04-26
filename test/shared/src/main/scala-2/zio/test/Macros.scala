@@ -27,10 +27,10 @@ private[test] object Macros {
     import c.universe._
     try {
       c.typecheck(c.parse(c.eval(c.Expr[String](c.untypecheck(code.tree)))))
-      c.Expr(q"zio.UIO.succeed(scala.util.Right(()))")
+      c.Expr(q"zio.ZIO.succeed(scala.util.Right(()))")
     } catch {
-      case e: TypecheckException => c.Expr(q"zio.UIO.succeed(scala.util.Left(${e.getMessage}))")
-      case t: Throwable          => c.Expr(q"""zio.UIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
+      case e: TypecheckException => c.Expr(q"zio.ZIO.succeed(scala.util.Left(${e.getMessage}))")
+      case t: Throwable          => c.Expr(q"""zio.ZIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
   }
 

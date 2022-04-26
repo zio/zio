@@ -231,7 +231,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     ZIO.suspendSucceed {
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(self.length)
-      var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(false)
+      var dropping: ZIO[R, E, Boolean] = ZIO.succeedNow(false)
       val iterator                     = self.chunkIterator
       var index                        = 0
       while (iterator.hasNextAt(index)) {
@@ -275,7 +275,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       val length  = self.length
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(length)
-      var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(true)
+      var dropping: ZIO[R, E, Boolean] = ZIO.succeedNow(true)
       val iterator                     = self.chunkIterator
       var index                        = 0
       while (iterator.hasNextAt(index)) {
@@ -344,7 +344,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       var index    = 0
       val builder  = ChunkBuilder.make[A]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, ChunkBuilder[A]] = IO.succeedNow(builder)
+      var dest: ZIO[R, E, ChunkBuilder[A]] = ZIO.succeedNow(builder)
       while (iterator.hasNextAt(index)) {
         val a = iterator.nextAt(index)
         index += 1
@@ -421,7 +421,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * Effectfully folds over the elements in this chunk from the left.
    */
   final def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
-    foldLeft[ZIO[R, E, S]](IO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
+    foldLeft[ZIO[R, E, S]](ZIO.succeedNow(s))((s, a) => s.flatMap(f(_, a)))
 
   /**
    * Folds over the elements in this chunk from the right.
@@ -462,7 +462,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     def loop(s: S, iterator: Chunk.ChunkIterator[A], index: Int): ZIO[R, E, S] =
       if (iterator.hasNextAt(index)) {
         if (pred(s)) f(s, iterator.nextAt(index)).flatMap(loop(_, iterator, index + 1))
-        else IO.succeedNow(s)
+        else ZIO.succeedNow(s)
       } else {
         ZIO.succeedNow(s)
       }
@@ -579,7 +579,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       var index    = 0
       val builder  = ChunkBuilder.make[B]()
       builder.sizeHint(length)
-      var dest: ZIO[R, E, S1] = UIO.succeedNow(s1)
+      var dest: ZIO[R, E, S1] = ZIO.succeedNow(s1)
       while (iterator.hasNextAt(index)) {
         val a = iterator.nextAt(index)
         index += 1
@@ -768,7 +768,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       val length  = self.length
       val builder = ChunkBuilder.make[A]()
       builder.sizeHint(length)
-      var taking: ZIO[R, E, Boolean] = UIO.succeedNow(true)
+      var taking: ZIO[R, E, Boolean] = ZIO.succeedNow(true)
       val iterator                   = self.chunkIterator
       var index                      = 0
       while (iterator.hasNextAt(index)) {
@@ -1398,8 +1398,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       val len     = array.length
       val builder = ChunkBuilder.make[B]()
       builder.sizeHint(len)
-      val orElse                           = (_: A) => UIO.succeedNow(null.asInstanceOf[B])
-      var dest: ZIO[R, E, ChunkBuilder[B]] = UIO.succeedNow(builder)
+      val orElse                           = (_: A) => ZIO.succeedNow(null.asInstanceOf[B])
+      var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeedNow(builder)
 
       var i = 0
       while (i < len) {
@@ -1445,13 +1445,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         val len     = self.length
         val builder = ChunkBuilder.make[B]()
         builder.sizeHint(len)
-        var dest: ZIO[R, E, ChunkBuilder[B]] = IO.succeedNow(builder)
+        var dest: ZIO[R, E, ChunkBuilder[B]] = ZIO.succeedNow(builder)
 
         var i    = 0
         var done = false
         val orElse = (_: A) => {
           done = true
-          UIO.succeedNow(null.asInstanceOf[B])
+          ZIO.succeedNow(null.asInstanceOf[B])
         }
 
         while (!done && i < len) {

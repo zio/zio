@@ -27,7 +27,7 @@ class STMRetryBenchmark {
     val n          = JRuntime.getRuntime().availableProcessors() - 1
     val updateHead = ref.update(list => 0 :: list.tail).commit.forever
 
-    short = UIO.collectAllParDiscard(List.fill(n)(updateHead)).withParallelism(n)
+    short = ZIO.collectAllParDiscard(List.fill(n)(updateHead)).withParallelism(n)
     long = ref.update(_.map(_ + 1)).commit
   }
 

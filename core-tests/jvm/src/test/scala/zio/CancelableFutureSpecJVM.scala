@@ -18,7 +18,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
         val tst =
           for {
             runtime <- ZIO.runtime[Any]
-            r       <- ZIO.fromFuture(_ => runtime.unsafeRunToFuture(UIO.succeedNow(0)))
+            r       <- ZIO.fromFuture(_ => runtime.unsafeRunToFuture(ZIO.succeedNow(0)))
           } yield assert(r)(equalTo(0))
         ZIO
           .runtime[Any]

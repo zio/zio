@@ -111,13 +111,13 @@ import zio._
 
 object ConsoleLive extends Console {
   override def print(line: Any): Task[Unit] =
-    Task.attemptBlocking(scala.Predef.print(line))
+    ZIO.attemptBlocking(scala.Predef.print(line))
 
   override def printLine(line: Any): Task[Unit] =
-    Task.attemptBlocking(scala.Predef.println(line))
+    ZIO.attemptBlocking(scala.Predef.println(line))
 
   override def readLine: Task[String] =
-    Task.attemptBlocking(scala.io.StdIn.readLine())
+    ZIO.attemptBlocking(scala.io.StdIn.readLine())
 }
 ```
 

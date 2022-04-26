@@ -86,16 +86,16 @@ private[zio] final class FiberContext[E, A](
     )
 
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: Trace): UIO[Unit] =
-    UIO.suspendSucceed {
+    ZIO.suspendSucceed {
       if (unsafeEvalOn(effect)) ZIO.unit else orElse.unit
     }
 
   final def id: FiberId.Runtime = fiberId
 
-  final def inheritRefs(implicit trace: Trace): UIO[Unit] = UIO.suspendSucceed {
+  final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.suspendSucceed {
     val childFiberRefs = FiberRefs(fiberRefLocals.get)
 
-    if (childFiberRefs.fiberRefLocals.isEmpty) UIO.unit
+    if (childFiberRefs.fiberRefLocals.isEmpty) ZIO.unit
     else
       ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
         parentFiberRefs.join(parentFiberId)(childFiberRefs)
@@ -883,7 +883,7 @@ private[zio] final class FiberContext[E, A](
       }
     }
 
-    UIO.suspendSucceed {
+    ZIO.suspendSucceed {
       setInterruptedLoop()
 
       await
@@ -1211,7 +1211,7 @@ private[zio] final class FiberContext[E, A](
 
           unsafeSetInterrupting(true)
 
-          var interruptChildren: UIO[Any] = UIO.unit
+          var interruptChildren: UIO[Any] = ZIO.unit
           val iterator                    = _children.iterator()
           while (iterator.hasNext()) {
             val next = iterator.next()

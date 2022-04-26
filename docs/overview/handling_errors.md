@@ -15,7 +15,7 @@ You can surface failures with `ZIO#either`, which takes a `ZIO[R, E, A]` and pro
 
 ```scala mdoc:silent
 val zeither: UIO[Either[String, Int]] = 
-  IO.fail("Uh oh!").either
+  ZIO.fail("Uh oh!").either
 ```
 
 You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns a `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
@@ -108,13 +108,13 @@ object Content {
   case class OkContent(s: String)    extends Content
 }
 
-def readUrls(file: String): Task[List[String]]     = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(Content.OkContent("Roger"))
+def readUrls(file: String): Task[List[String]]     = ZIO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = ZIO.succeed(Content.OkContent("Roger"))
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
-    error   => IO.succeed(Content.NoContent(error)), 
+    error   => ZIO.succeed(Content.NoContent(error)), 
     success => fetchContent(success)
   )
 ```

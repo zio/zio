@@ -83,7 +83,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
           ): ULayer[ContainerProvider[A, D]] =
             ZLayer.succeed {
               new Service[A, D] {
-                def provide: IO[Throwable, D] = IO.succeed(container)
+                def provide: IO[Throwable, D] = ZIO.succeed(container)
               }
             }
 

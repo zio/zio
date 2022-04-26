@@ -52,9 +52,9 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
     (ZIO.fiberId <*> Promise.make[Nothing, Unit]).flatMap { case (fiberId, p) =>
       state.modify {
         case State(ep, None, _, _) =>
-          UIO.unit -> State(ep + 1, Some(fiberId), 1, Map.empty)
+          ZIO.unit -> State(ep + 1, Some(fiberId), 1, Map.empty)
         case State(ep, Some(`fiberId`), cnt, waiters) =>
-          UIO.unit -> State(ep + 1, Some(fiberId), cnt + 1, waiters)
+          ZIO.unit -> State(ep + 1, Some(fiberId), cnt + 1, waiters)
         case State(ep, holder, cnt, waiters) =>
           p.await.onInterrupt(_ => cleanupWaiter(fiberId)).unit -> State(
             ep + 1,
@@ -115,9 +115,9 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
         case State(ep, Some(`fiberId`), 1, holders) =>
           relock(ep, holders)
         case State(ep, Some(`fiberId`), cnt, holders) =>
-          UIO.unit -> State(ep, Some(fiberId), cnt - 1, holders)
+          ZIO.unit -> State(ep, Some(fiberId), cnt - 1, holders)
         case otherwise =>
-          UIO.unit -> otherwise
+          ZIO.unit -> otherwise
       }.flatten
     }
 
@@ -127,7 +127,7 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
 
   private def relock(epoch: Long, holders: Map[FiberId, (Long, Promise[Nothing, Unit])]): (UIO[Unit], State) =
     if (holders.isEmpty)
-      UIO.unit -> State(epoch + 1, None, 0, Map.empty)
+      ZIO.unit -> State(epoch + 1, None, 0, Map.empty)
     else {
       val (fiberId, (_, promise)) = if (fairness) holders.minBy(_._2._1) else pickRandom(holders)
       promise.succeed(()).unit -> State(epoch + 1, Some(fiberId), 1, holders - fiberId)

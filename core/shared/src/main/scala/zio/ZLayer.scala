@@ -1709,10 +1709,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                       .asInstanceOf[IO[E, ZEnvironment[B]]]
                       .onExit {
                         case Exit.Success(_) => scope.addFinalizerExit(release)
-                        case Exit.Failure(_) => UIO.unit
+                        case Exit.Failure(_) => ZIO.unit
                       }
 
-                    UIO.succeed((cached, map))
+                    ZIO.succeed((cached, map))
                   case None =>
                     for {
                       observers    <- Ref.make(0)
@@ -1752,7 +1752,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
 
                       memoized = (
                                    promise.await.onExit {
-                                     case Exit.Failure(_) => UIO.unit
+                                     case Exit.Failure(_) => ZIO.unit
                                      case Exit.Success(_) => observers.update(_ + 1)
                                    },
                                    (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))

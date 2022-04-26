@@ -122,13 +122,13 @@ object AccessibleMacroExample {
         .service[Console]
         .map(console =>
           new Service {
-            val foo: UIO[Unit]                                              = UIO.unit
-            def foo2: UIO[Unit]                                             = UIO.unit
-            def foo3(): UIO[Unit]                                           = UIO.unit
+            val foo: UIO[Unit]                                              = ZIO.unit
+            def foo2: UIO[Unit]                                             = ZIO.unit
+            def foo3(): UIO[Unit]                                           = ZIO.unit
             def bar(n: Int): UIO[Unit]                                      = console.printLine(s"bar $n").orDie
-            def baz(x: Int, y: Int): IO[String, Int]                        = UIO.succeed(x + y)
-            def poly[A](a: A): IO[Long, A]                                  = UIO.succeed(a)
-            def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = UIO.succeed(List(a.value))
+            def baz(x: Int, y: Int): IO[String, Int]                        = ZIO.succeed(x + y)
+            def poly[A](a: A): IO[Long, A]                                  = ZIO.succeed(a)
+            def poly2[A <: Foo](a: Wrapped[A]): IO[String, List[A]]         = ZIO.succeed(List(a.value))
             def dependent(n: Int): ZIO[Random, Long, Int]                   = Random.nextIntBounded(n)
             val value: String                                               = "foo"
             def value2: String                                              = "foo2"

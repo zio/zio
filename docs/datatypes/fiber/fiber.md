@@ -17,8 +17,8 @@ case object Analyzed extends Analysis
 
 val data: String = "tut"
 
-def analyzeData[A](data: A): UIO[Analysis] = IO.succeed(Analyzed)
-def validateData[A](data: A): UIO[Boolean] = IO.succeed(true)
+def analyzeData[A](data: A): UIO[Analysis] = ZIO.succeed(Analyzed)
+def validateData[A](data: A): UIO[Boolean] = ZIO.succeed(true)
 ```
 
 ```scala mdoc:silent
@@ -29,7 +29,7 @@ val analyzed =
     // Do other stuff
     valid    <- fiber2.join
     _        <- if (!valid) fiber1.interrupt
-                else IO.unit
+                else ZIO.unit
     analyzed <- fiber1.join
   } yield analyzed
 ```
@@ -108,8 +108,8 @@ To execute actions in parallel, the `zipPar` method can be used:
 
 ```scala mdoc:invisible
 case class Matrix()
-def computeInverse(m: Matrix): UIO[Matrix] = IO.succeed(m)
-def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = IO.succeed(m1)
+def computeInverse(m: Matrix): UIO[Matrix] = ZIO.succeed(m)
+def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = ZIO.succeed(m1)
 ```
 
 ```scala mdoc:silent
@@ -140,7 +140,7 @@ On the JVM, fibers will use threads, but will not consume *unlimited* threads. I
 ```scala mdoc:silent
 def fib(n: Int): UIO[Int] =
   if (n <= 1) {
-    IO.succeed(1)
+    ZIO.succeed(1)
   } else {
     for {
       fiber1 <- fib(n - 2).fork
@@ -157,7 +157,7 @@ The `ZIO` error model is simple, consistent, permits both typed errors and termi
 A `ZIO[R, E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case has been exposed as part of the `Either` success case.  
 
 ```scala mdoc:silent
-val error: Task[String] = IO.fail(new RuntimeException("Some Error"))
+val error: Task[String] = ZIO.fail(new RuntimeException("Some Error"))
 val errorEither: ZIO[Any, Nothing, Either[Throwable, String]] = error.either
 ```
 

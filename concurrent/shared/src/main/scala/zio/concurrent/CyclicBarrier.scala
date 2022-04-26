@@ -43,7 +43,7 @@ final class CyclicBarrier private (
    */
   val await: IO[Unit, Int] =
     ZIO.uninterruptibleMask { restore =>
-      _broken.get.flatMap(if (_) IO.fail(()) else UIO.unit) *>
+      _broken.get.flatMap(if (_) ZIO.fail(()) else ZIO.unit) *>
         _waiting.modify {
           case n if n + 1 == parties => (restore(_action) *> succeed.as(_parties - n - 1) <* reset)                      -> 0
           case n                     => _lock.get.flatMap(l => restore(l.await).onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
@@ -63,7 +63,7 @@ final class CyclicBarrier private (
 
 object CyclicBarrier {
   def make(parties: Int): UIO[CyclicBarrier] =
-    make(parties, UIO.unit)
+    make(parties, ZIO.unit)
 
   def make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier] =
     for {

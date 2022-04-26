@@ -37,12 +37,6 @@ package object zio
   type UIO[+A]      = ZIO[Any, Nothing, A]   // Succeed with an `A`, cannot fail              , no requirements.
   type URIO[-R, +A] = ZIO[R, Nothing, A]     // Succeed with an `A`, cannot fail              , requires an `R`.
 
-  val IO: ZIO.type   = ZIO
-  val Task: ZIO.type = ZIO
-  val RIO: ZIO.type  = ZIO
-  val UIO: ZIO.type  = ZIO
-  val URIO: ZIO.type = ZIO
-
   type RLayer[-RIn, +ROut]  = ZLayer[RIn, Throwable, ROut]
   type URLayer[-RIn, +ROut] = ZLayer[RIn, Nothing, ROut]
   type Layer[+E, +ROut]     = ZLayer[Any, E, ROut]
