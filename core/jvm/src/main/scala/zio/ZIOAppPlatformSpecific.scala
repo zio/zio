@@ -9,8 +9,8 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit = {
-    implicit val trace: ZTraceElement = ZTraceElement.empty
-    val newRuntime                    = runtime.mapRuntimeConfig(hook)
+    implicit val trace: Trace = Trace.empty
+    val newRuntime            = runtime.mapRuntimeConfig(hook)
 
     newRuntime.unsafeRun {
       (for {

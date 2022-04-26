@@ -36,7 +36,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
 
   def close(): Unit = state.close()
 
-  def onChunk(c: Chunk[Byte])(implicit trace: ZTraceElement): ZIO[Any, CompressionException, Chunk[Byte]] =
+  def onChunk(c: Chunk[Byte])(implicit trace: Trace): ZIO[Any, CompressionException, Chunk[Byte]] =
     ZIO.attempt {
       val (newState, output) = state.feed(c.toArray)
       state = newState
@@ -46,7 +46,7 @@ private[compression] class Gunzipper private (bufferSize: Int) {
       case e: CompressionException       => e
     }
 
-  def onNone(implicit trace: ZTraceElement): ZIO[Any, CompressionException, Chunk[Byte]] =
+  def onNone(implicit trace: Trace): ZIO[Any, CompressionException, Chunk[Byte]] =
     if (state.isInProgress) ZIO.fail(CompressionException("Stream closed before completion."))
     else ZIO.succeed(Chunk.empty)
 
@@ -206,6 +206,6 @@ private[stream] object Gunzipper {
     def isInProgress: Boolean = true
   }
 
-  def make(bufferSize: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Gunzipper] =
+  def make(bufferSize: Int)(implicit trace: Trace): ZIO[Any, Nothing, Gunzipper] =
     ZIO.succeed(new Gunzipper(bufferSize))
 }

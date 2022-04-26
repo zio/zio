@@ -43,7 +43,7 @@ package object zio
   type ULayer[+ROut]        = ZLayer[Any, Nothing, ROut]
   type TaskLayer[+ROut]     = ZLayer[Any, Throwable, ROut]
 
-  type ZTraceElement = Tracer.instance.Type with Tracer.Traced
+  type Trace = Tracer.instance.Type with Tracer.Traced
 
   trait Tag[A] extends EnvironmentTag[A] {
     def tag: LightTypeTag

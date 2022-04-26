@@ -18,7 +18,7 @@ package zio.test.laws
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{FunctionVariants, Gen}
-import zio.ZTraceElement
+import zio.Trace
 
 /**
  * A `GenF` knows how to construct a generator of `F[A,B]` values given a
@@ -31,7 +31,7 @@ trait GenF2[-R, F[_, _]] {
   /**
    * Construct a generator of `F[A,B]` values given a generator of `B` values.
    */
-  def apply[R1 <: R, A, B](gen: Gen[R1, B])(implicit trace: ZTraceElement): Gen[R1, F[A, B]]
+  def apply[R1 <: R, A, B](gen: Gen[R1, B])(implicit trace: Trace): Gen[R1, F[A, B]]
 }
 
 object GenF2 extends FunctionVariants {
@@ -43,7 +43,7 @@ object GenF2 extends FunctionVariants {
     new GenF2[Any, Function1] {
 
       override def apply[R1, A, B](gen: Gen[R1, B])(implicit
-        trace: ZTraceElement
+        trace: Trace
       ): Gen[R1, Function1[A, B]] =
         function[R1, A, B](gen)
     }

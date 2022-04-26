@@ -24,12 +24,12 @@ final case class ZIOAppArgs(getArgs: Chunk[String])
 
 object ZIOAppArgs {
 
-  def getArgs(implicit trace: ZTraceElement): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
+  def getArgs(implicit trace: Trace): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIO.serviceWith(_.getArgs)
 
   /**
    * Use when your App does not need to access the command-line arguments.
    */
-  val empty: ULayer[ZIOAppArgs] = ZLayer.succeed(ZIOAppArgs(Chunk.empty))(Tag[ZIOAppArgs], ZTraceElement.empty)
+  val empty: ULayer[ZIOAppArgs] = ZLayer.succeed(ZIOAppArgs(Chunk.empty))(Tag[ZIOAppArgs], Trace.empty)
 
 }

@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, Trace}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -44,17 +44,17 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     ) @@ silent @@ TestAspect.ignore
   // TODO Investigate these expectations once ZIO-intellij plugin is updated
 
-  def test1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test1Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFinished("Addition works fine")
   )
 
-  def test2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test2Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Subtraction works fine"),
     testFinished("Subtraction works fine")
   )
 
-  def test3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test3Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Value falls within range"),
     testFailed(
       "Value falls within range",
@@ -75,32 +75,32 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def suite1Expected(implicit trace: Trace): Vector[String] = Vector(
     suiteStarted("Suite1")
   ) ++ test1Expected ++ test2Expected ++
     Vector(
       suiteFinished("Suite1")
     )
 
-  def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def suite2Expected(implicit trace: Trace): Vector[String] = Vector(
     suiteStarted("Suite2")
   ) ++ test1Expected ++ test2Expected ++ test3Expected ++
     Vector(
       suiteFinished("Suite2")
     )
 
-  def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def suite3Expected(implicit trace: Trace): Vector[String] = Vector(
     suiteStarted("Suite3")
   ) ++ suite1Expected ++ suite2Expected ++ test3Expected ++ Vector(
     suiteFinished("Suite3")
   )
 
-  def suite4Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def suite4Expected(implicit trace: Trace): Vector[String] = Vector(
     suiteStarted("Suite4")
   ) ++ suite1Expected ++ Vector(suiteStarted("Empty"), suiteFinished("Empty")) ++
     test3Expected ++ Vector(suiteFinished("Suite4"))
 
-  def test5Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test5Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFailed(
       "Addition works fine",
@@ -114,7 +114,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def test6Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test6Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Multiple nested failures"),
     testFailed(
       "Multiple nested failures",
@@ -132,7 +132,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def test7Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test7Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("labeled failures"),
     testFailed(
       "labeled failures",
@@ -147,7 +147,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def test8Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test8Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Not combinator"),
     testFailed(
       "Not combinator",
@@ -171,8 +171,8 @@ object IntelliJRenderUtils {
   def suiteFinished(name: String): String =
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
-  def testStarted(name: String)(implicit trace: ZTraceElement): String = {
-    val location = Option(trace).collect { case ZTraceElement(_, file, line) =>
+  def testStarted(name: String)(implicit trace: Trace): String = {
+    val location = Option(trace).collect { case Trace(_, file, line) =>
       (file, line)
     }
 
@@ -189,7 +189,7 @@ object IntelliJRenderUtils {
   // TODO de-dup layer creation
   def runLog(
     spec: Spec[TestEnvironment, String]
-  )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
+  )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <-
         IntelliJTestRunner(testEnvironment)
@@ -202,7 +202,7 @@ object IntelliJRenderUtils {
 
   private[this] def IntelliJTestRunner(
     testEnvironment: ZLayer[Scope, Nothing, TestEnvironment]
-  )(implicit trace: ZTraceElement) =
+  )(implicit trace: Trace) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,

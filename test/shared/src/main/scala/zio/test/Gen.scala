@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.{Stream, ZStream}
-import zio.{Chunk, NonEmptyChunk, Random, UIO, URIO, ZIO, Zippable, ZTraceElement}
+import zio.{Chunk, NonEmptyChunk, Random, UIO, URIO, ZIO, Zippable, Trace}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -35,7 +35,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
   /**
    * A symbolic alias for `concat`.
    */
-  def ++[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: ZTraceElement): Gen[R1, A1] =
+  def ++[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
     self.concat(that)
 
   /**
@@ -43,7 +43,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    */
   def <*>[R1 <: R, B](
     that: Gen[R1, B]
-  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Gen[R1, zippable.Out] =
+  )(implicit zippable: Zippable[A, B], trace: Trace): Gen[R1, zippable.Out] =
     self.zip(that)
 
   /**
@@ -51,14 +51,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    * generator, resulting in a deterministic generator that generates the values
    * from this generator and then the values from the specified generator.
    */
-  def concat[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: ZTraceElement): Gen[R1, A1] =
+  def concat[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
     Gen(self.sample ++ that.sample)
 
   /**
    * Maps the values produced by this generator with the specified partial
    * function, discarding any values the partial function is not defined at.
    */
-  def collect[B](pf: PartialFunction[A, B])(implicit trace: ZTraceElement): Gen[R, B] =
+  def collect[B](pf: PartialFunction[A, B])(implicit trace: Trace): Gen[R, B] =
     self.flatMap { a =>
       pf.andThen(Gen.const(_)).applyOrElse[A, Gen[Any, B]](a, _ => Gen.empty)
     }
@@ -74,19 +74,19 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    * val evens: Gen[Any, Int] = Gen.int.map(_ * 2)
    * }}}
    */
-  def filter(f: A => Boolean)(implicit trace: ZTraceElement): Gen[R, A] =
+  def filter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] =
     self.flatMap(a => if (f(a)) Gen.const(a) else Gen.empty)
 
   /**
    * Filters the values produced by this generator, discarding any values that
    * meet the specified predicate.
    */
-  def filterNot(f: A => Boolean)(implicit trace: ZTraceElement): Gen[R, A] =
+  def filterNot(f: A => Boolean)(implicit trace: Trace): Gen[R, A] =
     filter(a => !f(a))
 
-  def withFilter(f: A => Boolean)(implicit trace: ZTraceElement): Gen[R, A] = filter(f)
+  def withFilter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] = filter(f)
 
-  def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: ZTraceElement): Gen[R1, B] =
+  def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
     Gen {
       flatMapStream(self.sample) { sample =>
         val values  = f(sample.value).sample
@@ -95,22 +95,22 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
       }
     }
 
-  def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B], trace: ZTraceElement): Gen[R1, B] =
+  def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B], trace: Trace): Gen[R1, B] =
     flatMap(ev)
 
-  def map[B](f: A => B)(implicit trace: ZTraceElement): Gen[R, B] =
+  def map[B](f: A => B)(implicit trace: Trace): Gen[R, B] =
     Gen(sample.map(_.map(_.map(f))))
 
   /**
    * Maps an effectual function over a generator.
    */
-  def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: ZTraceElement): Gen[R1, B] =
+  def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: Trace): Gen[R1, B] =
     Gen(sample.mapZIO(ZIO.foreach(_)(_.foreach(f))))
 
   /**
    * Discards the shrinker for this generator.
    */
-  def noShrink(implicit trace: ZTraceElement): Gen[R, A] =
+  def noShrink(implicit trace: Trace): Gen[R, A] =
     reshrink(Sample.noShrink)
 
   /**
@@ -119,32 +119,32 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    * when the process to shrink a value is simpler than the process used to
    * generate it.
    */
-  def reshrink[R1 <: R, B](f: A => Sample[R1, B])(implicit trace: ZTraceElement): Gen[R1, B] =
+  def reshrink[R1 <: R, B](f: A => Sample[R1, B])(implicit trace: Trace): Gen[R1, B] =
     Gen(sample.map(_.map(sample => f(sample.value))))
 
   /**
    * Sets the size parameter for this generator to the specified value.
    */
-  def resize(size: Int)(implicit trace: ZTraceElement): Gen[R with Sized, A] =
+  def resize(size: Int)(implicit trace: Trace): Gen[R with Sized, A] =
     Sized.withSizeGen(size)(self)
 
   /**
    * Runs the generator and collects all of its values in a list.
    */
-  def runCollect(implicit trace: ZTraceElement): ZIO[R, Nothing, List[A]] =
+  def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
     sample.collectSome.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
-  def runCollectN(n: Int)(implicit trace: ZTraceElement): ZIO[R, Nothing, List[A]] =
+  def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
     sample.collectSome.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
-  def runHead(implicit trace: ZTraceElement): ZIO[R, Nothing, Option[A]] =
+  def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
     sample.collectSome.map(_.value).runHead
 
   /**
@@ -153,14 +153,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
    */
   def zip[R1 <: R, B](
     that: Gen[R1, B]
-  )(implicit zippable: Zippable[A, B], trace: ZTraceElement): Gen[R1, zippable.Out] =
+  )(implicit zippable: Zippable[A, B], trace: Trace): Gen[R1, zippable.Out] =
     self.zipWith(that)(zippable.zip(_, _))
 
   /**
    * Composes this generator with the specified generator to create a cartesian
    * product of elements with the specified function.
    */
-  def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: ZTraceElement): Gen[R1, C] =
+  def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 }
 
@@ -169,19 +169,19 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of alpha characters.
    */
-  def alphaChar(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def alphaChar(implicit trace: Trace): Gen[Any, Char] =
     weighted(char(65, 90) -> 26, char(97, 122) -> 26)
 
   /**
    * A generator of alphanumeric characters. Shrinks toward '0'.
    */
-  def alphaNumericChar(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def alphaNumericChar(implicit trace: Trace): Gen[Any, Char] =
     weighted(char(48, 57) -> 10, char(65, 90) -> 26, char(97, 122) -> 26)
 
   /**
    * A generator of alphanumeric strings. Shrinks towards the empty string.
    */
-  def alphaNumericString(implicit trace: ZTraceElement): Gen[Sized, String] =
+  def alphaNumericString(implicit trace: Trace): Gen[Sized, String] =
     Gen.string(alphaNumericChar)
 
   /**
@@ -189,20 +189,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * bounds.
    */
   def alphaNumericStringBounded(min: Int, max: Int)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[Sized, String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
 
   /**
    * A generator of US-ASCII characters. Shrinks toward '0'.
    */
-  def asciiChar(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def asciiChar(implicit trace: Trace): Gen[Any, Char] =
     Gen.oneOf(Gen.char('\u0000', '\u007F'))
 
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  def asciiString(implicit trace: ZTraceElement): Gen[Sized, String] =
+  def asciiString(implicit trace: Trace): Gen[Sized, String] =
     Gen.string(Gen.asciiChar)
 
   /**
@@ -212,7 +212,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * The values generated will have a precision equal to the precision of the
    * difference between `max` and `min`.
    */
-  def bigDecimal(min: BigDecimal, max: BigDecimal)(implicit trace: ZTraceElement): Gen[Any, BigDecimal] =
+  def bigDecimal(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, BigDecimal] =
     if (min > max)
       Gen.fromZIO(ZIO.die(new IllegalArgumentException("invalid bounds")))
     else {
@@ -232,14 +232,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * @see
    *   See [[bigDecimal]] for implementation.
    */
-  def bigDecimalJava(min: BigDecimal, max: BigDecimal)(implicit trace: ZTraceElement): Gen[Any, java.math.BigDecimal] =
+  def bigDecimalJava(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, java.math.BigDecimal] =
     Gen.bigDecimal(min, max).map(_.underlying)
 
   /**
    * A generator of big integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def bigInt(min: BigInt, max: BigInt)(implicit trace: ZTraceElement): Gen[Any, BigInt] =
+  def bigInt(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, BigInt] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -263,25 +263,25 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * @see
    *   See [[bigInt]] for implementation.
    */
-  def bigIntegerJava(min: BigInt, max: BigInt)(implicit trace: ZTraceElement): Gen[Any, java.math.BigInteger] =
+  def bigIntegerJava(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, java.math.BigInteger] =
     Gen.bigInt(min, max).map(_.underlying)
 
   /**
    * A generator of booleans. Shrinks toward 'false'.
    */
-  def boolean(implicit trace: ZTraceElement): Gen[Any, Boolean] =
+  def boolean(implicit trace: Trace): Gen[Any, Boolean] =
     elements(false, true)
 
   /**
    * A generator whose size falls within the specified bounds.
    */
-  def bounded[R, A](min: Int, max: Int)(f: Int => Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
+  def bounded[R, A](min: Int, max: Int)(f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     int(min, max).flatMap(f)
 
   /**
    * A generator of bytes. Shrinks toward '0'.
    */
-  def byte(implicit trace: ZTraceElement): Gen[Any, Byte] =
+  def byte(implicit trace: Trace): Gen[Any, Byte] =
     fromZIOSample {
       nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
@@ -292,13 +292,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of byte values inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def byte(min: Byte, max: Byte)(implicit trace: ZTraceElement): Gen[Any, Byte] =
+  def byte(min: Byte, max: Byte)(implicit trace: Trace): Gen[Any, Byte] =
     int(min.toInt, max.toInt).map(_.toByte)
 
   /**
    * A generator of characters. Shrinks toward '0'.
    */
-  def char(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def char(implicit trace: Trace): Gen[Any, Char] =
     fromZIOSample {
       nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
@@ -309,20 +309,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of character values inside the specified range: [start, end].
    * The shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def char(min: Char, max: Char)(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def char(min: Char, max: Char)(implicit trace: Trace): Gen[Any, Char] =
     int(min.toInt, max.toInt).map(_.toChar)
 
   /**
    * A sized generator of chunks.
    */
-  def chunkOf[R <: Sized, A](g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Chunk[A]] =
+  def chunkOf[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
     listOf(g).map(Chunk.fromIterable)
 
   /**
    * A sized generator of non-empty chunks.
    */
   def chunkOf1[R <: Sized, A](g: Gen[R, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, NonEmptyChunk[A]] =
     listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
 
@@ -330,21 +330,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of chunks whose size falls within the specified bounds.
    */
   def chunkOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Chunk[A]] =
     bounded(min, max)(chunkOfN(_)(g))
 
   /**
    * A generator of chunks of the specified size.
    */
-  def chunkOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Chunk[A]] =
+  def chunkOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
     listOfN(n)(g).map(Chunk.fromIterable)
 
   /**
    * Composes the specified generators to create a cartesian product of elements
    * with the specified function.
    */
-  def collectAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: ZTraceElement): Gen[R, List[A]] =
+  def collectAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, List[A]] =
     gens.foldRight[Gen[R, List[A]]](Gen.const(List.empty))(_.zipWith(_)(_ :: _))
 
   /**
@@ -352,32 +352,32 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * deterministic generator that generates all of the values generated by the
    * specified generators.
    */
-  def concatAll[R, A](gens: => Iterable[Gen[R, A]])(implicit trace: ZTraceElement): Gen[R, A] =
+  def concatAll[R, A](gens: => Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
     Gen.suspend(gens.foldLeft[Gen[R, A]](Gen.empty)(_ ++ _))
 
   /**
    * A constant generator of the specified value.
    */
-  def const[A](a: => A)(implicit trace: ZTraceElement): Gen[Any, A] =
+  def const[A](a: => A)(implicit trace: Trace): Gen[Any, A] =
     Gen(ZStream.succeed(Some(Sample.noShrink(a))))
 
   /**
    * A constant generator of the specified sample.
    */
-  def constSample[R, A](sample: => Sample[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
+  def constSample[R, A](sample: => Sample[R, A])(implicit trace: Trace): Gen[R, A] =
     fromZIOSample(ZIO.succeedNow(sample))
 
   /**
    * A generator of doubles. Shrinks toward '0'.
    */
-  def double(implicit trace: ZTraceElement): Gen[Any, Double] =
+  def double(implicit trace: Trace): Gen[Any, Double] =
     fromZIOSample(nextDouble.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of double values inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def double(min: Double, max: Double)(implicit trace: ZTraceElement): Gen[Any, Double] =
+  def double(min: Double, max: Double)(implicit trace: Trace): Gen[Any, Double] =
     if (min > max)
       Gen.fromZIO(ZIO.die(new IllegalArgumentException("invalid bounds")))
     else
@@ -387,21 +387,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       }
 
   def either[R, A, B](left: Gen[R, A], right: Gen[R, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Either[A, B]] =
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
-  def elements[A](as: A*)(implicit trace: ZTraceElement): Gen[Any, A] =
+  def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
 
-  def empty(implicit trace: ZTraceElement): Gen[Any, Nothing] =
+  def empty(implicit trace: Trace): Gen[Any, Nothing] =
     Gen(ZStream.empty)
 
   /**
    * A generator of exponentially distributed doubles with mean `1`. The
    * shrinker will shrink toward `0`.
    */
-  def exponential(implicit trace: ZTraceElement): Gen[Any, Double] =
+  def exponential(implicit trace: Trace): Gen[Any, Double] =
     uniform.map(n => -math.log(1 - n))
 
   /**
@@ -411,14 +411,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
-  )(implicit trace: ZTraceElement): Gen[R, A] =
+  )(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))).map(Some(_)).intersperse(None))
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
    * generator will not have any shrinking.
    */
-  final def fromRandom[A](f: Random => UIO[A])(implicit trace: ZTraceElement): Gen[Any, A] =
+  final def fromRandom[A](f: Random => UIO[A])(implicit trace: Trace): Gen[Any, A] =
     fromRandomSample(f(_).map(Sample.noShrink))
 
   /**
@@ -426,32 +426,32 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * sample.
    */
   final def fromRandomSample[R, A](f: Random => UIO[Sample[R, A]])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, A] =
     fromZIOSample(ZIO.randomWith(f))
 
   /**
    * Constructs a generator from an effect that constructs a value.
    */
-  def fromZIO[R, A](effect: URIO[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
+  def fromZIO[R, A](effect: URIO[R, A])(implicit trace: Trace): Gen[R, A] =
     fromZIOSample(effect.map(Sample.noShrink))
 
   /**
    * Constructs a generator from an effect that constructs a sample.
    */
-  def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: ZTraceElement): Gen[R, A] =
+  def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromZIO(effect.asSome))
 
   /**
    * A generator of floats. Shrinks toward '0'.
    */
-  def float(implicit trace: ZTraceElement): Gen[Any, Float] =
+  def float(implicit trace: Trace): Gen[Any, Float] =
     fromZIOSample(nextFloat.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of hex chars(0-9,a-f,A-F).
    */
-  def hexChar(implicit trace: ZTraceElement): Gen[Any, Char] = weighted(
+  def hexChar(implicit trace: Trace): Gen[Any, Char] = weighted(
     char('\u0030', '\u0039') -> 10,
     char('\u0041', '\u0046') -> 6,
     char('\u0061', '\u0066') -> 6
@@ -460,7 +460,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of lower hex chars(0-9, a-f).
    */
-  def hexCharLower(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def hexCharLower(implicit trace: Trace): Gen[Any, Char] =
     weighted(
       char('\u0030', '\u0039') -> 10,
       char('\u0061', '\u0066') -> 6
@@ -469,7 +469,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of upper hex chars(0-9, A-F).
    */
-  def hexCharUpper(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def hexCharUpper(implicit trace: Trace): Gen[Any, Char] =
     weighted(
       char('\u0030', '\u0039') -> 10,
       char('\u0041', '\u0046') -> 6
@@ -478,14 +478,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of integers. Shrinks toward '0'.
    */
-  def int(implicit trace: ZTraceElement): Gen[Any, Int] =
+  def int(implicit trace: Trace): Gen[Any, Int] =
     fromZIOSample(nextInt.map(Sample.shrinkIntegral(0)))
 
   /**
    * A generator of integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def int(min: Int, max: Int)(implicit trace: ZTraceElement): Gen[Any, Int] =
+  def int(min: Int, max: Int)(implicit trace: Trace): Gen[Any, Int] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -500,7 +500,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings that can be encoded in the ISO-8859-1 character set.
    */
-  def iso_8859_1(implicit trace: ZTraceElement): Gen[Sized, String] =
+  def iso_8859_1(implicit trace: Trace): Gen[Sized, String] =
     chunkOf(byte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
@@ -508,14 +508,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * number of larger sizes will be generated.
    */
   def large[R <: Sized, A](f: Int => Gen[R, A], min: Int = 0)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
 
-  def listOf[R <: Sized, A](g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, List[A]] =
+  def listOf[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
-  def listOf1[R <: Sized, A](g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, ::[A]] =
+  def listOf1[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
     for {
       h <- g
       t <- small(n => listOfN(n - 1 max 0)(g))
@@ -525,24 +525,24 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of lists whose size falls within the specified bounds.
    */
   def listOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, List[A]] =
     bounded(min, max)(listOfN(_)(g))
 
-  def listOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, List[A]] =
+  def listOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     collectAll(List.fill(n)(g))
 
   /**
    * A generator of longs. Shrinks toward '0'.
    */
-  def long(implicit trace: ZTraceElement): Gen[Any, Long] =
+  def long(implicit trace: Trace): Gen[Any, Long] =
     fromZIOSample(nextLong.map(Sample.shrinkIntegral(0L)))
 
   /**
    * A generator of long values in the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def long(min: Long, max: Long)(implicit trace: ZTraceElement): Gen[Any, Long] =
+  def long(min: Long, max: Long)(implicit trace: Trace): Gen[Any, Long] =
     Gen.fromZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
@@ -558,7 +558,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of maps.
    */
   def mapOf[R <: Sized, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value))
 
@@ -566,7 +566,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of non-empty maps.
    */
   def mapOf1[R <: Sized, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value), 1)
 
@@ -574,7 +574,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of maps of the specified size.
    */
   def mapOfN[R, A, B](n: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Map[A, B]] =
     setOfN(n)(key).zipWith(listOfN(n)(value))(_.zip(_).toMap)
 
@@ -582,7 +582,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of maps whose size falls within the specified bounds.
    */
   def mapOfBounded[R, A, B](min: Int, max: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Map[A, B]] =
     bounded(min, max)(mapOfN(_)(key, value))
 
@@ -592,7 +592,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * larger sizes will be generated as well.
    */
   def medium[R <: Sized, A](f: Int => Gen[R, A], min: Int = 0)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, A] = {
     val gen = for {
       max <- size
@@ -604,22 +604,22 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A constant generator of the empty value.
    */
-  def none(implicit trace: ZTraceElement): Gen[Any, Option[Nothing]] =
+  def none(implicit trace: Trace): Gen[Any, Option[Nothing]] =
     Gen.const(None)
 
   /**
    * A generator of numeric characters. Shrinks toward '0'.
    */
-  def numericChar(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def numericChar(implicit trace: Trace): Gen[Any, Char] =
     weighted(char(48, 57) -> 10)
 
   /**
    * A generator of optional values. Shrinks toward `None`.
    */
-  def option[R, A](gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Option[A]] =
+  def option[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
     oneOf(none, gen.map(Some(_)))
 
-  def oneOf[R, A](as: Gen[R, A]*)(implicit trace: ZTraceElement): Gen[R, A] =
+  def oneOf[R, A](as: Gen[R, A]*)(implicit trace: Trace): Gen[R, A] =
     if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
 
   /**
@@ -629,7 +629,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * the partial function's domain, if they have the same `hashCode`.
    */
   def partialFunction[R, A, B](gen: Gen[R, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, PartialFunction[A, B]] =
     partialFunctionWith(gen)(_.hashCode)
 
@@ -642,40 +642,40 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * implement `hashCode` in a way that is consistent with equality.
    */
   def partialFunctionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, PartialFunction[A, B]] =
     functionWith(option(gen))(hash).map(Function.unlift)
 
   /**
    * A generator of printable characters. Shrinks toward '!'.
    */
-  def printableChar(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def printableChar(implicit trace: Trace): Gen[Any, Char] =
     char(33, 126)
 
   /**
    * A sized generator of sets.
    */
-  def setOf[R <: Sized, A](gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Set[A]] =
+  def setOf[R <: Sized, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     small(setOfN(_)(gen))
 
   /**
    * A sized generator of non-empty sets.
    */
-  def setOf1[R <: Sized, A](gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Set[A]] =
+  def setOf1[R <: Sized, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     small(setOfN(_)(gen), 1)
 
   /**
    * A generator of sets whose size falls within the specified bounds.
    */
   def setOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Set[A]] =
     bounded(min, max)(setOfN(_)(g))
 
   /**
    * A generator of sets of the specified size.
    */
-  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Set[A]] =
+  def setOfN[R, A](n: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     List.fill(n)(gen).foldLeft[Gen[R, Set[A]]](const(Set.empty)) { (acc, gen) =>
       for {
         set  <- acc
@@ -686,7 +686,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of shorts. Shrinks toward '0'.
    */
-  def short(implicit trace: ZTraceElement): Gen[Any, Short] =
+  def short(implicit trace: Trace): Gen[Any, Short] =
     fromZIOSample {
       nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
@@ -697,16 +697,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of short values inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
-  def short(min: Short, max: Short)(implicit trace: ZTraceElement): Gen[Any, Short] =
+  def short(min: Short, max: Short)(implicit trace: Trace): Gen[Any, Short] =
     int(min.toInt, max.toInt).map(_.toShort)
 
-  def size(implicit trace: ZTraceElement): Gen[Sized, Int] =
+  def size(implicit trace: Trace): Gen[Sized, Int] =
     Gen.fromZIO(Sized.size)
 
   /**
    * A sized generator, whose size falls within the specified bounds.
    */
-  def sized[R <: Sized, A](f: Int => Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
+  def sized[R <: Sized, A](f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     size.flatMap(f)
 
   /**
@@ -715,7 +715,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * range but a few larger values will still be generated.
    */
   def small[R <: Sized, A](f: Int => Gen[R, A], min: Int = 0)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, A] = {
     val gen = for {
       max <- size
@@ -724,43 +724,43 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     gen.reshrink(Sample.shrinkIntegral(min)).flatMap(f)
   }
 
-  def some[R, A](gen: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Option[A]] =
+  def some[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Option[A]] =
     gen.map(Some(_))
 
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
-  def string(implicit trace: ZTraceElement): Gen[Sized, String] =
+  def string(implicit trace: Trace): Gen[Sized, String] =
     Gen.string(Gen.unicodeChar)
 
-  def string[R <: Sized](char: Gen[R, Char])(implicit trace: ZTraceElement): Gen[R, String] =
+  def string[R <: Sized](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf(char).map(_.mkString)
 
-  def string1[R <: Sized](char: Gen[R, Char])(implicit trace: ZTraceElement): Gen[R, String] =
+  def string1[R <: Sized](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
   /**
    * A generator of strings whose size falls within the specified bounds.
    */
   def stringBounded[R](min: Int, max: Int)(g: Gen[R, Char])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, String] =
     bounded(min, max)(stringN(_)(g))
 
-  def stringN[R](n: Int)(char: Gen[R, Char])(implicit trace: ZTraceElement): Gen[R, String] =
+  def stringN[R](n: Int)(char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
 
   /**
    * Lazily constructs a generator. This is useful to avoid infinite recursion
    * when creating generators that refer to themselves.
    */
-  def suspend[R, A](gen: => Gen[R, A])(implicit trace: ZTraceElement): Gen[R, A] =
+  def suspend[R, A](gen: => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     fromZIO(ZIO.succeed(gen)).flatten
 
   /**
    * A generator of throwables.
    */
-  def throwable(implicit trace: ZTraceElement): Gen[Any, Throwable] =
+  def throwable(implicit trace: Trace): Gen[Any, Throwable] =
     Gen.const(new Throwable)
 
   /**
@@ -768,7 +768,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * repeatedly applying a function to an initial state.
    */
   def unfoldGen[R <: Sized, S, A](s: S)(f: S => Gen[R, (S, A)])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, List[A]] =
     small(unfoldGenN(_)(s)(f))
 
@@ -777,7 +777,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * collection is generated by repeatedly applying a function to an initial
    * state.
    */
-  def unfoldGenN[R, S, A](n: Int)(s: S)(f: S => Gen[R, (S, A)])(implicit trace: ZTraceElement): Gen[R, List[A]] =
+  def unfoldGenN[R, S, A](n: Int)(s: S)(f: S => Gen[R, (S, A)])(implicit trace: Trace): Gen[R, List[A]] =
     if (n <= 0)
       Gen.const(List.empty)
     else
@@ -786,44 +786,44 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of Unicode characters. Shrinks toward '0'.
    */
-  def unicodeChar(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def unicodeChar(implicit trace: Trace): Gen[Any, Char] =
     Gen.oneOf(Gen.char('\u0000', '\uD7FF'), Gen.char('\uE000', '\uFFFD'))
 
   /**
    * A generator of uniformly distributed doubles between [0, 1]. The shrinker
    * will shrink toward `0`.
    */
-  def uniform(implicit trace: ZTraceElement): Gen[Any, Double] =
+  def uniform(implicit trace: Trace): Gen[Any, Double] =
     fromZIOSample(nextDouble.map(Sample.shrinkFractional(0.0)))
 
   /**
    * A constant generator of the unit value.
    */
-  def unit(implicit trace: ZTraceElement): Gen[Any, Unit] =
+  def unit(implicit trace: Trace): Gen[Any, Unit] =
     const(())
 
   /**
    * A generator of universally unique identifiers. The returned generator will
    * not have any shrinking.
    */
-  def uuid(implicit trace: ZTraceElement): Gen[Any, UUID] =
+  def uuid(implicit trace: Trace): Gen[Any, UUID] =
     Gen.fromZIO(nextUUID)
 
-  def vectorOf[R <: Sized, A](g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Vector[A]] =
+  def vectorOf[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
-  def vectorOf1[R <: Sized, A](g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Vector[A]] =
+  def vectorOf1[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
 
   /**
    * A generator of vectors whose size falls within the specified bounds.
    */
   def vectorOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Gen[R, Vector[A]] =
     bounded(min, max)(vectorOfN(_)(g))
 
-  def vectorOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: ZTraceElement): Gen[R, Vector[A]] =
+  def vectorOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
   /**
@@ -834,7 +834,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * val trueFalse = Gen.weighted((Gen.const(true), 9), (Gen.const(false), 1))
    * }}}
    */
-  def weighted[R, A](gs: (Gen[R, A], Double)*)(implicit trace: ZTraceElement): Gen[R, A] = {
+  def weighted[R, A](gs: (Gen[R, A], Double)*)(implicit trace: Trace): Gen[R, A] = {
     val sum = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) { case ((map, acc), (gen, d)) =>
       if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
@@ -846,7 +846,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of whitespace characters.
    */
-  def whitespaceChars(implicit trace: ZTraceElement): Gen[Any, Char] =
+  def whitespaceChars(implicit trace: Trace): Gen[Any, Char] =
     Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
 
   /**
@@ -858,5 +858,5 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     else n
 
   private val defaultShrinker: Any => ZStream[Any, Nothing, Nothing] =
-    _ => ZStream.empty(ZTraceElement.empty)
+    _ => ZStream.empty(Trace.empty)
 }

@@ -21,7 +21,7 @@ import zio.stream.compression.Gzipper._
 import zio.{Chunk, ZIO}
 
 import java.util.zip.{CRC32, Deflater}
-import zio.ZTraceElement
+import zio.Trace
 
 private[compression] class Gzipper(
   bufferSize: Int,
@@ -39,7 +39,7 @@ private[compression] class Gzipper(
     deflater
   }
 
-  def onNone(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
+  def onNone(implicit trace: Trace): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
     deflater.finish()
     val restAndTrailer = Deflate.pullOutput(deflater, buffer, flushMode) ++ getTrailer
     val lastChunk      = if (headerSent) restAndTrailer else header ++ restAndTrailer
@@ -50,7 +50,7 @@ private[compression] class Gzipper(
     lastChunk
   }
 
-  def onChunk(chunk: Chunk[Byte])(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
+  def onChunk(chunk: Chunk[Byte])(implicit trace: Trace): ZIO[Any, Nothing, Chunk[Byte]] = ZIO.succeed {
     val input = chunk.toArray
     inputSize += input.length
     crc.update(input)
@@ -88,6 +88,6 @@ private[stream] object Gzipper {
     level: CompressionLevel,
     strategy: CompressionStrategy,
     flushMode: FlushMode
-  )(implicit trace: ZTraceElement): ZIO[Any, Nothing, Gzipper] =
+  )(implicit trace: Trace): ZIO[Any, Nothing, Gzipper] =
     ZIO.succeed(new Gzipper(bufferSize, level, strategy, flushMode))
 }

@@ -30,13 +30,13 @@ abstract class Queue[A] extends Dequeue[A] with Enqueue[A] {
   /**
    * Checks whether the queue is currently empty.
    */
-  override final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+  override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  override final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+  override final def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == capacity)
 }
 
@@ -59,7 +59,7 @@ object Queue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def bounded[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
     ZIO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.BackPressure()))
 
   /**
@@ -78,7 +78,7 @@ object Queue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def dropping[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
     ZIO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Dropping()))
 
   /**
@@ -98,7 +98,7 @@ object Queue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def sliding[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Queue[A]] =
     ZIO.succeed(MutableConcurrentQueue.bounded[A](requestedCapacity)).flatMap(createQueue(_, Strategy.Sliding()))
 
   /**
@@ -109,11 +109,11 @@ object Queue {
    * @return
    *   `UIO[Queue[A]]`
    */
-  def unbounded[A](implicit trace: ZTraceElement): UIO[Queue[A]] =
+  def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
     ZIO.succeed(MutableConcurrentQueue.unbounded[A]).flatMap(createQueue(_, Strategy.Dropping()))
 
   private def createQueue[A](queue: MutableConcurrentQueue[A], strategy: Strategy[A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): UIO[Queue[A]] =
     Promise
       .make[Nothing, Unit]
@@ -135,12 +135,12 @@ object Queue {
     strategy: Strategy[A]
   ): Queue[A] = new Queue[A] {
 
-    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: ZTraceElement): UIO[Unit] =
+    private def removeTaker(taker: Promise[Nothing, A])(implicit trace: Trace): UIO[Unit] =
       ZIO.succeed(unsafeRemove(takers, taker))
 
     val capacity: Int = queue.capacity
 
-    def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
+    def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -170,7 +170,7 @@ object Queue {
         }
       }
 
-    def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
+    def offerAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -194,9 +194,9 @@ object Queue {
         }
       }
 
-    def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] = shutdownHook.await
+    def awaitShutdown(implicit trace: Trace): UIO[Unit] = shutdownHook.await
 
-    def size(implicit trace: ZTraceElement): UIO[Int] =
+    def size(implicit trace: Trace): UIO[Int] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -204,7 +204,7 @@ object Queue {
           ZIO.succeedNow(queue.size() - takers.size() + strategy.surplusSize)
       }
 
-    def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+    def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.suspendSucceedWith { (_, fiberId) =>
         shutdownFlag.set(true)
 
@@ -215,9 +215,9 @@ object Queue {
           .unit
       }.uninterruptible
 
-    def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
+    def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
-    def take(implicit trace: ZTraceElement): UIO[A] =
+    def take(implicit trace: Trace): UIO[A] =
       ZIO.suspendSucceedWith { (_, fiberId) =>
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -242,7 +242,7 @@ object Queue {
         }
       }
 
-    def takeAll(implicit trace: ZTraceElement): UIO[Chunk[A]] =
+    def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -254,7 +254,7 @@ object Queue {
           }
       }
 
-    def takeUpTo(max: Int)(implicit trace: ZTraceElement): UIO[Chunk[A]] =
+    def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get)
           ZIO.interrupt
@@ -273,7 +273,7 @@ object Queue {
       queue: MutableConcurrentQueue[A],
       takers: MutableConcurrentQueue[Promise[Nothing, A]],
       isShutdown: AtomicBoolean
-    )(implicit trace: ZTraceElement): UIO[Boolean]
+    )(implicit trace: Trace): UIO[Boolean]
 
     def unsafeOnQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
@@ -282,7 +282,7 @@ object Queue {
 
     def surplusSize: Int
 
-    def shutdown(implicit trace: ZTraceElement): UIO[Unit]
+    def shutdown(implicit trace: Trace): UIO[Unit]
 
     final def unsafeCompleteTakers(
       queue: MutableConcurrentQueue[A],
@@ -328,7 +328,7 @@ object Queue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      )(implicit trace: ZTraceElement): UIO[Boolean] =
+      )(implicit trace: Trace): UIO[Boolean] =
         ZIO.suspendSucceedWith { (_, fiberId) =>
           val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
 
@@ -375,7 +375,7 @@ object Queue {
 
       def surplusSize: Int = putters.size()
 
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      def shutdown(implicit trace: Trace): UIO[Unit] =
         for {
           fiberId <- ZIO.fiberId
           putters <- ZIO.succeed(unsafePollAll(putters))
@@ -390,7 +390,7 @@ object Queue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      )(implicit trace: ZTraceElement): UIO[Boolean] = ZIO.succeedNow(false)
+      )(implicit trace: Trace): UIO[Boolean] = ZIO.succeedNow(false)
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
@@ -399,7 +399,7 @@ object Queue {
 
       def surplusSize: Int = 0
 
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] = ZIO.unit
+      def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
 
     final case class Sliding[A]() extends Strategy[A] {
@@ -408,7 +408,7 @@ object Queue {
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      )(implicit trace: ZTraceElement): UIO[Boolean] = {
+      )(implicit trace: Trace): UIO[Boolean] = {
         def unsafeSlidingOffer(as: Iterable[A]): Unit =
           if (as.nonEmpty && queue.capacity > 0) {
             val iterator = as.iterator
@@ -440,7 +440,7 @@ object Queue {
 
       def surplusSize: Int = 0
 
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] = ZIO.unit
+      def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
   }
 

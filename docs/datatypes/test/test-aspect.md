@@ -513,7 +513,7 @@ import zio.test.TestAspect._
 def repeat5 =
   new PerTest[Nothing, Any, Nothing, Any] {
     override def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(
-      implicit trace: ZTraceElement
+      implicit trace: Trace
     ): ZIO[R, TestFailure[E], TestSuccess] =
       test.repeatN(5)
   }

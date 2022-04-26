@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.{ConsoleRenderer, LogLine}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.Message
-import zio.{ExecutionStrategy, ZIO, ZTraceElement}
+import zio.{ExecutionStrategy, ZIO, Trace}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -29,7 +29,7 @@ import zio.{ExecutionStrategy, ZIO, ZTraceElement}
  */
 abstract class TestExecutor[+R, E] {
   def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): UIO[Summary]
 }
 
@@ -43,7 +43,7 @@ object TestExecutor {
   ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] =
     new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
       def run(spec: Spec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
-        trace: ZTraceElement
+        trace: Trace
       ): UIO[
         Summary
       ] =

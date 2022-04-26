@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{UIO, ZTraceElement}
+import zio.{UIO, Trace}
 import zio.internal.macros.CleanCodePrinter
 
 import scala.reflect.macros.{TypecheckException, blackbox}

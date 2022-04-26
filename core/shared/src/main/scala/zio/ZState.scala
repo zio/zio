@@ -44,17 +44,17 @@ sealed trait ZState[S] {
   /**
    * Gets the current state.
    */
-  def get(implicit trace: ZTraceElement): UIO[S]
+  def get(implicit trace: Trace): UIO[S]
 
   /**
    * Sets the state to the specified value.
    */
-  def set(s: S)(implicit trace: ZTraceElement): UIO[Unit]
+  def set(s: S)(implicit trace: Trace): UIO[Unit]
 
   /**
    * Updates the state with the specified function.
    */
-  def update(f: S => S)(implicit trace: ZTraceElement): UIO[Unit]
+  def update(f: S => S)(implicit trace: Trace): UIO[Unit]
 }
 
 object ZState {
@@ -62,16 +62,16 @@ object ZState {
   /**
    * A layer that allocates the initial state of a stateful workflow.
    */
-  def initial[S: EnvironmentTag](s: => S)(implicit trace: ZTraceElement): ZLayer[Any, Nothing, ZState[S]] =
+  def initial[S: EnvironmentTag](s: => S)(implicit trace: Trace): ZLayer[Any, Nothing, ZState[S]] =
     ZLayer.scoped {
       for {
         fiberRef <- FiberRef.make(s)
       } yield new ZState[S] {
-        def get(implicit trace: ZTraceElement): UIO[S] =
+        def get(implicit trace: Trace): UIO[S] =
           fiberRef.get
-        def set(s: S)(implicit trace: ZTraceElement): UIO[Unit] =
+        def set(s: S)(implicit trace: Trace): UIO[Unit] =
           fiberRef.set(s)
-        def update(f: S => S)(implicit trace: ZTraceElement): UIO[Unit] =
+        def update(f: S => S)(implicit trace: Trace): UIO[Unit] =
           fiberRef.update(f)
       }
     }

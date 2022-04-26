@@ -65,7 +65,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
   self =>
 
   final def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZStream[Env1, Err1, Out] =
     ZStream.suspend(stream).pipeThroughChannelOrFail(channel)
 
@@ -76,7 +76,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    */
   final def >>>[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
-  )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In, Out2] =
+  )(implicit trace: Trace): ZPipeline[Env1, Err1, In, Out2] =
     new ZPipeline(self.channel.pipeToOrFail(that.channel))
 
   /**
@@ -85,7 +85,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    * the sink.
    */
   final def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZSink[Env1, Err1, In, Leftover, Out2] =
     new ZSink(self.channel.pipeToOrFail(that.channel))
 
@@ -96,7 +96,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    */
   final def <<<[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
-  )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In2, Out] =
+  )(implicit trace: Trace): ZPipeline[Env1, Err1, In2, Out] =
     ZPipeline.suspend(new ZPipeline(that.channel.pipeToOrFail(self.channel)))
 
   /**
@@ -104,7 +104,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    */
   final def andThen[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
-  )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In, Out2] =
+  )(implicit trace: Trace): ZPipeline[Env1, Err1, In, Out2] =
     self >>> that
 
   /**
@@ -112,7 +112,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    */
   final def compose[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
-  )(implicit trace: ZTraceElement): ZPipeline[Env1, Err1, In2, Out] =
+  )(implicit trace: Trace): ZPipeline[Env1, Err1, In2, Out] =
     self <<< that
 }
 
@@ -126,12 +126,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * ZPipeline[Int] >>> ZPipeline.filter(_ % 2 != 0)
    * }}}
    */
-  def apply[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def apply[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     identity[In]
 
   def branchAfter[Env, Err, In, Out](
     n: => Int
-  )(f: Chunk[In] => ZPipeline[Env, Err, In, Out])(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+  )(f: Chunk[In] => ZPipeline[Env, Err, In, Out])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
 
       def collecting(buf: Chunk[In]): ZChannel[Env, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
@@ -173,13 +173,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * ZPipeline.collect[Option[Int], Int] { case Some(v) => v }
    * }}}
    */
-  def collect[In, Out](f: PartialFunction[In, Out])(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
+  def collect[In, Out](f: PartialFunction[In, Out])(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.collect(f)))
 
   /**
    * Creates a pipeline that drops n elements.
    */
-  def drop[In](n: => Int)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def drop[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
       def loop(r: Int): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
         ZChannel
@@ -207,7 +207,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * ZPipeline.dropUntil[Int](_ > 100)
    * }}}
    */
-  def dropUntil[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def dropUntil[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.dropWhile[In](!f(_)) >>> ZPipeline.drop(1)
 
   /**
@@ -218,7 +218,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * ZPipeline.dropWhile[Int](_ <= 100)
    * }}}
    */
-  def dropWhile[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
+  def dropWhile[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
 
     def dropWhile(f: In => Boolean): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel.readWith(
@@ -238,7 +238,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that filters elements according to the specified
    * predicate.
    */
-  def filter[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def filter[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.filter(f)))
 
   /**
@@ -246,7 +246,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def groupAdjacentBy[In, Key](
     f: In => Key
-  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, (Key, NonEmptyChunk[In])] = {
+  )(implicit trace: Trace): ZPipeline[Any, Nothing, In, (Key, NonEmptyChunk[In])] = {
     type Out = (Key, NonEmptyChunk[In])
     def go(in: Chunk[In], state: Option[Out]): (Chunk[Out], Option[Out]) =
       in.foldLeft[(Chunk[Out], Option[Out])]((Chunk.empty, state)) {
@@ -290,7 +290,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def fromPush[Env, Err, In, Out](
     push: => ZIO[Scope with Env, Nothing, Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]]
-  )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] = {
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
 
     def pull(
       push: Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]
@@ -316,7 +316,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def fromSink[Env, Err, In, Out](
     sink: => ZSink[Env, Err, In, In, Out]
-  )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(
       ZChannel.suspend {
         val leftovers: AtomicReference[Chunk[Chunk[In]]] = new AtomicReference(Chunk.empty)
@@ -374,19 +374,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * The identity pipeline, which does not modify streams in any way.
    */
-  def identity[In](implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def identity[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity)
 
-  def iso_8859_1Decode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def iso_8859_1Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.ISO_8859_1)
 
-  def iso_8859_1Encode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def iso_8859_1Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.ISO_8859_1)
 
   /**
    * Creates a pipeline that maps elements with the specified function.
    */
-  def map[In, Out](f: In => Out)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
+  def map[In, Out](f: In => Out)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline(ZChannel.identity.mapOut(_.map(f)))
 
   /**
@@ -395,7 +395,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapAccum[In, State, Out](
     s: => State
-  )(f: (State, In) => (State, Out))(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
+  )(f: (State, In) => (State, Out))(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     mapAccumZIO(s)((s, in) => ZIO.succeedNow(f(s, in)))
 
   /**
@@ -403,7 +403,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapAccumZIO[Env, Err, In, State, Out](
     s: => State
-  )(f: (State, In) => ZIO[Env, Err, (State, Out)])(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+  )(f: (State, In) => ZIO[Env, Err, (State, Out)])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
       def accumulator(s: State): ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
         ZChannel.readWith(
@@ -439,7 +439,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapChunks[In, Out](
     f: Chunk[In] => Chunk[Out]
-  )(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
+  )(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(f))
 
   /**
@@ -447,7 +447,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapChunksZIO[Env, Err, In, Out](
     f: Chunk[In] => ZIO[Env, Err, Chunk[Out]]
-  )(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(f))
 
   /**
@@ -455,20 +455,20 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * function.
    */
   def mapZIO[Env, Err, In, Out](f: In => ZIO[Env, Err, Out])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZPipeline[Env, Err, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOutZIO(_.mapZIO(f)))
 
   /**
    * Emits the provided chunk before emitting any other value.
    */
-  def prepend[In](values: => Chunk[In])(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def prepend[In](values: => Chunk[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.write(values) *> ZChannel.identity)
 
   /**
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
-  def rechunk[In](n: => Int)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
+  def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
 
     def process(
       rechunker: ZStream.Rechunker[In],
@@ -508,7 +508,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Creates a pipeline that scans elements with the specified function.
    */
-  def scan[In, Out](s: => Out)(f: (Out, In) => Out)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, Out] =
+  def scan[In, Out](s: => Out)(f: (Out, In) => Out)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     scanZIO(s)((out, in) => ZIO.succeedNow(f(out, in)))
 
   /**
@@ -516,7 +516,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def scanZIO[Env, Err, In, Out](
     s: => Out
-  )(f: (Out, In) => ZIO[Env, Err, Out])(implicit trace: ZTraceElement): ZPipeline[Env, Err, In, Out] =
+  )(f: (Out, In) => ZIO[Env, Err, Out])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     ZPipeline.suspend {
       new ZPipeline(
         ZChannel.write(Chunk.single(s)) *>
@@ -527,7 +527,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOn(delimiter: => String)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, String, String] =
+  def splitOn(delimiter: => String)(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] =
     ZPipeline.mapChunks[String, Char](_.flatMap(string => Chunk.fromArray(string.toArray))) >>>
       ZPipeline.splitOnChunk[Char](Chunk.fromArray(delimiter.toArray)) >>>
       ZPipeline.mapChunks[Char, String](chunk => Chunk.single(chunk.mkString("")))
@@ -535,7 +535,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Splits strings on a delimiter.
    */
-  def splitOnChunk[In](delimiter: => Chunk[In])(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def splitOnChunk[In](delimiter: => Chunk[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
 
       def next(
@@ -581,7 +581,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX
    * newlines (`\n`).
    */
-  def splitLines(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, String, String] = {
+  def splitLines(implicit trace: Trace): ZPipeline[Any, Nothing, String, String] = {
     def next(
       leftover: Option[String],
       wasSplitCRLF: Boolean
@@ -655,7 +655,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Creates a pipeline that takes n elements.
    */
-  def take[In](n: => Long)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] =
+  def take[In](n: => Long)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
 
       def loop(n: Long): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
@@ -686,7 +686,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that takes elements until the specified predicate
    * evaluates to true.
    */
-  def takeUntil[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
+  def takeUntil[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
     lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel
         .readWith(
@@ -708,7 +708,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that takes elements while the specified predicate
    * evaluates to true.
    */
-  def takeWhile[In](f: In => Boolean)(implicit trace: ZTraceElement): ZPipeline[Any, Nothing, In, In] = {
+  def takeWhile[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
     lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
       ZChannel
         .readWith(
@@ -726,7 +726,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(loop)
   }
 
-  def usASCIIDecode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def usASCIIDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.US_ASCII)
 
   /**
@@ -735,7 +735,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * utf16 and utf32 without BOM, `utf16Decode` and `utf32Decode` should be used
    * instead as both default to their own default decoder respectively.
    */
-  def utfDecode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utfDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 4,
       {
@@ -754,7 +754,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
-  def utf8Decode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf8Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 3,
       {
@@ -765,7 +765,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
-  def utf16Decode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf16Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 2,
       {
@@ -778,13 +778,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
-  def utf16BEDecode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf16BEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_16BE)
 
-  def utf16LEDecode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf16LEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_16LE)
 
-  def utf32Decode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf32Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 4,
       {
@@ -795,13 +795,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
-  def utf32BEDecode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf32BEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(CharsetUtf32BE)
 
-  def utf32LEDecode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  def utf32LEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(CharsetUtf32LE)
 
-  def usASCIIEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def usASCIIEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.US_ASCII)
 
   /**
@@ -817,57 +817,57 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * `getBytes("UTF-16")` in Java. In fact, it is an alias to both
    * `utf16BEWithBomEncode` and `utf16WithBomEncode`.
    */
-  def utf8Encode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf8Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_8)
 
-  def utf8WithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf8WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_8, bom = BOM.Utf8)
 
-  def utf16BEEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf16BEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16BE)
 
-  def utf16BEWithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf16BEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
 
-  def utf16LEEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf16LEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16LE)
 
-  def utf16LEWithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf16LEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16LE, bom = BOM.Utf16LE)
 
-  def utf16Encode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf16Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf16BEWithBomEncode
 
-  def utf16WithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf16WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf16BEWithBomEncode
 
-  def utf32BEEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf32BEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32BE)
 
-  def utf32BEWithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf32BEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32BE, bom = BOM.Utf32BE)
 
-  def utf32LEEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf32LEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32LE)
 
-  def utf32LEWithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf32LEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32LE, bom = BOM.Utf32LE)
 
-  def utf32Encode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf32Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf32BEEncode
 
-  def utf32WithBomEncode(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] =
+  def utf32WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf32BEWithBomEncode
 
   def decodeStringWith(
     charset: => Charset
-  )(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeCharsWith(charset) >>> ZPipeline.mapChunks((chars: Chunk[Char]) => Chunk.single(new String(chars.toArray)))
 
   def decodeCharsWith(
     charset: => Charset,
     bufSize: => Int = 4096
-  )(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, Char] =
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
     ZPipeline.suspend {
       val decoder    = charset.newDecoder()
       val byteBuffer = ByteBuffer.allocate(bufSize)
@@ -952,7 +952,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       Chunk[Byte],
       ZPipeline[Any, CharacterCodingException, Byte, String]
     )
-  )(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     ZPipeline.suspend {
 
       type DecodingChannel = ZChannel[Any, ZNothing, Chunk[Byte], Any, CharacterCodingException, Chunk[String], Any]
@@ -985,13 +985,13 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       new ZPipeline(lookingForBom(Chunk.empty, bomSize))
     }
 
-  private def utf8DecodeNoBom(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Byte, String] =
+  private def utf8DecodeNoBom(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_8)
 
   def encodeStringWith(
     charset: => Charset,
     bom: => Chunk[Byte] = Chunk.empty
-  )(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, String, Byte] = {
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] = {
     val withoutBOM =
       ZPipeline.mapChunks((s: Chunk[String]) =>
         s.foldLeft[Chunk[Char]](Chunk.empty)((acc, str) => acc ++ Chunk.fromArray(str.toCharArray))
@@ -1006,7 +1006,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def encodeCharsWith(
     charset: => Charset,
     bufferSize: => Int = 4096
-  )(implicit trace: ZTraceElement): ZPipeline[Any, CharacterCodingException, Char, Byte] =
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Char, Byte] =
     ZPipeline.suspend {
       val encoder    = charset.newEncoder()
       val charBuffer = CharBuffer.allocate((bufferSize.toFloat / encoder.averageBytesPerChar).round)

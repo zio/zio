@@ -26,11 +26,11 @@ private[zio] trait FiberPlatformSpecific {
     lazy val cs: CompletionStage[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      override def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
+      override def await(implicit trace: Trace): UIO[Exit[Throwable, A]] = ZIO.fromCompletionStage(cs).exit
 
-      def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
+      def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
 
-      override def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
+      override def poll(implicit trace: Trace): UIO[Option[Exit[Throwable, A]]] =
         ZIO.suspendSucceed {
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
@@ -45,10 +45,10 @@ private[zio] trait FiberPlatformSpecific {
 
       def id: FiberId = FiberId.None
 
-      final def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+      final def interruptAs(id: FiberId)(implicit trace: Trace): UIO[Exit[Throwable, A]] =
         ZIO.succeed(cs.toCompletableFuture.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
 
-      final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = ZIO.unit
+      final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
   }
 
@@ -60,13 +60,13 @@ private[zio] trait FiberPlatformSpecific {
     lazy val ftr: Future[A] = thunk
 
     new Fiber.Synthetic.Internal[Throwable, A] {
-      def await(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+      def await(implicit trace: Trace): UIO[Exit[Throwable, A]] =
         ZIO.fromFutureJava(ftr).exit
 
-      def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+      def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
         ZIO.succeedNow(Chunk.empty)
 
-      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[Throwable, A]]] =
+      def poll(implicit trace: Trace): UIO[Option[Exit[Throwable, A]]] =
         ZIO.suspendSucceed {
           if (ftr.isDone) {
             ZIO
@@ -80,10 +80,10 @@ private[zio] trait FiberPlatformSpecific {
 
       def id: FiberId = FiberId.None
 
-      def interruptAs(id: FiberId)(implicit trace: ZTraceElement): UIO[Exit[Throwable, A]] =
+      def interruptAs(id: FiberId)(implicit trace: Trace): UIO[Exit[Throwable, A]] =
         ZIO.succeed(ftr.cancel(false)) *> join.fold(Exit.fail, Exit.succeed)
 
-      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = ZIO.unit
+      def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
   }
 }

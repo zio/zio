@@ -443,7 +443,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("done")(
       test("Check done lifts exit result into IO") {
 
-        val fiberId = FiberId(0, 123, ZTraceElement.empty)
+        val fiberId = FiberId(0, 123, Trace.empty)
         val error   = exampleError
 
         for {
@@ -1670,7 +1670,7 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("orElse")(
       test("does not recover from defects") {
         val ex               = new Exception("Died")
-        val fiberId          = FiberId(0, 123, ZTraceElement.empty)
+        val fiberId          = FiberId(0, 123, Trace.empty)
         implicit val canFail = CanFail
         for {
           plain <- (ZIO.die(ex) <> ZIO.unit).exit
@@ -3734,11 +3734,11 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(ZIO.attempt(1).validateWith(ZIO.attempt(2))(_ + _))(equalTo(3))
       },
       test("fails") {
-        assertZIO(ZIO.attempt(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, ZTrace.none))))
+        assertZIO(ZIO.attempt(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2, StackTrace.none))))
       },
       test("combines both cause") {
         assertZIO(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
-          isLeft(equalTo(Cause.Then(Cause.Fail(1, ZTrace.none), Cause.Fail(2, ZTrace.none))))
+          isLeft(equalTo(Cause.Then(Cause.Fail(1, StackTrace.none), Cause.Fail(2, StackTrace.none))))
         )
       }
     ),

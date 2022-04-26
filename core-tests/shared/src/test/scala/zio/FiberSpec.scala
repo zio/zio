@@ -57,7 +57,7 @@ object FiberSpec extends ZIOBaseSpec {
       ),
       suite("`Fiber.join` on interrupted Fiber")(
         test("is inner interruption") {
-          val fiberId = FiberId.Runtime(0, 123, ZTraceElement.empty)
+          val fiberId = FiberId.Runtime(0, 123, Trace.empty)
 
           for {
             exit <- Fiber.interruptAs(fiberId).join.exit

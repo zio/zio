@@ -52,7 +52,7 @@ Let's see an example of that in the ZIO source code:
 trait ZIO[-R, +E, +A] {
 -  def map[B](f: A => B): ZIO[R, E, B] =
      flatMap(a => ZIO.succeedNow(f(a)))
-+  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
++  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] = 
      flatMap(a => ZIO.succeedNow(f(a)))
 }
 ```
@@ -89,9 +89,9 @@ To avoid messing up our user's execution trace, we should add implicit trace par
 import zio._
 
 object FooLibrary {
-  def foo(implicit trace: ZTraceElement) = bar.flatMap(x => ZIO.succeed(x * 2))
-  private def bar(implicit trace: ZTraceElement) = baz.flatMap(x => ZIO.succeed(x * x))
-  private def baz(implicit trace: ZTraceElement) = ZIO.fail("Oh uh!").as(5)
+  def foo(implicit trace: Trace) = bar.flatMap(x => ZIO.succeed(x * 2))
+  private def bar(implicit trace: Trace) = baz.flatMap(x => ZIO.succeed(x * x))
+  private def baz(implicit trace: Trace) = ZIO.fail("Oh uh!").as(5)
 }
 
 object MainApp extends ZIOAppDefault {

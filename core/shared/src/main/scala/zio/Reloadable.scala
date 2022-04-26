@@ -26,12 +26,12 @@ final case class Reloadable[Service](scopedRef: ScopedRef[Service], reload: IO[A
   /**
    * Retrieves the current version of the reloadable service.
    */
-  def get(implicit trace: ZTraceElement): UIO[Service] = scopedRef.get
+  def get(implicit trace: Trace): UIO[Service] = scopedRef.get
 
   /**
    * Forks the reload of the service in the background, ignoring any errors.
    */
-  def reloadFork(implicit trace: ZTraceElement): UIO[Unit] = reload.ignoreLogged.forkDaemon.unit
+  def reloadFork(implicit trace: Trace): UIO[Unit] = reload.ignoreLogged.forkDaemon.unit
 }
 object Reloadable {
 
@@ -41,7 +41,7 @@ object Reloadable {
    */
   def manual[In, E, Out: Tag](
     layer: ZLayer[In, E, Out]
-  )(implicit trace: ZTraceElement): ZLayer[In, E, Reloadable[Out]] =
+  )(implicit trace: Trace): ZLayer[In, E, Reloadable[Out]] =
     ZLayer.scoped[In] {
       for {
         in    <- ZIO.environment[In]
@@ -56,7 +56,7 @@ object Reloadable {
    * provided schedule.
    */
   def auto[In, E, Out: Tag](layer: ZLayer[In, E, Out], schedule: Schedule[In, Any, Any])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZLayer[In, E, Reloadable[Out]] =
     ZLayer.scoped[In] {
       for {
@@ -77,7 +77,7 @@ object Reloadable {
     layer: ZLayer[In, E, Out],
     scheduleFromConfig: ZEnvironment[In] => Schedule[In, Any, Any]
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZLayer[In, E, Reloadable[Out]] =
     ZLayer.scoped[In] {
       for {
@@ -88,12 +88,12 @@ object Reloadable {
       } yield reloadable
     }
 
-  def get[Service: Tag](implicit trace: ZTraceElement): ZIO[Reloadable[Service], Any, Service] =
+  def get[Service: Tag](implicit trace: Trace): ZIO[Reloadable[Service], Any, Service] =
     ZIO.serviceWithZIO[Reloadable[Service]](_.get)
 
-  def reload[Service: Tag](implicit trace: ZTraceElement): ZIO[Reloadable[Service], Any, Unit] =
+  def reload[Service: Tag](implicit trace: Trace): ZIO[Reloadable[Service], Any, Unit] =
     ZIO.serviceWithZIO[Reloadable[Service]](_.reload)
 
-  def reloadFork[Service: Tag](implicit trace: ZTraceElement): ZIO[Reloadable[Service], Nothing, Unit] =
+  def reloadFork[Service: Tag](implicit trace: Trace): ZIO[Reloadable[Service], Nothing, Unit] =
     ZIO.serviceWithZIO[Reloadable[Service]](_.reloadFork)
 }

@@ -25,7 +25,7 @@ object Standard {
 
     def isAvailable: Boolean = method.isDefined
 
-    def unsafeGet(implicit trace: ZTraceElement): Task[Long] =
+    def unsafeGet(implicit trace: Trace): Task[Long] =
       method match {
         case Some(getter) => ZIO.attempt(getter.invoke(obj).asInstanceOf[Long])
         case None =>
@@ -62,7 +62,7 @@ object Standard {
     residentMemorySize: Gauge[Double]
   ): ZIO[Any, Throwable, Unit] =
     ZIO.scoped {
-      ZIO.readFileNameInputStream("/proc/self/status").flatMap { stream =>
+      ZIO.readFileInputStream("/proc/self/status").flatMap { stream =>
         stream
           .readAll(8192)
           .catchAll {
