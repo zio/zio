@@ -26,4 +26,4 @@ title:  "Sample Projects"
 - [ZIO Tapir Http4s Integration](https://github.com/Neurodyne/zio-tapir) by [Boris V.Kuznetsov](https://github.com/tampler)
 - [Akka Microservice using DDD with ZIO Streams Tapir AkkaHTTP Integration](https://github.com/mvillafuertem/scalcite) by [Miguel Villafuerte](https://github.com/mvillafuertem)
 - [Simple ZIO ScalaJS Skeleton](https://github.com/sb-dev/zio-scalajs) by [Samir Benzenine](https://github.com/sb-dev)
-- [Full ZIO Stack: A sample IM that uses zio, zio-redis, zio-actors, zio-schema, zio-stream, zio-crypto, tapir, akka-http](https://github.com/bitlap/zim) by [bitlap](https://github.com/bitlap/zim) (Chinese)
+- [Full ZIO Stack: A sample IM that uses zio, zio-redis, zio-actors, zio-schema, zio-streams, zio-crypto, tapir, akka-http](https://github.com/bitlap/zim) by [bitlap](https://github.com/bitlap/zim) (Notes in Chinese)
