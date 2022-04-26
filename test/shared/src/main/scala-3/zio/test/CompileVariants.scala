@@ -41,27 +41,14 @@ trait CompileVariants {
   private val errorMessage =
     "Reporting of compilation error messages on Scala 3 is not currently supported due to instability of the underlying APIs."
 
-  /**
-   * Checks the assertion holds for the given value.
-   */
-  private[zio] def assertImpl[A](
-    value: => A,
-    expression: Option[String] = None
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult
+  inline def assertTrue(inline exprs: => Boolean*)(implicit trace: ZTraceElement): TestResult =
+    ${SmartAssertMacros.smartAssert('exprs, 'trace)}
 
-  /**
-   * Checks the assertion holds for the given effectfully-computed value.
-   */
-  private[test] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionZIO[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult]
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult =
+    ${Macros.assert_impl('value)('assertion, 'trace)}
 
-  inline def assertTrue(inline exprs: => Boolean*): Assert = ${SmartAssertMacros.smartAssert('exprs)}
-
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = 
-    ${Macros.assert_impl('value)('assertion)}
-
-  inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionZIO[A]): ZIO[R, E, TestResult] = ${Macros.assertZIO_impl('effect)('assertion)}
+  inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
+     ${Macros.assertZIO_impl('effect)('assertion)}
 
   private[zio] inline def showExpression[A](inline value: => A): String = ${Macros.showExpression_impl('value)}
 }
@@ -71,18 +58,13 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String)(
+  def assertProxy[A](value: => A, expression: String, assertionCode: String)(
     assertion: Assertion[A]
   )(implicit trace: ZTraceElement): TestResult =
-    zio.test.assertImpl(value, Some(expression))(assertion)
+    zio.test.assertImpl(value, Some(expression), Some(assertionCode))(assertion)
 
-  def smartAssertProxy[A](value: => A, expression: String)(
-    assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult =
-    zio.test.assertImpl(value, Some(expression))(assertion)
-
-  def assertZIOProxy[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionZIO[A]
+  def assertZIOProxy[R, E, A](effect: ZIO[R, E, A], expression: String, assertionCode: String)(
+    assertion: Assertion[A],
   )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
-    zio.test.assertZIOImpl(effect)(assertion)
+    zio.test.assertZIOImpl(effect, Some(expression), Some(assertionCode))(assertion)
 }

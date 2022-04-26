@@ -2,7 +2,6 @@ package zio.test
 
 import zio._
 import zio.test.Assertion._
-import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test.{check => Check, checkN => CheckN}
@@ -24,10 +23,8 @@ object GenSpec extends ZIOBaseSpec {
         }
 
         assertZIO(CheckN(100)(gen)(test).map { result =>
-          result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
-              failureDetails.assertion.head.value.toString == "1"
-            case _ => false
+          result.failures.fold(false) { trace =>
+            trace.values.head.toString == "1"
           }
         })(isTrue)
       },
@@ -43,13 +40,12 @@ object GenSpec extends ZIOBaseSpec {
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
         assertZIO(CheckN(100)(gen)(test).map { result =>
-          result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
-              failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
-            case _ => false
+          result.failures.fold(false) { trace =>
+            val values = trace.values
+            values.head.toString == "(List(0),List(1))" ||
+            values.head.toString == "(List(1),List(0))" ||
+            values.head.toString == "(List(0),List(-1))" ||
+            values.head.toString == "(List(-1),List(0))"
           }
         })(isTrue)
       },
@@ -77,10 +73,8 @@ object GenSpec extends ZIOBaseSpec {
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
         assertZIO(CheckN(100)(gen)(test).map { result =>
-          result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
-              failureDetails.assertion.head.value.toString == "List(0)"
-            case _ => false
+          result.failures.fold(false) { trace =>
+            trace.values.head.toString == "List(0)"
           }
         })(isTrue)
       }

@@ -20,12 +20,7 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
-import zio.test.AssertionResult.FailureDetailsResult
-
-import java.util.concurrent.atomic.AtomicInteger
-import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.language.implicitConversions
-import scala.util.Try
 
 /**
  * _ZIO Test_ is a featherweight testing library for effectful programs.
@@ -53,9 +48,6 @@ import scala.util.Try
  * }}}
  */
 package object test extends CompileVariants {
-  type AssertResultZIO = BoolAlgebraZIO[Any, Nothing, AssertionValue]
-  type AssertResult    = BoolAlgebra[AssertionValue]
-
   type TestEnvironment = Annotations with Live with Sized with TestConfig
 
   object TestEnvironment {
@@ -170,16 +162,6 @@ package object test extends CompileVariants {
    */
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
-  type TestResult = BoolAlgebra[AssertionResult]
-
-  object TestResult {
-    implicit def trace2TestResult(assert: Assert): TestResult = {
-      val trace = TestArrow.run(assert.arrow, Right(()))
-      if (trace.isSuccess) BoolAlgebra.success(AssertionResult.TraceResult(trace))
-      else BoolAlgebra.failure(AssertionResult.TraceResult(trace))
-    }
-  }
-
   /**
    * A `TestReporter[E]` is capable of reporting test results with error type
    * `E`.
@@ -233,52 +215,34 @@ package object test extends CompileVariants {
         }
         .foldCauseZIO(
           cause => ZIO.fail(TestFailure.Runtime(cause)),
-          _.failures match {
-            case None           => ZIO.succeedNow(TestSuccess.Succeeded(BoolAlgebra.unit))
-            case Some(failures) => ZIO.fail(TestFailure.Assertion(failures))
-          }
+          assert =>
+            if (assert.isFailure)
+              ZIO.fail(TestFailure.Assertion(assert))
+            else
+              ZIO.succeedNow(TestSuccess.Succeeded())
         )
   }
 
-  private def traverseResult[A](
+  private[zio] def assertImpl[A](
     value: => A,
-    assertResult: AssertResult,
-    assertion: AssertionZIO[A],
-    expression: Option[String]
-  )(implicit trace: ZTraceElement): TestResult = {
-    val sourceLocation = Option(trace).collect { case ZTraceElement(_, file, line) =>
-      s"$file:$line"
-    }
-
-    assertResult.flatMap { fragment =>
-      def loop(whole: AssertionValue, failureDetails: FailureDetails): TestResult =
-        if (whole.sameAssertion(failureDetails.assertion.head))
-          BoolAlgebra.success(FailureDetailsResult(failureDetails))
-        else {
-          val fragment = whole.result
-          val result   = if (fragment.isSuccess) fragment else !fragment
-          result.flatMap { fragment =>
-            loop(fragment, FailureDetails(::(whole, failureDetails.assertion)))
-          }
-        }
-
-      loop(
-        fragment,
-        FailureDetails(::(AssertionValue(assertion, value, assertResult, expression, sourceLocation), Nil))
-      )
-    }
-  }
+    codeString: Option[String] = None,
+    assertionString: Option[String] = None
+  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult =
+    Assertion.smartAssert(value, codeString, assertionString)(assertion)
 
   /**
-   * Checks the assertion holds for the given value.
+   * Checks the assertion holds for the given effectfully-computed value.
    */
-  override private[zio] def assertImpl[A](
-    value: => A,
-    expression: Option[String] = None
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): TestResult = {
-    lazy val tryValue = Try(value)
-    traverseResult(tryValue.get, assertion.run(tryValue.get), assertion, expression)
-  }
+  private[zio] def assertZIOImpl[R, E, A](
+    effect: ZIO[R, E, A],
+    codeString: Option[String] = None,
+    assertionString: Option[String] = None
+  )(
+    assertion: Assertion[A]
+  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
+    effect.map { value =>
+      assertImpl(value, codeString, assertionString)(assertion)
+    }
 
   /**
    * Asserts that the given test was completed.
@@ -290,24 +254,13 @@ package object test extends CompileVariants {
    * Asserts that the given test was completed.
    */
   def assertCompletesZIO(implicit trace: ZTraceElement): UIO[TestResult] =
-    assertZIOImpl(ZIO.succeedNow(true))(Assertion.isTrue)
+    ZIO.succeed(assertCompletes)
 
   /**
    * Asserts that the given test was never completed.
    */
   def assertNever(message: String)(implicit trace: ZTraceElement): TestResult =
-    assertImpl(true)(Assertion.isFalse.label(message))
-
-  /**
-   * Checks the assertion holds for the given effectfully-computed value.
-   */
-  override private[test] def assertZIOImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionZIO[A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, TestResult] =
-    for {
-      value        <- effect
-      assertResult <- assertion.runZIO(value).run
-    } yield traverseResult(value, assertResult, assertion, None)
+    assertImpl(true)(Assertion.equalTo(false)) ?? message
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the given
@@ -715,7 +668,7 @@ package object test extends CompileVariants {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
           initial.foreach(input =>
             test(input)
-              .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
+              .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
               .either
           )
         }
@@ -736,15 +689,7 @@ package object test extends CompileVariants {
           .filter(_.fold(_ => true, _.isFailure))
           .lastOption
           .fold[ZIO[R, E, TestResult]](
-            ZIO.succeedNow {
-              BoolAlgebra.success {
-                FailureDetailsResult(
-                  FailureDetails(
-                    ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
-                  )
-                )
-              }
-            }
+            ZIO.succeedNow(assertCompletes)
           )(ZIO.fromEither(_))
       }
 
@@ -757,7 +702,7 @@ package object test extends CompileVariants {
           .mapZIOPar(parallelism) { case (initial, index) =>
             initial.foreach { input =>
               test(input)
-                .map(_.map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index))))
+                .map(_.setGenFailureDetails(GenFailureDetails(initial.value, input, index)))
                 .either
             // convert test failures to failures to terminate parallel tests on first failure
             }.flatMap(sample => sample.value.fold(_ => ZIO.fail(sample), _ => ZIO.succeed(sample)))

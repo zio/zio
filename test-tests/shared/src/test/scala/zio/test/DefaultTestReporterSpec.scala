@@ -1,14 +1,17 @@
 package zio.test
 
-import zio.test.AssertionResult.FailureDetailsResult
-import zio.{ZIO, ZTrace}
+import zio.internal.macros.StringUtils.StringOps
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect._
 import zio.test.render.ExecutionResult
 import zio.test.render.ExecutionResult.ResultType.Test
 import zio.test.render.ExecutionResult.Status.Failed
+import zio.{ZIO, ZTrace, ZTraceElement}
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
+
+  def containsUnstyled(string: String, substring: String)(implicit trace: ZTraceElement): TestResult =
+    assertTrue(string.unstyled.contains(substring.unstyled))
 
   def spec =
     suite("DefaultTestReporterSpec")(
@@ -17,39 +20,39 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
           runLog(test1).map(res => assertTrue(test1Expected == res))
         },
         test("a failed test") {
-          runLog(test3).map(res => test3Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(test3).map(r => test3Expected.map(ex => containsUnstyled(r, ex)).reduce(_ && _))
         },
         test("an error in a test") {
           runLog(test4).map(log => assertTrue(log.contains("Test 4 Fail")))
         },
         test("successful test suite") {
-          runLog(suite1).map(res => suite1Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(suite1).map(res => suite1Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("failed test suite") {
-          runLog(suite2).map(res => suite2Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(suite2).map(res => suite2Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("multiple test suites") {
-          runLog(suite3).map(res => suite3Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(suite3).map(res => suite3Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("empty test suite") {
-          runLog(suite4).map(res => suite4Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(suite4).map(res => suite4Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("failure of simple assertion") {
-          runLog(test5).map(res => test5Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(test5).map(res => test5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("multiple nested failures") {
-          runLog(test6).map(res => test6Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(test6).map(res => test6Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("labeled failures") {
-          runLog(test7).map(res => test7Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(test7).map(res => test7Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("labeled failures for assertTrue") {
           for {
             log <- runLog(test9)
-          } yield assertTrue(log.contains("""?? "third""""), log.contains("""?? "fourth""""))
+          } yield assertTrue(log.contains("third"), log.contains("fourth"))
         },
         test("negated failures") {
-          runLog(test8).map(res => test8Expected.map(expected => assertTrue(res.contains(expected))).reduce(_ && _))
+          runLog(test8).map(res => test8Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         }
       ),
       suite("Runtime exception reporting")(
@@ -85,15 +88,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
                           ExecutionEvent.RuntimeFailure(
                             SuiteId(1),
                             labelsReversed = List(expectedLabel),
-                            failure = TestFailure.assertion(
-                              BoolAlgebra.success {
-                                FailureDetailsResult(
-                                  FailureDetails(
-                                    ::(AssertionValue(Assertion.anything, (), Assertion.anything.run(())), Nil)
-                                  )
-                                )
-                              }
-                            ),
+                            failure = TestFailure.assertion(assertTrue(true)),
                             ancestors = List.empty
                           ),
                           true

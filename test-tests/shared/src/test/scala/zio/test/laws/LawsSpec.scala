@@ -1,14 +1,15 @@
 package zio.test.laws
 
+import zio.ZTraceElement
 import zio.test._
 
 object LawsSpec extends ZIOBaseSpec {
 
   def equalTo[A: Equal](expected: A): Assertion[A] =
-    Assertion.assertion("equalTo")(Assertion.Render.param(expected))(_ === expected)
+    Assertion.assertion(s"equalTo(${PrettyPrint(expected)})")(_ === expected)
 
   implicit class AssertEqualToSyntax[A](private val self: A) extends AnyVal {
-    def <->(that: A)(implicit eq: Equal[A]): TestResult =
+    def <->(that: A)(implicit eq: Equal[A], trace: ZTraceElement): TestResult =
       assert(self)(equalTo(that))
   }
 

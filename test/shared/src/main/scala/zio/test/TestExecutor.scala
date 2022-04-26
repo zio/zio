@@ -116,21 +116,11 @@ object TestExecutor {
                           1L,
                           sectionId
                         )
-                    _ <-
-                      summary.update(
-                        _.add(event)
-                      ) *>
-                        sink.process(
-                          event
-                        ) *>
-                        eventHandlerZ.handle(event)
+                    _ <- summary.update(_.add(event)) *> sink.process(event) *> eventHandlerZ.handle(event)
                   } yield ()).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     ConsoleRenderer.render(e, labels).foreach(println)
-                    summary.update(
-                      _.add(event)
-                    ) *>
-                      sink.process(event)
+                    summary.update(_.add(event)) *> sink.process(event)
                   }
               }
 
