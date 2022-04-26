@@ -88,7 +88,7 @@ object ZLawsF2 {
           genF[R, A, B](genB),
           Gen.function[R, A, A1](genA1),
           Gen.function[R, A1, A2](genA2)
-        )(apply(_, _, _).map(_.label(label)))
+        )(apply(_, _, _).label(label))
     }
 
     /**
@@ -102,7 +102,7 @@ object ZLawsF2 {
         genF: GenF2[R, F],
         gen: Gen[R, B]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF[R, A, B](gen))(apply(_).map(_.label(label)))
+        check(genF[R, A, B](gen))(apply(_).label(label))
     }
   }
 }

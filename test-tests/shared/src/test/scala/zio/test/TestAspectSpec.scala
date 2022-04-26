@@ -94,7 +94,8 @@ object TestAspectSpec extends ZIOBaseSpec {
       assert(throw new java.lang.Exception("boom"))(isFalse)
     } @@ failing,
     test("failure makes a test pass if it died with a specified failure") {
-      assert(throw new NullPointerException())(isFalse)
+      throw new NullPointerException()
+      assertCompletes
     } @@ failing(diesWithSubtypeOf[NullPointerException]),
     test("failure does not make a test pass if it failed with an unexpected exception") {
       assert(throw new NullPointerException())(isFalse)

@@ -78,7 +78,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -91,7 +91,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(genF(genF(gen))))(apply(_).map(_.label(label)))
+        check(genF(genF(genF(gen))))(apply(_).label(label))
     }
 
     /**
@@ -103,7 +103,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen))(apply(_).map(_.label(label)))
+        check(genF(gen))(apply(_).label(label))
     }
 
     /**
@@ -115,7 +115,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -127,7 +127,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
+        check(genF(gen), genF(gen))(apply(_, _).label(label))
     }
 
     /**
@@ -139,7 +139,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
@@ -151,7 +151,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -163,7 +163,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 
@@ -216,7 +216,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen), Gen.function[R, A, A](gen), Gen.function[R, A, A](gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), Gen.function[R, A, A](gen), Gen.function[R, A, A](gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -228,7 +228,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen))(apply(_).map(_.label(label)))
+        check(genF(gen))(apply(_).label(label))
     }
 
     /**
@@ -240,7 +240,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -252,7 +252,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
+        check(genF(gen), genF(gen))(apply(_, _).label(label))
     }
 
     /**
@@ -264,7 +264,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
@@ -276,7 +276,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: ZTraceElement): URIO[R, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -288,7 +288,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 
@@ -338,7 +338,7 @@ object ZLawsF {
       final def run[R <: TestConfig, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: ZTraceElement
       ): URIO[R, TestResult] =
-        check(genF(gen))(apply(_).map(_.label(label)))
+        check(genF(gen))(apply(_).label(label))
     }
 
     /**
@@ -350,7 +350,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -361,7 +361,7 @@ object ZLawsF {
       final def run[R <: TestConfig, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: ZTraceElement
       ): URIO[R, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
+        check(genF(gen), genF(gen))(apply(_, _).label(label))
     }
 
     /**
@@ -373,7 +373,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
@@ -384,7 +384,7 @@ object ZLawsF {
       final def run[R <: TestConfig, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: ZTraceElement
       ): URIO[R, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -396,7 +396,7 @@ object ZLawsF {
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: ZTraceElement): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 }

@@ -17,7 +17,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Assertion.Render._
+import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants {
 
@@ -25,10 +25,17 @@ trait AssertionVariants {
    * Makes a new assertion that requires a value equal the specified value.
    */
   final def equalTo[A](expected: A): Assertion[A] =
-    Assertion.assertion("equalTo")(param(expected)) { actual =>
-      (actual, expected) match {
-        case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
-        case (left, right)                     => left == right
-      }
-    }
+    Assertion[A](
+      TestArrow
+        .make[A, Boolean] { actual =>
+          val result = (actual, expected) match {
+            case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
+            case (left, right)                     => left == right
+          }
+          Trace.boolean(result) {
+            M.pretty(actual) + M.equals + M.pretty(expected)
+          }
+        }
+        .withCode("equalTo")
+    )
 }

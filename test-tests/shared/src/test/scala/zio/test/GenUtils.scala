@@ -64,8 +64,8 @@ object GenUtils {
       case e @ Failure(_) => Left(e)
     }
 
-  def provideSize[A](zio: ZIO[Sized, Nothing, A])(n: Int): UIO[A] =
-    zio.provideLayer(Sized.live(n))
+  def provideSize[R, A](zio: ZIO[Sized with R, Nothing, A])(n: Int): URIO[R, A] =
+    zio.provideSomeLayer[R](Sized.live(n))
 
   val random: Gen[Any, Gen[Any, Int]] =
     Gen.const(Gen.int(-10, 10))

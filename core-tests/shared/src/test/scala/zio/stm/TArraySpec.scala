@@ -876,7 +876,7 @@ object TArraySpec extends ZIOBaseSpec {
   val largePrime = 223
 
   val isArrayIndexOutOfBoundsException: Assertion[Throwable] =
-    Assertion.assertion[Throwable]("isArrayIndexOutOfBoundsException")()(_.isInstanceOf[ArrayIndexOutOfBoundsException])
+    Assertion.assertion[Throwable]("isArrayIndexOutOfBoundsException")(_.isInstanceOf[ArrayIndexOutOfBoundsException])
 
   def sumSucceed(a: Int, b: Int): STM[Nothing, Int] = STM.succeed(a + b)
 
