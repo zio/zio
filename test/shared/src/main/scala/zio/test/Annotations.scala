@@ -17,7 +17,9 @@ import scala.collection.immutable.SortedSet
 trait Annotations extends Serializable {
   def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): UIO[Unit]
   def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): UIO[V]
-  def withAnnotation[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, Annotated[E], Annotated[A]]
+  def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
+    trace: ZTraceElement
+  ): ZIO[R, TestFailure[E], TestSuccess]
   def supervisedFibers(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]]
 }
 
@@ -56,11 +58,11 @@ object Annotations {
           fiberRef.update(_.annotate(key, value))
         def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): UIO[V] =
           fiberRef.get.map(_.get(key))
-        def withAnnotation[R, E, A](zio: ZIO[R, E, A])(implicit
+        def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
           trace: ZTraceElement
-        ): ZIO[R, Annotated[E], Annotated[A]] =
+        ): ZIO[R, TestFailure[E], TestSuccess] =
           fiberRef.locally(TestAnnotationMap.empty) {
-            zio.foldZIO(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
+            zio.foldZIO(e => fiberRef.get.map(e.annotated).flip, a => fiberRef.get.map(a.annotated))
           }
         def supervisedFibers(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
           ZIO.descriptorWith { descriptor =>
@@ -82,8 +84,8 @@ object Annotations {
    * specified effect with an empty annotation map, returning the annotation map
    * along with the result of execution.
    */
-  def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A])(implicit
+  def withAnnotation[R <: Annotations, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
     trace: ZTraceElement
-  ): ZIO[R, Annotated[E], Annotated[A]] =
+  ): ZIO[R, TestFailure[E], TestSuccess] =
     ZIO.serviceWithZIO[Annotations](_.withAnnotation(zio))
 }

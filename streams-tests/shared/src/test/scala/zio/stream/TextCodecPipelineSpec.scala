@@ -5,13 +5,13 @@ import zio.stream.internal.CharacterSet._
 import zio.test.TestAspect.{ignore, jvmOnly, nondeterministic}
 import zio.test._
 
-import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.charset.{CharacterCodingException, Charset, StandardCharsets}
 
 object TextCodecPipelineSpec extends ZIOBaseSpec {
 
-  type UtfDecodingPipeline = ZPipeline[Any, Nothing, Byte, String]
+  type UtfDecodingPipeline = ZPipeline[Any, CharacterCodingException, Byte, String]
 
-  type UtfEncodingPipeline = ZPipeline[Any, Nothing, String, Byte]
+  type UtfEncodingPipeline = ZPipeline[Any, CharacterCodingException, String, Byte]
 
   private def stringToByteChunkOf(charset: Charset, source: String): Chunk[Byte] =
     Chunk.fromArray(source.getBytes(charset))
@@ -44,24 +44,18 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
         }
       else generated
 
-    check(byteGenerator, Gen.int) {
-      // Enabling `rechunk(chunkSize)` makes this suite run for too long and
-      // could potentially cause OOM during builds. However, running the tests with
-      // `rechunk(chunkSize)` can guarantee that different chunks have no impact on
-      // the functionality of decoders. You should run it at least once locally before
-      // pushing your commit.
-      (generatedBytes, /*chunkSize*/ _) =>
-        val originalBytes = fixIfGeneratedBytesBeginWithBom(generatedBytes)
-        ZStream
-          .fromChunk(bom ++ originalBytes)
-//          .rechunk(chunkSize)
-          .via(decodingPipeline)
-          .mkString
-          .map { decodedString =>
-            val roundTripBytes = stringToByteChunkOf(sourceCharset, decodedString)
+    check(byteGenerator, Gen.int(1, 1024)) { (generatedBytes, chunkSize) =>
+      val originalBytes = fixIfGeneratedBytesBeginWithBom(generatedBytes)
+      ZStream
+        .fromChunk(bom ++ originalBytes)
+        .rechunk(chunkSize)
+        .via(decodingPipeline)
+        .mkString
+        .map { decodedString =>
+          val roundTripBytes = stringToByteChunkOf(sourceCharset, decodedString)
 
-            assertTrue(originalBytes == roundTripBytes)
-          }
+          assertTrue(originalBytes == roundTripBytes)
+        }
     }
   }
 
@@ -100,10 +94,11 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
           generated
       }
 
-    check(byteGenerator) { generatedBytes =>
+    check(byteGenerator, Gen.int(1, 1024)) { (generatedBytes, chunkSize) =>
       val originalBytes = fixIfGeneratedBytesBeginWithBom(generatedBytes)
       ZStream
         .fromChunk(generatedBytes)
+        .rechunk(chunkSize)
         .via(textDecodingPipeline)
         .via(encoderUnderTest)
         .runCollect

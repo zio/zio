@@ -8,7 +8,7 @@ object ShowExpressionSpec extends ZIOBaseSpec {
   case class Nested(bar: Int)
   class SomeClass(val str: String = "")
 
-  override def spec: ZSpec[Annotations, Any] = suite("ShowExprSpec")(
+  override def spec: Spec[Annotations, Any] = suite("ShowExprSpec")(
     test("Some(1)", showExpression(Some(1)), "Some(1)"),
     test("Some(Right(1))", showExpression(Some(Right(1))), "Some(Right(1))"),
     test("class member val", showExpression(fooVal), "fooVal"),
@@ -57,7 +57,7 @@ object ShowExpressionSpec extends ZIOBaseSpec {
 
   def methodWithDefaultArgs(arg: String = "") = arg
 
-  def test(desc: String, actual: String, expected: String): ZSpec[Any, Nothing] =
+  def test(desc: String, actual: String, expected: String): Spec[Any, Nothing] =
     test(desc) {
       val code = actual
       assert(code)(equalTo(expected))

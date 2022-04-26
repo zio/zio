@@ -5,21 +5,21 @@ title:  "Background"
 
 Procedural Scala programs use _procedural functions_, which are:
 
- * **Partial** — Procedures do not return values for some inputs (for example, they throw exceptions).
- * **Non-Deterministic** — Procedures return different outputs for the same input.
- * **Impure** — Procedures perform side-effects, which mutate data or interact with the external world.
+ * **Partial** — Procedures may not always return a value for the same input (for example, they throw exceptions).
+ * **Non-Deterministic** — Procedures might return different outputs for the same input.
+ * **Impure** — Procedures perform side effects, which mutate data or interact with the external world.
 
 Unlike procedural Scala programs, functional Scala programs only use _pure functions_, which are:
 
- * **Total** — Functions always return an output for every input.
+ * **Total** — Functions return an output for every input.
  * **Deterministic** — Functions return the same output for the same input.
  * **Pure** — The only effect of providing a function an input is computing the output.
 
-Pure functions only combine or transform input values into output values in a total, deterministic way. Pure functions are easier to understand, easier to test, easier to refactor, and easier to abstract over.
+Pure functions only combine or transform input values into output values in a total, deterministic way. Pure functions are easier to understand, test, refactor, and to abstract over.
 
-Functional programs do not interact with the external world directly, because that involves partiality, non-determinism and side-effects. Instead, functional programs construct and return _data structures_, which _describe_ (or _model_) interaction with the real world.
+Functional programs do not interact with the external world directly because that involves partiality, non-determinism, and side effects. Instead, functional programs construct and return _data structures_, which _describe_ (or _model_) interaction with the real world.
 
-Immutable data structures that model procedural effects are called _functional effects_. The concept of functional effects is critical to deeply understanding how ZIO works, and is introduced in the next section.
+Immutable data structures that model procedural effects are called _functional effects_. The concept of functional effects is critical to deeply understanding how ZIO works and is introduced in the next section.
 
 ## Programs As Values
 
@@ -32,7 +32,7 @@ final case class PrintLine[A](line: String, rest: Console[A]) extends Console[A]
 final case class ReadLine[A](rest: String => Console[A]) extends Console[A]
 ```
 
-In this model, `Console[A]` is an immutable, type-safe value, which represents a console program that returns a value of type `A`.
+In this model, `Console[A]` is an immutable, type-safe value representing a console program that returns a value of type `A`.
 
 The `Console` data structure is an ordered _tree_, and at the very "end" of the program, you will find a `Return` instruction that stores a value of type `A`, which is the return value of the `Console[A]` program.
 
@@ -48,7 +48,7 @@ val example1: Console[Unit] =
 
 This immutable value doesn't do anything—it just _describes_ a program that prints out a message, asks for input, and prints out another message that depends on the input. 
 
-Although this program is just a model, we can translate the model into procedural effects quite simply using an _interpreter_, which recurses on the data structure, translating every instruction into the side-effect that it describes:
+Although this program is just a model, we can translate the model into procedural effects quite simply using an _interpreter_, which recurses on the data structure, translating every instruction into the side effect that it describes:
 
 ```scala mdoc:silent
 def interpret[A](program: Console[A]): A = program match {
@@ -62,7 +62,7 @@ def interpret[A](program: Console[A]): A = program match {
 }
 ```
 
-Interpreting (also called _running_ or _executing_) is not functional, because it may be partial, non-deterministic, and impure. In an ideal application, however, interpretation only needs to happen once: in the application's main function. The rest of the application can be purely functional.
+Interpreting (also called _running_ or _executing_) is not functional because it may be partial, non-deterministic, and/or impure. In an ideal application, however, interpretation only needs to happen once: in the application's main function. The rest of the application can be purely functional.
 
 In practice, it's not very convenient to build console programs using constructors directly. Instead, we can define helper functions, which look more like their effectful equivalents:
 
@@ -97,22 +97,22 @@ implicit class ConsoleSyntax[+A](self: Console[A]) {
 }
 ```
 
-With these `map` and `flatMap` methods, we can now take advantage of Scala's `for` comprehensions, and write programs that look like their procedural equivalents:
+With these `map` and `flatMap` methods, we can now take advantage of Scala's `for` comprehensions and write programs that look like their procedural equivalents:
 
 ```scala mdoc:silent
-val example2: Console[String] =
+val example2: Console[Unit] =
   for {
     _    <- printLine("What's your name?")
     name <- readLine
     _    <- printLine(s"Hello, ${name}, good to meet you!")
-  } yield name
+  } yield ()
 ```
 
 When we wish to execute this program, we can call `interpret` on the `Console` value. 
 
 All functional Scala programs are constructed like this: instead of interacting with the real world, they build a _functional effect_, which is nothing more than an immutable, type-safe, tree-like data structure that models procedural effects.
 
-Functional programmers use functional effects to build complex, real world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
+Functional programmers use functional effects to build complex, real-world software without giving up the equational reasoning, composability, and type safety afforded by purely functional programming.
 
 ## Next Steps
 

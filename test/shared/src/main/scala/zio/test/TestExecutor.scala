@@ -18,6 +18,9 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.render.{ConsoleRenderer, LogLine}
+import zio.test.render.LogLine.Fragment.Style
+import zio.test.render.LogLine.Message
 import zio.{ExecutionStrategy, ZIO, ZTraceElement}
 
 /**
@@ -25,121 +28,145 @@ import zio.{ExecutionStrategy, ZIO, ZTraceElement}
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
+  def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
     trace: ZTraceElement
   ): UIO[Summary]
-
-  def environment: ZLayer[Scope, Nothing, R]
 }
 
 object TestExecutor {
 
-  def default[R <: Annotations, E](
-    env: ZLayer[Scope, Nothing, R],
-    sinkLayer: Layer[Nothing, ExecutionEventSink]
-  ): TestExecutor[R, E] = new TestExecutor[R, E] {
-    def run(spec: ZSpec[R, E], defExec: ExecutionStrategy)(implicit
-      trace: ZTraceElement
-    ): UIO[
-      Summary
-    ] =
-      (for {
-        sink      <- ZIO.service[ExecutionEventSink]
-        topParent <- SuiteId.newRandom
-        _ <- {
-          def loop(
-            labels: List[String],
-            spec: Spec[Scope, Annotated[TestFailure[E]], Annotated[TestSuccess]],
-            exec: ExecutionStrategy,
-            ancestors: List[SuiteId],
-            sectionId: SuiteId
-          ): ZIO[Scope, Nothing, Unit] =
-            (spec.caseValue match {
-              case Spec.ExecCase(exec, spec) =>
-                loop(labels, spec, exec, ancestors, sectionId)
+  def default[R, E](
+    sharedSpecLayer: ZLayer[Any, E, R],
+    freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
+    sinkLayer: Layer[Nothing, ExecutionEventSink],
+    eventHandlerZ: ZTestEventHandler
+  ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] =
+    new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
+      def run(spec: Spec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
+        trace: ZTraceElement
+      ): UIO[
+        Summary
+      ] =
+        (for {
+          sink     <- ZIO.service[ExecutionEventSink]
+          summary  <- Ref.make[Summary](Summary(0, 0, 0, ""))
+          topParent = SuiteId.global
+          _ <- {
+            def loop(
+              labels: List[String],
+              spec: Spec[Scope, E],
+              exec: ExecutionStrategy,
+              ancestors: List[SuiteId],
+              sectionId: SuiteId
+            ): ZIO[Scope, Nothing, Unit] =
+              spec.caseValue match {
+                case Spec.ExecCase(exec, spec) =>
+                  loop(labels, spec, exec, ancestors, sectionId)
 
-              case Spec.LabeledCase(label, spec) =>
-                loop(label :: labels, spec, exec, ancestors, sectionId)
+                case Spec.LabeledCase(label, spec) =>
+                  loop(label :: labels, spec, exec, ancestors, sectionId)
 
-              case Spec.ScopedCase(managed) =>
-                ZIO.scoped(
-                  managed
-                    .flatMap(loop(labels, _, exec, ancestors, sectionId))
-                    .catchAll(e => sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, e._1, ancestors)))
-                )
-
-              case Spec.MultipleCase(specs) =>
-                ZIO.uninterruptibleMask(restore =>
-                  for {
-                    newMultiSectionId <- SuiteId.newRandom
-                    newAncestors       = sectionId :: ancestors
-                    _                 <- sink.process(ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors))
-                    _ <-
-                      restore(
-                        ZIO.foreachExec(specs)(exec)(spec => loop(labels, spec, exec, newAncestors, newMultiSectionId))
-                      )
-                        .ensuring(
-                          sink.process(ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors))
-                        )
-                  } yield ()
-                )
-              case Spec.TestCase(
-                    test,
-                    staticAnnotations: TestAnnotationMap
-                  ) =>
-                for {
-                  result                  <- test.either
-                  (testEvent, annotations) = extract(result)
-                  _ <-
-                    sink.process(
-                      ExecutionEvent
-                        .Test(labels, testEvent, staticAnnotations ++ annotations, ancestors, 1L, sectionId)
+                case Spec.ScopedCase(managed) =>
+                  ZIO
+                    .scoped(
+                      managed
+                        .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
-                } yield ()
-            }).unit
+                    .catchAllCause { e =>
+                      val event =
+                        ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                      summary.update(
+                        _.add(event)
+                      ) *>
+                        sink.process(
+                          event
+                        )
+                    }
 
-          val scopedSpec =
-            (spec @@ TestAspect.aroundTest(ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x)))).annotated
-              .provideLayer(environment)
-          ZIO.scoped {
-            loop(List.empty, scopedSpec, defExec, List.empty, topParent)
+                case Spec.MultipleCase(specs) =>
+                  ZIO.uninterruptibleMask(restore =>
+                    for {
+                      newMultiSectionId <- SuiteId.newRandom
+                      newAncestors       = sectionId :: ancestors
+                      _                 <- sink.process(ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors))
+                      _ <-
+                        restore(
+                          ZIO.foreachExec(specs)(exec)(spec =>
+                            loop(labels, spec, exec, newAncestors, newMultiSectionId)
+                          )
+                        )
+                          .ensuring(
+                            sink.process(ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors))
+                          )
+                    } yield ()
+                  )
+                case Spec.TestCase(
+                      test,
+                      staticAnnotations: TestAnnotationMap
+                    ) =>
+                  (for {
+                    result <- test.either
+                    event =
+                      ExecutionEvent
+                        .Test(
+                          labels,
+                          result,
+                          staticAnnotations ++ extractAnnotations(result),
+                          ancestors,
+                          1L,
+                          sectionId
+                        )
+                    _ <-
+                      summary.update(
+                        _.add(event)
+                      ) *>
+                        sink.process(
+                          event
+                        ) *>
+                        eventHandlerZ.handle(event)
+                  } yield ()).catchAllCause { e =>
+                    val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                    ConsoleRenderer.render(e, labels).foreach(println)
+                    summary.update(
+                      _.add(event)
+                    ) *>
+                      sink.process(event)
+                  }
+              }
+
+            val scopedSpec =
+              (spec @@ TestAspect.aroundTest(
+                ZTestLogger.default.build.as((x: TestSuccess) => ZIO.succeed(x))
+              )).annotated
+                .provideSomeLayer[R](freshLayerPerSpec)
+                .provideLayerShared(sharedSpecLayer.tapErrorCause { e =>
+                  sink.process(
+                    ExecutionEvent.RuntimeFailure(
+                      SuiteId(-1),
+                      List("Top level layer construction failure. No tests will execute."),
+                      TestFailure.Runtime(e),
+                      List.empty
+                    )
+                  )
+                })
+
+            ZIO.scoped {
+              loop(List.empty, scopedSpec, defExec, List.empty, topParent)
+            } *>
+              sink.process(
+                ExecutionEvent.TopLevelFlush(
+                  topParent
+                )
+              )
           }
+          summary <- summary.get
+        } yield summary).provideLayer(sinkLayer)
+
+      private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
+        result match {
+          case Left(testFailure)  => testFailure.annotations
+          case Right(testSuccess) => testSuccess.annotations
         }
-
-        summary <- sink.getSummary
-      } yield summary).provideLayer(sinkLayer)
-
-    val environment = env
-
-    private def extract(result: Either[(TestFailure[E], TestAnnotationMap), (TestSuccess, TestAnnotationMap)]) =
-      result match {
-        case Left(
-              (
-                testFailure: TestFailure[
-                  E
-                ],
-                annotations
-              )
-            ) =>
-          (
-            Left(
-              testFailure
-            ),
-            annotations
-          )
-        case Right(
-              (
-                testSuccess,
-                annotations
-              )
-            ) =>
-          (
-            Right(
-              testSuccess
-            ),
-            annotations
-          )
-      }
-  }
+    }
 
 }

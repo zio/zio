@@ -138,7 +138,7 @@ class SmartAssertMacros(ctx: Quotes)  {
         val res = transformAs(body.asExprOf[TestLens[v]])(lhs)
         res.asInstanceOf[Expr[TestArrow[Any, A]]]
 
-      case Unseal(Inlined(_, _, expr)) => transform(expr.asExprOf[A])
+      case Unseal(Inlined(a, b, expr)) => Inlined(a, b, transform(expr.asExprOf[A]).asTerm).asExprOf[zio.test.TestArrow[Any, A]]
 
       case Unseal(Apply(Select(lhs, op @ (">" | ">=" | "<" | "<=")), List(rhs))) =>
         val span = rhs.span
@@ -230,10 +230,10 @@ class SmartAssertMacros(ctx: Quotes)  {
 }
 
 object Macros {
-  def assertM_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[AssertionM[A]])
-                                             (using ctx: Quotes): Expr[ZIO[R, E, TestResult]] = {
+  def assertZIO_impl[R: Type, E: Type, A: Type](effect: Expr[ZIO[R, E, A]])(assertion: Expr[AssertionZIO[A]])
+                                               (using ctx: Quotes): Expr[ZIO[R, E, TestResult]] = {
     import quotes.reflect._
-    '{_root_.zio.test.CompileVariants.assertMProxy($effect)($assertion)}
+    '{_root_.zio.test.CompileVariants.assertZIOProxy($effect)($assertion)}
   }
 
   // inline def assert[A](inline value: => A)(inline assertion: Assertion[A]): TestResult = ${Macros.assert_impl('value)('assertion)}

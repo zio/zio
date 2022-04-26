@@ -11,7 +11,7 @@ object AccessibleSpec extends ZIOSpecDefault {
   def spec = suite("AccessibleSpec")(
     suite("Accessible macro")(
       test("compiles when applied to object with empty Service") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -21,7 +21,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("fails when applied to object without a Service") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module
@@ -29,7 +29,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("success when applied to trait") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             trait Module
@@ -37,7 +37,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("fails when applied to class") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             class Module
@@ -45,7 +45,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isLeft(anything))
       },
       test("generates accessor for values") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -62,7 +62,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for functions") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -79,7 +79,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for varargs functions") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -96,7 +96,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessors for members returning ZManaged") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -119,7 +119,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with default method implementations") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessible
              object Module {
@@ -132,7 +132,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with one type param") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessible
              object Module {
@@ -167,7 +167,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with contravariant type param") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              @accessible
              object Module {
@@ -184,7 +184,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for service with two type params and type bounds") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
              trait Foo
              trait Bar
@@ -222,7 +222,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessors for all capabilities") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -288,7 +288,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for throwing values") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -305,7 +305,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for throwing methods") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -322,7 +322,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for values") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -338,7 +338,7 @@ object AccessibleSpec extends ZIOSpecDefault {
         })(isRight(anything))
       },
       test("generates accessor for methods") {
-        assertM(typeCheck {
+        assertZIO(typeCheck {
           """
             @accessible
             object Module {
@@ -362,7 +362,7 @@ object AccessibleSpec extends ZIOSpecDefault {
           }
         }
         def layer = ZLayer.succeed(new Module.Service {})
-        assertM(Module.test().flip.provide(layer))(hasField("message", _.getMessage, equalTo("ups")))
+        assertZIO(Module.test().flip.provide(layer))(hasField("message", _.getMessage, equalTo("ups")))
       }
     )
   )

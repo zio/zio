@@ -774,7 +774,7 @@ private[zio] final class FiberContext[E, A](
     fiberRefLocals.get.get(fiberRef).map(_.head._2).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)
 
   private[zio] def unsafeGetRefs(fiberRefLocals: FiberRefLocals): Map[FiberRef[_], Any] =
-    fiberRefLocals.get.transform { case (fiberRef, stack) => fiberRef -> stack.head }
+    fiberRefLocals.get.transform { case (_, stack) => stack.head._2 }
 
   private def unsafeInterruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = {
     val interruptedCause = Cause.interrupt(fiberId)

@@ -3,7 +3,7 @@ id: overview_handling_errors
 title:  "Handling Errors"
 ---
 
-This section looks at some of the common ways to detect and respond to failure.
+This section looks at some common ways to detect and respond to failures.
 
 ```scala mdoc:invisible
 import zio._
@@ -11,14 +11,14 @@ import zio._
 
 ## Either
 
-You can surface failures with `ZIO#either`, which takes an `ZIO[R, E, A]` and produces an `ZIO[R, Nothing, Either[E, A]]`.
+You can surface failures with `ZIO#either`, which takes a `ZIO[R, E, A]` and produces a `ZIO[R, Nothing, Either[E, A]]`.
 
 ```scala mdoc:silent
 val zeither: UIO[Either[String, Int]] = 
   IO.fail("Uh oh!").either
 ```
 
-You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns an `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
+You can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns a `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
 
 ```scala mdoc:silent
 def sqrt(io: UIO[Double]): IO[String, Double] =
@@ -65,7 +65,7 @@ Unlike `catchAll`, `catchSome` cannot reduce or eliminate the error type, althou
 
 ## Fallback
 
-You can try one effect, or, if it fails, try another effect, with the `orElse` combinator:
+You can try one effect or if it fails, try another effect with the `orElse` combinator:
 
 ```scala mdoc:silent
 val primaryOrBackupData: IO[IOException, Array[Byte]] = 
@@ -74,9 +74,9 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
 
 ## Folding
 
-Scala's `Option` and `Either` data types have `fold`, which let you handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow you to handle both failure and success.
+Scala's `Option` and `Either` data types have a `fold` method, which let you handle both the failure and the success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow you to handle both failures and successes.
 
-The first fold method, `fold`, lets you non-effectfully handle both failure and success, by supplying a non-effectful handler for each case:
+The first fold method, `fold`, lets you non-effectfully handle both a failure and a success by supplying a non-effectful handler for each case:
 
 ```scala mdoc:silent
 lazy val DefaultData: Array[Byte] = Array(0, 0)
@@ -87,7 +87,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
     data => data)
 ```
 
-The second fold method, `foldZIO`, lets you effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:
+The second fold method, `foldZIO`, lets you effectfully handle both a failure and a success by supplying an effectful (but still pure) handler for each case:
 
 ```scala mdoc:silent
 val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
@@ -96,21 +96,25 @@ val primaryOrSecondaryData: IO[IOException, Array[Byte]] =
     data => ZIO.succeed(data))
 ```
 
-Nearly all error handling methods are defined in terms of `foldZIO`, because it is both powerful and fast.
+Nearly all error handling methods are defined in terms of `foldZIO` because it is both powerful and fast.
 
-In the following example, `foldZIO` is used to handle both failure and success of the `readUrls` method:
+In the following example, `foldZIO` is used to handle both the failure and the success of the `readUrls` method:
 
 ```scala mdoc:invisible
 sealed trait Content
-case class NoContent(t: Throwable) extends Content
-case class OkContent(s: String) extends Content
-def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
+
+object Content {
+  case class NoContent(t: Throwable) extends Content
+  case class OkContent(s: String)    extends Content
+}
+
+def readUrls(file: String): Task[List[String]]     = IO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(Content.OkContent("Roger"))
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
-    error   => IO.succeed(NoContent(error)), 
+    error   => IO.succeed(Content.NoContent(error)), 
     success => fetchContent(success)
   )
 ```
@@ -123,21 +127,20 @@ The most basic of these is `ZIO#retry`, which takes a `Schedule` and returns a n
 
 ```scala mdoc:silent
 val retriedOpenFile: ZIO[Clock, IOException, Array[Byte]] = 
-  openFile("primary.data").retry(Schedule.recurs(5))
+  openFile("primary.data")
+      .retry(Schedule.recurs(5))
 ```
 
-The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use, if the effect does not succeed with the specified policy:
+The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use if the effect does not succeed with the specified policy:
 
 ```scala
-  openFile("primary.data").retryOrElse(
-    Schedule.recurs(5), 
-    (_, _) => ZIO.succeed(DefaultData))
+val retryOpenFile: ZIO[Clock, IOException, DefaultData) = 
+  openFile("primary.data")
+      .retryOrElse(Schedule.recurs(5), (_, _) => ZIO.succeed(DefaultData))
 ```
-
-The final method, `ZIO#retryOrElseEither`, allows returning a different type for the fallback.
 
 For more information on how to build schedules, see the documentation on [Schedule](../datatypes/misc/schedule.md).
 
 ## Next Steps
 
-If you are comfortable with basic error handling, then the next step is to learn about safe [resource handling](handling_resources.md).
+If you are comfortable with basic error handling, the next step is to learn about safe [resource handling](handling_resources.md).

@@ -8,7 +8,7 @@ import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, Upstream
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
-class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
@@ -769,7 +769,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   }
 }
 
-object ChannelExecutor {
+private[zio] object ChannelExecutor {
   type Channel[R]            = ZChannel[R, Any, Any, Any, Any, Any, Any]
   type ErasedExecutor[Env]   = ChannelExecutor[Env, Any, Any, Any, Any, Any, Any]
   type ErasedContinuation[R] = ZChannel.Fold.Continuation[R, Any, Any, Any, Any, Any, Any, Any, Any]

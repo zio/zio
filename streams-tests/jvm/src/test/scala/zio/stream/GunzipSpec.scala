@@ -13,85 +13,85 @@ object GunzipSpec extends ZIOSpecDefault {
   override def spec =
     suite("Gunzip")(
       test("short stream")(
-        assertM(
+        assertZIO(
           (jdkGzippedStream(shortText).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(
           equalTo(Chunk.fromArray(shortText))
         )
       ),
       test("stream of two gzipped inputs as a single chunk")(
-        assertM(
+        assertZIO(
           ((jdkGzippedStream(shortText) ++ jdkGzippedStream(otherShortText))
             .rechunk(500)
             .channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText) ++ Chunk.fromArray(otherShortText)))
       ),
       test("long input")(
-        assertM(
+        assertZIO(
           (jdkGzippedStream(longText).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
       test("long input, no SYNC_FLUSH")(
-        assertM(
+        assertZIO(
           (jdkGzippedStream(longText, false).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
       test("long input, buffer smaller than chunks")(
-        assertM(
+        assertZIO(
           (jdkGzippedStream(longText).rechunk(500).channel >>> Gunzip.makeGunzipper(1)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
       test("long input, chunks smaller then buffer")(
-        assertM(
+        assertZIO(
           (jdkGzippedStream(longText).rechunk(1).channel >>> Gunzip.makeGunzipper(500)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(longText)))
       ),
       test("fail early if header is corrupted")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(1 to 10).map(_.toByte).channel >>> Gunzip.makeGunzipper()).runCollect.exit
         )(fails(anything))
       ),
       test("fail if input stream finished unexpected")(
-        assertM(
+        assertZIO(
           (jdkGzippedStream(longText).take(80).channel >>> Gunzip.makeGunzipper()).runCollect.exit
         )(fails(anything))
       ),
       test("no output on very incomplete stream is not OK")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(1 to 5).map(_.toByte).channel >>> Gunzip.makeGunzipper()).runCollect.exit
         )(fails(anything))
       ),
       test("gunzip what JDK gzipped, nowrap")(
         check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
           case (chunk, n, bufferSize) =>
-            assertM(for {
+            assertZIO(for {
               deflated <- ZIO.succeed(jdkGzippedStream(chunk.toArray))
               out      <- (deflated.rechunk(n).channel >>> Gunzip.makeGunzipper(bufferSize)).runCollect.map(_._1.flatten)
             } yield out.toList)(equalTo(chunk))
         }
       ),
       test("parses header with FEXTRA")(
-        assertM(
+        assertZIO(
           (headerWithExtra.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
       test("parses header with FCOMMENT")(
-        assertM(
+        assertZIO(
           (headerWithComment.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
       test("parses header with FNAME")(
-        assertM(
+        assertZIO(
           (headerWithFileName.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
       test("parses header with CRC16")(
-        assertM(
+        assertZIO(
           (headerWithCrc.rechunk(1).channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       ),
       test("parses header with CRC16, FNAME, FCOMMENT, FEXTRA")(
-        assertM(
+        assertZIO(
           (headerWithAll.channel >>> Gunzip.makeGunzipper(64)).runCollect.map(_._1.flatten)
         )(equalTo(Chunk.fromArray(shortText)))
       )

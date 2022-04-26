@@ -18,40 +18,33 @@ package zio.test
 
 import zio.ZTraceElement
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
 
   def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
     val success = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Succeeded(_)) => true
-      case _                               => false
+      case Right(TestSuccess.Succeeded(_, _)) => true
+      case _                                  => false
     }
     val fail = countTestResults(reporterEvent) {
       case Right(_) => false
       case _        => true
     }
     val ignore = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Ignored) => true
-      case _                          => false
+      case Right(TestSuccess.Ignored(_)) => true
+      case _                             => false
     }
     val failures = extractFailures(reporterEvent)
 
-    val rendered =
-      //      TODO Check impact of hard-coded false here
+    val rendered: String =
       ConsoleRenderer
-        .render(failures.flatMap(DefaultTestReporter.render(_, false)), TestAnnotationRenderer.silent)
+        .renderForSummary(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
-    val newSummaryPiece = Summary(success, fail, ignore, rendered)
-    Summary(
-      oldSummary.success + newSummaryPiece.success,
-      oldSummary.fail + newSummaryPiece.fail,
-      oldSummary.ignore + newSummaryPiece.ignore,
-      oldSummary.summary + newSummaryPiece.summary
-    )
-
+    val newSummary = Summary(success, fail, ignore, rendered)
+    oldSummary.add(newSummary)
   }
 
   private def countTestResults(
@@ -65,6 +58,7 @@ object SummaryBuilder {
 
       case SectionStart(_, _, _) => 0
       case SectionEnd(_, _, _)   => 0
+      case TopLevelFlush(_)      => 0
     }
 
   private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =
@@ -76,7 +70,9 @@ object SummaryBuilder {
           case _ =>
             Seq.empty
         }
-      case RuntimeFailure(_, _, _, _) => Seq(reporterEvent)
-      case _                          => Seq.empty
+      case RuntimeFailure(_, _, _, _) =>
+        Seq(reporterEvent)
+      case _ =>
+        Seq.empty
     }
 }

@@ -14,7 +14,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = test("test") {
-                 assertM(ref.get)(equalTo(1))
+                 assertZIO(ref.get)(equalTo(1))
                } @@ around(ref.set(1), ref.set(-1))
         result <- succeeded(spec)
         after  <- ref.get
@@ -29,17 +29,17 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = suite("suite1")(
                  suite("suite2")(
                    test("test1") {
-                     assertM(ref.get)(equalTo(1))
+                     assertZIO(ref.get)(equalTo(1))
                    },
                    test("test2") {
-                     assertM(ref.get)(equalTo(1))
+                     assertZIO(ref.get)(equalTo(1))
                    },
                    test("test3") {
-                     assertM(ref.get)(equalTo(1))
+                     assertZIO(ref.get)(equalTo(1))
                    }
                  ) @@ aroundAll(ref.update(_ + 1), ref.update(_ - 1)),
                  test("test4") {
-                   assertM(ref.get)(equalTo(1))
+                   assertZIO(ref.get)(equalTo(1))
                  } @@ aroundAll(ref.update(_ + 1), ref.update(_ - 1))
                )
         result <- succeeded(spec)
@@ -110,14 +110,14 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("failure makes tests pass on an expected assertion failure") {
       assert(true)(equalTo(false))
     } @@ failing[TestFailure[Any]] {
-      case TestFailure.Assertion(_) => true
-      case TestFailure.Runtime(_)   => false
+      case TestFailure.Assertion(_, _) => true
+      case TestFailure.Runtime(_, _)   => false
     },
     test("flaky retries a test that fails") {
       for {
         ref <- Ref.make(0)
         spec = test("flaky test") {
-                 assertM(ref.updateAndGet(_ + 1))(equalTo(100))
+                 assertZIO(ref.updateAndGet(_ + 1))(equalTo(100))
                } @@ flaky
         result <- succeeded(spec)
         n      <- ref.get
@@ -127,7 +127,7 @@ object TestAspectSpec extends ZIOBaseSpec {
       for {
         ref <- Ref.make(0)
         spec = test("flaky test that dies") {
-                 assertM(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
+                 assertZIO(ref.updateAndGet(_ + 1).filterOrDieMessage(_ >= 100)("die"))(equalTo(100))
                } @@ flaky
         result <- succeeded(spec)
         n      <- ref.get
@@ -201,7 +201,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("jsOnly runs tests only on ScalaJS") {
       val spec   = test("Javascript-only")(assert(TestPlatform.isJS)(isTrue)) @@ jsOnly
       val result = if (TestPlatform.isJS) succeeded(spec) else isIgnored(spec)
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("jvm applies test aspect only on jvm") {
       for {
@@ -214,7 +214,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("jvmOnly runs tests only on the JVM") {
       val spec   = test("JVM-only")(assert(TestPlatform.isJVM)(isTrue)) @@ jvmOnly
       val result = if (TestPlatform.isJVM) succeeded(spec) else isIgnored(spec)
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("native applies test aspect only on ScalaNative") {
       for {
@@ -227,23 +227,23 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("nativeOnly runs tests only on ScalaNative") {
       val spec   = test("Native-only")(assert(TestPlatform.isNative)(isTrue)) @@ nativeOnly
       val result = if (TestPlatform.isNative) succeeded(spec) else isIgnored(spec)
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     suite("nonTermination")(
       test("makes a test pass if it does not terminate within the specified time") {
-        assertM(ZIO.never)(anything)
+        assertZIO(ZIO.never)(anything)
       } @@ nonTermination(10.milliseconds),
       test("makes a test fail if it succeeds within the specified time") {
-        assertM(ZIO.unit)(anything)
+        assertZIO(ZIO.unit)(anything)
       } @@ nonTermination(1.minute) @@ failing,
       test("makes a test fail if it fails within the specified time") {
-        assertM(ZIO.fail("fail"))(anything)
+        assertZIO(ZIO.fail("fail"))(anything)
       } @@ nonTermination(1.minute) @@ failing
     ),
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)
-        spec   = test("test")(assertM(ref.update(_ + 1))(anything)) @@ nonFlaky @@ repeats(42)
+        spec   = test("test")(assertZIO(ref.update(_ + 1))(anything)) @@ nonFlaky @@ repeats(42)
         _     <- execute(spec)
         value <- ref.get
       } yield assert(value)(equalTo(43))
@@ -251,7 +251,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("repeats sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)
-        spec   = test("test")(assertM(ref.update(_ + 1))(nothing)) @@ flaky @@ retries(42)
+        spec   = test("test")(assertZIO(ref.update(_ + 1))(nothing)) @@ flaky @@ retries(42)
         _     <- execute(spec)
         value <- ref.get
       } yield assert(value)(equalTo(43))
@@ -259,7 +259,7 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("samples sets the number of sufficient samples to the specified value") {
       for {
         ref   <- Ref.make(0)
-        _     <- check(Gen.int.noShrink)(_ => assertM(ref.update(_ + 1))(anything))
+        _     <- check(Gen.int.noShrink)(_ => assertZIO(ref.update(_ + 1))(anything))
         value <- ref.get
       } yield assert(value)(equalTo(42))
     } @@ samples(42),
@@ -282,20 +282,20 @@ object TestAspectSpec extends ZIOBaseSpec {
     test("scala2Only runs tests only on Scala 2") {
       val spec   = test("Scala2-only")(assert(TestVersion.isScala2)(isTrue)) @@ scala2Only
       val result = if (TestVersion.isScala2) succeeded(spec) else isIgnored(spec)
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("scala3Only runs tests only on Scala 3") {
       val spec   = test("Scala3-only")(assert(TestVersion.isScala3)(isTrue)) @@ scala3Only
       val result = if (TestVersion.isScala3) succeeded(spec) else isIgnored(spec)
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("setSeed sets the random seed to the specified value before each test") {
-      assertM(TestRandom.getSeed)(equalTo(seed & ((1L << 48) - 1)))
+      assertZIO(TestRandom.getSeed)(equalTo(seed & ((1L << 48) - 1)))
     } @@ setSeed(seed),
     test("shrinks sets the maximum number of shrinkings to the specified value") {
       for {
         ref   <- Ref.make(0)
-        _     <- check(Gen.int)(_ => assertM(ref.update(_ + 1))(nothing))
+        _     <- check(Gen.int)(_ => assertZIO(ref.update(_ + 1))(nothing))
         value <- ref.get
       } yield assert(value)(equalTo(1))
     } @@ shrinks(0),
@@ -305,10 +305,10 @@ object TestAspectSpec extends ZIOBaseSpec {
       }
     } @@ shrinks(0) @@ failing,
     test("sized sets the size to the specified value") {
-      assertM(Sized.size)(equalTo(42))
+      assertZIO(Sized.size)(equalTo(42))
     } @@ sized(42),
     test("timeout makes tests fail after given duration") {
-      assertM(ZIO.never *> ZIO.unit)(equalTo(()))
+      assertZIO(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)
       @@ failing(diesWithSubtypeOf[TestTimeoutException]),
     test("verify verifies the specified post-condition after each test is run") {
@@ -317,7 +317,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         spec = suite("verify")(
                  test("first test")(ZIO.succeed(assertCompletes)),
                  test("second test")(ref.set(true).as(assertCompletes))
-               ) @@ sequential @@ verify(assertM(ref.get)(isTrue))
+               ) @@ sequential @@ verify(assertZIO(ref.get)(isTrue))
         result <- succeeded(spec)
       } yield assert(result)(isFalse)
     },
@@ -332,8 +332,8 @@ object TestAspectSpec extends ZIOBaseSpec {
     diesWith(ct.unapply(_).isDefined)
 
   def diesWith(assertion: Throwable => Boolean): TestFailure[Any] => Boolean = {
-    case TestFailure.Assertion(_) => false
-    case TestFailure.Runtime(cause) =>
+    case TestFailure.Assertion(_, _) => false
+    case TestFailure.Runtime(cause, _) =>
       cause.dieOption match {
         case Some(t) => assertion(t)
         case None    => false

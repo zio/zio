@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Console, Random, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -12,31 +12,31 @@ object IntellijRendererSpec extends ZIOBaseSpec {
   def spec =
     suite("IntelliJ Renderer")(
       test("correctly reports a successful test") {
-        assertM(runLog(test1))(equalTo(test1Expected.mkString))
+        assertZIO(runLog(test1))(equalTo(test1Expected.mkString))
       },
       test("correctly reports a failed test") {
-        assertM(runLog(test3))(equalTo(test3Expected.mkString))
+        assertZIO(runLog(test3))(equalTo(test3Expected.mkString))
       },
       test("correctly reports successful test suite") {
-        assertM(runLog(suite1))(equalTo(suite1Expected.mkString))
+        assertZIO(runLog(suite1))(equalTo(suite1Expected.mkString))
       },
       test("correctly reports failed test suite") {
-        assertM(runLog(suite2))(equalTo(suite2Expected.mkString))
+        assertZIO(runLog(suite2))(equalTo(suite2Expected.mkString))
       },
       test("correctly reports multiple test suites") {
-        assertM(runLog(suite3))(equalTo(suite3Expected.mkString))
+        assertZIO(runLog(suite3))(equalTo(suite3Expected.mkString))
       },
       test("correctly reports empty test suite") {
-        assertM(runLog(suite4))(equalTo(suite4Expected.mkString))
+        assertZIO(runLog(suite4))(equalTo(suite4Expected.mkString))
       },
       test("correctly reports failure of simple assertion") {
-        assertM(runLog(test5))(equalTo(test5Expected.mkString))
+        assertZIO(runLog(test5))(equalTo(test5Expected.mkString))
       },
       test("correctly reports multiple nested failures") {
-        assertM(runLog(test6))(equalTo(test6Expected.mkString))
+        assertZIO(runLog(test6))(equalTo(test6Expected.mkString))
       },
       test("correctly reports labeled failures") {
-        assertM(runLog(test7))(equalTo(test7Expected.mkString))
+        assertZIO(runLog(test7))(equalTo(test7Expected.mkString))
       },
       test("correctly reports negated failures") {
         runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
@@ -188,16 +188,14 @@ object IntelliJRenderUtils {
 
   // TODO de-dup layer creation
   def runLog(
-    spec: ZSpec[TestEnvironment, String]
+    spec: Spec[TestEnvironment, String]
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       _ <-
         IntelliJTestRunner(testEnvironment)
           .run(spec)
           .provideLayer[Nothing, TestEnvironment with Scope](
-            TestClock.default ++ (TestLogger.fromConsole(
-              Console.ConsoleLive
-            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ Random.live
+            TestClock.default ++ sinkLayer ++ Random.live
           )
       output <- TestConsole.output
     } yield output.mkString
@@ -207,10 +205,10 @@ object IntelliJRenderUtils {
   )(implicit trace: ZTraceElement) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
-        testEnvironment,
-        (Console.live >>> TestLogger.fromConsole(
-          Console.ConsoleLive
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        Scope.default >>> testEnvironment,
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
+        sinkLayer,
+        _ => ZIO.unit // Does Intellij need to report events?
       ),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
     )

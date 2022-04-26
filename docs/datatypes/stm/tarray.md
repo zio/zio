@@ -64,7 +64,7 @@ val tArrayUpdateElem: UIO[TArray[Int]] = (for {
 } yield tArray).commit
 ```
 
-Updating the n-th element of an array can be done effectfully via `updateM`:
+Updating the n-th element of an array can be done effectfully via `updateSTM`:
 
 ```scala mdoc:silent
 import zio._

@@ -65,7 +65,7 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
     ZStream
       .repeatEffect(zio.random.nextIntBetween(0, Int.MaxValue))
       .schedule(Schedule.fixed(2.seconds))
-      .mapM { random =>
+      .mapZIO { random =>
         Producer.produce[Any, Long, String](
           topic = "random",
           key = random % 4,
@@ -83,7 +83,7 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
       .tap(r => putStrLn(r.value))
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)
-      .mapM(_.commit)
+      .mapZIO(_.commit)
       .drain
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =

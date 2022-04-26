@@ -8,7 +8,7 @@ import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
 import scala.annotation.tailrec
 
-object Inflate {
+private object Inflate {
   def makeInflater[Err >: CompressionException, Done](
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false

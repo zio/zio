@@ -8,7 +8,7 @@ import java.util.zip.Deflater
 import java.{util => ju}
 import scala.annotation.tailrec
 
-object Deflate {
+private object Deflate {
   def makeDeflater[Err, Done](
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false,

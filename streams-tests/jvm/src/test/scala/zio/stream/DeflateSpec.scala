@@ -21,14 +21,14 @@ object DeflateSpec extends ZIOSpecDefault {
         }
       ),
       test("deflate empty bytes, small buffer")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(List.empty).rechunk(1).channel >>> Deflate
             .makeDeflater(100, false)).runCollect
             .map(_._1.flatten.toList)
         )(equalTo(jdkDeflate(Array.empty, new Deflater(-1, false)).toList))
       ),
       test("deflates same as JDK")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(longText).rechunk(128).channel >>> Deflate.makeDeflater(256, false)).runCollect
             .map(_._1.flatten)
         )(
@@ -36,7 +36,7 @@ object DeflateSpec extends ZIOSpecDefault {
         )
       ),
       test("deflates same as JDK, nowrap")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(longText).rechunk(128).channel >>> Deflate.makeDeflater(256, true)).runCollect
             .map(_._1.flatten)
         )(
@@ -44,7 +44,7 @@ object DeflateSpec extends ZIOSpecDefault {
         )
       ),
       test("deflates same as JDK, small buffer")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(longText).rechunk(64).channel >>> Deflate.makeDeflater(1, false)).runCollect
             .map(_._1.flatten)
         )(
@@ -52,7 +52,7 @@ object DeflateSpec extends ZIOSpecDefault {
         )
       ),
       test("deflates same as JDK, nowrap, small buffer ")(
-        assertM(
+        assertZIO(
           (ZStream.fromIterable(longText).rechunk(64).channel >>> Deflate.makeDeflater(1, true)).runCollect
             .map(_._1.flatten)
         )(

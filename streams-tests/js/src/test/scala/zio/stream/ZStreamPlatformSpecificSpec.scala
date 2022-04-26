@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.test.Assertion.{containsCause, equalTo, failsCause, isFalse, isTrue}
-import zio.test.{Gen, assert, assertM, check}
+import zio.test.{Gen, assert, assertZIO, check}
 import zio.{Cause, Chunk, IO, Promise, Ref, Schedule, Task, UIO, ZIO, ZIOBaseSpec}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -12,7 +12,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
     test("async")(check(Gen.chunkOf(Gen.int)) { chunk =>
       val s = ZStream.async[Any, Throwable, Int](k => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
 
-      assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
+      assertZIO(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
     }),
     suite("asyncMaybe")(
       test("asyncMaybe signal end stream") {
@@ -28,7 +28,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       test("asyncMaybe Some")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.asyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
 
-        assertM(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
+        assertZIO(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
       }),
       test("asyncMaybe None")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
@@ -36,7 +36,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           None
         }
 
-        assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
+        assertZIO(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
       }),
       test("asyncMaybe back pressure") {
         for {
@@ -179,7 +179,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       test("asyncInterrupt Right")(check(Gen.chunkOf(Gen.int)) { chunk =>
         val s = ZStream.asyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
 
-        assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
+        assertZIO(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
       }),
       test("asyncInterrupt signal end stream ") {
         for {

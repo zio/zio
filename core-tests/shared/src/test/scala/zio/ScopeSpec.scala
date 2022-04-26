@@ -55,6 +55,24 @@ object ScopeSpec extends ZIOBaseSpec {
         } yield assertCompletes
       }
     ),
+    test("using") {
+      for {
+        ref1 <- Ref.make[Chunk[Action]](Chunk.empty)
+        ref2 <- Ref.make[Chunk[Action]](Chunk.empty)
+        _ <- ZIO.scoped {
+               for {
+                 _ <- ZIO.using(resource(1)(ref1)) { _ =>
+                        ref1.update(_ :+ Action.Use(1)) *>
+                          resource(2)(ref2)
+                      }
+                 _ <- ref2.update(_ :+ Action.Use(2))
+               } yield ()
+             }
+        actions1 <- ref1.get
+        actions2 <- ref2.get
+      } yield assertTrue(actions1 == Chunk(Action.acquire(1), Action.use(1), Action.release(1))) &&
+        assertTrue(actions2 == Chunk(Action.acquire(2), Action.use(2), Action.release(2)))
+    },
     suite("sequentialFinalizers") {
       test("preserves order of nested finalizers") {
         for {

@@ -11,7 +11,7 @@ import java.security.MessageDigest
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
 
-  override def spec: ZSpec[Any, Throwable] = suite("ZSink JVM")(
+  override def spec: Spec[Any, Throwable] = suite("ZSink JVM")(
     suite("fromFile")(
       test("writes to an existing file") {
         val data = (0 to 100).mkString

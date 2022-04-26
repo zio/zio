@@ -25,40 +25,40 @@ object ScopedSpec extends ZIOBaseSpec {
       ZIO.serviceWithZIO(_.incrementAndGet)
   }
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("ScopedSpec")(
+  def spec: Spec[Annotations, TestFailure[Any]] = suite("ScopedSpec")(
     suite("scoped shared")(
       suite("first suite")(
         test("first test") {
-          assertM(Counter.incrementAndGet)(equalTo(2))
+          assertZIO(Counter.incrementAndGet)(equalTo(2))
         },
         test("second test") {
-          assertM(Counter.incrementAndGet)(equalTo(3))
+          assertZIO(Counter.incrementAndGet)(equalTo(3))
         }
       ),
       suite("second suite")(
         test("third test") {
-          assertM(Counter.incrementAndGet)(equalTo(4))
+          assertZIO(Counter.incrementAndGet)(equalTo(4))
         },
         test("fourth test") {
-          assertM(Counter.incrementAndGet)(equalTo(5))
+          assertZIO(Counter.incrementAndGet)(equalTo(5))
         }
       )
     ).provideLayerShared(Counter.live) @@ sequential,
     suite("scoped per test")(
       suite("first suite")(
         test("first test") {
-          assertM(Counter.incrementAndGet)(equalTo(2))
+          assertZIO(Counter.incrementAndGet)(equalTo(2))
         },
         test("second test") {
-          assertM(Counter.incrementAndGet)(equalTo(2))
+          assertZIO(Counter.incrementAndGet)(equalTo(2))
         }
       ),
       suite("second suite")(
         test("third test") {
-          assertM(Counter.incrementAndGet)(equalTo(2))
+          assertZIO(Counter.incrementAndGet)(equalTo(2))
         },
         test("fourth test") {
-          assertM(Counter.incrementAndGet)(equalTo(2))
+          assertZIO(Counter.incrementAndGet)(equalTo(2))
         }
       )
     ).provideLayer(Counter.live)

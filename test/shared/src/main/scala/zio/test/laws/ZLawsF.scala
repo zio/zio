@@ -109,7 +109,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+    abstract class Law1ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
       def apply[F[+_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -133,7 +133,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+    abstract class Law2ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
       def apply[F[+_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -157,7 +157,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+    abstract class Law3ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -234,7 +234,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+    abstract class Law1ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
       def apply[F[-_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -258,7 +258,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+    abstract class Law2ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
       def apply[F[-_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -282,7 +282,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+    abstract class Law3ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
       def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -344,7 +344,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+    abstract class Law1ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
       def apply[F[_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -367,7 +367,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+    abstract class Law2ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
       def apply[F[_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -390,7 +390,7 @@ object ZLawsF {
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+    abstract class Law3ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
       def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],

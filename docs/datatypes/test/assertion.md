@@ -23,14 +23,14 @@ The syntax of assertion in the above code, is `assert(expression)(assertion)`. T
 
 We have two methods for writing test assertions:
 
-1. **`assert`** and **`assertM`**
+1. **`assert`** and **`assertZIO`**
 2. **`assertTrue`**
 
 The first one is the old way of asserting ordinary values and also ZIO effects. The second method, which is called _smart assertion_, has a unified logic for testing both ordinary values and ZIO effects. **We encourage developers to use the smart assertion method, which is much simpler.**
 
 ### Classic Old-fashioned Assertions
 
-The `assert` and its effectful counterpart `assertM` are the old way of asserting ordinary values and ZIO effects.
+The `assert` and its effectful counterpart `assertZIO` are the old way of asserting ordinary values and ZIO effects.
 
 1. In order to test ordinary values, we should use `assert`, like the example below:
 
@@ -43,7 +43,7 @@ test("sum") {
 }
 ```
 
-2. If we are testing an effect, we should use the `assertM` function:
+2. If we are testing an effect, we should use the `assertZIO` function:
 
 ```scala mdoc:compile-only
 import zio._
@@ -55,7 +55,7 @@ test("updating ref") {
     _ <- r.update(_ + 1)
     v <- r.get
   } yield v
-  assertM(value)(Assertion.equalTo(1))
+  assertZIO(value)(Assertion.equalTo(1))
 }
 ```
 
@@ -430,14 +430,14 @@ In order to understand the `Assertion` data type, let's first look at the `test`
 def test[In](label: String)(assertion: => In)(implicit testConstructor: TestConstructor[Nothing, In]): testConstructor.Out
 ```
 
-Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `ZSpec[R, E]` data type:
+Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `Spec[R, E]` data type:
 
 ```scala
-def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing]
-def test(label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E]
+def test(label: String)(assertion: => TestResult): Spec[Any, Nothing]
+def test(label: String)(assertion: => ZIO[R, E, TestResult]): Spec[R, E]
 ```
 
-Therefore, the function `test` needs a `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
+Therefore, the function `test` needs a `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertZIO`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 
 ### The `assert` Function
 

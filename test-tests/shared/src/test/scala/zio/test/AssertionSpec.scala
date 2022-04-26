@@ -9,7 +9,7 @@ import scala.util.{Failure, Success}
 
 object AssertionSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("AssertionSpec")(
+  def spec: Spec[Annotations, TestFailure[Any]] = suite("AssertionSpec")(
     test("and must succeed when both assertions are satisfied") {
       assert(sampleUser)(nameStartsWithU && ageGreaterThan20)
     },
@@ -81,7 +81,7 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("equalTo must not compile when comparing two unrelated types") {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
-      assertM(result)(
+      assertZIO(result)(
         isLeft(
           (containsString("found   : zio.test.Assertion[String]") &&
             containsString("required: zio.test.Assertion[Int]")) ||
@@ -487,7 +487,7 @@ object AssertionSpec extends ZIOBaseSpec {
     },
     test("isUnit must not compile when supplied value is not ()") {
       val result = typeCheck("assert(10)(isUnit)")
-      assertM(result)(isLeft(anything))
+      assertZIO(result)(isLeft(anything))
     },
     test("isWithin must succeed when supplied value is within range (inclusive)") {
       assert(10)(isWithin(0, 10))
@@ -573,11 +573,11 @@ object AssertionSpec extends ZIOBaseSpec {
     test("should implement equals without exception") {
       assert(nameStartsWithU.equals(new Object))(isFalse)
     },
-    test("should never be equal to AssertionM") {
-      val assertion  = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
-      val assertionM = AssertionM.assertionDirect[Unit]("sameName")()(_ => ???)
-      assert(assertion.equals(assertionM))(isFalse ?? "assertion != assertionM") &&
-      assert(assertionM.equals(assertion))(isFalse ?? "assertionM != assertion")
+    test("should never be equal to AssertionZIO") {
+      val assertion    = Assertion.assertionDirect[Unit]("sameName")()(_ => ???)
+      val assertionZIO = AssertionZIO.assertionDirect[Unit]("sameName")()(_ => ???)
+      assert(assertion.equals(assertionZIO))(isFalse ?? "assertion != assertionZIO") &&
+      assert(assertionZIO.equals(assertion))(isFalse ?? "assertionZIO != assertion")
     },
     test("hasThrowableCause must succeed when supplied value has matching cause") {
       val cause = new Exception("cause")
