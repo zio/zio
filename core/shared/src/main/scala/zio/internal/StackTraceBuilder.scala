@@ -19,16 +19,16 @@ package zio.internal
 import zio._
 
 class StackTraceBuilder private () { self =>
-  private var last: ZTraceElement                  = null.asInstanceOf[ZTraceElement]
-  private val builder: ChunkBuilder[ZTraceElement] = ChunkBuilder.make()
+  private var last: Trace                  = null.asInstanceOf[Trace]
+  private val builder: ChunkBuilder[Trace] = ChunkBuilder.make()
 
-  def +=(trace: ZTraceElement): Unit =
-    if ((trace ne last) && (trace ne null) && (trace ne ZTraceElement.empty)) {
+  def +=(trace: Trace): Unit =
+    if ((trace ne last) && (trace ne null) && (trace ne Trace.empty)) {
       builder += trace
       last = trace
     }
 
-  def result(): Chunk[ZTraceElement] = builder.result()
+  def result(): Chunk[Trace] = builder.result()
 }
 object StackTraceBuilder {
   def unsafeMake(): StackTraceBuilder = new StackTraceBuilder()

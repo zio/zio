@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Executor, Runtime, URIO, ZIO, ZTraceElement}
+import zio.{Executor, Runtime, URIO, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -47,7 +47,7 @@ private[test] object Fun {
    * Constructs a new `Fun` from an effectual function. The function should not
    * involve asynchronous effects.
    */
-  def make[R, A, B](f: A => URIO[R, B])(implicit trace: ZTraceElement): ZIO[R, Nothing, Fun[A, B]] =
+  def make[R, A, B](f: A => URIO[R, B])(implicit trace: Trace): ZIO[R, Nothing, Fun[A, B]] =
     makeHash(f)(_.hashCode)
 
   /**
@@ -55,7 +55,7 @@ private[test] object Fun {
    * This is useful when the domain of the function does not implement
    * `hashCode` in a way that is consistent with equality.
    */
-  def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int)(implicit trace: ZTraceElement): ZIO[R, Nothing, Fun[A, B]] =
+  def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int)(implicit trace: Trace): ZIO[R, Nothing, Fun[A, B]] =
     ZIO.onExecutor(funExecutor) {
       ZIO.runtime[R].map { runtime =>
         Fun(a => runtime.unsafeRun(f(a)), hash)

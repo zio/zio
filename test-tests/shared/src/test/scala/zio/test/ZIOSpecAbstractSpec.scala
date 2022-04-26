@@ -8,7 +8,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
         assertTrue(true)
       }
   }
-  override def spec = suite("ZIOSpecAbstractSpec")(
+  override def spec = (suite("ZIOSpecAbstractSpec")(
     test("highlighting composed layer failures") {
       // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
       val specWithBrokenLayer = new ZIOSpec[Int] {
@@ -36,8 +36,24 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       for {
         res <- basicSpec.run
       } yield assertTrue(equalsTimeLess(res, Summary(1, 0, 0, "")))
-    )
-  )
+    ),
+    test("runSpec produces a summary with fully-qualified failures") {
+      val suiteName = "parent"
+      val testName  = "failing test"
+      val failingSpec: ZIOSpecDefault = new ZIOSpecDefault {
+        override def spec = suite(suiteName)(
+          test(testName)(
+            assertTrue(false)
+          )
+        )
+      }
+      for {
+        res <-
+          ZIO.consoleWith(console => failingSpec.runSpecInfallible(failingSpec.spec, TestArgs.empty, console))
+      } yield assertTrue(res.fail == 1) &&
+        assertTrue(res.summary.contains(s"$suiteName - $testName"))
+    }
+  ) @@ TestAspect.ignore)
     .provide(
       ZIOAppArgs.empty,
       testEnvironment,

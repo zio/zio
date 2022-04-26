@@ -2,11 +2,11 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.Assertion.equalTo
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
-import zio.{ZEnvironment, ZIO, ZTraceElement, durationInt}
+import zio.{ZEnvironment, ZIO, Trace, durationInt}
 
 import java.util.regex.Pattern
 import scala.collection.mutable.ArrayBuffer
@@ -51,13 +51,14 @@ object ZTestFrameworkSbtSpec {
           case RuntimeFailure(_, _, _, _)    => false
           case SectionStart(_, _, _)         => false
           case SectionEnd(_, _, _)           => false
+          case TopLevelFlush(_)              => false
         }
       ),
       s"reported events should have positive durations: $reported"
     )
   }
 
-  def testLogMessages()(implicit trace: ZTraceElement): Unit = {
+  def testLogMessages()(implicit trace: Trace): Unit = {
     val loggers = Seq(new MockLogger)
 
     loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec, loggers = loggers)
@@ -153,14 +154,15 @@ object ZTestFrameworkSbtSpec {
 
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.default
         )
       }
       .head
@@ -176,14 +178,15 @@ object ZTestFrameworkSbtSpec {
     val runner = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.default
         )
       }
       .head
@@ -234,16 +237,16 @@ object ZTestFrameworkSbtSpec {
     } @@ TestAspect.before(Live.live(ZIO.sleep(5.millis))) @@ TestAspect.timed
   }
 
-  def assertSourceLocation()(implicit trace: ZTraceElement): String = {
-    val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
+  def assertSourceLocation()(implicit trace: Trace): String = {
+    val filePath = Option(trace).collect { case Trace(_, file, _) =>
       file
     }
     filePath.fold("")(path => cyan(s"at $path:XXX"))
   }
 
   implicit class TestOutputOps(output: String) {
-    def withNoLineNumbers(implicit trace: ZTraceElement): String = {
-      val filePath = Option(trace).collect { case ZTraceElement(_, file, _) =>
+    def withNoLineNumbers(implicit trace: Trace): String = {
+      val filePath = Option(trace).collect { case Trace(_, file, _) =>
         file
       }
       filePath.fold(output)(path => output.replaceAll(Pattern.quote(path + ":") + "\\d+", path + ":XXX"))

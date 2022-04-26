@@ -50,8 +50,8 @@ object Macros {
            |[${Console.RED}error${Console.RESET}]  to force generation of a new trace.
            |[${Console.RED}error${Console.RESET}]  
            |[${Console.RED}error${Console.RESET}]  copy/paste:
-           |[${Console.RED}error${Console.RESET}]    (implicit trace: ZTraceElement)  <- no existing implicit parameter list
-           |[${Console.RED}error${Console.RESET}]    , trace: ZTraceElement           <- existing implicit parameter list
+           |[${Console.RED}error${Console.RESET}]    (implicit trace: Trace)  <- no existing implicit parameter list
+           |[${Console.RED}error${Console.RESET}]    , trace: Trace           <- existing implicit parameter list
            |[${Console.RED}error${Console.RESET}]    (newTrace)                       <- I know what I'm doing, generate a new trace anyway
            |[${Console.RED}error${Console.RESET}]    
            |""".stripMargin

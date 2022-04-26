@@ -130,11 +130,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
   private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
-      result
-        .fold(details =>
-          rendered(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(details, 0).lines: _*)
-        )(_ && _, _ || _, !_)
-        .lines
+      rendered(
+        Test,
+        label,
+        Failed,
+        0,
+        DefaultTestReporter.renderAssertionResult(result.result, 0).lines: _*
+      ).streamingLines
     )
 
   private def testDescription(label: String, path: Vector[String]): Description = {
@@ -154,8 +156,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           case Runtime(cause, _)    => reportRuntimeFailure(notifier, path, label, cause)
         },
         {
-          case Succeeded(_, _) => notifier.fireTestFinished(label, path)
-          case Ignored(_)      => notifier.fireTestIgnored(label, path)
+          case Succeeded(_) => notifier.fireTestFinished(label, path)
+          case Ignored(_)   => notifier.fireTestIgnored(label, path)
         }
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =

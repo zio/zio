@@ -4,7 +4,7 @@ import zio.Chunk
 
 import java.nio.charset.Charset
 
-object CharacterSet {
+private[zio] object CharacterSet {
 
   val CharsetUtf32: Charset   = Charset.forName("UTF-32")
   val CharsetUtf32BE: Charset = Charset.forName("UTF-32BE")

@@ -26,7 +26,7 @@ trait Enqueue[-A] extends Serializable {
    * not resume until the queue has been shutdown. If the queue is already
    * shutdown, the `IO` will resume right away.
    */
-  def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit]
+  def awaitShutdown(implicit trace: Trace): UIO[Unit]
 
   /**
    * How many elements can hold in the queue
@@ -36,12 +36,12 @@ trait Enqueue[-A] extends Serializable {
   /**
    * `true` if `shutdown` has been called.
    */
-  def isShutdown(implicit trace: ZTraceElement): UIO[Boolean]
+  def isShutdown(implicit trace: Trace): UIO[Boolean]
 
   /**
    * Places one value in the queue.
    */
-  def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean]
+  def offer(a: A)(implicit trace: Trace): UIO[Boolean]
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
@@ -58,30 +58,30 @@ trait Enqueue[-A] extends Serializable {
    * For Dropping Queue: uses `Dropping` Strategy, It places the values in the
    * queue but if there is no room it will not enqueue them and return false.
    */
-  def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean]
+  def offerAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean]
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
    * to `offer*` and `take*` will be interrupted immediately.
    */
-  def shutdown(implicit trace: ZTraceElement): UIO[Unit]
+  def shutdown(implicit trace: Trace): UIO[Unit]
 
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
    * in the queue. This may be negative if fibers are suspended waiting for
    * elements to be added to the queue.
    */
-  def size(implicit trace: ZTraceElement): UIO[Int]
+  def size(implicit trace: Trace): UIO[Int]
 
   /**
    * Checks whether the queue is currently empty.
    */
-  def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+  def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+  def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == capacity)
 }

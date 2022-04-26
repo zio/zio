@@ -11,55 +11,55 @@ object TMapSpec extends ZIOBaseSpec {
     suite("factories")(
       test("apply") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3).flatMap[Any, Nothing, List[(String, Int)]](_.toList)
-        assertM(tx.commit)(hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
+        assertZIO(tx.commit)(hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
       },
       test("empty") {
         val tx = TMap.empty[String, Int].flatMap[Any, Nothing, List[(String, Int)]](_.toList)
-        assertM(tx.commit)(isEmpty)
+        assertZIO(tx.commit)(isEmpty)
       },
       test("fromIterable") {
         val tx = TMap
           .fromIterable(List("a" -> 1, "b" -> 2, "c" -> 2, "b" -> 3))
           .flatMap[Any, Nothing, List[(String, Int)]](_.toList)
-        assertM(tx.commit)(hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
+        assertZIO(tx.commit)(hasSameElements(List("a" -> 1, "b" -> 3, "c" -> 2)))
       }
     ),
     suite("lookups")(
       test("get existing element") {
         val tx = TMap.make("a" -> 1, "b" -> 2).flatMap[Any, Nothing, Option[Int]](_.get("a"))
-        assertM(tx.commit)(isSome(equalTo(1)))
+        assertZIO(tx.commit)(isSome(equalTo(1)))
       },
       test("get non-existing element") {
         val tx = TMap.empty[String, Int].flatMap[Any, Nothing, Option[Int]](_.get("a"))
-        assertM(tx.commit)(isNone)
+        assertZIO(tx.commit)(isNone)
       },
       test("getOrElse existing element") {
         val tx = TMap.make("a" -> 1, "b" -> 2).flatMap[Any, Nothing, Int](_.getOrElse("a", 10))
-        assertM(tx.commit)(equalTo(1))
+        assertZIO(tx.commit)(equalTo(1))
       },
       test("getOrElse non-existing element") {
         val tx = TMap.empty[String, Int].flatMap[Any, Nothing, Int](_.getOrElse("a", 10))
-        assertM(tx.commit)(equalTo(10))
+        assertZIO(tx.commit)(equalTo(10))
       },
       test("contains existing element") {
         val tx = TMap.make("a" -> 1, "b" -> 2).flatMap[Any, Nothing, Boolean](_.contains("a"))
-        assertM(tx.commit)(isTrue)
+        assertZIO(tx.commit)(isTrue)
       },
       test("contains non-existing element") {
         val tx = TMap.empty[String, Int].flatMap[Any, Nothing, Boolean](_.contains("a"))
-        assertM(tx.commit)(isFalse)
+        assertZIO(tx.commit)(isFalse)
       },
       test("collect all elements") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 3).flatMap[Any, Nothing, List[(String, Int)]](_.toList)
-        assertM(tx.commit)(hasSameElements(List("a" -> 1, "b" -> 2, "c" -> 3)))
+        assertZIO(tx.commit)(hasSameElements(List("a" -> 1, "b" -> 2, "c" -> 3)))
       },
       test("collect all keys") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 3).flatMap[Any, Nothing, List[String]](_.keys)
-        assertM(tx.commit)(hasSameElements(List("a", "b", "c")))
+        assertZIO(tx.commit)(hasSameElements(List("a", "b", "c")))
       },
       test("collect all values") {
         val tx = TMap.make("a" -> 1, "b" -> 2, "c" -> 3).flatMap[Any, Nothing, List[Int]](_.values)
-        assertM(tx.commit)(hasSameElements(List(1, 2, 3)))
+        assertZIO(tx.commit)(hasSameElements(List(1, 2, 3)))
       }
     ),
     suite("insertion and removal")(
@@ -71,7 +71,7 @@ object TMapSpec extends ZIOBaseSpec {
             e    <- tmap.get("a")
           } yield e
 
-        assertM(tx.commit)(isSome(equalTo(1)))
+        assertZIO(tx.commit)(isSome(equalTo(1)))
       },
       test("overwrite existing element") {
         val tx =
@@ -81,7 +81,7 @@ object TMapSpec extends ZIOBaseSpec {
             e    <- tmap.get("a")
           } yield e
 
-        assertM(tx.commit)(isSome(equalTo(10)))
+        assertZIO(tx.commit)(isSome(equalTo(10)))
       },
       test("remove existing element") {
         val tx =
@@ -91,7 +91,7 @@ object TMapSpec extends ZIOBaseSpec {
             e    <- tmap.get("a")
           } yield e
 
-        assertM(tx.commit)(isNone)
+        assertZIO(tx.commit)(isNone)
       },
       test("remove non-existing element") {
         val tx =
@@ -101,7 +101,7 @@ object TMapSpec extends ZIOBaseSpec {
             e    <- tmap.get("a")
           } yield e
 
-        assertM(tx.commit)(isNone)
+        assertZIO(tx.commit)(isNone)
       },
       test("add many keys with negative hash codes") {
         val expected = (1 to 1000).map(i => HashContainer(-i) -> i).toList
@@ -113,7 +113,7 @@ object TMapSpec extends ZIOBaseSpec {
             e    <- tmap.toList
           } yield e
 
-        assertM(tx.commit)(hasSameElements(expected))
+        assertZIO(tx.commit)(hasSameElements(expected))
       },
       test("putIfAbsent") {
         val expected = List("a" -> 1, "b" -> 2)
@@ -126,7 +126,7 @@ object TMapSpec extends ZIOBaseSpec {
             e    <- tmap.toList
           } yield e
 
-        assertM(tx.commit)(hasSameElements(expected))
+        assertZIO(tx.commit)(hasSameElements(expected))
       }
     ),
     suite("transformations")(
@@ -138,7 +138,7 @@ object TMapSpec extends ZIOBaseSpec {
             size <- tmap.size
           } yield size
 
-        assertM(tx.commit)(equalTo(2))
+        assertZIO(tx.commit)(equalTo(2))
       },
       test("toList") {
         val elems = List("a" -> 1, "b" -> 2)
@@ -148,7 +148,7 @@ object TMapSpec extends ZIOBaseSpec {
             list <- tmap.toList
           } yield list
 
-        assertM(tx.commit)(hasSameElements(elems))
+        assertZIO(tx.commit)(hasSameElements(elems))
       },
       test("toChunk") {
         val elems = List("a" -> 1, "b" -> 2)
@@ -158,7 +158,7 @@ object TMapSpec extends ZIOBaseSpec {
             chunk <- tmap.toChunk
           } yield chunk.toList
 
-        assertM(tx.commit)(hasSameElements(elems))
+        assertZIO(tx.commit)(hasSameElements(elems))
       },
       test("toMap") {
         val elems = Map("a" -> 1, "b" -> 2)
@@ -168,7 +168,7 @@ object TMapSpec extends ZIOBaseSpec {
             map  <- tmap.toMap
           } yield map
 
-        assertM(tx.commit)(equalTo(elems))
+        assertZIO(tx.commit)(equalTo(elems))
       },
       test("merge") {
         val tx =
@@ -178,7 +178,7 @@ object TMapSpec extends ZIOBaseSpec {
             b    <- tmap.merge("b", 2)(_ + _)
           } yield (a, b)
 
-        assertM(tx.commit)(equalTo((3, 2)))
+        assertZIO(tx.commit)(equalTo((3, 2)))
       },
       suite("retainIf")(
         test("retainIf") {
@@ -191,7 +191,7 @@ object TMapSpec extends ZIOBaseSpec {
               aaa     <- tmap.contains("aaa")
             } yield (removed, a, aa, aaa)
 
-          assertM(tx.commit)(equalTo((Chunk("aaa" -> 3, "a" -> 1), false, true, false)))
+          assertZIO(tx.commit)(equalTo((Chunk("aaa" -> 3, "a" -> 1), false, true, false)))
         },
         test("retainIfDiscard") {
           val tx =
@@ -203,7 +203,7 @@ object TMapSpec extends ZIOBaseSpec {
               aaa  <- tmap.contains("aaa")
             } yield (a, aa, aaa)
 
-          assertM(tx.commit)(equalTo((false, true, false)))
+          assertZIO(tx.commit)(equalTo((false, true, false)))
         }
       ),
       suite("removeIf")(
@@ -217,7 +217,7 @@ object TMapSpec extends ZIOBaseSpec {
               aaa     <- tmap.contains("aaa")
             } yield (removed, a, aa, aaa)
 
-          assertM(tx.commit)(equalTo((Chunk("aaa" -> 3, "aa" -> 2), true, false, false)))
+          assertZIO(tx.commit)(equalTo((Chunk("aaa" -> 3, "aa" -> 2), true, false, false)))
         },
         test("removeIfDiscard") {
           val tx =
@@ -229,7 +229,7 @@ object TMapSpec extends ZIOBaseSpec {
               aaa  <- tmap.contains("aaa")
             } yield (a, aa, aaa)
 
-          assertM(tx.commit)(equalTo((true, false, true)))
+          assertZIO(tx.commit)(equalTo((true, false, true)))
         }
       ),
       test("transform") {
@@ -240,7 +240,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
       },
       test("transform with keys with negative hash codes") {
         val tx =
@@ -250,7 +250,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List(HashContainer(2) -> 2, HashContainer(4) -> 4, HashContainer(6) -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List(HashContainer(2) -> 2, HashContainer(4) -> 4, HashContainer(6) -> 6)))
       },
       test("transform and shrink") {
         val tx =
@@ -260,7 +260,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       test("transformSTM") {
         val tx =
@@ -270,7 +270,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List("b" -> 2, "bb" -> 4, "bbb" -> 6)))
       },
       test("transformSTM and shrink") {
         val tx =
@@ -280,7 +280,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("key" -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List("key" -> 6)))
       },
       test("transformValues") {
         val tx =
@@ -290,7 +290,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
       },
       test("parallel value transformation") {
         for {
@@ -301,7 +301,7 @@ object TMapSpec extends ZIOBaseSpec {
           res  <- tmap.get("a").commit
         } yield assert(res)(isSome(equalTo(2000)))
       },
-      test("transformValuesM") {
+      test("transformValuesSTM") {
         val tx =
           for {
             tmap <- TMap.make("a" -> 1, "aa" -> 2, "aaa" -> 3)
@@ -309,7 +309,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.toList
           } yield res
 
-        assertM(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
+        assertZIO(tx.commit)(hasSameElements(List("a" -> 2, "aa" -> 4, "aaa" -> 6)))
       },
       test("updateWith") {
         for {
@@ -330,7 +330,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.fold(0)((acc, kv) => acc + kv._2)
           } yield res
 
-        assertM(tx.commit)(equalTo(6))
+        assertZIO(tx.commit)(equalTo(6))
       },
       test("fold on empty map") {
         val tx =
@@ -339,7 +339,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.fold(0)((acc, kv) => acc + kv._2)
           } yield res
 
-        assertM(tx.commit)(equalTo(0))
+        assertZIO(tx.commit)(equalTo(0))
       },
       test("foldSTM on non-empty map") {
         val tx =
@@ -348,7 +348,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.foldSTM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
-        assertM(tx.commit)(equalTo(6))
+        assertZIO(tx.commit)(equalTo(6))
       },
       test("foldSTM on empty map") {
         val tx =
@@ -357,7 +357,7 @@ object TMapSpec extends ZIOBaseSpec {
             res  <- tmap.foldSTM(0)((acc, kv) => STM.succeed(acc + kv._2))
           } yield res
 
-        assertM(tx.commit)(equalTo(0))
+        assertZIO(tx.commit)(equalTo(0))
       }
     ),
     suite("bug #4648")(

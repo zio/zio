@@ -26,7 +26,7 @@ import scala.concurrent.ExecutionException
 
 private[zio] object javaz {
 
-  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: ZTraceElement): Task[T] =
+  def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: Trace): Task[T] =
     Task.suspendSucceedWith[Any, Throwable, T] { (p, _) =>
       Task.async { k =>
         val handler = new CompletionHandler[T, Any] {
@@ -48,7 +48,7 @@ private[zio] object javaz {
 
   private def catchFromGet(
     isFatal: Throwable => Boolean
-  )(implicit trace: ZTraceElement): PartialFunction[Throwable, Task[Nothing]] = {
+  )(implicit trace: Trace): PartialFunction[Throwable, Task[Nothing]] = {
     case e: CompletionException =>
       Task.fail(e.getCause)
     case e: ExecutionException =>
@@ -61,12 +61,12 @@ private[zio] object javaz {
       Task.fail(e)
   }
 
-  def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A])(implicit trace: ZTraceElement): Task[A] =
+  def unwrapDone[A](isFatal: Throwable => Boolean)(f: Future[A])(implicit trace: Trace): Task[A] =
     try {
       Task.succeedNow(f.get())
     } catch catchFromGet(isFatal)
 
-  def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: ZTraceElement): Task[A] =
+  def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: Trace): Task[A] =
     Task.attempt(thunk).flatMap { cs =>
       Task.suspendSucceedWith { (p, _) =>
         val cf = cs.toCompletableFuture
@@ -90,7 +90,7 @@ private[zio] object javaz {
    * WARNING: this uses the blocking Future#get, consider using
    * `fromCompletionStage`
    */
-  def fromFutureJava[A](thunk: => Future[A])(implicit trace: ZTraceElement): Task[A] =
+  def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
     RIO.attempt(thunk).flatMap { future =>
       RIO.suspendSucceedWith { (p, _) =>
         if (future.isDone) {

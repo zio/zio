@@ -15,7 +15,7 @@ object TArraySpec extends ZIOBaseSpec {
           tArray <- makeTArray(1)(42)
           value  <- tArray(0)
         } yield value
-        assertM(res.commit)(equalTo(42))
+        assertZIO(res.commit)(equalTo(42))
       },
       test("dies with ArrayIndexOutOfBounds when index is out of bounds") {
         for {
@@ -737,7 +737,7 @@ object TArraySpec extends ZIOBaseSpec {
         } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       }
     ),
-    suite("updateM")(
+    suite("updateSTM")(
       test("happy-path") {
         for {
           tArray <- makeTArray(1)(42).commit
@@ -750,7 +750,7 @@ object TArraySpec extends ZIOBaseSpec {
           result <- tArray.updateSTM(10, STM.succeed(_)).commit.exit
         } yield assert(result)(dies(isArrayIndexOutOfBoundsException))
       },
-      test("updateM failure") {
+      test("updateSTM failure") {
         for {
           tArray <- makeTArray(n)(0).commit
           result <- tArray.updateSTM(0, _ => STM.fail(boom)).commit.either
@@ -863,7 +863,7 @@ object TArraySpec extends ZIOBaseSpec {
       test("returns the size of the array") {
         check(Gen.listOf(Gen.int)) { as =>
           val size = TArray.fromIterable(as).map(_.size)
-          assertM(size.commit)(equalTo(as.size))
+          assertZIO(size.commit)(equalTo(as.size))
         }
       }
     }
@@ -876,7 +876,7 @@ object TArraySpec extends ZIOBaseSpec {
   val largePrime = 223
 
   val isArrayIndexOutOfBoundsException: Assertion[Throwable] =
-    Assertion.assertion[Throwable]("isArrayIndexOutOfBoundsException")()(_.isInstanceOf[ArrayIndexOutOfBoundsException])
+    Assertion.assertion[Throwable]("isArrayIndexOutOfBoundsException")(_.isInstanceOf[ArrayIndexOutOfBoundsException])
 
   def sumSucceed(a: Int, b: Int): STM[Nothing, Int] = STM.succeed(a + b)
 

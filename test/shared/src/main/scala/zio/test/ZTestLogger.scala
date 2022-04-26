@@ -59,7 +59,7 @@ object ZTestLogger {
    * structure.
    */
   final case class LogEntry(
-    trace: ZTraceElement,
+    trace: Trace,
     fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
@@ -83,7 +83,7 @@ object ZTestLogger {
       new ZTestLogger[String, Unit] {
         @tailrec
         def apply(
-          trace: ZTraceElement,
+          trace: Trace,
           fiberId: FiberId,
           logLevel: LogLevel,
           message: () => String,

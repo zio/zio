@@ -5,8 +5,6 @@ import zio.internal.TerminalRendering
 
 trait ZIOAppVersionSpecific {
 
-  type Environment
-
   /**
    * This implicit conversion macro will ensure that the provided ZIO effect
    * does not require more than the provided environment.
@@ -14,8 +12,8 @@ trait ZIOAppVersionSpecific {
    * If it is missing requirements, it will report a descriptive error message.
    * Otherwise, the effect will be returned unmodified.
    */
-  inline implicit def validateEnv[R, E, A](inline zio: ZIO[R, E, A]): ZIO[Environment with ZEnv with ZIOAppArgs, E, A] =
-    ${ ZIOAppVersionSpecificMacros.validate[Environment with ZEnv with ZIOAppArgs, R, E, A]('zio) }
+  inline implicit def validateEnv[R1, R, E, A](inline zio: ZIO[R, E, A]): ZIO[R1, E, A] =
+    ${ ZIOAppVersionSpecificMacros.validate[R1, R, E, A]('zio) }
 
 }
 

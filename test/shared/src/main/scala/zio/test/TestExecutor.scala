@@ -18,7 +18,10 @@ package zio.test
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{ExecutionStrategy, ZIO, ZTraceElement}
+import zio.test.render.{ConsoleRenderer, LogLine}
+import zio.test.render.LogLine.Fragment.Style
+import zio.test.render.LogLine.Message
+import zio.{ExecutionStrategy, ZIO, Trace}
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -26,7 +29,7 @@ import zio.{ExecutionStrategy, ZIO, ZTraceElement}
  */
 abstract class TestExecutor[+R, E] {
   def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): UIO[Summary]
 }
 
@@ -35,17 +38,19 @@ object TestExecutor {
   def default[R, E](
     sharedSpecLayer: ZLayer[Any, E, R],
     freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
-    sinkLayer: Layer[Nothing, ExecutionEventSink]
+    sinkLayer: Layer[Nothing, ExecutionEventSink],
+    eventHandlerZ: ZTestEventHandler
   ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] =
     new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
       def run(spec: Spec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
-        trace: ZTraceElement
+        trace: Trace
       ): UIO[
         Summary
       ] =
         (for {
-          sink      <- ZIO.service[ExecutionEventSink]
-          topParent <- SuiteId.newRandom
+          sink     <- ZIO.service[ExecutionEventSink]
+          summary  <- Ref.make[Summary](Summary(0, 0, 0, ""))
+          topParent = SuiteId.global
           _ <- {
             def loop(
               labels: List[String],
@@ -68,9 +73,14 @@ object TestExecutor {
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
-                      sink.process(
+                      val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
-                      )
+                      summary.update(
+                        _.add(event)
+                      ) *>
+                        sink.process(
+                          event
+                        )
                     }
 
                 case Spec.MultipleCase(specs) =>
@@ -96,20 +106,21 @@ object TestExecutor {
                     ) =>
                   (for {
                     result <- test.either
-                    _ <-
-                      sink.process(
-                        ExecutionEvent
-                          .Test(
-                            labels,
-                            result,
-                            staticAnnotations ++ extractAnnotations(result),
-                            ancestors,
-                            1L,
-                            sectionId
-                          )
-                      )
+                    event =
+                      ExecutionEvent
+                        .Test(
+                          labels,
+                          result,
+                          staticAnnotations ++ extractAnnotations(result),
+                          ancestors,
+                          1L,
+                          sectionId
+                        )
+                    _ <- summary.update(_.add(event)) *> sink.process(event) *> eventHandlerZ.handle(event)
                   } yield ()).catchAllCause { e =>
-                    sink.process(ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors))
+                    val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+                    ConsoleRenderer.render(e, labels).foreach(println)
+                    summary.update(_.add(event)) *> sink.process(event)
                   }
               }
 
@@ -131,10 +142,14 @@ object TestExecutor {
 
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-            }
+            } *>
+              sink.process(
+                ExecutionEvent.TopLevelFlush(
+                  topParent
+                )
+              )
           }
-
-          summary <- sink.getSummary
+          summary <- summary.get
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =

@@ -16,6 +16,7 @@
 
 package zio.test.render
 
+import zio.Cause
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
@@ -27,7 +28,7 @@ trait ConsoleRenderer extends TestRenderer {
 
   override def render(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
-      val message = Message(result.lines).intersperse(Line.fromString("\n"))
+      val message = Message(result.streamingLines).intersperse(Line.fromString("\n"))
 
       val output = result.resultType match {
         case ResultType.Suite =>
@@ -35,7 +36,24 @@ trait ConsoleRenderer extends TestRenderer {
         case ResultType.Test =>
           renderTest(result.status, result.offset, message)
         case ResultType.Other =>
-          Message(result.lines)
+          Message(result.streamingLines)
+      }
+
+      val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
+      renderToStringLines(output ++ renderedAnnotations).mkString
+    }
+
+  def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
+    results.map { result =>
+      val message = Message(result.summaryLines).intersperse(Line.fromString("\n"))
+
+      val output = result.resultType match {
+        case ResultType.Suite =>
+          renderSuite(result.status, result.offset, message)
+        case ResultType.Test =>
+          renderTest(result.status, result.offset, message)
+        case ResultType.Other =>
+          Message(result.streamingLines)
       }
 
       val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
@@ -97,5 +115,17 @@ trait ConsoleRenderer extends TestRenderer {
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
        |Executed in ${summary.duration.render}
        |""".stripMargin
+
+  def render(cause: Cause[_], labels: List[String]): Option[String] =
+    cause match {
+      case _: Cause.Interrupt =>
+        val renderedInterruption =
+          ConsoleRenderer.renderToStringLines(
+            Message(Seq(LogLine.Line(Vector(LogLine.Fragment(labels.mkString(" - "), Style.Error)))))
+          )
+
+        Some("Interrupted during execution: " + renderedInterruption.mkString("\n"))
+      case _ => None
+    }
 }
 object ConsoleRenderer extends ConsoleRenderer

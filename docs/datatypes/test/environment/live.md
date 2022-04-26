@@ -20,7 +20,7 @@ import zio.test.Assertion._
 import java.util.concurrent.TimeUnit
 
 test("running clock methods in a test environment") {
-  assertM(Clock.currentTime(TimeUnit.MILLISECONDS))(equalTo(0L)) 
+  assertZIO(Clock.currentTime(TimeUnit.MILLISECONDS))(equalTo(0L)) 
 }
 ```
 
@@ -59,6 +59,6 @@ val longRunningSUT =
   }
   
 test("withLive provides real environment to a single part of an effect") {
-  assertM(Live.withLive(longRunningSUT)(_.timeout(3.seconds)))(anything)
+  assertZIO(Live.withLive(longRunningSUT)(_.timeout(3.seconds)))(anything)
 }
 ```

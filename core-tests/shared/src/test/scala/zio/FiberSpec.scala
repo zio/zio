@@ -57,7 +57,7 @@ object FiberSpec extends ZIOBaseSpec {
       ),
       suite("`Fiber.join` on interrupted Fiber")(
         test("is inner interruption") {
-          val fiberId = FiberId.Runtime(0, 123, ZTraceElement.empty)
+          val fiberId = FiberId.Runtime(0, 123, Trace.empty)
 
           for {
             exit <- Fiber.interruptAs(fiberId).join.exit
@@ -126,13 +126,13 @@ object FiberSpec extends ZIOBaseSpec {
       ),
       suite("stack safety")(
         test("awaitAll") {
-          assertM(Fiber.awaitAll(fibers))(anything)
+          assertZIO(Fiber.awaitAll(fibers))(anything)
         },
         test("joinAll") {
-          assertM(Fiber.joinAll(fibers))(anything)
+          assertZIO(Fiber.joinAll(fibers))(anything)
         },
         test("collectAll") {
-          assertM(Fiber.collectAll(fibers).join)(anything)
+          assertZIO(Fiber.collectAll(fibers).join)(anything)
         }
       ) @@ sequential,
       suite("track blockingOn")(

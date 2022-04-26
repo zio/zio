@@ -38,7 +38,7 @@ trait PollingMetric[-R, +E, +Out] { self =>
 
       def metric = self.metric
 
-      def poll(implicit trace: ZTraceElement) = ZIO.blocking(self.poll)
+      def poll(implicit trace: Trace) = ZIO.blocking(self.poll)
     }
 
   /**
@@ -51,19 +51,19 @@ trait PollingMetric[-R, +E, +Out] { self =>
    * fiber, using the specified schedule.
    */
   final def launch[R1 <: R, B](schedule: Schedule[R1, Out, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R1 with Scope, Nothing, Fiber[E, B]] =
     ZIO.acquireRelease((pollAndUpdate *> metric.value).repeat(schedule).forkDaemon)(_.interrupt)
 
   /**
    * An effect that polls a value that may be fed to the metric.
    */
-  def poll(implicit trace: ZTraceElement): ZIO[R, E, In]
+  def poll(implicit trace: Trace): ZIO[R, E, In]
 
   /**
    * An effect that polls for a value and uses the value to update the metric.
    */
-  final def pollAndUpdate(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+  final def pollAndUpdate(implicit trace: Trace): ZIO[R, E, Unit] =
     poll.flatMap(metric.update(_))
 
   /**
@@ -79,7 +79,7 @@ trait PollingMetric[-R, +E, +Out] { self =>
 
       def metric = self.metric
 
-      def poll(implicit trace: ZTraceElement) = self.poll.retry(policy)
+      def poll(implicit trace: Trace) = self.poll.retry(policy)
     }
 
   /**
@@ -96,7 +96,7 @@ trait PollingMetric[-R, +E, +Out] { self =>
       def metric: Metric[z1.Out, In, z2.Out] =
         self.metric.zip(that.metric)
 
-      def poll(implicit trace: ZTraceElement): ZIO[R1, E1, In] =
+      def poll(implicit trace: Trace): ZIO[R1, E1, In] =
         self.poll.zip(that.poll)
     }
 }
@@ -117,7 +117,7 @@ object PollingMetric {
 
       def metric: Metric[Type, In, Out] = metric0
 
-      def poll(implicit trace: ZTraceElement): ZIO[R, E, In] = poll0
+      def poll(implicit trace: Trace): ZIO[R, E, In] = poll0
     }
 
   /**
@@ -141,6 +141,6 @@ object PollingMetric {
         }
       }
 
-      def poll(implicit trace: ZTraceElement): ZIO[R, E, In] = ZIO.foreach(in)(_.poll)
+      def poll(implicit trace: Trace): ZIO[R, E, In] = ZIO.foreach(in)(_.poll)
     }
 }

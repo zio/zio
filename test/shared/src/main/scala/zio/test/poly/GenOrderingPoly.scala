@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.{Random, ZTraceElement}
+import zio.{Random, Trace}
 
 import scala.annotation.tailrec
 
@@ -47,35 +47,35 @@ object GenOrderingPoly {
    * Provides evidence that instances of `Gen` and a `Ordering` exist for
    * booleans.
    */
-  def boolean(implicit trace: ZTraceElement): GenOrderingPoly =
+  def boolean(implicit trace: Trace): GenOrderingPoly =
     GenOrderingPoly(Gen.boolean, Ordering.Boolean)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for bytes.
    */
-  def byte(implicit trace: ZTraceElement): GenOrderingPoly =
+  def byte(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.byte
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * characters.
    */
-  def char(implicit trace: ZTraceElement): GenOrderingPoly =
+  def char(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.char
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for doubles.
    */
-  def double(implicit trace: ZTraceElement): GenOrderingPoly =
+  def double(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.double
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for floats.
    */
-  def float(implicit trace: ZTraceElement): GenOrderingPoly =
+  def float(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.float
 
-  def genOrderingPoly(implicit trace: ZTraceElement): Gen[Any, GenOrderingPoly] = {
+  def genOrderingPoly(implicit trace: Trace): Gen[Any, GenOrderingPoly] = {
     val primitives = Gen.elements(
       boolean,
       byte,
@@ -100,20 +100,20 @@ object GenOrderingPoly {
    * Provides evidence that instances of `Gen` and `Ordering` exist for
    * integers.
    */
-  def int(implicit trace: ZTraceElement): GenOrderingPoly =
+  def int(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.int
 
   /**
    * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
    * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
    */
-  def list(poly: GenOrderingPoly)(implicit trace: ZTraceElement): GenOrderingPoly =
+  def list(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
     GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering(poly.ordT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for longs.
    */
-  def long(implicit trace: ZTraceElement): GenOrderingPoly =
+  def long(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.long
 
   /**
@@ -121,26 +121,26 @@ object GenOrderingPoly {
    * `Ordering[Option[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def option(poly: GenOrderingPoly)(implicit trace: ZTraceElement): GenOrderingPoly =
+  def option(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
     GenOrderingPoly(Gen.option(poly.genT), Ordering.Option(poly.ordT))
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for shorts.
    */
-  def short(implicit trace: ZTraceElement): GenOrderingPoly =
+  def short(implicit trace: Trace): GenOrderingPoly =
     GenNumericPoly.long
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
    */
-  def string(implicit trace: ZTraceElement): GenOrderingPoly =
+  def string(implicit trace: Trace): GenOrderingPoly =
     GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for the unit
    * value.
    */
-  def unit(implicit trace: ZTraceElement): GenOrderingPoly =
+  def unit(implicit trace: Trace): GenOrderingPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)
 
   /**
@@ -148,7 +148,7 @@ object GenOrderingPoly {
    * `Ordering[Vector[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def vector(poly: GenOrderingPoly)(implicit trace: ZTraceElement): GenOrderingPoly =
+  def vector(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
     GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering(poly.ordT))
 
   /**

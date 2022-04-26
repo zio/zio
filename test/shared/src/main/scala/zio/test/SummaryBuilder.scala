@@ -16,17 +16,17 @@
 
 package zio.test
 
-import zio.ZTraceElement
+import zio.Trace
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 
 object SummaryBuilder {
 
-  def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: ZTraceElement): Summary = {
+  def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: Trace): Summary = {
     val success = countTestResults(reporterEvent) {
-      case Right(TestSuccess.Succeeded(_, _)) => true
-      case _                                  => false
+      case Right(TestSuccess.Succeeded(_)) => true
+      case _                               => false
     }
     val fail = countTestResults(reporterEvent) {
       case Right(_) => false
@@ -40,7 +40,7 @@ object SummaryBuilder {
 
     val rendered: String =
       ConsoleRenderer
-        .render(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
+        .renderForSummary(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
     val newSummary = Summary(success, fail, ignore, rendered)
@@ -58,6 +58,7 @@ object SummaryBuilder {
 
       case SectionStart(_, _, _) => 0
       case SectionEnd(_, _, _)   => 0
+      case TopLevelFlush(_)      => 0
     }
 
   private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =

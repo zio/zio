@@ -28,7 +28,7 @@ private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O
 
 }
 
-private final class ProvideSomeLayerStreamPartiallyApplied[R0, -R, +E, +O](
+final class ProvideSomeLayerStreamPartiallyApplied[R0, -R, +E, +O](
   val self: ZStream[R, E, O]
 ) extends AnyVal {
   def provideLayer[E1 >: E](
