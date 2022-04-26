@@ -136,7 +136,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.stream.ZPipeline",
     "zio.test.TestFailure",
     "zio.Runtime",
-    "zio.ZLayer" 
+    "zio.ZLayer"
   )
   /*
     TODO
@@ -168,8 +168,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   }
 
   case class Renames(scopes: List[String], renames: Map[String, String]) {
-    val normalizedRenames = renames.map { case (k, v) =>
-      GenericRename(scopes, k, v)
+    val normalizedRenames = renames.map { case (from, to) =>
+      GenericRename(scopes = scopes, oldName = from, newName = to)
     }
 
     object Matcher {
@@ -194,7 +194,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
       "identity" -> "service"
     )
   )
-  
+
   val STMRenames = Renames(
     List("zio.stm.ZSTM", "zio.stm.STM"),
     Map(
@@ -346,6 +346,14 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val hasNormalized = SymbolMatcher.normalized("zio/Has#")
 
+  val CompanianAliases = SymbolMatcher.exact("zio/IO.", "zio/UIO.", "zio/URIO.", "zio/Task.", "zio/RIO.")
+
+  val UIOAlias  = SymbolMatcher.exact("zio/UIO.")
+  val TaskAlias = SymbolMatcher.exact("zio/Task.")
+  val ZIOAlias  = SymbolMatcher.exact("zio/ZIO#")
+  val URIOAlias = SymbolMatcher.exact("zio/URIO#")
+  val RIOAlias  = SymbolMatcher.exact("zio/RIO#")
+
   val newFiberId = Symbol("zio/FiberId#")
 
   def replaceSymbols(implicit doc: SemanticDocument) = Patch.replaceSymbols(
@@ -432,17 +440,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
     "zio.test.TimeVariants.anyZoneOffset"     -> "zio.test.Gen.zoneOffset",
     "zio.test.TimeVariants.anyZoneId"         -> "zio.test.Gen.zoneId",
     // App
-    "zio.App"           -> "zio.ZIOAppDefault",
-    "zio.Executor.asEC" -> "zio.Executor.asExecutionContext"
+    "zio.App"                     -> "zio.ZIOAppDefault",
+    "zio.Executor.asEC"           -> "zio.Executor.asExecutionContext",
+    "zio/ZIO#`>>=`()."            -> "zio/ZIO#flatMap().",
+    "zio/stream/ZStream#`>>=`()." -> "zio/stream/ZStream#flatMap()."
   )
-
-  val foreachParN             = ParNRenamer("foreachPar", 3)
-  val collectAllParN          = ParNRenamer("collectAllPar", 2)
-  val collectAllSuccessesParN = ParNRenamer("collectAllSuccessPar", 2)
-  val collectAllWithParN      = ParNRenamer("collectAllWithPar", 3)
-  val reduceAllParN           = ParNRenamer("reduceAllPar", 3)
-  val partitionParN           = ParNRenamer("partitionPar", 3)
-  val mergeAllParN            = ParNRenamer("mergeAllPar", 4)
 
   object BuiltInServiceFixer { // TODO Handle all built-in services?
 
@@ -632,37 +634,25 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
         case BuiltInServiceFixer(patch) => patch
 
-        // Replace >>= with flatMap. For some reason, this doesn't work with the
-        // technique used above.
-        case t @ q"$lhs >>= $rhs" if lhs.symbol.owner.value.startsWith("zio") =>
-          Patch.replaceTree(t, s"$lhs flatMap $rhs")
-        case t @ q"$lhs.>>=($rhs)" if lhs.symbol.owner.value.startsWith("zio") =>
-          Patch.replaceTree(t, s"$lhs.flatMap($rhs)")
-
-        case t @ q"$lhs.collectAllParN($n)($as)" =>
-          Patch.replaceTree(t, s"$lhs.collectAllPar($as).withParallelism($n)")
-
-        case t @ q"$lhs.collectAllParN_($n)($as)" =>
-          Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
-        case t @ q"$lhs.collectAllParNDiscard($n)($as)" =>
-          Patch.replaceTree(t, s"$lhs.collectAllParDiscard($as).withParallelism($n)")
-
-        case foreachParN.Matcher(patch)             => patch
-        case collectAllParN.Matcher(patch)          => patch
-        case collectAllSuccessesParN.Matcher(patch) => patch
-        case collectAllWithParN.Matcher(patch)      => patch
-        case partitionParN.Matcher(patch)           => patch
-        case reduceAllParN.Matcher(patch)           => patch
-        case mergeAllParN.Matcher(patch)            => patch
-
         case t @ q"import zio.blocking._" =>
           Patch.removeTokens(t.tokens)
 
         case t @ q"import zio.blocking.Blocking" =>
           Patch.removeTokens(t.tokens)
 
-        case t @ Blocking_Old_Exact(Name(_)) =>
-          Patch.replaceTree(unwindSelect(t), s"Any")
+        case q"${name @ CompanianAliases(Name(_))}.$_" =>
+          Patch.replaceTree(name, s"ZIO")
+
+        case q"${name @ q"IO"}.$_" =>
+          Patch.replaceTree(name, s"ZIO")
+
+        case q"${name @ UIOAlias(Name(_))}($_)"  => Patch.replaceTree(name, s"ZIO.succeed")
+        case q"${name @ URIOAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.succeed")
+
+        case q"${name @ TaskAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.attempt")
+        case q"${name @ RIOAlias(Name(_))}($_)"  => Patch.replaceTree(name, s"ZIO.attempt")
+
+        case q"${name @ ZIOAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.attempt")
 
         case t @ FiberId_Old_Exact(Name(_)) =>
           Patch.replaceTree(unwindSelect(t), "FiberId") +
@@ -774,35 +764,4 @@ private object ImporteeNameOrRename {
       case Importee.Rename(x, _) => Some(x)
       case _                     => None
     }
-}
-
-final case class ParNRenamer(methodName: String, paramCount: Int) {
-  object Matcher {
-    def unapply(tree: Tree)(implicit sdoc: SemanticDocument): Option[Patch] =
-      tree match {
-        case t @ q"$lhs.$method(...$params)"
-            if method.value.startsWith(methodName + "N") && paramCount == params.length =>
-          val generatedName =
-            if (method.value.endsWith("_") || method.value.endsWith("Discard"))
-              s"${methodName}Discard"
-            else methodName
-          val n          = params.head.head
-          val paramLists = params.drop(1).map(_.mkString("(", ", ", ")")).mkString("")
-          Some(Patch.replaceTree(t, s"$lhs.$generatedName$paramLists.withParallelism($n)"))
-
-        case t @ q"$lhs.$method[..$types](...$params)"
-            if method.value.startsWith(methodName + "N") && paramCount == params.length =>
-          val generatedName =
-            if (method.value.endsWith("_") || method.value.endsWith("Discard"))
-              s"${methodName}Discard"
-            else methodName
-          val n          = params.head.head
-          val paramLists = params.drop(1).map(_.mkString("(", ", ", ")")).mkString("")
-          Some(Patch.replaceTree(t, s"$lhs.$generatedName[${types.mkString(", ")}]$paramLists.withParallelism($n)"))
-
-        case _ =>
-          None
-      }
-    //        normalizedRenames.flatMap(_.unapply(tree)).headOption
-  }
 }
