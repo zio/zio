@@ -3,15 +3,15 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import zio.ZTraceElement
+import zio.Trace
 
 import scala.util.control.NonFatal
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
-  lazy val result: Trace[Boolean] = TestArrow.run(arrow, Right(()))
+  lazy val result: TestTrace[Boolean] = TestArrow.run(arrow, Right(()))
 
-  lazy val failures: Option[Trace[Boolean]] = Trace.prune(result, false)
+  lazy val failures: Option[TestTrace[Boolean]] = TestTrace.prune(result, false)
 
   def isFailure: Boolean = failures.isDefined
 
@@ -99,9 +99,9 @@ sealed trait TestArrow[-A, +B] { self =>
   def withCompleteCode(completeCode: String): TestArrow[A, B] =
     meta(completeCode = Some(completeCode))
 
-  def withLocation(implicit trace: ZTraceElement): TestArrow[A, B] =
+  def withLocation(implicit trace: Trace): TestArrow[A, B] =
     trace match {
-      case ZTraceElement(_, file, line) =>
+      case Trace(_, file, line) =>
         meta(location = Some(s"$file:$line"))
       case _ => self
     }
@@ -124,22 +124,22 @@ sealed trait TestArrow[-A, +B] { self =>
 
 object TestArrow {
 
-  def succeed[A](value: => A): TestArrow[Any, A] = TestArrowF(_ => Trace.succeed(value))
+  def succeed[A](value: => A): TestArrow[Any, A] = TestArrowF(_ => TestTrace.succeed(value))
 
-  def fromFunction[A, B](f: A => B): TestArrow[A, B] = make(f andThen Trace.succeed)
+  def fromFunction[A, B](f: A => B): TestArrow[A, B] = make(f andThen TestTrace.succeed)
 
   def suspend[A, B](f: A => TestArrow[Any, B]): TestArrow[A, B] = TestArrow.Suspend(f)
 
-  def make[A, B](f: A => Trace[B]): TestArrow[A, B] =
-    makeEither(e => Trace.die(e).annotate(Trace.Annotation.Rethrow), f)
+  def make[A, B](f: A => TestTrace[B]): TestArrow[A, B] =
+    makeEither(e => TestTrace.die(e).annotate(TestTrace.Annotation.Rethrow), f)
 
-  def makeEither[A, B](onFail: Throwable => Trace[B], onSucceed: A => Trace[B]): TestArrow[A, B] =
+  def makeEither[A, B](onFail: Throwable => TestTrace[B], onSucceed: A => TestTrace[B]): TestArrow[A, B] =
     TestArrowF {
       case Left(error)  => onFail(error)
       case Right(value) => onSucceed(value)
     }
 
-  private def attempt[A](expr: => Trace[A]): Trace[A] =
+  private def attempt[A](expr: => TestTrace[A]): TestTrace[A] =
     try {
       expr
     } catch {
@@ -153,10 +153,10 @@ object TestArrow {
           met
         }
         exception.setStackTrace(newTrace)
-        Trace.die(exception)
+        TestTrace.die(exception)
     }
 
-  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): Trace[B] = attempt {
+  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] = attempt {
     arrow match {
       case TestArrowF(f) =>
         f(in)
@@ -164,7 +164,7 @@ object TestArrow {
       case AndThen(f, g) =>
         val t1 = run(f, in)
         t1.result match {
-          case Result.Fail           => t1.asInstanceOf[Trace[B]]
+          case Result.Fail           => t1.asInstanceOf[TestTrace[B]]
           case Result.Die(err)       => t1 >>> run(g, Left(err))
           case Result.Succeed(value) => t1 >>> run(g, Right(value))
         }
@@ -181,7 +181,7 @@ object TestArrow {
       case Suspend(f) =>
         in match {
           case Left(exception) =>
-            Trace.die(exception)
+            TestTrace.die(exception)
           case Right(value) =>
             run(f(value), in)
         }
@@ -213,7 +213,7 @@ object TestArrow {
     customLabel: Option[String],
     genFailureDetails: Option[GenFailureDetails]
   ) extends TestArrow[A, B]
-  case class TestArrowF[-A, +B](f: Either[Throwable, A] => Trace[B])           extends TestArrow[A, B]
+  case class TestArrowF[-A, +B](f: Either[Throwable, A] => TestTrace[B])       extends TestArrow[A, B]
   case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]
   case class And[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean]) extends TestArrow[A, Boolean]
   case class Or[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean])  extends TestArrow[A, Boolean]

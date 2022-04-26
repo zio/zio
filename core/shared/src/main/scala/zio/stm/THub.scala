@@ -71,7 +71,7 @@ abstract class THub[A] extends TEnqueue[A] {
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  final def subscribeScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, TDequeue[A]] =
+  final def subscribeScoped(implicit trace: Trace): ZIO[Scope, Nothing, TDequeue[A]] =
     ZIO.acquireRelease(subscribe.commit)(_.shutdown.commit)
 }
 

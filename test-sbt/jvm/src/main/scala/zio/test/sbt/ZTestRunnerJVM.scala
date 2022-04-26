@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{Scope, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Scope, ZIO, ZIOAppArgs, ZLayer, Trace}
 import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer}
 
 import java.util.concurrent.atomic.AtomicReference
@@ -28,7 +28,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     extends Runner {
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
-  def sendSummary(implicit trace: ZTraceElement): SendSummary = SendSummary.fromSendZIO(summary =>
+  def sendSummary(implicit trace: Trace): SendSummary = SendSummary.fromSendZIO(summary =>
     ZIO.succeed {
       summaries.updateAndGet(_ :+ summary)
       ()
@@ -59,11 +59,11 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    tasksZ(defs)(ZTraceElement.empty).toArray
+    tasksZ(defs)(Trace.empty).toArray
 
   private[sbt] def tasksZ(
     defs: Array[TaskDef]
-  )(implicit trace: ZTraceElement): Array[ZTestTask[ExecutionEventSink]] = {
+  )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
     val testArgs = TestArgs.parse(args)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))

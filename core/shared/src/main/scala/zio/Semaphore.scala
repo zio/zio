@@ -31,20 +31,20 @@ sealed trait Semaphore extends Serializable {
   /**
    * Returns the number of available permits.
    */
-  def available(implicit trace: ZTraceElement): UIO[Long]
+  def available(implicit trace: Trace): UIO[Long]
 
   /**
    * Executes the specified workflow, acquiring a permit immediately before the
    * workflow begins execution and releasing it immediately after the workflow
    * completes execution, whether by success, failure, or interruption.
    */
-  def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
+  def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
    * Returns a scoped workflow that describes acquiring a permit as the
    * `acquire` action and releasing it as the `release` action.
    */
-  def withPermitScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit]
+  def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 
   /**
    * Executes the specified workflow, acquiring the specified number of permits
@@ -52,13 +52,13 @@ sealed trait Semaphore extends Serializable {
    * immediately after the workflow completes execution, whether by success,
    * failure, or interruption.
    */
-  def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
+  def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
    * Returns a scoped workflow that describes acquiring the specified number of
    * permits and releasing them when the scope is closed.
    */
-  def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit]
+  def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 }
 
 object Semaphore {
@@ -66,19 +66,19 @@ object Semaphore {
   /**
    * Creates a new `Semaphore` with the specified number of permits.
    */
-  def make(permits: => Long)(implicit trace: ZTraceElement): UIO[Semaphore] =
+  def make(permits: => Long)(implicit trace: Trace): UIO[Semaphore] =
     for {
       semaphore <- TSemaphore.makeCommit(permits)
     } yield new Semaphore {
-      def available(implicit trace: ZTraceElement): UIO[Long] =
+      def available(implicit trace: Trace): UIO[Long] =
         semaphore.available.commit
-      def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         semaphore.withPermit(zio)
-      def withPermitScoped(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+      def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
         semaphore.withPermitScoped
-      def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         semaphore.withPermits(n)(zio)
-      def withPermitsScoped(n: Long)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+      def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
         semaphore.withPermitsScoped(n)
     }
 }

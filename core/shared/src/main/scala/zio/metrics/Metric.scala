@@ -55,7 +55,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
   /**
    * Applies the metric computation to the result of the specified effect.
    */
-  final def apply[R, E, A1 <: In](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+  final def apply[R, E, A1 <: In](zio: ZIO[R, E, A1])(implicit trace: Trace): ZIO[R, E, A1] =
     zio.tap(update(_))
 
   /**
@@ -164,7 +164,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    */
   final def trackAll(in: => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.map { a =>
           unsafeUpdate(in)
 
@@ -188,7 +188,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
   final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
       val updater: Throwable => Unit = defect => unsafeUpdate(f(defect))
-      def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(updater)))
     }
 
@@ -207,7 +207,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    */
   final def trackDurationWith(f: Duration => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.suspendSucceed {
           val startTime = java.lang.System.nanoTime()
 
@@ -239,7 +239,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new ZIOAspect[Nothing, Any, Nothing, In2, Nothing, Any] {
       val updater: In2 => UIO[Unit] = error => update(f(error))
 
-      def apply[R, E <: In2, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      def apply[R, E <: In2, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.tapError(updater)
     }
 
@@ -257,7 +257,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    */
   final def trackSuccessWith[In2](f: In2 => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, In2] {
-      def apply[R, E, A1 <: In2](zio: ZIO[R, E, A1])(implicit trace: ZTraceElement): ZIO[R, E, A1] =
+      def apply[R, E, A1 <: In2](zio: ZIO[R, E, A1])(implicit trace: Trace): ZIO[R, E, A1] =
         zio.tap(in2 => update(f(in2)))
     }
 
@@ -266,13 +266,13 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * metric were a counter, the update would increment the method by the
    * provided amount.
    */
-  final def update(in: => In)(implicit trace: ZTraceElement): UIO[Unit] =
+  final def update(in: => In)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed(unsafeUpdate(in, Set.empty))
 
   /**
    * Retrieves a snapshot of the value of the metric at this moment in time.
    */
-  final def value(implicit trace: ZTraceElement): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
+  final def value(implicit trace: Trace): UIO[Out] = ZIO.succeed(unsafeValue(Set.empty))
 
   final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): Metric[Type, In2, Out] =
     contramap[In2](in2 => ev((in2, java.time.Instant.now())))

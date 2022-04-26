@@ -3688,7 +3688,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               .runDrain
               .sandbox
               .either
-          )(equalTo(Left(Cause.Die(throwable, ZTrace.none))))
+          )(equalTo(Left(Cause.Die(throwable, StackTrace.none))))
         },
         suite("timeoutTo")(
           test("succeed") {

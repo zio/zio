@@ -29,7 +29,7 @@ trait AssertionVariants {
             case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
             case (left, right)                     => left == right
           }
-          Trace.boolean(result) {
+          TestTrace.boolean(result) {
             M.pretty(actual) + M.equals + M.pretty(expected)
           }
         }

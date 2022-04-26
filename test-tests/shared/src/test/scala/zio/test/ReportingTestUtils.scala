@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.render.TestRenderer
-import zio.{Cause, Console, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{Cause, Console, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, Trace}
 
 import scala.{Console => SConsole}
 
@@ -45,7 +45,7 @@ object ReportingTestUtils {
   // TODO de-dup layers?
   def runLog(
     spec: Spec[TestEnvironment, String]
-  )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
+  )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       console <- ZIO.console
       _       <- TestTestRunner(testEnvironment, console).run(spec)
@@ -61,7 +61,7 @@ object ReportingTestUtils {
     } yield summary.summary
 
   private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment], console: Console)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
@@ -73,16 +73,16 @@ object ReportingTestUtils {
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
 
-  def test1(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))
-  val test1Expected: String                                    = expectedSuccess("Addition works fine")
+  def test1(implicit trace: Trace): Spec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))
+  val test1Expected: String                            = expectedSuccess("Addition works fine")
 
-  def test2(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def test2(implicit trace: Trace): Spec[Any, Nothing] =
     test("Subtraction works fine")(assert(1 - 1)(equalTo(0)))
   val test2Expected: String = expectedSuccess("Subtraction works fine")
 
-  def test3(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def test3(implicit trace: Trace): Spec[Any, Nothing] =
     test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
-  def test3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test3Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedFailure("Value falls within range"),
     s"52 did not satisfy equalTo(42)",
     s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
@@ -92,29 +92,29 @@ object ReportingTestUtils {
     assertSourceLocation()
   )
 
-  def test4(implicit trace: ZTraceElement): Spec[Any, String] =
+  def test4(implicit trace: Trace): Spec[Any, String] =
     Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Test 4 Fail")), TestAnnotationMap.empty))
 
-  def test5(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(3)))
+  def test5(implicit trace: Trace): Spec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(3)))
   // the captured expression for `1+1` is different between dotty and 2.x
   def expressionIfNotRedundant(expr: String, value: Any): String =
     Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
-  def test5Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test5Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedFailure("Addition works fine"),
     "2 was not equal to 3",
     assertSourceLocation()
   )
 
-  def test6(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def test6(implicit trace: Trace): Spec[Any, Nothing] =
     test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
-  def test6Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test6Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedFailure("Multiple nested failures"),
     "3 was not greater than 4",
     s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}",
     assertSourceLocation()
   )
 
-  def test7(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("labeled failures") {
+  def test7(implicit trace: Trace): Spec[Any, Nothing] = test("labeled failures") {
     for {
       a <- ZIO.succeed(Some(1))
       b <- ZIO.succeed(Some(1))
@@ -125,59 +125,59 @@ object ReportingTestUtils {
       assert(c)(isSome(equalTo(1)).label("third")) &&
       assert(d)(isSome(equalTo(1)).label("fourth"))
   }
-  def test7Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test7Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedFailure("labeled failures"),
     s"0 was not equal to 1",
     s"""${blue("c")} did not satisfy isSome(equalTo(1)).label("third")""",
     assertSourceLocation()
   )
 
-  def test8(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("Not combinator") {
+  def test8(implicit trace: Trace): Spec[Any, Nothing] = test("Not combinator") {
     assert(100)(not(equalTo(100)))
   }
-  def test8Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def test8Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedFailure("Not combinator"),
     "100 was equal to 100",
     s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}",
     assertSourceLocation()
   )
 
-  def test9(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("labeled failures") {
+  def test9(implicit trace: Trace): Spec[Any, Nothing] = test("labeled failures") {
     assertTrue(1 == 1).label("first") &&
     assertTrue(1 == 1).label("second") &&
     assertTrue(1 == 0).label("third") &&
     assertTrue(1 == 0).label("fourth")
   }
 
-  def suite1(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def suite1(implicit trace: Trace): Spec[Any, Nothing] =
     suite("Suite1")(test1, test2)
-  def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def suite1Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedSuccess("Suite1"),
     test1Expected,
     test2Expected
   )
 
-  def suite2(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def suite2(implicit trace: Trace): Spec[Any, Nothing] =
     suite("Suite2")(test1, test2, test3)
-  def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
+  def suite2Expected(implicit trace: Trace): Vector[String] = Vector(
     expectedSuccess("Suite2"),
     test1Expected,
     test2Expected
   ) ++ test3Expected
 
-  def suite3(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def suite3(implicit trace: Trace): Spec[Any, Nothing] =
     suite("Suite3")(suite1, suite2, test3)
-  def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedSuccess("Suite3")) ++
+  def suite3Expected(implicit trace: Trace): Vector[String] = Vector(expectedSuccess("Suite3")) ++
     suite1Expected ++
     suite2Expected ++
     Vector("\n") ++
     test3Expected
 
-  def suite4(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+  def suite4(implicit trace: Trace): Spec[Any, Nothing] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
-  def suite4Expected(implicit trace: ZTraceElement): Vector[String] = {
+  def suite4Expected(implicit trace: Trace): Vector[String] = {
 
-    def suite1ExpectedLocal(implicit trace: ZTraceElement): Vector[String] = Vector(
+    def suite1ExpectedLocal(implicit trace: Trace): Vector[String] = Vector(
       expectedSuccess("Suite1"),
       test1Expected,
       test2Expected
@@ -189,8 +189,8 @@ object ReportingTestUtils {
       test3Expected
   }
 
-  def assertSourceLocation()(implicit trace: ZTraceElement): String =
-    Option(trace).collect { case ZTraceElement(_, path, line) =>
+  def assertSourceLocation()(implicit trace: Trace): String =
+    Option(trace).collect { case Trace(_, path, line) =>
       cyan(s"at $path:$line")
     }.getOrElse("")
 }

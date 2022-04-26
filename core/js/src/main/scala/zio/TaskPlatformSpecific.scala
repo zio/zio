@@ -25,7 +25,7 @@ private[zio] trait TaskPlatformSpecific { self: Task.type =>
   /**
    * Imports a Scala.js promise into a `Task`.
    */
-  def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: ZTraceElement): Task[A] =
+  def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: Trace): Task[A] =
     self.async { callback =>
       val onFulfilled: Function1[A, Unit | Thenable[Unit]] = new scala.Function1[A, Unit | Thenable[Unit]] {
         def apply(a: A): Unit | Thenable[Unit] = callback(UIO.succeedNow(a))

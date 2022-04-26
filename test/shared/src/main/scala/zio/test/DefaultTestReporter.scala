@@ -32,7 +32,7 @@ import scala.annotation.tailrec
 // TODO Needs to be re-written or simply dropped for new streaming behavior. #6484
 object DefaultTestReporter {
   def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): TestReporter[E] = { (duration: Duration, executedSpec: ExecutionEvent) =>
     // val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
     // val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
@@ -44,7 +44,7 @@ object DefaultTestReporter {
   def render(
     reporterEvent: ExecutionEvent,
     includeCause: Boolean
-  )(implicit trace: ZTraceElement): Seq[ExecutionResult] = // This should return a single/Option ExecutionResult now.
+  )(implicit trace: Trace): Seq[ExecutionResult] = // This should return a single/Option ExecutionResult now.
     reporterEvent match {
       case SectionStart(labelsReversed, _, _) =>
         val depth = labelsReversed.length - 1
@@ -108,7 +108,7 @@ object DefaultTestReporter {
     includeCause: Boolean,
     suiteId: SuiteId
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): (List[Line], List[Line]) = {
     val depth     = labels.length
     val label     = labels.last
@@ -185,7 +185,7 @@ object DefaultTestReporter {
   }
 
   private def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ExecutionResult = {
     val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel   = labels.mkString(" - ")
@@ -210,7 +210,7 @@ object DefaultTestReporter {
     )
   }
 
-  def renderAssertionResult(assertionResult: Trace[Boolean], offset: Int): Message = {
+  def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message = {
     val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
     failures
       .map(fc =>
@@ -247,7 +247,7 @@ object DefaultTestReporter {
         result.map(_.withOffset(offset + 1))
     }
 
-  def renderCause(cause: Cause[Any], offset: Int)(implicit trace: ZTraceElement): Message = {
+  def renderCause(cause: Cause[Any], offset: Int)(implicit trace: Trace): Message = {
     val defects = cause.defects
     val timeouts = defects.collect { case TestTimeoutException(message) =>
       Message(message)
@@ -271,7 +271,7 @@ object DefaultTestReporter {
     }
   }
 
-  private def renderFailure(label: String, offset: Int, details: Trace[Boolean]): Message =
+  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean]): Message =
     renderFailureLabel(label, offset) +: renderAssertionResult(details, offset) :+ Line.empty
 
   def renderFailureLabel(label: String, offset: Int): Line =
