@@ -46,14 +46,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * }}}
    */
   final def @@[R0 <: R1, R1 <: R, E0 >: E, E1 >: E0](aspect: TestAspect[R0, R1, E0, E1])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Spec[R1, E0] =
     aspect(self)
 
   /**
    * Annotates each test in this spec with the specified test annotation.
    */
-  final def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): Spec[R, E] =
+  final def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): Spec[R, E] =
     transform[R, E] {
       case TestCase(test, annotations) => Spec.TestCase(test, annotations.annotate(key, value))
       case c                           => c
@@ -62,7 +62,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated(implicit trace: ZTraceElement): Spec[R with Annotations, E] =
+  final def annotated(implicit trace: Trace): Spec[R with Annotations, E] =
     transform[R with Annotations, E] {
       case ExecCase(exec, spec)     => ExecCase(exec, spec)
       case LabeledCase(label, spec) => LabeledCase(label, spec)
@@ -78,7 +78,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * Returns an effect that models execution of this spec.
    */
   final def execute(defExec: ExecutionStrategy)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R with Scope, Nothing, Spec[Any, E]] =
     ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
 
@@ -89,7 +89,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def filterAnnotations[V](
     key: TestAnnotation[V]
-  )(f: V => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E]] =
+  )(f: V => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     caseValue match {
       case ExecCase(exec, spec) =>
         spec.filterAnnotations(key)(f).map(spec => Spec.exec(exec, spec))
@@ -112,7 +112,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * spec. If no labels satisfy the specified predicate then returns `Some` with
    * an empty suite if this is a suite or `None` otherwise.
    */
-  final def filterLabels(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E]] =
+  final def filterLabels(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     caseValue match {
       case ExecCase(exec, spec) =>
         spec.filterLabels(f).map(spec => Spec.exec(exec, spec))
@@ -134,7 +134,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * returns `Some` with an empty suite with the root label if this is a suite
    * or `None` otherwise.
    */
-  final def filterTags(f: String => Boolean)(implicit trace: ZTraceElement): Option[Spec[R, E]] =
+  final def filterTags(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
 
   /**
@@ -143,7 +143,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def foldScoped[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
-  )(f: SpecCase[R, E, Z] => ZIO[R1 with Scope, E1, Z])(implicit trace: ZTraceElement): ZIO[R1 with Scope, E1, Z] =
+  )(f: SpecCase[R, E, Z] => ZIO[R1 with Scope, E1, Z])(implicit trace: Trace): ZIO[R1 with Scope, E1, Z] =
     caseValue match {
       case ExecCase(exec, spec)     => spec.foldScoped[R1, E1, Z](exec)(f).flatMap(z => f(ExecCase(exec, z)))
       case LabeledCase(label, spec) => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(LabeledCase(label, z)))
@@ -170,7 +170,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
     success: TestSuccess => ZIO[R1, E1, TestSuccess]
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
     foldScoped[R1, Nothing, Spec[R1, E1]](defExec) {
       case ExecCase(exec, spec)     => ZIO.succeedNow(Spec.exec(exec, spec))
@@ -197,7 +197,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   final def foreach[R1 <: R, E1](
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
     success: TestSuccess => ZIO[R1, E1, TestSuccess]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
+  )(implicit trace: Trace): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
 
   /**
@@ -208,7 +208,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   final def foreachPar[R1 <: R, E1](
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
     success: TestSuccess => ZIO[R1, E1, TestSuccess]
-  )(implicit trace: ZTraceElement): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
+  )(implicit trace: Trace): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
 
   /**
@@ -222,14 +222,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
     success: TestSuccess => ZIO[R1, E1, TestSuccess]
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R1 with Scope, Nothing, Spec[R1, E1]] =
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
 
   /**
    * Returns a new spec with remapped errors.
    */
-  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: ZTraceElement): Spec[R, E1] =
+  final def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: Trace): Spec[R, E1] =
     transform[R, E1] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(label, spec)
@@ -241,7 +241,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Returns a new spec with remapped labels.
    */
-  final def mapLabel(f: String => String)(implicit trace: ZTraceElement): Spec[R, E] =
+  final def mapLabel(f: String => String)(implicit trace: Trace): Spec[R, E] =
     transform[R, E] {
       case ExecCase(exec, spec)        => ExecCase(exec, spec)
       case LabeledCase(label, spec)    => LabeledCase(f(label), spec)
@@ -266,7 +266,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   def provideCustomLayer[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: EnvironmentTag[R1],
-    trace: ZTraceElement
+    trace: Trace
   ): Spec[TestEnvironment, E1] =
     provideSomeLayer[TestEnvironment](layer)
 
@@ -286,14 +286,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   def provideCustomLayerShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: EnvironmentTag[R1],
-    trace: ZTraceElement
+    trace: Trace
   ): Spec[TestEnvironment, E1] =
     provideSomeLayerShared(layer)
 
   /**
    * Provides each test in this spec with its required environment
    */
-  final def provideEnvironment(r: ZEnvironment[R])(implicit trace: ZTraceElement): Spec[Any, E] =
+  final def provideEnvironment(r: ZEnvironment[R])(implicit trace: Trace): Spec[Any, E] =
     provideSomeEnvironment(_ => r)
 
   /**
@@ -301,7 +301,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def provideLayer[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
-  )(implicit trace: ZTraceElement): Spec[R0, E1] =
+  )(implicit trace: Trace): Spec[R0, E1] =
     transform[R0, E1] {
       case ExecCase(exec, spec)     => ExecCase(exec, spec)
       case LabeledCase(label, spec) => LabeledCase(label, spec)
@@ -318,7 +318,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def provideLayerShared[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
-  )(implicit trace: ZTraceElement): Spec[R0, E1] =
+  )(implicit trace: Trace): Spec[R0, E1] =
     caseValue match {
       case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideLayerShared(layer))
       case LabeledCase(label, spec) => Spec.labeled(label, spec.provideLayerShared(layer))
@@ -342,7 +342,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def provideSomeEnvironment[R0](
     f: ZEnvironment[R0] => ZEnvironment[R]
-  )(implicit trace: ZTraceElement): Spec[R0, E] =
+  )(implicit trace: Trace): Spec[R0, E] =
     transform[R0, E] {
       case ExecCase(exec, spec)     => ExecCase(exec, spec)
       case LabeledCase(label, spec) => LabeledCase(label, spec)
@@ -390,7 +390,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def transform[R1, E1](
     f: SpecCase[R, E, Spec[R1, E1]] => SpecCase[R1, E1, Spec[R1, E1]]
-  )(implicit trace: ZTraceElement): Spec[R1, E1] =
+  )(implicit trace: Trace): Spec[R1, E1] =
     caseValue match {
       case ExecCase(exec, spec)     => Spec(f(ExecCase(exec, spec.transform(f))))
       case LabeledCase(label, spec) => Spec(f(LabeledCase(label, spec.transform(f))))
@@ -416,7 +416,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def when(
     b: => Boolean
-  )(implicit trace: ZTraceElement): Spec[R with Annotations, E] =
+  )(implicit trace: Trace): Spec[R with Annotations, E] =
     whenZIO(ZIO.succeedNow(b))
 
   /**
@@ -424,7 +424,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def whenZIO[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
-  )(implicit trace: ZTraceElement): Spec[R1 with Annotations, E1] =
+  )(implicit trace: Trace): Spec[R1 with Annotations, E1] =
     caseValue match {
       case ExecCase(exec, spec) =>
         Spec.exec(exec, spec.whenZIO(b))
@@ -452,7 +452,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
 
 object Spec {
   sealed abstract class SpecCase[-R, +E, +A] { self =>
-    final def map[B](f: A => B)(implicit trace: ZTraceElement): SpecCase[R, E, B] = self match {
+    final def map[B](f: A => B)(implicit trace: Trace): SpecCase[R, E, B] = self match {
       case ExecCase(label, spec)       => ExecCase(label, f(spec))
       case LabeledCase(label, spec)    => LabeledCase(label, f(spec))
       case ScopedCase(scoped)          => ScopedCase[R, E, B](scoped.map(f))
@@ -481,7 +481,7 @@ object Spec {
     Spec(MultipleCase(specs))
 
   final def test[R, E](test: ZIO[R, TestFailure[E], TestSuccess], annotations: TestAnnotationMap)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): Spec[R, E] =
     Spec(TestCase(test, annotations))
 
@@ -494,7 +494,7 @@ object Spec {
     )(implicit
       ev: R0 with R1 <:< R,
       tagged: EnvironmentTag[R1],
-      trace: ZTraceElement
+      trace: Trace
     ): Spec[R0, E1] =
       self.asInstanceOf[Spec[R0 with R1, E]].provideLayer(ZLayer.environment[R0] ++ layer)
   }
@@ -505,7 +505,7 @@ object Spec {
     )(implicit
       ev: R0 with R1 <:< R,
       tagged: EnvironmentTag[R1],
-      trace: ZTraceElement
+      trace: Trace
     ): Spec[R0, E1] =
       self.caseValue match {
         case ExecCase(exec, spec)     => Spec.exec(exec, spec.provideSomeLayerShared(layer))
@@ -538,14 +538,14 @@ object Spec {
   final class UpdateService[-R, +E, M](private val self: Spec[R, E]) extends AnyVal {
     def apply[R1 <: R with M](
       f: M => M
-    )(implicit tag: Tag[M], trace: ZTraceElement): Spec[R1, E] =
+    )(implicit tag: Tag[M], trace: Trace): Spec[R1, E] =
       self.provideSomeEnvironment(_.update(f))
   }
 
   final class UpdateServiceAt[-R, +E, Service](private val self: Spec[R, E]) extends AnyVal {
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
-    )(implicit tag: Tag[Map[Key, Service]], trace: ZTraceElement): Spec[R1, E] =
+    )(implicit tag: Tag[Map[Key, Service]], trace: Trace): Spec[R1, E] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 }

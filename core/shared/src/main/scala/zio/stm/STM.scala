@@ -16,7 +16,7 @@
 
 package zio.stm
 
-import zio.{BuildFrom, CanFail, FiberId, IO, NonEmptyChunk, ZTraceElement}
+import zio.{BuildFrom, CanFail, FiberId, IO, NonEmptyChunk, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.util.Try
@@ -34,7 +34,7 @@ object STM {
    * @see
    *   See [[zio.stm.ZSTM.atomically]]
    */
-  def atomically[E, A](stm: STM[E, A])(implicit trace: ZTraceElement): IO[E, A] =
+  def atomically[E, A](stm: STM[E, A])(implicit trace: Trace): IO[E, A] =
     ZSTM.atomically(stm)
 
   /**

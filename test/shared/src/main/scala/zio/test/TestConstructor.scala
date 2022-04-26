@@ -1,12 +1,12 @@
 package zio.test
 
-import zio.{Scope, ZIO, ZTraceElement}
+import zio.{Scope, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 trait TestConstructor[-Environment, In] {
   type Out <: Spec[Environment, Any]
-  def apply(label: String)(assertion: => In)(implicit trace: ZTraceElement): Out
+  def apply(label: String)(assertion: => In)(implicit trace: Trace): Out
 }
 
 object TestConstructor extends TestConstructorLowPriority1 {
@@ -17,7 +17,7 @@ object TestConstructor extends TestConstructorLowPriority1 {
       type Out = Spec[Any, Nothing]
       def apply(label: String)(
         assertion: => A
-      )(implicit trace: ZTraceElement): Spec[Any, Nothing] =
+      )(implicit trace: Trace): Spec[Any, Nothing] =
         test(label)(ZIO.succeed(assertion))
     }
 }
@@ -29,7 +29,7 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
       type Out = Spec[R, E]
       def apply(
         label: String
-      )(assertion: => ZIO[R, E, A])(implicit trace: ZTraceElement): Spec[R, E] =
+      )(assertion: => ZIO[R, E, A])(implicit trace: Trace): Spec[R, E] =
         Spec.labeled(
           label,
           Spec
@@ -46,7 +46,7 @@ trait TestConstructorLowPriority2 {
       type Out = Spec[R, E]
       def apply(label: String)(
         assertion: => ZSTM[R, E, A]
-      )(implicit trace: ZTraceElement): Spec[R, E] =
+      )(implicit trace: Trace): Spec[R, E] =
         test(label)(assertion.commit)
     }
 }

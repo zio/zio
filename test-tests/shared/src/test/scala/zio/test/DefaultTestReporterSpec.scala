@@ -6,11 +6,11 @@ import zio.test.TestAspect._
 import zio.test.render.ExecutionResult
 import zio.test.render.ExecutionResult.ResultType.Test
 import zio.test.render.ExecutionResult.Status.Failed
-import zio.{ZIO, ZTrace, ZTraceElement}
+import zio.{StackTrace, Trace, ZIO}
 
 object DefaultTestReporterSpec extends ZIOBaseSpec {
 
-  def containsUnstyled(string: String, substring: String)(implicit trace: ZTraceElement): TestResult =
+  def containsUnstyled(string: String, substring: String)(implicit trace: Trace): TestResult =
     assertTrue(string.unstyled.contains(substring.unstyled))
 
   def spec =
@@ -66,7 +66,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
                             SuiteId(1),
                             labelsReversed = List(expectedLabel),
                             failure = TestFailure.failCause(
-                              zio.Cause.Die(new RuntimeException(expectedExceptionMessage), ZTrace.none)
+                              zio.Cause.Die(new RuntimeException(expectedExceptionMessage), StackTrace.none)
                             ),
                             ancestors = List.empty
                           ),

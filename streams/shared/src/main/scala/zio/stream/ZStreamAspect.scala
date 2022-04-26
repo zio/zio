@@ -1,13 +1,13 @@
 package zio.stream
 
-import zio.ZTraceElement
+import zio.Trace
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
 
   def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, A >: LowerA <: UpperA](
     stream: ZStream[R, E, A]
-  )(implicit trace: ZTraceElement): ZStream[R, E, A]
+  )(implicit trace: Trace): ZStream[R, E, A]
 
   def >>>[
     LowerR1 >: LowerR,
@@ -50,7 +50,7 @@ trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self
     new ZStreamAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerA1, UpperA1] {
       def apply[R >: LowerR1 <: UpperR1, E >: LowerE1 <: UpperE1, A >: LowerA1 <: UpperA1](
         stream: ZStream[R, E, A]
-      )(implicit trace: ZTraceElement): ZStream[R, E, A] =
+      )(implicit trace: Trace): ZStream[R, E, A] =
         that(self(stream))
     }
 }
@@ -62,7 +62,7 @@ object ZStreamAspect {
    */
   def rechunk(n: Int): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+      def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
         stream.rechunk(n)
     }
 }

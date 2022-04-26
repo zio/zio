@@ -25,7 +25,7 @@ object RuntimeSpec extends ZIOBaseSpec {
     } yield a
 
   def traceOf(exit: Exit[Any, Any]): Chunk[String] =
-    exit.fold[ZTrace](_.trace, _ => ZTrace.none).stackTrace.map(_.toString)
+    exit.fold[StackTrace](_.trace, _ => StackTrace.none).stackTrace.map(_.toString)
 
   def fastPath[E, A](zio: ZIO[Any, E, A]): Exit[E, A] =
     r.unsafeRunSyncFast(zio)

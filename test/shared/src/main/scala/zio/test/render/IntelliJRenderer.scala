@@ -1,6 +1,6 @@
 package zio.test.render
 
-import zio.ZTraceElement
+import zio.Trace
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -82,7 +82,7 @@ object IntelliJRenderer extends IntelliJRenderer {
 
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>
-      child.headOption.collect { case ZTraceElement(_, file, line) =>
+      child.headOption.collect { case Trace(_, file, line) =>
         s"file://$file:$line"
       }
     }

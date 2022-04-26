@@ -23,10 +23,10 @@ import scala.quoted._
 import scala.reflect.ClassTag
 
 object SmartAssertMacros {
-  def smartAssertSingle(expr: Expr[Boolean], trace: Expr[ZTraceElement])(using ctx: Quotes): Expr[TestResult] =
+  def smartAssertSingle(expr: Expr[Boolean], trace: Expr[Trace])(using ctx: Quotes): Expr[TestResult] =
     new SmartAssertMacros(ctx).smartAssertSingle_impl(expr, trace)
 
-  def smartAssert(exprs: Expr[Seq[Boolean]], trace: Expr[ZTraceElement])(using ctx: Quotes): Expr[TestResult] =
+  def smartAssert(exprs: Expr[Seq[Boolean]], trace: Expr[Trace])(using ctx: Quotes): Expr[TestResult] =
     new SmartAssertMacros(ctx).smartAssert_impl(exprs, trace)
 }
 
@@ -199,7 +199,7 @@ class SmartAssertMacros(ctx: Quotes)  {
        '{TestArrow.succeed($expr).span($span)}
     }
 
-  def smartAssertSingle_impl(value: Expr[Boolean],trace: Expr[ZTraceElement]): Expr[TestResult] = {
+  def smartAssertSingle_impl(value: Expr[Boolean],trace: Expr[Trace]): Expr[TestResult] = {
     val code = Macros.showExpr(value)
 
     implicit val ptx = PositionContext(value.asTerm)
@@ -210,7 +210,7 @@ class SmartAssertMacros(ctx: Quotes)  {
     '{TestResult($arrow.withCode(${Expr(code)}).withLocation($trace))}
   }
 
-  def smartAssert_impl(values: Expr[Seq[Boolean]], trace: Expr[ZTraceElement]): Expr[TestResult] = {
+  def smartAssert_impl(values: Expr[Seq[Boolean]], trace: Expr[Trace]): Expr[TestResult] = {
     import quotes.reflect._
 
     values match {
@@ -238,7 +238,7 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertZIOProxy($effect, $code, $assertionCode)($assertion)}
   }
 
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]], trace: Expr[ZTraceElement])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]], trace: Expr[Trace])(using ctx: Quotes, tp: Type[A]): Expr[TestResult] = {
     import quotes.reflect._
     val code = showExpr(value)
     val assertionCode = showExpr(assertion)

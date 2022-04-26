@@ -33,19 +33,19 @@ trait ScopedRef[A] {
    * changed to the new value, with old resources released, or until the attempt
    * to acquire a new value fails.
    */
-  def set[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit]
+  def set[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: Trace): ZIO[R, E, Unit]
 
   /**
    * The same as [[ScopedRef#set]], but performs the set asynchronously,
    * ignoring failures.
    */
-  def setAsync[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: ZTraceElement): ZIO[R, Nothing, Unit] =
+  def setAsync[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: Trace): ZIO[R, Nothing, Unit] =
     set[R, E](acquire).forkDaemon.unit
 
   /**
    * Retrieves the current value of the reference.
    */
-  def get(implicit trace: ZTraceElement): UIO[A]
+  def get(implicit trace: Trace): UIO[A]
 }
 object ScopedRef {
 
@@ -59,7 +59,7 @@ object ScopedRef {
    * Creates a new [[ScopedRef]] from an effect that resourcefully produces a
    * value.
    */
-  def fromAcquire[R, E, A](acquire: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Scope, E, ScopedRef[A]] =
+  def fromAcquire[R, E, A](acquire: ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, ScopedRef[A]] =
     ZIO.uninterruptibleMask { restore =>
       for {
         newScope <- Scope.make
@@ -73,14 +73,14 @@ object ScopedRef {
     }
 
   private case class Synch[A](ref: Ref.Synchronized[(Scope.Closeable, A)]) extends ScopedRef[A] {
-    final def close(implicit trace: ZTraceElement): UIO[Any] =
+    final def close(implicit trace: Trace): UIO[Any] =
       ref.get.flatMap { case (scope, _) =>
         scope.close(Exit.unit)
       }
 
-    final def get(implicit trace: ZTraceElement): UIO[A] = ref.get.map(_._2)
+    final def get(implicit trace: Trace): UIO[A] = ref.get.map(_._2)
 
-    final def set[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: ZTraceElement): ZIO[R, E, Unit] =
+    final def set[R, E](acquire: ZIO[R with Scope, E, A])(implicit trace: Trace): ZIO[R, E, Unit] =
       ref.modifyZIO { case (oldScope, a) =>
         ZIO.uninterruptibleMask { restore =>
           for {

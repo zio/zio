@@ -32,12 +32,12 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     Chunk(TestAspect.fibers)
 
   def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): TestReporter[Any] =
     DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
-    implicit val trace = ZTraceElement.empty
+    implicit val trace = Trace.empty
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer.environment[ZIOAppArgs with Scope] +!+
@@ -45,7 +45,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     )
   }
 
-  final def <>(that: ZIOSpecAbstract)(implicit trace: ZTraceElement): ZIOSpecAbstract =
+  final def <>(that: ZIOSpecAbstract)(implicit trace: Trace): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
 
@@ -66,7 +66,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         Chunk.empty
     }
 
-  protected final def runSpec(implicit trace: ZTraceElement): ZIO[
+  protected final def runSpec(implicit trace: Trace): ZIO[
     Environment with TestEnvironment with ZIOAppArgs with Scope,
     Throwable,
     Summary
@@ -82,7 +82,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
            )
     } yield summary
 
-  private def createTestReporter(rendererName: String)(implicit trace: ZTraceElement): TestReporter[Any] = {
+  private def createTestReporter(rendererName: String)(implicit trace: Trace): TestReporter[Any] = {
     val renderer = rendererName match {
       case "intellij" => IntelliJRenderer
       case _          => TestRenderer.default
@@ -99,7 +99,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     testArgs: TestArgs,
     console: Console
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): URIO[
     TestEnvironment with ZIOAppArgs with Scope,
     Summary
@@ -146,7 +146,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     runtime: Runtime[_],
     eventHandlerZ: ZTestEventHandler
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): URIO[
     TestEnvironment with ZIOAppArgs with Scope,
     Summary

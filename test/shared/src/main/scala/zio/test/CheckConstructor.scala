@@ -1,13 +1,13 @@
 package zio.test
 
-import zio.{Scope, ZIO, ZTraceElement}
+import zio.{Scope, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 trait CheckConstructor[Environment, In] {
   type OutEnvironment <: Environment
   type OutError
-  def apply(input: => In)(implicit trace: ZTraceElement): ZIO[OutEnvironment, OutError, TestResult]
+  def apply(input: => In)(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult]
 }
 
 object CheckConstructor extends CheckConstructorLowPriority1 {
@@ -22,7 +22,7 @@ object CheckConstructor extends CheckConstructorLowPriority1 {
     new CheckConstructor[R, A] {
       type OutEnvironment = R
       type OutError       = Nothing
-      def apply(input: => A)(implicit trace: ZTraceElement): ZIO[OutEnvironment, OutError, TestResult] =
+      def apply(input: => A)(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
         ZIO.succeedNow(input)
     }
 }
@@ -34,7 +34,7 @@ trait CheckConstructorLowPriority1 extends CheckConstructorLowPriority2 {
     new CheckConstructor[R, ZIO[R1, E, A]] {
       type OutEnvironment = R with R1
       type OutError       = E
-      def apply(input: => ZIO[R1, E, A])(implicit trace: ZTraceElement): ZIO[OutEnvironment, OutError, TestResult] =
+      def apply(input: => ZIO[R1, E, A])(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
         input
     }
 }
@@ -46,7 +46,7 @@ trait CheckConstructorLowPriority2 {
     new CheckConstructor[R, ZSTM[R1, E, A]] {
       type OutEnvironment = R with R1
       type OutError       = E
-      def apply(input: => ZSTM[R1, E, A])(implicit trace: ZTraceElement): ZIO[OutEnvironment, OutError, TestResult] =
+      def apply(input: => ZSTM[R1, E, A])(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
         input.commit
     }
 }

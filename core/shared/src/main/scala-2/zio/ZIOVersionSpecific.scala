@@ -47,7 +47,7 @@ final class ProvideSomeLayerPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E,
 
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  )(implicit trace: ZTraceElement): ZIO[R0, E1, A] =
+  )(implicit trace: Trace): ZIO[R0, E1, A] =
     self.provideLayer(layer)
 
   def provideSomeLayer[R0]: ZIO.ProvideSomeLayer[R0, R, E, A] =

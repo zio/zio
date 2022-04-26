@@ -36,7 +36,7 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
   private[this] val state       = new AtomicInteger(poolSize << 16)
   private[this] val workers     = Array.ofDim[ZScheduler.Worker](poolSize)
 
-  @volatile private[this] var blockingLocations: Set[ZTraceElement] = Set.empty
+  @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
@@ -219,7 +219,7 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
                 if (currentRunnable.isInstanceOf[FiberRunnable]) {
                   val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
                   val location      = fiberRunnable.location
-                  if (location ne ZTraceElement.empty) {
+                  if (location ne Trace.empty) {
                     blockingLocations += location
                   }
                 }

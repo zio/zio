@@ -77,38 +77,38 @@ object FailureCase {
     }
 
   @tailrec
-  def rightmostNode(trace: Trace[Boolean]): Trace.Node[Boolean] = trace match {
-    case node: Trace.Node[Boolean] => node
-    case Trace.AndThen(_, right)   => rightmostNode(right)
-    case Trace.And(_, right)       => rightmostNode(right)
-    case Trace.Or(_, right)        => rightmostNode(right)
-    case Trace.Not(trace)          => rightmostNode(trace)
+  def rightmostNode(trace: TestTrace[Boolean]): TestTrace.Node[Boolean] = trace match {
+    case node: TestTrace.Node[Boolean] => node
+    case TestTrace.AndThen(_, right)   => rightmostNode(right)
+    case TestTrace.And(_, right)       => rightmostNode(right)
+    case TestTrace.Or(_, right)        => rightmostNode(right)
+    case TestTrace.Not(trace)          => rightmostNode(trace)
   }
 
-  def getPath(trace: Trace[_]): Chunk[(String, String)] =
+  def getPath(trace: TestTrace[_]): Chunk[(String, String)] =
     trace match {
-      case node: Trace.Node[_] =>
+      case node: TestTrace.Node[_] =>
         Chunk(node.code -> PrettyPrint(node.renderResult))
-      case Trace.AndThen(left, right) =>
+      case TestTrace.AndThen(left, right) =>
         getPath(left) ++ getPath(right)
       case _ => Chunk.empty
     }
 
-  def fromTrace(trace: Trace[Boolean], path: Chunk[(String, String)]): Chunk[FailureCase] =
+  def fromTrace(trace: TestTrace[Boolean], path: Chunk[(String, String)]): Chunk[FailureCase] =
     trace match {
-      case node: Trace.Node[Boolean] =>
+      case node: TestTrace.Node[Boolean] =>
         Chunk(fromNode(node, path.reverse))
-      case Trace.AndThen(left, right) =>
+      case TestTrace.AndThen(left, right) =>
         fromTrace(right, path ++ getPath(left))
-      case Trace.And(left, right) =>
+      case TestTrace.And(left, right) =>
         fromTrace(left, path) ++ fromTrace(right, path)
-      case Trace.Or(left, right) =>
+      case TestTrace.Or(left, right) =>
         fromTrace(left, path) ++ fromTrace(right, path)
-      case Trace.Not(trace) =>
+      case TestTrace.Not(trace) =>
         fromTrace(trace, path)
     }
 
-  private def fromNode(node: Trace.Node[Boolean], path: Chunk[(String, String)]): FailureCase = {
+  private def fromNode(node: TestTrace.Node[Boolean], path: Chunk[(String, String)]): FailureCase = {
     val color = node.result match {
       case Result.Die(_) => red _
       case _             => yellow _

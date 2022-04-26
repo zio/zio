@@ -2,7 +2,7 @@ package zio.test
 
 import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Cause, Exit, ZIO, ZTraceElement}
+import zio.{Cause, Exit, ZIO, Trace}
 import zio.test.{ErrorMessage => M, _}
 import zio.test.internal.SmartAssertions
 
@@ -25,7 +25,7 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
   def negate: Assertion[A] =
     Assertion(!arrow)
 
-  def test(value: A)(implicit trace: ZTraceElement): Boolean =
+  def test(value: A)(implicit trace: Trace): Boolean =
     TestArrow.run(arrow.withLocation, Right(value)).isSuccess
 
   // TODO: IMPLEMENT LABELING
@@ -35,7 +35,7 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
   def ??(message: String): Assertion[A] =
     self.label(message)
 
-  def run(value: => A)(implicit trace: ZTraceElement): TestResult =
+  def run(value: => A)(implicit trace: Trace): TestResult =
     Assertion.smartAssert(value)(self)
 
   private[test] def withCode(code: String): Assertion[A] =
@@ -47,7 +47,7 @@ object Assertion extends AssertionVariants {
 
   def smartAssert[A](expr: => A, codeString: Option[String] = None, assertionString: Option[String] = None)(
     assertion: Assertion[A]
-  )(implicit trace: ZTraceElement): TestResult = {
+  )(implicit trace: Trace): TestResult = {
     lazy val value0 = expr
     val completeString =
       codeString.flatMap(code =>
@@ -63,7 +63,7 @@ object Assertion extends AssertionVariants {
 
   def smartAssertZIO[R, E, A](
     expr: => ZIO[R, E, A]
-  )(assertion: Assertion[A])(implicit trace: ZTraceElement): ZIO[R, E, TestResult] = {
+  )(assertion: Assertion[A])(implicit trace: Trace): ZIO[R, E, TestResult] = {
     lazy val value0 = expr
     value0.map(smartAssert(_)(assertion))
   }
@@ -76,7 +76,7 @@ object Assertion extends AssertionVariants {
       TestArrow
         .make[A, Boolean] { a =>
           val result = run(a)
-          Trace.boolean(result) {
+          TestTrace.boolean(result) {
             M.text("Custom Assertion") + M.value(name) + M.choice("succeeded", "failed")
           }
         }
@@ -180,7 +180,7 @@ object Assertion extends AssertionVariants {
     Assertion[String](
       TestArrow
         .make[String, Boolean] { string =>
-          Trace.boolean(
+          TestTrace.boolean(
             string.equalsIgnoreCase(other)
           ) {
             M.pretty(string) + M.equals + M.pretty(other) + "(ignoring case)"
@@ -266,7 +266,7 @@ object Assertion extends AssertionVariants {
     Assertion[Iterable[A]](
       TestArrow
         .make[Iterable[A], Boolean] { iterable =>
-          Trace.boolean(
+          TestTrace.boolean(
             loop(iterable.iterator)
           ) {
             M.pretty(iterable) + M.was + "sorted"
@@ -302,7 +302,7 @@ object Assertion extends AssertionVariants {
     Assertion {
       TestArrow
         .make[Boolean, Boolean] { boolean =>
-          Trace.boolean(boolean)(M.value(boolean) + M.was + M.value(true))
+          TestTrace.boolean(boolean)(M.value(boolean) + M.was + M.value(true))
         }
         .withCode("isTrue")
     }
@@ -314,7 +314,7 @@ object Assertion extends AssertionVariants {
     Assertion {
       TestArrow
         .make[Boolean, Boolean] { boolean =>
-          Trace.boolean(!boolean)(M.value(boolean) + M.was + M.value(false))
+          TestTrace.boolean(!boolean)(M.value(boolean) + M.was + M.value(false))
         }
         .withCode("isFalse")
     }
@@ -327,7 +327,7 @@ object Assertion extends AssertionVariants {
     Assertion[Try[Any]](
       TestArrow
         .make[Try[Any], Throwable] { tryValue =>
-          Trace.option(tryValue.failed.toOption) {
+          TestTrace.option(tryValue.failed.toOption) {
             M.pretty(tryValue) + M.was + "a Failure"
           }
         }
@@ -348,7 +348,7 @@ object Assertion extends AssertionVariants {
     Assertion[Try[A]](
       TestArrow
         .make[Try[A], A] { tryValue =>
-          Trace.option(tryValue.toOption) {
+          TestTrace.option(tryValue.toOption) {
             M.pretty(tryValue) + M.was + "a Success"
           }
         }
@@ -369,7 +369,7 @@ object Assertion extends AssertionVariants {
     Assertion {
       TestArrow
         .make[A, Boolean] { value =>
-          Trace.boolean(values.exists(_ == value)) {
+          TestTrace.boolean(values.exists(_ == value)) {
             M.value(value) + M.was + M.value(values)
           }
         }
@@ -384,8 +384,8 @@ object Assertion extends AssertionVariants {
       TestArrow
         .make[Throwable, String] { throwable =>
           Option(throwable.getMessage) match {
-            case Some(value) => Trace.succeed(value)
-            case None        => Trace.fail(s"${throwable.getClass.getName} had no message")
+            case Some(value) => TestTrace.succeed(value)
+            case None        => TestTrace.fail(s"${throwable.getClass.getName} had no message")
           }
         }
         .withCode("hasMessage") >>> message.arrow
@@ -410,8 +410,8 @@ object Assertion extends AssertionVariants {
       TestArrow
         .make[Throwable, Throwable] { throwable =>
           Option(throwable.getCause) match {
-            case Some(value) => Trace.succeed(value)
-            case None        => Trace.fail(s"${throwable.getClass.getName} had no cause")
+            case Some(value) => TestTrace.succeed(value)
+            case None        => TestTrace.fail(s"${throwable.getClass.getName} had no cause")
           }
 
         }
@@ -443,7 +443,7 @@ object Assertion extends AssertionVariants {
     Assertion[Unit](
       TestArrow
         .make[Unit, Boolean] { value =>
-          Trace.boolean(true)(M.value(value) + M.was + M.value("unit"))
+          TestTrace.boolean(true)(M.value(value) + M.was + M.value("unit"))
         }
         .withCode("isUnit")
     )
@@ -491,7 +491,7 @@ object Assertion extends AssertionVariants {
     Assertion[A](
       TestArrow
         .make[A, Boolean] { value =>
-          Trace.boolean(num.lt(value, num.zero))(M.pretty(value) + M.was + M.value("negative"))
+          TestTrace.boolean(num.lt(value, num.zero))(M.pretty(value) + M.was + M.value("negative"))
         }
         .withCode("isNegative")
     )
@@ -503,7 +503,7 @@ object Assertion extends AssertionVariants {
     Assertion[A](
       TestArrow
         .make[A, Boolean] { value =>
-          Trace.boolean(num.gt(value, num.zero))(M.pretty(value) + M.was + "positive")
+          TestTrace.boolean(num.gt(value, num.zero))(M.pretty(value) + M.was + "positive")
         }
         .withCode("isPositive")
     )
@@ -526,7 +526,7 @@ object Assertion extends AssertionVariants {
     Assertion[A](
       TestArrow
         .make[A, Boolean] { value =>
-          Trace.boolean(ord.gteq(value, min) && ord.lteq(value, max))(
+          TestTrace.boolean(ord.gteq(value, min) && ord.lteq(value, max))(
             M.pretty(value) + M.was + "within" + M.pretty(min) + "and" + M.pretty(max)
           )
         }
@@ -574,7 +574,7 @@ object Assertion extends AssertionVariants {
     Assertion[Iterable[A]](
       TestArrow
         .make[Iterable[A], Boolean] { value =>
-          Trace.boolean(value.toSet == other.toSet)(
+          TestTrace.boolean(value.toSet == other.toSet)(
             M.pretty(value) + M.had + "the same distinct elements as" + M.pretty(other)
           )
         }
@@ -679,7 +679,7 @@ object Assertion extends AssertionVariants {
    */
   def hasKeys[K, V](assertion: Assertion[Iterable[K]]): Assertion[Map[K, V]] =
     Assertion[Map[K, V]](
-      TestArrow.make[Map[K, V], Iterable[K]](map => Trace.succeed(map.keys)).withCode("hasKeys") >>> assertion.arrow
+      TestArrow.make[Map[K, V], Iterable[K]](map => TestTrace.succeed(map.keys)).withCode("hasKeys") >>> assertion.arrow
     )
 
   /**
@@ -708,7 +708,7 @@ object Assertion extends AssertionVariants {
           val otherSeq  = other.toSeq
 
           val result = actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
-          Trace.boolean(result) {
+          TestTrace.boolean(result) {
             M.pretty(actualSeq) + M.had + "the same elements as " + M.pretty(otherSeq)
           }
 
@@ -747,7 +747,7 @@ object Assertion extends AssertionVariants {
     Assertion[Sum](
       TestArrow
         .make[Sum, Proj] { sum =>
-          Trace.option(term(sum)) {
+          TestTrace.option(term(sum)) {
             M.pretty(sum) + M.was + "a case of " + termName
           }
         }
@@ -769,7 +769,7 @@ object Assertion extends AssertionVariants {
     Assertion[Iterable[Any]](
       TestArrow
         .make[Iterable[Any], Boolean] { as =>
-          Trace.boolean(loop(as.iterator, Set.empty)) {
+          TestTrace.boolean(loop(as.iterator, Set.empty)) {
             M.pretty(as) + M.was + "distinct"
           }
         }
@@ -793,7 +793,7 @@ object Assertion extends AssertionVariants {
     Assertion[Any](
       TestArrow
         .make[Any, Boolean] { x =>
-          Trace.boolean(x == null) {
+          TestTrace.boolean(x == null) {
             M.pretty(x) + M.was + "null"
           }
         }
@@ -807,7 +807,7 @@ object Assertion extends AssertionVariants {
     Assertion[A](
       TestArrow
         .make[A, Boolean] { x =>
-          Trace.boolean(num.zero == x) {
+          TestTrace.boolean(num.zero == x) {
             M.pretty(x) + M.was + "zero"
           }
         }
@@ -822,7 +822,7 @@ object Assertion extends AssertionVariants {
     Assertion[String](
       TestArrow
         .make[String, Boolean] { s =>
-          Trace.boolean(s.matches(regex)) {
+          TestTrace.boolean(s.matches(regex)) {
             M.pretty(s) + M.did + "match" + M.pretty(regex)
           }
         }
@@ -854,7 +854,7 @@ object Assertion extends AssertionVariants {
     Assertion[Any](
       TestArrow
         .make[Any, Boolean] { input =>
-          Trace.succeed(false)
+          TestTrace.succeed(false)
         }
         .withCode("nothing")
     )
@@ -910,11 +910,11 @@ object Assertion extends AssertionVariants {
       TestArrow
         .make[Exit[Any, Any], Boolean] {
           case Exit.Failure(cause) =>
-            Trace.boolean(cause.isInterrupted) {
+            TestTrace.boolean(cause.isInterrupted) {
               M.value("Exit") + M.was + "interrupted"
             }
           case _ =>
-            Trace.fail {
+            TestTrace.fail {
               M.value("Exit") + M.was + "interrupted"
             }
         }
@@ -929,9 +929,9 @@ object Assertion extends AssertionVariants {
       TestArrow
         .make[Exit[Any, Any], Boolean] {
           case Exit.Failure(Cause.Interrupt(_, _)) =>
-            Trace.succeed(true)
+            TestTrace.succeed(true)
           case _ =>
-            Trace.fail {
+            TestTrace.fail {
               M.value("Exit") + M.was + "just interrupted"
             }
         }

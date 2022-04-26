@@ -50,7 +50,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
   )(implicit
     zippable: Zippable[OutDone, OutDone2],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, zippable.Out] =
     self.flatMap(z => that.map(z2 => zippable.zip(z, z2)))
 
@@ -71,7 +71,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
     self.flatMap(_ => that)
 
   /**
@@ -91,7 +91,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone] =
     self.flatMap(z => that.as(z))
 
   /**
@@ -104,7 +104,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def >>>[Env1 <: Env, OutErr2, OutElem2, OutDone2](
     that: => ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2] =
     self pipeTo that
 
   /**
@@ -115,7 +115,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * specified constant value.
    */
   final def as[OutDone2](z2: => OutDone2)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone2] =
     self.map(_ => z2)
 
@@ -134,7 +134,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone1 >: OutDone
   ](
     f: OutErr => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
     catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.failCause(_)))
 
   /**
@@ -152,7 +152,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone1 >: OutDone
   ](
     f: Cause[OutErr] => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
     ZChannel.Fold(self, new ZChannel.Fold.K(ZChannel.Fold.successIdentity[OutDone1], f))
 
   /**
@@ -163,7 +163,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def concatMap[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
     concatMapWith(f)((_, _) => (), (_, _) => ())
 
   /**
@@ -188,7 +188,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   )(
     g: (OutDone2, OutDone2) => OutDone2,
     h: (OutDone2, OutDone) => OutDone3
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
     ZChannel.ConcatAll(
       g,
       h,
@@ -222,7 +222,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     h: (OutDone2, OutDone) => OutDone3,
     onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
     onEmit: OutElem2 => ChildExecutorDecision
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
     ZChannel.ConcatAll(g, h, onPull, onEmit, () => self, f)
 
   /**
@@ -231,7 +231,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def collect[OutElem2](
     f: PartialFunction[OutElem, OutElem2]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
     val pf = f.lift
     lazy val collector: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
       ZChannel.readWith(
@@ -254,13 +254,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def concatOut[Env1 <: Env, InErr1 <: InErr, InElem1 <: InElem, InDone1 <: InDone, OutErr1 >: OutErr, OutElem2](
     implicit
     ev: OutElem <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
     ZChannel.concatAll(self.mapOut(ev))
 
   def contramap[InDone0](
     f: InDone0 => InDone
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone0, OutErr, OutElem, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone0, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Any, InErr, InElem, InDone0, InErr, InElem, InDone] =
       ZChannel.readWith(
         (in: InElem) => ZChannel.write(in) *> reader,
@@ -273,7 +273,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def contramapIn[InElem0](
     f: InElem0 => InElem
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Any, InErr, InElem0, InDone, InErr, InElem, InDone] =
       ZChannel.readWith(
         (in: InElem0) => ZChannel.write(f(in)) *> reader,
@@ -286,7 +286,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def contramapInZIO[InElem0, Env1 <: Env](
     f: InElem0 => ZIO[Env1, InErr, InElem]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem0, InDone, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Env1, InErr, InElem0, InDone, InErr, InElem, InDone] =
       ZChannel.readWith(
         (in: InElem0) => ZChannel.fromZIO(f(in)).flatMap(ZChannel.write(_)) *> reader,
@@ -299,7 +299,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def contramapZIO[InDone0, Env1 <: Env](
     f: InDone0 => ZIO[Env1, InErr, InDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone0, OutErr, OutElem, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone0, OutErr, OutElem, OutDone] = {
     lazy val reader: ZChannel[Env1, InErr, InElem, InDone0, InErr, InElem, InDone] =
       ZChannel.readWith(
         (in: InElem) => ZChannel.write(in) *> reader,
@@ -320,7 +320,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * channels that output a large or unbounded number of values.
    */
   def doneCollect(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, (Chunk[OutElem], OutDone)] =
     ZChannel.suspend {
       val builder = ChunkBuilder.make[OutElem]()
@@ -339,7 +339,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * Returns a new channel which reads all the elements from upstream's output
    * channel and ignores them, then terminates with the upstream result value.
    */
-  def drain(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, OutDone] = {
+  def drain(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, OutDone] = {
     lazy val drainer: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
       ZChannel.readWith(
         (_: OutElem) => drainer,
@@ -354,7 +354,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     noInputErrors: Any <:< InErr,
     noInputElements: Any <:< InElem,
     noInputDone: Any <:< InDone,
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr2, InElem2, InDone2, OutErr, OutElem, OutDone] =
     ZChannel.Bridge(input, self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone]])
 
@@ -369,7 +369,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def interruptWhen[Env1 <: Env, OutErr1 >: OutErr, OutDone1 >: OutDone](
     io: ZIO[Env1, OutErr1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem, OutDone1] =
     self.mergeWith(ZChannel.fromZIO(io))(
       selfDone => ZChannel.MergeDecision.done(ZIO.done(selfDone)),
       ioDone => ZChannel.MergeDecision.done(ZIO.done(ioDone))
@@ -385,7 +385,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def interruptWhen[OutErr1 >: OutErr, OutDone1 >: OutDone](
     promise: Promise[OutErr1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr1, OutElem, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr1, OutElem, OutDone1] =
     interruptWhen(promise.await)
 
   /**
@@ -393,7 +393,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * channel, which it then writes as output of the returned channel.
    */
   final def emitCollect(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, (Chunk[OutElem], OutDone), Unit] =
     doneCollect.flatMap(t => ZChannel.write(t))
 
@@ -404,12 +404,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def ensuringWith[Env1 <: Env](
     finalizer: Exit[OutErr, OutDone] => URIO[Env1, Any]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.Ensuring(self, finalizer)
 
   final def ensuring[Env1 <: Env](
     finalizer: => URIO[Env1, Any]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ensuringWith(_ => finalizer)
 
   /**
@@ -429,7 +429,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     f: OutDone => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
     ZChannel.Fold(self, new ZChannel.Fold.K(f, ZChannel.Fold.failCauseIdentity[OutErr1]))
 
   /**
@@ -447,7 +447,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](implicit
     ev: OutDone <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
     self.flatMap(ev)
 
@@ -464,7 +464,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ](
     onErr: OutErr => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1],
     onSucc: OutDone => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1] =
     foldCauseChannel(
       _.failureOrCause match {
         case Left(err)    => onErr(err)
@@ -486,7 +486,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ](
     onErr: Cause[OutErr] => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1],
     onSucc: OutDone => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone1] =
     ZChannel.Fold(self, new ZChannel.Fold.K(onSucc, onErr))
 
   /**
@@ -504,7 +504,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone1 >: OutDone
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone1] =
     self.catchAll(_ => that)
 
   /**
@@ -513,7 +513,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * to the terminal value of this channel.
    */
   final def map[OutDone2](f: OutDone => OutDone2)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone2] =
     self.flatMap(z => ZChannel.succeed(f(z)))
 
@@ -523,7 +523,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * to the failure value of this channel.
    */
   final def mapError[OutErr2](f: OutErr => OutErr2)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
     mapErrorCause(_.map(f))
 
@@ -533,7 +533,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def mapErrorCause[OutErr2](
     f: Cause[OutErr] => Cause[OutErr2]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone] =
     catchAllCause((cause: Cause[OutErr]) => ZChannel.failCause(f(cause)))
 
   /**
@@ -543,7 +543,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def mapZIO[Env1 <: Env, OutErr1 >: OutErr, OutDone2](
     f: OutDone => ZIO[Env1, OutErr1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem, OutDone2] =
     self.flatMap(z => ZChannel.fromZIO(f(z)))
 
   /**
@@ -565,7 +565,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   ](that: ZChannel[Env1, InErr1, InElem1, InDone1, OutErr2, OutElem1, OutDone2])(
     leftDone: Exit[OutErr, OutDone] => ZChannel.MergeDecision[Env1, OutErr2, OutDone2, OutErr3, OutDone3],
     rightDone: Exit[OutErr2, OutDone2] => ZChannel.MergeDecision[Env1, OutErr, OutDone, OutErr3, OutDone3]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr3, OutElem1, OutDone3] = {
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr3, OutElem1, OutDone3] = {
     type MergeState = ZChannel.MergeState[Env1, OutErr, OutErr2, OutErr3, OutElem1, OutDone, OutDone2, OutDone3]
     import ZChannel.MergeState._
 
@@ -679,12 +679,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     mergeStrategy: => ZChannel.MergeStrategy = ZChannel.MergeStrategy.BackPressure
   )(
     f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
     ZChannel.mergeAll(self.mapOut(f), n, bufferSize, mergeStrategy)
 
   def mapOut[OutElem2](
     f: OutElem => OutElem2
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] = {
     lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, OutElem2, OutDone] =
       ZChannel.readWith(
         out => ZChannel.write(f(out)) *> reader,
@@ -697,7 +697,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def mapOutZIO[Env1 <: Env, OutErr1 >: OutErr, OutElem2](
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] = {
     lazy val reader: ZChannel[Env1, OutErr, OutElem, OutDone, OutErr1, OutElem2, OutDone] =
       ZChannel.readWith(
         (out: OutElem) => ZChannel.fromZIO(f(out)).flatMap(ZChannel.write(_)) *> reader,
@@ -710,7 +710,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
     ZChannel.unwrapScoped[Env1] {
       ZIO.withChildren { getChildren =>
         for {
@@ -764,7 +764,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     n: => Int
   )(implicit
     ev: OutElem <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, Any] =
     ZChannel.mergeAll(self.mapOut(ev), n)
 
@@ -778,32 +778,32 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone1 >: OutDone
   ](n: => Int)(f: (OutDone1, OutDone1) => OutDone1)(implicit
     ev: OutElem <:< ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone1],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone1] =
     ZChannel.mergeAllWith(self.mapOut(ev), n)(f)
 
-  def never(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
+  def never(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     ZChannel.fromZIO(ZIO.never)
 
   def orDie(implicit
     ev: OutErr <:< Throwable,
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, Nothing, OutElem, OutDone] =
     orDieWith(ev)
 
   def orDieWith(f: OutErr => Throwable)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, Nothing, OutElem, OutDone] =
     self.catchAll(e => throw f(e))
 
   def pipeTo[Env1 <: Env, OutErr2, OutElem2, OutDone2](
     that: => ZChannel[Env1, OutErr, OutElem, OutDone, OutErr2, OutElem2, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr2, OutElem2, OutDone2] =
     ZChannel.PipeTo(() => self, () => that)
 
   def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] = {
+  )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] = {
 
     case class ChannelFailure(err: OutErr1) extends Throwable
 
@@ -832,7 +832,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * dependency on `Env`.
    */
   final def provideEnvironment(env: => ZEnvironment[Env])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.Provide(() => env, self)
 
@@ -841,7 +841,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def provideLayer[OutErr1 >: OutErr, Env0](
     layer: => ZLayer[Env0, OutErr1, Env]
-  )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
     ZChannel.unwrapScoped[Env0](layer.build.map(env => self.provideEnvironment(env)))
 
   /**
@@ -850,7 +850,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    */
   final def provideSomeEnvironment[Env0](
     f: ZEnvironment[Env0] => ZEnvironment[Env]
-  )(implicit trace: ZTraceElement): ZChannel[Env0, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env0, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.environmentWithChannel[Env0] { env =>
       self.provideEnvironment(f(env))
     }
@@ -863,7 +863,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     : ZChannel.ProvideSomeLayer[Env0, Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     new ZChannel.ProvideSomeLayer[Env0, Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](self)
 
-  def repeated(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = {
+  def repeated(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = {
     lazy val loop: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Nothing] = self *> loop
     loop
   }
@@ -871,7 +871,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   def runScoped(implicit
     ev1: Any <:< InElem,
     ev2: OutElem <:< Nothing,
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Env with Scope, OutErr, OutDone] =
     ZIO
       .acquireReleaseExit(
@@ -909,16 +909,16 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         }
       }
 
-  def run(implicit ev1: Any <:< InElem, ev2: OutElem <:< Nothing, trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
+  def run(implicit ev1: Any <:< InElem, ev2: OutElem <:< Nothing, trace: Trace): ZIO[Env, OutErr, OutDone] =
     ZIO.scoped[Env](runScoped)
 
-  def runCollect(implicit ev1: Any <:< InElem, trace: ZTraceElement): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
+  def runCollect(implicit ev1: Any <:< InElem, trace: Trace): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
     doneCollect.run
 
-  def runDrain(implicit ev1: Any <:< InElem, trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
+  def runDrain(implicit ev1: Any <:< InElem, trace: Trace): ZIO[Env, OutErr, OutDone] =
     self.drain.run
 
-  def unit(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] =
+  def unit(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Unit] =
     self.as(())
 
   /**
@@ -935,7 +935,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     : ZChannel.UpdateServiceAt[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service] =
     new ZChannel.UpdateServiceAt[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, Service](self)
 
-  def toPull(implicit trace: ZTraceElement): ZIO[Env with Scope, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
+  def toPull(implicit trace: Trace): ZIO[Env with Scope, Nothing, ZIO[Env, OutErr, Either[OutDone, OutElem]]] =
     ZIO
       .acquireReleaseExit(
         ZIO.succeed(
@@ -978,7 +978,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     In: Chunk[In] <:< InElem,
     Out: OutElem <:< Chunk[Out],
     InDone: Any <:< InDone,
-    trace: ZTraceElement
+    trace: Trace
   ): ZPipeline[Env, OutErr, In, Out] =
     new ZPipeline[Env, OutErr, In, Out](
       self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any]]
@@ -988,7 +988,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     In: Chunk[In] <:< InElem,
     Out: OutElem <:< Chunk[Out],
     InDone: Any <:< InDone,
-    trace: ZTraceElement
+    trace: Trace
   ): ZSink[Env, OutErr, In, Out, OutDone] =
     new ZSink[Env, OutErr, In, Out, OutDone](
       self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone]]
@@ -999,7 +999,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     InErr: Any <:< InErr,
     InElem: Any <:< InElem,
     InDone: Any <:< InDone,
-    trace: ZTraceElement
+    trace: Trace
   ): ZStream[Env, OutErr, Out] =
     new ZStream[Env, OutErr, Out](
       self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, Chunk[Out], Any]]
@@ -1017,7 +1017,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
   )(implicit
     zippable: Zippable[OutDone, OutDone2],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, zippable.Out] =
     self.flatMap(l => that.map(r => zippable.zip(l, r)))
 
@@ -1031,7 +1031,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone] =
     (self zip that).map(_._1)
 
   def zipPar[
@@ -1046,7 +1046,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
   )(implicit
     zippable: Zippable[OutDone, OutDone2],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, zippable.Out] =
     self.mergeWith(that)(
       exit1 =>
@@ -1067,7 +1067,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone] =
     (self zipPar that).map(_._1)
 
   def zipParRight[
@@ -1080,7 +1080,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
     (self zipPar that).map(_._2)
 
   def zipRight[
@@ -1093,7 +1093,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     OutDone2
   ](
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
-  )(implicit trace: ZTraceElement): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
     (self zip that).map(_._2)
 }
 
@@ -1173,18 +1173,18 @@ object ZChannel {
         extends Continuation[Env, Any, Any, Any, OutErr, Nothing, Nothing, OutDone, Nothing]
 
     private[this] def SuccessIdentity(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): Any => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Any] =
       ZChannel.succeedNow(_)
-    def successIdentity[Z](implicit trace: ZTraceElement): Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
+    def successIdentity[Z](implicit trace: Trace): Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
       SuccessIdentity.asInstanceOf[Z => ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z]]
 
     private[this] def FailCauseIdentity(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): Cause[Any] => ZChannel[Any, Any, Any, Any, Any, Nothing, Nothing] =
       ZChannel.failCause(_)
     def failCauseIdentity[E](implicit
-      trace: ZTraceElement
+      trace: Trace
     ): Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
       FailCauseIdentity.asInstanceOf[Cause[E] => ZChannel[Any, Any, Any, Any, E, Nothing, Nothing]]
   }
@@ -1216,19 +1216,19 @@ object ZChannel {
 
   def acquireReleaseOutWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: Acquired => URIO[Env, Any]
-  )(implicit trace: ZTraceElement): ZChannel[Env, Any, Any, Any, OutErr, Acquired, Unit] =
+  )(implicit trace: Trace): ZChannel[Env, Any, Any, Any, OutErr, Acquired, Unit] =
     acquireReleaseOutExitWith(acquire)((z, _) => release(z))
 
   def acquireReleaseOutExitWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: (Acquired, Exit[Any, Any]) => URIO[Env, Any]
-  )(implicit trace: ZTraceElement): ZChannel[Env, Any, Any, Any, OutErr, Acquired, Unit] =
+  )(implicit trace: Trace): ZChannel[Env, Any, Any, Any, OutErr, Acquired, Unit] =
     BracketOut(() => acquire, release)
 
   def acquireReleaseWith[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](
     acquire: => ZIO[Env, OutErr, Acquired]
   )(release: Acquired => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
     acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](acquire)((a, _) =>
       release(a)
     )(use)
@@ -1237,7 +1237,7 @@ object ZChannel {
     acquire: => ZIO[Env, OutErr, Acquired]
   )(release: (Acquired, Exit[OutErr, OutDone]) => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
     fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](_ => UIO.unit)).flatMap { ref =>
       fromZIO(acquire.tap(a => ref.set(release(a, _))).uninterruptible)
         .flatMap(use)
@@ -1253,7 +1253,7 @@ object ZChannel {
     empty: => InElem,
     isEmpty: InElem => Boolean,
     ref: => Ref[InElem]
-  )(implicit trace: ZTraceElement): ZChannel[Any, InErr, InElem, InDone, InErr, InElem, InDone] =
+  )(implicit trace: Trace): ZChannel[Any, InErr, InElem, InDone, InErr, InElem, InDone] =
     ZChannel.suspend {
       def buffer(
         empty: InElem,
@@ -1281,7 +1281,7 @@ object ZChannel {
 
   def bufferChunk[InErr, InElem, InDone](
     ref: => Ref[Chunk[InElem]]
-  )(implicit trace: ZTraceElement): ZChannel[Any, InErr, Chunk[InElem], InDone, InErr, Chunk[InElem], InDone] =
+  )(implicit trace: Trace): ZChannel[Any, InErr, Chunk[InElem], InDone, InErr, Chunk[InElem], InDone] =
     buffer[InErr, Chunk[InElem], InDone](Chunk.empty, _.isEmpty, ref)
 
   def concatAll[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -1294,7 +1294,7 @@ object ZChannel {
       ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any],
       Any
     ]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
     concatAllWith(channels)((_, _) => (), (_, _) => ())
 
   def concatAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, OutDone2, OutDone3](
@@ -1310,7 +1310,7 @@ object ZChannel {
   )(
     f: (OutDone, OutDone) => OutDone,
     g: (OutDone, OutDone2) => OutDone3
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone3] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone3] =
     ConcatAll(
       f,
       g,
@@ -1321,23 +1321,23 @@ object ZChannel {
       (channel: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]) => channel
     )
 
-  def succeedNow[Z](result: Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
+  def succeedNow[Z](result: Z)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     SucceedNow(result)
 
   def succeedWith[R, Z](f: ZEnvironment[R] => Z)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[R, Any, Any, Any, Nothing, Nothing, Z] =
     ZChannel.fromZIO(ZIO.environmentWith[R](f))
 
-  def write[Out](out: Out)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
+  def write[Out](out: Out)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     Emit(out)
 
-  def writeAll[Out](outs: Out*)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
+  def writeAll[Out](outs: Out*)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     writeChunk(Chunk.fromIterable(outs))
 
   def writeChunk[Out](
     outs: Chunk[Out]
-  )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
+  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] = {
     def writer(idx: Int, len: Int): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
       if (idx == len) ZChannel.unit
       else ZChannel.write(outs(idx)) *> writer(idx + 1, len)
@@ -1349,7 +1349,7 @@ object ZChannel {
    * Accesses the whole environment of the channel.
    */
   def environment[Env](implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, Any, Any, Any, Nothing, Nothing, ZEnvironment[Env]] =
     ZChannel.fromZIO(ZIO.environment)
 
@@ -1371,30 +1371,30 @@ object ZChannel {
   def environmentWithZIO[Env]: ZChannel.EnvironmentWithZIOPartiallyApplied[Env] =
     new ZChannel.EnvironmentWithZIOPartiallyApplied[Env]
 
-  def fail[E](e: => E)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
+  def fail[E](e: => E)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     failCause(Cause.fail(e))
 
   def fromEither[E, A](either: => Either[E, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Any, Any, Any, Any, E, Nothing, A] =
     ZChannel.suspend(either.fold(ZChannel.fail(_), ZChannel.succeed(_)))
 
   def fromOption[A](option: => Option[A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Any, Any, Any, Any, None.type, Nothing, A] =
     ZChannel.suspend(
       option.fold[ZChannel[Any, Any, Any, Any, None.type, Nothing, A]](ZChannel.fail(None))(ZChannel.succeed(_))
     )
 
-  def fromZIO[R, E, A](zio: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, Nothing, A] =
+  def fromZIO[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, Nothing, A] =
     FromZIO(() => zio)
 
   def failCause[E](cause: => Cause[E])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     Fail(() => cause)
 
-  def identity[Err, Elem, Done](implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
+  def identity[Err, Elem, Done](implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
     readWith(
       (in: Elem) => write(in) *> identity[Err, Elem, Done],
       (err: Err) => fail(err),
@@ -1402,7 +1402,7 @@ object ZChannel {
     )
 
   def interruptAs(fiberId: => FiberId)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     failCause(Cause.interrupt(fiberId))
 
@@ -1422,7 +1422,7 @@ object ZChannel {
     n: => Int,
     bufferSize: => Int = 16,
     mergeStrategy: => MergeStrategy = MergeStrategy.BackPressure
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
     mergeAllWith(channels, n, bufferSize, mergeStrategy)((_, _) => ())
 
   def mergeAllUnbounded[Env, InErr, InElem, InDone, OutErr, OutElem](
@@ -1435,7 +1435,7 @@ object ZChannel {
       ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any],
       Any
     ]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, Any] =
     mergeAll(channels, Int.MaxValue)
 
   def mergeAllUnboundedWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -1449,7 +1449,7 @@ object ZChannel {
       OutDone
     ]
   )(f: (OutDone, OutDone) => OutDone)(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     mergeAllWith(channels, Int.MaxValue)(f)
 
@@ -1468,7 +1468,7 @@ object ZChannel {
     mergeStrategy: => MergeStrategy = MergeStrategy.BackPressure
   )(
     f: (OutDone, OutDone) => OutDone
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     unwrapScoped[Env] {
       ZIO.withChildren { getChildren =>
         for {
@@ -1572,7 +1572,7 @@ object ZChannel {
   )(implicit
     ev: EnvironmentTag[Env],
     tag: EnvironmentTag[Env1],
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] ++ layer))
 
@@ -1580,30 +1580,30 @@ object ZChannel {
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     halt: Cause[InErr] => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     done: InDone => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     Read[Env, InErr, InElem, InDone, InErr, OutErr, OutElem, OutElem, InDone, OutDone](in, new Fold.K(done, halt))
 
   def readWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     error: InErr => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     done: InDone => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.failCause(_)), done)
 
-  def readOrFail[E, In](e: => E)(implicit trace: ZTraceElement): ZChannel[Any, Any, In, Any, E, Nothing, In] =
+  def readOrFail[E, In](e: => E)(implicit trace: Trace): ZChannel[Any, Any, In, Any, E, Nothing, In] =
     Read[Any, Any, In, Any, Any, E, Nothing, Nothing, In, In](
       in => SucceedNow(in),
       new Fold.K((_: Any) => ZChannel.fail(e), (_: Any) => ZChannel.fail(e))
     )
 
-  def read[In](implicit trace: ZTraceElement): ZChannel[Any, Any, In, Any, None.type, Nothing, In] =
+  def read[In](implicit trace: Trace): ZChannel[Any, Any, In, Any, None.type, Nothing, In] =
     readOrFail(None)
 
   /**
    * Accesses the specified service in the environment of the channel.
    */
   def service[Service: Tag](implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, Service] =
     ZChannel.fromZIO(ZIO.service)
 
@@ -1633,7 +1633,7 @@ object ZChannel {
   def serviceWithZIO[Service]: ZChannel.ServiceWithZIOPartiallyApplied[Service] =
     new ZChannel.ServiceWithZIOPartiallyApplied[Service]
 
-  def succeed[Z](z: => Z)(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
+  def succeed[Z](z: => Z)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     Succeed(() => z)
 
   /**
@@ -1645,11 +1645,11 @@ object ZChannel {
     Suspend(() => channel)
 
   val unit: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Unit] =
-    succeedNow(())(ZTraceElement.empty)
+    succeedNow(())(Trace.empty)
 
   def unwrap[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channel: => ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
-  )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+  )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     ZChannel.fromZIO(channel).flatten
 
   def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
@@ -1657,17 +1657,17 @@ object ZChannel {
 
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
-  )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.unwrapScoped(hub.subscribe.map(fromQueue(_)))
 
   def fromHubScoped[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
-  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
+  )(implicit trace: Trace): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
 
   def fromInput[Err, Elem, Done](
     input: => AsyncInputConsumer[Err, Elem, Done]
-  )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.suspend {
       def fromInput[Err, Elem, Done](
         input: => AsyncInputConsumer[Err, Elem, Done]
@@ -1685,7 +1685,7 @@ object ZChannel {
 
   def fromQueue[Err, Done, Elem](
     queue: => Dequeue[Either[Exit[Err, Done], Elem]]
-  )(implicit trace: ZTraceElement): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
     ZChannel.suspend {
       def fromQueue(queue: Dequeue[Either[Exit[Err, Done], Elem]]): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
         ZChannel.fromZIO(queue.take).flatMap {
@@ -1702,12 +1702,12 @@ object ZChannel {
 
   def toHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
-  )(implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
+  )(implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     toQueue(hub)
 
   def toQueue[Err, Done, Elem](
     queue: => Enqueue[Either[Exit[Err, Done], Elem]]
-  )(implicit trace: ZTraceElement): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
+  )(implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Nothing, Nothing, Any] =
     ZChannel.suspend {
       def toQueue(
         queue: Enqueue[Either[Exit[Err, Done], Elem]]
@@ -1774,7 +1774,7 @@ object ZChannel {
 
   final class EnvironmentWithPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
     def apply[OutDone](f: ZEnvironment[Env] => OutDone)(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env, Any, Any, Any, Nothing, Nothing, OutDone] =
       ZChannel.environment.map(f)
   }
@@ -1782,13 +1782,13 @@ object ZChannel {
   final class EnvironmentWithChannelPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
     def apply[Env1 <: Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       f: ZEnvironment[Env] => ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-    )(implicit trace: ZTraceElement): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.environment.flatMap(f)
   }
 
   final class EnvironmentWithZIOPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
     def apply[Env1 <: Env, OutErr, OutDone](f: ZEnvironment[Env] => ZIO[Env1, OutErr, OutDone])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env1, Any, Any, Any, OutErr, Nothing, OutDone] =
       ZChannel.environment.mapZIO(f)
   }
@@ -1801,7 +1801,7 @@ object ZChannel {
     )(implicit
       ev: Env0 with Env1 <:< Env,
       tagged: EnvironmentTag[Env1],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env0, InErr, InElem, InDone, OutErr1, OutElem, OutDone] =
       self
         .asInstanceOf[ZChannel[Env0 with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
@@ -1811,7 +1811,7 @@ object ZChannel {
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, A](
       zio: => ZIO[Scope with R, E, A]
-    )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
+    )(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, A, Any] =
       acquireReleaseOutExitWith(
         Scope.make.flatMap { scope =>
           ZIO.uninterruptibleMask { restore =>
@@ -1832,7 +1832,7 @@ object ZChannel {
       key: => Key
     )(implicit
       tag: EnvironmentTag[Map[Key, Service]],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Map[Key, Service], Any, Any, Any, Nothing, Nothing, Option[Service]] =
       ZChannel.environmentWith(_.getAt(key))
   }
@@ -1840,7 +1840,7 @@ object ZChannel {
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[OutDone](f: Service => OutDone)(implicit
       tag: Tag[Service],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Service, Any, Any, Any, Nothing, Nothing, OutDone] =
       ZChannel.service[Service].map(f)
   }
@@ -1850,7 +1850,7 @@ object ZChannel {
       f: Service => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
     )(implicit
       tag: Tag[Service],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.service[Service].flatMap(f)
   }
@@ -1858,7 +1858,7 @@ object ZChannel {
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
     def apply[Env <: Service, OutErr, OutDone](f: Service => ZIO[Env, OutErr, OutDone])(implicit
       tag: Tag[Service],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env, Any, Any, Any, OutErr, Nothing, OutDone] =
       ZChannel.service[Service].mapZIO(f)
   }
@@ -1867,7 +1867,7 @@ object ZChannel {
     def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone](
       channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
     )(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.concatAllWith(scoped[Env](channel))((d, _) => d, (d, _) => d)
   }
@@ -1879,7 +1879,7 @@ object ZChannel {
       f: Service => Service
     )(implicit
       tag: Tag[Service],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       self.provideSomeEnvironment(_.update(f))
   }
@@ -1891,7 +1891,7 @@ object ZChannel {
       f: Service => Service
     )(implicit
       tag: Tag[Map[Key, Service]],
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }

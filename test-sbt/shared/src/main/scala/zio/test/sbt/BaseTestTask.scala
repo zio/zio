@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler, Logger, Status, Task, TaskDef}
-import zio.{CancelableFuture, Console, Runtime, Scope, UIO, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
+import zio.{CancelableFuture, Console, Runtime, Scope, UIO, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, Trace}
 import zio.test.render.ConsoleRenderer
 import zio.test.{
   ExecutionEvent,
@@ -29,7 +29,7 @@ abstract class BaseTestTask[T](
 
   protected def sharedFilledTestlayer(
     console: Console
-  )(implicit trace: ZTraceElement): ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
+  )(implicit trace: Trace): ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
     ZIOAppArgs.empty +!+ (
       (zio.ZEnv.live ++ Scope.default) >>>
         TestEnvironment.live >+> TestLogger.fromConsole(console)
@@ -38,7 +38,7 @@ abstract class BaseTestTask[T](
 
   private[zio] def run(
     eventHandlerZ: ZTestEventHandler
-  )(implicit trace: ZTraceElement): ZIO[Any, Nothing, Unit] =
+  )(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
     ZIO.consoleWith { console =>
       (for {
         summary <- spec
@@ -51,7 +51,7 @@ abstract class BaseTestTask[T](
     }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
-    implicit val trace = ZTraceElement.empty
+    implicit val trace = Trace.empty
 
     val zTestHandler                      = new ZTestEventHandlerSbt(eventHandler, taskDef)
     var resOutter: CancelableFuture[Unit] = null

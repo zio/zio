@@ -2,7 +2,7 @@ package zio.test
 
 import org.openjdk.jmh.annotations._
 import zio.BenchmarkUtil._
-import zio.{ZIO, ZTraceElement}
+import zio.{ZIO, Trace}
 
 import java.util.concurrent.TimeUnit
 
@@ -23,7 +23,7 @@ class GenBenchmark {
   @Setup
   def setup(): Unit = {
     listOfNEffect = Gen.listOfN(size)(Gen.byte).sample.forever.collectSome.take(count).runDrain
-    causesEffect = Sized.live(size)(ZTraceElement.empty) {
+    causesEffect = Sized.live(size)(Trace.empty) {
       Gen
         .causes(Gen.string, Gen.string.map(s => new RuntimeException(s)))
         .sample
