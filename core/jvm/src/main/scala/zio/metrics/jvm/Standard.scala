@@ -62,7 +62,7 @@ object Standard {
     residentMemorySize: Gauge[Double]
   ): ZIO[Any, Throwable, Unit] =
     ZIO.scoped {
-      ZIO.readFile("/proc/self/status").flatMap { stream =>
+      ZIO.readFileNameInputStream("/proc/self/status").flatMap { stream =>
         stream
           .readAll(8192)
           .catchAll {

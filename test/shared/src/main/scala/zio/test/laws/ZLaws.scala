@@ -60,18 +60,18 @@ object ZLaws {
   abstract class Law1[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
     def apply[A: Caps](a1: A): TestResult
     final def run[R <: TestConfig, A: Caps](gen: Gen[R, A])(implicit trace: ZTraceElement): URIO[R, TestResult] =
-      check(gen)(apply(_).map(_.label(label)))
+      check(gen)(apply(_).??(label))
   }
 
   /**
    * Constructs a law from an effectual function taking a single parameter.
    */
-  abstract class Law1M[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
+  abstract class Law1ZIO[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
     def apply[A: Caps](a1: A): URIO[R, TestResult]
     final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A])(implicit
       trace: ZTraceElement
     ): ZIO[R1, Nothing, TestResult] =
-      check(gen)(apply(_).map(_.map(_.label(label))))
+      check(gen)(apply(_).map(_.??(label)))
   }
 
   /**
@@ -80,18 +80,18 @@ object ZLaws {
   abstract class Law2[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
     def apply[A: Caps](a1: A, a2: A): TestResult
     final def run[R <: TestConfig, A: Caps](gen: Gen[R, A])(implicit trace: ZTraceElement): URIO[R, TestResult] =
-      check(gen, gen)(apply(_, _).map(_.label(label)))
+      check(gen, gen)(apply(_, _).label(label))
   }
 
   /**
    * Constructs a law from an effectual function taking two parameters.
    */
-  abstract class Law2M[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
+  abstract class Law2ZIO[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
     def apply[A: Caps](a1: A, a2: A): URIO[R, TestResult]
     final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A])(implicit
       trace: ZTraceElement
     ): ZIO[R1, Nothing, TestResult] =
-      check(gen, gen)(apply(_, _).map(_.map(_.label(label))))
+      check(gen, gen)(apply(_, _).map(_.label(label)))
   }
 
   /**
@@ -100,17 +100,17 @@ object ZLaws {
   abstract class Law3[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
     def apply[A: Caps](a1: A, a2: A, a3: A): TestResult
     final def run[R <: TestConfig, A: Caps](gen: Gen[R, A])(implicit trace: ZTraceElement): URIO[R, TestResult] =
-      check(gen, gen, gen)(apply(_, _, _).map(_.label(label)))
+      check(gen, gen, gen)(apply(_, _, _).label(label))
   }
 
   /**
    * Constructs a law from an effectual function taking three parameters.
    */
-  abstract class Law3M[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
+  abstract class Law3ZIO[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
     def apply[A: Caps](a1: A, a2: A, a3: A): URIO[R, TestResult]
     final def run[R1 <: R with TestConfig, A: Caps](gen: Gen[R1, A])(implicit
       trace: ZTraceElement
     ): ZIO[R1, Nothing, TestResult] =
-      check(gen, gen, gen)(apply(_, _, _).map(_.map(_.label(label))))
+      check(gen, gen, gen)(apply(_, _, _).map(_.label(label)))
   }
 }

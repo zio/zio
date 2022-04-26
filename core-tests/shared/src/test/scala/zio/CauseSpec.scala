@@ -21,7 +21,9 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       test("`Cause#untraced` removes all traces") {
-        check(causes)(c => assert(c.untraced.traces.headOption)(isNone || isSome(equalTo(ZTrace.none))))
+        check(causes) { c =>
+          assert(c.untraced.traces.headOption)(isNone || isSome(equalTo(ZTrace.none)))
+        }
       },
       test("`Cause.failures is stack safe") {
         val n     = 100000

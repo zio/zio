@@ -19,10 +19,8 @@ package zio.internal.metrics
 final case class MetricHook[-In, +Out](
   update: In => Unit,
   get: () => Out
-) { self =>
-  def onUpdate[In1 <: In](f: In1 => Unit): MetricHook[In1, Out] =
-    MetricHook(in => { f(in); self.update(in) }, get)
-}
+)
+
 object MetricHook {
   import zio.metrics.MetricState
 

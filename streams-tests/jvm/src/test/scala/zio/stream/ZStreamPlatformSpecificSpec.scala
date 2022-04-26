@@ -38,7 +38,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("asyncMaybe Some")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncMaybe[Any, Throwable, Int](_ => Some(ZStream.fromIterable(chunk)))
 
-          assertM(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
+          assertZIO(s.runCollect.map(_.take(chunk.size)))(equalTo(chunk))
         }),
         test("asyncMaybe None")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
@@ -46,7 +46,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             None
           }
 
-          assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
+          assertZIO(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
         }),
         test("asyncMaybe back pressure") {
           for {
@@ -189,7 +189,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("asyncInterrupt Right")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncInterrupt[Any, Throwable, Int](_ => Right(ZStream.fromIterable(chunk)))
 
-          assertM(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
+          assertZIO(s.take(chunk.size.toLong).runCollect)(equalTo(chunk))
         }),
         test("asyncInterrupt signal end stream ") {
           for {
@@ -235,7 +235,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             ZIO.attempt(Files.delete(path)).orDie
           } { path =>
             ZIO.attempt(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
-              assertM(
+              assertZIO(
                 ZStream
                   .fromPath(path, 24)
                   .via(ZPipeline.utf8Decode)
@@ -244,7 +244,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           }
         },
         test("fails on a nonexistent file") {
-          assertM(ZStream.fromPath(Paths.get("nonexistent"), 24).runDrain.exit)(
+          assertZIO(ZStream.fromPath(Paths.get("nonexistent"), 24).runDrain.exit)(
             fails(isSubtype[NoSuchFileException](anything))
           )
         }
@@ -299,7 +299,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             .map(assert(_)(startsWithString("Sent")))
         },
         test("fails with FileNotFoundException if the stream does not exist") {
-          assertM(ZStream.fromResource("does_not_exist").runDrain.exit)(
+          assertZIO(ZStream.fromResource("does_not_exist").runDrain.exit)(
             fails(isSubtype[FileNotFoundException](hasMessage(containsString("does_not_exist"))))
           )
         }

@@ -111,11 +111,11 @@ object ClockSpec extends ZIOBaseSpec {
       },
       test("setTimeZone correctly sets timeZone") {
         setTimeZone(ZoneId.of("UTC+10")) *>
-          assertM(timeZone)(equalTo(ZoneId.of("UTC+10")))
+          assertZIO(timeZone)(equalTo(ZoneId.of("UTC+10")))
       },
       test("setTimeZone does not produce sleeps") {
         setTimeZone(ZoneId.of("UTC+11")) *>
-          assertM(sleeps)(isEmpty)
+          assertZIO(sleeps)(isEmpty)
       },
       test("timeout example from TestClock documentation works correctly") {
         val example = for {
@@ -123,7 +123,7 @@ object ClockSpec extends ZIOBaseSpec {
           _      <- TestClock.adjust(1.minute)
           result <- fiber.join
         } yield result == None
-        assertM(example)(isTrue)
+        assertZIO(example)(isTrue)
       } @@ forked @@ nonFlaky,
       test("recurrence example from TestClock documentation works correctly") {
         val example = for {
@@ -137,7 +137,7 @@ object ClockSpec extends ZIOBaseSpec {
           d <- q.take.as(true)
           e <- q.poll.map(_.isEmpty)
         } yield a && b && c && d && e
-        assertM(example)(isTrue)
+        assertZIO(example)(isTrue)
       } @@ forked @@ nonFlaky,
       test("clock time is always 0 at the start of a test that repeats")(
         for {

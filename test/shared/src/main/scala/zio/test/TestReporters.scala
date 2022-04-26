@@ -3,8 +3,10 @@ package zio.test
 import zio.{Ref, ZIO}
 
 object TestReporters {
-  val make: ZIO[Any, Nothing, TestReporters] =
-    Ref.make(List.empty[SuiteId]).map(TestReporters(_))
+  val make: ZIO[Any, Nothing, TestReporters] = {
+    // This SuiteId should probably be passed in a more obvious way
+    Ref.make(List(SuiteId.global)).map(TestReporters(_))
+  }
 }
 
 case class TestReporters(reportersStack: Ref[List[SuiteId]]) {

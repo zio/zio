@@ -2,17 +2,29 @@ package zio.test.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
-import zio.test._
 import zio.test.diff.Diff
 
 import scala.reflect.ClassTag
 import scala.util.Try
+import zio.test.{ErrorMessage => M, SmartAssertionOps => _, _}
 
 object SmartAssertions {
-  import zio.test.{ErrorMessage => M}
 
-  def anything: TestArrow[Any, Boolean] =
-    TestArrow.make[Any, Boolean](_ => Trace.succeed(true))
+  val anything: TestArrow[Any, Boolean] =
+    TestArrow.make[Any, Boolean](_ => Trace.boolean(true)(M.was + "anything"))
+
+  def approximatelyEquals[A: Numeric](reference: A, tolerance: A): TestArrow[A, Boolean] =
+    TestArrow.make[A, Boolean] { actual =>
+      val referenceType = implicitly[Numeric[A]]
+      val max           = referenceType.plus(reference, tolerance)
+      val min           = referenceType.minus(reference, tolerance)
+
+      val result = referenceType.gteq(actual, min) && referenceType.lteq(actual, max)
+      Trace.boolean(result) {
+        M.pretty(actual) + M.did + "approximately equal" + M.pretty(reference) + "with a tolerance of" +
+          M.pretty(tolerance)
+      }
+    }
 
   def custom[A, B](customAssertion: CustomAssertion[A, B]): TestArrow[A, B] =
     TestArrow.make { a =>
@@ -51,25 +63,41 @@ object SmartAssertions {
         }
       }
 
-  def isNonEmptyIterable[A]: TestArrow[Iterable[A], Boolean] =
+  def isEmptyString: TestArrow[String, Boolean] =
     TestArrow
-      .make[Iterable[A], Boolean] { as =>
+      .make[String, Boolean] { string =>
+        Trace.boolean(string.isEmpty) {
+          M.pretty(string) + M.was + "empty" + M.text(s"(length ${string.length})")
+        }
+      }
+
+  def isNonEmptyIterable: TestArrow[Iterable[Any], Boolean] =
+    TestArrow
+      .make[Iterable[Any], Boolean] { as =>
         Trace.boolean(as.nonEmpty) {
           className(as) + M.choice("was not", "was") + "empty"
         }
       }
 
-  def isEmptyOption[A]: TestArrow[Option[A], Boolean] =
+  def isNonEmptyString: TestArrow[String, Boolean] =
     TestArrow
-      .make[Option[A], Boolean] { option =>
+      .make[String, Boolean] { string =>
+        Trace.boolean(string.nonEmpty) {
+          M.pretty(string) + M.choice("was not", "was") + "empty"
+        }
+      }
+
+  def isEmptyOption: TestArrow[Option[Any], Boolean] =
+    TestArrow
+      .make[Option[Any], Boolean] { option =>
         Trace.boolean(option.isEmpty) {
           className(option) + M.was + "empty"
         }
       }
 
-  def isDefinedOption[A]: TestArrow[Option[A], Boolean] =
+  def isDefinedOption: TestArrow[Option[Any], Boolean] =
     TestArrow
-      .make[Option[A], Boolean] { option =>
+      .make[Option[Any], Boolean] { option =>
         Trace.boolean(option.isDefined) {
           className(option) + M.was + "defined"
         }
@@ -85,7 +113,7 @@ object SmartAssertions {
 
         Trace.Node(
           Result.succeed(failures.isEmpty),
-          M.value(failures.size) + M.choice(s"$elements failed the predicate", s"$elements failed the predicate"),
+          M.pretty(failures.size) + M.choice(s"$elements failed the predicate", s"$elements failed the predicate"),
           children = if (failures.isEmpty) None else Some(failures.reduce(_ && _))
         )
       }
@@ -100,7 +128,7 @@ object SmartAssertions {
 
         Trace.Node(
           Result.succeed(successes.nonEmpty),
-          M.value(successes.size) + M
+          M.pretty(successes.size) + M
             .choice(s"$elements satisfied the predicate", s"$elements satisfied the predicate"),
           children = if (successes.isEmpty) None else Some(successes.reduce(_ && _))
         )
@@ -111,6 +139,22 @@ object SmartAssertions {
       .make[Seq[A], Boolean] { seq =>
         Trace.boolean(seq.contains(value)) {
           className(seq) + M.did + "contain" + M.pretty(value)
+        }
+      }
+
+  def containsIterable[A](value: A): TestArrow[Iterable[A], Boolean] =
+    TestArrow
+      .make[Iterable[A], Boolean] { seq =>
+        Trace.boolean(seq.exists(_ == value)) {
+          className(seq) + M.did + "contain" + M.pretty(value)
+        }
+      }
+
+  def containsCause[E](expected: Cause[E]): TestArrow[Cause[E], Boolean] =
+    TestArrow
+      .make[Cause[E], Boolean] { cause =>
+        Trace.boolean(cause.contains(expected)) {
+          M.pretty(cause) + M.did + "contain" + M.pretty(expected)
         }
       }
 
@@ -142,6 +186,12 @@ object SmartAssertions {
         }
       }
 
+  def hasField[A, B](name: String, proj: A => B): TestArrow[A, B] =
+    TestArrow
+      .make[A, B] { a =>
+        Trace.succeed(proj(a))
+      }
+
   def hasKey[K, V](key: K): TestArrow[Map[K, V], V] =
     TestArrow
       .make[Map[K, V], V] { mapKV =>
@@ -161,6 +211,15 @@ object SmartAssertions {
           case Some(value) => Trace.succeed(value)
           case None =>
             Trace.fail(className(as) + "was empty")
+        }
+      }
+
+  def last[A]: TestArrow[Iterable[A], A] =
+    TestArrow
+      .make[Iterable[A], A] { as =>
+        as.lastOption match {
+          case Some(value) => Trace.succeed(value)
+          case None        => Trace.fail(className(as) + "was empty")
         }
       }
 
@@ -270,18 +329,18 @@ object SmartAssertions {
           Trace.fail(M.value("Exit.Failure") + M.did + "contain a" + M.value("Cause.Die"))
       }
 
-  def asExitCause[E, A]: TestArrow[Exit[E, A], Cause[E]] =
+  def asExitCause[E]: TestArrow[Exit[E, Any], Cause[E]] =
     TestArrow
-      .make[Exit[E, A], Cause[E]] {
+      .make[Exit[E, Any], Cause[E]] {
         case Exit.Failure(cause) =>
           Trace.succeed(cause)
         case Exit.Success(_) =>
           Trace.fail(M.value("Exit.Success") + M.did + "contain a" + M.value("Cause"))
       }
 
-  def asExitFailure[E, A]: TestArrow[Exit[E, A], E] =
+  def asExitFailure[E]: TestArrow[Exit[E, Any], E] =
     TestArrow
-      .make[Exit[E, A], E] {
+      .make[Exit[E, Any], E] {
         case Exit.Failure(cause) if cause.failureOption.isDefined =>
           Trace.succeed(cause.failureOption.get)
         case Exit.Success(_) =>
@@ -329,7 +388,39 @@ object SmartAssertions {
     TestArrow
       .make[A, Boolean] { a =>
         Trace.boolean(CB.unapply(a).isDefined) {
-          M.value(a.getClass.getSimpleName) + M.is + "an instance of" + M.value(className(CB))
+          M.value(a.getClass.getSimpleName) + M.was + "an instance of" + M.value(className(CB))
+        }
+      }
+
+  def startsWithSeq[A](prefix: Seq[A]): TestArrow[Seq[A], Boolean] =
+    TestArrow
+      .make[Seq[A], Boolean] { seq =>
+        Trace.boolean(seq.startsWith(prefix)) {
+          M.pretty(seq) + M.did + "start with" + M.pretty(prefix)
+        }
+      }
+
+  def startsWithString(prefix: String): TestArrow[String, Boolean] =
+    TestArrow
+      .make[String, Boolean] { string =>
+        Trace.boolean(string.startsWith(prefix)) {
+          M.value(string) + M.did + "start with" + M.value(prefix)
+        }
+      }
+
+  def endsWithSeq[A](postfix: Seq[A]): TestArrow[Seq[A], Boolean] =
+    TestArrow
+      .make[Seq[A], Boolean] { seq =>
+        Trace.boolean(seq.endsWith(postfix)) {
+          M.value(seq) + M.did + "end with" + M.value(seq)
+        }
+      }
+
+  def endsWithString(postfix: String): TestArrow[String, Boolean] =
+    TestArrow
+      .make[String, Boolean] { string =>
+        Trace.boolean(string.endsWith(postfix)) {
+          M.value(string) + M.did + "end with" + M.value(postfix)
         }
       }
 

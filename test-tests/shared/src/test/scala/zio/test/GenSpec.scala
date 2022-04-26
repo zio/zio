@@ -2,7 +2,6 @@ package zio.test
 
 import zio._
 import zio.test.Assertion._
-import zio.test.AssertionResult.FailureDetailsResult
 import zio.test.GenUtils._
 import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test.{check => Check, checkN => CheckN}
@@ -23,11 +22,9 @@ object GenSpec extends ZIOBaseSpec {
           if (p) assert(())(Assertion.anything) else assert(n)(Assertion.nothing)
         }
 
-        assertM(CheckN(100)(gen)(test).map { result =>
-          result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
-              failureDetails.assertion.head.value.toString == "1"
-            case _ => false
+        assertZIO(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) { trace =>
+            trace.values.head.toString == "1"
           }
         })(isTrue)
       },
@@ -42,14 +39,13 @@ object GenSpec extends ZIOBaseSpec {
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
-        assertM(CheckN(100)(gen)(test).map { result =>
-          result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
-              failureDetails.assertion.head.value.toString == "(List(0),List(1))" ||
-                failureDetails.assertion.head.value.toString == "(List(1),List(0))" ||
-                failureDetails.assertion.head.value.toString == "(List(0),List(-1))" ||
-                failureDetails.assertion.head.value.toString == "(List(-1),List(0))"
-            case _ => false
+        assertZIO(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) { trace =>
+            val values = trace.values
+            values.head.toString == "(List(0),List(1))" ||
+            values.head.toString == "(List(1),List(0))" ||
+            values.head.toString == "(List(0),List(-1))" ||
+            values.head.toString == "(List(-1),List(0))"
           }
         })(isTrue)
       },
@@ -76,25 +72,23 @@ object GenSpec extends ZIOBaseSpec {
 
         def test(a: List[Int]): TestResult = assert(a)(Assertion.nothing)
 
-        assertM(CheckN(100)(gen)(test).map { result =>
-          result.failures.fold(false) {
-            case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
-              failureDetails.assertion.head.value.toString == "List(0)"
-            case _ => false
+        assertZIO(CheckN(100)(gen)(test).map { result =>
+          result.failures.fold(false) { trace =>
+            trace.values.head.toString == "List(0)"
           }
         })(isTrue)
       }
     ),
     suite("monad laws")(
       test("monad left identity") {
-        assertM(equal(smallInt.flatMap(a => Gen.const(a)), smallInt))(isTrue)
+        assertZIO(equal(smallInt.flatMap(a => Gen.const(a)), smallInt))(isTrue)
       },
       test("monad right identity") {
         val n = 10
 
         def f(n: Int): Gen[Any, Int] = Gen.int(-n, n)
 
-        assertM(equal(Gen.const(n).flatMap(f), f(n)))(isTrue)
+        assertZIO(equal(Gen.const(n).flatMap(f), f(n)))(isTrue)
       },
       test("monad associativity") {
         val fa = Gen.int(0, 2)
@@ -105,7 +99,7 @@ object GenSpec extends ZIOBaseSpec {
         def g(p: (Int, Int)): Gen[Any, (Int, Int, Int)] =
           Gen.const(p).zipWith(Gen.int(0, 5)) { case ((x, y), z) => (x, y, z) }
 
-        assertM(equal(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g))))(isTrue)
+        assertZIO(equal(fa.flatMap(f).flatMap(g), fa.flatMap(a => f(a).flatMap(g))))(isTrue)
       }
     ),
     suite("sample")(
@@ -562,7 +556,7 @@ object GenSpec extends ZIOBaseSpec {
         checkShrink(Gen.mapOfN(1)(smallInt, smallInt))(Map(-10 -> -10))
       },
       test("noShrink discards the shrinker for this generator") {
-        assertM(shrinks(Gen.int.noShrink))(hasSize(equalTo(1)))
+        assertZIO(shrinks(Gen.int.noShrink))(hasSize(equalTo(1)))
       },
       test("offsetDateTime shrinks to min") {
         val min = OffsetDateTime.ofInstant(Instant.ofEpochSecond(8345983298736L, 345), ZoneOffset.ofHours(-4))
@@ -643,7 +637,7 @@ object GenSpec extends ZIOBaseSpec {
         x <- Sized.withSize(200)(getSize)
         y <- getSize
       } yield x == 2 * y
-      assertM(provideSize(result)(100))(isTrue)
+      assertZIO(provideSize(result)(100))(isTrue)
     },
     test("suspend lazily constructs a generator") {
       check(genIntList)(as => assert(as.reverse.reverse)(equalTo(as)))
@@ -667,7 +661,7 @@ object GenSpec extends ZIOBaseSpec {
         assert(b)(hasSize(equalTo(100)))
     },
     test("runHead") {
-      assertM(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
+      assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
     test("collectAll") {
       val gen = Gen.collectAll(
@@ -677,7 +671,7 @@ object GenSpec extends ZIOBaseSpec {
           Gen.fromIterable(List(4, 5))
         )
       )
-      assertM(gen.runCollect)(
+      assertZIO(gen.runCollect)(
         equalTo(
           List(
             List(1, 3, 4),

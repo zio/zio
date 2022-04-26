@@ -1,14 +1,26 @@
 package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler}
-import zio.{ZIO, ZLayer}
-import zio.test.{Annotations, Assertion, Spec, TestAspect, TestFailure, TestSuccess, ZIOSpecDefault, assertCompletes}
+import zio.{UIO, ZIO, ZLayer, durationInt}
+import zio.test.{
+  Annotations,
+  Assertion,
+  ExecutionEvent,
+  Spec,
+  TestAspect,
+  TestFailure,
+  ZIOSpecDefault,
+  ZTestEventHandler,
+  assertCompletes
+}
 
 import java.util.concurrent.atomic.AtomicInteger
 
 object FrameworkSpecInstances {
 
-  val dummyHandler: EventHandler = (_: Event) => ()
+  val dummyHandler: ZTestEventHandler = new ZTestEventHandler {
+    override def handle(event: ExecutionEvent.Test[_]): UIO[Unit] = ZIO.unit
+  }
 
   val counter = new AtomicInteger(0)
 
@@ -21,7 +33,6 @@ object FrameworkSpecInstances {
       assertCompletes
     }
 
-  lazy val simpleSpec = SimpleSpec.getClass.getName
   object SimpleSpec extends zio.test.ZIOSpec[Int] {
     override def layer = ZLayer.succeed(1)
 
@@ -29,6 +40,18 @@ object FrameworkSpecInstances {
       suite("simple suite")(
         numberedTest(specIdx = 1, suiteIdx = 1, 1)
       ) @@ TestAspect.parallel
+  }
+
+  object TimeOutSpec extends zio.test.ZIOSpecDefault {
+
+    def spec =
+      suite("simple suite")(
+        test("slow test")(
+          for {
+            _ <- ZIO.sleep(3.seconds)
+          } yield assertCompletes
+        )
+      ) @@ TestAspect.withLiveClock @@ TestAspect.timeout(1.second)
   }
 
   object RuntimeExceptionSpec extends zio.test.ZIOSpec[Int] {
@@ -43,7 +66,22 @@ object FrameworkSpecInstances {
       )
   }
 
-  lazy val spec1UsingSharedLayer = Spec1UsingSharedLayer.getClass.getName
+  // TODO Restore this once
+  //    https://github.com/zio/zio/pull/6614 is merged
+//  object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
+//    override val layer = ZLayer.fromZIO(
+//      ZIO.debug("constructing faulty layer") *>
+//        ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
+//    )
+//
+//    def spec =
+//      suite("kafka suite")(
+//        test("does stuff with a live kafka cluster") {
+//          assertCompletes
+//        }
+//      )
+//  }
+
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def layer = sharedLayer
 
@@ -56,7 +94,6 @@ object FrameworkSpecInstances {
       ) @@ TestAspect.parallel
   }
 
-  lazy val spec2UsingSharedLayer = Spec2UsingSharedLayer.getClass.getName
   object Spec2UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def layer = sharedLayer
 
@@ -66,7 +103,6 @@ object FrameworkSpecInstances {
       }
   }
 
-  lazy val multiLineSpecFQN = MultiLineSharedSpec.getClass.getName
   object MultiLineSharedSpec extends ZIOSpecDefault {
     def spec = test("multi-line test") {
       zio.test.assert("Hello,\nWorld!")(Assertion.equalTo("Hello, World!"))

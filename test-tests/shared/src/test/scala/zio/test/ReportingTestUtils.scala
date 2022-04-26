@@ -2,7 +2,7 @@ package zio.test
 
 import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
 import zio.test.render.TestRenderer
-import zio.{Cause, Console, Random, Scope, ZIO, ZLayer, ZTraceElement}
+import zio.{Cause, Console, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, ZTraceElement}
 
 import scala.{Console => SConsole}
 
@@ -48,15 +48,8 @@ object ReportingTestUtils {
   )(implicit trace: ZTraceElement): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       console <- ZIO.console
-      _ <-
-        TestTestRunner(testEnvironment, console)
-          .run(spec)
-          .provideLayer(
-            (TestLogger.fromConsole(
-              console
-            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live
-          )
-      output <- TestConsole.output
+      _       <- TestTestRunner(testEnvironment, console).run(spec)
+      output  <- TestConsole.output
     } yield output.mkString
 
   def runSummary(spec: Spec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
@@ -65,11 +58,6 @@ object ReportingTestUtils {
       summary <-
         TestTestRunner(testEnvironment, console)
           .run(spec)
-          .provideLayer(
-            Scope.default >>> ((TestLogger.fromConsole(
-              console
-            ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live) ++ TestClock.default ++ Random.live)
-          )
     } yield summary.summary
 
   private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment], console: Console)(implicit
@@ -77,10 +65,10 @@ object ReportingTestUtils {
   ) =
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
-        testEnvironment,
-        (Console.live >>> TestLogger.fromConsole(
-          console
-        ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live)
+        Scope.default >>> testEnvironment,
+        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
+        sinkLayerWithConsole(console),
+        _ => ZIO.unit // Might be useful for additional testing
       ),
       reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
     )
@@ -95,17 +83,13 @@ object ReportingTestUtils {
   def test3(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
   def test3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
-    withOffset(2)(expectedFailure("Value falls within range")),
-    withOffset(4)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
-    withOffset(4)(
-      s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
-    ),
-    withOffset(4)(assertSourceLocation() + "\n\n"),
-    withOffset(4)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
-    withOffset(4)(
-      s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
-    ),
-    withOffset(4)(assertSourceLocation() + "\n\n")
+    expectedFailure("Value falls within range"),
+    s"52 did not satisfy equalTo(42)",
+    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
+    assertSourceLocation(),
+    s"52 was not less than 10",
+    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
+    assertSourceLocation()
   )
 
   def test4(implicit trace: ZTraceElement): Spec[Any, String] =
@@ -117,24 +101,17 @@ object ReportingTestUtils {
     Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
   def test5Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("Addition works fine"),
-    withOffset(2)(
-      s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
-    ),
-    withOffset(2)(assertSourceLocation() + "\n")
+    "2 was not equal to 3",
+    assertSourceLocation()
   )
 
   def test6(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
   def test6Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("Multiple nested failures"),
-    withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
-    withOffset(2)(
-      s"${blue("Some(3)")} did not satisfy ${cyan("isSome(") + yellow("isGreaterThan(4)") + cyan(")")}\n"
-    ),
-    withOffset(2)(
-      s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
-    ),
-    withOffset(2)(assertSourceLocation() + "\n")
+    "3 was not greater than 4",
+    s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}",
+    assertSourceLocation()
   )
 
   def test7(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("labeled failures") {
@@ -150,11 +127,9 @@ object ReportingTestUtils {
   }
   def test7Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("labeled failures"),
-    withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
-    withOffset(2)(
-      s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
-    ),
-    withOffset(2)(assertSourceLocation() + "\n")
+    s"0 was not equal to 1",
+    s"""${blue("c")} did not satisfy isSome(equalTo(1)).label("third")""",
+    assertSourceLocation()
   )
 
   def test8(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("Not combinator") {
@@ -162,43 +137,41 @@ object ReportingTestUtils {
   }
   def test8Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedFailure("Not combinator"),
-    withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
-    withOffset(2)(
-      s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
-    ),
-    withOffset(2)(assertSourceLocation() + "\n")
+    "100 was equal to 100",
+    s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}",
+    assertSourceLocation()
   )
 
   def test9(implicit trace: ZTraceElement): Spec[Any, Nothing] = test("labeled failures") {
-    assertTrue(1 == 1).map(_.label("first")) &&
-    assertTrue(1 == 1).map(_.label("second")) &&
-    assertTrue(1 == 0).map(_.label("third")) &&
-    assertTrue(1 == 0).map(_.label("fourth"))
+    assertTrue(1 == 1).label("first") &&
+    assertTrue(1 == 1).label("second") &&
+    assertTrue(1 == 0).label("third") &&
+    assertTrue(1 == 0).label("fourth")
   }
 
   def suite1(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite1")(test1, test2)
   def suite1Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedSuccess("Suite1"),
-    withOffset(4)(test1Expected),
-    withOffset(4)(test2Expected)
+    test1Expected,
+    test2Expected
   )
 
   def suite2(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite2")(test1, test2, test3)
   def suite2Expected(implicit trace: ZTraceElement): Vector[String] = Vector(
     expectedSuccess("Suite2"),
-    withOffset(4)(test1Expected),
-    withOffset(4)(test2Expected)
-  ) ++ test3Expected.map(withOffset(2)(_))
+    test1Expected,
+    test2Expected
+  ) ++ test3Expected
 
   def suite3(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite3")(suite1, suite2, test3)
   def suite3Expected(implicit trace: ZTraceElement): Vector[String] = Vector(expectedSuccess("Suite3")) ++
-    suite1Expected.map(withOffset(2)) ++
-    suite2Expected.map(withOffset(2)) ++
+    suite1Expected ++
+    suite2Expected ++
     Vector("\n") ++
-    test3Expected.map(withOffset(2))
+    test3Expected
 
   def suite4(implicit trace: ZTraceElement): Spec[Any, Nothing] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
@@ -206,14 +179,14 @@ object ReportingTestUtils {
 
     def suite1ExpectedLocal(implicit trace: ZTraceElement): Vector[String] = Vector(
       expectedSuccess("Suite1"),
-      withOffset(4)(test1Expected),
-      withOffset(4)(test2Expected)
+      test1Expected,
+      test2Expected
     )
 
     Vector(expectedSuccess("Suite4")) ++
-      suite1ExpectedLocal.map(withOffset(4)) ++
-      Vector(withOffset(4)(expectedSuccess("Empty"))) ++
-      test3Expected.map(withOffset(2))
+      suite1ExpectedLocal ++
+      Vector(expectedSuccess("Empty")) ++
+      test3Expected
   }
 
   def assertSourceLocation()(implicit trace: ZTraceElement): String =

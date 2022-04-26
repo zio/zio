@@ -7,12 +7,36 @@ import scala.annotation.tailrec
 
 sealed trait Trace[+A] { self =>
 
-  def isFailure: Boolean = !isSuccess
+  def values: List[Any] =
+    self.asInstanceOf[Trace[Any]] match {
+      case Trace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _, _, _) =>
+        List(value)
+      case Trace.Node(_, _, _, _, _, _, _, _, _, _, _) =>
+        List()
+      case Trace.AndThen(left, right) =>
+        left.values ++ right.values
+      case Trace.And(left, right) =>
+        left.values ++ right.values
+      case Trace.Or(left, right) =>
+        left.values ++ right.values
+      case Trace.Not(trace) =>
+        trace.values
+    }
 
-  def isSuccess: Boolean = self.result match {
-    case Result.Succeed(true) => true
-    case _                    => false
-  }
+  def isFailure(implicit ev: A <:< Boolean): Boolean = !isSuccess
+
+  def isSuccess(implicit ev: A <:< Boolean): Boolean =
+    Trace.prune(self.asInstanceOf[Trace[Boolean]], false).isEmpty
+
+  def isDie: Boolean =
+    self.asInstanceOf[Trace[_]] match {
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) => true
+      case Trace.Node(_, _, _, _, _, _, _, _, _, _, _)             => false
+      case Trace.AndThen(left, right)                              => left.isDie || right.isDie
+      case Trace.And(left, right)                                  => left.isDie || right.isDie
+      case Trace.Or(left, right)                                   => left.isDie || right.isDie
+      case Trace.Not(trace)                                        => trace.isDie
+    }
 
   /**
    * Apply the metadata to the rightmost node in the trace.
@@ -67,21 +91,90 @@ sealed trait Trace[+A] { self =>
     self
   }
 
+  def withCustomLabel(customLabel: Option[String]): Trace[A] =
+    if (customLabel.isDefined) {
+      self match {
+        case node: Trace.Node[_] =>
+          node.copy(customLabel = customLabel, children = node.children.map(_.withCustomLabel(customLabel)))
+        case Trace.AndThen(left, right) =>
+          Trace.AndThen(left.withCustomLabel(customLabel), right.withCustomLabel(customLabel))
+        case and: Trace.And =>
+          Trace
+            .And(and.left.withCustomLabel(customLabel), and.right.withCustomLabel(customLabel))
+            .asInstanceOf[Trace[A]]
+        case or: Trace.Or =>
+          Trace.Or(or.left.withCustomLabel(customLabel), or.right.withCustomLabel(customLabel)).asInstanceOf[Trace[A]]
+        case not: Trace.Not =>
+          Trace.Not(not.trace.withCustomLabel(customLabel)).asInstanceOf[Trace[A]]
+      }
+    } else {
+      self
+    }
+
   /**
    * Apply the code to every node in the tree.
    */
-  final def withCode(code: Option[String]): Trace[A] =
+  final def withCode(fullCode: Option[String]): Trace[A] =
     self match {
       case node: Trace.Node[_] =>
-        node.copy(fullCode = code, children = node.children.map(_.withCode(code)))
+        node.copy(fullCode = fullCode.orElse(node.fullCode), children = node.children.map(_.withCode(fullCode)))
       case Trace.AndThen(left, right) =>
-        Trace.AndThen(left.withCode(code), right.withCode(code))
+        Trace.AndThen(left.withCode(fullCode), right.withCode(fullCode))
       case and: Trace.And =>
-        Trace.And(and.left.withCode(code), and.right.withCode(code)).asInstanceOf[Trace[A]]
+        Trace.And(and.left.withCode(fullCode), and.right.withCode(fullCode)).asInstanceOf[Trace[A]]
       case or: Trace.Or =>
-        Trace.Or(or.left.withCode(code), or.right.withCode(code)).asInstanceOf[Trace[A]]
+        Trace.Or(or.left.withCode(fullCode), or.right.withCode(fullCode)).asInstanceOf[Trace[A]]
       case not: Trace.Not =>
-        Trace.Not(not.trace.withCode(code)).asInstanceOf[Trace[A]]
+        Trace.Not(not.trace.withCode(fullCode)).asInstanceOf[Trace[A]]
+    }
+
+  /**
+   * Apply the code to every node in the tree.
+   */
+  final def withCompleteCode(completeCode: Option[String]): Trace[A] =
+    self match {
+      case node: Trace.Node[_] =>
+        node.copy(completeCode = completeCode, children = node.children.map(_.withCompleteCode(completeCode)))
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withCompleteCode(completeCode), right.withCompleteCode(completeCode))
+      case and: Trace.And =>
+        Trace
+          .And(and.left.withCompleteCode(completeCode), and.right.withCompleteCode(completeCode))
+          .asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace.Or(or.left.withCompleteCode(completeCode), or.right.withCompleteCode(completeCode)).asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withCompleteCode(completeCode)).asInstanceOf[Trace[A]]
+    }
+
+  final def withGenFailureDetails(genFailureDetails: Option[GenFailureDetails]): Trace[A] =
+    self match {
+      case node: Trace.Node[_] =>
+        node.copy(
+          genFailureDetails = node.genFailureDetails.orElse(genFailureDetails),
+          children = node.children.map(_.withGenFailureDetails(genFailureDetails))
+        )
+      case Trace.AndThen(left, right) =>
+        Trace.AndThen(left.withGenFailureDetails(genFailureDetails), right.withGenFailureDetails(genFailureDetails))
+      case and: Trace.And =>
+        Trace
+          .And(and.left.withGenFailureDetails(genFailureDetails), and.right.withGenFailureDetails(genFailureDetails))
+          .asInstanceOf[Trace[A]]
+      case or: Trace.Or =>
+        Trace
+          .Or(or.left.withGenFailureDetails(genFailureDetails), or.right.withGenFailureDetails(genFailureDetails))
+          .asInstanceOf[Trace[A]]
+      case not: Trace.Not =>
+        Trace.Not(not.trace.withGenFailureDetails(genFailureDetails)).asInstanceOf[Trace[A]]
+    }
+
+  def getGenFailureDetails: Option[GenFailureDetails] =
+    self match {
+      case node: Trace.Node[_]        => node.genFailureDetails
+      case Trace.AndThen(left, right) => left.getGenFailureDetails.orElse(right.getGenFailureDetails)
+      case and: Trace.And             => and.left.getGenFailureDetails.orElse(and.right.getGenFailureDetails)
+      case or: Trace.Or               => or.left.getGenFailureDetails.orElse(or.right.getGenFailureDetails)
+      case not: Trace.Not             => not.trace.getGenFailureDetails
     }
 
   @tailrec
@@ -123,13 +216,16 @@ object Trace {
    */
   def prune(trace: Trace[Boolean], negated: Boolean): Option[Trace[Boolean]] =
     trace match {
-      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _) if bool == negated =>
-        Some(node.copy(children = node.children.flatMap(prune(_, negated))))
+      case node @ Trace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _, _) =>
+        if (bool == negated) {
+          Some(node.copy(children = node.children.flatMap(prune(_, negated))))
+        } else
+          None
 
-      case Trace.Node(Result.Succeed(_), _, _, _, _, _, _, _) =>
-        None
+      case Trace.Node(Result.Fail, _, _, _, _, _, _, _, _, _, _) =>
+        if (negated) None else Some(trace)
 
-      case Trace.Node(Result.Die(_) | Result.Fail, _, _, _, _, _, _, _) =>
+      case Trace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) =>
         Some(trace)
 
       case Trace.AndThen(left, node: Trace.Node[_]) if node.annotations.contains(Trace.Annotation.Rethrow) =>
@@ -142,17 +238,18 @@ object Trace {
 
       case and: Trace.And =>
         (prune(and.left, negated), prune(and.right, negated)) match {
-          case (None, right)             => right
-          case (left, None)              => left
-          case (Some(left), Some(right)) => Some(Trace.And(left, right))
+          case (None, Some(right)) if !negated => Some(right)
+          case (Some(left), None) if !negated  => Some(left)
+          case (Some(left), Some(right))       => Some(Trace.And(left, right))
+          case _                               => None
         }
 
       case or: Trace.Or =>
         (prune(or.left, negated), prune(or.right, negated)) match {
-          case (Some(left), Some(right))                               => Some(Trace.Or(left, right))
-          case (Some(left), _) if negated || left.result.isFailOrDie   => Some(left)
-          case (_, Some(right)) if negated || right.result.isFailOrDie => Some(right)
-          case (_, _)                                                  => None
+          case (Some(left), Some(right))                  => Some(Trace.Or(left, right))
+          case (Some(left), _) if negated || left.isDie   => Some(left)
+          case (_, Some(right)) if negated || right.isDie => Some(right)
+          case (_, _)                                     => None
         }
 
       case not: Trace.Not =>
@@ -175,7 +272,10 @@ object Trace {
     parentSpan: Option[Span] = None,
     fullCode: Option[String] = None,
     location: Option[String] = None,
-    annotations: Set[Annotation] = Set.empty
+    annotations: Set[Annotation] = Set.empty,
+    completeCode: Option[String] = None,
+    customLabel: Option[String] = None,
+    genFailureDetails: Option[GenFailureDetails] = None
   ) extends Trace[A] {
 
     def renderResult: Any =
@@ -186,7 +286,10 @@ object Trace {
       }
 
     def code: String =
-      span.getOrElse(Span(0, 0)).substring(fullCode.getOrElse(""))
+      span match {
+        case Some(span) => span.substring(fullCode.getOrElse(""))
+        case None       => fullCode.getOrElse("")
+      }
   }
 
   private[test] case class AndThen[A, +B](left: Trace[A], right: Trace[B]) extends Trace[B] {
@@ -212,6 +315,10 @@ object Trace {
   def fail(message: String): Trace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
   def fail(message: ErrorMessage): Trace[Nothing] = Node(Result.Fail, message = message)
   def succeed[A](value: A): Trace[A]              = Node(Result.succeed(value))
+  def option[A](value: Option[A])(message: ErrorMessage): Trace[A] = {
+    val result = value.fold[Result[A]](Result.Fail)(a => Result.succeed(a))
+    Node[A](result, message = message)
+  }
 
   def boolean(value: Boolean)(message: ErrorMessage): Trace[Boolean] =
     Node(Result.succeed(value), message = message)
@@ -219,27 +326,4 @@ object Trace {
   def die(throwable: Throwable): Trace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
 
-  object Halt {
-    def unapply[A](trace: Trace[A]): Boolean =
-      trace.result match {
-        case Result.Fail => true
-        case _           => false
-      }
-  }
-
-  object Fail {
-    def unapply[A](trace: Trace[A]): Option[Throwable] =
-      trace.result match {
-        case Result.Die(err) => Some(err)
-        case _               => None
-      }
-  }
-
-  object Succeed {
-    def unapply[A](trace: Trace[A]): Option[A] =
-      trace.result match {
-        case Result.Succeed(value) => Some(value)
-        case _                     => None
-      }
-  }
 }

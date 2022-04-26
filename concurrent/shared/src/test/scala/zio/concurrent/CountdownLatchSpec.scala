@@ -9,10 +9,10 @@ object CountdownLatchSpec extends ZIOSpecDefault {
     suite("CountdownLatchSpec")(
       suite("Construction")(
         test("Creates a latch") {
-          assertM(CountdownLatch.make(100).flatMap(_.count).exit)(succeeds(equalTo(100)))
+          assertZIO(CountdownLatch.make(100).flatMap(_.count).exit)(succeeds(equalTo(100)))
         },
         test("Fails with an invalid count") {
-          assertM(CountdownLatch.make(0).exit)(fails(equalTo(None)))
+          assertZIO(CountdownLatch.make(0).exit)(fails(equalTo(None)))
         }
       ),
       suite("Operations")(
