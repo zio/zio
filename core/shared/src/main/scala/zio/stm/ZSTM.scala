@@ -487,15 +487,6 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     provideSomeEnvironment(_ => r)
 
   /**
-   * Provides the transaction with the single service it requires. If the
-   * transaction requires multiple services use `provideEnvironment` instead.
-   */
-  def provideService[Service <: R](
-    service: Service
-  )(implicit tag: Tag[Service]): STM[E, A] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Transforms the environment being provided to this effect with the specified
    * function.
    */

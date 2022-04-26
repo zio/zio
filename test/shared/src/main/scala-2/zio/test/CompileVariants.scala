@@ -30,35 +30,25 @@ trait CompileVariants {
   final def typeCheck(code: String): UIO[Either[String, Unit]] =
     macro Macros.typeCheck_impl
 
-  private[zio] def assertImpl[A](
-    value: => A,
-    expression: Option[String] = None
-  )(assertion: Assertion[A])(implicit trace: Trace): TestResult
-
   /**
-   * Checks the assertion holds for the given effectfully-computed value.
+   * Checks the assertion holds for the given value.
    */
-  private[test] def assertMImpl[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionM[A]
-  )(implicit trace: Trace): ZIO[R, E, TestResult]
+  def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
+  def assertTrue(expr: Boolean): TestResult = macro SmartAssertMacros.assertOne_impl
 
   /**
    * Checks the assertion holds for the given value.
    */
-  def assertTrue(expr: Boolean, exprs: Boolean*): Assert = macro SmartAssertMacros.assert_impl
-  def assertTrue(expr: Boolean): Assert = macro SmartAssertMacros.assertOne_impl
-
-  /**
-   * Checks the assertion holds for the given value.
-   */
-  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult = macro Macros.assert_impl
-//  def assert(expr: Boolean): TestResult = assert[Boolean](expr)(Assertion.isTrue)
+  def assert[A](expr: => A)(assertion: Assertion[A]): TestResult =
+    macro Macros.new_assert_impl
 
   /**
    * Checks the assertion holds for the given effectfully-computed value.
    */
-  def assertM[R, E, A](effect: ZIO[R, E, A])(assertion: AssertionM[A]): ZIO[R, E, TestResult] =
-    macro Macros.assertM_impl
+  def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
+    trace: Trace
+  ): ZIO[R, E, TestResult] =
+    Assertion.smartAssertZIO(effect)(assertion)
 
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }
@@ -68,13 +58,13 @@ trait CompileVariants {
  */
 object CompileVariants {
 
-  def assertProxy[A](value: => A, expression: String)(
+  def newAssertProxy[A](value: => A, codeString: String, assertionString: String)(
     assertion: Assertion[A]
   )(implicit trace: Trace): TestResult =
-    zio.test.assertImpl(value, Some(expression))(assertion)
+    zio.test.assertImpl(value, Some(codeString), Some(assertionString))(assertion)
 
-  def assertMProxy[R, E, A](effect: ZIO[R, E, A])(
-    assertion: AssertionM[A]
+  def assertZIOProxy[R, E, A](effect: ZIO[R, E, A])(
+    assertion: Assertion[A]
   )(implicit trace: Trace): ZIO[R, E, TestResult] =
-    zio.test.assertMImpl(effect)(assertion)
+    zio.test.assertZIOImpl(effect)(assertion)
 }

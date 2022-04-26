@@ -481,7 +481,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   // The implicit trace will be used by assertTrue to report the
   // actual location.
-  def customAssertion(string: String)(implicit trace: Trace): Assert =
+  def customAssertion(string: String)(implicit trace: Trace): TestResult =
     assertTrue(string == "cool")
 
   // Test Types

@@ -47,7 +47,7 @@ trait IntelliJRenderer extends TestRenderer {
     tc(s"testIgnored name='${escape(result.label)}'")
 
   private def onTestFailed(result: ExecutionResult) = {
-    val message = Message(result.lines.drop(1)).withOffset(-result.offset)
+    val message = Message(result.streamingLines.drop(1)).withOffset(-result.offset)
     val error   = ConsoleRenderer.renderToStringLines(message).mkString("\n")
 
     tc(s"testFailed name='${escape(result.label)}' message='Assertion failed:' details='${escape(error)}'")

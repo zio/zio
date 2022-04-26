@@ -84,23 +84,11 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * Invokes the main app. Designed primarily for testing.
    */
   final def invoke(args: Chunk[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
-    ZIO.suspendSucceed {
-      val newLayer =
-        ZLayer.environment[Scope] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer +!+ ZLayer.environment[ZIOAppArgs with Scope]
-
-      ZIO.scoped {
-        for {
-          _          <- installSignalHandlers
-          newRuntime <- ZIO.runtime[Scope].map(_.mapRuntimeConfig(hook))
-          result     <- newRuntime.run(run.provideLayer(newLayer))
-        } yield result
-      }
-    }
+    invokeWith(runtime.mapRuntimeConfig(hook))(args)
 
   def runtime: Runtime[Any] = Runtime.default
 
-  protected def installSignalHandlers(implicit trace: Trace): UIO[Any] =
+  protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
       if (!ZIOApp.installedSignals.getAndSet(true)) {
         val dumpFibers = () => runtime.unsafeRun(Fiber.dumpAll)
@@ -113,6 +101,20 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
         }
       }
     }.ignore
+
+  protected def invokeWith(
+    runtime: Runtime[Any]
+  )(args: Chunk[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
+    ZIO.suspendSucceed {
+      val newLayer =
+        Scope.default +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          layer +!+ ZLayer.environment[ZIOAppArgs with Scope]
+
+      for {
+        _      <- installSignalHandlers(runtime)
+        result <- runtime.run(run.provideLayer(newLayer))
+      } yield result
+    }
 }
 object ZIOApp {
   private val installedSignals = new java.util.concurrent.atomic.AtomicBoolean(false)

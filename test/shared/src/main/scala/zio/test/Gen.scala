@@ -233,9 +233,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    *   See [[bigDecimal]] for implementation.
    */
   def bigDecimalJava(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, java.math.BigDecimal] =
-    Gen
-      .bigDecimal(min, max)
-      .map(_.underlying)
+    Gen.bigDecimal(min, max).map(_.underlying)
 
   /**
    * A generator of big integers inside the specified range: [start, end]. The
@@ -266,9 +264,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    *   See [[bigInt]] for implementation.
    */
   def bigIntegerJava(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, java.math.BigInteger] =
-    Gen
-      .bigInt(min, max)
-      .map(_.underlying)
+    Gen.bigInt(min, max).map(_.underlying)
 
   /**
    * A generator of booleans. Shrinks toward 'false'.

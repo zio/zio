@@ -3,15 +3,14 @@ package zio.test
 import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
-import zio.test.AssertionM.Render.param
 
 object AutoWireSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
-    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
+    Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
     suite("AutoWireSpec")(
-      suite("inject")(
+      suite(".provide")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
           val stringLayer = ZLayer.succeed("this string is 28 chars long")
@@ -24,7 +23,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             }
           test("automatically constructs a layer") {
             val program = ZIO.service[Int]
-            assertM(program)(equalTo(128))
+            assertZIO(program)(equalTo(128))
           }
             .provide(doubleLayer, stringLayer, intLayer)
         },
@@ -32,15 +31,15 @@ object AutoWireSpec extends ZIOBaseSpec {
           val program: URIO[String with Int, String] = ZIO.succeed("test")
           val _                                      = program
           val checked =
-            typeCheck("""test("foo")(assertM(program)(anything)).provide(ZLayer.succeed(3))""")
-          assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
+            typeCheck("""test("foo")(assertZIO(program)(anything)).provide(ZLayer.succeed(3))""")
+          assertZIO(checked)(isLeft(containsStringWithoutAnsi("String")))
         } @@ TestAspect.exceptScala3,
         test("reports multiple missing top-level dependencies") {
           val program: URIO[String with Int, String] = ZIO.succeed("test")
           val _                                      = program
 
-          val checked = typeCheck("""test("foo")(assertM(program)(anything)).provide()""")
-          assertM(checked)(
+          val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide()""")
+          assertZIO(checked)(
             isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
           )
         } @@ TestAspect.exceptScala3,
@@ -49,8 +48,8 @@ object AutoWireSpec extends ZIOBaseSpec {
           val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
           val _                               = program
 
-          val checked = typeCheck("""test("foo")(assertM(program)(anything)).provide(OldLady.live)""")
-          assertM(checked)(
+          val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide(OldLady.live)""")
+          assertZIO(checked)(
             isLeft(
               containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Fly") &&
                 containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
@@ -63,8 +62,8 @@ object AutoWireSpec extends ZIOBaseSpec {
           val _                               = program
 
           val checked =
-            typeCheck("""test("foo")(assertM(program)(anything)).provide(OldLady.live, Fly.live)""")
-          assertM(checked)(
+            typeCheck("""test("foo")(assertZIO(program)(anything)).provide(OldLady.live, Fly.live)""")
+          assertZIO(checked)(
             isLeft(
               containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Spider") &&
                 containsStringWithoutAnsi("Required by TestLayer.Fly.live")
@@ -78,9 +77,9 @@ object AutoWireSpec extends ZIOBaseSpec {
 
           val checked =
             typeCheck(
-              """test("foo")(assertM(program)(anything)).provide(OldLady.live, Fly.manEatingFly)"""
+              """test("foo")(assertZIO(program)(anything)).provide(OldLady.live, Fly.manEatingFly)"""
             )
-          assertM(checked)(
+          assertZIO(checked)(
             isLeft(
               containsStringWithoutAnsi("TestLayer.Fly.manEatingFly") &&
                 containsStringWithoutAnsi("OldLady.live") &&
@@ -91,18 +90,29 @@ object AutoWireSpec extends ZIOBaseSpec {
           )
         } @@ TestAspect.exceptScala3
       ),
+      suite(".provideSome") {
+        val stringLayer = ZLayer.succeed("10")
+
+        val myTest: Spec[Int, Nothing] = test("provides some") {
+          ZIO.environment[Int with String].map { env =>
+            assertTrue(env.get[String].toInt == env.get[Int])
+          }
+        }.provideSome[Int](stringLayer)
+
+        myTest.provide(ZLayer.succeed(10))
+      },
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
         val refLayer = ZLayer(Ref.make(1))
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
-            test("test 1")(assertM(addOne)(equalTo(1))),
-            test("test 2")(assertM(addOne)(equalTo(2)))
+            test("test 1")(assertZIO(addOne)(equalTo(1))),
+            test("test 2")(assertZIO(addOne)(equalTo(2)))
           ),
           suite("suite 2")(
-            test("test 3")(assertM(addOne)(equalTo(3))),
-            test("test 4")(assertM(addOne)(equalTo(4)))
+            test("test 3")(assertZIO(addOne)(equalTo(3))),
+            test("test 4")(assertZIO(addOne)(equalTo(4)))
           )
         ).provideShared(refLayer) @@ TestAspect.sequential
       },
@@ -119,12 +129,12 @@ object AutoWireSpec extends ZIOBaseSpec {
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
-            test("test 1")(assertM(addOne)(equalTo(1))),
-            test("test 2")(assertM(addOne)(equalTo(2)))
+            test("test 1")(assertZIO(addOne)(equalTo(1))),
+            test("test 2")(assertZIO(addOne)(equalTo(2)))
           ),
           suite("suite 2")(
-            test("test 3")(assertM(addOne)(equalTo(3))),
-            test("test 4")(assertM(addOne)(equalTo(4)))
+            test("test 3")(assertZIO(addOne)(equalTo(3))),
+            test("test 4")(assertZIO(addOne)(equalTo(4)))
           )
         ).provideShared(refLayer) @@ TestAspect.sequential
       } @@ TestAspect.exceptScala3

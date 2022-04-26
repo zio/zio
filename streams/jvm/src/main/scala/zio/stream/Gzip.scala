@@ -4,7 +4,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.{CompressionLevel, CompressionStrategy, FlushMode, Gzipper}
 import zio.{Chunk, ZIO, Trace}
 
-object Gzip {
+private object Gzip {
   def makeGzipper[Err, Done](
     bufferSize: Int = 64 * 1024,
     level: CompressionLevel = CompressionLevel.DefaultCompression,

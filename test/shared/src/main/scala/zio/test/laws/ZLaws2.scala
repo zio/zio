@@ -53,7 +53,7 @@ object ZLaws2 {
       CapsBoth: CapsBoth[A, B],
       trace: Trace
     ): URIO[R, TestResult] =
-      check(a, b)((a, _) => apply(a).map(_.label(label)))
+      check(a, b)((a, _) => apply(a).label(label))
   }
 
   abstract class Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
@@ -63,6 +63,6 @@ object ZLaws2 {
       CapsBoth: CapsBoth[A, B],
       trace: Trace
     ): URIO[R, TestResult] =
-      check(a, b)((_, b) => apply(b).map(_.label(label)))
+      check(a, b)((_, b) => apply(b).label(label))
   }
 }

@@ -12,21 +12,19 @@ object ErrorMessage {
   def custom(string: String): ErrorMessage                   = Custom(string)
   def pretty(value: Any): ErrorMessage                       = Value(PrettyPrint(value))
   def text(string: String): ErrorMessage                     = choice(string, string)
-  def throwable(throwable: Throwable): ErrorMessage          = ThrowableM(throwable)
+  def throwable(throwable: Throwable): ErrorMessage          = ThrowableZIO(throwable)
   def value(value: Any): ErrorMessage                        = Value(value)
 
   val did: ErrorMessage    = choice("did", "did not")
-  val does: ErrorMessage   = choice("does", "does not")
   val equals: ErrorMessage = choice("was equal to", "was not equal to")
-  val is: ErrorMessage     = choice("is", "is not")
-  val valid: ErrorMessage  = choice("Valid", "Invalid")
   val was: ErrorMessage    = choice("was", "was not")
+  val had: ErrorMessage    = choice("had", "did not have")
 
   private final case class Choice(success: String, failure: String)                        extends ErrorMessage
   private final case class Combine(lhs: ErrorMessage, rhs: ErrorMessage, spacing: Int = 1) extends ErrorMessage
   private final case class CombineMessage(lhs: ErrorMessage, rhs: ErrorMessage)            extends ErrorMessage
   private final case class Custom(string: String)                                          extends ErrorMessage
-  private final case class ThrowableM(throwable: Throwable)                                extends ErrorMessage
+  private final case class ThrowableZIO(throwable: Throwable)                              extends ErrorMessage
   private final case class Value(value: Any)                                               extends ErrorMessage
 }
 
@@ -52,7 +50,7 @@ sealed trait ErrorMessage { self =>
       case ErrorMessage.CombineMessage(lhs, rhs) =>
         lhs.render(isSuccess) ++ rhs.render(isSuccess)
 
-      case ErrorMessage.ThrowableM(throwable) =>
+      case ErrorMessage.ThrowableZIO(throwable) =>
         val stacktrace = throwable.getStackTrace.toIndexedSeq
           .takeWhile(!_.getClassName.startsWith("zio.test.Arrow$"))
           .map(s => LogLine.Line.fromString(s.toString))

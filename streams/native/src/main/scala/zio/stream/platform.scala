@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
 
-trait ZStreamPlatformSpecificConstructors {
+private[stream] trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
   /**
@@ -168,6 +168,6 @@ trait ZStreamPlatformSpecificConstructors {
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 }
 
-trait ZSinkPlatformSpecificConstructors
+private[stream] trait ZSinkPlatformSpecificConstructors
 
-trait ZPipelinePlatformSpecificConstructors
+private[stream] trait ZPipelinePlatformSpecificConstructors

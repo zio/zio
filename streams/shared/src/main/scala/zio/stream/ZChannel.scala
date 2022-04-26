@@ -845,16 +845,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.unwrapScoped[Env0](layer.build.map(env => self.provideEnvironment(env)))
 
   /**
-   * Provides the channel with the single service it requires. If the channel
-   * requires multiple services use `provideEnvironment` instead.
-   */
-  final def provideService[Service <: Env](service: => Service)(implicit
-    tag: Tag[Service],
-    trace: Trace
-  ): ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Transforms the environment being provided to the channel with the specified
    * function.
    */

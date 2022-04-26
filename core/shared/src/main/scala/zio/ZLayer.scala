@@ -585,757 +585,10 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     }
 
   /**
-   * Constructs a layer using the specified function.
+   * Constructs a layer from the specified function.
    */
-  def fromFunction[A: Tag, B: Tag](f: A => B)(implicit trace: Trace): ZLayer[A, Nothing, B] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.serviceWith[A](a => ZEnvironment(f(a)))
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag](
-    f: (A, B) => C
-  )(implicit trace: Trace): ZLayer[A with B, Nothing, C] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag](
-    f: (A, B, C) => D
-  )(implicit trace: Trace): ZLayer[A with B with C, Nothing, D] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag](
-    f: (A, B, C, D) => E
-  )(implicit trace: Trace): ZLayer[A with B with C with D, Nothing, E] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C], env.get[D])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag](
-    f: (A, B, C, D, E) => F
-  )(implicit trace: Trace): ZLayer[A with B with C with D with E, Nothing, F] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag](
-    f: (A, B, C, D, E, F) => G
-  )(implicit trace: Trace): ZLayer[A with B with C with D with E with F, Nothing, G] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag](
-    f: (A, B, C, D, E, F, G) => H
-  )(implicit trace: Trace): ZLayer[A with B with C with D with E with F with G, Nothing, H] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag](
-    f: (A, B, C, D, E, F, G, H) => I
-  )(implicit trace: Trace): ZLayer[A with B with C with D with E with F with G with H, Nothing, I] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G with H] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag](
-    f: (A, B, C, D, E, F, G, H, I) => J
-  )(implicit trace: Trace): ZLayer[A with B with C with D with E with F with G with H with I, Nothing, J] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G with H with I] { env =>
-        ZEnvironment(
-          f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H], env.get[I])
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag](
-    f: (A, B, C, D, E, F, G, H, I, J) => K
-  )(implicit
-    trace: Trace
-  ): ZLayer[A with B with C with D with E with F with G with H with I with J, Nothing, K] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J] { env =>
-        ZEnvironment(
-          f(
-            env.get[A],
-            env.get[B],
-            env.get[C],
-            env.get[D],
-            env.get[E],
-            env.get[F],
-            env.get[G],
-            env.get[H],
-            env.get[I],
-            env.get[J]
-          )
-        )
-      }
-    }
-
-  def fromFunction[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag, K: Tag, L: Tag](
-    f: (A, B, C, D, E, F, G, H, I, J, K) => L
-  )(implicit
-    trace: Trace
-  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K, Nothing, L] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K] { env =>
-        ZEnvironment(
-          f(
-            env.get[A],
-            env.get[B],
-            env.get[C],
-            env.get[D],
-            env.get[E],
-            env.get[F],
-            env.get[G],
-            env.get[H],
-            env.get[I],
-            env.get[J],
-            env.get[K]
-          )
-        )
-      }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L) => M
-  )(implicit
-    trace: Trace
-  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L, Nothing, M] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L] { env =>
-        ZEnvironment(
-          f(
-            env.get[A],
-            env.get[B],
-            env.get[C],
-            env.get[D],
-            env.get[E],
-            env.get[F],
-            env.get[G],
-            env.get[H],
-            env.get[I],
-            env.get[J],
-            env.get[K],
-            env.get[L]
-          )
-        )
-      }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N
-  )(implicit
-    trace: Trace
-  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, Nothing, N] =
-    ZLayer.fromZIOEnvironment {
-      ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M] {
-        env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M]
-            )
-          )
-      }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O
-  )(implicit
-    trace: Trace
-  ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M with N, Nothing, O] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M with N] {
-          env =>
-            ZEnvironment(
-              f(
-                env.get[A],
-                env.get[B],
-                env.get[C],
-                env.get[D],
-                env.get[E],
-                env.get[F],
-                env.get[G],
-                env.get[H],
-                env.get[I],
-                env.get[J],
-                env.get[K],
-                env.get[L],
-                env.get[M],
-                env.get[N]
-              )
-            )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
-    Nothing,
-    P
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O]
-            )
-          )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
-    Nothing,
-    Q
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P]
-            )
-          )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
-    Nothing,
-    R
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P],
-              env.get[Q]
-            )
-          )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
-    Nothing,
-    S
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P],
-              env.get[Q],
-              env.get[R]
-            )
-          )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
-    Nothing,
-    T
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P],
-              env.get[Q],
-              env.get[R],
-              env.get[S]
-            )
-          )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
-    U: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
-    Nothing,
-    U
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P],
-              env.get[Q],
-              env.get[R],
-              env.get[S],
-              env.get[T]
-            )
-          )
-        }
-    }
-
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
-    U: Tag,
-    V: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
-    Nothing,
-    V
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P],
-              env.get[Q],
-              env.get[R],
-              env.get[S],
-              env.get[T],
-              env.get[U]
-            )
-          )
-        }
-    }
-  def fromFunction[
-    A: Tag,
-    B: Tag,
-    C: Tag,
-    D: Tag,
-    E: Tag,
-    F: Tag,
-    G: Tag,
-    H: Tag,
-    I: Tag,
-    J: Tag,
-    K: Tag,
-    L: Tag,
-    M: Tag,
-    N: Tag,
-    O: Tag,
-    P: Tag,
-    Q: Tag,
-    R: Tag,
-    S: Tag,
-    T: Tag,
-    U: Tag,
-    V: Tag,
-    W: Tag
-  ](
-    f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W
-  )(implicit
-    trace: Trace
-  ): ZLayer[
-    A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V,
-    Nothing,
-    W
-  ] =
-    ZLayer.fromZIOEnvironment {
-      ZIO
-        .environmentWith[
-          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V
-        ] { env =>
-          ZEnvironment(
-            f(
-              env.get[A],
-              env.get[B],
-              env.get[C],
-              env.get[D],
-              env.get[E],
-              env.get[F],
-              env.get[G],
-              env.get[H],
-              env.get[I],
-              env.get[J],
-              env.get[K],
-              env.get[L],
-              env.get[M],
-              env.get[N],
-              env.get[O],
-              env.get[P],
-              env.get[Q],
-              env.get[R],
-              env.get[S],
-              env.get[T],
-              env.get[U],
-              env.get[V]
-            )
-          )
-        }
-    }
+  def fromFunction[In](in: In)(implicit constructor: FunctionConstructor[In], trace: Trace): constructor.Out =
+    constructor(in)
 
   /**
    * Constructs a layer from the specified effect.
@@ -1360,21 +613,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def environment[A](implicit trace: Trace): ZLayer[A, Nothing, A] =
     ZLayer.fromZIOEnvironment(ZIO.environment[A])
-
-  /**
-   * A layer that constructs a scope and closes it when the workflow the layer
-   * is provided to completes execution, whether by success, failure, or
-   * interruption. This can be used to close a scope when providing a layer to a
-   * workflow.
-   */
-  val scope: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.scopedEnvironment(
-      ZIO
-        .acquireReleaseExit(Scope.make(Trace.empty))((scope, exit) => scope.close(exit)(Trace.empty))(
-          Trace.empty
-        )
-        .map(ZEnvironment(_))(Trace.empty)
-    )(Trace.empty)
 
   /**
    * Constructs a layer from the specified scoped effect.
@@ -1468,6 +706,974 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       trace: Trace
     ): ZLayer[RIn, E, Reloadable[ROut]] =
       Reloadable.manual(self)
+  }
+
+  /**
+   * A `FunctionConstructor[Input]` knows how to construct a `ZLayer` value from
+   * a function of type `Input`. This allows the type of the `ZLayer` value
+   * constructed to depend on `Input`.
+   */
+  trait FunctionConstructor[In] {
+
+    /**
+     * The type of the `ZLayer` value.
+     */
+    type Out
+
+    /**
+     * Constructs a `ZLayer` value from the specified input.
+     */
+    def apply(in: In)(implicit trace: Trace): Out
+  }
+
+  object FunctionConstructor {
+    type WithOut[In, Out0] = FunctionConstructor[In] { type Out = Out0 }
+
+    implicit def function0Constructor[A: Tag]: FunctionConstructor.WithOut[() => A, ZLayer[Any, Nothing, A]] =
+      new FunctionConstructor[() => A] {
+        type Out = ZLayer[Any, Nothing, A]
+        def apply(f: () => A)(implicit trace: Trace): ZLayer[Any, Nothing, A] =
+          ZLayer.succeed(f())
+      }
+
+    implicit def function1Constructor[A: Tag, B: Tag]: FunctionConstructor.WithOut[A => B, ZLayer[A, Nothing, B]] =
+      new FunctionConstructor[A => B] {
+        type Out = ZLayer[A, Nothing, B]
+        def apply(f: A => B)(implicit trace: Trace): ZLayer[A, Nothing, B] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.serviceWith[A](a => ZEnvironment(f(a)))
+          }
+      }
+
+    implicit def function2Constructor[A: Tag, B: Tag, C: Tag]
+      : FunctionConstructor.WithOut[(A, B) => C, ZLayer[A with B, Nothing, C]] =
+      new FunctionConstructor[(A, B) => C] {
+        type Out = ZLayer[A with B, Nothing, C]
+        def apply(f: (A, B) => C)(implicit trace: Trace): ZLayer[A with B, Nothing, C] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B])
+              )
+            }
+          }
+      }
+
+    implicit def function3Constructor[A: Tag, B: Tag, C: Tag, D: Tag]
+      : FunctionConstructor.WithOut[(A, B, C) => D, ZLayer[A with B with C, Nothing, D]] =
+      new FunctionConstructor[(A, B, C) => D] {
+        type Out = ZLayer[A with B with C, Nothing, D]
+        def apply(f: (A, B, C) => D)(implicit trace: Trace): ZLayer[A with B with C, Nothing, D] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B], env.get[C])
+              )
+            }
+          }
+      }
+
+    implicit def function4Constructor[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag]
+      : FunctionConstructor.WithOut[(A, B, C, D) => E, ZLayer[A with B with C with D, Nothing, E]] =
+      new FunctionConstructor[(A, B, C, D) => E] {
+        type Out = ZLayer[A with B with C with D, Nothing, E]
+        def apply(f: (A, B, C, D) => E)(implicit trace: Trace): ZLayer[A with B with C with D, Nothing, E] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B], env.get[C], env.get[D])
+              )
+            }
+          }
+      }
+
+    implicit def function5Constructor[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag]
+      : FunctionConstructor.WithOut[(A, B, C, D, E) => F, ZLayer[A with B with C with D with E, Nothing, F]] =
+      new FunctionConstructor[(A, B, C, D, E) => F] {
+        type Out = ZLayer[A with B with C with D with E, Nothing, F]
+        def apply(
+          f: (A, B, C, D, E) => F
+        )(implicit trace: Trace): ZLayer[A with B with C with D with E, Nothing, F] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E])
+              )
+            }
+          }
+      }
+
+    implicit def function6Constructor[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag]
+      : FunctionConstructor.WithOut[(A, B, C, D, E, F) => G, ZLayer[A with B with C with D with E with F, Nothing, G]] =
+      new FunctionConstructor[(A, B, C, D, E, F) => G] {
+        type Out = ZLayer[A with B with C with D with E with F, Nothing, G]
+        def apply(
+          f: (A, B, C, D, E, F) => G
+        )(implicit trace: Trace): ZLayer[A with B with C with D with E with F, Nothing, G] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F])
+              )
+            }
+          }
+      }
+
+    implicit def function7Constructor[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag]
+      : FunctionConstructor.WithOut[(A, B, C, D, E, F, G) => H, ZLayer[
+        A with B with C with D with E with F with G,
+        Nothing,
+        H
+      ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G) => H] {
+        type Out = ZLayer[A with B with C with D with E with F with G, Nothing, H]
+        def apply(
+          f: (A, B, C, D, E, F, G) => H
+        )(implicit trace: Trace): ZLayer[A with B with C with D with E with F with G, Nothing, H] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G])
+              )
+            }
+          }
+      }
+
+    implicit def function8Constructor[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag]
+      : FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H) => I, ZLayer[
+        A with B with C with D with E with F with G with H,
+        Nothing,
+        I
+      ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H) => I] {
+        type Out = ZLayer[A with B with C with D with E with F with G with H, Nothing, I]
+        def apply(
+          f: (A, B, C, D, E, F, G, H) => I
+        )(implicit trace: Trace): ZLayer[A with B with C with D with E with F with G with H, Nothing, I] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G with H] { env =>
+              ZEnvironment(
+                f(env.get[A], env.get[B], env.get[C], env.get[D], env.get[E], env.get[F], env.get[G], env.get[H])
+              )
+            }
+          }
+      }
+
+    implicit def function9Constructor[A: Tag, B: Tag, C: Tag, D: Tag, E: Tag, F: Tag, G: Tag, H: Tag, I: Tag, J: Tag]
+      : FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I) => J, ZLayer[
+        A with B with C with D with E with F with G with H with I,
+        Nothing,
+        J
+      ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I) => J] {
+        type Out = ZLayer[A with B with C with D with E with F with G with H with I, Nothing, J]
+        def apply(f: (A, B, C, D, E, F, G, H, I) => J)(implicit
+          trace: Trace
+        ): ZLayer[A with B with C with D with E with F with G with H with I, Nothing, J] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G with H with I] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function10Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J) => K, ZLayer[
+      A with B with C with D with E with F with G with H with I with J,
+      Nothing,
+      K
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J) => K] {
+        type Out = ZLayer[A with B with C with D with E with F with G with H with I with J, Nothing, K]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J) => K)(implicit
+          trace: Trace
+        ): ZLayer[A with B with C with D with E with F with G with H with I with J, Nothing, K] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function11Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K) => L, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K,
+      Nothing,
+      L
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K) => L] {
+        type Out = ZLayer[A with B with C with D with E with F with G with H with I with J with K, Nothing, L]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K) => L)(implicit
+          trace: Trace
+        ): ZLayer[A with B with C with D with E with F with G with H with I with J with K, Nothing, L] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function12Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L) => M, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L,
+      Nothing,
+      M
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L) => M] {
+        type Out = ZLayer[A with B with C with D with E with F with G with H with I with J with K with L, Nothing, M]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K, L) => M)(implicit
+          trace: Trace
+        ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L, Nothing, M] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function13Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M) => N, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M,
+      Nothing,
+      N
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M) => N] {
+        type Out =
+          ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, Nothing, N]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K, L, M) => N)(implicit
+          trace: Trace
+        ): ZLayer[A with B with C with D with E with F with G with H with I with J with K with L with M, Nothing, N] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[A with B with C with D with E with F with G with H with I with J with K with L with M] {
+              env =>
+                ZEnvironment(
+                  f(
+                    env.get[A],
+                    env.get[B],
+                    env.get[C],
+                    env.get[D],
+                    env.get[E],
+                    env.get[F],
+                    env.get[G],
+                    env.get[H],
+                    env.get[I],
+                    env.get[J],
+                    env.get[K],
+                    env.get[L],
+                    env.get[M]
+                  )
+                )
+            }
+          }
+      }
+
+    implicit def function14Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N,
+      Nothing,
+      O
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N,
+          Nothing,
+          O
+        ]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N) => O)(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N,
+          Nothing,
+          O
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function15Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+      Nothing,
+      P
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+          Nothing,
+          P
+        ]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O) => P)(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O,
+          Nothing,
+          P
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function16Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
+      Nothing,
+      Q
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
+          Nothing,
+          Q
+        ]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P) => Q)(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P,
+          Nothing,
+          Q
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function17Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag,
+      R: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
+      Nothing,
+      R
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
+          Nothing,
+          R
+        ]
+        def apply(f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q) => R)(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q,
+          Nothing,
+          R
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P],
+                  env.get[Q]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function18Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag,
+      R: Tag,
+      S: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
+      Nothing,
+      S
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
+          Nothing,
+          S
+        ]
+        def apply(
+          f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R) => S
+        )(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R,
+          Nothing,
+          S
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P],
+                  env.get[Q],
+                  env.get[R]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function19Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag,
+      R: Tag,
+      S: Tag,
+      T: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
+      Nothing,
+      T
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
+          Nothing,
+          T
+        ]
+        def apply(
+          f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S) => T
+        )(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S,
+          Nothing,
+          T
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P],
+                  env.get[Q],
+                  env.get[R],
+                  env.get[S]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function20Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag,
+      R: Tag,
+      S: Tag,
+      T: Tag,
+      U: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
+      Nothing,
+      U
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
+          Nothing,
+          U
+        ]
+        def apply(
+          f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T) => U
+        )(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T,
+          Nothing,
+          U
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P],
+                  env.get[Q],
+                  env.get[R],
+                  env.get[S],
+                  env.get[T]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function21Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag,
+      R: Tag,
+      S: Tag,
+      T: Tag,
+      U: Tag,
+      V: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
+      Nothing,
+      V
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
+          Nothing,
+          V
+        ]
+        def apply(
+          f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U) => V
+        )(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U,
+          Nothing,
+          V
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P],
+                  env.get[Q],
+                  env.get[R],
+                  env.get[S],
+                  env.get[T],
+                  env.get[U]
+                )
+              )
+            }
+          }
+      }
+
+    implicit def function22Constructor[
+      A: Tag,
+      B: Tag,
+      C: Tag,
+      D: Tag,
+      E: Tag,
+      F: Tag,
+      G: Tag,
+      H: Tag,
+      I: Tag,
+      J: Tag,
+      K: Tag,
+      L: Tag,
+      M: Tag,
+      N: Tag,
+      O: Tag,
+      P: Tag,
+      Q: Tag,
+      R: Tag,
+      S: Tag,
+      T: Tag,
+      U: Tag,
+      V: Tag,
+      W: Tag
+    ]: FunctionConstructor.WithOut[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W, ZLayer[
+      A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V,
+      Nothing,
+      W
+    ]] =
+      new FunctionConstructor[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W] {
+        type Out = ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V,
+          Nothing,
+          W
+        ]
+        def apply(
+          f: (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V) => W
+        )(implicit trace: Trace): ZLayer[
+          A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V,
+          Nothing,
+          W
+        ] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[
+              A with B with C with D with E with F with G with H with I with J with K with L with M with N with O with P with Q with R with S with T with U with V
+            ] { env =>
+              ZEnvironment(
+                f(
+                  env.get[A],
+                  env.get[B],
+                  env.get[C],
+                  env.get[D],
+                  env.get[E],
+                  env.get[F],
+                  env.get[G],
+                  env.get[H],
+                  env.get[I],
+                  env.get[J],
+                  env.get[K],
+                  env.get[L],
+                  env.get[M],
+                  env.get[N],
+                  env.get[O],
+                  env.get[P],
+                  env.get[Q],
+                  env.get[R],
+                  env.get[S],
+                  env.get[T],
+                  env.get[U],
+                  env.get[V]
+                )
+              )
+            }
+          }
+      }
   }
 
   /**

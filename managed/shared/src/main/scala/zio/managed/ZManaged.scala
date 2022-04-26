@@ -680,17 +680,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     provideSomeEnvironment(_ => r)
 
   /**
-   * Provides the `ZManaged` effect with the single service it requires. If the
-   * managed effect requires more than one service use `provideEnvironment`
-   * instead.
-   */
-  def provideService[Service <: R](service: Service)(implicit
-    tag: Tag[Service],
-    trace: Trace
-  ): Managed[E, A] =
-    provideEnvironment(ZEnvironment(service))
-
-  /**
    * Provides a layer to the `ZManaged`, which translates it to another level.
    */
   final def provideLayer[E1 >: E, R0](

@@ -18,7 +18,7 @@ object CheckConstructor extends CheckConstructorLowPriority1 {
       type OutError       = OutError0
     }
 
-  implicit def TestResultConstructor[R, A <: TestResult]: CheckConstructor.WithOut[R, A, R, Nothing] =
+  implicit def AssertConstructor[R, A <: TestResult]: CheckConstructor.WithOut[R, A, R, Nothing] =
     new CheckConstructor[R, A] {
       type OutEnvironment = R
       type OutError       = Nothing
@@ -29,7 +29,7 @@ object CheckConstructor extends CheckConstructorLowPriority1 {
 
 trait CheckConstructorLowPriority1 extends CheckConstructorLowPriority2 {
 
-  implicit def TestResultZIOConstructor[R, R1, E, A <: TestResult]
+  implicit def AssertZIOConstructor[R, R1, E, A <: TestResult]
     : CheckConstructor.WithOut[R, ZIO[R1, E, A], R with R1, E] =
     new CheckConstructor[R, ZIO[R1, E, A]] {
       type OutEnvironment = R with R1
@@ -39,43 +39,10 @@ trait CheckConstructorLowPriority1 extends CheckConstructorLowPriority2 {
     }
 }
 
-trait CheckConstructorLowPriority2 extends CheckConstructorLowPriority3 {
+trait CheckConstructorLowPriority2 {
 
-  implicit def TestResultZSTMConstructor[R, R1, E, A <: TestResult]
+  implicit def AssertZSTMConstructor[R, R1, E, A <: TestResult]
     : CheckConstructor.WithOut[R, ZSTM[R1, E, A], R with R1, E] =
-    new CheckConstructor[R, ZSTM[R1, E, A]] {
-      type OutEnvironment = R with R1
-      type OutError       = E
-      def apply(input: => ZSTM[R1, E, A])(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
-        input.commit
-    }
-}
-
-trait CheckConstructorLowPriority3 extends CheckConstructorLowPriority4 {
-
-  implicit def AssertConstructor[R, A <: Assert]: CheckConstructor.WithOut[R, A, R, Nothing] =
-    new CheckConstructor[R, A] {
-      type OutEnvironment = R
-      type OutError       = Nothing
-      def apply(input: => A)(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
-        ZIO.succeedNow(input)
-    }
-}
-
-trait CheckConstructorLowPriority4 extends CheckConstructorLowPriority5 {
-
-  implicit def AssertZIOConstructor[R, R1, E, A <: Assert]: CheckConstructor.WithOut[R, ZIO[R1, E, A], R with R1, E] =
-    new CheckConstructor[R, ZIO[R1, E, A]] {
-      type OutEnvironment = R with R1
-      type OutError       = E
-      def apply(input: => ZIO[R1, E, A])(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult] =
-        input
-    }
-}
-
-trait CheckConstructorLowPriority5 {
-
-  implicit def AssertZSTMConstructor[R, R1, E, A <: Assert]: CheckConstructor.WithOut[R, ZSTM[R1, E, A], R with R1, E] =
     new CheckConstructor[R, ZSTM[R1, E, A]] {
       type OutEnvironment = R with R1
       type OutError       = E

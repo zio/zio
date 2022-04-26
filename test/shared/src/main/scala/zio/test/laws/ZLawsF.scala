@@ -78,7 +78,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), Gen.function(gen), Gen.function(gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -91,7 +91,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(genF(genF(gen))))(apply(_).map(_.label(label)))
+        check(genF(genF(genF(gen))))(apply(_).label(label))
     }
 
     /**
@@ -103,19 +103,19 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen))(apply(_).map(_.label(label)))
+        check(genF(gen))(apply(_).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+    abstract class Law1ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
       def apply[F[+_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -127,19 +127,19 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
+        check(genF(gen), genF(gen))(apply(_, _).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+    abstract class Law2ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
       def apply[F[+_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
@@ -151,19 +151,19 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
+    abstract class Law3ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 
@@ -216,7 +216,7 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen), Gen.function[R, A, A](gen), Gen.function[R, A, A](gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), Gen.function[R, A, A](gen), Gen.function[R, A, A](gen))(apply(_, _, _).label(label))
     }
 
     /**
@@ -228,19 +228,19 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen))(apply(_).map(_.label(label)))
+        check(genF(gen))(apply(_).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+    abstract class Law1ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
       def apply[F[-_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -252,19 +252,19 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
+        check(genF(gen), genF(gen))(apply(_, _).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+    abstract class Law2ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
       def apply[F[-_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
@@ -276,19 +276,19 @@ object ZLawsF {
         genF: GenF[R, F],
         gen: Gen[R, A]
       )(implicit trace: Trace): URIO[R, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
+    abstract class Law3ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
       def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 
@@ -338,19 +338,19 @@ object ZLawsF {
       final def run[R <: TestConfig, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: Trace
       ): URIO[R, TestResult] =
-        check(genF(gen))(apply(_).map(_.label(label)))
+        check(genF(gen))(apply(_).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking a single parameter.
      */
-    abstract class Law1M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+    abstract class Law1ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
       def apply[F[_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen))(apply(_).map(_.map(_.label(label))))
+        check(genF(gen))(apply(_).map(_.label(label)))
     }
 
     /**
@@ -361,19 +361,19 @@ object ZLawsF {
       final def run[R <: TestConfig, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: Trace
       ): URIO[R, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
+        check(genF(gen), genF(gen))(apply(_, _).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking two parameters.
      */
-    abstract class Law2M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+    abstract class Law2ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
       def apply[F[_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen))(apply(_, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen))(apply(_, _).map(_.label(label)))
     }
 
     /**
@@ -384,19 +384,19 @@ object ZLawsF {
       final def run[R <: TestConfig, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: Trace
       ): URIO[R, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).label(label))
     }
 
     /**
      * Constructs a law from an effectual function taking three parameters.
      */
-    abstract class Law3M[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
+    abstract class Law3ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
       def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
       final def run[R1 <: R with TestConfig, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
       )(implicit trace: Trace): ZIO[R1, Nothing, TestResult] =
-        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.map(_.label(label))))
+        check(genF(gen), genF(gen), genF(gen))(apply(_, _, _).map(_.label(label)))
     }
   }
 }

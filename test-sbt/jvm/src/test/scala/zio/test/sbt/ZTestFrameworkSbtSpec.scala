@@ -2,7 +2,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.Assertion.equalTo
-import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test}
+import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.TestingSupport._
 import zio.test.{assertCompletes, assert => _, test => _, _}
@@ -40,7 +40,7 @@ object ZTestFrameworkSbtSpec {
     val loggers  = Seq(new MockLogger)
     val reported = ArrayBuffer[ExecutionEvent]()
 
-    loadAndExecute(timedSpecFQN, loggers = loggers)
+    loadAndExecute(TimedSharedSpec, loggers = loggers)
 
     assert(reported.nonEmpty)
     reported.foreach(println)
@@ -51,6 +51,7 @@ object ZTestFrameworkSbtSpec {
           case RuntimeFailure(_, _, _, _)    => false
           case SectionStart(_, _, _)         => false
           case SectionEnd(_, _, _)           => false
+          case TopLevelFlush(_)              => false
         }
       ),
       s"reported events should have positive durations: $reported"
@@ -60,7 +61,7 @@ object ZTestFrameworkSbtSpec {
   def testLogMessages()(implicit trace: Trace): Unit = {
     val loggers = Seq(new MockLogger)
 
-    loadAndExecute(FrameworkSpecInstances.failingSpecFQN, loggers = loggers)
+    loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec, loggers = loggers)
 
     loggers.map(_.messages.map(_.withNoLineNumbers)) foreach { messages =>
       assertContains(
@@ -92,7 +93,7 @@ object ZTestFrameworkSbtSpec {
   def testColored(): Unit = {
     val loggers = Seq.fill(3)(new MockLogger)
 
-    loadAndExecute(FrameworkSpecInstances.multiLineSpecFQN, loggers = loggers)
+    loadAndExecute(FrameworkSpecInstances.MultiLineSharedSpec, loggers = loggers)
     loggers.map(_.messages) foreach (messages =>
       assertEquals(
         "logged messages",
@@ -111,7 +112,11 @@ object ZTestFrameworkSbtSpec {
   def testTestSelection(): Unit = {
     val loggers = Seq(new MockLogger)
 
-    loadAndExecute(FrameworkSpecInstances.failingSpecFQN, loggers = loggers, testArgs = Array("-t", "passing test"))
+    loadAndExecute(
+      FrameworkSpecInstances.SimpleFailingSharedSpec,
+      loggers = loggers,
+      testArgs = Array("-t", "passing test")
+    )
 
     loggers.map(_.messages) foreach { messages =>
       val results = messages.drop(1).mkString("\n")
@@ -138,7 +143,7 @@ object ZTestFrameworkSbtSpec {
   def testSharedLayer(): Unit = {
 
     val loggers = Seq(new MockLogger)
-    loadAndExecuteAll(Seq.fill(3)(FrameworkSpecInstances.spec1UsingSharedLayer), loggers, Array.empty)
+    loadAndExecuteAll(Seq.fill(3)(FrameworkSpecInstances.Spec1UsingSharedLayer), loggers, Array.empty)
 
     assert(FrameworkSpecInstances.counter.get() == 1)
   }
@@ -149,14 +154,15 @@ object ZTestFrameworkSbtSpec {
 
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(1, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.default
         )
       }
       .head
@@ -172,14 +178,15 @@ object ZTestFrameworkSbtSpec {
     val runner = new ZTestFramework().runner(Array(), Array(), getClass.getClassLoader)
     val task = runner
       .tasks(Array(taskDef))
-      .map(task => task.asInstanceOf[ZTestTask])
+      .map(task => task.asInstanceOf[ZTestTask[_]])
       .map { zTestTask =>
         new ZTestTask(
           zTestTask.taskDef,
           zTestTask.testClassLoader,
           zTestTask.sendSummary.provideEnvironment(ZEnvironment(Summary(0, 0, 0, "foo"))),
           TestArgs.empty,
-          zTestTask.spec
+          zTestTask.spec,
+          zio.Runtime.default
         )
       }
       .head
@@ -189,21 +196,22 @@ object ZTestFrameworkSbtSpec {
     assertEquals("warning is displayed", runner.done(), s"${Console.YELLOW}No tests were executed${Console.RESET}")
   }
 
-  private def loadAndExecute(
-    fqn: String,
+  private def loadAndExecute[T <: ZIOSpecAbstract](
+    fqn: T,
     loggers: Seq[Logger],
     testArgs: Array[String] = Array.empty
   ) =
     loadAndExecuteAll(Seq(fqn), loggers, testArgs)
 
-  private def loadAndExecuteAll(
-    fqns: Seq[String],
+  private def loadAndExecuteAll[T <: ZIOSpecAbstract](
+    fqns: Seq[T],
     loggers: Seq[Logger],
     testArgs: Array[String]
   ) = {
 
     val tasks =
       fqns
+        .map(_.getClass.getName)
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
     val task = new ZTestFramework()

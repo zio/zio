@@ -208,7 +208,7 @@ object ZPool {
             track(attempted.result) *>
             getAndShutdown.whenZIO(isShuttingDown.get)
 
-      ZIO.acquireRelease(acquire)(release(_)).flatMap(_.toZIO)
+      ZIO.acquireRelease(acquire)(release(_)).flatMap(_.toZIO).disconnect
     }
 
     /**

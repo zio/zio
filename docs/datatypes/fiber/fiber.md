@@ -58,7 +58,7 @@ for {
 
 The `ZIO#forkDaemon` forks the effect into a new fiber **attached to the global scope**. Because the new fiber is attached to the global scope, when the fiber executing the returned effect terminates, the forked fiber will continue running.
 
-In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `inner` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
+In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `outer` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
 
 ```scala mdoc:silent:nest
 val inner = printLine("Inner job is running.")
@@ -74,7 +74,7 @@ val outer = (
   } yield ()
 ).onInterrupt(printLine("Outer job interrupted.").orDie)
 
-val myApp = for {
+val mainApp = for {
   fiber <- outer.fork
   _     <- fiber.interrupt.delay(3.seconds)
   _     <- ZIO.never

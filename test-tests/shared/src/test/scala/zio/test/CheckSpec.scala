@@ -63,8 +63,8 @@ object CheckSpec extends ZIOBaseSpec {
     test("failing tests contain gen failure details") {
       check(Gen.int)(a => assert(a)(isGreaterThan(0))).map {
         _.failures match {
-          case Some(BoolAlgebra.Value(result)) =>
-            result.genFailureDetails.fold(false)(_.shrunkenInput == 0)
+          case Some(result) =>
+            result.getGenFailureDetails.fold(false)(_.shrunkenInput == 0)
           case _ => false
         }
       }.map(assert(_)(isTrue))

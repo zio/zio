@@ -210,6 +210,46 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
+   * Drops all elements until the predicate returns true.
+   */
+  def dropUntil(f: A => Boolean): Chunk[A] = {
+    val iterator = self.chunkIterator
+    var continue = true
+    var i        = 0
+    while (continue && iterator.hasNextAt(i)) {
+      val a = iterator.nextAt(i)
+      if (f(a)) continue = false
+      i += 1
+    }
+    drop(i)
+  }
+
+  /**
+   * Drops all elements until the effectful predicate returns true.
+   */
+  def dropUntilZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
+    ZIO.suspendSucceed {
+      val builder = ChunkBuilder.make[A]()
+      builder.sizeHint(self.length)
+      var dropping: ZIO[R, E, Boolean] = UIO.succeedNow(false)
+      val iterator                     = self.chunkIterator
+      var index                        = 0
+      while (iterator.hasNextAt(index)) {
+        val a = iterator.nextAt(index)
+        index += 1
+        dropping = dropping.flatMap {
+          case true =>
+            builder += a
+            ZIO.succeed(true)
+
+          case false =>
+            p(a)
+        }
+      }
+      dropping as builder.result()
+    }
+
+  /**
    * Drops all elements so long as the predicate returns true.
    */
   override def dropWhile(f: A => Boolean): Chunk[A] = {
@@ -227,6 +267,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     drop(i)
   }
 
+  /**
+   * Drops all elements so long as the effectful predicate returns true.
+   */
   def dropWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
       val length  = self.length
@@ -523,15 +566,6 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
     (s, builder.result())
   }
-
-  /**
-   * Statefully and effectfully maps over the elements of this chunk to produce
-   * new elements.
-   */
-  final def mapAccumM[R, E, S1, B](s1: S1)(f1: (S1, A) => ZIO[R, E, (S1, B)])(implicit
-    trace: Trace
-  ): ZIO[R, E, (S1, Chunk[B])] =
-    mapAccumZIO(s1)(f1)
 
   /**
    * Statefully and effectfully maps over the elements of this chunk to produce
