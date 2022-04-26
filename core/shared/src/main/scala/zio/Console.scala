@@ -34,6 +34,9 @@ trait Console extends Serializable {
 
   def readLine(implicit trace: Trace): IO[IOException, String]
 
+  def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
+    print(prompt) *> readLine
+
   private[zio] def unsafePrint(line: Any): Unit =
     Runtime.default.unsafeRun(print(line)(Trace.empty))(Trace.empty)
 
@@ -133,4 +136,12 @@ object Console extends Serializable {
    */
   def readLine(implicit trace: Trace): IO[IOException, String] =
     ZIO.consoleWith(_.readLine)
+
+  /**
+   * Prints the given prompt and then reads a line of input from the console.
+   * Fails with an [[java.io.EOFException]] when the underlying
+   * [[java.io.Reader]] returns null.
+   */
+  def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
+    ZIO.consoleWith(_.readLine(prompt))
 }
