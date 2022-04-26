@@ -45,8 +45,8 @@ object ZTestEvent {
       case Left(_) => Status.Failure
       case Right(value) =>
         value match {
-          case TestSuccess.Succeeded(_, _) => Status.Success
-          case TestSuccess.Ignored(_)      => Status.Ignored
+          case TestSuccess.Succeeded(_) => Status.Success
+          case TestSuccess.Ignored(_)   => Status.Ignored
         }
     }
 }

@@ -25,7 +25,7 @@ object Standard {
 
     def isAvailable: Boolean = method.isDefined
 
-    def unsafeGet(implicit trace: ZTraceElement): Task[Long] =
+    def unsafeGet(implicit trace: Trace): Task[Long] =
       method match {
         case Some(getter) => ZIO.attempt(getter.invoke(obj).asInstanceOf[Long])
         case None =>

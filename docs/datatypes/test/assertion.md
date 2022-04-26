@@ -444,8 +444,6 @@ Therefore, the function `test` needs a `TestResult`. The most common way to prod
 Let's look at the `assert` function:
 
 ```scala
-type TestResult = BoolAlgebra[AssertionResult]
-
 def assert[A](expr: => A)(assertion: Assertion[A]): TestResult
 ``` 
 
@@ -453,28 +451,7 @@ It takes an expression of type `A` and an `Assertion[A]` and returns the `TestRe
 
 ### The `Assertion` data type
 
-We can think of an `Assertion[A]` as a function of type `A` to the `AssertResult`:
-
-```scala
-type AssertResult  = BoolAlgebra[AssertionValue]
-
-class Assertion[A] {
-  def apply(a: => A): AssertResult
-}
-```
-
-So we can apply any expression of type `A` to any assertion of type `A`:
-
-```scala mdoc
-import zio.test._
-
-val isTrue: Assertion[Boolean] = Assertion.isTrue
-
-val r1: AssertResult = isTrue(false)
-val r2: AssertResult = isTrue(true)
-```
-
-In case of failure, the `AssertResult` contains all details about the cause of failure. It's useful when an assertion failed, and the ZIO Test Runner can produce a proper report about the test failure.
+We can think of an `Assertion[A]` as a function of type `A => Boolean`.
 
 As a proposition, assertions compose using logical conjunction and disjunction and can be negated:
 
@@ -483,19 +460,17 @@ import zio.test._
 
 val greaterThanZero: Assertion[Int] = Assertion.isPositive
 val lessThanFive   : Assertion[Int] = Assertion.isLessThan(5)
-val equalTo10      : Assertion[Int] = Assertion.equalTo[Int, Int](10)
+val equalTo10      : Assertion[Int] = Assertion.equalTo(10)
 
 val assertion: Assertion[Int] = greaterThanZero && lessThanFive || equalTo10.negate
 ```
 
-After composing them, we can render the result and also run it on any expression:
+After composing them, we can run it on any expression:
 
 ```scala mdoc
 import zio._
 
-assertion.render
-
-val result: AssertResult = assertion.run(10)
+val result: TestResult = assertion.run(10)
 ```
 
 ```scala mdoc:invisible:reset

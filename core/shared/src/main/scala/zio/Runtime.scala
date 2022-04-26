@@ -59,7 +59,7 @@ trait Runtime[+R] {
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.
    */
-  final def run[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): IO[E, A] =
+  final def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): IO[E, A] =
     ZIO.fiberId.flatMap { fiberId =>
       ZIO.asyncInterrupt[Any, E, A] { callback =>
         val canceler = unsafeRunAsyncCancelable(zio)(exit => callback(ZIO.done(exit)))
@@ -75,7 +75,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be done at the edges of your
    * program.
    */
-  final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): A =
+  final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): A =
     unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
 
   /**
@@ -84,7 +84,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your
    * program.
    */
-  final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Unit =
+  final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Unit =
     unsafeRunAsyncWith(zio)(_ => ())
 
   /**
@@ -95,10 +95,10 @@ trait Runtime[+R] {
    * This method is effectful and should only be invoked at the edges of your
    * program.
    */
-  final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
+  final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] =
     defaultUnsafeRunSync(zio0)
 
-  private[zio] final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] = {
+  private[zio] final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
     unsafeRunWith(zio)(result.set)
@@ -106,7 +106,7 @@ trait Runtime[+R] {
     result.get()
   }
 
-  private[zio] def unsafeRunSyncFast[E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): Exit[E, A] =
+  private[zio] def unsafeRunSyncFast[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] =
     try {
       Exit.Success(unsafeRunFast(zio, 50))
     } catch {
@@ -114,7 +114,7 @@ trait Runtime[+R] {
     }
 
   private[zio] def unsafeRunFast[E, A](zio: ZIO[R, E, A], maxStack: Int)(implicit
-    trace0: ZTraceElement
+    trace0: Trace
   ): A = {
     import ZIO.TracedCont
     import Runtime.{Lazy, UnsafeSuccess}
@@ -255,7 +255,7 @@ trait Runtime[+R] {
           case Exit.Failure(cause) =>
             val fiberId = cause.trace.fiberId.getOrElse(FiberId.unsafeMake(trace0))
 
-            val trace = ZTrace(fiberId, stackTraceBuilder.value.result())
+            val trace = StackTrace(fiberId, stackTraceBuilder.value.result())
 
             throw new ZIO.ZioError(Exit.failCause(cause.traced(trace)), trace0)
         }
@@ -272,7 +272,7 @@ trait Runtime[+R] {
    */
   final def unsafeRunAsyncWith[E, A](
     zio: ZIO[R, E, A]
-  )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): Unit = {
+  )(k: Exit[E, A] => Any)(implicit trace: Trace): Unit = {
     unsafeRunAsyncCancelable(zio)(k)
     ()
   }
@@ -287,7 +287,7 @@ trait Runtime[+R] {
    */
   final def unsafeRunAsyncCancelable[E, A](
     zio: ZIO[R, E, A]
-  )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => Exit[E, A] = {
+  )(k: Exit[E, A] => Any)(implicit trace: Trace): FiberId => Exit[E, A] = {
     lazy val curZio = zio
     val canceler    = unsafeRunWith(curZio)(k)
     fiberId => {
@@ -307,7 +307,7 @@ trait Runtime[+R] {
    * This method is effectful and should only be done at the edges of your
    * program.
    */
-  final def unsafeRunTask[A](task: RIO[R, A])(implicit trace: ZTraceElement): A =
+  final def unsafeRunTask[A](task: RIO[R, A])(implicit trace: Trace): A =
     unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
 
   /**
@@ -319,7 +319,7 @@ trait Runtime[+R] {
    */
   final def unsafeRunToFuture[E <: Throwable, A](
     zio: ZIO[R, E, A]
-  )(implicit trace: ZTraceElement): CancelableFuture[A] = {
+  )(implicit trace: Trace): CancelableFuture[A] = {
     val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
     val canceler = unsafeRunWith(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
@@ -355,7 +355,7 @@ trait Runtime[+R] {
 
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
-  )(k: Exit[E, A] => Any)(implicit trace: ZTraceElement): FiberId => (Exit[E, A] => Any) => Unit = {
+  )(k: Exit[E, A] => Any)(implicit trace: Trace): FiberId => (Exit[E, A] => Any) => Unit = {
     val fiberId = FiberId.unsafeMake(trace)
 
     val children = Platform.newWeakSet[FiberContext[_, _]]()
@@ -491,7 +491,7 @@ object Runtime {
   def unsafeFromLayer[R](
     layer: Layer[Any, R],
     runtimeConfig: RuntimeConfig = RuntimeConfig.default
-  )(implicit trace: ZTraceElement): Runtime.Scoped[R] = {
+  )(implicit trace: Trace): Runtime.Scoped[R] = {
     val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
     val (environment, shutdown) = runtime.unsafeRun {
       Scope.make.flatMap { scope =>

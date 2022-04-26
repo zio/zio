@@ -17,11 +17,11 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Duration, Scheduler, UIO, ZIO, ZTraceElement}
+import zio.{Duration, Scheduler, UIO, ZIO, Trace}
 
 trait TestClockPlatformSpecific { self: TestClock.Test =>
 
-  def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
+  def scheduler(implicit trace: Trace): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
       new Scheduler {
         def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {

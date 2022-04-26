@@ -36,7 +36,7 @@ private[managed] trait ZManagedCompatPlatformSpecific {
     def asyncManaged[R, E, A](
       register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZManaged[R, E, Any],
       outputBuffer: => Int = 16
-    )(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    )(implicit trace: Trace): ZStream[R, E, A] =
       ZStream.asyncScoped[R, E, A](register(_).scoped, outputBuffer)
 
     /**
@@ -44,7 +44,7 @@ private[managed] trait ZManagedCompatPlatformSpecific {
      */
     final def fromJavaStreamManaged[R, A](
       stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]]
-    )(implicit trace: ZTraceElement): ZStream[R, Throwable, A] =
+    )(implicit trace: Trace): ZStream[R, Throwable, A] =
       ZStream.fromJavaStreamScoped[R, A](stream.scoped)
 
     /**
@@ -53,7 +53,7 @@ private[managed] trait ZManagedCompatPlatformSpecific {
     def fromReaderManaged[R](
       reader: => ZManaged[R, IOException, Reader],
       chunkSize: => Int = ZStream.DefaultChunkSize
-    )(implicit trace: ZTraceElement): ZStream[R, IOException, Char] =
+    )(implicit trace: Trace): ZStream[R, IOException, Char] =
       ZStream.fromReaderScoped[R](reader.scoped, chunkSize)
   }
 
@@ -69,7 +69,7 @@ private[managed] trait ZManagedCompatPlatformSpecific {
      */
     final def fromOutputStreamManaged(
       os: => ZManaged[Any, IOException, OutputStream]
-    )(implicit trace: ZTraceElement): ZSink[Any, IOException, Byte, Byte, Long] =
+    )(implicit trace: Trace): ZSink[Any, IOException, Byte, Byte, Long] =
       ZSink.fromOutputStreamScoped(os.scoped)
   }
 }

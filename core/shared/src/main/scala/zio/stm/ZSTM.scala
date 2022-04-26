@@ -177,13 +177,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Commits this transaction atomically.
    */
-  def commit(implicit trace: ZTraceElement): ZIO[R, E, A] = ZSTM.atomically(self)
+  def commit(implicit trace: Trace): ZIO[R, E, A] = ZSTM.atomically(self)
 
   /**
    * Commits this transaction atomically, regardless of whether the transaction
    * is a success or a failure.
    */
-  def commitEither(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def commitEither(implicit trace: Trace): ZIO[R, E, A] =
     either.commit.absolve
 
   /**
@@ -848,7 +848,7 @@ object ZSTM {
   /**
    * Atomically performs a batch of operations in a single transaction.
    */
-  def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+  def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.environmentWithZIO[R] { r =>
       ZIO.suspendSucceedWith { (runtimeConfig, fiberId) =>
         tryCommitSync(runtimeConfig, fiberId, stm, r) match {
@@ -1787,7 +1787,7 @@ object ZSTM {
       r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
-    )(implicit trace: ZTraceElement): Unit = {
+    )(implicit trace: Trace): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
       @tailrec

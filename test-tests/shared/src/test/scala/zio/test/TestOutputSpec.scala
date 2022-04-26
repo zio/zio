@@ -201,7 +201,7 @@ object TestOutputSpec extends ZIOSpecDefault {
     }
   ).provide(fakePrinterLayer >+> TestOutput.live) @@ TestAspect.ignore
 
-  def sane(events: Seq[ExecutionEvent]): Assert = {
+  def sane(events: Seq[ExecutionEvent]): TestResult = {
     type CompleteSuites   = List[SuiteId]
     type ActiveSuiteStack = List[SuiteId]
     case class InvalidEvent(event: ExecutionEvent, reason: String)
@@ -277,7 +277,7 @@ object TestOutputSpec extends ZIOSpecDefault {
   private def Test(testEntity: TestEntity, label: String = "label") =
     ExecutionEvent.Test(
       labelsReversed = List(label),
-      test = Right(TestSuccess.Succeeded(BoolAlgebra.unit)),
+      test = Right(TestSuccess.Succeeded()),
       annotations = TestAnnotationMap.empty,
       ancestors = testEntity.ancestors,
       duration = 0L,

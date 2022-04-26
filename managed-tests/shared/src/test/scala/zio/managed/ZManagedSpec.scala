@@ -47,12 +47,12 @@ object ZManagedSpec extends ZIOBaseSpec {
         trait R2 extends R1
         trait E
         trait A
-        def acquire1: ZIO[R, E, A]               = ???
-        def acquire2: ZIO[R1, E, A]              = ???
-        def acquire3: ZIO[R2, E, A]              = ???
-        def release1: A => URIO[R, Any]          = ???
-        def release2: A => ZIO[R1, Nothing, Any] = ???
-        def release3: A => ZIO[R2, Nothing, Any] = ???
+        def acquire1: ZIO[R, E, A]               = ZIO.never
+        def acquire2: ZIO[R1, E, A]              = ZIO.never
+        def acquire3: ZIO[R2, E, A]              = ZIO.never
+        def release1: A => URIO[R, Any]          = _ => ZIO.never
+        def release2: A => ZIO[R1, Nothing, Any] = _ => ZIO.never
+        def release3: A => ZIO[R2, Nothing, Any] = _ => ZIO.never
         def managed1: ZManaged[R with R1, E, A]  = ZManaged.acquireReleaseWith(acquire1)(release2)
         def managed2: ZManaged[R with R1, E, A]  = ZManaged.acquireReleaseWith(acquire2)(release1)
         def managed3: ZManaged[R2, E, A]         = ZManaged.acquireReleaseWith(acquire2)(release3)
@@ -99,7 +99,10 @@ object ZManagedSpec extends ZIOBaseSpec {
           result <- exits.get
         } yield assert(result)(
           equalTo(
-            List[Exit[Any, Any]](Exit.Failure(Cause.Die(ex, ZTrace.none)), Exit.Failure(Cause.Die(ex, ZTrace.none)))
+            List[Exit[Any, Any]](
+              Exit.Failure(Cause.Die(ex, StackTrace.none)),
+              Exit.Failure(Cause.Die(ex, StackTrace.none))
+            )
           )
         )
       } @@ zioTag(errors),
@@ -117,7 +120,7 @@ object ZManagedSpec extends ZIOBaseSpec {
           exits  <- Ref.make[List[Exit[Any, Any]]](Nil)
           _      <- res(exits).useDiscard(ZIO.die(useEx)).exit
           result <- exits.get
-        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx, ZTrace.none)))))
+        } yield assert(result)(equalTo(List[Exit[Any, Any]](Exit.Failure(Cause.Die(acquireEx, StackTrace.none)))))
       }
     ) @@ zioTag(errors),
     suite("zipWithPar")(
@@ -1391,7 +1394,7 @@ object ZManagedSpec extends ZIOBaseSpec {
             second = ZManaged.fromReservation(Reservation(latch.await *> ZIO.fail(()), _ => ZIO.unit))
             _     <- first.zipPar(second).useDiscard(ZIO.unit)
           } yield ()).exit
-            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail((), ZTrace.none), Cause.interrupt(selfId))))))
+            .map(assert(_)(equalTo(Exit.Failure(Cause.Both(Cause.Fail((), StackTrace.none), Cause.interrupt(selfId))))))
         }
       } @@ zioTag(errors),
       test("Run finalizers if one reservation fails") {

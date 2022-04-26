@@ -4,11 +4,11 @@ import scala.util.Try
 
 private[zio] object StringUtils {
   implicit class StringOps(private val self: String) extends AnyVal {
-    def removingAnsiCodes: String =
+    def unstyled: String =
       self.replaceAll("\u001B\\[[;\\d]*m", "")
 
     def maxLineWidth: Int =
-      Try(removingAnsiCodes.split("\n").map(_.length).max).getOrElse(0)
+      Try(unstyled.split("\n").map(_.length).max).getOrElse(0)
 
     /**
      * Joins strings line-wise

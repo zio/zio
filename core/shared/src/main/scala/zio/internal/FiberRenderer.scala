@@ -18,12 +18,12 @@ package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Running, Suspended}
-import zio.{Fiber, FiberId, UIO, ZIO, ZTraceElement}
+import zio.{Fiber, FiberId, UIO, ZIO, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object FiberRenderer {
-  def prettyPrint(dump: Fiber.Dump)(implicit trace: ZTraceElement): UIO[String] =
+  def prettyPrint(dump: Fiber.Dump)(implicit trace: Trace): UIO[String] =
     ZIO.succeed(unsafePrettyPrint(dump, System.currentTimeMillis()))
 
   private def unsafePrettyPrint(dump: Fiber.Dump, now: Long): String = {

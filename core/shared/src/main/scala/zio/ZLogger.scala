@@ -5,7 +5,7 @@ import izumi.reflect.macrortti.LightTypeTag
 
 trait ZLogger[-Message, +Output] { self =>
   def apply(
-    trace: ZTraceElement,
+    trace: Trace,
     fiberId: FiberId,
     logLevel: LogLevel,
     message: () => Message,
@@ -24,7 +24,7 @@ trait ZLogger[-Message, +Output] { self =>
   )(implicit zippable: Zippable[Output, O]): ZLogger[M, zippable.Out] =
     new ZLogger[M, zippable.Out] {
       def apply(
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         logLevel: LogLevel,
         message: () => M,
@@ -46,7 +46,7 @@ trait ZLogger[-Message, +Output] { self =>
   final def contramap[Message1](f: Message1 => Message): ZLogger[Message1, Output] =
     new ZLogger[Message1, Output] {
       def apply(
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message1,
@@ -64,7 +64,7 @@ trait ZLogger[-Message, +Output] { self =>
   final def filterLogLevel(f: LogLevel => Boolean): ZLogger[Message, Option[Output]] =
     new ZLogger[Message, Option[Output]] {
       def apply(
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message,
@@ -81,7 +81,7 @@ trait ZLogger[-Message, +Output] { self =>
   final def map[B](f: Output => B): ZLogger[Message, B] =
     new ZLogger[Message, B] {
       def apply(
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         logLevel: LogLevel,
         message: () => Message,
@@ -94,7 +94,7 @@ trait ZLogger[-Message, +Output] { self =>
 
   final def test(input: => Message): Output =
     apply(
-      ZTraceElement.empty,
+      Trace.empty,
       FiberId.None,
       LogLevel.Info,
       () => input,
@@ -111,7 +111,7 @@ object ZLogger {
   import Predef.{Set => ScalaSet, _}
 
   val default: ZLogger[String, String] = (
-    trace: ZTraceElement,
+    trace: Trace,
     fiberId: FiberId,
     logLevel: LogLevel,
     message0: () => String,
@@ -162,7 +162,7 @@ object ZLogger {
     }
 
     trace match {
-      case ZTraceElement(location, file, line) =>
+      case Trace(location, file, line) =>
         sb.append(" location=")
 
         appendQuoted(location, sb)
@@ -206,7 +206,7 @@ object ZLogger {
    */
   val none: ZLogger[Any, Unit] = new ZLogger[Any, Unit] {
     def apply(
-      trace: ZTraceElement,
+      trace: Trace,
       fiberId: FiberId,
       logLevel: LogLevel,
       message: () => Any,
@@ -221,7 +221,7 @@ object ZLogger {
   def simple[A, B](log: A => B): ZLogger[A, B] =
     new ZLogger[A, B] {
       def apply(
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         logLevel: LogLevel,
         message: () => A,

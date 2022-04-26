@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{IO, ZEnv, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, ZEnv, ZIO, ZLayer, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -27,7 +27,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * are re-exported in the ZIO Test package object for easy availability.
  */
 trait Live {
-  def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
+  def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 }
 
 object Live {
@@ -44,7 +44,7 @@ object Live {
       ZIO
         .environmentWith[ZEnv] { zenv =>
           new Live {
-            def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+            def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
               ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
           }
         }
@@ -54,7 +54,7 @@ object Live {
   /**
    * Provides a workflow with the "live" default ZIO services.
    */
-  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Live, E, A] =
+  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Live, E, A] =
     ZIO.serviceWithZIO[Live](_.provide(zio))
 
   /**
@@ -63,6 +63,6 @@ object Live {
    */
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
+  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, E1, B] =
     ZEnv.services.getWith(services => live(f(ZEnv.services.locally(services)(zio))))
 }
