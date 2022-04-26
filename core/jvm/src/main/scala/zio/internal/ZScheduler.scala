@@ -129,12 +129,12 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
         var loop = true
         while (loop) {
           val worker = idle.poll(null)
-          if ((worker ne null) && !worker.blocking) {
+          if (worker eq null) {
+            loop = false
+          } else {
             state.getAndAdd(0x10001)
             worker.active = true
             LockSupport.unpark(worker)
-            loop = false
-          } else if (worker eq null) {
             loop = false
           }
         }
@@ -179,12 +179,12 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
           var loop = true
           while (loop) {
             val worker = idle.poll(null)
-            if ((worker ne null) && !worker.blocking) {
+            if (worker eq null) {
+              loop = false
+            } else {
               state.getAndAdd(0x10001)
               worker.active = true
               LockSupport.unpark(worker)
-              loop = false
-            } else if (worker eq null) {
               loop = false
             }
           }
@@ -229,14 +229,13 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
                 globalQueue.offerAll(runnables)
                 val worker = cache.poll(null)
                 if (worker eq null) {
-                  state.getAndAdd(0x10000)
                   val worker = makeWorker()
                   worker.setName(s"ZScheduler-$workerId")
                   worker.setDaemon(true)
                   workers(workerId) = worker
                   worker.start()
                 } else {
-                  state.getAndAdd(0x10001)
+                  state.getAndIncrement()
                   worker.setName(s"ZScheduler-$workerId")
                   workers(workerId) = worker
                   worker.blocking = false
@@ -265,12 +264,14 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
   private[this] def makeWorker(): ZScheduler.Worker =
     new ZScheduler.Worker { self =>
       override def run(): Unit = {
-        var currentOpCount = 0L
-        val random         = ThreadLocalRandom.current
-        var runnable       = null.asInstanceOf[Runnable]
-        var searching      = false
+        var currentBlocking = false
+        var currentOpCount  = 0L
+        val random          = ThreadLocalRandom.current
+        var runnable        = null.asInstanceOf[Runnable]
+        var searching       = false
         while (!isInterrupted) {
-          if (blocking) {
+          currentBlocking = blocking
+          if (currentBlocking) {
             if (nextRunnable ne null) {
               runnable = nextRunnable
               nextRunnable = null
@@ -322,7 +323,8 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
                         if (runnables.tail.nonEmpty) {
                           localQueue.offerAll(runnables.tail)
                         }
-                        if (blocking) {
+                        currentBlocking = blocking
+                        if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
                           if (runnables.nonEmpty) {
                             globalQueue.offerAll(runnables)
@@ -341,10 +343,14 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
             }
           }
           if (runnable eq null) {
-            val currentState     = if (searching) state.addAndGet(0xfffeffff) else state.addAndGet(0xffff0000)
+            val currentState =
+              if (currentBlocking && searching) state.decrementAndGet()
+              else if (currentBlocking) state.get
+              else if (searching) state.addAndGet(0xfffeffff)
+              else state.addAndGet(0xffff0000)
             val currentSearching = currentState & 0xffff
             active = false
-            if (blocking) {
+            if (currentBlocking) {
               cache.offer(self)
             } else {
               idle.offer(self)
@@ -368,12 +374,12 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
                   var loop = true
                   while (loop) {
                     val worker = idle.poll(null)
-                    if ((worker ne null) && !worker.blocking) {
+                    if (worker eq null) {
+                      loop = false
+                    } else {
                       state.getAndAdd(0x10001)
                       worker.active = true
                       LockSupport.unpark(worker)
-                      loop = false
-                    } else if (worker eq null) {
                       loop = false
                     }
                   }
@@ -394,12 +400,12 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
                 var loop = true
                 while (loop) {
                   val worker = idle.poll(null)
-                  if ((worker ne null) && !worker.blocking) {
+                  if (worker eq null) {
+                    loop = false
+                  } else {
                     state.getAndAdd(0x10001)
                     worker.active = true
                     LockSupport.unpark(worker)
-                    loop = false
-                  } else if (worker eq null) {
                     loop = false
                   }
                 }
