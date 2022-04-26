@@ -20,7 +20,7 @@ val s1 = ZIO.succeed(42)
 You can also use methods in the companion objects of the `ZIO` type aliases:
 
 ```scala mdoc:silent
-val s2: Task[Int] = Task.succeed(42)
+val s2: Task[Int] = ZIO.succeed(42)
 ```
 
 The `succeed` method takes a by-name parameter to make sure that any accidental side effects from constructing the value can be properly managed by the ZIO Runtime.
@@ -38,10 +38,8 @@ For the `ZIO` data type, there is no restriction on the error type. You may use 
 Many applications will model failures with classes that extend `Throwable` or `Exception`:
 
 ```scala mdoc:silent
-val f2 = Task.fail(new Exception("Uh oh!"))
+val f2 = ZIO.fail(new Exception("Uh oh!"))
 ```
-
-Note that, unlike the other effect companion objects, the `UIO` companion object does not have a `fail` method because `UIO` values cannot fail.
 
 ## From Scala Values
 
@@ -177,10 +175,10 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.async[Any, AuthError, User] { callback =>
+  ZIO.async[Any, AuthError, User] { callback =>
     legacy.login(
-      user => callback(IO.succeed(user)),
-      err  => callback(IO.fail(err))
+      user => callback(ZIO.succeed(user)),
+      err  => callback(ZIO.fail(err))
     )
   }
 ```
@@ -211,7 +209,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(ZIO.succeed(l.close()))
 ```
 
 If a side effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -220,7 +218,7 @@ If a side effect has already been converted into a ZIO effect, then instead of `
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.attempt {
+  ZIO.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 

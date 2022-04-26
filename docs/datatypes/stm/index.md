@@ -69,12 +69,12 @@ Let's see how the `modify` function of `Ref` is implemented without any locking 
 
 ```scala mdoc:invisible
 import java.util.concurrent.atomic.AtomicReference
-import zio.UIO
+import zio.{UIO, ZIO}
 ```
 
 ```scala mdoc:silent:nest
   final case class Ref[A](value: AtomicReference[A]) { self =>
-    def modify[B](f: A => (B, A)): UIO[B] = UIO.succeed {
+    def modify[B](f: A => (B, A)): UIO[B] = ZIO.succeed {
       var loop = true
       var b: B = null.asInstanceOf[B]
       while (loop) {

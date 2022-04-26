@@ -420,7 +420,7 @@ So instead of writing a parallel task like this:
 
 ```scala mdoc:invisible
 val urls: List[String] = List.empty
-def download(url: String): Task[String] = Task.attempt(???)
+def download(url: String): Task[String] = ZIO.attempt(???)
 ```
 
 ```scala mdoc:silent:warn

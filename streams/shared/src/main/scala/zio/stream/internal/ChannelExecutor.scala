@@ -168,7 +168,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                           val effect = restorePipe(exit, inputExecutor)
 
                           if (effect ne null) effect
-                          else UIO.unit
+                          else ZIO.unit
                         }
                     })
                   }
@@ -186,7 +186,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
                 val effect = restorePipe(exit, previousInput)
 
                 if (effect ne null) effect
-                else UIO.unit
+                else ZIO.unit
               }
 
               currentChannel = right().asInstanceOf[Channel[Env]]
@@ -488,7 +488,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
     val state = exit.fold(doneHalt, doneSucceed)
     activeSubexecutor = null
 
-    if (state eq null) UIO.unit
+    if (state eq null) ZIO.unit
     else state.effect
   }
 
@@ -779,7 +779,7 @@ private[zio] object ChannelExecutor {
     def effect: ZIO[R, E, Any] =
       self match {
         case ChannelState.Effect(zio) => zio
-        case _                        => UIO.unit
+        case _                        => ZIO.unit
       }
 
     def effectOrNullIgnored(implicit trace: Trace): ZIO[R, Nothing, Unit] =
@@ -1045,8 +1045,8 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
       ref.modify {
         case State.Emit(notifyConsumers) =>
           (p.await.foldCause(onError, _.fold(onDone, onElement)), State.Emit(notifyConsumers.enqueue(p)))
-        case s @ State.Error(a) => (UIO.succeed(onError(a)), s)
-        case s @ State.Done(a)  => (UIO.succeed(onDone(a)), s)
+        case s @ State.Error(a) => (ZIO.succeed(onError(a)), s)
+        case s @ State.Done(a)  => (ZIO.succeed(onDone(a)), s)
         case s @ State.Empty(notifyProducer) =>
           (notifyProducer.succeed(()) *> p.await.foldCause(onError, _.fold(onDone, onElement)), State.Emit(Queue(p)))
       }.flatten

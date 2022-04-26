@@ -115,7 +115,7 @@ val failed : ZSink[Any, String, Any, Nothing, Nothing] = ZSink.fail("fail!")
 To create a sink that collects all elements of a stream into a `Chunk[A]`, we can use `ZSink.collectAll`:
 
 ```scala mdoc:silent:nest
-val stream    : UStream[Int]    = UStream(1, 2, 3, 4, 5)
+val stream    : UStream[Int]    = ZStream(1, 2, 3, 4, 5)
 val collection: UIO[Chunk[Int]] = stream.run(ZSink.collectAll[Int])
 // Output: Chunk(1, 2, 3, 4, 5)
 ```

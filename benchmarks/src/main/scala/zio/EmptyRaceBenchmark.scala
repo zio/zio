@@ -32,8 +32,8 @@ class EmptyRaceBenchmark {
 
   private[this] def zioEmptyRace(runtime: Runtime[Any]): Int = {
     def loop(i: Int): UIO[Int] =
-      if (i < size) IO.never.raceFirst(IO.succeed(i + 1)).flatMap(loop)
-      else IO.succeedNow(i)
+      if (i < size) ZIO.never.raceFirst(ZIO.succeed(i + 1)).flatMap(loop)
+      else ZIO.succeedNow(i)
 
     runtime.unsafeRun(loop(0))
   }
