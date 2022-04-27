@@ -8,7 +8,7 @@ import zio.{ZIO, ZManaged}
 import java.io.{FileInputStream, IOException}
 
 object ManagedPieces {
-  def make(): ZManaged[Int, IOException, String] = ???
+  def make(): ZManaged[Int with String, IOException, String] = ???
 
   val resource = make()
 

@@ -5,7 +5,7 @@ import zio.{Scope, ZIO}
 import java.io.{FileInputStream, IOException}
 
 object ManagedPieces {
-  def make(): ZIO[Int with Scope, IOException, String] = ???
+  def make(): ZIO[Int with String with Scope, IOException, String] = ???
 
   val resource = make()
   ZIO.scoped {
