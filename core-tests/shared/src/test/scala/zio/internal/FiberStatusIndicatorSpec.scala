@@ -13,7 +13,8 @@ object FiberStatusIndicatorSpec extends ZIOBaseSpec {
         assertTrue(getAsyncs(initial) == 0) &&
         assertTrue(getMessages(initial) == false) &&
         assertTrue(getInterrupting(initial) == false) &&
-        assertTrue(getInterruptible(initial) == true)
+        assertTrue(getInterruptible(initial) == true) &&
+        assertTrue(getPendingMessages(initial) == 0)
       } +
         test("change status to suspended") {
           assertTrue(getStatus(withStatus(initial, Status.Suspended)) == Status.Suspended)
@@ -54,6 +55,13 @@ object FiberStatusIndicatorSpec extends ZIOBaseSpec {
         } +
         test("change messages to false") {
           assertTrue(getMessages(withMessages(withMessages(initial, true), false)) == false)
+        } +
+        test("change pending messages") {
+          val newIndicator =
+            (1 to 100).foldLeft(initial) { case (indicator, _) =>
+              withPendingMessages(indicator, getPendingMessages(indicator) + 1)
+            }
+          assertTrue(getPendingMessages(newIndicator) == 100)
         }
     }
 }

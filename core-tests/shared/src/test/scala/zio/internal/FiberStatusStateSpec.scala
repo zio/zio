@@ -14,16 +14,29 @@ object FiberStatusStateSpec extends ZIOBaseSpec {
         val state = make()
 
         assertTrue(state.getStatus() == Status.Running) &&
-        assertTrue(state.getMessages() == false) &&
+        assertTrue(state.clearMessages() == false) &&
         assertTrue(state.getAsyncs() == 0) &&
         assertTrue(state.getInterruptible() == true) &&
         assertTrue(state.getInterrupting() == false)
       } +
-        test("messages") {
+        test("beginAddMessage - success") {
           val state = make()
 
-          state.setMessages(true)
-          assertTrue(state.getMessages() == true)
+          val result = state.beginAddMessage()
+          state.endAddMessage()
+
+          assertTrue(result == true) &&
+          assertTrue(state.clearMessages() == true)
+        } +
+        test("beginAddMessage - failure because already done") {
+          val state = make()
+
+          state.attemptDone()
+
+          val result = state.beginAddMessage()
+
+          assertTrue(result == false) &&
+          assertTrue(state.clearMessages() == false)
         } +
         test("interruptible") {
           val state = make()
@@ -133,7 +146,8 @@ object FiberStatusStateSpec extends ZIOBaseSpec {
         test("attemptDone - failure due to pending messages") {
           val state = make()
 
-          state.setMessages(true)
+          state.beginAddMessage()
+          state.endAddMessage()
 
           assertTrue(state.attemptDone() == false)
         } +

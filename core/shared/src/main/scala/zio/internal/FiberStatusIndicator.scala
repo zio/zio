@@ -38,17 +38,17 @@ object FiberStatusIndicator {
 
   final val StatusShift = 0
   final val StatusSize  = 2
-  final val StatusMask  = 3 << StatusShift
+  final val StatusMask  = 0x3 << StatusShift
   final val StatusMaskN = ~StatusMask
 
   final val MessagesShift = StatusSize
   final val MessagesSize  = 1
-  final val MessagesMask  = 1 << MessagesShift
+  final val MessagesMask  = 0x1 << MessagesShift
   final val MessagesMaskN = ~MessagesMask
 
   final val InterruptingShift = MessagesShift + MessagesSize
   final val InterruptingSize  = 1
-  final val InterruptingMask  = 1 << InterruptingShift
+  final val InterruptingMask  = 0x1 << InterruptingShift
   final val InterruptingMaskN = ~InterruptingMask
 
   final val InterruptibleShift = InterruptingShift + InterruptingSize
@@ -56,9 +56,14 @@ object FiberStatusIndicator {
   final val InterruptibleMask  = 1 << InterruptibleShift
   final val InterruptibleMaskN = ~InterruptibleMask
 
-  final val AsyncsShift = InterruptibleShift + InterruptibleSize
-  final val AsyncsSize  = 32 - (StatusSize + MessagesSize + InterruptingSize + InterruptibleSize)
-  final val AsyncsMask  = 0x7ffffff << AsyncsShift
+  final val PendingMessagesShift = InterruptibleShift + InterruptibleSize
+  final val PendingMessagesSize  = 8
+  final val PendingMessagesMask  = 0xff << PendingMessagesShift
+  final val PendingMessagesMaskN = ~PendingMessagesMask
+
+  final val AsyncsShift = PendingMessagesShift + PendingMessagesSize
+  final val AsyncsSize  = 32 - (StatusSize + MessagesSize + InterruptingSize + InterruptibleSize + PendingMessagesSize)
+  final val AsyncsMask  = 0x7ffff << AsyncsShift
   final val AsyncsMaskN = ~AsyncsMask
 
   def getStatus(flags: FiberStatusIndicator): Status = ((flags & StatusMask) >> StatusShift).asInstanceOf[Status]
@@ -70,6 +75,9 @@ object FiberStatusIndicator {
   def getInterrupting(flags: FiberStatusIndicator): Boolean = (flags & InterruptingMask) != 0
 
   def getMessages(flags: FiberStatusIndicator): Boolean = (flags & MessagesMask) != 0
+
+  def getPendingMessages(flags: FiberStatusIndicator): Int =
+    (flags & PendingMessagesMask) >> PendingMessagesShift
 
   def withAsyncs(flags: FiberStatusIndicator, asyncs: Int): FiberStatusIndicator =
     ((asyncs << AsyncsShift) | (flags & AsyncsMaskN)).asInstanceOf[FiberStatusIndicator]
@@ -84,6 +92,9 @@ object FiberStatusIndicator {
 
   def withMessages(flags: FiberStatusIndicator, messages: Boolean): FiberStatusIndicator =
     (((if (messages) 1 else 0) << MessagesShift) | (flags & MessagesMaskN)).asInstanceOf[FiberStatusIndicator]
+
+  def withPendingMessages(flags: FiberStatusIndicator, pendingMessages: Int): FiberStatusIndicator =
+    ((pendingMessages << PendingMessagesShift) | (flags & PendingMessagesMaskN)).asInstanceOf[FiberStatusIndicator]
 
   def withStatus(flags: FiberStatusIndicator, status: Status): FiberStatusIndicator =
     ((status << StatusShift) | (flags & StatusMaskN)).asInstanceOf[FiberStatusIndicator]

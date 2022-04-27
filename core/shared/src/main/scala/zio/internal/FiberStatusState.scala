@@ -69,6 +69,35 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
     }
   }
 
+  @tailrec
+  final def beginAddMessage(): Boolean = {
+    val oldFlags           = getIndicator()
+    val oldStatus          = FiberStatusIndicator.getStatus(oldFlags)
+    val oldPendingMessages = FiberStatusIndicator.getPendingMessages(oldFlags)
+
+    val newFlags =
+      FiberStatusIndicator.withPendingMessages(oldFlags, oldPendingMessages + 1)
+
+    if (oldStatus == FiberStatusIndicator.Status.Done) false
+    else if (!ref.compareAndSet(oldFlags, newFlags)) beginAddMessage()
+    else true
+  }
+
+  @tailrec
+  final def endAddMessage(): Unit = {
+    val oldFlags           = getIndicator()
+    val oldPendingMessages = FiberStatusIndicator.getPendingMessages(oldFlags)
+
+    val newFlags =
+      FiberStatusIndicator.withMessages(
+        FiberStatusIndicator.withPendingMessages(oldFlags, oldPendingMessages - 1),
+        true
+      )
+
+    if (!ref.compareAndSet(oldFlags, newFlags)) endAddMessage()
+    else ()
+  }
+
   final def getAsyncs(): Int = FiberStatusIndicator.getAsyncs(getIndicator())
 
   final def getIndicator(): FiberStatusIndicator = ref.get.asInstanceOf[FiberStatusIndicator]
@@ -77,7 +106,18 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
 
   final def getInterrupting(): Boolean = FiberStatusIndicator.getInterrupting(getIndicator())
 
-  final def getMessages(): Boolean = FiberStatusIndicator.getMessages(getIndicator())
+  @tailrec
+  final def clearMessages(): Boolean = {
+    val oldFlags           = getIndicator()
+    val oldPendingMessages = FiberStatusIndicator.getPendingMessages(oldFlags)
+    val oldMessages        = FiberStatusIndicator.getMessages(oldFlags)
+    val hasMessages        = oldPendingMessages > 0 || oldMessages
+
+    val newFlags = FiberStatusIndicator.withMessages(oldFlags, false)
+
+    if (!ref.compareAndSet(oldFlags, newFlags)) clearMessages()
+    else hasMessages
+  }
 
   final def getStatus(): FiberStatusIndicator.Status = FiberStatusIndicator.getStatus(getIndicator())
 
@@ -96,15 +136,6 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
     val newFlags = FiberStatusIndicator.withInterrupting(oldFlags, interrupting)
 
     if (!ref.compareAndSet(oldFlags, newFlags)) setInterrupting(interrupting)
-    else ()
-  }
-
-  @tailrec
-  final def setMessages(messages: Boolean): Unit = {
-    val oldFlags = getIndicator()
-    val newFlags = FiberStatusIndicator.withMessages(oldFlags, messages)
-
-    if (!ref.compareAndSet(oldFlags, newFlags)) setMessages(messages)
     else ()
   }
 

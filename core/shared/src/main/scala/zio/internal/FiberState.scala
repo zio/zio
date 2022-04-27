@@ -67,8 +67,84 @@ object FiberState extends Serializable {
     )
 }
 
+import java.util.{HashMap => JavaMap, Set => JavaSet}
+
+class FiberState2[E, A](fiberRefs0: FiberRefs) {
+  import FiberStatusIndicator.Status
+
+  val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
+  val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
+
+  var children  = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
+  var fiberRefs = fiberRefs0
+  var observers = List.empty[Exit[Nothing, Exit[E, A]] => Unit]
+
+  @volatile var exitValue = null.asInstanceOf[Exit[E, A]]
+
+  final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+    UIO.suspendSucceed {
+      if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
+    }
+
+  final def unsafeAddObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
+    observers = observer :: observers
+
+  final def unsafeRemoveObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
+    observers = observers.filter(_ ne observer)
+
+  /**
+   * Attempts to set the state of the fiber to done. This may fail if there are
+   * pending messages in the mailbox, in which case those messages will be
+   * returned. This method should only be called by the main loop of the fiber.
+   *
+   * @return
+   *   `null` if the state of the fiber was set to done, or the pending
+   *   messages, otherwise.
+   */
+  final def unsafeAttemptDone(e: Exit[E, A]): UIO[Any] = {
+    exitValue = e
+
+    if (statusState.attemptDone()) {
+      null.asInstanceOf[UIO[Any]]
+    } else unsafeDrainMailbox()
+  }
+
+  /**
+   * Drains the mailbox of all messages. If the mailbox is empty, this will
+   * return `ZIO.unit`.
+   */
+  private final def unsafeDrainMailbox(): UIO[Any] = {
+    @tailrec
+    def clearMailbox(): UIO[Any] = {
+      val oldMailbox = mailbox.get
+
+      if (!mailbox.compareAndSet(oldMailbox, ZIO.unit)) clearMailbox()
+      else oldMailbox
+    }
+
+    if (statusState.clearMessages()) clearMailbox()
+    else ZIO.unit
+  }
+
+  private final def unsafeAddMessage(effect: UIO[Any]): Boolean = {
+    @tailrec
+    def loop(message: UIO[Any]): Unit = {
+      val oldMessages = mailbox.get
+
+      if (!mailbox.compareAndSet(oldMessages, (oldMessages *> message)(ZTraceElement.empty))) loop(message)
+      else ()
+    }
+
+    if (statusState.beginAddMessage()) {
+      try {
+        loop(effect)
+        true
+      } finally statusState.endAddMessage()
+    } else false
+  }
+}
+
 object successor {
-  import java.util.{HashMap => JavaMap, Set => JavaSet}
 
   // class FiberState[E, A](
   //   interruptible0: Boolean,
