@@ -68,7 +68,7 @@ trait ChunkLike[+A]
       val a = iterator.nextAt(index)
       index += 1
       val bs    = f(a)
-      val chunk = ChunkLike.from(bs)
+      val chunk = Chunk.from(bs)
       if (chunk.length > 0) {
         if (B0 == null) {
           B0 = Chunk.classTagOf(chunk)
@@ -104,7 +104,7 @@ trait ChunkLike[+A]
    * it allocates mutable state.
    */
   override val iterableFactory: SeqFactory[Chunk] =
-    ChunkLike
+    Chunk
 
   /**
    * Returns a chunk with the elements mapped by the specified function.
@@ -120,33 +120,4 @@ trait ChunkLike[+A]
    */
   override final def zipWithIndex: Chunk[(A, Int)] =
     zipWithIndexFrom(0)
-}
-
-object ChunkLike extends SeqFactory[Chunk] {
-
-  /**
-   * Returns the empty `Chunk`.
-   */
-  def empty[A]: Chunk[A] =
-    Chunk.empty
-
-  /**
-   * Constructs a `Chunk` from the specified `IterableOnce`.
-   */
-  def from[A](source: IterableOnce[A]): Chunk[A] =
-    source match {
-      case iterable: Iterable[A] => Chunk.fromIterable(iterable)
-      case iterableOnce =>
-        val chunkBuilder = ChunkBuilder.make[A]()
-        iterableOnce.iterator.foreach(chunkBuilder.addOne)
-        chunkBuilder.result()
-    }
-
-  /**
-   * Constructs a new `ChunkBuilder`. This operation allocates mutable state and
-   * is not referentially transparent. It is provided for compatibility with
-   * Scala's collection library and should not be used for other purposes.
-   */
-  def newBuilder[A]: ChunkBuilder[A] =
-    ChunkBuilder.make()
 }

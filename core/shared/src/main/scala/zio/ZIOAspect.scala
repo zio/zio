@@ -206,8 +206,13 @@ object ZIOAspect {
             ZIO.yieldNow
 
         ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-          (setRuntimeConfig(runtimeConfigAspect(currentRuntimeConfig)))
-            .acquireRelease(setRuntimeConfig(currentRuntimeConfig), zio)
+          ZIO.acquireReleaseWith {
+            setRuntimeConfig(runtimeConfigAspect(currentRuntimeConfig))
+          } { _ =>
+            setRuntimeConfig(currentRuntimeConfig)
+          } { _ =>
+            zio
+          }
         }
       }
     }

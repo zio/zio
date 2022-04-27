@@ -86,11 +86,7 @@ def use(resource: Resource): Task[Any] = ZIO.attempt(???)
 def release(resource: Resource): UIO[Unit] = ZIO.succeed(???)
 def acquire: Task[Resource]                = ZIO.attempt(???)
 
-val result1: Task[Any] = acquire.acquireReleaseWith(release, use)
-val result2: Task[Any] = acquire.acquireReleaseWith(release)(use) // More ergonomic API
-
-val result3: Task[Any] = ZIO.acquireReleaseWith(acquire, release, use)
-val result4: Task[Any] = ZIO.acquireReleaseWith(acquire)(release)(use) // More ergonomic API
+val result: Task[Any] = ZIO.acquireReleaseWith(acquire)(release)(use)
 ```
 
 The acquire release guarantees us that the `acquiring` and `releasing` of a resource will not be interrupted. These two guarantees ensure us that the resource will always be released.
@@ -103,7 +99,7 @@ def lines(file: String): Task[Long] = {
   def releaseReader(reader: BufferedReader): UIO[Unit]  = ZIO.succeed(reader.close())
   def acquireReader(file: String): Task[BufferedReader] = ZIO.attempt(new BufferedReader(new FileReader(file), 2048))
 
-  ZIO.acquireReleaseWith(acquireReader(file), releaseReader, countLines)
+  ZIO.acquireReleaseWith(acquireReader(file))(releaseReader)(countLines)
 }
 ```
 
@@ -128,17 +124,14 @@ def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
 As there isn't any dependency between our two resources (`is` and `os`), it doesn't make sense to use nested acquire releases, so let's `zip` these two acquisition into one effect, and then use one acquire release on them:
 
 ```scala mdoc:silent:nest
-def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] = {
-  is(src)
-    .zipPar(os(dst))
-    .acquireReleaseWith { case (in, out) =>
-      ZIO
-        .succeed(in.close())
-        .zipPar(ZIO.succeed(out.close()))
-    } { case (in, out) =>
-      copy(in, out)
-    }
-}
+def transfer(src: String, dst: String): ZIO[Any, Throwable, Unit] =
+  ZIO.acquireReleaseWith {
+    is(src).zipPar(os(dst))
+  } { case (in, out) =>
+    ZIO.succeed(in.close()).zipPar(ZIO.succeed(out.close()))
+  } { case (in, out) =>
+    copy(in, out)
+  }
 ```
 
 While using acquire release is a nice and simple way of managing resources, but there are some cases where an acquire release is not the best choice:

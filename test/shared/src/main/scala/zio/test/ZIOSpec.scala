@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract with ZIOSpecVersionSpecific[R] { self =>
   type Environment = R
 
-  final val tag: EnvironmentTag[R] = EnvironmentTag[R]
+  final val environmentTag: EnvironmentTag[R] = EnvironmentTag[R]
 
   /**
    * Builds a spec with a single test.

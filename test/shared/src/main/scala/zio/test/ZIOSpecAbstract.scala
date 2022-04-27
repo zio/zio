@@ -55,9 +55,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
-      def tag: EnvironmentTag[Environment] = {
-        implicit val selfTag: EnvironmentTag[self.Environment] = self.tag
-        implicit val thatTag: EnvironmentTag[that.Environment] = that.tag
+      def environmentTag: EnvironmentTag[Environment] = {
+        implicit val selfTag: EnvironmentTag[self.Environment] = self.environmentTag
+        implicit val thatTag: EnvironmentTag[that.Environment] = that.environmentTag
         val _                                                  = (selfTag, thatTag)
         EnvironmentTag[Environment]
       }

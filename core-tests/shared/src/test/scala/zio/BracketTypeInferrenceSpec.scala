@@ -3,51 +3,17 @@ package zio
 object AcquireReleaseWithTypeInferenceSpec {
   class A
   class B
-  class R
-  class R1 extends R
-  class R2 extends R1
+  class R1
+  class R2
+  class R3
   class E
   class E1 extends E
+  class E2 extends E
 
-  def infersEType1: ZIO[R, E, B] = {
-    val acquire: ZIO[R, E, A]      = ???
-    val release: A => URIO[R, Any] = ???
-    val use: A => ZIO[R, E1, B]    = ???
-    acquire.acquireReleaseWith(release)(use)
-  }
-
-  def infersEType2: ZIO[R, E, B] = {
-    val acquire: ZIO[R, E1, A]     = ???
-    val release: A => URIO[R, Any] = ???
-    val use: A => ZIO[R, E, B]     = ???
-    acquire.acquireReleaseWith(release, use)
-  }
-
-  def infersRType1: ZIO[R2, E, B] = {
-    val acquire: ZIO[R, E, A]               = ???
-    val release: A => ZIO[R1, Nothing, Any] = ???
-    val use: A => ZIO[R2, E, B]             = ???
-    acquire.acquireReleaseWith(release)(use)
-  }
-
-  def infersRType2: ZIO[R2, E, B] = {
-    val acquire: ZIO[R2, E, A]              = ???
-    val release: A => ZIO[R1, Nothing, Any] = ???
-    val use: A => ZIO[R, E, B]              = ???
-    acquire.acquireReleaseWith(release, use)
-  }
-
-  def infersRType3: ZIO[R2, E, B] = {
-    val acquire: ZIO[R1, E, A]              = ???
+  def infersRType3: ZIO[R1 with R2 with R3, E, B] = {
+    val acquire: ZIO[R1, E1, A]             = ???
     val release: A => ZIO[R2, Nothing, Any] = ???
-    val use: A => ZIO[R, E, B]              = ???
-    ZIO.acquireReleaseWith(acquire, release, use)
-  }
-
-  def infersRType4: ZIO[R2, E, B] = {
-    val acquire: ZIO[R2, E, A]              = ???
-    val release: A => ZIO[R1, Nothing, Any] = ???
-    val use: A => ZIO[R, E, B]              = ???
-    acquire.acquireReleaseWith(release)(use)
+    val use: A => ZIO[R3, E2, B]            = ???
+    ZIO.acquireReleaseWith(acquire)(release)(use)
   }
 }

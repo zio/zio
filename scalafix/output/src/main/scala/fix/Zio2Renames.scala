@@ -23,20 +23,20 @@ object Zio2Renames {
   val haltWith = ZIO.failCauseWith(_ => Cause.fail("fail"))
 
   val toManaged_ = effect.toManaged
-  val toManaged  = effect.toManagedWith(_ => UIO.unit)
-  val bimap      = effect.mapBoth(_ => UIO.unit, _ => UIO.unit)
+  val toManaged  = effect.toManagedWith(_ => ZIO.unit)
+  val bimap      = effect.mapBoth(_ => ZIO.unit, _ => ZIO.unit)
 
   val printline = Console.printLine("HEY")
 
   // foreachParN
-  val foreachParN = ZIO.foreachPar(List(1,2))({ int =>
+  val foreachParN = ZIO.foreachParN(4)(List(1,2)) { int =>
     ZIO.succeed(int)
-  }).withParallelism(4)
+  }
 
   // foreachParN[Types]
-  val foreachParNWithTypes = ZIO.foreachPar[Any, Nothing, Int, Int, List](List(1,2))({ int =>
+  val foreachParNWithTypes = ZIO.foreachParN[Any, Nothing, Int, Int, List](4)(List(1,2)) { int =>
     ZIO.succeed(int)
-  }).withParallelism(4)
+  }
 
   // Generators
   Gen.int

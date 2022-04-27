@@ -229,17 +229,19 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         test("reads from an existing file") {
           val data = (0 to 100).mkString
 
-          ZIO
-            .attempt(Files.createTempFile("stream", "fromFile"))
-            .acquireReleaseWith(path => ZIO.attempt(Files.delete(path)).orDie) { path =>
-              ZIO.attempt(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
-                assertZIO(
-                  ZStream
-                    .fromPath(path, 24)
-                    .via(ZPipeline.utf8Decode)
-                    .mkString
-                )(equalTo(data))
-            }
+          ZIO.acquireReleaseWith {
+            ZIO.attempt(Files.createTempFile("stream", "fromFile"))
+          } { path =>
+            ZIO.attempt(Files.delete(path)).orDie
+          } { path =>
+            ZIO.attempt(Files.write(path, data.getBytes(StandardCharsets.UTF_8))) *>
+              assertZIO(
+                ZStream
+                  .fromPath(path, 24)
+                  .via(ZPipeline.utf8Decode)
+                  .mkString
+              )(equalTo(data))
+          }
         },
         test("fails on a nonexistent file") {
           assertZIO(ZStream.fromPath(Paths.get("nonexistent"), 24).runDrain.exit)(
@@ -249,26 +251,30 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
       ),
       suite("fromReader")(
         test("reads non-empty file") {
-          ZIO
-            .attempt(Files.createTempFile("stream", "reader"))
-            .acquireReleaseWith(path => ZIO.succeed(Files.delete(path))) { path =>
-              for {
-                data <- ZIO.succeed((0 to 100).mkString)
-                _    <- ZIO.attempt(Files.write(path, data.getBytes("UTF-8")))
-                read <- ZStream.fromReader(new FileReader(path.toString)).runCollect.map(_.mkString)
-              } yield assert(read)(equalTo(data))
-            }
+          ZIO.acquireReleaseWith {
+            ZIO.attempt(Files.createTempFile("stream", "reader"))
+          } { path =>
+            ZIO.succeed(Files.delete(path))
+          } { path =>
+            for {
+              data <- ZIO.succeed((0 to 100).mkString)
+              _    <- ZIO.attempt(Files.write(path, data.getBytes("UTF-8")))
+              read <- ZStream.fromReader(new FileReader(path.toString)).runCollect.map(_.mkString)
+            } yield assert(read)(equalTo(data))
+          }
         },
         test("reads empty file") {
-          ZIO
-            .attempt(Files.createTempFile("stream", "reader-empty"))
-            .acquireReleaseWith(path => ZIO.succeed(Files.delete(path))) { path =>
-              ZStream
-                .fromReader(new FileReader(path.toString))
-                .runCollect
-                .map(_.mkString)
-                .map(assert(_)(isEmptyString))
-            }
+          ZIO.acquireReleaseWith {
+            ZIO.attempt(Files.createTempFile("stream", "reader-empty"))
+          } { path =>
+            ZIO.succeed(Files.delete(path))
+          } { path =>
+            ZStream
+              .fromReader(new FileReader(path.toString))
+              .runCollect
+              .map(_.mkString)
+              .map(assert(_)(isEmptyString))
+          }
         },
         test("fails on a failing reader") {
           final class FailingReader extends Reader {
