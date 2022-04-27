@@ -741,11 +741,7 @@ Let's learn about the `ZIO.acquireReleaseWith` operator. This operator takes thr
 3. **`use`** an effect that describes resource usage
 
 ```scala mdoc:compile-only
-ZIO.acquireReleaseWith(
-  acquire = ???,
-  release = ???,
-  use       = ???
-)
+ZIO.acquireReleaseWith(acquire = ???)(release = ???)(use = ???)
 ```
 
 This operator guarantees us that if the _resource acquisition (acquire)_  the _release_ effect will be executed whether the _use_ effect succeeded or not:
@@ -763,11 +759,7 @@ def wordCount(fileName: String): ZIO[Any, Throwable, Int] = {
   def wordCount(source: => Source): ZIO[Any, Throwable, Int] =
     ZIO.attemptBlocking(source.getLines().length)
 
-  ZIO.acquireReleaseWith(
-    acquire = openFile(fileName),
-    release = (s: Source) => closeFile(s),
-    use     = (s: Source) => wordCount(s)
-  )
+  ZIO.acquireReleaseWith(openFile(fileName))(closeFile(_))(wordCount(_))
 }
 ```
 
@@ -776,11 +768,13 @@ Let's try a simple `acquireRelease` workflow to see how its control flow works:
 ```scala mdoc:compile-only
 object MainApp extends ZIOAppDefault {
   def run =
-    ZIO.acquireReleaseWith(
-      acquire = ZIO.succeed("resource").tap(r => ZIO.debug(s"$r acquired")),
-      release = (i: String) => ZIO.debug(s"$i released"),
-      use = (i: String) => ZIO.debug(s"start using $i")
-    )
+    ZIO.acquireReleaseWith {
+      ZIO.succeed("resource").tap(r => ZIO.debug(s"$r acquired"))
+    } { i =>
+      ZIO.debug(s"$i released")
+    } { i =>
+      ZIO.debug(s"start using $i")
+    }
 }
 // Output:
 // resource acquired
@@ -1349,7 +1343,7 @@ def groupData(u: Unit): IO[IOException, Unit] = ZIO.unit
 ```
 
 ```scala mdoc:silent
-val groupedFileData: IO[IOException, Unit] = openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
+val groupedFileData: IO[IOException, Unit] = ZIO.acquireReleaseWith(openFile("data.json"))(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)
@@ -1385,7 +1379,7 @@ object Main extends ZIOAppDefault {
   val myAcquireRelease: Task[Unit] = for {
     file   <- ZIO.attempt(new File("/tmp/hello"))
     len    = file.length
-    string <- ZIO.attempt(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))
+    string <- ZIO.acquireReleaseWith(ZIO.attempt(new FileInputStream(file)))(closeStream)(convertBytes(_, len))
   } yield string
 }
 ```

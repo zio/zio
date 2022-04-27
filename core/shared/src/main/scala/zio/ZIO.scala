@@ -198,67 +198,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       )
 
   /**
-   * Shorthand for the uncurried version of `ZIO.acquireReleaseWith`.
-   */
-  final def acquireReleaseWith[R1 <: R, E1 >: E, B](
-    release: A => URIO[R1, Any],
-    use: A => ZIO[R1, E1, B]
-  )(implicit trace: Trace): ZIO[R1, E1, B] =
-    ZIO.acquireReleaseWith(self, release, use)
-
-  /**
-   * Shorthand for the curried version of `ZIO.acquireReleaseWith`.
-   */
-  final def acquireReleaseWith: ZIO.Acquire[R, E, A] =
-    ZIO.acquireReleaseWith(self)
-
-  /**
-   * A less powerful variant of `acquireReleaseWith` where the resource acquired
-   * by this effect is not needed.
-   */
-  final def acquireRelease[R1 <: R, E1 >: E]: ZIO.AcquireDiscard[R1, E1] =
-    new ZIO.AcquireDiscard(self)
-
-  /**
-   * Uncurried version. Doesn't offer curried syntax and has worse
-   * type-inference characteristics, but it doesn't allocate intermediate
-   * [[zio.ZIO.AcquireDiscard]] and [[zio.ZIO.ReleaseDiscard]] objects.
-   */
-  final def acquireRelease[R1 <: R, E1 >: E, B](
-    release: => URIO[R1, Any],
-    use: => ZIO[R1, E1, B]
-  )(implicit trace: Trace): ZIO[R1, E1, B] =
-    ZIO.acquireReleaseWith(self, (_: A) => release, (_: A) => use)
-
-  /**
-   * Shorthand for the uncurried version of `ZIO.acquireReleaseExitWith`.
-   */
-  final def acquireReleaseExitWith[R1 <: R, E1 >: E, B](
-    release: (A, Exit[E1, B]) => URIO[R1, Any],
-    use: A => ZIO[R1, E1, B]
-  )(implicit trace: Trace): ZIO[R1, E1, B] =
-    ZIO.acquireReleaseExitWith(self, release, use)
-
-  /**
-   * Shorthand for the curried version of `ZIO.acquireReleaseExitWith`.
-   */
-  final def acquireReleaseExitWith: ZIO.AcquireExit[R, E, A] =
-    ZIO.acquireReleaseExitWith(self)
-
-  /**
-   * Executes the release effect only if there was an error.
-   */
-  final def acquireReleaseOnErrorWith[R1 <: R, E1 >: E, B](
-    release: A => URIO[R1, Any]
-  )(use: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
-    ZIO.acquireReleaseExitWith(self)((a: A, eb: Exit[E1, B]) =>
-      eb match {
-        case Exit.Failure(_) => release(a)
-        case _               => ZIO.unit
-      }
-    )(use)
-
-  /**
    * Maps the success value of this effect to the specified constant value.
    */
   final def as[B](b: => B)(implicit trace: Trace): ZIO[R, E, B] =
@@ -2519,18 +2458,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.Acquire[R, E, A](() => acquire)
 
   /**
-   * Uncurried version. Doesn't offer curried syntax and have worse
-   * type-inference characteristics, but guarantees no extra allocations of
-   * intermediate [[zio.ZIO.Acquire]] and [[zio.ZIO.Release]] objects.
-   */
-  def acquireReleaseWith[R, E, A, B](
-    acquire: => ZIO[R, E, A],
-    release: A => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  )(implicit trace: Trace): ZIO[R, E, B] =
-    acquireReleaseExitWith(acquire, (a: A, _: Exit[E, B]) => release(a), use)
-
-  /**
    * Acquires a resource, uses the resource, and then releases the resource.
    * Neither the acquisition nor the release will be interrupted, and the
    * resource is guaranteed to be released, so long as the `acquire` effect
@@ -2539,32 +2466,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def acquireReleaseExitWith[R, E, A](acquire: => ZIO[R, E, A]): ZIO.AcquireExit[R, E, A] =
     new ZIO.AcquireExit(() => acquire)
-
-  /**
-   * Uncurried version. Doesn't offer curried syntax and has worse
-   * type-inference characteristics, but guarantees no extra allocations of
-   * intermediate [[zio.ZIO.AcquireExit]] and [[zio.ZIO.ReleaseExit]] objects.
-   */
-  def acquireReleaseExitWith[R, E, A, B](
-    acquire: => ZIO[R, E, A],
-    release: (A, Exit[E, B]) => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  )(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.uninterruptibleMask[R, E, B](restore =>
-      acquire.flatMap({ a =>
-        ZIO
-          .suspendSucceed(restore(use(a)))
-          .exit
-          .flatMap({ e =>
-            ZIO
-              .suspendSucceed(release(a, e))
-              .foldCauseZIO(
-                cause2 => ZIO.failCause(e.fold(_ ++ cause2, _ => cause2)),
-                _ => ZIO.done(e)
-              )
-          })
-      })
-    )
 
   /**
    * Adds a finalizer to the scope of this effect. The finalizer is guaranteed
@@ -3977,8 +3878,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith { descriptor =>
-      if (descriptor.isLocked) ZIO.shift(executor).acquireRelease(ZIO.shift(descriptor.executor), zio)
-      else ZIO.shift(executor).acquireRelease(ZIO.unshift, zio)
+      if (descriptor.isLocked)
+        ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))(_ => zio)
+      else ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.unshift)(_ => zio)
     }
 
   def parallelFinalizers[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, A] =
@@ -4633,8 +4535,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     runtimeConfig: => RuntimeConfig
   )(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-      (ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.yieldNow)
-        .acquireRelease(ZIO.setRuntimeConfig(currentRuntimeConfig), zio)
+      ZIO.acquireReleaseWith(ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.yieldNow)(_ =>
+        ZIO.setRuntimeConfig(currentRuntimeConfig) *> ZIO.yieldNow
+      )(_ => zio)
     }
 
   /**
@@ -4781,24 +4684,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       (self map f) raceFirst (ZIO.sleep(duration).interruptible as b())
   }
 
-  final class AcquireDiscard[-R, +E](private val acquire: ZIO[R, E, Any]) extends AnyVal {
-    def apply[R1 <: R](
-      release: => URIO[R1, Any]
-    ): ReleaseDiscard[R1, E] =
-      new ReleaseDiscard(acquire, release)
-  }
-  final class ReleaseDiscard[-R, +E](acquire: ZIO[R, E, Any], release: URIO[R, Any]) {
-    def apply[R1 <: R, E1 >: E, B](use: => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
-      ZIO.acquireReleaseWith(acquire, (_: Any) => release, (_: Any) => use)
-  }
-
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
     def apply[R1](release: A => URIO[R1, Any]): Release[R with R1, E, A] =
       new Release[R with R1, E, A](acquire, release)
   }
   final class Release[-R, +E, +A](acquire: () => ZIO[R, E, A], release: A => URIO[R, Any]) {
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
-      ZIO.acquireReleaseWith(acquire(), release, use)
+      acquireReleaseExitWith(acquire())((a: A, _: Exit[E1, B]) => release(a))(use)
   }
 
   final class AcquireExit[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
@@ -4814,7 +4706,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def apply[R1 <: R, E2 >: E <: E1, B1 <: B](use: A => ZIO[R1, E2, B1])(implicit
       trace: Trace
     ): ZIO[R1, E2, B1] =
-      ZIO.acquireReleaseExitWith(acquire(), release, use)
+      ZIO.uninterruptibleMask[R1, E2, B1](restore =>
+        acquire().flatMap({ a =>
+          ZIO
+            .suspendSucceed(restore(use(a)))
+            .exit
+            .flatMap({ e =>
+              ZIO
+                .suspendSucceed(release(a, e))
+                .foldCauseZIO(
+                  cause2 => ZIO.failCause(e.fold(_ ++ cause2, _ => cause2)),
+                  _ => ZIO.done(e)
+                )
+            })
+        })
+      )
   }
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
