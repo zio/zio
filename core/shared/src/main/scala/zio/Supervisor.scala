@@ -173,7 +173,7 @@ object Supervisor {
 
     new Supervisor[Chunk[Fiber.Runtime[Any, Any]]] {
       def value(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[Any, Any]]] =
-        UIO.succeed(
+        ZIO.succeed(
           Sync(set)(Chunk.fromArray(set.toArray[Fiber.Runtime[Any, Any]](Array[Fiber.Runtime[Any, Any]]())))
         )
 

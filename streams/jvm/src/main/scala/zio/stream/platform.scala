@@ -178,7 +178,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
-    asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
+    asyncInterrupt(k => register(k).toRight(ZIO.unit), outputBuffer)
 
   /**
    * Creates a stream of bytes from the specified file.
@@ -402,14 +402,14 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     /**
      * The remote address, i.e. the connected client
      */
-    def remoteAddress(implicit trace: Trace): IO[IOException, SocketAddress] = IO
+    def remoteAddress(implicit trace: Trace): IO[IOException, SocketAddress] = ZIO
       .attempt(socket.getRemoteAddress)
       .refineToOrDie[IOException]
 
     /**
      * The local address, i.e. our server
      */
-    def localAddress(implicit trace: Trace): IO[IOException, SocketAddress] = IO
+    def localAddress(implicit trace: Trace): IO[IOException, SocketAddress] = ZIO
       .attempt(socket.getLocalAddress)
       .refineToOrDie[IOException]
 

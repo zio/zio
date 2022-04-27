@@ -501,7 +501,7 @@ object Runtime {
               scope.close(Exit.unit).uninterruptible.unit
             }
 
-          UIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
         }
       }
     }

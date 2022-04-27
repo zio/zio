@@ -590,7 +590,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           ): ZIO[Any, Nothing, ZChannel[Env1, Any, Any, Any, OutErr3, OutElem1, OutDone3]] =
             decision match {
               case ZChannel.MergeDecision.Done(zio) =>
-                UIO.succeed(ZChannel.fromZIO(fiber.interrupt *> zio))
+                ZIO.succeed(ZChannel.fromZIO(fiber.interrupt *> zio))
               case ZChannel.MergeDecision.Await(f) =>
                 fiber.await.map {
                   case Exit.Success(Right(elem)) =>
@@ -1238,7 +1238,7 @@ object ZChannel {
   )(release: (Acquired, Exit[OutErr, OutDone]) => URIO[Env, Any])(
     use: Acquired => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone]
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem2, OutDone] =
-    fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](_ => UIO.unit)).flatMap { ref =>
+    fromZIO(Ref.make[Exit[OutErr, OutDone] => URIO[Env, Any]](_ => ZIO.unit)).flatMap { ref =>
       fromZIO(acquire.tap(a => ref.set(release(a, _))).uninterruptible)
         .flatMap(use)
         .ensuringWith(ex => ref.get.flatMap(_.apply(ex)))

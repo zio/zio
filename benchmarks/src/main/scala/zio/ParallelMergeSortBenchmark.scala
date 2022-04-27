@@ -79,9 +79,9 @@ class ParallelMergeSortBenchmark {
 
   private def mergeSortInPlace(is: Array[Int], buf: Array[Int], start: Int, end: Int): UIO[Unit] = {
     val len = end - start
-    if (len < 2) IO.unit
+    if (len < 2) ZIO.unit
     else if (len == 2) {
-      if (is(start) <= is(start + 1)) IO.unit
+      if (is(start) <= is(start + 1)) ZIO.unit
       else ZIO.succeed(swap(is, start, start + 1))
     } else {
       val middle    = start + len / 2

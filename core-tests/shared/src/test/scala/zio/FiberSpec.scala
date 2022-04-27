@@ -15,7 +15,7 @@ object FiberSpec extends ZIOBaseSpec {
         for {
           ref <- Ref.make(false)
           fiber <-
-            withLatch(release => ZIO.acquireReleaseWith(release *> IO.unit)(_ => ref.set(true))(_ => IO.never).fork)
+            withLatch(release => ZIO.acquireReleaseWith(release *> ZIO.unit)(_ => ref.set(true))(_ => ZIO.never).fork)
           _     <- ZIO.scoped(fiber.scoped)
           _     <- fiber.await
           value <- ref.get

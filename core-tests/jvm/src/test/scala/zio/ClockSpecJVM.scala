@@ -15,7 +15,7 @@ object ClockSpecJVM extends ZIOBaseSpec {
         val unit = TimeUnit.MICROSECONDS
         for {
           a <- Clock.currentTime(unit)
-          _ <- ZIO.foreach(1 to 1000)(_ => UIO.unit) // just pass some time
+          _ <- ZIO.foreach(1 to 1000)(_ => ZIO.unit) // just pass some time
           b <- Clock.currentTime(unit)
         } yield assert((b - a) % 1000)(not(equalTo(0L)))
       } @@ withLiveClock

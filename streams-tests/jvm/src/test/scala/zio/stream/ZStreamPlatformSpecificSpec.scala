@@ -29,7 +29,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .asyncMaybe[Any, Nothing, Int] { k =>
-                          k(IO.fail(None))
+                          k(ZIO.fail(None))
                           None
                         }
                         .runCollect
@@ -42,7 +42,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
         }),
         test("asyncMaybe None")(check(Gen.chunkOf(Gen.int)) { chunk =>
           val s = ZStream.asyncMaybe[Any, Throwable, Int] { k =>
-            global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
+            global.execute(() => chunk.foreach(a => k(ZIO.succeed(Chunk.single(a)))))
             None
           }
 
@@ -76,9 +76,9 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
                        .asyncZIO[Any, Throwable, Int] { k =>
-                         global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
+                         global.execute(() => chunk.foreach(a => k(ZIO.succeed(Chunk.single(a)))))
                          latch.succeed(()) *>
-                           Task.unit
+                           ZIO.unit
                        }
                        .take(chunk.size.toLong)
                        .run(ZSink.collectAll[Int])
@@ -91,8 +91,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .asyncZIO[Any, Nothing, Int] { k =>
-                          global.execute(() => k(IO.fail(None)))
-                          UIO.unit
+                          global.execute(() => k(ZIO.fail(None)))
+                          ZIO.unit
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
@@ -108,7 +108,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                            cb(refDone.set(true) *> ZIO.fail(None))
                          }
-                         UIO.unit
+                         ZIO.unit
                        },
                        5
                      )
@@ -125,9 +125,9 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
             latch <- Promise.make[Nothing, Unit]
             fiber <- ZStream
                        .asyncScoped[Any, Throwable, Int] { k =>
-                         global.execute(() => chunk.foreach(a => k(Task.succeed(Chunk.single(a)))))
+                         global.execute(() => chunk.foreach(a => k(ZIO.succeed(Chunk.single(a)))))
                          latch.succeed(()) *>
-                           Task.unit
+                           ZIO.unit
                        }
                        .take(chunk.size.toLong)
                        .run(ZSink.collectAll)
@@ -140,8 +140,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .asyncScoped[Any, Nothing, Int] { k =>
-                          global.execute(() => k(IO.fail(None)))
-                          UIO.unit
+                          global.execute(() => k(ZIO.fail(None)))
+                          ZIO.unit
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
@@ -157,7 +157,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                            cb(refDone.set(true) *> ZIO.fail(None))
                          }
-                         UIO.unit
+                         ZIO.unit
                        },
                        5
                      )
@@ -195,8 +195,8 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
           for {
             result <- ZStream
                         .asyncInterrupt[Any, Nothing, Int] { k =>
-                          global.execute(() => k(IO.fail(None)))
-                          Left(UIO.succeedNow(()))
+                          global.execute(() => k(ZIO.fail(None)))
+                          Left(ZIO.succeedNow(()))
                         }
                         .runCollect
           } yield assert(result)(equalTo(Chunk.empty))
@@ -213,7 +213,7 @@ object ZStreamPlatformSpecificSpec extends ZIOBaseSpec {
                            (1 to 7).foreach(i => cb(refCnt.set(i) *> ZIO.succeedNow(Chunk.single(1))))
                            cb(refDone.set(true) *> ZIO.fail(None))
                          }
-                         Left(UIO.unit)
+                         Left(ZIO.unit)
                        },
                        5
                      )

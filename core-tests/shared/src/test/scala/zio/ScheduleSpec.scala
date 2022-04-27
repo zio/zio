@@ -51,7 +51,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         checkRepeat(Schedule.recurWhile(cond), expected = 10)
       },
       test("for 'recurWhileZIO(cond)' repeats while the effectful cond still holds") {
-        def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+        def cond: Int => UIO[Boolean] = x => ZIO.succeed(x > 10)
         checkRepeat(Schedule.recurWhileZIO(cond), expected = 1)
       },
       test("for 'recurWhileEquals(cond)' repeats while the cond is equal") {
@@ -62,7 +62,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         checkRepeat(Schedule.recurUntil(cond), expected = 1)
       },
       test("for 'recurUntilZIO(cond)' repeats until the effectful cond is satisfied") {
-        def cond: Int => UIO[Boolean] = x => IO.succeed(x > 10)
+        def cond: Int => UIO[Boolean] = x => ZIO.succeed(x > 10)
         checkRepeat(Schedule.recurUntilZIO(cond), expected = 11)
       },
       test("for 'recurUntilEquals(cond)' repeats until the cond is equal") {
@@ -75,7 +75,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         checkRepeat(Schedule.collectWhile(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9))
       },
       test("as long as the effectful condition f holds") {
-        def cond = (x: Int) => IO.succeed(x > 10)
+        def cond = (x: Int) => ZIO.succeed(x > 10)
         checkRepeat(Schedule.collectWhileZIO(cond), expected = Nil)
       },
       test("until the effectful condition f fails") {
@@ -83,7 +83,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         checkRepeat(Schedule.collectUntil(cond), expected = Chunk(1))
       },
       test("until the effectful condition f fails") {
-        def cond = (x: Int) => IO.succeed(x > 10)
+        def cond = (x: Int) => ZIO.succeed(x > 10)
         checkRepeat(Schedule.collectUntilZIO(cond), expected = List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
       }
     ),
@@ -92,8 +92,8 @@ object ScheduleSpec extends ZIOBaseSpec {
         ref <- Ref.make(0)
         _   <- alwaysFail(ref).repeat(Schedule.recurs(42))
       } yield ()).foldZIO[Any, Int, String](
-        err => IO.succeed(err),
-        _ => IO.succeed("it should not be a success at all")
+        err => ZIO.succeed(err),
+        _ => ZIO.succeed("it should not be a success at all")
       )
       assertZIO(failed)(equalTo("Error: 1"))
     } @@ zioTag(errors),
@@ -157,8 +157,8 @@ object ScheduleSpec extends ZIOBaseSpec {
           i   <- alwaysFail(ref).retry(Schedule.recurs(0))
         } yield i)
           .foldZIO[Any, Int, String](
-            err => IO.succeed(err),
-            _ => IO.succeed("it should not be a success")
+            err => ZIO.succeed(err),
+            _ => ZIO.succeed("it should not be a success")
           )
         failed.map(actual => assert(actual)(equalTo("Error: 1")))
       },
@@ -176,8 +176,8 @@ object ScheduleSpec extends ZIOBaseSpec {
           ref <- Ref.make(0)
           _   <- alwaysFail(ref).retry(Schedule.once)
         } yield ()).foldZIO[Any, Int, String](
-          err => IO.succeed(err),
-          _ => IO.succeed("A failure was expected")
+          err => ZIO.succeed(err),
+          _ => ZIO.succeed("A failure was expected")
         )
         assertZIO(retried)(equalTo("Error: 2"))
       },
@@ -195,8 +195,8 @@ object ScheduleSpec extends ZIOBaseSpec {
       },
       test("fixed delay with error predicate") {
         var i = 0
-        val io = IO.succeed(i += 1).flatMap[Any, String, Unit] { _ =>
-          if (i < 5) IO.fail("KeepTryingError") else IO.fail("GiveUpError")
+        val io = ZIO.succeed(i += 1).flatMap[Any, String, Unit] { _ =>
+          if (i < 5) ZIO.fail("KeepTryingError") else ZIO.fail("GiveUpError")
         }
         val strategy = Schedule.spaced(200.millis).whileInput[String](_ == "KeepTryingError")
         val expected = (800.millis, "GiveUpError", 4L)
@@ -264,7 +264,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       test("for up to 10 times") {
         var i        = 0
         val strategy = Schedule.recurs(10)
-        val io       = IO.succeed(i += 1).flatMap(_ => if (i < 5) IO.fail("KeepTryingError") else IO.succeed(i))
+        val io       = ZIO.succeed(i += 1).flatMap(_ => if (i < 5) ZIO.fail("KeepTryingError") else ZIO.succeed(i))
         assertZIO(io.retry(strategy))(equalTo(5))
       }
     ) @@ zioTag(errors),
@@ -281,8 +281,8 @@ object ScheduleSpec extends ZIOBaseSpec {
           i   <- alwaysFail(ref).retryOrElse(Schedule.once, ioFail)
         } yield i)
           .foldZIO[Any, Int, String](
-            err => IO.succeed(err),
-            _ => IO.succeed("it should not be a success")
+            err => ZIO.succeed(err),
+            _ => ZIO.succeed("it should not be a success")
           )
         assertZIO(failed)(equalTo("OrElseFailed"))
       },
@@ -299,8 +299,8 @@ object ScheduleSpec extends ZIOBaseSpec {
           i   <- alwaysFail(ref).retryOrElseEither(Schedule.once, ioFail)
         } yield i)
           .foldZIO[Any, Int, String](
-            err => IO.succeed(err),
-            _ => IO.succeed("it should not be a success")
+            err => ZIO.succeed(err),
+            _ => ZIO.succeed("it should not be a success")
           )
         assertZIO(failed)(equalTo("OrElseFailed"))
       }
@@ -477,7 +477,7 @@ object ScheduleSpec extends ZIOBaseSpec {
       test("run the specified finalizer as soon as the schedule is complete") {
         for {
           p          <- Promise.make[Nothing, Unit]
-          v          <- IO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
+          v          <- ZIO.fail("oh no").retry(Schedule.recurs(2)).ensuring(p.succeed(())).option
           finalizerV <- p.poll
         } yield assert(v.isEmpty)(equalTo(true)) && assert(finalizerV.isDefined)(equalTo(true))
       }
@@ -534,7 +534,7 @@ object ScheduleSpec extends ZIOBaseSpec {
             // the 5th retry will fail after 10 seconds to let the schedule reset
             if (retries == 5) latch.succeed(()) *> io(ref, latch).delay(10.seconds)
             // the 10th retry will succeed, which is only possible if the schedule was reset
-            else if (retries == 10) UIO.unit
+            else if (retries == 10) ZIO.unit
             else ZIO.fail("Boom")
           )
 
@@ -631,8 +631,8 @@ object ScheduleSpec extends ZIOBaseSpec {
       expected <- schedule.repetitions.run(now, in)
     } yield assert(actual)(equalTo(expected))
 
-  val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => IO.succeed("OrElse")
-  val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => IO.fail("OrElseFailed")
+  val ioSucceed: (String, Unit) => UIO[String]      = (_: String, _: Unit) => ZIO.succeed("OrElse")
+  val ioFail: (String, Unit) => IO[String, Nothing] = (_: String, _: Unit) => ZIO.fail("OrElseFailed")
 
   def repeat[B](schedule: Schedule[Any, Int, B]): ZIO[Any, Nothing, B] =
     for {
@@ -657,7 +657,7 @@ object ScheduleSpec extends ZIOBaseSpec {
                   _ => driver.last.fold(_ => acc, b => acc :+ b),
                   b => loop(t, acc :+ b)
                 )
-            case Nil => UIO.succeed(acc)
+            case Nil => ZIO.succeed(acc)
           }
 
         loop(input.toList, Chunk.empty)
@@ -682,10 +682,10 @@ object ScheduleSpec extends ZIOBaseSpec {
       acc: List[(OffsetDateTime, Out)]
     ): ZIO[Env, Nothing, (List[(OffsetDateTime, Out)], Option[Out])] =
       inputs match {
-        case Nil => UIO.succeed(acc.reverse -> None)
+        case Nil => ZIO.succeed(acc.reverse -> None)
         case (odt, in) :: rest =>
           schedule.step(odt, in, state) flatMap {
-            case (_, out, Schedule.Decision.Done) => UIO.succeed(acc.reverse -> Some(out))
+            case (_, out, Schedule.Decision.Done) => ZIO.succeed(acc.reverse -> Some(out))
             case (state, out, Schedule.Decision.Continue(interval)) =>
               loop(state, rest, (interval.start -> out) :: acc)
           }
@@ -704,7 +704,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   def alwaysFail(ref: Ref[Int]): IO[String, Int] =
     for {
       i <- ref.updateAndGet(_ + 1)
-      x <- IO.fail(s"Error: $i")
+      x <- ZIO.fail(s"Error: $i")
     } yield x
 
   /**
@@ -715,7 +715,7 @@ object ScheduleSpec extends ZIOBaseSpec {
   def failOn0(ref: Ref[Int]): IO[String, Int] =
     for {
       i <- ref.updateAndGet(_ + 1)
-      x <- if (i <= 1) IO.fail(s"Error: $i") else IO.succeed(i)
+      x <- if (i <= 1) ZIO.fail(s"Error: $i") else ZIO.succeed(i)
     } yield x
 
   def diesWith(assertion: Assertion[Throwable]): Assertion[TestFailure[Any]] =

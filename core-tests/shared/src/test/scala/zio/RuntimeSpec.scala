@@ -20,7 +20,7 @@ object RuntimeSpec extends ZIOBaseSpec {
 
   def buz =
     for {
-      _ <- UIO.async[Any, Nothing, Int](k => k(ZIO.succeed(42)))
+      _ <- ZIO.async[Any, Nothing, Int](k => k(ZIO.succeed(42)))
       a <- bar
     } yield a
 
@@ -31,7 +31,7 @@ object RuntimeSpec extends ZIOBaseSpec {
     r.unsafeRunSyncFast(zio)
 
   def slowPath[E, A](zio: ZIO[Any, E, A]): Task[Exit[E, A]] =
-    Task.attemptBlocking(r.defaultUnsafeRunSync(zio))
+    ZIO.attemptBlocking(r.defaultUnsafeRunSync(zio))
 
   def spec = suite("RuntimeSpec") {
     suite("primitives") {

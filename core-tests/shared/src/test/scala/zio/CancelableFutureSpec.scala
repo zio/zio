@@ -11,7 +11,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
   def roundtrip[R, A](zio: RIO[R, A]): RIO[R, A] =
     for {
       future <- zio.toFuture
-      a      <- RIO.fromFuture(_ => future)
+      a      <- ZIO.fromFuture(_ => future)
     } yield a
 
   def spec =
@@ -21,7 +21,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         val roundtrip = for {
           rt <- ZIO.runtime[Any]
-          _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
+          _  <- ZIO.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 
         val result = roundtrip.orDie.as(0)
@@ -33,7 +33,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
 
         val roundtrip = for {
           rt <- ZIO.runtime[Any]
-          _  <- Task.fromFuture(_ => rt.unsafeRunToFuture(effect))
+          _  <- ZIO.fromFuture(_ => rt.unsafeRunToFuture(effect))
         } yield ()
 
         val result = roundtrip.orDie.forever
@@ -43,7 +43,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
       test("unsafeRunToFuture interruptibility") {
         for {
           runtime <- ZIO.runtime[Any]
-          f        = runtime.unsafeRunToFuture(UIO.never)
+          f        = runtime.unsafeRunToFuture(ZIO.never)
           _       <- ZIO.succeed(f.cancel())
           r       <- ZIO.fromFuture(_ => f).exit
         } yield assert(r.isSuccess)(isFalse) // not interrupted, as the Future fails when the effect in interrupted.
@@ -71,7 +71,7 @@ object CancelableFutureSpec extends ZIOBaseSpec {
         for {
           p  <- Promise.make[Nothing, Unit]
           p2 <- Promise.make[Nothing, Int]
-          f <- (p.succeed(()) *> IO.never)
+          f <- (p.succeed(()) *> ZIO.never)
                  .onInterrupt(p2.succeed(42))
                  .toFuture
           _    <- p.await

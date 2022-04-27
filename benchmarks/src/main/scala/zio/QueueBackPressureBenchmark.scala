@@ -40,8 +40,8 @@ class QueueBackPressureBenchmark {
   def zioQueue(): Int = {
 
     val io = for {
-      offers <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioQ.offer(0).unit)))
-      takes  <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioQ.take.unit)))
+      offers <- ZIO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioQ.offer(0).unit)))
+      takes  <- ZIO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioQ.take.unit)))
       _      <- offers.join
       _      <- takes.join
     } yield 0
@@ -53,8 +53,8 @@ class QueueBackPressureBenchmark {
   def zioTQueue(): Int = {
 
     val io = for {
-      offers <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioTQ.offer(0).unit.commit)))
-      takes  <- IO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioTQ.take.unit.commit)))
+      offers <- ZIO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioTQ.offer(0).unit.commit)))
+      takes  <- ZIO.forkAll(List.fill(parallelism)(repeat(totalSize / parallelism)(zioTQ.take.unit.commit)))
       _      <- offers.join
       _      <- takes.join
     } yield 0

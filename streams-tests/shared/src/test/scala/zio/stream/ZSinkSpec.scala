@@ -17,7 +17,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           test("fails if upstream fails") {
             ZStream(1)
               .mapZIO(_ => ZIO.fail("boom!"))
-              .run(Sink.drain)
+              .run(ZSink.drain)
               .exit
               .map(assert(_)(fails(equalTo("boom!"))))
           }
@@ -380,7 +380,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               effects <- Ref.make[List[Int]](Nil)
               exit <- stream
                         .transduce(ZSink.foldZIO(0)(_ => true) { (_, a: Int) =>
-                          effects.update(a :: _) *> UIO.succeed(30)
+                          effects.update(a :: _) *> ZIO.succeed(30)
                         })
                         .runCollect
               result <- effects.get
@@ -425,7 +425,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               effects <- Ref.make[List[Int]](Nil)
               exit <- stream
                         .transduce(ZSink.foldZIO(0)(_ => true) { (_, a: Int) =>
-                          effects.update(a :: _) *> UIO.succeed(30)
+                          effects.update(a :: _) *> ZIO.succeed(30)
                         })
                         .runCollect
               result <- effects.get
@@ -458,7 +458,7 @@ object ZSinkSpec extends ZIOBaseSpec {
       test("foldUntilZIO")(
         assertZIO(
           ZStream[Long](1, 1, 1, 1, 1, 1)
-            .transduce(ZSink.foldUntilZIO(0L, 3)((s, a: Long) => UIO.succeedNow(s + a)))
+            .transduce(ZSink.foldUntilZIO(0L, 3)((s, a: Long) => ZIO.succeedNow(s + a)))
             .runCollect
         )(equalTo(Chunk(3L, 3L, 0L)))
       ),
@@ -504,8 +504,8 @@ object ZSinkSpec extends ZIOBaseSpec {
           ZStream[Long](1, 5, 2, 3)
             .transduce(
               ZSink
-                .foldWeightedZIO(List.empty[Long])((_, a: Long) => UIO.succeedNow(a * 2), 12)((acc, el) =>
-                  UIO.succeedNow(el :: acc)
+                .foldWeightedZIO(List.empty[Long])((_, a: Long) => ZIO.succeedNow(a * 2), 12)((acc, el) =>
+                  ZIO.succeedNow(el :: acc)
                 )
                 .map(_.reverse)
             )
@@ -519,14 +519,14 @@ object ZSinkSpec extends ZIOBaseSpec {
               .transduce(
                 ZSink
                   .foldWeightedDecomposeZIO(List.empty[Int])(
-                    (_, i: Int) => UIO.succeedNow(i.toLong),
+                    (_, i: Int) => ZIO.succeedNow(i.toLong),
                     4,
                     (i: Int) =>
-                      UIO.succeedNow(
+                      ZIO.succeedNow(
                         if (i > 1) Chunk(i - 1, 1)
                         else Chunk(i)
                       )
-                  )((acc, el) => UIO.succeedNow(el :: acc))
+                  )((acc, el) => ZIO.succeedNow(el :: acc))
                   .map(_.reverse)
               )
               .runCollect

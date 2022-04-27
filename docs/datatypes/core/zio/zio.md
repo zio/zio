@@ -57,12 +57,6 @@ Using the `ZIO.succeed` method, we can create an effect that succeeds with the s
 val s1 = ZIO.succeed(42)
 ```
 
-We can also use methods in the companion objects of the `ZIO` type aliases:
-
-```scala mdoc:silent
-val s2: Task[Int] = Task.succeed(42)
-```
-
 ### Failure Values
 
 | Function | Input Type | Output Type      |
@@ -80,10 +74,8 @@ For the `ZIO` data type, there is no restriction on the error type. We may use s
 Many applications will model failures with classes that extend `Throwable` or `Exception`:
 
 ```scala mdoc:silent
-val f2 = Task.fail(new Exception("Uh oh!"))
+val f2 = ZIO.fail(new Exception("Uh oh!"))
 ```
-
-Note that unlike the other effect companion objects, the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
 
 ### From Values
 ZIO contains several constructors which help us to convert various data types into `ZIO` effects.
@@ -306,7 +298,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(ZIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -315,7 +307,7 @@ If a side-effect has already been converted into a ZIO effect, then instead of `
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.attempt {
+  ZIO.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 
@@ -349,10 +341,10 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.async[Any, AuthError, User] { callback =>
+  ZIO.async[Any, AuthError, User] { callback =>
     legacy.login(
-      user => callback(IO.succeed(user)),
-      err  => callback(IO.fail(err))
+      user => callback(ZIO.succeed(user)),
+      err  => callback(ZIO.fail(err))
     )
   }
 ```
@@ -923,7 +915,7 @@ val myApp =
     fiber   <- ZIO.attemptBlockingCancelable(
       effect = service.start()
     )(
-      cancel = UIO.succeed(service.close())
+      cancel = ZIO.succeed(service.close())
     ).fork
     _       <- fiber.interrupt.schedule(
       Schedule.delayed(
@@ -938,7 +930,7 @@ Here is another example of the cancelation of a blocking operation. When we `acc
 ```scala mdoc:silent:nest
 import java.net.{Socket, ServerSocket}
 def accept(ss: ServerSocket): Task[Socket] =
-  ZIO.attemptBlockingCancelable(ss.accept())(UIO.succeed(ss.close()))
+  ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
 ```
 
 ## Mapping
@@ -949,7 +941,7 @@ We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a 
 ```scala mdoc:silent
 import zio.{ UIO, IO }
 
-val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
+val mappedValue: UIO[Int] = ZIO.succeed(21).map(_ * 2)
 ```
 
 ### mapError
@@ -957,7 +949,7 @@ We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` met
 
 ```scala mdoc:silent
 val mappedError: IO[Exception, String] = 
-  IO.fail("No no!").mapError(msg => new Exception(msg))
+  ZIO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
 > _**Note:**_
@@ -980,8 +972,8 @@ val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 We can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
 ```scala mdoc:silent
-val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
-  IO.succeed(list.map(_ + 1))
+val chainedActionsValue: UIO[List[Int]] = ZIO.succeed(List(1, 2, 3)).flatMap { list =>
+  ZIO.succeed(list.map(_ + 1))
 }
 ```
 
@@ -1059,7 +1051,7 @@ ZIO lets us race multiple effects in parallel, returning the first successful re
 
 ```scala mdoc:silent
 for {
-  winner <- IO.succeed("Hello").race(IO.succeed("Goodbye"))
+  winner <- ZIO.succeed("Hello").race(ZIO.succeed("Goodbye"))
 } yield winner
 ```
 
@@ -1070,7 +1062,7 @@ If we want the first success or failure, rather than the first success, then we 
 ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala mdoc:silent
-IO.succeed("Hello").timeout(10.seconds)
+ZIO.succeed("Hello").timeout(10.seconds)
 ```
 
 If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
@@ -1088,7 +1080,7 @@ We can surface failures with `ZIO#either`, which takes a `ZIO[R, E, A]` and prod
 
 ```scala mdoc:silent:nest
 val zeither: UIO[Either[String, Int]] = 
-  IO.fail("Uh oh!").either
+  ZIO.fail("Uh oh!").either
 ```
 
 We can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns a `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
@@ -1203,13 +1195,13 @@ In the following example, `foldZIO` is used to handle both failure and success o
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
+def readUrls(file: String): Task[List[String]] = ZIO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = ZIO.succeed(OkContent("Roger"))
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
-    error   => IO.succeed(NoContent(error)), 
+    error   => ZIO.succeed(NoContent(error)), 
     success => fetchContent(success)
   )
 ```
@@ -1266,10 +1258,10 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 
 ```scala mdoc
 val finalizer = 
-  UIO.succeed(println("Finalizing!"))
+  ZIO.succeed(println("Finalizing!"))
 
 val finalized: IO[String, Unit] = 
-  IO.fail("Failed!").ensuring(finalizer)
+  ZIO.fail("Failed!").ensuring(finalizer)
 ```
 
 The finalizer is not allowed to fail, which means that it must handle any errors internally.
@@ -1284,9 +1276,9 @@ Here is another example of ensuring that our clean-up action is called before ou
 import zio.Task
 var i: Int = 0
 val action: Task[String] =
-  Task.succeed(i += 1) *>
-    Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.succeed(i -= 1)
+  ZIO.succeed(i += 1) *>
+    ZIO.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = ZIO.succeed(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
@@ -1344,10 +1336,10 @@ import zio.{ UIO, IO }
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.succeed(???)
-def decodeData(f: File): IO[IOException, Unit] = IO.unit
-def groupData(u: Unit): IO[IOException, Unit] = IO.unit
+def openFile(s: String): IO[IOException, File] = ZIO.attempt(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = ZIO.succeed(???)
+def decodeData(f: File): IO[IOException, Unit] = ZIO.unit
+def groupData(u: Unit): IO[IOException, Unit] = ZIO.unit
 ```
 
 ```scala mdoc:silent
@@ -1377,7 +1369,7 @@ object Main extends ZIOAppDefault {
     ZIO.succeed(is.close())
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.attempt {
+    ZIO.attempt {
       val buffer = new Array[Byte](len.toInt)
       is.read(buffer)
       println(new String(buffer, StandardCharsets.UTF_8))
@@ -1414,8 +1406,8 @@ But in the ZIO version, all the errors will still be reported. So even though we
 Let's write a ZIO version:
 
 ```scala mdoc:silent
-IO.fail("e1")
-  .ensuring(IO.succeed(throw new Exception("e2")))
+ZIO.fail("e1")
+  .ensuring(ZIO.succeed(throw new Exception("e2")))
   .catchAll {
     case "e1" => Console.printLine("e1")
     case "e2" => Console.printLine("e2")

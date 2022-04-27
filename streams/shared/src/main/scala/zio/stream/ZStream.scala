@@ -1035,7 +1035,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def distributedWithDynamic(
     maximumLag: => Int,
     decide: A => UIO[UniqueKey => Boolean],
-    done: Exit[Option[E], Nothing] => UIO[Any] = (_: Any) => UIO.unit
+    done: Exit[Option[E], Nothing] => UIO[Any] = (_: Any) => ZIO.unit
   )(implicit trace: Trace): ZIO[R with Scope, Nothing, UIO[(UniqueKey, Dequeue[Exit[Option[E], A]])]] =
     for {
       queuesRef <- ZIO.acquireReleaseExit(Ref.make[Map[UniqueKey, Queue[Exit[Option[E], A]]]](Map()))((map, exit) =>
@@ -1295,8 +1295,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // URIO[Scope, Int] == 5
+   *     .forever                                        // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => ZIO.succeed(s + a))  // URIO[Scope, Int] == 5
    * }}}
    *
    * @param cont
@@ -1312,8 +1312,8 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * when the condition is not fulfilled. Example:
    * {{{
    *   Stream(1)
-   *     .forever                                // an infinite Stream of 1's
-   *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // UIO[Int] == 5
+   *     .forever                                        // an infinite Stream of 1's
+   *     .fold(0)(_ <= 4)((s, a) => ZIO.succeed(s + a))  // UIO[Int] == 5
    * }}}
    *
    * @param cont
@@ -3126,7 +3126,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def throttleEnforce(units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[A] => Long
   )(implicit trace: Trace): ZStream[R, E, A] =
-    throttleEnforceZIO(units, duration, burst)(as => UIO.succeedNow(costFn(as)))
+    throttleEnforceZIO(units, duration, burst)(as => ZIO.succeedNow(costFn(as)))
 
   /**
    * Throttles the chunks of this stream according to the given bandwidth
@@ -3178,7 +3178,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def throttleShape(units: => Long, duration: => Duration, burst: => Long = 0)(
     costFn: Chunk[A] => Long
   )(implicit trace: Trace): ZStream[R, E, A] =
-    throttleShapeZIO(units, duration, burst)(os => UIO.succeedNow(costFn(os)))
+    throttleShapeZIO(units, duration, burst)(os => ZIO.succeedNow(costFn(os)))
 
   /**
    * Delays the chunks of this stream according to the given bandwidth
@@ -3853,7 +3853,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     that: => ZStream[R1, E1, A2]
   )(f: (A, A2) => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
     def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else UIO.succeedNow(chunk))
+      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else ZIO.succeedNow(chunk))
 
     ZStream.fromPull[R1, E1, A3] {
       for {
@@ -4061,7 +4061,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * when it ends.
    */
   def finalizer[R](finalizer: => URIO[R, Any])(implicit trace: Trace): ZStream[R, Nothing, Any] =
-    acquireReleaseWith[R, Nothing, Unit](UIO.unit)(_ => finalizer)
+    acquireReleaseWith[R, Nothing, Unit](ZIO.unit)(_ => finalizer)
 
   def from[Input](
     input: => Input
@@ -4732,7 +4732,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def repeatWithSchedule[R, A](a: => A, schedule: => Schedule[R, A, _])(implicit
     trace: Trace
   ): ZStream[R, Nothing, A] =
-    repeatZIOWithSchedule(UIO.succeedNow(a), schedule)
+    repeatZIOWithSchedule(ZIO.succeedNow(a), schedule)
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats
@@ -5337,11 +5337,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def emit[A](as: Chunk[A])(implicit trace: Trace): IO[Nothing, Chunk[A]] = ZIO.succeed(as)
     def fromDequeue[E, A](d: Dequeue[stream.Take[E, A]])(implicit trace: Trace): IO[Option[E], Chunk[A]] =
       d.take.flatMap(_.done)
-    def fail[E](e: E)(implicit trace: Trace): IO[Option[E], Nothing] = IO.fail(Some(e))
+    def fail[E](e: E)(implicit trace: Trace): IO[Option[E], Nothing] = ZIO.fail(Some(e))
     def failCause[E](c: Cause[E])(implicit trace: Trace): IO[Option[E], Nothing] =
-      IO.failCause(c).mapError(Some(_))
+      ZIO.failCause(c).mapError(Some(_))
     def empty[A](implicit trace: Trace): IO[Nothing, Chunk[A]]   = ZIO.succeed(Chunk.empty)
-    def end(implicit trace: Trace): IO[Option[Nothing], Nothing] = IO.fail(None)
+    def end(implicit trace: Trace): IO[Option[Nothing], Nothing] = ZIO.fail(None)
   }
 
   private[zio] case class BufferedPull[R, E, A](
@@ -5370,7 +5370,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ifNotDone {
         cursor.modify { case (chunk, idx) =>
           if (idx >= chunk.size) (update *> pullElement, (Chunk.empty, 0))
-          else (UIO.succeedNow(chunk(idx)), (chunk, idx + 1))
+          else (ZIO.succeedNow(chunk(idx)), (chunk, idx + 1))
         }.flatten
       }
 
@@ -5378,7 +5378,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ifNotDone {
         cursor.modify { case (chunk, idx) =>
           if (idx >= chunk.size) (update *> pullChunk, (Chunk.empty, 0))
-          else (UIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
+          else (ZIO.succeedNow(chunk.drop(idx)), (Chunk.empty, 0))
         }.flatten
       }
 

@@ -1113,7 +1113,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
               cost: Long,
               idx: Int
             ): ZIO[Env, Err, (S, Long, Boolean, Chunk[In])] =
-              if (idx == in.length) UIO.succeed((s, cost, dirty, Chunk.empty))
+              if (idx == in.length) ZIO.succeed((s, cost, dirty, Chunk.empty))
               else {
                 val elem = in(idx)
                 costFn(s, elem).map(cost + _).flatMap { total =>
@@ -1128,7 +1128,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
                       else if (decomposed.length <= 1 && dirty)
                         // If the state is dirty and `elem` cannot be decomposed, we stop folding
                         // and include `elem` in th leftovers.
-                        UIO.succeed((s, cost, dirty, in.drop(idx)))
+                        ZIO.succeed((s, cost, dirty, in.drop(idx)))
                       else
                         // `elem` got decomposed, so we will recurse with the decomposed elements pushed
                         // into the chunk we're processing and see if we can aggregate further.
@@ -1165,7 +1165,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   )(costFn: (S, In) => ZIO[Env, Err, Long], max: Long)(
     f: (S, In) => ZIO[Env, Err, S]
   )(implicit trace: Trace): ZSink[Env, Err, In, In, S] =
-    foldWeightedDecomposeZIO(z)(costFn, max, (i: In) => UIO.succeedNow(Chunk.single(i)))(f)
+    foldWeightedDecomposeZIO(z)(costFn, max, (i: In) => ZIO.succeedNow(Chunk.single(i)))(f)
 
   /**
    * A sink that effectfully folds its inputs with the provided function,
@@ -1179,13 +1179,13 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         contFn: S => Boolean
       )(f: (S, In) => ZIO[Env, Err, S]): ZIO[Env, Err, (S, Option[Chunk[In]])] = {
         def fold(s: S, chunk: Chunk[In], idx: Int, len: Int): ZIO[Env, Err, (S, Option[Chunk[In]])] =
-          if (idx == len) UIO.succeed((s, None))
+          if (idx == len) ZIO.succeed((s, None))
           else
             f(s, chunk(idx)).flatMap { s1 =>
               if (contFn(s1)) {
                 fold(s1, chunk, idx + 1, len)
               } else {
-                UIO.succeed((s1, Some(chunk.drop(idx + 1))))
+                ZIO.succeed((s1, Some(chunk.drop(idx + 1))))
               }
             }
 

@@ -6,13 +6,13 @@ object ZIOArray {
 
   def bubbleSort[A](lessThanEqual0: (A, A) => Boolean)(array: Array[A]): UIO[Unit] = {
     def outerLoop(i: Int): UIO[Unit] =
-      if (i >= array.length - 1) UIO.unit else innerLoop(i, i + 1).flatMap(_ => outerLoop(i + 1))
+      if (i >= array.length - 1) ZIO.unit else innerLoop(i, i + 1).flatMap(_ => outerLoop(i + 1))
 
     def innerLoop(i: Int, j: Int): UIO[Unit] =
-      if (j >= array.length) UIO.unit
+      if (j >= array.length) ZIO.unit
       else
         ZIO.succeed((array(i), array(j))).flatMap { case (ia, ja) =>
-          val maybeSwap = if (lessThanEqual0(ia, ja)) UIO.unit else swapIJ(i, ia, j, ja)
+          val maybeSwap = if (lessThanEqual0(ia, ja)) ZIO.unit else swapIJ(i, ia, j, ja)
 
           maybeSwap.flatMap(_ => innerLoop(i, j + 1))
         }

@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{UIO, URIO}
+import zio.{UIO, URIO, ZIO}
 
 import scala.annotation.tailrec
 
@@ -10,13 +10,13 @@ package object sbt {
 
   object SendSummary {
     def fromSend(send: Summary => Unit): SendSummary =
-      URIO.serviceWithZIO(summary => URIO.succeed(send(summary)))
+      ZIO.serviceWithZIO(summary => ZIO.succeed(send(summary)))
 
     def fromSendZIO(send: Summary => UIO[Unit]): SendSummary =
-      URIO.serviceWithZIO(send)
+      ZIO.serviceWithZIO(send)
 
     def noop: SendSummary =
-      UIO.unit
+      ZIO.unit
   }
 
   /**

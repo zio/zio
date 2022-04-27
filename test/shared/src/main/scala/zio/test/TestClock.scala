@@ -341,7 +341,7 @@ object TestClock extends Serializable {
             case _ => (None, Data(end, data.sleeps, data.timeZone))
           }
         }.flatMap {
-          case None => UIO.unit
+          case None => ZIO.unit
           case Some((end, promise)) =>
             promise.succeed(()) *>
               ZIO.yieldNow *>

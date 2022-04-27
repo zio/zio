@@ -13,11 +13,11 @@ For scenarios where an action needs to be performed multiple times, `Schedule` c
 One potential issue when dealing with a 3rd party API is the unreliability of a given endpoint. Since you have no control over the software, you cannot directly improve the reliability. Here's a mock request that has approximately a 70% chance of succeeding:
 
 ```scala mdoc:silent
-import zio.Task
+import zio.ZIO
 import java.util.Random
 
 object API {
-  def makeRequest = Task.attempt {
+  def makeRequest = ZIO.attempt {
     if (new Random().nextInt(10) < 7) "some value" else throw new Exception("hi")
   }
 }
