@@ -1730,7 +1730,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def scheduleFork[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
     trace: Trace
-  ): ZIO[R1 with Scope, E, Fiber.Runtime[Any, B]] =
+  ): ZIO[R1 with Scope, Nothing, Fiber.Runtime[E, B]] =
     self.schedule(schedule).forkScoped
 
   /**
