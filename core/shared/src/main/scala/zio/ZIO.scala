@@ -4092,7 +4092,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Sets a state in the environment to the specified value.
    */
   def setState[S: EnvironmentTag](s: => S)(implicit trace: Trace): ZIO[ZState[S], Nothing, Unit] =
-    ZIO.serviceWith(_.set(s))
+    ZIO.serviceWithZIO(_.set(s))
 
   /**
    * Sets the runtime configuration to the specified value.
