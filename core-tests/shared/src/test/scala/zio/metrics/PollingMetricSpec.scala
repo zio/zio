@@ -23,7 +23,7 @@ object PollingMetricSpec extends ZIOSpecDefault {
           )
         _     <- f0.interrupt
         count <- ref.get
-      } yield assertTrue(count < 6)
+      } yield assertTrue(count < 6L)
 
       pgm
     }
