@@ -865,6 +865,16 @@ object MainApp extends ZIOAppDefault {
 // resource released
 ```
 
+## Interruption
+
+While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
+
+1. A parent fiber might start some child fibers to perform a task, and later the parent might decide that, it doesn't need the result of some or all of the child fibers.
+2. Two or more fibers start race with each other. The fiber whose result is computed first wins, and all other fibers are no longer needed, and should be interrupted.
+3. In interactive applications, a user may want to stop some already running tasks, such as clicking on the "stop" button to prevent downloading more files.
+4. Computations that run longer than expected should be aborted by using timeout operations.
+5. When we have an application that perform compute-intensive tasks based on the user inputs, if the user changes the input we should cancel the current task and perform another one.
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
