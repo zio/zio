@@ -53,7 +53,7 @@ trait PollingMetric[-R, +E, +Out] { self =>
   final def launch[R1 <: R, B](schedule: Schedule[R1, Out, B])(implicit
     trace: Trace
   ): ZIO[R1 with Scope, Nothing, Fiber[E, B]] =
-    ZIO.acquireRelease((pollAndUpdate *> metric.value).repeat(schedule).forkDaemon)(_.interrupt)
+    ZIO.acquireRelease((pollAndUpdate *> metric.value).repeat(schedule).interruptible.forkDaemon)(_.interrupt)
 
   /**
    * An effect that polls a value that may be fed to the metric.
