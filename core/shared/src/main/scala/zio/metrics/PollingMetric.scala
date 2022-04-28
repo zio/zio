@@ -52,7 +52,7 @@ trait PollingMetric[-R, +E, +Out] { self =>
    */
   final def launch[R1 <: R, B](schedule: Schedule[R1, Any, B])(implicit
     trace: Trace
-  ): ZIO[R1 with Scope, E, Fiber[Any, B]] =
+  ): ZIO[R1 with Scope, Nothing, Fiber[E, B]] =
     (pollAndUpdate *> metric.value).scheduleFork(schedule)
 
   /**
