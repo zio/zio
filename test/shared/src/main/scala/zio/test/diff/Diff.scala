@@ -6,6 +6,7 @@ import zio.test.internal.myers.MyersDiff
 import zio.{Chunk, NonEmptyChunk}
 
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.util.Try
 
 trait Diff[A] {
   def diff(x: A, y: A): DiffResult
@@ -14,6 +15,8 @@ trait Diff[A] {
 }
 
 object Diff extends DiffInstances {
+  def apply[A](implicit diff: Diff[A]): Diff[A] = diff
+
   def render[A: Diff](oldValue: A, newValue: A): String =
     (oldValue diffed newValue).render
 
@@ -24,15 +27,46 @@ object Diff extends DiffInstances {
 
 trait DiffInstances extends LowPriDiff {
 
-  implicit val stringDiff: Diff[String] = (x: String, y: String) =>
-    if (x.split("\n").length <= 1 && y.split("\n").length <= 1 && x.length < 50 && y.length < 50) {
-      if (x == y) DiffResult.Identical(x)
-      else DiffResult.Different(x, y)
+  /**
+   * The default String renderer attempts to clever render the resulting diff
+   * according to its inputs.
+   *
+   *   - Short strings are rendered as: "this" was not equal to "something else"
+   *   - Single line strings are determined (based on word to length ratio) to
+   *     be either structured word-based sentences or less structured dat.
+   *     - Sentence-like strings are diffed per word
+   *     - Unstructured strings are diffed per character
+   *   - Multi-line strings are diffed per line
+   */
+  implicit val stringDiff: Diff[String] = { (x: String, y: String) =>
+    if (x == y) {
+      DiffResult.Identical(x)
+
+    } else if (x.split("\n").length <= 1 && y.split("\n").length <= 1) {
+      if (x.length < 20 || y.length < 20)
+        DiffResult.Different(x, y)
+      else {
+        val xWordCount       = x.split("\\s+").length
+        val yWordCount       = y.split("\\s+").length
+        val xWordToCharRatio = Try(x.length / xWordCount.toDouble).getOrElse(0.0)
+        val yWordToCharRatio = Try(y.length / yWordCount.toDouble).getOrElse(0.0)
+
+        if (xWordCount > 1 && yWordCount > 1 && xWordToCharRatio < 12 && yWordToCharRatio < 12) {
+          // Diffing per word
+          DiffResult.Different(x, y, Some(MyersDiff.diffWords(x, y).renderLine))
+        } else {
+          // Diffing per char
+          DiffResult.Different(x, y, Some(MyersDiff.diffChars(x, y).renderLine))
+        }
+      }
     } else {
       val result = MyersDiff.diff(x, y)
-      if (result.isIdentical) DiffResult.Identical(x)
-      else DiffResult.Different(x, y, Some(result.toString))
+      if (result.isIdentical)
+        DiffResult.Identical(x)
+      else
+        DiffResult.Different(x, y, Some(result.toString))
     }
+  }
 
   implicit def mapDiff[K, V: Diff]: Diff[Map[K, V]] = (x: Map[K, V], y: Map[K, V]) => {
     val fields =

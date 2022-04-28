@@ -13,7 +13,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
    * Switch TestAspect.failing to TestAspect.identity to easily preview
    * the error messages.
    */
-  val failing: TestAspectPoly = TestAspect.failing
+  val failing: TestAspectPoly = TestAspect.identity
 
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
@@ -324,7 +324,24 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val l1 = Seq("Alpha", "This is a wonderful way to dance and party", "Potato")
         val l2 = Seq("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
         assertTrue(l1 == l2)
-      } @@ failing
+      } @@ failing,
+      suite("String diffs")(
+        test("words") {
+          val s1 = "This is a wonderful way to dance and party"
+          val s2 = "This is a wonderful way to live and die"
+          assertTrue(s1 == s2)
+        } @@ failing,
+        test("characters") {
+          val s1 = "abcdefghijklmnopqrstuvwxyz"
+          val s2 = "abCdefghiiJklmnopqrstuvwxyzZ"
+          assertTrue(s1 == s2)
+        } @@ failing,
+        test("multi-line") {
+          val s1 = "Hello\nThis is a wonderful way to dance and party\nThis is a wonderful way to live and die"
+          val s2 = "Hello\nThis is a wonderful way to live and die\nThis is a wonderful way to dance and party"
+          assertTrue(s1 == s2)
+        } @@ failing
+      )
     ),
     test("Package qualified identifiers") {
       assertTrue(zio.Duration.fromNanos(0) == zio.Duration.Zero)

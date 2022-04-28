@@ -2,7 +2,8 @@ package zio.test.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
-import zio.test.diff.Diff
+import zio.internal.ansi.AnsiStringOps
+import zio.test.diff.{Diff, DiffResult}
 
 import scala.reflect.ClassTag
 import scala.util.Try
@@ -282,9 +283,19 @@ object SmartAssertions {
         TestTrace.boolean(result) {
           diff.value match {
             case Some(diff) if !diff.isLowPriority && !result =>
-              M.custom(ConsoleUtils.underlined("Expected")) ++ M.pretty(that) ++
-                M.custom(ConsoleUtils.underlined("Diff")) ++
-                M.custom(ConsoleUtils.red(diff.diff(that, a).render))
+              val diffResult = diff.diff(that, a)
+              diffResult match {
+                case DiffResult.Different(_, _, None) =>
+                  M.pretty(a) + M.equals + M.pretty(that)
+                case diffResult =>
+                  M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+                    M.custom(
+                      ConsoleUtils.underlined(
+                        "Diff"
+                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+actual".faint
+                    ) ++
+                    M.custom(diffResult.render)
+              }
             case _ =>
               M.pretty(a) + M.equals + M.pretty(that)
           }
