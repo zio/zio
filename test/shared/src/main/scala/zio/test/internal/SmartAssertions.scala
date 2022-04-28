@@ -288,13 +288,14 @@ object SmartAssertions {
                 case DiffResult.Different(_, _, None) =>
                   M.pretty(a) + M.equals + M.pretty(that)
                 case diffResult =>
-                  M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
+                  M.choice("There was no difference", "There was a difference") ++
+                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
                     M.custom(
                       ConsoleUtils.underlined(
                         "Diff"
                       ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+actual".faint
                     ) ++
-                    M.custom(diffResult.render)
+                    M.custom(scala.Console.RESET + diffResult.render)
               }
             case _ =>
               M.pretty(a) + M.equals + M.pretty(that)

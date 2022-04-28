@@ -1,7 +1,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.LogLine.Message
+import zio.test.render.LogLine.{Fragment, Message}
 import zio.test.render._
 
 import scala.io.AnsiColor
@@ -36,7 +36,7 @@ sealed trait ErrorMessage { self =>
   private[test] def render(isSuccess: Boolean): Message =
     self match {
       case ErrorMessage.Custom(custom) =>
-        Message(custom.split("\n").toIndexedSeq.map(error(_).toLine))
+        Message(custom.split("\n").toIndexedSeq.map(Fragment(_).toLine))
 
       case ErrorMessage.Choice(success, failure) =>
         (if (isSuccess) fr(success).ansi(AnsiColor.MAGENTA) else error(failure)).toLine.toMessage
