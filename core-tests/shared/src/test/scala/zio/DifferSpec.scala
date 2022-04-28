@@ -22,8 +22,8 @@ object DifferSpec extends ZIOSpecDefault {
     },
     suite("tuple") {
       diffLaws(Differ.update[Int] <*> Differ.update[Int])(smallInt <*> smallInt)
-    }
-  ) @@ ignore
+    } @@ ignore
+  )
 
   def diffLaws[Environment, Value, Patch](differ: Differ[Value, Patch])(
     gen: Gen[Environment, Value]
