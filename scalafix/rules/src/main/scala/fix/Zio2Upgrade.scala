@@ -346,10 +346,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val hasNormalized = SymbolMatcher.normalized("zio/Has#")
 
-  val zManagedExact = SymbolMatcher.exact("zio/ZManaged#use")
   val zManagedNormalized = SymbolMatcher.normalized("zio/ZManaged#")
-
-  val fromAutoCloseableNormalized = SymbolMatcher.normalized("zio/ZManaged#fromAutoCloseable")
 
   val CompanianAliases = SymbolMatcher.exact("zio/IO.", "zio/UIO.", "zio/URIO.", "zio/Task.", "zio/RIO.")
 
@@ -661,7 +658,6 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
         case zManagedNormalized(_) =>
           Patch.addGlobalImport(wildcardImport(q"zio.managed"))
-//          Patch.addLeft(t, "Use the docs here: https://zio.dev/next/howto/migrate/zio-2.x-migration-guide/#migration-from-zmanaged-to-scope\n")
 
         case t @ FiberId_Old_Exact(Name(_)) =>
           Patch.replaceTree(unwindSelect(t), "FiberId") +
