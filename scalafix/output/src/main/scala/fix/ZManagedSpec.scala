@@ -11,6 +11,7 @@ import zio.test.TestAspect.{nonFlaky, scala2Only}
 import zio.test._
 
 import zio.{ Clock, FiberId, _ }
+import zio.managed._
 import zio.test.{ Live, ZIOSpecDefault }
 
 object ZManagedSpec extends ZIOSpecDefault {

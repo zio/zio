@@ -346,6 +346,11 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val hasNormalized = SymbolMatcher.normalized("zio/Has#")
 
+  val zManagedExact = SymbolMatcher.exact("zio/ZManaged#use")
+  val zManagedNormalized = SymbolMatcher.normalized("zio/ZManaged#")
+
+  val fromAutoCloseableNormalized = SymbolMatcher.normalized("zio/ZManaged#fromAutoCloseable")
+
   val CompanianAliases = SymbolMatcher.exact("zio/IO.", "zio/UIO.", "zio/URIO.", "zio/Task.", "zio/RIO.")
 
   val UIOAlias  = SymbolMatcher.exact("zio/UIO.")
@@ -620,24 +625,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
   }
 
   override def fix(implicit doc: SemanticDocument): Patch = {
-    /**
-     * Eventually handle all type aliases here?
-     *   type Managed[+E, +A]   = ZManaged[Any, E, A]         //Manage an `A`, may fail with `E`        , no requirements
-     *   type TaskManaged[+A]   = ZManaged[Any, Throwable, A] //Manage an `A`, may fail with `Throwable`, no requirements
-     *   type RManaged[-R, +A]  = ZManaged[R, Throwable, A]   //Manage an `A`, may fail with `Throwable`, requires an `R`
-     *   type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
-     *   type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
-     */
-//    println(q"def make(): ZManaged[Int with String, IOException, String] = ???".structure)
     Zio2ZIOSpec.fix +
       doc.tree.collect {
-        case t @ Type.Apply(
-        Type.Name("ZManaged"),
-        List(rType: Type, eType: Type, aType: Type)
-        ) => {
-          println("Should replace ZManaged type: "+ t)
-          Patch.replaceTree(t, s"ZIO[$rType with Scope, $eType, $aType]")
-        }
         case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
 
         case ZIORenames.Matcher(patch)       => patch
@@ -669,6 +658,10 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case q"${name @ RIOAlias(Name(_))}($_)"  => Patch.replaceTree(name, s"ZIO.attempt")
 
         case q"${name @ ZIOAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.attempt")
+
+        case zManagedNormalized(_) =>
+          Patch.addGlobalImport(wildcardImport(q"zio.managed"))
+//          Patch.addLeft(t, "Use the docs here: https://zio.dev/next/howto/migrate/zio-2.x-migration-guide/#migration-from-zmanaged-to-scope\n")
 
         case t @ FiberId_Old_Exact(Name(_)) =>
           Patch.replaceTree(unwindSelect(t), "FiberId") +
