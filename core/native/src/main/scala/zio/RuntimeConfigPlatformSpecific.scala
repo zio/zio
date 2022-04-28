@@ -53,14 +53,14 @@ private[zio] trait RuntimeConfigPlatformSpecific {
     RuntimeConfig(
       blockingExecutor = executor0,
       executor = executor0,
-      fatal = (_: Throwable) => false,
+      fatal = Set.empty,
       reportFatal = (t: Throwable) => {
         t.printStackTrace()
         throw t
       },
-      supervisor = Supervisor.none,
-      logger = ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info),
-      flags = RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
+      supervisors = Set.empty,
+      loggers = Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info)),
+      flags = Set(RuntimeConfigFlag.EnableFiberRoots)
     )
 
   /**

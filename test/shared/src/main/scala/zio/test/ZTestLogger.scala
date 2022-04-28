@@ -38,11 +38,8 @@ object ZTestLogger {
   val default: ZLayer[Any, Nothing, Any] =
     ZLayer.scoped {
       for {
-        runtimeConfig <- ZIO.runtimeConfig
-        testLogger    <- ZTestLogger.make
-        acquire        = ZIO.setRuntimeConfig(runtimeConfig.copy(logger = testLogger))
-        release        = ZIO.setRuntimeConfig(runtimeConfig)
-        _             <- ZIO.acquireRelease(acquire)(_ => release)
+        testLogger <- ZTestLogger.make
+        acquire    <- FiberRef.currentLoggers.locallyScopedWith(_ + testLogger)
       } yield ()
     }
 
@@ -51,10 +48,10 @@ object ZTestLogger {
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
     ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.logger match {
-        case testLogger: ZTestLogger[_, _] => testLogger.logOutput
-        case _                             => ZIO.dieMessage("Defect: ZTestLogger is missing")
+      runtimeConfig.loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
+        testLogger.logOutput
       }
+        .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
     }
 
   /**

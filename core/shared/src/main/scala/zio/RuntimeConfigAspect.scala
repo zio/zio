@@ -18,19 +18,20 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-final case class RuntimeConfigAspect(customize: RuntimeConfig => RuntimeConfig)
+final case class RuntimeConfigAspect private (customize: RuntimeConfig => RuntimeConfig)
     extends (RuntimeConfig => RuntimeConfig) { self =>
   def apply(p: RuntimeConfig): RuntimeConfig = customize(p)
 
   def >>>(that: RuntimeConfigAspect): RuntimeConfigAspect = RuntimeConfigAspect(self.customize.andThen(that.customize))
 }
-object RuntimeConfigAspect extends ((RuntimeConfig => RuntimeConfig) => RuntimeConfigAspect) {
+
+object RuntimeConfigAspect {
 
   def addLogger(logger: ZLogger[String, Any]): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(logger = self.logger +> logger))
+    RuntimeConfigAspect(self => self.copy(loggers = self.loggers + logger))
 
   def addSupervisor(supervisor: Supervisor[Any]): RuntimeConfigAspect =
-    RuntimeConfigAspect(self => self.copy(supervisor = self.supervisor ++ supervisor))
+    RuntimeConfigAspect(self => self.copy(supervisors = self.supervisors + supervisor))
 
   val enableCurrentFiber: RuntimeConfigAspect =
     RuntimeConfigAspect(self => self.copy(flags = self.flags + RuntimeConfigFlag.EnableCurrentFiber))

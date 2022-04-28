@@ -354,7 +354,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     h: E => ZIO[R1, E2, A1]
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
 
-    def hh(e: E) = ZIO.runtime[Any].flatMap(runtime => if (runtime.runtimeConfig.fatal(e)) ZIO.die(e) else h(e))
+    def hh(e: E) =
+      ZIO.runtime[Any].flatMap(runtime => if (runtime.runtimeConfig.isFatal(e)) ZIO.die(e) else h(e))
     self.foldZIO[R1, E2, A1](hh, ZIO.succeedNow)
   }
 
@@ -2240,13 +2241,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.withParallelismUnbounded(self)
 
   /**
-   * Runs this effect on the specified runtime configuration, restoring the old
-   * runtime configuration when it completes execution.
-   */
-  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.withRuntimeConfig(runtimeConfig)(self)
-
-  /**
    * A named alias for `<*>`.
    */
   final def zip[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit
@@ -2590,7 +2584,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeedWith { (runtimeConfig, _) =>
       try effect
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -4047,7 +4041,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       environment   <- environment[R]
       runtimeConfig <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
       executor      <- executor
-    } yield Runtime(environment, runtimeConfig.copy(executor = executor))
+      fiberRefs     <- ZIO.getFiberRefs
+    } yield Runtime(environment, runtimeConfig.copy(executor = executor), fiberRefs)
 
   /**
    * Retrieves the runtimeConfig that this effect is running on.
@@ -4093,12 +4088,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def setState[S: EnvironmentTag](s: => S)(implicit trace: Trace): ZIO[ZState[S], Nothing, Unit] =
     ZIO.serviceWithZIO(_.set(s))
-
-  /**
-   * Sets the runtime configuration to the specified value.
-   */
-  def setRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed(new ZIO.SetRuntimeConfig(runtimeConfig, trace))
 
   /**
    * Accesses the specified service in the environment of the effect.
@@ -4207,7 +4196,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith { (runtimeConfig, _) =>
       try rio
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -4242,7 +4231,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     suspendSucceedWith((runtimeConfig, fiberId) =>
       try f(runtimeConfig, fiberId)
       catch {
-        case t: Throwable if !runtimeConfig.fatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     )
 
@@ -4526,19 +4515,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def withParallelismUnbounded[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed(Parallelism.locally(None)(zio))
-
-  /**
-   * Runs the specified effect on the specified runtime configuration, restoring
-   * the old runtime configuration when it completes execution.
-   */
-  def withRuntimeConfig[R, E, A](
-    runtimeConfig: => RuntimeConfig
-  )(zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-      ZIO.acquireReleaseWith(ZIO.setRuntimeConfig(runtimeConfig) *> ZIO.yieldNow)(_ =>
-        ZIO.setRuntimeConfig(currentRuntimeConfig) *> ZIO.yieldNow
-      )(_ => zio)
-    }
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh
@@ -5188,7 +5164,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val FiberRefLocally        = 26
     final val FiberRefDelete         = 27
     final val FiberRefWith           = 28
-    final val SetRuntimeConfig       = 29
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A], trace: Trace) extends Throwable with NoStackTrace
@@ -5480,13 +5455,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       () => s"Logged at ${trace}"
 
     override def tag = Tags.Logged
-  }
-
-  private[zio] final class SetRuntimeConfig(val runtimeConfig: RuntimeConfig, val trace: Trace) extends UIO[Unit] {
-    def unsafeLog: () => String =
-      () => s"SetRuntimeConfig at ${trace}"
-
-    override def tag = Tags.SetRuntimeConfig
   }
 
   private[zio] val someFatal   = Some(LogLevel.Fatal)

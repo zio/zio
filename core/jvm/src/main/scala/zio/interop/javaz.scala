@@ -33,15 +33,15 @@ private[zio] object javaz {
           def completed(result: T, u: Any): Unit = k(ZIO.succeedNow(result))
 
           def failed(t: Throwable, u: Any): Unit = t match {
-            case e if !p.fatal(e) => k(ZIO.fail(e))
-            case _                => k(ZIO.die(t))
+            case e if !p.isFatal(e) => k(ZIO.fail(e))
+            case _                  => k(ZIO.die(t))
           }
         }
 
         try {
           op(handler)
         } catch {
-          case e if !p.fatal(e) => k(ZIO.fail(e))
+          case e if !p.isFatal(e) => k(ZIO.fail(e))
         }
       }
     }
@@ -71,12 +71,12 @@ private[zio] object javaz {
       ZIO.suspendSucceedWith { (p, _) =>
         val cf = cs.toCompletableFuture
         if (cf.isDone) {
-          unwrapDone(p.fatal)(cf)
+          unwrapDone(p.isFatal)(cf)
         } else {
           ZIO.asyncInterrupt { cb =>
             val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
               val io = Option(t).fold[Task[A]](ZIO.succeed(v)) { t =>
-                catchFromGet(p.fatal).lift(t).getOrElse(ZIO.die(t))
+                catchFromGet(p.isFatal).lift(t).getOrElse(ZIO.die(t))
               }
               cb(io)
             }
@@ -94,9 +94,11 @@ private[zio] object javaz {
     ZIO.attempt(thunk).flatMap { future =>
       ZIO.suspendSucceedWith { (p, _) =>
         if (future.isDone) {
-          unwrapDone(p.fatal)(future)
+          unwrapDone(p.isFatal)(future)
         } else {
-          ZIO.blocking(ZIO.suspend(unwrapDone(p.fatal)(future))).onInterrupt(ZIO.succeed(future.cancel(false)))
+          ZIO
+            .blocking(ZIO.suspend(unwrapDone(p.isFatal)(future)))
+            .onInterrupt(ZIO.succeed(future.cancel(false)))
         }
       }
     }

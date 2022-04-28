@@ -1125,15 +1125,6 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
     ZManaged.withParallismUnbounded *> self
 
   /**
-   * Runs this managed effect on the specified runtime configuration,
-   * guaranteeing that this managed effect as well as managed effects that are
-   * composed sequentially after it will be run on the specified runtime
-   * configuration.
-   */
-  final def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: Trace): ZManaged[R, E, A] =
-    ZManaged.withRuntimeConfig(runtimeConfig) *> self
-
-  /**
    * Named alias for `<*>`.
    */
   def zip[R1 <: R, E1 >: E, A1](that: => ZManaged[R1, E1, A1])(implicit
@@ -2736,16 +2727,6 @@ object ZManaged extends ZManagedPlatformSpecific {
    */
   def withParallismUnbounded(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
     ZManaged.scoped(ZIO.Parallelism.locallyScoped(None))
-
-  /**
-   * Returns a managed effect that describes setting the runtime configuration
-   * to the specified value as the `acquire` action and setting it back to the
-   * original runtime configuration as the `release` action.
-   */
-  def withRuntimeConfig(runtimeConfig: => RuntimeConfig)(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
-    ZManaged.fromZIO(ZIO.runtimeConfig).flatMap { currentRuntimeConfig =>
-      ZManaged.acquireRelease(ZIO.setRuntimeConfig(runtimeConfig))(ZIO.setRuntimeConfig(currentRuntimeConfig))
-    }
 
   /**
    * A `ZManagedConstructor[Input]` knows how to construct a `ZManaged` value

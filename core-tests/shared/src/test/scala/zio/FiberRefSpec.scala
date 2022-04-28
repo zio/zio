@@ -385,7 +385,14 @@ object FiberRefSpec extends ZIOBaseSpec {
         _ <- ZIO.unit.timeout(1.second) <& TestClock.adjust(1.second)
         _ <- testClock
       } yield assertCompletes
-    } @@ TestAspect.nonFlaky
+    } @@ TestAspect.nonFlaky,
+    test("runtime") {
+      for {
+        expected <- ZIO.clock
+        runtime  <- ZIO.runtime[Any]
+        actual   <- ZIO.succeedBlocking(runtime.unsafeRun(ZIO.clock))
+      } yield assertTrue(actual == expected)
+    }
   ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
 }
 

@@ -25,13 +25,17 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 final case class RuntimeConfig(
   blockingExecutor: Executor,
   executor: Executor,
-  fatal: Throwable => Boolean,
+  fatal: Set[Class[_ <: Throwable]],
   reportFatal: Throwable => Nothing,
-  supervisor: Supervisor[Any],
-  logger: ZLogger[String, Any],
-  flags: RuntimeConfigFlags
+  supervisors: Set[Supervisor[Any]],
+  loggers: Set[ZLogger[String, Any]],
+  flags: Set[RuntimeConfigFlag]
 ) { self =>
+
   def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
+
+  def isFatal(t: Throwable): Boolean =
+    fatal.exists(_.isAssignableFrom(t.getClass))
 }
 
 object RuntimeConfig extends RuntimeConfigPlatformSpecific

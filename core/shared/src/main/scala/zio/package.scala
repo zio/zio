@@ -57,5 +57,5 @@ package object zio
       }
   }
 
-  private[zio] type Callback[E, A] = Exit[E, A] => Any
+  private[zio] type Callback[E, A] = (Exit[E, A], FiberRefs) => Any
 }

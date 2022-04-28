@@ -287,6 +287,7 @@ trait FiberRef[A] extends Serializable { self =>
 }
 
 object FiberRef {
+  import Differ._
 
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
@@ -326,23 +327,24 @@ object FiberRef {
    */
   def makePatch[Value, Patch](
     initial: Value,
-    diff: (Value, Value) => Patch,
-    combine: (Patch, Patch) => Patch,
-    patch: Patch => Value => Value,
+    differ: Differ[Value, Patch],
     fork: Patch
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
-    makeWith(unsafeMakePatch(initial, diff, combine, patch, fork))
+    makeWith(unsafeMakePatch(initial, differ, fork))
+
+  def makeSet[A](initial: => Set[A])(implicit
+    trace: Trace
+  ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
+    makeWith(unsafeMakeSet(initial))
 
   private[zio] def unsafeMake[A](
     initial: A,
-    fork: A => A = (a: A) => a,
+    fork: A => A = ZIO.identityFn[A],
     join: (A, A) => A = ((_: A, a: A) => a)
   ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
       initial,
-      (_, newValue) => _ => newValue,
-      (first, second) => value => second(first(value)),
-      patch => value => join(value, patch(value)),
+      Differ.updateWith[A](join),
       fork
     )
 
@@ -351,41 +353,67 @@ object FiberRef {
   ): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
     unsafeMakePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
       initial,
-      ZEnvironment.Patch.diff,
-      _ combine _,
-      patch => value => patch(value),
+      Differ.environment,
       ZEnvironment.Patch.empty
     )
 
   private[zio] def unsafeMakePatch[Value0, Patch0](
     initialValue0: Value0,
-    diff0: (Value0, Value0) => Patch0,
-    combinePatch0: (Patch0, Patch0) => Patch0,
-    patch0: Patch0 => Value0 => Value0,
+    differ: Differ[Value0, Patch0],
     fork0: Patch0
   ): FiberRef.WithPatch[Value0, Patch0] =
     new FiberRef[Value0] {
       type Patch = Patch0
       def combine(first: Patch, second: Patch): Patch =
-        combinePatch0(first, second)
+        differ.combine(first, second)
       def diff(oldValue: Value, newValue: Value): Patch =
-        diff0(oldValue, newValue)
+        differ.diff(oldValue, newValue)
       def fork: Patch =
         fork0
       def initial: Value =
         initialValue0
       def patch(patch: Patch)(oldValue: Value): Value =
-        patch0(patch)(oldValue)
+        differ.patch(patch)(oldValue)
     }
+
+  private[zio] def unsafeMakeSet[A](
+    initial: Set[A]
+  ): FiberRef.WithPatch[Set[A], SetPatch[A]] =
+    unsafeMakePatch[Set[A], SetPatch[A]](
+      initial,
+      Differ.set,
+      SetPatch.empty
+    )
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
     FiberRef.unsafeMake(None, _ => None)
 
-  private[zio] val currentExecutor: FiberRef[Option[zio.Executor]] =
+  private[zio] val overrideExecutor: FiberRef[Option[Executor]] =
     FiberRef.unsafeMake(None)
 
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
+
+  private[zio] val currentBlockingExecutor: FiberRef[Executor] =
+    FiberRef.unsafeMake(RuntimeConfig.default.blockingExecutor)
+
+  private[zio] val currentExecutor: FiberRef[Executor] =
+    FiberRef.unsafeMake(RuntimeConfig.default.executor)
+
+  private[zio] val currentFatal: FiberRef.WithPatch[Set[Class[_ <: Throwable]], SetPatch[Class[_ <: Throwable]]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.fatal)
+
+  private[zio] val currentLoggers: FiberRef.WithPatch[Set[ZLogger[String, Any]], SetPatch[ZLogger[String, Any]]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.loggers)
+
+  private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
+    FiberRef.unsafeMake(RuntimeConfig.default.reportFatal)
+
+  private[zio] val currentRuntimeConfigFlags: FiberRef.WithPatch[Set[RuntimeConfigFlag], SetPatch[RuntimeConfigFlag]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.flags)
+
+  private[zio] val currentSupervisors: FiberRef.WithPatch[Set[Supervisor[Any]], SetPatch[Supervisor[Any]]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.supervisors)
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]

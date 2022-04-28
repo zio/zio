@@ -108,9 +108,7 @@ object ZIOAspect {
   val disableLogging: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.runtimeConfig.flatMap { runtimeConfig =>
-          zio.withRuntimeConfig(runtimeConfig.copy(logger = ZLogger.none))
-        }
+        FiberRef.currentLoggers.locally(Set.empty)(zio)
     }
 
   /**
@@ -195,8 +193,28 @@ object ZIOAspect {
    */
   def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.runtimeConfig.flatMap(runtimeConfig => zio.withRuntimeConfig(runtimeConfigAspect(runtimeConfig)))
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = {
+
+        def setRuntimeConfig(runtimeConfig: RuntimeConfig): UIO[Unit] =
+          FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
+            FiberRef.currentExecutor.set(runtimeConfig.executor) *>
+            FiberRef.currentFatal.set(runtimeConfig.fatal) *>
+            FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
+            FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
+            FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags) *>
+            FiberRef.currentSupervisors.set(runtimeConfig.supervisors) *>
+            ZIO.yieldNow
+
+        ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
+          ZIO.acquireReleaseWith {
+            setRuntimeConfig(runtimeConfigAspect(currentRuntimeConfig))
+          } { _ =>
+            setRuntimeConfig(currentRuntimeConfig)
+          } { _ =>
+            zio
+          }
+        }
+      }
     }
 
   /**
