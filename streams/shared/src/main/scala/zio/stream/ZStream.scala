@@ -1940,7 +1940,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runIntoHub[E1 >: E, A1 >: A](
     hub: => Hub[Take[E1, A1]]
-  )(implicit trace: Trace): ZIO[R, E1, Unit] =
+  )(implicit trace: Trace): ZIO[R, Nothing, Unit] =
     runIntoQueue(hub)
 
   /**
@@ -1949,7 +1949,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runIntoHubScoped[E1 >: E, A1 >: A](
     hub: => Hub[Take[E1, A1]]
-  )(implicit trace: Trace): ZIO[R with Scope, E1, Unit] =
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] =
     runIntoQueueScoped(hub)
 
   /**
@@ -1958,7 +1958,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runIntoQueue(
     queue: => Enqueue[Take[E, A]]
-  )(implicit trace: Trace): ZIO[R, E, Unit] =
+  )(implicit trace: Trace): ZIO[R, Nothing, Unit] =
     ZIO.scoped[R](runIntoQueueScoped(queue))
 
   /**
@@ -1967,9 +1967,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runIntoQueueScoped(
     queue: => Enqueue[Take[E, A]]
-  )(implicit trace: Trace): ZIO[R with Scope, E, Unit] = {
-    lazy val writer: ZChannel[R, E, Chunk[A], Any, E, Take[E, A], Any] = ZChannel
-      .readWithCause[R, E, Chunk[A], Any, E, Take[E, A], Any](
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
+    lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Take[E, A], Any] = ZChannel
+      .readWithCause[R, E, Chunk[A], Any, Nothing, Take[E, A], Any](
         in => ZChannel.write(Take.chunk(in)) *> writer,
         cause => ZChannel.write(Take.failCause(cause)),
         _ => ZChannel.write(Take.end)
@@ -1988,7 +1988,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def runIntoQueueElementsScoped(
     queue: => Enqueue[Exit[Option[E], A]]
-  )(implicit trace: Trace): ZIO[R with Scope, E, Unit] = {
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
     lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any] =
       ZChannel.readWith[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
         in =>
