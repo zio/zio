@@ -764,7 +764,9 @@ private[zio] final class FiberContext[E, A](
 
     val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
       fiberRefLocals.get.transform { case (fiberRef, stack) =>
-        ::(childId -> fiberRef.patch(fiberRef.fork)(stack.head._2.asInstanceOf[fiberRef.Value]), stack)
+        val oldValue = stack.head._2.asInstanceOf[fiberRef.Value]
+        val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
+        if (oldValue == newValue) stack else ::(childId -> newValue, stack)
       }
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
@@ -1123,7 +1125,8 @@ private[zio] final class FiberContext[E, A](
     val oldStack = oldState.get(fiberRef).getOrElse(List.empty)
     val newStack =
       if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
-      else ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+      else if (oldStack.head._1 == fiberId) ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+      else ::((fiberId, value), oldStack)
     val newState = oldState.updated(fiberRef, newStack)
     if (!fiberRefLocals.compareAndSet(oldState, newState))
       unsafeSetRef(fiberRef, value)
