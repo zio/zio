@@ -51,7 +51,7 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
    * Sets the value of each `FiberRef` for the fiber running this effect to the
    * value in this collection of `FiberRef` values.
    */
-  def setAll(implicit trace: ZTraceElement): UIO[Unit] =
+  def setAll(implicit trace: Trace): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
     }
@@ -103,9 +103,27 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
 
     FiberRefs(fiberRefLocals)
   }
+
+  private[zio] def update(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
+    FiberRefs(
+      fiberRefs.foldLeft(fiberRefLocals) { case (fiberRefLocals, (fiberRef, newValue)) =>
+        fiberRefLocals.get(fiberRef) match {
+          case Some(stack @ ((_, oldValue) :: tail)) if oldValue != newValue =>
+            fiberRefLocals + (fiberRef -> ::((fiberId, newValue), stack))
+          case None => fiberRefLocals + (fiberRef -> ::((fiberId, newValue), Nil))
+          case _    => fiberRefLocals
+        }
+      }
+    )
 }
 
 object FiberRefs {
+
+  /**
+   * The empty collection of `FiberRef` values.
+   */
+  val empty: FiberRefs =
+    FiberRefs(Map.empty)
 
   private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
     new FiberRefs(fiberRefLocals)

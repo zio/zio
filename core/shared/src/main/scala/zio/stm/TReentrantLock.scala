@@ -18,7 +18,7 @@ package zio.stm
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TReentrantLock._
-import zio.{FiberId, Scope, ZIO, ZTraceElement}
+import zio.{FiberId, Scope, ZIO, Trace}
 
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
@@ -72,7 +72,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
    *
    * See [[writeLock]].
    */
-  def lock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] = writeLock
+  def lock(implicit trace: Trace): ZIO[Scope, Nothing, Int] = writeLock
 
   /**
    * Determines if any fiber has a read or write lock.
@@ -83,7 +83,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a read lock in a scoped context.
    */
-  def readLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =
+  def readLock(implicit trace: Trace): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
@@ -131,9 +131,27 @@ final class TReentrantLock private (data: TRef[LockState]) {
     }
 
   /**
+   * Runs the specified workflow with a lock.
+   */
+  def withLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    withWriteLock(zio)
+
+  /**
+   * Runs the specified workflow with a read lock.
+   */
+  def withReadLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask(restore => restore(acquireRead.commit) *> restore(zio).ensuring(releaseRead.commit))
+
+  /**
+   * Runs the specified workflow with a write lock.
+   */
+  def withWriteLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.uninterruptibleMask(restore => restore(acquireWrite.commit) *> restore(zio).ensuring(releaseWrite.commit))
+
+  /**
    * Obtains a write lock in a scoped context.
    */
-  def writeLock(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Int] =
+  def writeLock(implicit trace: Trace): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireWrite.commit)(_ => releaseWrite.commit)
 
   /**

@@ -111,13 +111,13 @@ import zio._
 
 object ConsoleLive extends Console {
   override def print(line: Any): Task[Unit] =
-    Task.attemptBlocking(scala.Predef.print(line))
+    ZIO.attemptBlocking(scala.Predef.print(line))
 
   override def printLine(line: Any): Task[Unit] =
-    Task.attemptBlocking(scala.Predef.println(line))
+    ZIO.attemptBlocking(scala.Predef.println(line))
 
   override def readLine: Task[String] =
-    Task.attemptBlocking(scala.io.StdIn.readLine())
+    ZIO.attemptBlocking(scala.io.StdIn.readLine())
 }
 ```
 
@@ -980,27 +980,6 @@ object MainApp extends ZIOAppDefault {
   def run = myApp.provide(InmemoryKeyValueStore.layer).debug
 
 }
-```
-
-#### Support for Scala 3
-
-As we’ve already mentioned, currently we have no macro support for Scala 3, instead we provide the `Accessible` trait that is a macro-less means of creating accessors from services. We can simply extend the companion object with `Accessible[ServiceName]` and then call `Companion(_.someMethod)` to return a ZIO effect that requires the service in its environment:
-
-```scala mdoc:compile-only
-import zio._
-
-trait ServiceD {
-  def method(input: Int): Task[String]
-  def anotherMethod: UIO[Int]
-}
-
-object ServiceD extends Accessible[ServiceD]
-
-val myApp: ZIO[ServiceD, Throwable, (String, Int)] =
-  for {
-    s <- ServiceD(_.method(3))
-    i <- ServiceD(_.anotherMethod)
-  } yield (s, i)
 ```
 
 ### The Three Laws of ZIO Environment

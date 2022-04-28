@@ -178,7 +178,7 @@ val transformValuesTMap: UIO[TMap[String, Int]] = (for {
 } yield tMap).commit
 ```
 
-The values can be mapped effectfully via `transformValuesM`:
+The values can be mapped effectfully via `transformValuesSTM`:
 
 ```scala mdoc:silent
 import zio._

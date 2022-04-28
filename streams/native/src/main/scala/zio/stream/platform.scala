@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
 
-trait ZStreamPlatformSpecificConstructors {
+private[stream] trait ZStreamPlatformSpecificConstructors {
   self: ZStream.type =>
 
   /**
@@ -32,7 +32,7 @@ trait ZStreamPlatformSpecificConstructors {
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
     outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  )(implicit trace: Trace): ZStream[R, E, A] =
     asyncMaybe(
       callback => {
         register(callback)
@@ -50,7 +50,7 @@ trait ZStreamPlatformSpecificConstructors {
   def asyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[URIO[R, Any], ZStream[R, E, A]],
     outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  )(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.unwrapScoped[R](for {
       output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
@@ -94,7 +94,7 @@ trait ZStreamPlatformSpecificConstructors {
   def asyncScoped[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R with Scope, E, Any],
     outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  )(implicit trace: Trace): ZStream[R, E, A] =
     scoped[R] {
       for {
         output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
@@ -126,7 +126,7 @@ trait ZStreamPlatformSpecificConstructors {
   def asyncZIO[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
     outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
+  )(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(ZChannel.unwrapScoped[R](for {
       output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
@@ -162,12 +162,12 @@ trait ZStreamPlatformSpecificConstructors {
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
     outputBuffer: => Int = 16
-  )(implicit trace: ZTraceElement): ZStream[R, E, A] =
-    asyncInterrupt(k => register(k).toRight(UIO.unit), outputBuffer)
+  )(implicit trace: Trace): ZStream[R, E, A] =
+    asyncInterrupt(k => register(k).toRight(ZIO.unit), outputBuffer)
 
   trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 }
 
-trait ZSinkPlatformSpecificConstructors
+private[stream] trait ZSinkPlatformSpecificConstructors
 
-trait ZPipelinePlatformSpecificConstructors
+private[stream] trait ZPipelinePlatformSpecificConstructors

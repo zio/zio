@@ -121,7 +121,7 @@ trait LoggingService {
 }
 
 val schedulingLayer: ZLayer[LoggingService, Nothing, SchedulingService] =
-  ZLayer.fromFunction { loggingService =>
+  ZLayer.fromFunction { (loggingService: LoggingService) =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
@@ -163,8 +163,8 @@ import zio.stream._
 import zio.test.Assertion.equalTo
 
 test("zipWithLatest") {
-  val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
-  val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
+  val s1 = ZStream.iterate(0)(_ + 1).fixed(100.milliseconds)
+  val s2 = ZStream.iterate(0)(_ + 1).fixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {

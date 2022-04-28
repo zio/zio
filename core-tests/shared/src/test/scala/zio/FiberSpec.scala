@@ -13,8 +13,9 @@ object FiberSpec extends ZIOBaseSpec {
     suite("FiberSpec")(
       suite("Create a new Fiber and")(test("scope it") {
         for {
-          ref   <- Ref.make(false)
-          fiber <- withLatch(release => (release *> IO.unit).acquireRelease(ref.set(true))(IO.never).fork)
+          ref <- Ref.make(false)
+          fiber <-
+            withLatch(release => ZIO.acquireReleaseWith(release *> ZIO.unit)(_ => ref.set(true))(_ => ZIO.never).fork)
           _     <- ZIO.scoped(fiber.scoped)
           _     <- fiber.await
           value <- ref.get
@@ -57,7 +58,7 @@ object FiberSpec extends ZIOBaseSpec {
       ),
       suite("`Fiber.join` on interrupted Fiber")(
         test("is inner interruption") {
-          val fiberId = FiberId.Runtime(0, 123, ZTraceElement.empty)
+          val fiberId = FiberId.Runtime(0, 123, Trace.empty)
 
           for {
             exit <- Fiber.interruptAs(fiberId).join.exit
@@ -126,13 +127,13 @@ object FiberSpec extends ZIOBaseSpec {
       ),
       suite("stack safety")(
         test("awaitAll") {
-          assertM(Fiber.awaitAll(fibers))(anything)
+          assertZIO(Fiber.awaitAll(fibers))(anything)
         },
         test("joinAll") {
-          assertM(Fiber.joinAll(fibers))(anything)
+          assertZIO(Fiber.joinAll(fibers))(anything)
         },
         test("collectAll") {
-          assertM(Fiber.collectAll(fibers).join)(anything)
+          assertZIO(Fiber.collectAll(fibers).join)(anything)
         }
       ) @@ sequential,
       suite("track blockingOn")(

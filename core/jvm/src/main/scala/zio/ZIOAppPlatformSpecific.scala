@@ -9,13 +9,14 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
    * The Scala main function, intended to be called only by the Scala runtime.
    */
   final def main(args0: Array[String]): Unit = {
-    implicit val trace: ZTraceElement = ZTraceElement.empty
+    implicit val trace: Trace = Trace.empty
+    val newRuntime            = runtime.mapRuntimeConfig(hook)
 
-    runtime.unsafeRun {
+    newRuntime.unsafeRun {
       (for {
-        fiber <- invoke(Chunk.fromIterable(args0)).provideEnvironment(runtime.environment).fork
+        fiber <- invokeWith(newRuntime)(Chunk.fromIterable(args0)).provideEnvironment(newRuntime.environment).fork
         _ <-
-          IO.succeed(Platform.addShutdownHook { () =>
+          ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
 
               if (FiberContext.catastrophicFailure.get) {
@@ -27,7 +28,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
                     "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
                 )
               } else {
-                try runtime.unsafeRunSync(fiber.interrupt)
+                try newRuntime.unsafeRunSync(fiber.interrupt)
                 catch { case _: Throwable => }
               }
 

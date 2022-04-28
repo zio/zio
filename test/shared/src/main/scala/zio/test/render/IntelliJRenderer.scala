@@ -1,6 +1,6 @@
 package zio.test.render
 
-import zio.ZTraceElement
+import zio.Trace
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -47,7 +47,7 @@ trait IntelliJRenderer extends TestRenderer {
     tc(s"testIgnored name='${escape(result.label)}'")
 
   private def onTestFailed(result: ExecutionResult) = {
-    val message = Message(result.lines.drop(1)).withOffset(-result.offset)
+    val message = Message(result.streamingLines.drop(1)).withOffset(-result.offset)
     val error   = ConsoleRenderer.renderToStringLines(message).mkString("\n")
 
     tc(s"testFailed name='${escape(result.label)}' message='Assertion failed:' details='${escape(error)}'")
@@ -82,7 +82,7 @@ object IntelliJRenderer extends IntelliJRenderer {
 
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>
-      child.headOption.collect { case ZTraceElement(_, file, line) =>
+      child.headOption.collect { case Trace(_, file, line) =>
         s"file://$file:$line"
       }
     }

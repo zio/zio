@@ -21,13 +21,13 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.io.IOException
 
 abstract class ZOutputStream {
-  def write(chunk: Chunk[Byte])(implicit trace: ZTraceElement): IO[IOException, Unit]
+  def write(chunk: Chunk[Byte])(implicit trace: Trace): IO[IOException, Unit]
 }
 
 object ZOutputStream {
 
   def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
-    def write(chunk: Chunk[Byte])(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    def write(chunk: Chunk[Byte])(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.attemptBlockingIO {
         os.write(chunk.toArray)
       }

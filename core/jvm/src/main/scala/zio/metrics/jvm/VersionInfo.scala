@@ -20,7 +20,7 @@ object VersionInfo {
       )
       .fromConst(1.0)
 
-  private def reportVersions()(implicit trace: ZTraceElement): ZIO[Any, Throwable, VersionInfo] =
+  private def reportVersions()(implicit trace: Trace): ZIO[Any, Throwable, VersionInfo] =
     for {
       version <- System.propertyOrElse("java.runtime.version", "unknown")
       vendor  <- System.propertyOrElse("java.vm.vendor", "unknown")

@@ -10,20 +10,20 @@ object SampleSpec extends ZIOBaseSpec {
     test("monad left identity") {
       val sample = Sample.shrinkIntegral(0)(5)
       val result = equalSamples(sample.flatMap(Sample.noShrink), sample)
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("monad right identity") {
       val n                           = 5
       def f(n: Int): Sample[Any, Int] = Sample.shrinkIntegral(0)(n)
       val result                      = equalSamples(Sample.noShrink(n).flatMap(f), f(n))
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("monad associativity") {
       val sample                      = Sample.shrinkIntegral(0)(2)
       def f(n: Int): Sample[Any, Int] = Sample.shrinkIntegral(0)(n + 3)
       def g(n: Int): Sample[Any, Int] = Sample.shrinkIntegral(0)(n + 5)
       val result                      = equalSamples(sample.flatMap(f).flatMap(g), sample.flatMap(a => f(a).flatMap(g)))
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     },
     test("traverse fusion") {
       val sample              = Sample.shrinkIntegral(0)(5)
@@ -33,7 +33,7 @@ object SampleSpec extends ZIOBaseSpec {
         sample.foreach(a => f(a).flatMap(g)),
         sample.foreach(f).flatMap(_.foreach(g))
       )
-      assertM(result)(isTrue)
+      assertZIO(result)(isTrue)
     }
   )
 
@@ -44,7 +44,7 @@ object SampleSpec extends ZIOBaseSpec {
     left.flatMap(a => right.flatMap(b => equalSamples(a, b)))
 
   def equalSamples[A, B](left: Sample[Any, A], right: Sample[Any, B]): UIO[Boolean] =
-    if (left.value != right.value) UIO.succeed(false) else equalShrinks(left.shrink, right.shrink)
+    if (left.value != right.value) ZIO.succeed(false) else equalShrinks(left.shrink, right.shrink)
 
   def equalShrinks[A, B](
     left: ZStream[Any, Nothing, Option[Sample[Any, A]]],

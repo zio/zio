@@ -21,7 +21,9 @@ object CauseSpec extends ZIOBaseSpec {
         }
       },
       test("`Cause#untraced` removes all traces") {
-        check(causes)(c => assert(c.untraced.traces.headOption)(isNone || isSome(equalTo(ZTrace.none))))
+        check(causes) { c =>
+          assert(c.untraced.traces.headOption)(isNone || isSome(equalTo(StackTrace.none)))
+        }
       },
       test("`Cause.failures is stack safe") {
         val n     = 100000
@@ -188,7 +190,7 @@ object CauseSpec extends ZIOBaseSpec {
     Gen.string
 
   val fiberIds: Gen[Any, FiberId] =
-    Gen.int.zipWith(Gen.int)(FiberId(_, _, ZTraceElement.empty))
+    Gen.int.zipWith(Gen.int)(FiberId(_, _, Trace.empty))
 
   val throwables: Gen[Any, Throwable] =
     Gen.throwable

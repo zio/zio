@@ -100,28 +100,28 @@ trait FiberRef[A] extends Serializable { self =>
    */
   def fork: Patch
 
-  def delete(implicit trace: ZTraceElement): UIO[Unit] =
+  def delete(implicit trace: Trace): UIO[Unit] =
     new ZIO.FiberRefDelete(self, trace)
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
-  def get(implicit trace: ZTraceElement): UIO[A] =
+  def get(implicit trace: Trace): UIO[A] =
     modify(v => (v, v))
 
   /**
    * Atomically sets the value associated with the current fiber and returns the
    * old value.
    */
-  def getAndSet(a: A)(implicit trace: ZTraceElement): UIO[A] =
+  def getAndSet(a: A)(implicit trace: Trace): UIO[A] =
     modify(v => (v, a))
 
   /**
    * Atomically modifies the `FiberRef` with the specified function and returns
    * the old value.
    */
-  def getAndUpdate(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
+  def getAndUpdate(f: A => A)(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = f(v)
       (v, result)
@@ -132,7 +132,7 @@ trait FiberRef[A] extends Serializable { self =>
    * returns the old value. If the function is undefined on the current value it
    * doesn't change it.
    */
-  def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
+  def getAndUpdateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = pf.applyOrElse[A, A](v, identity)
       (v, result)
@@ -142,7 +142,7 @@ trait FiberRef[A] extends Serializable { self =>
    * Gets the value associated with the current fiber and uses it to run the
    * specified effect.
    */
-  def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+  def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     new ZIO.FiberRefWith(self, f, trace)
 
   /**
@@ -150,7 +150,7 @@ trait FiberRef[A] extends Serializable { self =>
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
-  def locally[R, E, B](value: A)(zio: ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+  def locally[R, E, B](value: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     new ZIO.FiberRefLocally(value, self, zio, trace)
 
   /**
@@ -158,7 +158,7 @@ trait FiberRef[A] extends Serializable { self =>
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
-  def locallyWith[R, E, B](f: A => A)(zio: ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+  def locallyWith[R, E, B](f: A => A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     getWith(a => locally(f(a))(zio))
 
   /**
@@ -166,7 +166,7 @@ trait FiberRef[A] extends Serializable { self =>
    * fiber to the specified value and restores it to its original value when the
    * scope is closed.
    */
-  def locallyScoped(value: A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+  def locallyScoped(value: A)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZIO.acquireRelease(get.flatMap(old => set(value).as(old)))(set).unit
 
   /**
@@ -174,7 +174,7 @@ trait FiberRef[A] extends Serializable { self =>
    * current fiber using the specified function and restores it to its original
    * value when the scope is closed.
    */
-  def locallyScopedWith(f: A => A)(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+  def locallyScopedWith(f: A => A)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     getWith(a => locallyScoped(f(a))(trace))
 
   /**
@@ -182,7 +182,7 @@ trait FiberRef[A] extends Serializable { self =>
    * computes a return value for the modification. This is a more powerful
    * version of `update`.
    */
-  def modify[B](f: A => (B, A))(implicit trace: ZTraceElement): UIO[B] =
+  def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
     new ZIO.FiberRefModify(this, f, trace)
 
   /**
@@ -191,24 +191,24 @@ trait FiberRef[A] extends Serializable { self =>
    * defined in the current value otherwise it returns a default value. This is
    * a more powerful version of `updateSome`.
    */
-  def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: ZTraceElement): UIO[B] =
+  def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: Trace): UIO[B] =
     modify { v =>
       pf.applyOrElse[A, (B, A)](v, _ => (default, v))
     }
 
-  def reset(implicit trace: ZTraceElement): UIO[Unit] =
+  def reset(implicit trace: Trace): UIO[Unit] =
     set(initial)
 
   /**
    * Sets the value associated with the current fiber.
    */
-  def set(value: A)(implicit trace: ZTraceElement): UIO[Unit] =
+  def set(value: A)(implicit trace: Trace): UIO[Unit] =
     modify(_ => ((), value))
 
   /**
    * Atomically modifies the `FiberRef` with the specified function.
    */
-  def update(f: A => A)(implicit trace: ZTraceElement): UIO[Unit] =
+  def update(f: A => A)(implicit trace: Trace): UIO[Unit] =
     modify { v =>
       val result = f(v)
       ((), result)
@@ -218,7 +218,7 @@ trait FiberRef[A] extends Serializable { self =>
    * Atomically modifies the `FiberRef` with the specified function and returns
    * the result.
    */
-  def updateAndGet(f: A => A)(implicit trace: ZTraceElement): UIO[A] =
+  def updateAndGet(f: A => A)(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = f(v)
       (result, result)
@@ -228,7 +228,7 @@ trait FiberRef[A] extends Serializable { self =>
    * Atomically modifies the `FiberRef` with the specified partial function. If
    * the function is undefined on the current value it doesn't change it.
    */
-  def updateSome(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[Unit] =
+  def updateSome(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[Unit] =
     modify { v =>
       val result = pf.applyOrElse[A, A](v, identity)
       ((), result)
@@ -239,7 +239,7 @@ trait FiberRef[A] extends Serializable { self =>
    * the function is undefined on the current value it returns the old value
    * without changing it.
    */
-  def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: ZTraceElement): UIO[A] =
+  def updateSomeAndGet(pf: PartialFunction[A, A])(implicit trace: Trace): UIO[A] =
     modify { v =>
       val result = pf.applyOrElse[A, A](v, identity)
       (result, result)
@@ -255,7 +255,7 @@ trait FiberRef[A] extends Serializable { self =>
    * that are currently managed by ZIO, and behave like an ordinary
    * `ThreadLocal` on all other threads.
    */
-  def unsafeAsThreadLocal(implicit trace: ZTraceElement): UIO[ThreadLocal[A]] =
+  def unsafeAsThreadLocal(implicit trace: Trace): UIO[ThreadLocal[A]] =
     ZIO.succeed {
       new ThreadLocal[A] {
         override def get(): A = {
@@ -287,6 +287,7 @@ trait FiberRef[A] extends Serializable { self =>
 }
 
 object FiberRef {
+  import Differ._
 
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
@@ -306,7 +307,7 @@ object FiberRef {
     initial: => A,
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
-  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef[A]] =
+  )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef[A]] =
     makeWith(unsafeMake(initial, fork, join))
 
   /**
@@ -315,7 +316,7 @@ object FiberRef {
    * `ZEnvironment` in a compositional way.
    */
   def makeEnvironment[A](initial: => ZEnvironment[A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
     makeWith(unsafeMakeEnvironment(initial))
 
@@ -326,23 +327,24 @@ object FiberRef {
    */
   def makePatch[Value, Patch](
     initial: Value,
-    diff: (Value, Value) => Patch,
-    combine: (Patch, Patch) => Patch,
-    patch: Patch => Value => Value,
+    differ: Differ[Value, Patch],
     fork: Patch
-  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
-    makeWith(unsafeMakePatch(initial, diff, combine, patch, fork))
+  )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
+    makeWith(unsafeMakePatch(initial, differ, fork))
+
+  def makeSet[A](initial: => Set[A])(implicit
+    trace: Trace
+  ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
+    makeWith(unsafeMakeSet(initial))
 
   private[zio] def unsafeMake[A](
     initial: A,
-    fork: A => A = (a: A) => a,
+    fork: A => A = ZIO.identityFn[A],
     join: (A, A) => A = ((_: A, a: A) => a)
   ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
       initial,
-      (_, newValue) => _ => newValue,
-      (first, second) => value => second(first(value)),
-      patch => value => join(value, patch(value)),
+      Differ.updateWith[A](join),
       fork
     )
 
@@ -351,44 +353,70 @@ object FiberRef {
   ): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
     unsafeMakePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
       initial,
-      ZEnvironment.Patch.diff,
-      _ combine _,
-      patch => value => patch(value),
+      Differ.environment,
       ZEnvironment.Patch.empty
     )
 
   private[zio] def unsafeMakePatch[Value0, Patch0](
     initialValue0: Value0,
-    diff0: (Value0, Value0) => Patch0,
-    combinePatch0: (Patch0, Patch0) => Patch0,
-    patch0: Patch0 => Value0 => Value0,
+    differ: Differ[Value0, Patch0],
     fork0: Patch0
   ): FiberRef.WithPatch[Value0, Patch0] =
     new FiberRef[Value0] {
       type Patch = Patch0
       def combine(first: Patch, second: Patch): Patch =
-        combinePatch0(first, second)
+        differ.combine(first, second)
       def diff(oldValue: Value, newValue: Value): Patch =
-        diff0(oldValue, newValue)
+        differ.diff(oldValue, newValue)
       def fork: Patch =
         fork0
       def initial: Value =
         initialValue0
       def patch(patch: Patch)(oldValue: Value): Value =
-        patch0(patch)(oldValue)
+        differ.patch(patch)(oldValue)
     }
+
+  private[zio] def unsafeMakeSet[A](
+    initial: Set[A]
+  ): FiberRef.WithPatch[Set[A], SetPatch[A]] =
+    unsafeMakePatch[Set[A], SetPatch[A]](
+      initial,
+      Differ.set,
+      SetPatch.empty
+    )
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
     FiberRef.unsafeMake(None, _ => None)
 
-  private[zio] val currentExecutor: FiberRef[Option[zio.Executor]] =
+  private[zio] val overrideExecutor: FiberRef[Option[Executor]] =
     FiberRef.unsafeMake(None)
 
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
 
+  private[zio] val currentBlockingExecutor: FiberRef[Executor] =
+    FiberRef.unsafeMake(RuntimeConfig.default.blockingExecutor)
+
+  private[zio] val currentExecutor: FiberRef[Executor] =
+    FiberRef.unsafeMake(RuntimeConfig.default.executor)
+
+  private[zio] val currentFatal: FiberRef.WithPatch[Set[Class[_ <: Throwable]], SetPatch[Class[_ <: Throwable]]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.fatal)
+
+  private[zio] val currentLoggers: FiberRef.WithPatch[Set[ZLogger[String, Any]], SetPatch[ZLogger[String, Any]]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.loggers)
+
+  private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
+    FiberRef.unsafeMake(RuntimeConfig.default.reportFatal)
+
+  private[zio] val currentRuntimeConfigFlags: FiberRef.WithPatch[Set[RuntimeConfigFlag], SetPatch[RuntimeConfigFlag]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.flags)
+
+  private[zio] val currentSupervisors: FiberRef.WithPatch[Set[Supervisor[Any]], SetPatch[Supervisor[Any]]] =
+    FiberRef.unsafeMakeSet(RuntimeConfig.default.supervisors)
+
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]
-  )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
+  )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
     ZIO.acquireRelease(ZIO.succeed(ref).tap(_.update(identity)))(_.delete)
 }

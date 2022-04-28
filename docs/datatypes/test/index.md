@@ -109,6 +109,42 @@ We can run ZIO Tests in two ways:
   sbt Test/testOnly HelloWorldSpec   // run a specific test
   ```
 
+To run a specific test by their labels, we can use the `-t "<label>"` option. Assume we have multiple tests like the below:
+
+```scala mdoc:compile-only
+import zio.test._
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec = suite("clock")(
+    test("foo") {
+      assertTrue(true)
+    },
+    test("foo bar") {
+      assertTrue(true)
+    },
+    test("foo bar baz") {
+      assertTrue(true)
+    }
+  )
+}
+```
+
+We can run those test that contains the "bar" label using the following SBT command:
+
+```scala
+sbt Test/runMain ExampleSpect -- -t "bar"
+```
+
+It will print the following results after running all tests containing the "bar" label:
+
+```scala
+sbt:zio-2.0> Test/testOnly ExampleSpec -- -t "bar"
++ example suite
+  + foo bar
+  + foo bar baz
+3 tests passed. 0 tests failed. 0 tests ignored.
+```
+
 2. However, if we're not using SBT or have some other special needs, the `ZIOSpecDefault` has a `main` method which can be invoked directly or with SBTs `Test/run` or `Test/runMain` commands:
 
   ```bash
@@ -156,9 +192,9 @@ import zio.test.{test, _}
 import zio.test.Assertion._
 
 val kafkaLayer: ZLayer[Any, Nothing, Int] = ZLayer.succeed(1)
-val test1: ZSpec[Int, Nothing] = test("kafkatest")(assertTrue(true))
-val test2: ZSpec[Int, Nothing] = test("kafkatest")(assertTrue(true))
-val test3: ZSpec[Int, Nothing] = test("kafkatest")(assertTrue(true))
+val test1: Spec[Int, Nothing] = test("kafkatest")(assertTrue(true))
+val test2: Spec[Int, Nothing] = test("kafkatest")(assertTrue(true))
+val test3: Spec[Int, Nothing] = test("kafkatest")(assertTrue(true))
 ```
 
 ```scala mdoc:compile-only

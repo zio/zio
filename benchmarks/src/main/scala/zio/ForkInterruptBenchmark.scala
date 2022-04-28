@@ -32,8 +32,8 @@ class ForkInterruptBenchmark {
 
   private[this] def zioForkInterrupt(runtime: Runtime[Any]): Unit = {
     def loop(i: Int): UIO[Unit] =
-      if (i < size) IO.never.fork.flatMap(_.interrupt *> loop(i + 1))
-      else IO.unit
+      if (i < size) ZIO.never.fork.flatMap(_.interrupt *> loop(i + 1))
+      else ZIO.unit
 
     runtime.unsafeRun(loop(0))
   }

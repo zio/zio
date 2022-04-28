@@ -126,8 +126,8 @@ trait DBConfig
 trait Transactor
 trait User
 
-def dbConfig: Task[DBConfig] = Task.attempt(???)
-def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
+def dbConfig: Task[DBConfig] = ZIO.attempt(???)
+def initializeDb(config: DBConfig): Task[Unit] = ZIO.attempt(???)
 def makeTransactor(config: DBConfig): ZIO[Scope, Throwable, Transactor] = ZIO.attempt(???)
 
 trait UserRepository {
@@ -173,7 +173,7 @@ import zio._
 case class AppConfig(poolSize: Int)
   
 def loadConfig : Task[AppConfig] = 
-  Task.attempt(???)
+  ZIO.attempt(???)
 
 object AppConfig {
   val layer: TaskLayer[AppConfig] = 
@@ -895,7 +895,7 @@ We can `provide` implementation of `Logging` service into the `app` effect:
 ```scala mdoc:silent:nest
 val loggingImpl = new Logging {
   override def log(line: String): UIO[Unit] =
-    UIO.succeed(println(line))
+    ZIO.succeed(println(line))
 }
 
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))

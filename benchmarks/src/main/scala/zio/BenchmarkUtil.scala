@@ -17,7 +17,7 @@ object BenchmarkUtil extends Runtime[Any] {
     else zio *> repeat(n - 1)(zio)
 
   def verify(cond: Boolean)(message: => String): IO[AssertionError, Unit] =
-    ZIO.when(!cond)(IO.fail(new AssertionError(message))).unit
+    ZIO.when(!cond)(ZIO.fail(new AssertionError(message))).unit
 
   def catsForeach[A, B](as: List[A])(f: A => CIO[B]): CIO[List[B]] =
     Traverse[List].traverse(as)(f)

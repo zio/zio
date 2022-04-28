@@ -18,17 +18,17 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.collection.{IterableFactory, IterableOnce}
+import scala.collection.{IterableOnce, StrictOptimizedSeqFactory}
 import scala.collection.mutable.Builder
 
-private[zio] trait ChunkFactory extends IterableFactory[Chunk] {
+private[zio] trait ChunkFactory extends StrictOptimizedSeqFactory[Chunk] {
 
-  final def from[A](iterable: IterableOnce[A]): Chunk[A] =
-    Chunk.fromIterator(iterable.iterator)
-
-  /**
-   * Extracts the elements from a `Chunk`.
-   */
-  def unapplySeq[A](chunk: Chunk[A]): Some[Chunk[A]] =
-    Some(chunk)
+  final def from[A](source: IterableOnce[A]): Chunk[A] =
+    source match {
+      case iterable: Iterable[A] => Chunk.fromIterable(iterable)
+      case iterableOnce =>
+        val chunkBuilder = ChunkBuilder.make[A]()
+        iterableOnce.iterator.foreach(chunkBuilder.addOne)
+        chunkBuilder.result()
+    }
 }

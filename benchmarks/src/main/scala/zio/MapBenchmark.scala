@@ -88,7 +88,7 @@ class MapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    runtime.unsafeRun(sumTo(IO.succeed(0), depth))
+    runtime.unsafeRun(sumTo(ZIO.succeed(0), depth))
   }
 
   @Benchmark

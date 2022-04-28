@@ -61,7 +61,7 @@ import sbt.testing._
  * [[zio.test.sbt.ZioSpecFingerprint]] What SBT needs to find your tests. Finds
  * `ZIOSpecAbstract` implementations in your codebase.
  *
- * [[zio.test.sbt.ZTestRunner]] extends [[sbt.testing.Runner]]
+ * [[zio.test.sbt.ZTestRunnerJVM]] extends [[sbt.testing.Runner]]
  *
  * Receives all Specs found by the `FingerPrint` and merges them into a single
  * `ZTestTask`
@@ -77,6 +77,6 @@ final class ZTestFramework extends Framework {
 
   val fingerprints: Array[Fingerprint] = Array(ZioSpecFingerprint)
 
-  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunner =
-    new ZTestRunner(args, remoteArgs, testClassLoader)
+  override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): ZTestRunnerJVM =
+    new ZTestRunnerJVM(args, remoteArgs, testClassLoader)
 }

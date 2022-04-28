@@ -15,10 +15,12 @@ import scala.collection.immutable.SortedSet
  * monad effect.
  */
 trait Annotations extends Serializable {
-  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): UIO[Unit]
-  def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): UIO[V]
-  def withAnnotation[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, Annotated[E], Annotated[A]]
-  def supervisedFibers(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]]
+  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit]
+  def get[V](key: TestAnnotation[V])(implicit trace: Trace): UIO[V]
+  def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
+    trace: Trace
+  ): ZIO[R, TestFailure[E], TestSuccess]
+  def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]]
 }
 
 object Annotations {
@@ -27,21 +29,21 @@ object Annotations {
    * Accesses an `Annotations` instance in the environment and appends the
    * specified annotation to the annotation map.
    */
-  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): URIO[Annotations, Unit] =
+  def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): URIO[Annotations, Unit] =
     ZIO.serviceWithZIO(_.annotate(key, value))
 
   /**
    * Accesses an `Annotations` instance in the environment and retrieves the
    * annotation of the specified type, or its default value if there is none.
    */
-  def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): URIO[Annotations, V] =
+  def get[V](key: TestAnnotation[V])(implicit trace: Trace): URIO[Annotations, V] =
     ZIO.serviceWithZIO(_.get(key))
 
   /**
    * Returns a set of all fibers in this test.
    */
   def supervisedFibers(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Annotations, Nothing, SortedSet[Fiber.Runtime[Any, Any]]] =
     ZIO.serviceWithZIO(_.supervisedFibers)
 
@@ -52,17 +54,17 @@ object Annotations {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped(FiberRef.make(TestAnnotationMap.empty).map { fiberRef =>
       new Annotations {
-        def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: ZTraceElement): UIO[Unit] =
+        def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit] =
           fiberRef.update(_.annotate(key, value))
-        def get[V](key: TestAnnotation[V])(implicit trace: ZTraceElement): UIO[V] =
+        def get[V](key: TestAnnotation[V])(implicit trace: Trace): UIO[V] =
           fiberRef.get.map(_.get(key))
-        def withAnnotation[R, E, A](zio: ZIO[R, E, A])(implicit
-          trace: ZTraceElement
-        ): ZIO[R, Annotated[E], Annotated[A]] =
+        def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
+          trace: Trace
+        ): ZIO[R, TestFailure[E], TestSuccess] =
           fiberRef.locally(TestAnnotationMap.empty) {
-            zio.foldZIO(e => fiberRef.get.map((e, _)).flip, a => fiberRef.get.map((a, _)))
+            zio.foldZIO(e => fiberRef.get.map(e.annotated).flip, a => fiberRef.get.map(a.annotated))
           }
-        def supervisedFibers(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
+        def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
           ZIO.descriptorWith { descriptor =>
             get(TestAnnotation.fibers).flatMap {
               case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
@@ -82,8 +84,8 @@ object Annotations {
    * specified effect with an empty annotation map, returning the annotation map
    * along with the result of execution.
    */
-  def withAnnotation[R <: Annotations, E, A](zio: ZIO[R, E, A])(implicit
-    trace: ZTraceElement
-  ): ZIO[R, Annotated[E], Annotated[A]] =
+  def withAnnotation[R <: Annotations, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
+    trace: Trace
+  ): ZIO[R, TestFailure[E], TestSuccess] =
     ZIO.serviceWithZIO[Annotations](_.withAnnotation(zio))
 }

@@ -8,33 +8,9 @@ import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 private[zio] class ConcurrentMetricRegistry {
-  private val listener: MetricListener =
-    new MetricListener {
-      override def unsafeUpdate[Type <: MetricKeyType](key: MetricKey[Type]): key.keyType.In => Unit =
-        (update: key.keyType.In) => {
-          val iterator = listeners.iterator
-
-          while (iterator.hasNext) {
-            val listener = iterator.next()
-            listener.unsafeUpdate(key)(update) // TODO: Optimize
-          }
-        }
-    }
 
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
-
-  private val listeners = zio.internal.Platform.newConcurrentSet[MetricListener]()
-
-  final def installListener(listener: MetricListener): Unit = {
-    listeners.add(listener)
-    ()
-  }
-
-  final def removeListener(listener: MetricListener): Unit = {
-    listeners.remove(listener)
-    ()
-  }
 
   def snapshot(): Set[MetricPair.Untyped] = {
     val iterator = map.entrySet().iterator()
@@ -67,8 +43,7 @@ private[zio] class ConcurrentMetricRegistry {
   private def getCounter(key: MetricKey.Counter): MetricHook.Counter = {
     var value = map.get(key)
     if (value eq null) {
-      val updater = listener.unsafeUpdate(key)
-      val counter = ConcurrentMetricHooks.counter(key).onUpdate(updater)
+      val counter = ConcurrentMetricHooks.counter(key)
       map.putIfAbsent(key, counter)
       value = map.get(key)
     }
@@ -78,8 +53,7 @@ private[zio] class ConcurrentMetricRegistry {
   private def getGauge(key: MetricKey.Gauge): MetricHook.Gauge = {
     var value = map.get(key)
     if (value eq null) {
-      val updater = listener.unsafeUpdate(key)
-      val gauge   = ConcurrentMetricHooks.gauge(key, 0.0).onUpdate(updater)
+      val gauge = ConcurrentMetricHooks.gauge(key, 0.0)
       map.putIfAbsent(key, gauge)
       value = map.get(key)
     }
@@ -89,9 +63,8 @@ private[zio] class ConcurrentMetricRegistry {
   private def getHistogram(key: MetricKey.Histogram): MetricHook.Histogram = {
     var value = map.get(key)
     if (value eq null) {
-      val updater = listener.unsafeUpdate(key)
       val histogram =
-        ConcurrentMetricHooks.histogram(key).onUpdate(updater)
+        ConcurrentMetricHooks.histogram(key)
       map.putIfAbsent(key, histogram)
       value = map.get(key)
     }
@@ -103,8 +76,7 @@ private[zio] class ConcurrentMetricRegistry {
   ): MetricHook.Summary = {
     var value = map.get(key)
     if (value eq null) {
-      val updater = listener.unsafeUpdate(key)
-      val summary = ConcurrentMetricHooks.summary(key).onUpdate(updater)
+      val summary = ConcurrentMetricHooks.summary(key)
       map.putIfAbsent(key, summary)
       value = map.get(key)
     }
@@ -114,8 +86,7 @@ private[zio] class ConcurrentMetricRegistry {
   private def getSetCount(key: MetricKey.Frequency): MetricHook.Frequency = {
     var value = map.get(key)
     if (value eq null) {
-      val updater   = listener.unsafeUpdate(key)
-      val frequency = ConcurrentMetricHooks.frequency(key).onUpdate(updater)
+      val frequency = ConcurrentMetricHooks.frequency(key)
       map.putIfAbsent(key, frequency)
       value = map.get(key)
     }

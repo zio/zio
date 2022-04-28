@@ -20,19 +20,19 @@ import scala.scalajs.js
 import scala.scalajs.js.{Function1, Promise => JSPromise, Thenable, |}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-private[zio] trait TaskPlatformSpecific { self: Task.type =>
+private[zio] trait TaskPlatformSpecific { self: ZIO.type =>
 
   /**
    * Imports a Scala.js promise into a `Task`.
    */
-  def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: ZTraceElement): Task[A] =
+  def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: Trace): Task[A] =
     self.async { callback =>
       val onFulfilled: Function1[A, Unit | Thenable[Unit]] = new scala.Function1[A, Unit | Thenable[Unit]] {
-        def apply(a: A): Unit | Thenable[Unit] = callback(UIO.succeedNow(a))
+        def apply(a: A): Unit | Thenable[Unit] = callback(ZIO.succeedNow(a))
       }
       val onRejected: Function1[Any, Unit | Thenable[Unit]] = new scala.Function1[Any, Unit | Thenable[Unit]] {
         def apply(e: Any): Unit | Thenable[Unit] =
-          callback(IO.fail(e match {
+          callback(ZIO.fail(e match {
             case t: Throwable => t
             case _            => js.JavaScriptException(e)
           }))

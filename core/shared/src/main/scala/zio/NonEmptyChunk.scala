@@ -115,20 +115,20 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * some state along the way.
    */
   def mapAccumZIO[R, E, S, B](s: S)(f: (S, A) => ZIO[R, E, (S, B)])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R, E, (S, NonEmptyChunk[B])] =
     chunk.mapAccumZIO(s)(f).map { case (s, chunk) => (s, nonEmpty(chunk)) }
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk`.
    */
-  def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, NonEmptyChunk[B]] =
+  def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, NonEmptyChunk[B]] =
     chunk.mapZIO(f).map(nonEmpty)
 
   /**
    * Effectfully maps the elements of this `NonEmptyChunk` in parallel.
    */
-  def mapZIOPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: ZTraceElement): ZIO[R, E, NonEmptyChunk[B]] =
+  def mapZIOPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, NonEmptyChunk[B]] =
     chunk.mapZIOPar(f).map(nonEmpty)
 
   /**

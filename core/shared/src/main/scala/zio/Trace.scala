@@ -19,24 +19,24 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object ZTraceElement {
+object Trace {
 
-  def apply(location: String, file: String, line: Int): ZTraceElement =
+  def apply(location: String, file: String, line: Int): Trace =
     Tracer.instance(location, file, line)
 
-  val empty: ZTraceElement =
+  val empty: Trace =
     Tracer.instance.empty
 
-  def fromJava(stackTraceElement: StackTraceElement): ZTraceElement =
-    ZTraceElement(
+  def fromJava(stackTraceElement: StackTraceElement): Trace =
+    Trace(
       stackTraceElement.getClassName + "." + stackTraceElement.getMethodName,
       stackTraceElement.getFileName,
       stackTraceElement.getLineNumber
     )
 
-  def toJava(trace: ZTraceElement): Option[StackTraceElement] =
+  def toJava(trace: Trace): Option[StackTraceElement] =
     trace match {
-      case ZTraceElement(location, file, line) =>
+      case Trace(location, file, line) =>
         val last = location.lastIndexOf(".")
 
         val (before, after) = if (last < 0) ("", "." + location) else location.splitAt(last)
@@ -46,6 +46,6 @@ object ZTraceElement {
       case _ => None
     }
 
-  def unapply(trace: ZTraceElement): Option[(String, String, Int)] =
+  def unapply(trace: Trace): Option[(String, String, Int)] =
     Tracer.instance.unapply(trace)
 }

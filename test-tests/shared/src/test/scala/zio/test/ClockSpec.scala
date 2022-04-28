@@ -80,7 +80,7 @@ object ClockSpec extends ZIOBaseSpec {
       },
       test("setDateTime correctly sets currentDateTime") {
         for {
-          expected <- UIO.succeed(OffsetDateTime.now(ZoneId.of("UTC+9")))
+          expected <- ZIO.succeed(OffsetDateTime.now(ZoneId.of("UTC+9")))
           _        <- setDateTime(expected)
           actual   <- Clock.currentDateTime
         } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))
@@ -111,11 +111,11 @@ object ClockSpec extends ZIOBaseSpec {
       },
       test("setTimeZone correctly sets timeZone") {
         setTimeZone(ZoneId.of("UTC+10")) *>
-          assertM(timeZone)(equalTo(ZoneId.of("UTC+10")))
+          assertZIO(timeZone)(equalTo(ZoneId.of("UTC+10")))
       },
       test("setTimeZone does not produce sleeps") {
         setTimeZone(ZoneId.of("UTC+11")) *>
-          assertM(sleeps)(isEmpty)
+          assertZIO(sleeps)(isEmpty)
       },
       test("timeout example from TestClock documentation works correctly") {
         val example = for {
@@ -123,7 +123,7 @@ object ClockSpec extends ZIOBaseSpec {
           _      <- TestClock.adjust(1.minute)
           result <- fiber.join
         } yield result == None
-        assertM(example)(isTrue)
+        assertZIO(example)(isTrue)
       } @@ forked @@ nonFlaky,
       test("recurrence example from TestClock documentation works correctly") {
         val example = for {
@@ -137,7 +137,7 @@ object ClockSpec extends ZIOBaseSpec {
           d <- q.take.as(true)
           e <- q.poll.map(_.isEmpty)
         } yield a && b && c && d && e
-        assertM(example)(isTrue)
+        assertZIO(example)(isTrue)
       } @@ forked @@ nonFlaky,
       test("clock time is always 0 at the start of a test that repeats")(
         for {
@@ -164,8 +164,8 @@ object ClockSpec extends ZIOBaseSpec {
         } yield assert(result)(equalTo((1L, 2L)))
       },
       test("zipWithLatest example from documentation") {
-        val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
-        val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
+        val s1 = ZStream.iterate(0)(_ + 1).fixed(100.milliseconds)
+        val s2 = ZStream.iterate(0)(_ + 1).fixed(70.milliseconds)
         val s3 = s1.zipWithLatest(s2)((_, _))
 
         for {

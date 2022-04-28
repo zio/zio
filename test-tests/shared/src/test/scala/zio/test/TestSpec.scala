@@ -10,8 +10,8 @@ import zio.test.TestUtils.execute
 object TestSpec extends ZIOBaseSpec {
 
   def spec = suite("TestSpec")(
-    test("assertM works correctly") {
-      assertM(nanoTime)(equalTo(0L))
+    test("assertZIO works correctly") {
+      assertZIO(nanoTime)(equalTo(0L))
     },
     test("test error is test failure") {
       for {

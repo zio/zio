@@ -38,10 +38,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
   type UManaged[+A]      = ZManaged[Any, Nothing, A]   //Manage an `A`, cannot fail              , no requirements
   type URManaged[-R, +A] = ZManaged[R, Nothing, A]     //Manage an `A`, cannot fail              , requires an `R`
 
-  val Managed: ZManaged.type = ZManaged
-
   implicit final class ZManagedPromiseCompanionSyntax(private val self: Promise.type) extends AnyVal {
-    def makeManaged[E, A](implicit trace: ZTraceElement): ZManaged[Any, Nothing, Promise[E, A]] =
+    def makeManaged[E, A](implicit trace: Trace): ZManaged[Any, Nothing, Promise[E, A]] =
       ZManaged.fromZIO(Promise.make[E, A])
   }
 
@@ -52,7 +50,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * fiber to the specified value as its `acquire` action and restores it to
      * its original value as its `release` action.
      */
-    def locallyManaged(value: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    def locallyManaged(value: A)(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
       ZManaged.scoped(self.locallyScoped(value))
   }
 
@@ -63,21 +61,21 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * execute the effect in the fiber, while ensuring its interruption when the
      * effect supplied to [[ZManaged#use]] completes.
      */
-    final def forkManaged(implicit trace: ZTraceElement): ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
+    final def forkManaged(implicit trace: Trace): ZManaged[R, Nothing, Fiber.Runtime[E, A]] =
       self.toManaged.fork
 
     /**
      * Converts this ZIO to [[ZManaged]] with no release action. It will be
      * performed interruptibly.
      */
-    final def toManaged(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    final def toManaged(implicit trace: Trace): ZManaged[R, E, A] =
       ZManaged.fromZIO(self)
 
     /**
      * Converts this ZIO to [[Managed]]. This ZIO and the provided release
      * action will be performed uninterruptibly.
      */
-    final def toManagedWith[R1 <: R](release: A => URIO[R1, Any])(implicit trace: ZTraceElement): ZManaged[R1, E, A] =
+    final def toManagedWith[R1 <: R](release: A => URIO[R1, Any])(implicit trace: Trace): ZManaged[R1, E, A] =
       ZManaged.acquireReleaseWith(self)(release)
   }
 
@@ -88,7 +86,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Converts this ZIO value to a ZManaged value. See
      * [[ZManaged.fromAutoCloseable]].
      */
-    def toManagedAuto(implicit trace: ZTraceElement): ZManaged[R, E, A] =
+    def toManagedAuto(implicit trace: Trace): ZManaged[R, E, A] =
       ZManaged.fromAutoCloseable(self)
   }
 
@@ -104,7 +102,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * inspecting internal / external state.
      */
     def reserve[R, E, A, B](reservation: => ZIO[R, E, Reservation[R, E, A]])(use: A => ZIO[R, E, B])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZIO[R, E, B] =
       ZManaged.fromReservationZIO(reservation).use(use)
   }
@@ -115,7 +113,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Constructs a layer from a managed resource.
      */
     def fromManaged[R, E, A: Tag](m: ZManaged[R, E, A])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZLayer[R, E, A] =
       ZLayer.scoped[R](m.scoped)
 
@@ -124,18 +122,18 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * services.
      */
     def fromManagedEnvironment[R, E, A](m: ZManaged[R, E, ZEnvironment[A]])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZLayer[R, E, A] =
       ZLayer.scopedEnvironment[R](m.scoped)
   }
 
   implicit final class ZManagedRefCompanionSyntax(private val self: Ref.type) extends AnyVal {
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref[A]] =
+    def makeManaged[A](a: A)(implicit trace: Trace): ZManaged[Any, Nothing, Ref[A]] =
       ZManaged.fromZIO(Ref.make(a))
   }
 
   implicit final class ZManagedRefSynchronizedCompanionSyntax(private val self: Ref.Synchronized.type) extends AnyVal {
-    def makeManaged[A](a: A)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Ref.Synchronized[A]] =
+    def makeManaged[A](a: A)(implicit trace: Trace): ZManaged[Any, Nothing, Ref.Synchronized[A]] =
       ZManaged.fromZIO(Ref.Synchronized.make(a))
   }
 
@@ -146,7 +144,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * can be evaluated multiple times within the scope of the managed to take a
      * message from the hub each time.
      */
-    final def subscribeManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, TDequeue[A]] =
+    final def subscribeManaged(implicit trace: Trace): ZManaged[Any, Nothing, TDequeue[A]] =
       ZManaged.scoped(self.subscribeScoped)
   }
 
@@ -156,7 +154,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Returns a managed effect that describes acquiring a permit as the
      * `acquire` action and releasing it as the `release` action.
      */
-    def withPermitManaged(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    def withPermitManaged(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
       ZManaged.scoped(self.withPermitScoped)
 
     /**
@@ -164,7 +162,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * permits as the `acquire` action and releasing them as the `release`
      * action.
      */
-    def withPermitsManaged(n: Long)(implicit trace: ZTraceElement): ZManaged[Any, Nothing, Unit] =
+    def withPermitsManaged(n: Long)(implicit trace: Trace): ZManaged[Any, Nothing, Unit] =
       ZManaged.scoped(self.withPermitsScoped(n))
   }
 
@@ -175,7 +173,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     def runManaged(implicit
       ev1: Any <:< InElem,
       ev2: OutElem <:< Nothing,
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[Env, OutErr, OutDone] =
       ZManaged.scoped[Env](self.runScoped)
   }
@@ -184,18 +182,18 @@ package object managed extends ZManagedCompatPlatformSpecific {
 
     def managed[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, A](m: => ZManaged[Env, OutErr, A])(
       use: A => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-    )(implicit trace: ZTraceElement): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
+    )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.unwrapScoped[Env](m.scoped.map(use))
 
     def managedOut[R, E, A](
       m: => ZManaged[R, E, A]
-    )(implicit trace: ZTraceElement): ZChannel[R, Any, Any, Any, E, A, Any] =
+    )(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, A, Any] =
       ZChannel.scoped[R](m.scoped)
 
     def unwrapManaged[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       channel: => ZManaged[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
     )(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
       ZChannel.unwrapScoped[Env](channel.scoped)
   }
@@ -206,7 +204,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Creates a sink produced from a managed effect.
      */
     def unwrapManaged[R, E, In, L, Z](managed: => ZManaged[R, E, ZSink[R, E, In, L, Z]])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZSink[R, E, In, L, Z] =
       ZSink.unwrapScoped[R](managed.scoped)
   }
@@ -217,7 +215,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Executes a pure fold over the stream of values. Returns a managed value
      * that represents the scope of the stream.
      */
-    final def runFoldManaged[S](s: => S)(f: (S, A) => S)(implicit trace: ZTraceElement): ZManaged[R, E, S] =
+    final def runFoldManaged[S](s: => S)(f: (S, A) => S)(implicit trace: Trace): ZManaged[R, E, S] =
       ZManaged.scoped[R](self.runFoldScoped(s)(f))
 
     /**
@@ -225,7 +223,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * value that represents the scope of the stream.
      */
     final def runFoldManagedZIO[R1 <: R, E1 >: E, S](s: => S)(f: (S, A) => ZIO[R1, E1, S])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[R1, E1, S] =
       ZManaged.scoped[R1](self.runFoldScopedZIO[R1, E1, S](s)(f))
 
@@ -235,8 +233,8 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * the condition is not fulfilled. Example:
      * {{{
      *   Stream(1)
-     *     .fold(0)(_ <= 4)((s, a) => UIO(s + a))  // Managed[Nothing, Int]
-     *     .use(ZIO.succeed)                       // UIO[Int] == 5
+     *     .fold(0)(_ <= 4)((s, a) => ZIO.succeed(s + a))  // Managed[Nothing, Int]
+     *     .use(ZIO.succeed)                               // UIO[Int] == 5
      * }}}
      *
      * @param cont
@@ -244,7 +242,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     final def runFoldWhileManagedZIO[R1 <: R, E1 >: E, S](
       s: => S
-    )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: ZTraceElement): ZManaged[R1, E1, S] =
+    )(cont: S => Boolean)(f: (S, A) => ZIO[R1, E1, S])(implicit trace: Trace): ZManaged[R1, E1, S] =
       ZManaged.scoped[R1](self.runFoldWhileScopedZIO[R1, E1, S](s)(cont)(f))
 
     /**
@@ -253,7 +251,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * condition is not fulfilled.
      */
     final def runFoldWhileManaged[S](s: => S)(cont: S => Boolean)(f: (S, A) => S)(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[R, E, S] =
       ZManaged.scoped[R](self.runFoldWhileScoped(s)(cont)(f))
 
@@ -262,7 +260,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * finalization order can be controlled.
      */
     final def runForeachChunkManaged[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[R1, E1, Unit] =
       ZManaged.scoped[R1](self.runForeachChunkScoped(f))
 
@@ -271,7 +269,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * order can be controlled.
      */
     final def runForeachScoped[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[R1, E1, Unit] =
       ZManaged.scoped[R1](self.runForeachScoped(f))
 
@@ -280,7 +278,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * finalization order can be controlled.
      */
     final def runForeachWhileManaged[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Boolean])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[R1, E1, Unit] =
       ZManaged.scoped[R1](self.runForeachWhileScoped(f))
 
@@ -290,7 +288,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     final def runIntoHubManaged[E1 >: E, A1 >: A](
       hub: => Hub[Take[E1, A1]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E1, Unit] =
+    )(implicit trace: Trace): ZManaged[R, E1, Unit] =
       ZManaged.scoped[R](self.runIntoHubScoped(hub))
 
     /**
@@ -299,7 +297,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     final def runIntoQueueManaged(
       queue: => Enqueue[Take[E, A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+    )(implicit trace: Trace): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueScoped(queue))
 
     /**
@@ -308,11 +306,11 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     final def runIntoQueueElementsManaged(
       queue: => Enqueue[Exit[Option[E], A]]
-    )(implicit trace: ZTraceElement): ZManaged[R, E, Unit] =
+    )(implicit trace: Trace): ZManaged[R, E, Unit] =
       ZManaged.scoped[R](self.runIntoQueueElementsScoped(queue))
 
     def runManaged[R1 <: R, E1 >: E, B](sink: => ZSink[R1, E1, A, Any, B])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZManaged[R1, E1, B] =
       ZManaged.scoped[R1](self.runScoped(sink))
   }
@@ -326,7 +324,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     def fromChunkHubManaged[O](
       hub: => Hub[Chunk[O]]
-    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, O]] =
+    )(implicit trace: Trace): ZManaged[Any, Nothing, ZStream[Any, Nothing, O]] =
       ZManaged.scoped(ZStream.fromChunkHubScoped(hub))
 
     /**
@@ -338,7 +336,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
      */
     def fromChunkHubManagedWithShutdown[O](
       hub: => Hub[Chunk[O]]
-    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, O]] =
+    )(implicit trace: Trace): ZManaged[Any, Nothing, ZStream[Any, Nothing, O]] =
       ZManaged.scoped(ZStream.fromChunkHubScopedWithShutdown(hub))
 
     /**
@@ -349,7 +347,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     def fromHubManaged[A](
       hub: => Hub[A],
       maxChunkSize: => Int = ZStream.DefaultChunkSize
-    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, A]] =
+    )(implicit trace: Trace): ZManaged[Any, Nothing, ZStream[Any, Nothing, A]] =
       ZManaged.scoped(ZStream.fromHubScoped(hub, maxChunkSize))
 
     /**
@@ -362,7 +360,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     def fromHubManagedWithShutdown[A](
       hub: => Hub[A],
       maxChunkSize: => Int = ZStream.DefaultChunkSize
-    )(implicit trace: ZTraceElement): ZManaged[Any, Nothing, ZStream[Any, Nothing, A]] =
+    )(implicit trace: Trace): ZManaged[Any, Nothing, ZStream[Any, Nothing, A]] =
       ZManaged.scoped(ZStream.fromHubScopedWithShutdown(hub, maxChunkSize))
 
     /**
@@ -371,7 +369,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
     def fromInputStreamManaged[R](
       is: => ZManaged[R, IOException, InputStream],
       chunkSize: => Int = ZStream.DefaultChunkSize
-    )(implicit trace: ZTraceElement): ZStream[R, IOException, Byte] =
+    )(implicit trace: Trace): ZStream[R, IOException, Byte] =
       ZStream.fromInputStreamScoped[R](is.scoped, chunkSize)
 
     /**
@@ -381,7 +379,7 @@ package object managed extends ZManagedCompatPlatformSpecific {
       iterator: => ZManaged[R, Throwable, Iterator[A]],
       maxChunkSize: => Int = ZStream.DefaultChunkSize
     )(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZStream[R, Throwable, A] =
       ZStream.fromIteratorScoped[R, A](iterator.scoped, maxChunkSize)
 
@@ -389,15 +387,15 @@ package object managed extends ZManagedCompatPlatformSpecific {
      * Creates a stream from a managed iterator
      */
     def fromJavaIteratorManaged[R, A](iterator: => ZManaged[R, Throwable, java.util.Iterator[A]])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZStream[R, Throwable, A] =
       ZStream.fromJavaIteratorScoped[R, A](iterator.scoped)
 
-    def managed[R, E, A](managed: => ZManaged[R, E, A])(implicit trace: ZTraceElement): ZStream[R, E, A] =
+    def managed[R, E, A](managed: => ZManaged[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
       ZStream.scoped[R](managed.scoped)
 
     def unwrapScoped[R, E, A](fa: => ZManaged[R, E, ZStream[R, E, A]])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZStream[R, E, A] =
       ZStream.unwrapScoped[R](fa.scoped)
   }

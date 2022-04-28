@@ -55,11 +55,9 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
     val executor = executor0
 
-    val fatal = (_: Throwable) => false
-
     val logger: ZLogger[String, Unit] =
       (
-        trace: ZTraceElement,
+        trace: Trace,
         fiberId: FiberId,
         level: LogLevel,
         message: () => String,
@@ -79,7 +77,7 @@ private[zio] trait RuntimeConfigPlatformSpecific {
 
           ()
         } catch {
-          case t if !fatal(t) => ()
+          case t => ()
         }
       }
 
@@ -88,16 +86,14 @@ private[zio] trait RuntimeConfigPlatformSpecific {
       throw t
     }
 
-    val supervisor = Supervisor.none
-
     RuntimeConfig(
       blockingExecutor,
       executor,
-      fatal,
+      Set.empty,
       reportFatal,
-      supervisor,
-      logger,
-      RuntimeConfigFlags.empty + RuntimeConfigFlag.EnableFiberRoots
+      Set.empty,
+      Set(logger.filterLogLevel(_ >= LogLevel.Info)),
+      Set(RuntimeConfigFlag.EnableFiberRoots)
     )
   }
 
