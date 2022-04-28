@@ -18,7 +18,7 @@ object AssertionSpec extends DefaultRunnableSpec {
 //      assert(sampleUser)(nameStartsWithA && ageGreaterThan20)
 //    } @@ failing,
     test("anything must always succeeds") {
-      assertTrue(42.is(_.anything))
+      assertTrue((42).is(_.anything))
     },
 //    test("approximatelyEquals must succeed when number is within range") {
 //      assert(5.5)(approximatelyEquals(5.0, 3.0))
@@ -27,55 +27,56 @@ object AssertionSpec extends DefaultRunnableSpec {
 //      assert(50.0)(approximatelyEquals(5.0, 3.0))
 //    } @@ failing,
     test("contains must succeed when iterable contains specified element") {
-      assertTrue(Seq("zio", "scala").contains("zio"))
+      assertTrue((Seq("zio", "scala")).contains("zio"))
     },
     test("contains must fail when iterable does not contain specified element") {
-      assertTrue(Seq("zio", "scala").contains("java"))
+      assertTrue((Seq("zio", "scala")).contains("java"))
     } @@ failing,
     test("containsString must succeed when string is found") {
-      assertTrue("this is a value".contains("is a"))
+      assertTrue(("this is a value").contains("is a"))
     },
     test("containsString must return false when the string is not contained") {
-      assertTrue("this is a value".contains("_NOTHING_"))
+      assertTrue(("this is a value").contains("_NOTHING_"))
     } @@ failing,
     test("dies must succeed when exception satisfy specified assertion") {
-      assert(Exit.die(someException))(dies(equalTo(someException)))
+      assertTrue((Exit.die(someException)).is(_.die.anything))
     },
     test("dies must fail when exception does not satisfy specified assertion") {
-      assert(Exit.die(new RuntimeException("Bam!")))(dies(equalTo(someException)))
+      assertTrue((Exit.die(new RuntimeException("Bam!"))).is(_.die) == someException)
     } @@ failing,
     test("endWith must succeed when the supplied value ends with the specified sequence") {
-      assert(List(1, 2, 3, 4, 5))(endsWith(List(3, 4, 5)))
+      assertTrue((List(1, 2, 3, 4, 5)).endsWith(List(3, 4, 5)))
     },
     test("startsWith must fail when the supplied value does not end with the specified sequence") {
-      assert(List(1, 2, 3, 4, 5))(endsWith(List(1, 2, 3)))
+      assertTrue((List(1, 2, 3, 4, 5)).endsWith(List(1, 2, 3)))
     } @@ failing,
     test("endsWithString must succeed when the supplied value ends with the specified string") {
-      assert("zio")(endsWithString("o"))
+      assertTrue(("zio").endsWithString("o"))
     },
     test("endsWithString must fail when the supplied value does not end with the specified string") {
-      assert("zio")(endsWithString("z"))
+      assertTrue(("zio").endsWithString("z"))
     } @@ failing,
     test("equalsIgnoreCase must succeed when the supplied value matches") {
-      assert("Some String")(equalsIgnoreCase("some string"))
+      assertTrue(("Some String").is(_.equalsIgnoreCase("some string")))
     },
     test("equalsIgnoreCase must fail when the supplied value does not match") {
-      assert("Some Other String")(equalsIgnoreCase("some string"))
+      assertTrue(("Some Other String").is(_.equalsIgnoreCase("some string")))
     } @@ failing,
     test("equalTo must succeed when value equals specified value") {
-      assert(42)(equalTo(42))
+      assertTrue((42) == 42)
     },
     test("equalTo must fail when value does not equal specified value") {
-      assert(0)(equalTo(42))
+      assertTrue((0) == 42)
     } @@ failing,
     test("equalTo must succeed when array equals specified array") {
-      assert(Array(1, 2, 3))(equalTo(Array(1, 2, 3)))
+      assertTrue((Array(1, 2, 3)) == Array(1, 2, 3))
     },
     test("equalTo must fail when array does not equal specified array") {
-      assert(Array(1, 2, 3))(equalTo(Array(1, 2, 4)))
+      assertTrue((Array(1, 2, 3)) == Array(1, 2, 4))
     } @@ failing,
     test("equalTo must not have type inference issues") {
       assert(List(1, 2, 3).filter(_ => false))(equalTo(List.empty))
+      assertTrue((List(1, 2, 3).filter(_ => false)) == List.empty)
     },
     test("equalTo must not compile when comparing two unrelated types") {
       val result = typeCheck("assert(1)(equalTo(\"abc\"))")
@@ -90,31 +91,31 @@ object AssertionSpec extends DefaultRunnableSpec {
       )
     } @@ scala2Only,
     test("exists must succeed when at least one element of iterable satisfy specified assertion") {
-      assert(Seq(1, 42, 5))(exists(equalTo(42)))
+      assertTrue((Seq(1, 42, 5)).exists(_ == (42)))
     },
     test("exists must fail when all elements of iterable do not satisfy specified assertion") {
-      assert(Seq(1, 42, 5))(exists(equalTo(0)))
+      assertTrue((Seq(1, 42, 5)).exists(_ == (0)))
     } @@ failing,
     test("exists must fail when iterable is empty") {
-      assert(Seq[String]())(exists(hasField("length", _.length, isWithin(0, 3))))
+      assertTrue((Seq[String]()).exists(_.length.is(_.within(0, 3))))
     } @@ failing,
     test("fails must succeed when error value satisfy specified assertion") {
-      assert(Exit.fail("Some Error"))(fails(equalTo("Some Error")))
+      assertTrue((Exit.fail("Some Error")).is(_.fail) == "Some Error")
     },
     test("fails must fail when error value does not satisfy specified assertion") {
-      assert(Exit.fail("Other Error"))(fails(equalTo("Some Error")))
+      assertTrue((Exit.fail("Other Error")).is(_.fail) == "Some Error")
     } @@ failing,
     test("forall must succeed when all elements of iterable satisfy specified assertion") {
-      assert(Seq("a", "bb", "ccc"))(forall(hasField("length", _.length, isWithin(0, 3))))
+      assertTrue((Seq("a", "bb", "ccc")).forall(_.length.is(_.within(0, 3))))
     },
     test("forall must fail when one element of iterable do not satisfy specified assertion") {
-      assert(Seq("a", "bb", "dddd"))(forall(hasField("length", _.length, isWithin(0, 3))))
+      assertTrue((Seq("a", "bb", "dddd")).forall(_.length.is(_.within(0, 3))))
     } @@ failing,
     test("forall must succeed when an iterable is empty") {
-      assert(Seq[String]())(forall(hasField("length", _.length, isWithin(0, 3))))
+      assertTrue((Seq[String]()).forall(_.length.is(_.within(0, 3))))
     },
     test("forall must work with iterables that are not lists") {
-      assert(SortedSet(1, 2, 3))(forall(isGreaterThan(0)))
+      assertTrue((SortedSet(1, 2, 3)).forall(_.>(0)))
     },
     test("hasSameElementsDistinct must succeed when iterable contains the specified elements") {
       assert(Seq(1, 2, 3))(hasSameElementsDistinct(Set(1, 2, 3)))
@@ -127,338 +128,329 @@ object AssertionSpec extends DefaultRunnableSpec {
       )
     },
     test("hasSameElementsDistinct must succeed when specified elements contain duplicates") {
-      assert(Seq(1, 2, 3))(hasSameElementsDistinct(Seq(1, 2, 3, 3)))
+      assertTrue((Seq(1, 2, 3)).is(_.hasSameElementsDistinct(Seq(1, 2, 3, 3))))
     },
     test("hasSameElementsDistinct must fail when iterable does not have all specified elements") {
-      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3, 4, 5)))
+      assertTrue((Seq(1, 2, 3, 4)).is(_.hasSameElementsDistinct(Set(1, 2, 3, 4,5 ))))
     } @@ failing,
     test("hasSameElementsDistinct must fail when iterable contains unspecified elements") {
-      assert(Seq(1, 2, 3, 4))(hasSameElementsDistinct(Set(1, 2, 3)))
+      assertTrue((Seq(1, 2, 3, 4)).is(_.hasSameElementsDistinct(Set(1, 2, 3))))
     } @@ failing,
     test("hasAt must fail when an index is outside of a sequence range") {
-      assert(Seq(1, 2, 3))(hasAt(-1)(anything))
+      assertTrue((Seq(1, 2, 3))(-1).is(_.anything))
     } @@ failing,
     test("hasAt must fail when an index is outside of a sequence range 2") {
-      assert(Seq(1, 2, 3))(hasAt(3)(anything))
+      assertTrue((Seq(1, 2, 3))(3).is(_.anything))
     } @@ failing,
     test("hasAt must fail when a value is not equal to a specific assertion") {
-      assert(Seq(1, 2, 3))(hasAt(1)(equalTo(1)))
+      assertTrue((Seq(1, 2, 3))(1) == 1)
     } @@ failing,
     test("hasAt must succeed when a value is equal to a specific assertion") {
-      assert(Seq(1, 2, 3))(hasAt(1)(equalTo(2)))
+      assertTrue((Seq(1, 2, 3))(1) == 2)
     },
     test("hasAtLeastOneOf must succeed when iterable contains one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("zio", "test", "java")))
+      assertTrue((Seq("zio", "scala")).is(_.hasAtLeastOneOf(Set("zio", "test", "java"))))
     },
     test("hasAtLeastOneOf must succeed when iterable contains more than one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("zio", "test", "scala")))
+      assertTrue((Seq("zio", "scala")).is(_.hasAtLeastOneOf(Set("zio", "test", "scala"))))
     },
     test("hasAtLeastOneOf must fail when iterable does not contain a specified element") {
-      assert(Seq("zio", "scala"))(hasAtLeastOneOf(Set("python", "rust")))
+      assertTrue((Seq("zio", "scala")).is(_.hasAtLeastOneOf(Set("python", "rust"))))
     } @@ failing,
     test("hasAtMostOneOf must succeed when iterable contains one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("zio", "test", "java")))
+      assertTrue((Seq("zio", "scala")).is(_.hasAtMostOneOf(Set("zio", "test", "scala"))))
     },
     test("hasAtMostOneOf must succeed when iterable does not contain a specified element") {
-      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("python", "rust")))
+      assertTrue((Seq("zio", "scala")).is(_.hasAtMostOneOf(Set("python", "rust"))))
     },
     test("hasAtMostOneOf must fail when iterable contains more than one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasAtMostOneOf(Set("zio", "test", "scala")))
+      assertTrue((Seq("zio", "scala")).is(_.hasAtMostOneOf(Set("zio", "test", "scala"))))
     } @@ failing,
     test("hasField must succeed when field value satisfy specified assertion") {
-      assert(SampleUser("User", 23))(hasField[SampleUser, Int]("age", _.age, isWithin(0, 99)))
+      assertTrue((SampleUser("User", 23)).age.is(_.isWithin(0, 99)))
     },
     test("hasFirst must fail when an iterable is empty") {
-      assert(Seq())(hasFirst(anything))
+      assertTrue((Seq()).head.is(_.anything))
     } @@ failing,
     test("hasFirst must succeed when a head is equal to a specific assertion") {
-      assert(Seq(1, 2, 3))(hasFirst(equalTo(1)))
+      assertTrue((Seq(1, 2, 3)).head == 1)
     },
     test("hasFirst must fail when a head is not equal to a specific assertion") {
-      assert(Seq(1, 2, 3))(hasFirst(equalTo(100)))
+      assertTrue((Seq(1, 2, 3)).head == 100)
     } @@ failing,
     test("hasIntersection must succeed when intersection satisfies specified assertion") {
-      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(hasSize(equalTo(1))))
+      assertTrue((Seq(1, 2, 3)).intersect(Seq(3, 4, 5)).size == 1)
     },
     test("hasIntersection must succeed when empty intersection satisfies specified assertion") {
-      assert(Seq(1, 2, 3))(hasIntersection(Seq(4, 5, 6))(isEmpty))
+      assertTrue((Seq(1, 2, 3)).intersect(Seq(4, 5, 6)).isEmpty)
     },
     test("hasIntersection must fail when intersection does not satisfy specified assertion") {
-      assert(Seq(1, 2, 3))(hasIntersection(Seq(3, 4, 5))(isEmpty))
+      assertTrue((Seq(1, 2, 3)).intersect(Seq(3, 4, 5)).isEmpty)
     } @@ failing,
     test("hasKey must succeed when map has key with value satisfying specified assertion") {
-      assert(Map("scala" -> 1))(hasKey("scala", equalTo(1)))
+      assertTrue((Map("scala" -> 1))("scala") == 1)
+    },
     },
     test("hasKey must fail when map does not have the specified key") {
-      assert(Map("scala" -> 1))(hasKey("java", equalTo(1)))
+      assertTrue((Map("scala" -> 1))("java") == 1)
     } @@ failing,
     test("hasKey must fail when map has key with value not satisfying specified assertion") {
-      assert(Map("scala" -> 1))(hasKey("scala", equalTo(-10)))
+        assertTrue((Map("scala" -> 1))("scala") == -10)
     } @@ failing,
     test("hasKey must succeed when map has the specified key") {
-      assert(Map("scala" -> 1))(hasKey("scala"))
+      assertTrue((Map("scala" -> 1))("scala") == 1)
     },
     test("hasKeys must succeed when map has keys satisfying the specified assertion") {
-      assert(Map("scala" -> 1, "java" -> 1))(hasKeys(hasAtLeastOneOf(Set("scala", "java"))))
+      assertTrue((Map("scala" -> 1, "java" -> 1)).keys.is(_.hasAtLeastOneOf(Set("scala", "java"))))
     },
     test("hasKeys must fail when map has keys not satisfying the specified assertion") {
-      assert(Map("scala" -> 1, "java" -> 1))(hasKeys(contains("bash")))
+        assertTrue((Map("scala" -> 1, "java" -> 1)).keys.contains("bash"))
+    },
     } @@ failing,
     test("hasLast must fail when an iterable is empty") {
-      assert(Seq())(hasLast(anything))
+      assertTrue((Seq()).last.is(_.anything))
+    },
     } @@ failing,
     test("hasLast must succeed when a last is equal to a specific assertion") {
-      assert(Seq(1, 2, 3))(hasLast(equalTo(3)))
+      assertTrue((Seq(1, 2, 3)).last == 3)
     },
     test("hasLast must fail when a last is not equal to specific assertion") {
-      assert(Seq(1, 2, 3))(hasLast(equalTo(100)))
+      assertTrue((Seq(1, 2, 3)).last == 100)
     } @@ failing,
     test("hasNoneOf must succeed when iterable does not contain one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasNoneOf(Set("python", "rust")))
+      assertTrue((Seq("zio", "scala")).is(_.hasNoneOf(Set("python", "rust"))))
     },
     test("hasNoneOf must succeed when iterable is empty") {
-      assert(Seq.empty[String])(hasNoneOf(Set("zio", "test", "java")))
+      assertTrue((Seq.empty[String]).is(_.hasNoneOf(Set("zio", "test", "java"))))
     },
     test("hasNoneOf must fail when iterable contains a specified element") {
-      assert(Seq("zio", "scala"))(hasNoneOf(Set("zio", "test", "scala")))
+      assertTrue((Seq("zio", "scala")).is(_.hasNoneOf(Set("zio", "test", "scala"))))
     } @@ failing,
     test("hasOneOf must succeed when iterable contains exactly one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasOneOf(Set("zio", "test", "java")))
+      assertTrue((Seq("zio", "scala")).is(_.hasOneOf(Set("zio", "test", "java"))))
     },
     test("hasOneOf must fail when iterable contains more than one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasOneOf(Set("zio", "test", "scala")))
+      assertTrue((Seq("zio", "scala")).is(_.hasOneOf(Set("zio", "test", "scala"))))
+    },
     } @@ failing,
     test("hasOneOf must fail when iterable does not contain at least one of the specified elements") {
-      assert(Seq("zio", "scala"))(hasOneOf(Set("python", "rust")))
+      assertTrue((Seq("zio", "scala")).is(_.hasOneOf(Set("python", "rust"))))
     } @@ failing,
     test("hasSameElements must succeed when both iterables contain the same elements") {
-      assert(Seq(1, 2, 3))(hasSameElements(Seq(1, 2, 3)))
+      assertTrue((Seq(1, 2, 3)).is(_.hasSameElements(Seq(1, 2, 3))))
     },
     test("hasSameElements must fail when the iterables do not contain the same elements") {
-      assert(Seq(1, 2, 3, 4))(hasSameElements(Seq(1, 2, 3)) && hasSameElements(Seq(1, 2, 3, 4, 5)))
+      assertTrue((Seq(1, 2, 3, 4)).is(_.hasSameElements(Seq(1, 2, 3)) && Seq(1, 2, 3, 4).hasSameElements(Seq(1, 2, 3, 4, 5))))
     } @@ failing,
     test("hasSameElements must succeed when both iterables contain the same elements in different order") {
-      assert(Seq(4, 3, 1, 2))(hasSameElements(Seq(1, 2, 3, 4)))
+      assertTrue((Seq(4, 3, 1, 2)).is(_.hasSameElements(Seq(1, 2, 3, 4))))
     },
     test(
       "hasSameElements must fail when both iterables have the same size, have the same values but they appear a different number of times."
     ) {
-      assert(Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c"))(
-        hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))
-      )
+      assertTrue((Seq("a", "a", "b", "b", "b", "c", "c", "c", "c", "c")).is(_.hasSameElements(Seq("a", "a", "a", "a", "a", "b", "b", "c", "c", "c"))))
+    },
     } @@ failing,
     test("hasSize must succeed when iterable size is equal to specified assertion") {
-      assert(Seq(1, 2, 3))(hasSize(equalTo(3)))
+      assertTrue((Seq(1, 2, 3)).size == 3)
     },
     test("hasSize must fail when iterable size is not equal to specified assertion") {
-      assert(Seq(1, 2, 3))(hasSize(equalTo(1)))
+     assertTrue((Seq(1, 2, 3)).size == 1)
     } @@ failing,
     test("hasSize must succeed when chunk size is equal to specified assertion") {
-      assert(Chunk(1, 2, 3))(hasSize(equalTo(3)))
+      assertTrue((Chunk(1, 2, 3)).size == 3)
     },
     test("hasSize must fail when chunk size is not equal to specified assertion") {
-      assert(Chunk(1, 2, 3))(hasSize(equalTo(1)))
+      assertTrue((Chunk(1, 2, 3)).size == 1)
     } @@ failing,
     test("hasSizeString must succeed when string size is equal to specified assertion") {
-      assert("aaa")(hasSizeString(equalTo(3)))
+      assertTrue("aaa".length == 3)
     },
     test("hasSizeString must fail when string size is not equal to specified assertion") {
-      assert("aaa")(hasSizeString(equalTo(2)))
+      assertTrue("aaa".length == 2)
     } @@ failing,
     test("hasSubset must succeed when both iterables contain the same elements") {
-      assert(Seq(1, 2, 3))(hasSubset(Set(1, 2, 3)))
+      assertTrue((Seq(1, 2, 3)).is(_.hasSubset(Set(1, 2, 3))))
     },
     test("hasSubset must succeed when the other iterable is a subset of the iterable") {
-      assert(Seq(1, 2, 3, 4))(hasSubset(Set(1, 2, 3)))
+      assertTrue((Seq(1, 2, 3, 4)).is(_.hasSubset(Set(1, 2, 3))))
     },
     test("hasSubset must succeed when the other iterable is empty") {
-      assert(Seq(4, 3, 1, 2))(hasSubset(Set.empty[Int]))
+      assertTrue((Seq(4, 3, 1, 2)).is(_.hasSubset(Set.empty[Int])))
     },
     test("hasSubset must fail when iterable does not contain elements specified in set") {
-      assert(Seq(4, 3, 1, 2))(hasSubset(Set(1, 2, 10)))
+      assertTrue((Seq(4, 3, 1, 2)).is(_.hasSubset(Set(1, 2, 10))))
     } @@ failing,
     test("hasValues must succeed when map has values satisfying the specified assertion") {
-      assert(Map("scala" -> 10, "java" -> 20))(hasValues(hasAtLeastOneOf(Set(0, 10))))
+      assertTrue((Map("scala" -> 10, "java" -> 20)).values.is(_.hasAtLeastOneOf(Set(0, 10))))
     },
     test("hasValues must fail when map has values not satisfying the specified assertion") {
-      assert(Map("scala" -> 10, "java" -> 20))(hasValues(contains(0)))
+      assertTrue((Map("scala" -> 10, "java" -> 20)).values.contains(0))
     } @@ failing,
-    test("isCase must fail when unapply fails (returns None)") {
-      assert(42)(isCase[Int, String](termName = "term", _ => None, equalTo("number: 42")))
-    } @@ failing,
-    test("isCase must succeed when unapplied Proj satisfy specified assertion")(
-      assert(sampleUser)(
-        isCase[SampleUser, (String, Int)](
-          termName = "SampleUser",
-          { case SampleUser(name, age) => Some((name, age)) },
-          equalTo((sampleUser.name, sampleUser.age))
-        )
-      )
-    ),
     test("isDistinct must succeed when iterable is distinct") {
-      assert(Seq(1, 2, 3, 4, 0))(isDistinct)
+      assertTrue((Seq(1, 2, 3, 4, 0)).is(_.distinct))
     },
     test("isDistinct must succeed for empty iterable") {
-      assert(Seq.empty[Int])(isDistinct)
+      assertTrue((Seq.empty[Int]).is(_.distinct))
     },
     test("isDistinct must succeed for singleton iterable") {
-      assert(Seq(1))(isDistinct)
+      assertTrue((Seq(1)).is(_.distinct))
     },
     test("isDistinct must fail when iterable is not distinct") {
-      assert(Seq(1, 2, 3, 3, 4))(isDistinct)
+      assertTrue((Seq(1, 2, 3, 3, 4)).is(_.distinct))
     } @@ failing,
     test("isEmpty must succeed when the traversable is empty") {
-      assert(Seq())(isEmpty)
+      assertTrue((Seq()).is(_.isEmpty))
     },
     test("isEmpty must fail when the traversable is not empty") {
-      assert(Seq(1, 2, 3))(isEmpty)
+      assertTrue((Seq(1, 2, 3)).is(_.isEmpty))
     } @@ failing,
     test("isEmptyString must succeed when the string is empty") {
-      assert("")(isEmptyString)
+      assertTrue(("").isEmpty)
     },
     test("isEmptyString must fail when the string is not empty") {
-      assert("some string")(isEmptyString)
+      assertTrue(("some string").isEmpty)
     } @@ failing,
     test("isFalse must succeed when supplied value is false") {
-      assert(false)(isFalse)
+      assertTrue((false) == false)
     },
     test("isFailure must succeed when Failure value satisfies the specified assertion") {
-      assert(Failure(new Exception("oh no!")))(isFailure(hasMessage(equalTo("oh no!"))))
+      assertTrue((Failure(new Exception("oh no!")).is(_.failure).message == "oh no!"))
     },
     test("isFailure must succeed when Try value is Failure") {
-      assert(Failure(new Exception("oh no!")))(isFailure)
+      assertTrue((Failure(new Exception("oh no!"))).is(_.failure.anything))
     },
     test("isGreaterThan must succeed when specified value is greater than supplied value") {
-      assert(42)(isGreaterThan(0))
+      assertTrue((42) > 0)
     },
     test("isGreaterThan must fail when specified value is less than or equal supplied value") {
-      assert(42)(isGreaterThan(42))
+      assertTrue((42) > 42)
     } @@ failing,
     test("isGreaterThanEqualTo must succeed when specified value is greater than or equal supplied value") {
-      assert(42)(isGreaterThanEqualTo(42))
+     assertTrue((42) >= 42)
     },
     test("isLeft must succeed when supplied value is Left and satisfy specified assertion") {
-      assert(Left(42))(isLeft(equalTo(42)))
+      assertTrue((Left(42)).is(_.left) == 42)
     },
     test("isLeft must succeed when supplied value is Left") {
-      assert(Left(42))(isLeft)
+      assertTrue((Left(42)).is(_.left.anything))
     },
     test("isLeft must fail when supplied value is Right") {
-      assert(Right(-42))(isLeft)
+      assertTrue((Right(-42)).is(_.left.anything))
     } @@ failing,
     test("isLessThan must succeed when specified value is less than supplied value") {
-      assert(0)(isLessThan(42))
+      assertTrue((0) < 42)
     },
     test("isLessThan must fail when specified value is greater than or equal supplied value") {
-      assert(42)(isLessThan(42))
+      assertTrue((42) < 42)
     } @@ failing,
     test("isLessThanEqualTo must succeed when specified value is less than or equal supplied value") {
-      assert(42)(isLessThanEqualTo(42))
+      assertTrue((42) <= 42)
     },
     test("isNegative must succeed when number is negative") {
-      assert(-10)(isNegative)
+      assertTrue((-10) < 0)
     },
     test("isNegative must fail when number is zero") {
-      assert(0)(isNegative)
+      assertTrue((0) < 0)
     } @@ failing,
     test("isNegative must fail when number is positive") {
-      assert(10)(isNegative)
+      assertTrue((10) < 0)
     } @@ failing,
     test("isNone must succeed when specified value is None") {
-      assert(None)(isNone)
+      assertTrue((None).isEmpty)
     },
     test("isNone must fail when specified value is not None") {
-      assert(Some(42))(isNone)
+      assertTrue((Some(42)).isEmpty)
     } @@ failing,
     test("isNonEmpty must succeed when the traversable is not empty") {
-      assert(Seq(1, 2, 3))(isNonEmpty)
+      assertTrue((Seq(1, 2, 3)).nonEmpty)
     },
     test("isNonEmpty must fail when the chunk is empty") {
-      assert(Chunk.empty)(isNonEmpty)
+      assertTrue((Chunk.empty).nonEmpty)
     } @@ failing,
     test("isNonEmpty must succeed when the chunk is not empty") {
-      assert(Chunk(1, 2, 3))(isNonEmpty)
+      assertTrue((Chunk(1, 2, 3)).nonEmpty)
     },
     test("isNonEmpty must fail when the traversable is empty") {
-      assert(Seq())(isNonEmpty)
+      assertTrue((Seq()).nonEmpty)
     } @@ failing,
     test("isNonEmptyString must succeed when the string is not empty") {
-      assert("some string")(isNonEmptyString)
+      assertTrue(("some string").nonEmpty)
     },
     test("isNonEmptyString must fail when the string is empty") {
-      assert("")(isNonEmptyString)
+        assertTrue(("").nonEmpty)
     } @@ failing,
     test("isNull must succeed when specified value is null") {
-      assert(null)(isNull)
+      assertTrue((null) == null)
     },
     test("isNull must fail when specified value is not null") {
-      assert("not null")(isNull)
+       assertTrue(("not null") == null)
     } @@ failing,
     test("isOneOf must succeed when value is equal to one of the specified values") {
-      assert('a')(isOneOf(Set('a', 'b', 'c')))
+      assertTrue(('a').is(_.oneOf(Set('a', 'b', 'c'))))
     },
     test("isOneOf must fail when value is not equal to one of the specified values") {
-      assert('z')(isOneOf(Set('a', 'b', 'c')))
+      assertTrue(('z').is(_.oneOf(Set('a', 'b', 'c'))))
     } @@ failing,
     test("isPositive must succeed when number is positive") {
-      assert(10)(isPositive)
+      assertTrue((10) > 0)
     },
     test("isPositive must fail when number is zero") {
-      assert(0)(isPositive)
+      assertTrue((0) > 0)
     } @@ failing,
     test("isPositive must fail when number is negative") {
-      assert(-10)(isPositive)
+      assertTrue((-10) > 0)
     } @@ failing,
     test("isRight must succeed when supplied value is Right and satisfy specified assertion") {
-      assert(Right(42))(isRight(equalTo(42)))
+      assertTrue((Right(42)).is(_.right) == 42)
     },
     test("isRight must succeed when supplied value is Right") {
-      assert(Right(42))(isRight)
+      assertTrue((Right(42)).is(_.right))
     },
     test("isSome must succeed when supplied value is Some and satisfy specified assertion") {
-      assert(Some("zio"))(isSome(equalTo("zio")))
+      assertTrue((Some("zio")).is(_.some) == "zio")
     },
     test("isSome with isOneOf must succeed when assertion is satisfied") {
-      assert(Some("zio"))(isSome(isOneOf(Set("zio", "test"))))
+      assertTrue((Some("zio")).is(_.some.oneOf(Set("zio", "test"))))
     },
     test("isSome must fail when supplied value is None") {
-      assert(None)(isSome(equalTo("zio")))
+     assertTrue((None).is(_.some) == "zio")
     } @@ failing,
     test("isSome must succeed when supplied value is Some") {
-      assert(Some("zio"))(isSome)
+      assertTrue((Some("zio")).is(_.some.anything))
     },
     test("isSome must fail when supplied value is None") {
-      assert(None)(isSome)
+      assertTrue((None).is(_.some.anything))
     } @@ failing,
     test("isSorted must succeed when iterable is sorted") {
-      assert(Seq(1, 2, 2, 3, 4))(isSorted)
+      assertTrue((Seq(1, 2, 2, 3, 4)).is(_.sorted))
     },
     test("isSorted must succeed for empty iterable") {
-      assert(Seq.empty[Int])(isSorted)
+      assertTrue((Seq.empty[Int]).is(_.sorted))
     },
     test("isSorted must succeed for singleton iterable") {
-      assert(Seq(1))(isSorted)
+      assertTrue((Seq(1)).is(_.sorted))
     },
     test("isSorted must fail when iterable is not sorted") {
-      assert(Seq(1, 2, 0, 3, 4))(isSorted)
+      assertTrue((Seq(1, 2, 0, 3, 4)).is(_.sorted))
     } @@ failing,
     test("isSortedReverse must succeed when iterable is reverse sorted") {
-      assert(Seq(4, 3, 3, 2, 1))(isSortedReverse)
+      assertTrue((Seq(4, 3, 3, 2, 1)).is(_.sortedReverse))
     },
     test("isSortedReverse must fail when iterable is not reverse sorted") {
-      assert(Seq(1, 2, 0, 3, 4))(isSortedReverse)
+      assertTrue((Seq(1, 2, 0, 3, 4)).is(_.sortedReverse))
     } @@ failing,
     test("isSubtype must succeed when value is subtype of specified type") {
-      assert(dog)(isSubtype[Animal](anything))
+      assertTrue((dog).is(_.subtype[Animal].anything))
     },
     test("isSubtype must fail when value is supertype of specified type") {
-      assert(animal)(isSubtype[Cat](anything))
+      assertTrue((animal).is(_.subtype[Cat].anything))
     } @@ failing,
     test("isSubtype must fail when value is neither subtype nor supertype of specified type") {
-      assert(cat)(isSubtype[Dog](anything))
+      assertTrue((cat).is(_.subtype[Dog].anything))
     } @@ failing,
     test("isSubtype must handle primitive types") {
-      assert(1)(isSubtype[Int](anything))
+      assertTrue((1).is(_.subtype[Int].anything))
     },
     test("isSubtype must handle malformed class names") {
       sealed trait Exception
@@ -466,62 +458,59 @@ object AssertionSpec extends DefaultRunnableSpec {
         case class MyException() extends Exception
       }
       val exception = new Exception.MyException
-      assert(exception)(isSubtype[Exception.MyException](anything))
+      assertTrue((exception).is(_.subtype[Exception.MyException].anything))
     },
     test("isSuccess must succeed when Success value satisfies the specified assertion") {
-      assert(Success(1))(isSuccess(isPositive[Int]))
+      assertTrue((Success(1)).is(_.success).>(0))
     },
     test("isSuccess must succeed when Try value is Success") {
-      assert(Success(1))(isSuccess)
+      assertTrue((Success(1)).is(_.success.anything))
     },
     test("isTrue must succeed when supplied value is true") {
-      assert(true)(isTrue)
+      assertTrue((true).==(true))
     },
     test("isUnit must succeed when supplied value is ()") {
-      assert(())(isUnit)
+      assertTrue((()).==(()))
     },
-    test("isUnit must not compile when supplied value is not ()") {
+    testM("isUnit must not compile when supplied value is not ()") {
       val result = typeCheck("assert(10)(isUnit)")
       assertM(result)(isLeft(anything))
     },
     test("isWithin must succeed when supplied value is within range (inclusive)") {
-      assert(10)(isWithin(0, 10))
+      assertTrue((10).is(_.within(0, 10)))
     },
     test("isWithin must fail when supplied value is out of range") {
-      assert(42)(isWithin(0, 10))
+      assertTrue((42).is(_.within(0, 10)))
     } @@ failing,
     test("isZero must succeed when number is zero") {
-      assert(0)(isZero)
+      assertTrue((0).==(0))
     },
     test("isZero must fail when number is not zero") {
-      assert(10)(isZero)
+      assertTrue((10).==(0))
     } @@ failing,
     test("matches must succeed when the string matches the regex") {
-      assert("(123) 456-7890")(matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$"))
+      assertTrue(("(123) 456-7890").matches("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$"))
     },
     test("matches must fail when the string does not match the regex") {
-      assert("456-7890")(matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$"))
+      assertTrue(("456-7890").matches("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$"))
     } @@ failing,
-    test("negate must succeed when negation of assertion is true") {
-      assert(sampleUser)(nameStartsWithA.negate)
-    },
     test("nonNegative must succeed when number is positive") {
-      assert(10)(nonNegative)
+      assertTrue((10).>=(0))
     },
     test("nonNegative must succeed when number is zero") {
-      assert(0)(nonNegative)
+      assertTrue((0).>=(0))
     },
     test("nonNegative must fail when number is negative") {
-      assert(-10)(nonNegative)
+      assertTrue((-10).>=(0))
     } @@ failing,
     test("nonPositive must succeed when number is negative") {
-      assert(-10)(nonPositive)
+      assertTrue((-10).<=(0))
     },
     test("nonPositive must succeed when number is zero") {
-      assert(0)(nonPositive)
+      assertTrue((0).<=(0))
     },
     test("nonPositive must fail when number is positive") {
-      assert(10)(nonPositive)
+      assertTrue((10).<=(0))
     } @@ failing,
     test("not must succeed when negation of specified assertion is true") {
       assert(0)(not(equalTo(42)))
@@ -529,46 +518,40 @@ object AssertionSpec extends DefaultRunnableSpec {
     test("nothing must always fail") {
       assert(42)(nothing)
     } @@ failing,
-    test("or must succeed when one of assertions is satisfied") {
-      assert(sampleUser)((nameStartsWithA || nameStartsWithU) && ageGreaterThan20)
-    },
-    test("or must fail when both assertions are not satisfied") {
-      assert(sampleUser)(nameStartsWithA || ageLessThan20)
-    } @@ failing,
     test("startsWith must succeed when the supplied value starts with the specified sequence") {
-      assert(List(1, 2, 3, 4, 5))(startsWith(List(1, 2, 3)))
+      assertTrue((List(1, 2, 3, 4, 5)).startsWith(List(1, 2, 3)))
     },
     test("startsWith must fail when the supplied value does not start with the specified sequence") {
-      assert(List(1, 2, 3, 4, 5))(startsWith(List(3, 4, 5)))
+      assertTrue((List(1, 2, 3, 4, 5)).startsWith(List(3, 4, 5)))
     } @@ failing,
     test("startsWithString must succeed when the supplied value starts with the specified string") {
-      assert("zio")(startsWithString("z"))
+      assertTrue(("zio").startsWith("z"))
     },
     test("startsWithString must fail when the supplied value does not start with the specified string") {
-      assert("zio")(startsWithString("o"))
+      assertTrue(("zio").startsWith("o"))
     } @@ failing,
     test("succeeds must succeed when supplied value is Exit.succeed and satisfy specified assertion") {
-      assert(Exit.succeed("Some Error"))(succeeds(equalTo("Some Error")))
+      assertTrue((Exit.succeed("Some Error")).is(_.success) == "Some Error")
     },
     test("succeeds must fail when supplied value is Exit.fail") {
-      assert((Exit.fail("Some Error")).is(_.success) == "Some Error")
+      assertTrue((Exit.fail("Some Error")).is(_.success) == "Some Error")
     } @@ failing,
-//    test("throws must succeed when given assertion is correct") {
-//      assertTrue((throw sampleException).is(_.throwing) == sampleException)
-//    },
+    test("throws must succeed when given assertion is correct") {
+      assertTrue((throw sampleException).is(_.throwing) == sampleException)
+    },
     test("hasThrowableCause must succeed when supplied value has matching cause") {
       val cause = new Exception("cause")
       val t     = new Exception("result", cause)
-      assertTrue(t.is(_.cause.message) == "cause")
+      assertTrue((t).is(_.cause.message) == "cause")
     },
     test("hasThrowableCause must fail when supplied value has non-matching cause") {
       val cause = new Exception("something different")
       val t     = new Exception("result", cause)
-      assertTrue(t.is(_.cause.message) == "cause")
+      assertTrue((t).is(_.cause.message) == "cause")
     } @@ failing,
     test("hasThrowableCause must fail when supplied value does not have a cause") {
       val t = new Exception("result")
-      assertTrue(t.is(_.cause.message) == "cause")
+      assertTrue((t).is(_.cause.message) == "cause")
     } @@ failing
   )
 

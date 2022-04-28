@@ -505,9 +505,6 @@ object AssertionSpec extends DefaultRunnableSpec {
     test("matches must fail when the string does not match the regex") {
       assert("456-7890")(matchesRegex("\\([1-9]{3}\\) [0-9]{3}\\-[0-9]{4}$"))
     } @@ failing,
-//    test("negate must succeed when negation of assertion is true") {
-//      assert(sampleUser)(nameStartsWithA.negate)
-//    },
     test("nonNegative must succeed when number is positive") {
       assert(10)(nonNegative)
     },
@@ -526,17 +523,11 @@ object AssertionSpec extends DefaultRunnableSpec {
     test("nonPositive must fail when number is positive") {
       assert(10)(nonPositive)
     } @@ failing,
-//    test("not must succeed when negation of specified assertion is true") {
-//      assert(0)(not(equalTo(42)))
-//    },
+    test("not must succeed when negation of specified assertion is true") {
+      assert(0)(not(equalTo(42)))
+    },
     test("nothing must always fail") {
       assert(42)(nothing)
-    } @@ failing,
-    test("or must succeed when one of assertions is satisfied") {
-      assert(sampleUser)((hasField("name", (_: SampleUser).name.startsWith("A"), isTrue) || hasField("name", (_: SampleUser).name.startsWith("U"), isTrue)) && hasField[SampleUser,Int]("age", _.age, isGreaterThan(20)))
-    },
-    test("or must fail when both assertions are not satisfied") {
-      assert(sampleUser)(hasField("name", (_: SampleUser).name.startsWith("A"), isTrue) || hasField("age", _.age, isLessThan(20)))
     } @@ failing,
     test("startsWith must succeed when the supplied value starts with the specified sequence") {
       assert(List(1, 2, 3, 4, 5))(startsWith(List(1, 2, 3)))
