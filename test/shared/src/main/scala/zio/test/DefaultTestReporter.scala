@@ -113,7 +113,7 @@ object DefaultTestReporter {
   ): (List[Line], List[Line]) = {
     val depth     = labels.length
     val label     = labels.last
-    val flatLabel = labels.mkString(" - ")
+    val flatLabel = labels.map(_.red).mkString(" / ".red.faint)
 
     val renderedResult = results match {
       case Right(TestSuccess.Succeeded(_)) =>
