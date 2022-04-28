@@ -3779,15 +3779,16 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             .zipPar(pullRight.unsome)
             .foldZIO(
               err => ZIO.succeedNow(Exit.fail(Some(err))),
-              { case (Some(leftChunk), Some(rightChunk)) =>
-                if (leftChunk.isEmpty && rightChunk.isEmpty)
-                  pull(PullBoth, pullLeft, pullRight)
-                else if (leftChunk.isEmpty)
-                  pull(PullLeft(rightChunk), pullLeft, pullRight)
-                else if (rightChunk.isEmpty)
-                  pull(PullRight(leftChunk), pullLeft, pullRight)
-                else
-                  ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
+              {
+                case (Some(leftChunk), Some(rightChunk)) =>
+                  if (leftChunk.isEmpty && rightChunk.isEmpty)
+                    pull(PullBoth, pullLeft, pullRight)
+                  else if (leftChunk.isEmpty)
+                    pull(PullLeft(rightChunk), pullLeft, pullRight)
+                  else if (rightChunk.isEmpty)
+                    pull(PullRight(leftChunk), pullLeft, pullRight)
+                  else
+                    ZIO.succeedNow(Exit.succeed(zipWithChunks(leftChunk, rightChunk)))
                 case _ => ZIO.succeedNow(Exit.fail(None))
               }
             )
