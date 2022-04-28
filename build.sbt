@@ -770,7 +770,7 @@ lazy val scalafixOutput = project
     scalafixSettings,
     publish / skip := true
   )
-  .dependsOn(coreJVM, testJVM, streamsJVM)
+  .dependsOn(coreJVM, testJVM, streamsJVM, managedJVM)
 
 lazy val scalafixTests = project
   .in(file("scalafix/tests"))
