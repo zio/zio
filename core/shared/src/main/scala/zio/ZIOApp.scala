@@ -36,7 +36,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
+  def environmentLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -52,7 +52,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
+    ZIOApp(self.run.zipPar(that.run), self.environmentLayer +!+ that.environmentLayer, self.hook >>> that.hook)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
@@ -108,7 +108,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
     ZIO.suspendSucceed {
       val newLayer =
         Scope.default +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer +!+ ZLayer.environment[ZIOAppArgs with Scope]
+          environmentLayer +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
       for {
         _      <- installSignalHandlers(runtime)
@@ -127,8 +127,8 @@ object ZIOApp {
     type Environment = app.Environment
     override final def hook: RuntimeConfigAspect =
       app.hook
-    final def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
-      app.layer
+    final def environmentLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
+      app.environmentLayer
     override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
     implicit final def environmentTag: EnvironmentTag[Environment] =
@@ -148,7 +148,7 @@ object ZIOApp {
       type Environment = R
       def environmentTag: EnvironmentTag[Environment] = tagged
       override def hook                               = hook0
-      def layer                                       = layer0
+      def environmentLayer                            = layer0
       def run                                         = run0
     }
 
