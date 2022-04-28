@@ -50,10 +50,10 @@ trait PollingMetric[-R, +E, +Out] { self =>
    * Returns an effect that will launch the polling metric in a background
    * fiber, using the specified schedule.
    */
-  final def launch[R1 <: R, B](schedule: Schedule[R1, Out, B])(implicit
+  final def launch[R1 <: R, B](schedule: Schedule[R1, Any, B])(implicit
     trace: Trace
-  ): ZIO[R1 with Scope, Nothing, Fiber[E, B]] =
-    ZIO.acquireRelease((pollAndUpdate *> metric.value).repeat(schedule).interruptible.forkDaemon)(_.interrupt)
+  ): ZIO[R1 with Scope, E, Fiber[Any, B]] =
+    (pollAndUpdate *> metric.value).scheduleFork(schedule)
 
   /**
    * An effect that polls a value that may be fed to the metric.
