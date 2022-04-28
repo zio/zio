@@ -346,6 +346,8 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   val hasNormalized = SymbolMatcher.normalized("zio/Has#")
 
+  val zManagedNormalized = SymbolMatcher.normalized("zio/ZManaged#")
+
   val CompanianAliases = SymbolMatcher.exact("zio/IO.", "zio/UIO.", "zio/URIO.", "zio/Task.", "zio/RIO.")
 
   val UIOAlias  = SymbolMatcher.exact("zio/UIO.")
@@ -619,7 +621,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
 
   }
 
-  override def fix(implicit doc: SemanticDocument): Patch =
+  override def fix(implicit doc: SemanticDocument): Patch = {
     Zio2ZIOSpec.fix +
       doc.tree.collect {
         case BuiltInServiceFixer.ImporteeRenamer(patch) => patch
@@ -653,6 +655,9 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case q"${name @ RIOAlias(Name(_))}($_)"  => Patch.replaceTree(name, s"ZIO.attempt")
 
         case q"${name @ ZIOAlias(Name(_))}($_)" => Patch.replaceTree(name, s"ZIO.attempt")
+
+        case zManagedNormalized(_) =>
+          Patch.addGlobalImport(wildcardImport(q"zio.managed"))
 
         case t @ FiberId_Old_Exact(Name(_)) =>
           Patch.replaceTree(unwindSelect(t), "FiberId") +
@@ -696,6 +701,7 @@ class Zio2Upgrade extends SemanticRule("Zio2Upgrade") {
         case t @ ImporteeNameOrRename(FiberId_Old(_)) => Patch.removeImportee(t)
 
       }.asPatch + replaceSymbols
+  }
 
   /*
      Since this is now just a simple rename, I'm keeping this around a bit longer

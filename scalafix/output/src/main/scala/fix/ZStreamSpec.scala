@@ -15,6 +15,7 @@ import java.io.{ByteArrayInputStream, IOException}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.ExecutionContext
 import zio.Clock
+import zio.managed._
 import zio.test.{ Gen, TestClock, ZIOSpecDefault }
 
 object ZStreamSpec extends ZIOSpecDefault {

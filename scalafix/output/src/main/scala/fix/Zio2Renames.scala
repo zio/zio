@@ -11,6 +11,7 @@ import zio.test.Gen
 import zio.{ Console, FiberId, Random }
 import zio.Console._
 import zio.ZIO.attemptBlockingIO
+import zio.managed._
 import zio.test.Gen
 
 object Zio2Renames {
