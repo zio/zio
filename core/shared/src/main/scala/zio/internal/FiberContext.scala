@@ -208,19 +208,13 @@ private[zio] final class FiberContext[E, A](
                         val io2    = nested.asInstanceOf[ZIO.SucceedWith[Any]]
                         val effect = io2.effect
 
-                        val blockingExecutor = unsafeGetRef(currentBlockingExecutor)
-                        val executor         = unsafeGetRef(currentExecutor)
-                        val fatal            = unsafeGetFatal()
-                        val reportFatal      = unsafeGetReportFatal()
-                        val supervisors      = unsafeGetSupervisors()
-                        val loggers          = unsafeGetLoggers()
-                        val flags            = unsafeGetRuntimeConfigFlags()
+                        val fatal = unsafeGetFatal()
 
-                        val runtimeConfig =
-                          RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
+                        def isFatal(t: Throwable): Boolean =
+                          fatal.exists(_.isAssignableFrom(t.getClass))
 
                         extraTrace = zio.trace
-                        val value = effect(runtimeConfig.isFatal, fiberId)
+                        val value = effect(isFatal, fiberId)
                         extraTrace = emptyTraceElement
 
                         curZio = k(value)
@@ -257,18 +251,12 @@ private[zio] final class FiberContext[E, A](
                     val zio    = curZio.asInstanceOf[ZIO.SucceedWith[Any]]
                     val effect = zio.effect
 
-                    val blockingExecutor = unsafeGetRef(currentBlockingExecutor)
-                    val executor         = unsafeGetRef(currentExecutor)
-                    val fatal            = unsafeGetFatal()
-                    val reportFatal      = unsafeGetReportFatal()
-                    val supervisors      = unsafeGetSupervisors()
-                    val loggers          = unsafeGetLoggers()
-                    val flags            = unsafeGetRuntimeConfigFlags()
+                    val fatal = unsafeGetFatal()
 
-                    val runtimeConfig =
-                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
+                    def isFatal(t: Throwable): Boolean =
+                      fatal.exists(_.isAssignableFrom(t.getClass))
 
-                    curZio = unsafeNextEffect(effect(runtimeConfig.isFatal, fiberId))
+                    curZio = unsafeNextEffect(effect(isFatal, fiberId))
 
                   case ZIO.Tags.Fail =>
                     val zio = curZio.asInstanceOf[ZIO.Fail[Any]]
@@ -324,18 +312,12 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.SuspendWith =>
                     val zio = curZio.asInstanceOf[ZIO.SuspendWith[Any, Any, Any]]
 
-                    val blockingExecutor = unsafeGetRef(currentBlockingExecutor)
-                    val executor         = unsafeGetRef(currentExecutor)
-                    val fatal            = unsafeGetFatal()
-                    val reportFatal      = unsafeGetReportFatal()
-                    val supervisors      = unsafeGetSupervisors()
-                    val loggers          = unsafeGetLoggers()
-                    val flags            = unsafeGetRuntimeConfigFlags()
+                    val fatal = unsafeGetFatal()
 
-                    val runtimeConfig =
-                      RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
+                    def isFatal(t: Throwable): Boolean =
+                      fatal.exists(_.isAssignableFrom(t.getClass))
 
-                    curZio = zio.make(runtimeConfig.isFatal, fiberId)
+                    curZio = zio.make(isFatal, fiberId)
 
                   case ZIO.Tags.InterruptStatus =>
                     val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, Any, Any]]

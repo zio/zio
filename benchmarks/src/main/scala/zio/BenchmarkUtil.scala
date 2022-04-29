@@ -6,8 +6,7 @@ import cats.effect.{Fiber => CFiber, IO => CIO}
 import scala.concurrent.ExecutionContext
 
 object BenchmarkUtil extends Runtime[Any] {
-  val environment   = Runtime.default.environment
-  val runtimeConfig = RuntimeConfig.benchmark
+  val environment = Runtime.default.environment
 
   implicit val futureExecutionContext: ExecutionContext =
     ExecutionContext.global

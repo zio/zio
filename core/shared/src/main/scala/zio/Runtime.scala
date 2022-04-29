@@ -388,7 +388,7 @@ trait Runtime[+R] { self =>
   }
 }
 
-object Runtime {
+object Runtime extends RuntimePlatformSpecific {
   private[zio] type UnsafeSuccess <: AnyRef
   private[zio] class Lazy[A](thunk: () => A) {
     lazy val value = thunk()

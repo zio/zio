@@ -8,7 +8,7 @@ object ZIOSpecSpec extends ZIOSpecDefault {
     scala.concurrent.ExecutionContext.global
 
   val expected =
-    Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(global)
+    Executor.fromExecutionContext(Runtime.defaultYieldOpCount)(global)
 
   def spec = suite("ZIOAppSpec")(
     test("RuntimeConfig can be modified using hook") {
