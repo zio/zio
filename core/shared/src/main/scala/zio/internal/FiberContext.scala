@@ -220,7 +220,7 @@ private[zio] final class FiberContext[E, A](
                           RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
 
                         extraTrace = zio.trace
-                        val value = effect(runtimeConfig, fiberId)
+                        val value = effect(runtimeConfig.isFatal, fiberId)
                         extraTrace = emptyTraceElement
 
                         curZio = k(value)
@@ -268,7 +268,7 @@ private[zio] final class FiberContext[E, A](
                     val runtimeConfig =
                       RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
 
-                    curZio = unsafeNextEffect(effect(runtimeConfig, fiberId))
+                    curZio = unsafeNextEffect(effect(runtimeConfig.isFatal, fiberId))
 
                   case ZIO.Tags.Fail =>
                     val zio = curZio.asInstanceOf[ZIO.Fail[Any]]
@@ -335,7 +335,7 @@ private[zio] final class FiberContext[E, A](
                     val runtimeConfig =
                       RuntimeConfig(blockingExecutor, executor, fatal, reportFatal, supervisors, loggers, flags)
 
-                    curZio = zio.make(runtimeConfig, fiberId)
+                    curZio = zio.make(runtimeConfig.isFatal, fiberId)
 
                   case ZIO.Tags.InterruptStatus =>
                     val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, Any, Any]]

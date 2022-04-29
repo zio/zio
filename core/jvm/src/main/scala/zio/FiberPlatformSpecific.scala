@@ -35,7 +35,7 @@ private[zio] trait FiberPlatformSpecific {
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
             ZIO
-              .suspendWith((p, _) => javaz.unwrapDone(p.isFatal)(cf))
+              .suspendWith((isFatal, _) => javaz.unwrapDone(isFatal)(cf))
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {
@@ -70,7 +70,7 @@ private[zio] trait FiberPlatformSpecific {
         ZIO.suspendSucceed {
           if (ftr.isDone) {
             ZIO
-              .suspendWith((p, _) => javaz.unwrapDone(p.isFatal)(ftr))
+              .suspendWith((isFatal, _) => javaz.unwrapDone(isFatal)(ftr))
               .fold(Exit.fail, Exit.succeed)
               .map(Some(_))
           } else {

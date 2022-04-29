@@ -27,21 +27,21 @@ import scala.concurrent.ExecutionException
 private[zio] object javaz {
 
   def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: Trace): Task[T] =
-    ZIO.suspendSucceedWith[Any, Throwable, T] { (p, _) =>
+    ZIO.suspendSucceedWith[Any, Throwable, T] { (isFatal, _) =>
       ZIO.async { k =>
         val handler = new CompletionHandler[T, Any] {
           def completed(result: T, u: Any): Unit = k(ZIO.succeedNow(result))
 
           def failed(t: Throwable, u: Any): Unit = t match {
-            case e if !p.isFatal(e) => k(ZIO.fail(e))
-            case _                  => k(ZIO.die(t))
+            case e if !isFatal(e) => k(ZIO.fail(e))
+            case _                => k(ZIO.die(t))
           }
         }
 
         try {
           op(handler)
         } catch {
-          case e if !p.isFatal(e) => k(ZIO.fail(e))
+          case e if !isFatal(e) => k(ZIO.fail(e))
         }
       }
     }
@@ -68,15 +68,15 @@ private[zio] object javaz {
 
   def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: Trace): Task[A] =
     ZIO.attempt(thunk).flatMap { cs =>
-      ZIO.suspendSucceedWith { (p, _) =>
+      ZIO.suspendSucceedWith { (isFatal, _) =>
         val cf = cs.toCompletableFuture
         if (cf.isDone) {
-          unwrapDone(p.isFatal)(cf)
+          unwrapDone(isFatal)(cf)
         } else {
           ZIO.asyncInterrupt { cb =>
             val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
               val io = Option(t).fold[Task[A]](ZIO.succeed(v)) { t =>
-                catchFromGet(p.isFatal).lift(t).getOrElse(ZIO.die(t))
+                catchFromGet(isFatal).lift(t).getOrElse(ZIO.die(t))
               }
               cb(io)
             }
@@ -92,12 +92,12 @@ private[zio] object javaz {
    */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
     ZIO.attempt(thunk).flatMap { future =>
-      ZIO.suspendSucceedWith { (p, _) =>
+      ZIO.suspendSucceedWith { (isFatal, _) =>
         if (future.isDone) {
-          unwrapDone(p.isFatal)(future)
+          unwrapDone(isFatal)(future)
         } else {
           ZIO
-            .blocking(ZIO.suspend(unwrapDone(p.isFatal)(future)))
+            .blocking(ZIO.suspend(unwrapDone(isFatal)(future)))
             .onInterrupt(ZIO.succeed(future.cancel(false)))
         }
       }

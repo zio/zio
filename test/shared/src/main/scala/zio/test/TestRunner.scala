@@ -43,7 +43,7 @@ final case class TestRunner[R, E](
   }
 ) { self =>
 
-  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty, runtimeConfig)
+  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty)
 
   /**
    * Runs the spec, producing the execution results.
@@ -106,5 +106,5 @@ final case class TestRunner[R, E](
   private[test] def buildRuntime(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
-    bootstrap.toRuntime(runtimeConfig)
+    bootstrap.toRuntime
 }

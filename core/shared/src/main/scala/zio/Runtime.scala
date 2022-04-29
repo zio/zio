@@ -32,12 +32,6 @@ trait Runtime[+R] { self =>
    */
   def environment: ZEnvironment[R]
 
-  /**
-   * The configuration of the runtime, which provides the essential capabilities
-   * necessary to bootstrap execution of tasks.
-   */
-  def runtimeConfig: RuntimeConfig
-
   protected def fiberRefs: FiberRefs =
     FiberRefs.empty
 
@@ -47,17 +41,14 @@ trait Runtime[+R] { self =>
   def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
     map(_ => r1)
 
+  def isFatal(t: Throwable): Boolean =
+    fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
+
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
   def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
-    Runtime(f(environment), runtimeConfig, fiberRefs)
-
-  /**
-   * Constructs a new `Runtime` by mapping the runtime configuration.
-   */
-  def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime[R] =
-    Runtime(environment, f(runtimeConfig), fiberRefs)
+    Runtime(f(environment), fiberRefs)
 
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.
@@ -237,8 +228,8 @@ trait Runtime[+R] { self =>
                 }
               }
 
-              if (!runtimeConfig.isFatal(t)) throw new ZIO.ZioError(Exit.die(t), trace0)
-              else runtimeConfig.reportFatal(t)
+              if (!isFatal(t)) throw new ZIO.ZioError(Exit.die(t), trace0)
+              else fiberRefs.getOrDefault(FiberRef.currentReportFatal)(t)
           }
         }
 
@@ -336,21 +327,6 @@ trait Runtime[+R] { self =>
     }
   }
 
-  /**
-   * Constructs a new `Runtime` with the specified blocking executor.
-   */
-  def withBlockingExecutor(e: Executor): Runtime[R] = mapRuntimeConfig(_.copy(blockingExecutor = e))
-
-  /**
-   * Constructs a new `Runtime` with the specified executor.
-   */
-  def withExecutor(e: Executor): Runtime[R] = mapRuntimeConfig(_.copy(executor = e))
-
-  /**
-   * Constructs a new `Runtime` with the fatal error reporter.
-   */
-  def withReportFatal(f: Throwable => Nothing): Runtime[R] = mapRuntimeConfig(_.copy(reportFatal = f))
-
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: Trace): FiberId => (Exit[E, A] => Any) => Unit = {
@@ -370,14 +346,14 @@ trait Runtime[+R] { self =>
 
     val runtimeFiberRefs: Map[FiberRef[_], Any] =
       Map(
-        FiberRef.currentBlockingExecutor   -> runtimeConfig.blockingExecutor,
+        FiberRef.currentBlockingExecutor   -> fiberRefs.getOrDefault(FiberRef.currentBlockingExecutor),
         FiberRef.currentEnvironment        -> environment,
-        FiberRef.currentExecutor           -> runtimeConfig.executor,
-        FiberRef.currentFatal              -> runtimeConfig.fatal,
-        FiberRef.currentLoggers            -> runtimeConfig.loggers,
-        FiberRef.currentReportFatal        -> runtimeConfig.reportFatal,
-        FiberRef.currentRuntimeConfigFlags -> runtimeConfig.flags,
-        FiberRef.currentSupervisors        -> runtimeConfig.supervisors
+        FiberRef.currentExecutor           -> fiberRefs.getOrDefault(FiberRef.currentExecutor),
+        FiberRef.currentFatal              -> fiberRefs.getOrDefault(FiberRef.currentFatal),
+        FiberRef.currentLoggers            -> fiberRefs.getOrDefault(FiberRef.currentLoggers),
+        FiberRef.currentReportFatal        -> fiberRefs.getOrDefault(FiberRef.currentReportFatal),
+        FiberRef.currentRuntimeConfigFlags -> fiberRefs.getOrDefault(FiberRef.currentRuntimeConfigFlags),
+        FiberRef.currentSupervisors        -> fiberRefs.getOrDefault(FiberRef.currentSupervisors)
       )
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
@@ -387,9 +363,12 @@ trait Runtime[+R] { self =>
       children
     )
 
-    FiberScope.global.unsafeAdd(runtimeConfig.flags(RuntimeConfigFlag.EnableFiberRoots), context)
+    FiberScope.global.unsafeAdd(
+      fiberRefs.getOrDefault(FiberRef.currentRuntimeConfigFlags)(RuntimeConfigFlag.EnableFiberRoots),
+      context
+    )
 
-    runtimeConfig.supervisors.foreach { supervisor =>
+    fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach { supervisor =>
       supervisor.unsafeOnStart(environment, zio, None, context)
 
       context.unsafeOnDone((exit, _) => supervisor.unsafeOnEnd(exit.flatten, context))
@@ -423,7 +402,6 @@ object Runtime {
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
     def environment        = underlying.environment
-    def runtimeConfig      = underlying.runtimeConfig
     override def fiberRefs = underlying.fiberRefs
   }
 
@@ -443,16 +421,7 @@ object Runtime {
       map(_ => r1)
 
     override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
-      Scoped(f(environment), runtimeConfig, () => shutdown())
-
-    override final def mapRuntimeConfig(f: RuntimeConfig => RuntimeConfig): Runtime.Scoped[R] =
-      Scoped(environment, f(runtimeConfig), () => shutdown())
-
-    override final def withExecutor(e: Executor): Runtime.Scoped[R] =
-      mapRuntimeConfig(_.copy(executor = e))
-
-    override final def withReportFatal(f: Throwable => Nothing): Runtime.Scoped[R] =
-      mapRuntimeConfig(_.copy(reportFatal = f))
+      Scoped(f(environment), () => shutdown())
   }
 
   object Scoped {
@@ -463,13 +432,11 @@ object Runtime {
      */
     def apply[R](
       r: ZEnvironment[R],
-      runtimeConfig0: RuntimeConfig,
       shutdown0: () => Unit,
       fiberRefs0: FiberRefs = FiberRefs.empty
     ): Runtime.Scoped[R] =
       new Runtime.Scoped[R] {
         val environment        = r
-        val runtimeConfig      = runtimeConfig0
         def shutdown()         = shutdown0()
         override val fiberRefs = fiberRefs0
       }
@@ -478,10 +445,9 @@ object Runtime {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.RuntimeConfig]].
    */
-  def apply[R](r: ZEnvironment[R], runtimeConfig0: RuntimeConfig, fiberRefs0: FiberRefs = FiberRefs.empty): Runtime[R] =
+  def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs = FiberRefs.empty): Runtime[R] =
     new Runtime[R] {
       val environment        = r
-      val runtimeConfig      = runtimeConfig0
       override val fiberRefs = fiberRefs0
     }
 
@@ -490,7 +456,7 @@ object Runtime {
    * configured with the the default runtime configuration, which is optimized
    * for typical ZIO applications.
    */
-  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.default)
+  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty)
 
   /**
    * The global [[Runtime]], which piggybacks atop the global execution context
@@ -498,7 +464,7 @@ object Runtime {
    * recommended, unless the intention is to avoid creating any thread pools or
    * other resources.
    */
-  lazy val global: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.global)
+  lazy val global: Runtime[Any] = Runtime(ZEnvironment.empty)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
@@ -511,10 +477,9 @@ object Runtime {
    */
   def unsafeFromLayer[R](
     layer: Layer[Any, R],
-    runtimeConfig: RuntimeConfig = RuntimeConfig.default,
     fiberRefs: FiberRefs = FiberRefs.empty
   )(implicit trace: Trace): Runtime.Scoped[R] = {
-    val runtime = Runtime(ZEnvironment.empty, runtimeConfig)
+    val runtime = Runtime(ZEnvironment.empty)
     val (environment, shutdown) = runtime.unsafeRun {
       Scope.make.flatMap { scope =>
         scope.extend(layer.build).flatMap { acquire =>
@@ -528,6 +493,6 @@ object Runtime {
       }
     }
 
-    Runtime.Scoped(environment, runtimeConfig, shutdown)
+    Runtime.Scoped(environment, () => shutdown)
   }
 }

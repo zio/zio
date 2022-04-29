@@ -319,13 +319,11 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * Converts a layer that requires no services into a scoped runtime, which can
    * be used to execute effects.
    */
-  final def toRuntime(
-    runtimeConfig: RuntimeConfig
-  )(implicit ev: Any <:< RIn, trace: Trace): ZIO[Scope, E, Runtime[ROut]] =
+  final def toRuntime(implicit ev: Any <:< RIn, trace: Trace): ZIO[Scope, E, Runtime[ROut]] =
     ZIO
       .serviceWithZIO[Scope](build(_))
       .provideSomeEnvironment[Scope](ZEnvironment.empty.upcast(ev).union[Scope](_))
-      .map(Runtime(_, runtimeConfig))
+      .map(Runtime(_))
 
   /**
    * Replaces the layer's output with `Unit`.
