@@ -1191,6 +1191,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
+   * Returns a new scoped workflow that runs finalizers added to the scope of
+   * this workflow in parallel.
+   */
+  final def parallelFinalizers(implicit trace: Trace): ZIO[R with Scope, E, A] =
+    ZIO.parallelFinalizers(self)
+
+  /**
    * Provides the `ZIO` effect with its required environment, which eliminates
    * its dependency on `R`.
    */
@@ -1733,6 +1740,16 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     trace: Trace
   ): ZIO[R1 with Scope, Nothing, Fiber.Runtime[E, B]] =
     self.schedule(schedule).forkScoped
+
+  /**
+   * Returns a new scoped workflow that runs finalizers added to the scope of
+   * this workflow sequentially in the reverse of the order in which they were
+   * added. Note that finalizers are run sequentially by default so this only
+   * has meaning if used within a scope where finalizers are being run in
+   * parallel.
+   */
+  final def sequentialFinalizers(implicit trace: Trace): ZIO[R with Scope, E, A] =
+    ZIO.sequentialFinalizers(self)
 
   /**
    * Converts an option on values into an option on errors.
@@ -3877,13 +3894,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       else ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.unshift)(_ => zio)
     }
 
+  /**
+   * Returns a new scoped workflow that runs finalizers added to the scope of
+   * this workflow in parallel.
+   */
   def parallelFinalizers[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, A] =
-    for {
-      outerScope <- ZIO.scope
-      innerScope <- Scope.parallel
-      _          <- outerScope.addFinalizerExit(innerScope.close(_))
-      a          <- innerScope.extend[R](zio)
-    } yield a
+    ZIO.scopeWith(_.forkWith(ExecutionStrategy.Parallel).flatMap(_.extend[R](zio)))
 
   /**
    * Retrieves the maximum number of fibers for parallel operators or `None` if
@@ -4075,6 +4091,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def scopeWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, A] =
     ZIO.serviceWithZIO[Scope](f)
+
+  /**
+   * Returns a new scoped workflow that runs finalizers added to the scope of
+   * this workflow sequentially in the reverse of the order in which they were
+   * added. Note that finalizers are run sequentially by default so this only
+   * has meaning if used within a scope where finalizers are being run in
+   * parallel.
+   */
+  def sequentialFinalizers[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Scope, E, A] =
+    ZIO.scopeWith(_.fork.flatMap(_.extend[R](zio)))
 
   /**
    * Sets the `FiberRef` values for the fiber running this effect to the values

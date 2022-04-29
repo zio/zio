@@ -35,10 +35,11 @@ trait Scope extends Serializable { self =>
   def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit]
 
   /**
-   * Forks a new scope that is a child of this scope. The child scope will
-   * automatically be closed when this scope is closed.
+   * Forks a new scope that is a child of this scope. Finalizers added to the
+   * child scope will be run according to the specified `ExecutionStrategy`. The
+   * child scope will automatically be closed when this scope is closed.
    */
-  def fork(implicit trace: Trace): UIO[Scope.Closeable]
+  def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable]
 
   /**
    * A simplified version of `addFinalizerWith` when the `finalizer` does not
@@ -55,6 +56,15 @@ trait Scope extends Serializable { self =>
    */
   final def extend[R]: Scope.ExtendPartiallyApplied[R] =
     new Scope.ExtendPartiallyApplied[R](self)
+
+  /**
+   * Forks a new scope that is a child of this scope. Finalizers added to this
+   * scope will be run sequentially in the reverse of the order in which they
+   * were added when this scope is closed. The child scope will automatically be
+   * closed when this scope is closed.
+   */
+  final def fork(implicit trace: Trace): UIO[Scope.Closeable] =
+    forkWith(ExecutionStrategy.Sequential)
 }
 
 object Scope {
@@ -116,8 +126,8 @@ object Scope {
         ZIO.unit
       def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
-      def fork(implicit trace: Trace): UIO[Scope.Closeable] =
-        make
+      def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
+        makeWith(executionStrategy)
     }
 
   /**
@@ -139,10 +149,10 @@ object Scope {
           releaseMap.add(finalizer).unit
         def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
           ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
-        def fork(implicit trace: Trace): UIO[Scope.Closeable] =
+        def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
           ZIO.uninterruptible {
             for {
-              scope     <- Scope.make
+              scope     <- Scope.makeWith(executionStrategy)
               finalizer <- releaseMap.add(scope.close(_))
               _         <- scope.addFinalizerExit(finalizer)
             } yield scope

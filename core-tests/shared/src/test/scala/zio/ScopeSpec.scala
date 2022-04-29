@@ -39,7 +39,7 @@ object ScopeSpec extends ZIOBaseSpec {
                    _                     <- ref.update(_ :+ Action.Use(resource1)).zipPar(ref.update(_ :+ Action.Use(resource2)))
                  } yield ()
                }
-          actions <- ref.get.debug
+          actions <- ref.get
         } yield assertTrue(actions.slice(0, 2).toSet == Set(Action.acquire(1), Action.acquire(2))) &&
           assertTrue(actions.slice(2, 4).toSet == Set(Action.use(1), Action.use(2))) &&
           assertTrue(actions.slice(4, 6).toSet == Set(Action.release(1), Action.release(2)))
@@ -72,6 +72,20 @@ object ScopeSpec extends ZIOBaseSpec {
         actions2 <- ref2.get
       } yield assertTrue(actions1 == Chunk(Action.acquire(1), Action.use(1), Action.release(1))) &&
         assertTrue(actions2 == Chunk(Action.acquire(2), Action.use(2), Action.release(2)))
+    },
+    suite("sequentialFinalizers") {
+      test("preserves order of nested finalizers") {
+        for {
+          ref     <- Ref.make[Chunk[Action]](Chunk.empty)
+          left     = ZIO.sequentialFinalizers(resource(1)(ref) *> resource(2)(ref))
+          right    = ZIO.sequentialFinalizers(resource(3)(ref) *> resource(4)(ref))
+          _       <- ZIO.scoped(ZIO.parallelFinalizers(left.zipPar(right)))
+          actions <- ref.get
+        } yield assertTrue {
+          actions.indexOf(Action.release(2)) < actions.indexOf(Action.release(1)) &&
+          actions.indexOf(Action.release(4)) < actions.indexOf(Action.release(3))
+        }
+      }
     }
   )
 
