@@ -35,7 +35,7 @@ $label(
             }
             .mkString(",\n")
         )}
-)
+${Console.RESET})
          """.trim
     case Different(_, _, Some(custom)) =>
       custom
