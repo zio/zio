@@ -148,7 +148,7 @@ object ZIOApp {
       type Environment = R
       def environmentTag: EnvironmentTag[Environment] = tagged
       override def hook                               = hook0
-      def bootstrap                            = layer0
+      def bootstrap                                   = layer0
       def run                                         = run0
     }
 
