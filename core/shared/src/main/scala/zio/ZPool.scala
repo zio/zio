@@ -170,19 +170,15 @@ object ZPool {
             state.modify { case State(size, free) =>
               if (free > 0 || size >= range.end)
                 (
-                  items.take.flatMap { acquired =>
-                    acquired.result match {
+                  items.take.flatMap { attempted =>
+                    attempted.result match {
                       case Exit.Success(item) =>
                         invalidated.get.flatMap { set =>
-                          if (set.contains(item))
-                            state.update(state => state.copy(free = state.free + 1)) *>
-                              allocate *>
-                              acquire
-                          else
-                            ZIO.succeedNow(acquired)
+                          if (set.contains(item)) release(attempted) *> acquire
+                          else ZIO.succeedNow(attempted)
                         }
                       case _ =>
-                        ZIO.succeedNow(acquired)
+                        ZIO.succeedNow(attempted)
                     }
                   },
                   State(size, free - 1)
