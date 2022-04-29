@@ -49,9 +49,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
         }
       }
 
-      val layer1 = ZLayer.scoped(ZIO.addLoggerScoped(logger1))
-
-      val app1 = ZIOApp(ZIO.fail("Uh oh!"), layer1)
+      val app1 = ZIOApp(ZIO.fail("Uh oh!"), ZLayer.addLogger(logger1))
 
       for {
         c <- app1.invoke(Chunk.empty).exitCode

@@ -521,6 +521,12 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       ZLayer.succeed[Debug](Debug.Mermaid)(Tag[Debug], Tracer.newTrace)
   }
 
+  def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ + logger))
+
+  def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentSupervisors.locallyScopedWith(_ + supervisor))
+
   /**
    * Gathers up the ZLayer inside of the given collection, and combines them
    * into a single ZLayer containing an equivalent collection of results.
@@ -551,6 +557,16 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   val empty: ZLayer[Any, Nothing, Any] =
     ZLayer.fromZIOEnvironment(ZIO.succeedNow(ZEnvironment.empty))(Trace.empty)
+
+  val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.EnableCurrentFiber))
+  }
+
+  lazy val enableFiberRoots: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.EnableFiberRoots))
+  }
 
   /**
    * Constructs a layer that fails with the specified error.
@@ -634,6 +650,15 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def service[A: Tag](implicit trace: Trace): ZLayer[A, Nothing, A] =
     ZLayer.fromZIO(ZIO.service[A])
 
+  def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentBlockingExecutor.locallyScoped(executor))
+
+  def setExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentExecutor.locallyScoped(executor))
+
+  def setReportFatal(reportFatal: Throwable => Nothing)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentReportFatal.locallyScoped(reportFatal))
+
   /**
    * Constructs a layer from the specified value.
    */
@@ -647,6 +672,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def succeedEnvironment[A](a: => ZEnvironment[A])(implicit trace: Trace): ULayer[A] =
     ZLayer.fromZIOEnvironment(ZIO.succeed(a))
 
+  lazy val superviseOperations: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.SuperviseOperations))
+  }
+
   /**
    * Lazily constructs a layer. This is useful to avoid infinite recursion when
    * creating layers that refer to themselves.
@@ -655,6 +685,13 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
     lazy val self = layer
     Suspend(() => self)
   }
+
+  /**
+   * An aspect that adds a supervisor that tracks all forked fibers in a set.
+   * Note that this may have a negative impact on performance.
+   */
+  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Any] =
+    addSupervisor(Supervisor.unsafeTrack(weak))
 
   implicit final class ZLayerInvariantOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 

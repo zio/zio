@@ -432,6 +432,17 @@ object TestAspect extends TimeoutVariants {
         test.fork.flatMap(_.join)
     }
 
+  def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] = {
+    val fromLayer = new TestAspect.PerTest[Nothing, R0, E0, Any] {
+      def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
+        trace: Trace
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.provideSomeLayer[R](layer.mapError(TestFailure.fail))
+    }
+
+    before(ZIO.yieldNow(Trace.empty)) >>> fromLayer >>> after(ZIO.yieldNow(Trace.empty))
+  }
+
   /**
    * As aspect that runs each test with the specified `ZIOAspect`.
    */
