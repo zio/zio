@@ -12,7 +12,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
     test("highlighting composed layer failures") {
       // We must define this here rather than as a standalone spec, because it will prevent all the tests from running
       val specWithBrokenLayer = new ZIOSpec[Int] {
-        override val environmentLayer = ZLayer.fromZIO(ZIO.attempt(???))
+        override val bootstrap = ZLayer.fromZIO(ZIO.attempt(???))
         override def spec =
           test("should never see this label printed") {
             assertTrue(true)
