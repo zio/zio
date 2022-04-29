@@ -32,8 +32,6 @@ final case class RuntimeConfig(
   flags: Set[RuntimeConfigFlag]
 ) { self =>
 
-  def @@(aspect: RuntimeConfigAspect): RuntimeConfig = aspect(self)
-
   def isFatal(t: Throwable): Boolean =
     fatal.exists(_.isAssignableFrom(t.getClass))
 }

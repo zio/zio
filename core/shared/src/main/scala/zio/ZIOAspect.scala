@@ -111,6 +111,20 @@ object ZIOAspect {
         FiberRef.currentLoggers.locally(Set.empty)(zio)
     }
 
+  val enableCurrentFiber: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        FiberRef.currentRuntimeConfigFlags.getWith { flags =>
+          ZIO.acquireReleaseWith {
+            FiberRef.currentRuntimeConfigFlags.set(flags + RuntimeConfigFlag.EnableCurrentFiber) *> ZIO.yieldNow
+          } { _ =>
+            FiberRef.currentRuntimeConfigFlags.set(flags) *> ZIO.yieldNow
+          } { _ =>
+            zio
+          }
+        }
+    }
+
   /**
    * An aspect that logs values by using [[ZIO.log]].
    */
@@ -185,36 +199,6 @@ object ZIOAspect {
     new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, Any] {
       def apply[R <: R1, E <: E1, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.retry(schedule)
-    }
-
-  /**
-   * An aspect that runs effects with the runtime configuration modified with
-   * the specified `RuntimeConfigAspect`.
-   */
-  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = {
-
-        def setRuntimeConfig(runtimeConfig: RuntimeConfig): UIO[Unit] =
-          FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
-            FiberRef.currentExecutor.set(runtimeConfig.executor) *>
-            FiberRef.currentFatal.set(runtimeConfig.fatal) *>
-            FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
-            FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
-            FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags) *>
-            FiberRef.currentSupervisors.set(runtimeConfig.supervisors) *>
-            ZIO.yieldNow
-
-        ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-          ZIO.acquireReleaseWith {
-            setRuntimeConfig(runtimeConfigAspect(currentRuntimeConfig))
-          } { _ =>
-            setRuntimeConfig(currentRuntimeConfig)
-          } { _ =>
-            zio
-          }
-        }
-      }
     }
 
   /**
