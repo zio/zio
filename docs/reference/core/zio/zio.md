@@ -925,6 +925,66 @@ Here is the output of running this peace of code, which denotes that the task wa
 Task interrupted while running
 ```
 
+2. When composing multiple parallel effects, when one of them interrupted, other fibers will be interrupted. So if we have two parallel tasks, if one of them failed or interrupted, another will be interrupted:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(
+        s"The $fn fiber which is the underlying fiber of the $taskName task " +
+          s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
+      )
+    } yield ()
+
+  def task[R, E, A](name: String)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
+    zio.onInterrupt(debugInterruption(name))
+
+  def debugMainFiber =
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(s"Main fiber ($fn) starts executing the whole application.")
+    } yield ()
+
+  def run = {
+    // self interrupting fiber 
+    val first = task("first")(ZIO.interrupt)
+
+    // never ending fiber
+    val second = task("second")(ZIO.never)
+
+    debugMainFiber *> {
+      // uncomment each line and run the code to see the result
+
+      // first fiber will be interrupted 
+      first *> second
+
+      // never ending application
+      // second *> first
+
+      // first fiber will be interrupted
+      // first <*> second
+
+      // never ending application
+      // second <*> first
+
+      // first and second will be interrupted
+      // first <&> second
+
+      // first and second will be interrupted 
+      // second <&> first
+    }
+  }
+
+}
+```
+
+In the above code the `first <&> second` is a parallel composition of two `first` and `second` tasks. So when we run them together, the `zipWithPar`/`<&>` operator will run these two task in two parallel fibers. If either side of this operator fails or is interrupted the other side will be interrupted.
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
