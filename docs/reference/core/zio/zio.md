@@ -889,6 +889,42 @@ The drawback of this solution is that, if the programmer forget to poll regularl
 
 This mechanism doesn't have the drawback of forgetting to poll regularly. And also its fully compatible with functional paradigm because in a purely-functional computation, at any point we can abort the computation, (except for critical sections that should be postponed).
 
+## How to interrupt?
+
+1. A fiber can be interrupted by calling `Fiber#interrupt` on that fiber.
+
+Let's try to make a fiber and then interrupt it:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def task = {
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(s"$fn starts a long running task")
+      _ <- ZIO.sleep(1.minute)
+      _ <- ZIO.debug("done!")
+    } yield ()
+  }
+
+  def run =
+    for {
+      f <-
+        task.onInterrupt(
+          ZIO.debug(s"Task interrupted while running")
+        ).fork
+      _ <- f.interrupt
+    } yield ()
+}
+```
+
+Here is the output of running this peace of code, which denotes that the task was interrupted:
+
+```
+Task interrupted while running
+```
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
