@@ -889,7 +889,9 @@ The drawback of this solution is that, if the programmer forget to poll regularl
 
 This mechanism doesn't have the drawback of forgetting to poll regularly. And also its fully compatible with functional paradigm because in a purely-functional computation, at any point we can abort the computation, (except for critical sections that should be postponed).
 
-## How to interrupt?
+### When Does a Fiber Get Interrupted?
+
+There are several ways and situations that fibers can be interrupted. In this section we will introduce each one with an example of how to reproduce these situations:
 
 1. A fiber can be interrupted by calling `Fiber#interrupt` on that fiber.
 
