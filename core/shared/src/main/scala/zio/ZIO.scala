@@ -3521,7 +3521,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Prefix form of `ZIO#interruptible`.
    */
   def interruptible[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    zio.interruptible
+    ZIO.suspendSucceed(zio.interruptible)
 
   /**
    * Makes the effect interruptible, but passes it a restore function that can
