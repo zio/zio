@@ -230,38 +230,3 @@ To do benchmark operations, we need a `Runtime` with settings suitable for that,
 ```scala mdoc:silent:nest
 val benchmarkRuntime = Runtime.default.mapRuntimeConfig(_ => RuntimeConfig.benchmark)
 ```
-
-## RuntimeConfig Aspect
-
-ZIO has a `RuntimeConfigAspect` which helps us easily transform an existing `RuntimeConfig` to the customized one. We can think of a `RuntimeConfigAspect` as a function of type `RuntimeConfig => RuntimeConfig`. So if we have a `RuntimeConfig`, by applying it to a `RuntimeConfig` we will get back a new `RuntimeConfig` which is the modified version of the former one.
-
-It has the following constructors:
-
-| Constructor                               | Input                         | Output                |
-|-------------------------------------------|-------------------------------|-----------------------|
-| `RuntimeConfigAspect.addLogger`           | `logger: ZLogger[Any]`        | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.addReportFatal`      | `f: Throwable => Nothing`     | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.addSupervisor`       | `supervisor: Supervisor[Any]` | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.identity`            |                               | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.setBlockingExecutor` | `executor: Executor`          | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.setExecutor`         | `executor: Executor`          | `RuntimeConfigAspect` |
-
-
-The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
-
-```scala mdoc:invisible
-val myAppLogic = ZIO.succeed(???)
-```
-
-```scala mdoc:compile-only
-import zio._
-
-val loggly  = RuntimeConfigAspect.addLogger(???)
-val zmx     = RuntimeConfigAspect.addSupervisor(???)
-
-object Main extends ZIOAppDefault {
-  override def hook = loggly >>> zmx
-  
-  def run = myAppLogic
-}
-```

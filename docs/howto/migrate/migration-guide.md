@@ -590,19 +590,6 @@ In regard to renaming the `Platform` data-type to the `RuntimeConfig` we have so
 | `Runtime#platfom`     | `Runtime#runtimeConfig`    |
 | `ZIO.platfom`         | `ZIO.runtimeConfig`        |
 
-### Runtime Config Aspect
-
-ZIO 2.x, introduced a new data-type called `RuntimeConfigAspect` with the following methods:
-
-* `addLogger`
-* `addReportFailure`
-* `addReportFatal`
-* `addSupervisor`
-* `identity`
-* `setBlockingExecutor`
-* `setExecutor`
-* `setTracing`
-
 ### Compositional Runtime Config
 
 ZIO 2.x allows us to run part of an effect on a different `RuntimeConfig`:
