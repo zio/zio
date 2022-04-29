@@ -687,8 +687,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   }
 
   /**
-   * A layer that adds a supervisor that tracks all forked fibers in a set.
-   * Note that this may have a negative impact on performance.
+   * A layer that adds a supervisor that tracks all forked fibers in a set. Note
+   * that this may have a negative impact on performance.
    */
   def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Any] =
     addSupervisor(Supervisor.unsafeTrack(weak))
