@@ -10,9 +10,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * console during tests back into runnable code.
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
-  def apply(any: Any): String = {
-    val result = any match {
-//    case null => "null"
+  def apply(any: Any): String =
+    any match {
       case nonEmptyChunk: NonEmptyChunk[_] =>
         nonEmptyChunk.map(PrettyPrint.apply).mkString("NonEmptyChunk(", ", ", ")")
       case chunk: Chunk[_] =>
@@ -58,11 +57,10 @@ ${indent(body.mkString(",\n"))}
       case char: Char =>
         s"'${char.toString}'"
 
-      case null  => "<null>"
+      case null => "<null>"
+
       case other => other.toString
     }
-    Console.RESET + result + Console.RESET
-  }
 
   private def indent(string: String, n: Int = 2): String =
     string.split("\n").map((" " * n) + _).mkString("\n")

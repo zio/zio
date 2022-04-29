@@ -293,7 +293,7 @@ object SmartAssertions {
                     M.custom(
                       ConsoleUtils.underlined(
                         "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+actual".faint
+                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
                     ) ++
                     M.custom(scala.Console.RESET + diffResult.render)
               }
