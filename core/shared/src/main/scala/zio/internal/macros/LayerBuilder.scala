@@ -146,8 +146,8 @@ final case class LayerBuilder[Type, Expr](
 
     method match {
       case ProvideMethod.Provide => ()
-      case ProvideMethod.ProvideSome =>
-        if (unusedRemainderLayers.nonEmpty) {
+      case ProvideMethod.ProvideSome | ProvideMethod.ProvideSomeShared =>
+        if (!method.isProvideSomeShared && unusedRemainderLayers.nonEmpty) {
           val message = "\n" + TerminalRendering.unusedProvideSomeLayersError(
             unusedRemainderLayers.map(node => showType(node.outputs.head))
           )
@@ -308,12 +308,14 @@ final case class LayerBuilder[Type, Expr](
 }
 
 sealed trait ProvideMethod extends Product with Serializable {
-  def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
+  def isProvideSomeShared: Boolean = this == ProvideMethod.ProvideSomeShared
+  def isProvideSome: Boolean       = this == ProvideMethod.ProvideSome || this == ProvideMethod.ProvideSomeShared
 
 }
 
 object ProvideMethod {
-  case object Provide       extends ProvideMethod
-  case object ProvideSome   extends ProvideMethod
-  case object ProvideCustom extends ProvideMethod
+  case object Provide           extends ProvideMethod
+  case object ProvideSome       extends ProvideMethod
+  case object ProvideSomeShared extends ProvideMethod
+  case object ProvideCustom     extends ProvideMethod
 }

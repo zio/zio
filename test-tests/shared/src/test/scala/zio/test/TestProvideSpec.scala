@@ -131,8 +131,9 @@ object TestProvideSpec extends ZIOBaseSpec {
         val appendBang: ZIO[StringService, Nothing, String] =
           ZIO.serviceWithZIO[StringService](_.append("!"))
 
-        val intService: ULayer[IntService]       = ZLayer(Ref.make(0).map(IntService(_)))
-        val stringService: ULayer[StringService] = ZLayer(Ref.make("Hello").map(StringService(_)))
+        val intService: ULayer[IntService] = ZLayer(Ref.make(0).map(IntService(_)))
+        val stringService: ULayer[StringService] =
+          ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
 
         def customTest(int: Int) =
           test(s"test $int") {
@@ -147,12 +148,14 @@ object TestProvideSpec extends ZIOBaseSpec {
             customTest(1),
             customTest(2)
           ),
-          suite("suite 2")(
+          suite("suite 4")(
             customTest(3),
             customTest(4)
           )
-        ).provideSomeShared[StringService](intService).provide(stringService) @@ TestAspect.sequential
-      } @@ TestAspect.exceptScala3
+        )
+          .provideSomeShared[StringService](intService)
+          .provide(stringService) @@ TestAspect.sequential
+      }
     )
 
   object TestLayer {

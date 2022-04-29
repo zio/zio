@@ -14,8 +14,12 @@ private[zio] trait LayerMacroUtils {
     provideMethod: ProvideMethod
   ): c.Expr[ZLayer[R0, E, R]] = {
 
-    val targetTypes    = getRequirements[R]
     val remainderTypes = getRequirements[R0]
+    val targetTypes0   = getRequirements[R]
+
+    val targetTypes =
+      if (provideMethod.isProvideSomeShared) targetTypes0.filterNot(remainderTypes.contains)
+      else targetTypes0
 
     val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] =
       scala.Function.unlift((_: LayerExpr).tree match {
