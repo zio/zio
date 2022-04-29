@@ -983,7 +983,54 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-In the above code the `first <&> second` is a parallel composition of two `first` and `second` tasks. So when we run them together, the `zipWithPar`/`<&>` operator will run these two task in two parallel fibers. If either side of this operator fails or is interrupted the other side will be interrupted.
+In the above code the `first <&> second` is a parallel composition of two `first` and `second` tasks. so when we run them together, the `zipwithpar`/`<&>` operator will run these two tasks in two parallel fibers. if either side of this operator fails or is interrupted the other side will be interrupted.
+
+3. Child fibers are scoped to their parents:
+
+   - If a child fiber does not complete its job or does not join its parent before the parent has completed its job, the child fiber will be interrupted:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(
+        s"the $fn fiber which is the underlying fiber of the $taskName task " +
+          s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
+      )
+    } yield ()
+
+  def run =
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(s"$fn starts working.")
+      child =
+        for {
+          cfn <- ZIO.fiberId.map(_.threadName)
+          _ <- ZIO.debug(s"$cfn starts working by forking from its parent ($fn)")
+          _ <- ZIO.never
+        } yield ()
+      _ <- child.onInterrupt(debugInterruption("child")).fork
+      _ <- ZIO.sleep(1.second)
+      _ <- ZIO.debug(s"$fn finishes its job and is going go exit.")
+    } yield ()
+    
+}
+```
+
+Here is the result of one of the executions of this sample code:
+
+```
+zio-fiber-2 starts working.
+zio-fiber-7 starts working by forking from its parent (zio-fiber-2)
+zio-fiber-2 finishes its job and is going to exit.
+the zio-fiber-7 fiber which is the underlying fiber of the child task interrupted by zio-fiber-2
+```
+
+   - If a parent fiber is interrupted, all its children will be interrupted.
+
 
 ## Blocking Operations
 
