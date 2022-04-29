@@ -1029,8 +1029,62 @@ zio-fiber-2 finishes its job and is going to exit.
 the zio-fiber-7 fiber which is the underlying fiber of the child task interrupted by zio-fiber-2
 ```
 
-   - If a parent fiber is interrupted, all its children will be interrupted.
+   - If a parent fiber is interrupted, all its children will be interrupted:
 
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(
+        s"The $fn fiber which is the underlying fiber of the $taskName task " +
+          s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
+      )
+    } yield ()
+
+  def task =
+    for {
+      fn <- ZIO.fiberId.map(_.threadName)
+      _ <- ZIO.debug(s"$fn starts running that will print random numbers and booleans")
+      f1 <- Random.nextIntBounded(100)
+        .debug("random number ")
+        .schedule(Schedule.spaced(1.second).forever)
+        .onInterrupt(debugInterruption("random number"))
+        .fork
+      f2 <- Random.nextBoolean
+        .debug("random boolean ")
+        .schedule(Schedule.spaced(2.second).forever)
+        .onInterrupt(debugInterruption("random boolean"))
+        .fork
+        _ <- f1.join
+        _ <- f2.join
+    } yield ()
+
+  def run =
+    for {
+      f <- task.fork
+      _ <- ZIO.sleep(5.second)
+      _ <- f.interrupt
+    } yield ()
+}
+```
+
+Here is one sample output for this program:
+
+```
+zio-fiber-7 starts running that will print random numbers and booleans
+random number : 65
+random boolean : true
+random number : 51
+random number : 46
+random boolean : true
+random number : 30
+The zio-fiber-9 fiber which is the underlying fiber of the random boolean task interrupted by zio-fiber-7
+The zio-fiber-8 fiber which is the underlying fiber of the random number task interrupted by zio-fiber-7
+```
 
 ## Blocking Operations
 
