@@ -53,12 +53,10 @@ object ZIOAppDefault {
    * of the program, as well as a hook into the ZIO runtime configuration.
    */
   def apply(
-    run0: ZIO[ZIOAppArgs, Any, Any],
-    hook0: RuntimeConfigAspect
+    run0: ZIO[ZIOAppArgs, Any, Any]
   ): ZIOAppDefault =
     new ZIOAppDefault {
-      override def hook = hook0
-      def run           = run0
+      def run = run0
     }
 
   /**
@@ -66,5 +64,5 @@ object ZIOAppDefault {
    * runtime's configuration.
    */
   def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any]): ZIOAppDefault =
-    ZIOAppDefault(run0, RuntimeConfigAspect.identity)
+    ZIOAppDefault(run0)
 }

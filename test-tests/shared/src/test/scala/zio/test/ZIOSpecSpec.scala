@@ -10,9 +10,6 @@ object ZIOSpecSpec extends ZIOSpecDefault {
   val expected =
     Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(global)
 
-  override def hook =
-    RuntimeConfigAspect.setBlockingExecutor(expected)
-
   def spec = suite("ZIOAppSpec")(
     test("RuntimeConfig can be modified using hook") {
       for {

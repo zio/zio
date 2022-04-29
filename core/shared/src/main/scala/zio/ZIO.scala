@@ -2481,6 +2481,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       _           <- scope.addFinalizerExit(exit => finalizer(exit).provideEnvironment(environment))
     } yield ()
 
+  def addLoggerScoped(logger: ZLogger[String, Any])(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    FiberRef.currentLoggers.locallyScopedWith(_ + logger)
+
   /**
    * Makes an explicit check to see if the fiber has been interrupted, and if
    * so, performs self-interruption
