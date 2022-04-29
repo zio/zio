@@ -1,33 +1,34 @@
 package zio.test.magnolia
 
 import magnolia1._
-import zio.test.diff.{Diff, DiffResult}
+import zio.test.diff.{Diff, DiffInstances, DiffResult}
 
-object DeriveDiff extends DeriveDiff
+import scala.quoted._
 
-trait DeriveDiff extends LowPri {
-  type Typeclass[A] = Diff[A]
+object DeriveDiff extends AutoDerivation[Diff] with LowPri {
 
   def join[A](caseClass: CaseClass[Diff, A]): Diff[A] =
     (x: A, y: A) => {
-      val fields = caseClass.parameters.map { param =>
-        Some(param.label) -> param.typeclass.diff(param.dereference(x), param.dereference(y))
+      val fields = caseClass.params.map { param =>
+        Some(param.label) -> param.typeclass.diff(param.deref(x), param.deref(y))
       }
 
-      DiffResult.Nested(caseClass.typeName.short, fields.toList)
+      DiffResult.Nested(caseClass.typeInfo.short, fields.toList)
     }
 
   def split[A](ctx: SealedTrait[Diff, A]): Diff[A] = (x: A, y: A) =>
-    ctx.split(x) {
+    ctx.choose(x) {
       case sub if sub.cast.isDefinedAt(y) => sub.typeclass.diff(sub.cast(x), sub.cast(y))
       case _                              => DiffResult.Different(x, y)
     }
 
-  implicit def gen[A]: Typeclass[A] = macro Magnolia.gen[A]
+  implicit inline def gen[A: deriving.Mirror.Of]: Diff[A] = {
+    autoDerived[A]
+  }
 }
 
 trait LowPri {
-  def fallback[A]: Diff[A] = new Diff[A] {
+  given fallback[A]: Diff[A] = new Diff[A] {
     override def diff(x: A, y: A): DiffResult =
       if (x == y) DiffResult.Identical(x)
       else DiffResult.Different(x, y)

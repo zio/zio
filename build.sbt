@@ -467,10 +467,13 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
     },
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
-        Seq.empty
+        Seq(
+          ("com.softwaremill.magnolia1_3" %%% "magnolia" % "1.1.1")
+            .exclude("org.scala-lang", "scala-compiler")
+        )
       else
         Seq(
-          ("com.softwaremill.magnolia1_2" %% "magnolia" % "1.1.1")
+          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.1")
             .exclude("org.scala-lang", "scala-compiler")
         )
     }

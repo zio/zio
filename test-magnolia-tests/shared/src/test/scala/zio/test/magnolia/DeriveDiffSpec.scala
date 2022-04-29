@@ -1,7 +1,7 @@
 package zio.test.magnolia
 
 import zio.test._
-import DeriveDiff._
+import DeriveDiff.gen
 
 import java.time.Instant
 
@@ -35,6 +35,7 @@ object DeriveDiffSpec extends ZIOSpecDefault {
           300,
           Pet("The Beautiful Destroyer", false, l2, Instant.now)
         )
+
         assertTrue(p1 == p2)
       } @@ TestAspect.failing,
       test("sealed traits can be derived") {
