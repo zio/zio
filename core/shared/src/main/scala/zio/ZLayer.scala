@@ -630,6 +630,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   def environment[A](implicit trace: Trace): ZLayer[A, Nothing, A] =
     ZLayer.fromZIOEnvironment(ZIO.environment[A])
 
+  val logRuntime: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.LogRuntime))
+  }
+
   /**
    * Constructs a layer from the specified scoped effect.
    */
@@ -692,6 +697,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    */
   def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Any] =
     addSupervisor(Supervisor.unsafeTrack(weak))
+
+  val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.TrackRuntimeMetrics))
+  }
 
   implicit final class ZLayerInvariantOps[RIn, E, ROut](private val self: ZLayer[RIn, E, ROut]) extends AnyVal {
 
