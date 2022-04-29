@@ -49,7 +49,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
 
-      def environmentLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
+      def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
         self.environmentLayer +!+ that.environmentLayer
 
       def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
