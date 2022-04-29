@@ -36,7 +36,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def environmentLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
+  def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -52,7 +52,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.environmentLayer +!+ that.environmentLayer)
+    ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
@@ -79,7 +79,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
     ZIO.suspendSucceed {
       val newLayer =
         Scope.default +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          environmentLayer +!+ ZLayer.environment[ZIOAppArgs with Scope]
+          bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
       (for {
         runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
@@ -114,8 +114,8 @@ object ZIOApp {
    */
   class Proxy(val app: ZIOApp) extends ZIOApp {
     type Environment = app.Environment
-    final def environmentLayer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
-      app.environmentLayer
+    final def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
+      app.bootstrap
     override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
     implicit final def environmentTag: EnvironmentTag[Environment] =
@@ -128,12 +128,12 @@ object ZIOApp {
    */
   def apply[R](
     run0: ZIO[R with ZIOAppArgs with Scope, Any, Any],
-    layer0: ZLayer[ZIOAppArgs with Scope, Any, R]
+    bootstrap0: ZLayer[ZIOAppArgs with Scope, Any, R]
   )(implicit tagged: EnvironmentTag[R]): ZIOApp =
     new ZIOApp {
       type Environment = R
       def environmentTag: EnvironmentTag[Environment] = tagged
-      def environmentLayer                            = layer0
+      def bootstrap                                   = bootstrap0
       def run                                         = run0
     }
 

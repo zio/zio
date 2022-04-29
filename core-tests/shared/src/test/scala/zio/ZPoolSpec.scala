@@ -71,7 +71,8 @@ object ZPoolSpec extends ZIOBaseSpec {
             _      <- count.get.repeatUntil(_ == 10)
             _      <- pool.invalidate(1)
             result <- ZIO.scoped(pool.get)
-          } yield assertTrue(result == 2)
+            value  <- count.get
+          } yield assertTrue(result == 2 && value == 10)
         } +
         test("compositional retry") {
           def cond(i: Int) = if (i <= 10) ZIO.fail(i) else ZIO.succeed(i)

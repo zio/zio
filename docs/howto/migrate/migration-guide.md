@@ -1336,6 +1336,18 @@ In addition to providing simpler, more powerful, and faster resource management,
 
 ### Migration from `ZManaged` to `Scope`
 
+#### Deferred Migration
+For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
+
+So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
+```
+And then by adding `import zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
+
+#### Immediate Migration
+
 Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We should follow these steps to migrate the `ZManaged` codebase to `Scope`:
 
 1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`.
@@ -1503,16 +1515,6 @@ def transfer(from: String, to: String): IO[Throwable, Unit] =
 ```
 
 As we can see, the migration is quite straightforward, and it doesn't require much extra work.
-
-For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
-
-So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
-```
-
-And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
 
 ## Simplification of Concurrent Data Types
 

@@ -13,7 +13,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
     val newLayer =
       Scope.default +!+ ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
-        environmentLayer +!+ ZLayer.environment[ZIOAppArgs with Scope]
+        bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
     runtime.unsafeRun {
       (for {
