@@ -56,10 +56,8 @@ private[test] object Fun {
    * `hashCode` in a way that is consistent with equality.
    */
   def makeHash[R, A, B](f: A => URIO[R, B])(hash: A => Int)(implicit trace: Trace): ZIO[R, Nothing, Fun[A, B]] =
-    ZIO.onExecutor(funExecutor) {
-      ZIO.runtime[R].map { runtime =>
-        Fun(a => runtime.unsafeRun(f(a)), hash)
-      }
+    ZIO.runtime[R].map { runtime =>
+      Fun(a => runtime.unsafeRun(f(a).onExecutor(funExecutor)), hash)
     }
 
   /**
