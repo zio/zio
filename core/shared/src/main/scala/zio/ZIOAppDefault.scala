@@ -40,7 +40,7 @@ trait ZIOAppDefault extends ZIOApp {
 
   type Environment = Any
 
-  val environmentLayer: ZLayer[ZIOAppArgs with Scope, Any, Any] = ZLayer.empty
+  val bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Any] = ZLayer.empty
 
   val environmentTag: EnvironmentTag[Any] = EnvironmentTag[Any]
 

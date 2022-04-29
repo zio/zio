@@ -68,7 +68,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
-      (Scope.default ++ ZIOAppArgs.empty) >>> specTasks.map(_.environmentLayer).reduce(_ +!+ _)
+      (Scope.default ++ ZIOAppArgs.empty) >>> specTasks.map(_.bootstrap).reduce(_ +!+ _)
 
     val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
       sharedLayerFromSpecs +!+ sinkLayer
