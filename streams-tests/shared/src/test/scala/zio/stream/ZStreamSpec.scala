@@ -2543,7 +2543,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .exit
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
-          } @@ flaky(1000), // TODO Restore to non-flaky
+          } @@ nonFlaky,
           test("propagates correct error with subsequent mapZIOPar call (#4514)") {
             assertZIO(
               ZStream
@@ -2553,7 +2553,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .runCollect
                 .either
             )(isLeft(equalTo("Boom")))
-          } @@ flaky(1000), // TODO Restore to non-flaky
+          } @@ nonFlaky,
           test("propagates error of original stream") {
             for {
               fiber <- (ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) ++ ZStream.fail(new Throwable("Boom")))
