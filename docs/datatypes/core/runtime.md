@@ -65,7 +65,7 @@ We don't usually use this method to run our effects. One of the use cases of thi
 
 ## Default Runtime
 
-ZIO contains a default runtime called `Runtime.default`, designed to work well for mainstream usage. It is already implemented as below:
+ZIO contains a default runtime called `Runtime.default` designed to work well for mainstream usage. It is already implemented as below:
 
 ```scala
 object Runtime {
@@ -74,7 +74,6 @@ object Runtime {
 ```
 
 The default runtime contains minimum capabilities to bootstrap execution of ZIO tasks.
-```
 
 We can easily access the default `Runtime` to run an effect:
 
