@@ -3,7 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{Runtime, Task, UIO, URIO, ZEnvironment, ZIO}
+import zio.{FiberRefs, Runtime, Task, UIO, URIO, ZEnvironment, ZIO}
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -137,7 +137,8 @@ Let's create a custom runtime that contains these two service implementations in
 
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
-  ZEnvironment[Logging, Email](LoggingLive(), EmailMock())
+  ZEnvironment[Logging, Email](LoggingLive(), EmailMock()),
+  FiberRefs.empty
 )
 ```
 
