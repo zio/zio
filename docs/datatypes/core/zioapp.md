@@ -80,7 +80,7 @@ A detailed explanation of the ZIO runtime system can be found on the [runtime](r
 
 We can hook into the ZIO runtime to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, and other similar foundational pieces of infrastructure.
 
-A detailed explanation can be found on the [runtime](runtime.md#runtimeconfig-aspect) page.
+A detailed explanation can be found on the [runtime](runtime.md) page.
 
 ## Composing ZIO Applications
 
