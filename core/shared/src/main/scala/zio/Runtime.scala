@@ -32,7 +32,11 @@ trait Runtime[+R] { self =>
    */
   def environment: ZEnvironment[R]
 
-  protected def fiberRefs: FiberRefs =
+  /**
+   * The `FiberRef` values that will be used for workflows executed by the
+   * runtime.
+   */
+  def fiberRefs: FiberRefs =
     FiberRefs.empty
 
   /**
@@ -41,17 +45,29 @@ trait Runtime[+R] { self =>
   def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
     map(_ => r1)
 
+  def blockingExecutor: Executor =
+    fiberRefs.getOrDefault(FiberRef.currentBlockingExecutor)
+
   def executor: Executor =
     fiberRefs.getOrDefault(FiberRef.currentExecutor)
 
+  def flags: Set[RuntimeConfigFlag] =
+    fiberRefs.getOrDefault(FiberRef.currentRuntimeConfigFlags)
+
   def isFatal(t: Throwable): Boolean =
     fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
+
+  def loggers: Set[ZLogger[String, Any]] =
+    fiberRefs.getOrDefault(FiberRef.currentLoggers)
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
   def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
     Runtime(f(environment), fiberRefs)
+
+  final def reportFatal(t: Throwable): Nothing =
+    fiberRefs.getOrDefault(FiberRef.currentReportFatal)(t)
 
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.
@@ -63,6 +79,9 @@ trait Runtime[+R] { self =>
         Left(ZIO.succeedBlocking(canceler(fiberId)))
       }
     }
+
+  final def supervisors: Set[Supervisor[Any]] =
+    fiberRefs.getOrDefault(FiberRef.currentSupervisors)
 
   /**
    * Executes the effect synchronously, failing with [[zio.FiberFailure]] if
