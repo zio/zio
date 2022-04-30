@@ -491,7 +491,7 @@ object Runtime extends RuntimePlatformSpecific {
       map(_ => r1)
 
     override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
-      Scoped(f(environment), () => shutdown())
+      Scoped(f(environment), fiberRefs, () => shutdown())
   }
 
   object Scoped {
@@ -502,8 +502,8 @@ object Runtime extends RuntimePlatformSpecific {
      */
     def apply[R](
       r: ZEnvironment[R],
-      shutdown0: () => Unit,
-      fiberRefs0: FiberRefs = FiberRefs.empty
+      fiberRefs0: FiberRefs = FiberRefs.empty,
+      shutdown0: () => Unit
     ): Runtime.Scoped[R] =
       new Runtime.Scoped[R] {
         val environment        = r
@@ -515,7 +515,7 @@ object Runtime extends RuntimePlatformSpecific {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
    */
-  def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs = FiberRefs.empty): Runtime[R] =
+  def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs): Runtime[R] =
     new Runtime[R] {
       val environment        = r
       override val fiberRefs = fiberRefs0
@@ -526,15 +526,8 @@ object Runtime extends RuntimePlatformSpecific {
    * configured with the the default runtime configuration, which is optimized
    * for typical ZIO applications.
    */
-  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty)
-
-  /**
-   * The global [[Runtime]], which piggybacks atop the global execution context
-   * available to Scala applications. Use of this runtime is not generally
-   * recommended, unless the intention is to avoid creating any thread pools or
-   * other resources.
-   */
-  lazy val global: Runtime[Any] = Runtime(ZEnvironment.empty)
+  val default: Runtime[Any] =
+    Runtime(ZEnvironment.empty, FiberRefs.empty)
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
@@ -545,16 +538,12 @@ object Runtime extends RuntimePlatformSpecific {
    * legacy code, but other applications should investigate using
    * [[ZIO.provide]] directly in their application entry points.
    */
-  def unsafeFromLayer[R](
-    layer: Layer[Any, R],
-    fiberRefs: FiberRefs = FiberRefs.empty
-  )(implicit trace: Trace): Runtime.Scoped[R] = {
-    val runtime = Runtime(ZEnvironment.empty)
-    val (environment, shutdown) = runtime.unsafeRun {
+  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace): Runtime.Scoped[R] = {
+    val (runtime, shutdown) = default.unsafeRun {
       Scope.make.flatMap { scope =>
-        scope.extend(layer.build).flatMap { acquire =>
+        scope.extend(layer.toRuntime).flatMap { acquire =>
           val finalizer = () =>
-            runtime.unsafeRun {
+            default.unsafeRun {
               scope.close(Exit.unit).uninterruptible.unit
             }
 
@@ -563,6 +552,6 @@ object Runtime extends RuntimePlatformSpecific {
       }
     }
 
-    Runtime.Scoped(environment, () => shutdown)
+    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown)
   }
 }

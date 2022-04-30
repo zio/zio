@@ -42,7 +42,7 @@ final case class TestRunner[R, E](
   }
 ) { self =>
 
-  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty)
+  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.

@@ -320,10 +320,12 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    * be used to execute effects.
    */
   final def toRuntime(implicit ev: Any <:< RIn, trace: Trace): ZIO[Scope, E, Runtime[ROut]] =
-    ZIO
-      .serviceWithZIO[Scope](build(_))
-      .provideSomeEnvironment[Scope](ZEnvironment.empty.upcast(ev).union[Scope](_))
-      .map(Runtime(_))
+    for {
+      scope       <- ZIO.scope
+      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.upcast(ev))
+      environment <- (layer >>> self).build(scope)
+      runtime     <- ZIO.runtime[ROut].provideEnvironment(environment)
+    } yield runtime
 
   /**
    * Replaces the layer's output with `Unit`.
