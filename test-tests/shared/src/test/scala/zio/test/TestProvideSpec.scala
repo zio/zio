@@ -9,7 +9,8 @@ object TestProvideSpec extends ZIOBaseSpec {
     Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
-    suite("TestProvideSpec")(
+    suiteAll("TestProvideSpec") {
+
       suite(".provide")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
@@ -89,7 +90,8 @@ object TestProvideSpec extends ZIOBaseSpec {
             )
           )
         } @@ TestAspect.exceptScala3
-      ),
+      )
+
       suite(".provideSome") {
         val stringLayer = ZLayer.succeed("10")
 
@@ -100,7 +102,8 @@ object TestProvideSpec extends ZIOBaseSpec {
         }.provideSome[Int](stringLayer)
 
         myTest.provide(ZLayer.succeed(10))
-      },
+      }
+
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
         val refLayer = ZLayer(Ref.make(1))
@@ -110,12 +113,13 @@ object TestProvideSpec extends ZIOBaseSpec {
             test("test 1")(assertZIO(addOne)(equalTo(1))),
             test("test 2")(assertZIO(addOne)(equalTo(2)))
           ),
-          suite("suite 2")(
+          suite("suite 4")(
             test("test 3")(assertZIO(addOne)(equalTo(3))),
             test("test 4")(assertZIO(addOne)(equalTo(4)))
           )
         ).provideShared(refLayer) @@ TestAspect.sequential
-      },
+      }
+
       suite(".provideSomeShared") {
         case class IntService(ref: Ref[Int]) {
           def add(int: Int): UIO[Int] = ref.updateAndGet(_ + int)
@@ -156,7 +160,7 @@ object TestProvideSpec extends ZIOBaseSpec {
           .provideSomeShared[StringService](intService)
           .provide(stringService) @@ TestAspect.sequential
       }
-    )
+    }
 
   object TestLayer {
     trait OldLady {
@@ -180,4 +184,5 @@ object TestProvideSpec extends ZIOBaseSpec {
       def live: ULayer[Spider] = ZLayer.succeed(new Spider {})
     }
   }
+
 }
