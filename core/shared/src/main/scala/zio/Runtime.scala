@@ -41,6 +41,9 @@ trait Runtime[+R] { self =>
   def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
     map(_ => r1)
 
+  def executor: Executor =
+    fiberRefs.getOrDefault(FiberRef.currentExecutor)
+
   def isFatal(t: Throwable): Boolean =
     fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
 

@@ -28,7 +28,6 @@ import scala.annotation.tailrec
 trait TestClockPlatformSpecific { self: TestClock.Test =>
 
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
-    ZIO.executor.flatMap { executor =>
       ZIO.runtime[Any].map { runtime =>
         new Scheduler {
           def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
@@ -38,6 +37,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
           }
 
           def asScheduledExecutorService: ScheduledExecutorService = {
+            val executor = runtime.executor
 
             def compute[A](a: => A): Either[Throwable, A] =
               try {
@@ -209,5 +209,4 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
           }
         }
       }
-    }
 }
