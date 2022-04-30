@@ -34,7 +34,7 @@ Most applications are not greenfield, meaning they must integrate with legacy co
 
 In these cases, a better solution for running effects is to create a `Runtime`, which can be passed around and used to run effects wherever required.
 
-ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, and `Scheduler`), and it can run effects that require any combination of these modules.
+ZIO contains a default runtime called `Runtime.default`.
 
 To access it, merely use
 
@@ -64,7 +64,7 @@ val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42))
 
 ## Error Reporting
 
-There is an error reporter that is called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter that can log unhandled errors to a file.
+In the `Runtime` there is an error reporter that is called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter that can log unhandled errors to a file.
 
 The default unhandled error reporter merely logs the error to standard error (`stderr`).
 
