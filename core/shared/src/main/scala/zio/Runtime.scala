@@ -418,6 +418,23 @@ object Runtime extends RuntimePlatformSpecific {
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentSupervisors.locallyScopedWith(_ + supervisor))
 
+  /**
+   * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
+   */
+  def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs): Runtime[R] =
+    new Runtime[R] {
+      val environment        = r
+      override val fiberRefs = fiberRefs0
+    }
+
+  /**
+   * The default [[Runtime]] for most ZIO applications. This runtime is
+   * configured with the the default runtime configuration, which is optimized
+   * for typical ZIO applications.
+   */
+  val default: Runtime[Any] =
+    Runtime(ZEnvironment.empty, FiberRefs.empty)
+
   val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
     ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.EnableCurrentFiber))
@@ -459,15 +476,30 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.TrackRuntimeMetrics))
   }
 
-  private[zio] type UnsafeSuccess <: AnyRef
-  private[zio] class Lazy[A](thunk: () => A) {
-    lazy val value = thunk()
-  }
-  private[zio] object Lazy {
-    def apply[A](a: => A): Lazy[A] = new Lazy(() => a)
+  /**
+   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
+   * allocated immediately, and not released until the `Runtime` is shut down or
+   * the end of the application.
+   *
+   * This method is useful for small applications and integrating ZIO with
+   * legacy code, but other applications should investigate using
+   * [[ZIO.provide]] directly in their application entry points.
+   */
+  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace): Runtime.Scoped[R] = {
+    val (runtime, shutdown) = default.unsafeRun {
+      Scope.make.flatMap { scope =>
+        scope.extend(layer.toRuntime).flatMap { acquire =>
+          val finalizer = () =>
+            default.unsafeRun {
+              scope.close(Exit.unit).uninterruptible.unit
+            }
 
-    def stackTraceBuilder[A](): Lazy[StackTraceBuilder] =
-      new Lazy(() => StackTraceBuilder.unsafeMake())
+          ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+        }
+      }
+    }
+
+    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown)
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
@@ -512,46 +544,14 @@ object Runtime extends RuntimePlatformSpecific {
       }
   }
 
-  /**
-   * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
-   */
-  def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs): Runtime[R] =
-    new Runtime[R] {
-      val environment        = r
-      override val fiberRefs = fiberRefs0
-    }
+  private[zio] type UnsafeSuccess <: AnyRef
+  private[zio] class Lazy[A](thunk: () => A) {
+    lazy val value = thunk()
+  }
+  private[zio] object Lazy {
+    def apply[A](a: => A): Lazy[A] = new Lazy(() => a)
 
-  /**
-   * The default [[Runtime]] for most ZIO applications. This runtime is
-   * configured with the the default runtime configuration, which is optimized
-   * for typical ZIO applications.
-   */
-  val default: Runtime[Any] =
-    Runtime(ZEnvironment.empty, FiberRefs.empty)
-
-  /**
-   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
-   * allocated immediately, and not released until the `Runtime` is shut down or
-   * the end of the application.
-   *
-   * This method is useful for small applications and integrating ZIO with
-   * legacy code, but other applications should investigate using
-   * [[ZIO.provide]] directly in their application entry points.
-   */
-  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace): Runtime.Scoped[R] = {
-    val (runtime, shutdown) = default.unsafeRun {
-      Scope.make.flatMap { scope =>
-        scope.extend(layer.toRuntime).flatMap { acquire =>
-          val finalizer = () =>
-            default.unsafeRun {
-              scope.close(Exit.unit).uninterruptible.unit
-            }
-
-          ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
-        }
-      }
-    }
-
-    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown)
+    def stackTraceBuilder[A](): Lazy[StackTraceBuilder] =
+      new Lazy(() => StackTraceBuilder.unsafeMake())
   }
 }
