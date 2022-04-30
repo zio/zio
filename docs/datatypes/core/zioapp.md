@@ -57,19 +57,18 @@ import zio._
 import zio.Executor
 import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
-object CustomizedRuntimeZIOApp extends ZIOAppDefault {
-  override val runtime = Runtime.default.mapRuntimeConfig(
-    _.copy(
-      executor =
-        Executor.fromThreadPoolExecutor(_ => 1024)(
-          new ThreadPoolExecutor(
-            5,
-            10,
-            5000,
-            TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue[Runnable]()
-          )
-        )
+object CustomizedRuntimeZIOApp extends ZIOApp {
+  type Environment = Any
+  implicit def environmentTag: EnvironmentTag[Any] = EnvironmentTag[Any]
+  val bootstrap = ZLayer.setExecutor(
+    Executor.fromThreadPoolExecutor(_ => 1024)(
+      new ThreadPoolExecutor(
+        5,
+        10,
+        5000,
+        TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue[Runnable]()
+      )
     )
   )
 
