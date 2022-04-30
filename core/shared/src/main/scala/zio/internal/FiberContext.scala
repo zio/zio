@@ -208,10 +208,7 @@ private[zio] final class FiberContext[E, A](
                         val io2    = nested.asInstanceOf[ZIO.SucceedWith[Any]]
                         val effect = io2.effect
 
-                        val fatal = unsafeGetFatal()
-
-                        def isFatal(t: Throwable): Boolean =
-                          fatal.exists(_.isAssignableFrom(t.getClass))
+                        val isFatal = unsafeGetIsFatal()
 
                         extraTrace = zio.trace
                         val value = effect(isFatal, fiberId)
@@ -251,10 +248,7 @@ private[zio] final class FiberContext[E, A](
                     val zio    = curZio.asInstanceOf[ZIO.SucceedWith[Any]]
                     val effect = zio.effect
 
-                    val fatal = unsafeGetFatal()
-
-                    def isFatal(t: Throwable): Boolean =
-                      fatal.exists(_.isAssignableFrom(t.getClass))
+                    val isFatal = unsafeGetIsFatal()
 
                     curZio = unsafeNextEffect(effect(isFatal, fiberId))
 
@@ -312,10 +306,7 @@ private[zio] final class FiberContext[E, A](
                   case ZIO.Tags.SuspendWith =>
                     val zio = curZio.asInstanceOf[ZIO.SuspendWith[Any, Any, Any]]
 
-                    val fatal = unsafeGetFatal()
-
-                    def isFatal(t: Throwable): Boolean =
-                      fatal.exists(_.isAssignableFrom(t.getClass))
+                    val isFatal = unsafeGetIsFatal()
 
                     curZio = zio.make(isFatal, fiberId)
 
@@ -542,9 +533,9 @@ private[zio] final class FiberContext[E, A](
           // either a bug in the interpreter or a bug in the user's code. Let the
           // fiber die but attempt finalization & report errors.
           case t: Throwable =>
-            val fatal = unsafeGetFatal()
+            val isFatal = unsafeGetIsFatal()
 
-            curZio = if (fatal.exists(_.isAssignableFrom(t.getClass))) {
+            curZio = if (isFatal(t)) {
               catastrophicFailure.set(true)
               val reportFatal = unsafeGetReportFatal()
               reportFatal(t)
@@ -797,8 +788,8 @@ private[zio] final class FiberContext[E, A](
   private def unsafeGetExecutor(): Executor =
     unsafeGetRef(overrideExecutor).getOrElse(unsafeGetRef(currentExecutor))
 
-  private def unsafeGetFatal(): Set[Class[_ <: Throwable]] =
-    unsafeGetRef(currentFatal)
+  private def unsafeGetIsFatal(): Throwable => Boolean =
+    t => unsafeGetRef(currentFatal).exists(_.isAssignableFrom(t.getClass))
 
   private def unsafeGetLoggers(): Set[ZLogger[String, Any]] =
     unsafeGetRef(currentLoggers)
@@ -1021,8 +1012,8 @@ private[zio] final class FiberContext[E, A](
         unsafeLog(() => s"Fiber ${fiberId} did not handle an error", cause, ZIO.someDebug, trace = trace)
       } catch {
         case t: Throwable =>
-          val fatal = unsafeGetFatal()
-          if (fatal.exists(_.isAssignableFrom(t.getClass))) {
+          val isFatal = unsafeGetIsFatal()
+          if (isFatal(t)) {
             val reportFatal = unsafeGetReportFatal()
             reportFatal(t)
           } else {
