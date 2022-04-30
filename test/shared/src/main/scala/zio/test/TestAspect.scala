@@ -432,6 +432,9 @@ object TestAspect extends TimeoutVariants {
         test.fork.flatMap(_.join)
     }
 
+  /**
+   * Constructs an aspect from a layer that does not produce any services.
+   */
   def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] = {
     val fromLayer = new TestAspect.PerTest[Nothing, R0, E0, Any] {
       def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
