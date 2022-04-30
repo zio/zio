@@ -33,7 +33,6 @@ object ZIOSpecVersionSpecificMacros {
           List(TestOrStatement.SpecCase(spec))
 
         case other =>
-
           throw new Error("UNHANDLED: " + other)
       }
 
@@ -51,9 +50,6 @@ object ZIOSpecVersionSpecificMacros {
           val ref = Ref(symbol)
           loop(rest, valDef :: acc, ref :: refs)
         case Nil =>
-
-
-
           val mySuite =  {
               val combinedTypes = refs.map(_.tpe).reduce(OrType(_, _)).widen
               val names = 

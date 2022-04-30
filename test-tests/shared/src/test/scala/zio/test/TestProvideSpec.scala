@@ -3,13 +3,14 @@ package zio.test
 import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
+import zio.test.TestProvideSpecTypes.{IntService, StringService}
 
-object AutoWireSpec extends ZIOBaseSpec {
+object TestProvideSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
-    suite("AutoWireSpec")(
+    suite("TestProvideSpec")(
       suite(".provide")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
@@ -51,7 +52,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide(OldLady.live)""")
           assertZIO(checked)(
             isLeft(
-              containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Fly") &&
+              containsStringWithoutAnsi("zio.test.TestProvideSpec.TestLayer.Fly") &&
                 containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
             )
           )
@@ -65,7 +66,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             typeCheck("""test("foo")(assertZIO(program)(anything)).provide(OldLady.live, Fly.live)""")
           assertZIO(checked)(
             isLeft(
-              containsStringWithoutAnsi("zio.test.AutoWireSpec.TestLayer.Spider") &&
+              containsStringWithoutAnsi("zio.test.TestProvideSpec.TestLayer.Spider") &&
                 containsStringWithoutAnsi("Required by TestLayer.Fly.live")
             )
           )
@@ -110,33 +111,44 @@ object AutoWireSpec extends ZIOBaseSpec {
             test("test 1")(assertZIO(addOne)(equalTo(1))),
             test("test 2")(assertZIO(addOne)(equalTo(2)))
           ),
-          suite("suite 2")(
+          suite("suite 4")(
             test("test 3")(assertZIO(addOne)(equalTo(3))),
             test("test 4")(assertZIO(addOne)(equalTo(4)))
           )
         ).provideShared(refLayer) @@ TestAspect.sequential
       },
-      suite(".provideCustomShared") {
-        case class IntService(ref: Ref[Int]) {
-          def add(int: Int): UIO[Int] = ref.getAndUpdate(_ + int)
-        }
+      suite(".provideSomeShared") {
 
         val addOne: ZIO[IntService, Nothing, Int] =
-          ZIO
-            .serviceWithZIO[IntService](_.add(1))
+          ZIO.serviceWithZIO[IntService](_.add(1))
 
-        val refLayer: ULayer[IntService] = ZLayer(Ref.make(1).map(IntService(_)))
+        val appendBang: ZIO[StringService, Nothing, String] =
+          ZIO.serviceWithZIO[StringService](_.append("!"))
+
+        val intService: ULayer[IntService] = ZLayer(Ref.make(0).map(IntService(_)))
+        val stringService: ULayer[StringService] =
+          ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
+
+        def customTest(int: Int) =
+          test(s"test $int") {
+            for {
+              x   <- addOne
+              str <- appendBang
+            } yield assertTrue(x == int && str == s"Hello!")
+          }
 
         suite("layers are shared between tests and suites")(
           suite("suite 1")(
-            test("test 1")(assertZIO(addOne)(equalTo(1))),
-            test("test 2")(assertZIO(addOne)(equalTo(2)))
+            customTest(1),
+            customTest(2)
           ),
-          suite("suite 2")(
-            test("test 3")(assertZIO(addOne)(equalTo(3))),
-            test("test 4")(assertZIO(addOne)(equalTo(4)))
+          suite("suite 4")(
+            customTest(3),
+            customTest(4)
           )
-        ).provideShared(refLayer) @@ TestAspect.sequential
+        )
+          .provideSomeShared[StringService](intService)
+          .provide(stringService) @@ TestAspect.sequential
       } @@ TestAspect.exceptScala3
     )
 
@@ -162,4 +174,5 @@ object AutoWireSpec extends ZIOBaseSpec {
       def live: ULayer[Spider] = ZLayer.succeed(new Spider {})
     }
   }
+
 }

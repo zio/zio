@@ -1,7 +1,7 @@
 package zio.test
 import zio._
 
-object SuiteSpec extends ZIOSpecDefault {
+object SuiteAllSpec extends ZIOSpecDefault {
 
   def spec =
     suiteAll("SweetSpec!") {

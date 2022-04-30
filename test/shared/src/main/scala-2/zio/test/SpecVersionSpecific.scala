@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.ZLayer
+import zio.{EnvironmentTag, Tag, Trace, ZLayer}
 import zio.internal.macros.LayerMacros
 
 private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
@@ -107,11 +107,8 @@ final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extend
 }
 
 final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
-
-  def provideLayerShared[E1 >: E](
-    layer: ZLayer[R0, E1, R]
-  ): Spec[R0, E1] =
-    self.provideLayerShared(layer)
+  def provideSomeLayerShared: Spec.ProvideSomeLayerShared[R0, R, E] =
+    new Spec.ProvideSomeLayerShared[R0, R, E](self)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]

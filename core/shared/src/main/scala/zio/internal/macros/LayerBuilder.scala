@@ -47,7 +47,7 @@ import scala.collection.{immutable, mutable}
  * @param reportError
  */
 final case class LayerBuilder[Type, Expr](
-  target: List[Type],
+  target0: List[Type],
   remainder: List[Type],
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
@@ -62,6 +62,10 @@ final case class LayerBuilder[Type, Expr](
   reportWarn: String => Unit,
   reportError: String => Nothing
 ) {
+
+  lazy val target =
+    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.exists(t2 => typeEquals(t1, t2)))
+    else target0
 
   private lazy val remainderNodes: List[Node[Type, Expr]] =
     remainder.map(typeToNode).distinct
@@ -146,8 +150,8 @@ final case class LayerBuilder[Type, Expr](
 
     method match {
       case ProvideMethod.Provide => ()
-      case ProvideMethod.ProvideSome =>
-        if (unusedRemainderLayers.nonEmpty) {
+      case ProvideMethod.ProvideSome | ProvideMethod.ProvideSomeShared =>
+        if (!method.isProvideSomeShared && unusedRemainderLayers.nonEmpty) {
           val message = "\n" + TerminalRendering.unusedProvideSomeLayersError(
             unusedRemainderLayers.map(node => showType(node.outputs.head))
           )
@@ -308,12 +312,14 @@ final case class LayerBuilder[Type, Expr](
 }
 
 sealed trait ProvideMethod extends Product with Serializable {
-  def isProvideSome: Boolean = this == ProvideMethod.ProvideSome
+  def isProvideSomeShared: Boolean = this == ProvideMethod.ProvideSomeShared
+  def isProvideSome: Boolean       = this == ProvideMethod.ProvideSome || this == ProvideMethod.ProvideSomeShared
 
 }
 
 object ProvideMethod {
-  case object Provide       extends ProvideMethod
-  case object ProvideSome   extends ProvideMethod
-  case object ProvideCustom extends ProvideMethod
+  case object Provide           extends ProvideMethod
+  case object ProvideSome       extends ProvideMethod
+  case object ProvideSomeShared extends ProvideMethod
+  case object ProvideCustom     extends ProvideMethod
 }

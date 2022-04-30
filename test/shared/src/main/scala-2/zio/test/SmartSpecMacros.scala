@@ -3,6 +3,7 @@ package zio.test
 import zio.{Chunk, ZIO}
 
 import scala.annotation.tailrec
+import scala.collection.mutable.ListBuffer
 import scala.reflect.macros.whitebox
 
 class SmartSpecMacros(val c: whitebox.Context) {
@@ -44,21 +45,29 @@ class SmartSpecMacros(val c: whitebox.Context) {
             case TestOrStatement.Test(tree) =>
               val newName  = c.freshName("test")
               val newNames = newName :: names
-              val newTree  = q"val ${TermName(newName)} = $tree"
+              val newTree  = q"specBuffer += $tree"
               loop(tail, newTree :: acc, newNames)
             case TestOrStatement.Statement(tree) =>
               loop(tail, tree :: acc, names)
           }
         case Nil =>
+          val allEnvs = result.collect { case TestOrStatement.Test(tree) =>
+            tree.tpe.typeArgs.head
+          }
+
+          val refined = internal.refinedType(allEnvs, c.prefix.tree.symbol)
+
           q"""
+val specBuffer = scala.collection.mutable.ListBuffer.empty[Spec[$refined,Nothing]]
 ..${acc.reverse}
-suite($name)(
-  ..${names.reverse.map(name => Ident(TermName(name)))}
-)"""
+_root_.zio.test.suite($name)(
+  specBuffer.toList:_*
+)
+"""
       }
 
-    val finalSuite = loop(result, Nil, Nil)
+    loop(result, Nil, Nil)
 
-    c.untypecheck(finalSuite)
   }
+
 }
