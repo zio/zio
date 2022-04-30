@@ -2939,6 +2939,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def executor(implicit trace: Trace): UIO[Executor] =
     ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
 
+  /**
+   * Constructs an effect based on the current executor.
+   */
   def executorWith[R, E, A](f: Executor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith(descriptor => f(descriptor.executor))
 
@@ -3584,9 +3587,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def left[A](a: => A)(implicit trace: Trace): UIO[Either[A, Nothing]] =
     succeed(Left(a))
 
+  /**
+   * Retrieves the current loggers for this effect.
+   */
   def loggers(implicit trace: Trace): UIO[Set[ZLogger[String, Any]]] =
     FiberRef.currentLoggers.get
 
+  /**
+   * Constructs an effect based on the current loggers.
+   */
   def loggersWith[R, E, A](f: Set[ZLogger[String, Any]] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentLoggers.getWith(f)
 
