@@ -3581,6 +3581,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def left[A](a: => A)(implicit trace: Trace): UIO[Either[A, Nothing]] =
     succeed(Left(a))
 
+  def loggers(implicit trace: Trace): UIO[Set[ZLogger[String, Any]]] =
+    FiberRef.currentLoggers.get
+
+  def loggersWith[R, E, A](f: Set[ZLogger[String, Any]] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    FiberRef.currentLoggers.getWith(f)
+
   /**
    * Loops with the specified effectual function, collecting the results into a
    * list. The moral equivalent of:

@@ -47,13 +47,11 @@ object ZTestLogger {
    * Accesses the contents of the current test logger.
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
-    FiberRef.currentLoggers.get.flatMap { runtimeConfig =>
-      FiberRef.currentLoggers.getWith { loggers =>
-        loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
-          testLogger.logOutput
-        }
-          .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
+    ZIO.loggersWith { loggers =>
+      loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
+        testLogger.logOutput
       }
+        .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
     }
 
   /**
