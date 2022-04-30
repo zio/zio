@@ -353,12 +353,12 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 ### Creating Suspended Effects
 
-| Function                 | Input Type                                 | Output Type    |
-|--------------------------|--------------------------------------------|----------------|
-| `suspend`                | `RIO[R, A]`                                | `RIO[R, A]`    |
-| `suspendSucceed`         | `ZIO[R, E, A]`                             | `ZIO[R, E, A]` |
-| `suspendSucceedWith`     | `(RuntimeConfig, FiberId) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
-| `suspendWith`            | `(RuntimeConfig, FiberId) => RIO[R, A]`    | `RIO[R, A]`    |
+| Function                 | Input Type                                        | Output Type    |
+|--------------------------|---------------------------------------------------|----------------|
+| `suspend`                | `RIO[R, A]`                                       | `RIO[R, A]`    |
+| `suspendSucceed`         | `ZIO[R, E, A]`                                    | `ZIO[R, E, A]` |
+| `suspendSucceedWith`     | `(Throwable => Boolean, FiberId) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
+| `suspendWith`            | `(Throwable => Boolean, FiberId) => RIO[R, A]`    | `RIO[R, A]`    |
 
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 

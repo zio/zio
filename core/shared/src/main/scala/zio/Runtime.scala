@@ -51,8 +51,8 @@ trait Runtime[+R] { self =>
   def executor: Executor =
     fiberRefs.getOrDefault(FiberRef.currentExecutor)
 
-  def flags: Set[RuntimeConfigFlag] =
-    fiberRefs.getOrDefault(FiberRef.currentRuntimeConfigFlags)
+  def flags: Set[RuntimeFlag] =
+    fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)
 
   def isFatal(t: Throwable): Boolean =
     fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
@@ -368,14 +368,14 @@ trait Runtime[+R] { self =>
 
     val runtimeFiberRefs: Map[FiberRef[_], Any] =
       Map(
-        FiberRef.currentBlockingExecutor   -> fiberRefs.getOrDefault(FiberRef.currentBlockingExecutor),
-        FiberRef.currentEnvironment        -> environment,
-        FiberRef.currentExecutor           -> fiberRefs.getOrDefault(FiberRef.currentExecutor),
-        FiberRef.currentFatal              -> fiberRefs.getOrDefault(FiberRef.currentFatal),
-        FiberRef.currentLoggers            -> fiberRefs.getOrDefault(FiberRef.currentLoggers),
-        FiberRef.currentReportFatal        -> fiberRefs.getOrDefault(FiberRef.currentReportFatal),
-        FiberRef.currentRuntimeConfigFlags -> fiberRefs.getOrDefault(FiberRef.currentRuntimeConfigFlags),
-        FiberRef.currentSupervisors        -> fiberRefs.getOrDefault(FiberRef.currentSupervisors)
+        FiberRef.currentBlockingExecutor -> fiberRefs.getOrDefault(FiberRef.currentBlockingExecutor),
+        FiberRef.currentEnvironment      -> environment,
+        FiberRef.currentExecutor         -> fiberRefs.getOrDefault(FiberRef.currentExecutor),
+        FiberRef.currentFatal            -> fiberRefs.getOrDefault(FiberRef.currentFatal),
+        FiberRef.currentLoggers          -> fiberRefs.getOrDefault(FiberRef.currentLoggers),
+        FiberRef.currentReportFatal      -> fiberRefs.getOrDefault(FiberRef.currentReportFatal),
+        FiberRef.currentRuntimeFlags     -> fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags),
+        FiberRef.currentSupervisors      -> fiberRefs.getOrDefault(FiberRef.currentSupervisors)
       )
 
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
@@ -386,7 +386,7 @@ trait Runtime[+R] { self =>
     )
 
     FiberScope.global.unsafeAdd(
-      fiberRefs.getOrDefault(FiberRef.currentRuntimeConfigFlags)(RuntimeConfigFlag.EnableFiberRoots),
+      fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)(RuntimeFlag.EnableFiberRoots),
       context
     )
 
@@ -420,17 +420,17 @@ object Runtime extends RuntimePlatformSpecific {
 
   val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.EnableCurrentFiber))
+    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.EnableCurrentFiber))
   }
 
   lazy val enableFiberRoots: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.EnableFiberRoots))
+    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.EnableFiberRoots))
   }
 
   val logRuntime: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.LogRuntime))
+    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.LogRuntime))
   }
 
   def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
@@ -444,7 +444,7 @@ object Runtime extends RuntimePlatformSpecific {
 
   lazy val superviseOperations: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.SuperviseOperations))
+    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.SuperviseOperations))
   }
 
   /**
@@ -456,7 +456,7 @@ object Runtime extends RuntimePlatformSpecific {
 
   val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.TrackRuntimeMetrics))
+    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.TrackRuntimeMetrics))
   }
 
   private[zio] type UnsafeSuccess <: AnyRef
@@ -498,7 +498,7 @@ object Runtime extends RuntimePlatformSpecific {
 
     /**
      * Builds a new scoped runtime given an environment `R`, a
-     * [[zio.RuntimeConfig]], and a shut down action.
+     * [[zio.FiberRefs]], and a shut down action.
      */
     def apply[R](
       r: ZEnvironment[R],
@@ -513,7 +513,7 @@ object Runtime extends RuntimePlatformSpecific {
   }
 
   /**
-   * Builds a new runtime given an environment `R` and a [[zio.RuntimeConfig]].
+   * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
    */
   def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs = FiberRefs.empty): Runtime[R] =
     new Runtime[R] {

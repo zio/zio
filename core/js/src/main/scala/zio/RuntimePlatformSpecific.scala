@@ -39,8 +39,8 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set.empty
 
-  final val defaultFlags: Set[RuntimeConfigFlag] =
-    Set(RuntimeConfigFlag.EnableFiberRoots)
+  final val defaultFlags: Set[RuntimeFlag] =
+    Set(RuntimeFlag.EnableFiberRoots)
 
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {

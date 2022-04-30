@@ -11,7 +11,7 @@ object ZIOSpecSpec extends ZIOSpecDefault {
     Executor.fromExecutionContext(Runtime.defaultYieldOpCount)(global)
 
   def spec = suite("ZIOAppSpec")(
-    test("RuntimeConfig can be modified using hook") {
+    test("Runtime can be modified using bootstrap") {
       for {
         actual <- ZIO.blockingExecutor
       } yield assertTrue(actual == expected)

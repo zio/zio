@@ -4217,8 +4217,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blocking(ZIO.succeed(a))
 
   /**
-   * The same as [[ZIO.succeed]], but also provides access to the underlying
-   * RuntimeConfig and fiber id.
+   * The same as [[ZIO.succeed]], but also provides access to the definition of
+   * a fatal error and fiber id.
    */
   def succeedWith[A](f: (Throwable => Boolean, FiberId) => A)(implicit trace: Trace): UIO[A] =
     new ZIO.SucceedWith(f, trace)

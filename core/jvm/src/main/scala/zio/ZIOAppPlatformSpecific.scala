@@ -30,7 +30,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
                     "Catastrophic error encountered. " +
                     "Application not safely interrupted. " +
                     "Resources may be leaked. " +
-                    "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
+                    "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
                 )
               } else {
                 try runtime.unsafeRunSync(fiber.interrupt)

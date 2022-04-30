@@ -409,7 +409,7 @@ object FiberRef {
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
     FiberRef.unsafeMake(Runtime.defaultReportFatal)
 
-  private[zio] val currentRuntimeConfigFlags: FiberRef.WithPatch[Set[RuntimeConfigFlag], SetPatch[RuntimeConfigFlag]] =
+  private[zio] val currentRuntimeFlags: FiberRef.WithPatch[Set[RuntimeFlag], SetPatch[RuntimeFlag]] =
     FiberRef.unsafeMakeSet(Runtime.defaultFlags)
 
   private[zio] val currentSupervisors: FiberRef.WithPatch[Set[Supervisor[Any]], SetPatch[Supervisor[Any]]] =

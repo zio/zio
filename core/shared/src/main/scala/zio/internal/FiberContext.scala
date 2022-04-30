@@ -122,9 +122,9 @@ private[zio] final class FiberContext[E, A](
       // it in `ObjectRef` and performance will plummet.
       var curZio = erase(nextEffect)
 
-      val flags = unsafeGetRuntimeConfigFlags()
+      val flags = unsafeGetRuntimeFlags()
 
-      val logRuntime = flags(RuntimeConfigFlag.LogRuntime)
+      val logRuntime = flags(RuntimeFlag.LogRuntime)
 
       nextEffect = null
 
@@ -139,7 +139,7 @@ private[zio] final class FiberContext[E, A](
 
       val supervisors = unsafeGetSupervisors()
 
-      import RuntimeConfigFlag._
+      import RuntimeFlag._
       val superviseOps =
         flags(SuperviseOperations) &&
           (supervisors.nonEmpty)
@@ -547,9 +547,9 @@ private[zio] final class FiberContext[E, A](
         }
       }
     } finally {
-      import RuntimeConfigFlag._
+      import RuntimeFlag._
 
-      val flags       = unsafeGetRuntimeConfigFlags()
+      val flags       = unsafeGetRuntimeFlags()
       val supervisors = unsafeGetSupervisors()
 
       // FIXME: Race condition on fiber resumption
@@ -761,10 +761,10 @@ private[zio] final class FiberContext[E, A](
       childContext.unsafeOnDone((exit, _) => supervisor.unsafeOnEnd(exit.flatten, childContext))
     }
 
-    val flags = unsafeGetRuntimeConfigFlags()
+    val flags = unsafeGetRuntimeFlags()
 
     val childZio =
-      if (!parentScope.unsafeAdd(flags(RuntimeConfigFlag.EnableFiberRoots), childContext))
+      if (!parentScope.unsafeAdd(flags(RuntimeFlag.EnableFiberRoots), childContext))
         ZIO.interruptAs(parentScope.fiberId)
       else zio
 
@@ -797,8 +797,8 @@ private[zio] final class FiberContext[E, A](
   private def unsafeGetReportFatal(): Throwable => Nothing =
     unsafeGetRef(currentReportFatal)
 
-  private def unsafeGetRuntimeConfigFlags(): Set[RuntimeConfigFlag] =
-    unsafeGetRef(currentRuntimeConfigFlags)
+  private def unsafeGetRuntimeFlags(): Set[RuntimeFlag] =
+    unsafeGetRef(currentRuntimeFlags)
 
   private def unsafeGetSupervisors(): Set[Supervisor[Any]] =
     unsafeGetRef(currentSupervisors)
@@ -1268,8 +1268,8 @@ private[zio] final class FiberContext[E, A](
 
   @inline
   private def trackMetrics: Boolean = {
-    val flags = unsafeGetRuntimeConfigFlags()
-    flags(RuntimeConfigFlag.TrackRuntimeMetrics)
+    val flags = unsafeGetRuntimeFlags()
+    flags(RuntimeFlag.TrackRuntimeMetrics)
   }
 
   @inline

@@ -16,12 +16,12 @@
 
 package zio
 
-sealed trait RuntimeConfigFlag
+sealed trait RuntimeFlag
 
-object RuntimeConfigFlag {
-  case object EnableCurrentFiber  extends RuntimeConfigFlag
-  case object LogRuntime          extends RuntimeConfigFlag
-  case object SuperviseOperations extends RuntimeConfigFlag
-  case object TrackRuntimeMetrics extends RuntimeConfigFlag
-  case object EnableFiberRoots    extends RuntimeConfigFlag
+object RuntimeFlag {
+  case object EnableCurrentFiber  extends RuntimeFlag
+  case object LogRuntime          extends RuntimeFlag
+  case object SuperviseOperations extends RuntimeFlag
+  case object TrackRuntimeMetrics extends RuntimeFlag
+  case object EnableFiberRoots    extends RuntimeFlag
 }
