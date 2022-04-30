@@ -389,6 +389,54 @@ trait Runtime[+R] { self =>
 }
 
 object Runtime extends RuntimePlatformSpecific {
+
+  def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ + logger))
+
+  def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentSupervisors.locallyScopedWith(_ + supervisor))
+
+  val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.EnableCurrentFiber))
+  }
+
+  lazy val enableFiberRoots: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.EnableFiberRoots))
+  }
+
+  val logRuntime: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.LogRuntime))
+  }
+
+  def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentBlockingExecutor.locallyScoped(executor))
+
+  def setExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentExecutor.locallyScoped(executor))
+
+  def setReportFatal(reportFatal: Throwable => Nothing)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentReportFatal.locallyScoped(reportFatal))
+
+  lazy val superviseOperations: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.SuperviseOperations))
+  }
+
+  /**
+   * A layer that adds a supervisor that tracks all forked fibers in a set. Note
+   * that this may have a negative impact on performance.
+   */
+  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Any] =
+    addSupervisor(Supervisor.unsafeTrack(weak))
+
+  val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentRuntimeConfigFlags.locallyScopedWith(_ + RuntimeConfigFlag.TrackRuntimeMetrics))
+  }
+
   private[zio] type UnsafeSuccess <: AnyRef
   private[zio] class Lazy[A](thunk: () => A) {
     lazy val value = thunk()
