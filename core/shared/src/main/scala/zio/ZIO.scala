@@ -2939,6 +2939,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def executor(implicit trace: Trace): UIO[Executor] =
     ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
 
+  def executorWith[R, E, A](f: Executor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.descriptorWith(descriptor => f(descriptor.executor))
+
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
    * predicate `f`.

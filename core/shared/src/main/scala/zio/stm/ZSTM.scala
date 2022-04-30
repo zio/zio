@@ -850,7 +850,7 @@ object ZSTM {
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.environmentWithZIO[R] { r =>
-      ZIO.executor.flatMap { executor =>
+      ZIO.executorWith { executor =>
         ZIO.fiberIdWith { fiberId =>
           tryCommitSync(executor, fiberId, stm, r) match {
             case TryCommit.Done(exit) => throw new ZIO.ZioError(exit, trace)
