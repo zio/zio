@@ -208,5 +208,6 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
           }
         }
       }
+
     }
 }
