@@ -111,20 +111,6 @@ object ZIOAspect {
         FiberRef.currentLoggers.locally(Set.empty)(zio)
     }
 
-  val enableCurrentFiber: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        FiberRef.currentRuntimeConfigFlags.getWith { flags =>
-          ZIO.acquireReleaseWith {
-            FiberRef.currentRuntimeConfigFlags.set(flags + RuntimeConfigFlag.EnableCurrentFiber) *> ZIO.yieldNow
-          } { _ =>
-            FiberRef.currentRuntimeConfigFlags.set(flags) *> ZIO.yieldNow
-          } { _ =>
-            zio
-          }
-        }
-    }
-
   /**
    * An aspect that logs values by using [[ZIO.log]].
    */
