@@ -25,25 +25,25 @@ private[zio] trait RuntimePlatformSpecific {
    * The default number of operations the ZIO runtime should execute before
    * yielding to other fibers.
    */
-  val defaultYieldOpCount: Int =
+  final val defaultYieldOpCount: Int =
     2048
 
-  val defaultExecutor: Executor =
+  final val defaultExecutor: Executor =
     Executor.makeDefault(defaultYieldOpCount)
 
-  val defaultBlockingExecutor: Executor =
+  final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor
 
-  val defaultFatal: Set[Class[_ <: Throwable]] =
+  final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set(classOf[VirtualMachineError])
 
-  val defaultFlags: Set[RuntimeConfigFlag] =
+  final val defaultFlags: Set[RuntimeConfigFlag] =
     Set(RuntimeConfigFlag.EnableFiberRoots)
 
-  val defaultLoggers: Set[ZLogger[String, Any]] =
+  final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))
 
-  val defaultReportFatal: Throwable => Nothing =
+  final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {
       t.printStackTrace()
       try {
@@ -52,6 +52,6 @@ private[zio] trait RuntimePlatformSpecific {
       } catch { case _: Throwable => throw t }
     }
 
-  val defaultSupervisors: Set[Supervisor[Any]] =
+  final val defaultSupervisors: Set[Supervisor[Any]] =
     Set.empty
 }
