@@ -3,14 +3,14 @@ package zio.test
 import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
+import zio.test.TestProvideSpecTypes.{IntService, StringService}
 
 object TestProvideSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
-    suiteAll("TestProvideSpec") {
-
+    suite("TestProvideSpec")(
       suite(".provide")(
         suite("meta-suite") {
           val doubleLayer = ZLayer.succeed(100.1)
@@ -90,8 +90,7 @@ object TestProvideSpec extends ZIOBaseSpec {
             )
           )
         } @@ TestAspect.exceptScala3
-      )
-
+      ),
       suite(".provideSome") {
         val stringLayer = ZLayer.succeed("10")
 
@@ -102,8 +101,7 @@ object TestProvideSpec extends ZIOBaseSpec {
         }.provideSome[Int](stringLayer)
 
         myTest.provide(ZLayer.succeed(10))
-      }
-
+      },
       suite(".provideShared") {
         val addOne   = ZIO.service[Ref[Int]].flatMap(_.getAndUpdate(_ + 1))
         val refLayer = ZLayer(Ref.make(1))
@@ -118,16 +116,8 @@ object TestProvideSpec extends ZIOBaseSpec {
             test("test 4")(assertZIO(addOne)(equalTo(4)))
           )
         ).provideShared(refLayer) @@ TestAspect.sequential
-      }
-
+      },
       suite(".provideSomeShared") {
-        case class IntService(ref: Ref[Int]) {
-          def add(int: Int): UIO[Int] = ref.updateAndGet(_ + int)
-        }
-
-        case class StringService(ref: Ref[String]) {
-          def append(string: String): UIO[String] = ref.updateAndGet(_ + string)
-        }
 
         val addOne: ZIO[IntService, Nothing, Int] =
           ZIO.serviceWithZIO[IntService](_.add(1))
@@ -159,8 +149,8 @@ object TestProvideSpec extends ZIOBaseSpec {
         )
           .provideSomeShared[StringService](intService)
           .provide(stringService) @@ TestAspect.sequential
-      }
-    }
+      } @@ TestAspect.exceptScala3
+    )
 
   object TestLayer {
     trait OldLady {

@@ -15,11 +15,7 @@ private[zio] trait LayerMacroUtils {
   ): c.Expr[ZLayer[R0, E, R]] = {
 
     val remainderTypes = getRequirements[R0]
-    val targetTypes0   = getRequirements[R]
-
-    val targetTypes =
-      if (provideMethod.isProvideSomeShared) targetTypes0.filterNot(remainderTypes.contains)
-      else targetTypes0
+    val targetTypes    = getRequirements[R]
 
     val debugMap: PartialFunction[LayerExpr, ZLayer.Debug] =
       scala.Function.unlift((_: LayerExpr).tree match {
@@ -29,7 +25,7 @@ private[zio] trait LayerMacroUtils {
       })
 
     val builder = LayerBuilder[c.Type, LayerExpr](
-      target = targetTypes,
+      target0 = targetTypes,
       remainder = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = debugMap,

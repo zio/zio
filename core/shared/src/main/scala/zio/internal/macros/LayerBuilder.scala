@@ -47,7 +47,7 @@ import scala.collection.{immutable, mutable}
  * @param reportError
  */
 final case class LayerBuilder[Type, Expr](
-  target: List[Type],
+  target0: List[Type],
   remainder: List[Type],
   providedLayers0: List[Expr],
   layerToDebug: PartialFunction[Expr, Debug],
@@ -62,6 +62,10 @@ final case class LayerBuilder[Type, Expr](
   reportWarn: String => Unit,
   reportError: String => Nothing
 ) {
+
+  lazy val target =
+    if (method.isProvideSomeShared) target0.filterNot(t1 => remainder.exists(t2 => typeEquals(t1, t2)))
+    else target0
 
   private lazy val remainderNodes: List[Node[Type, Expr]] =
     remainder.map(typeToNode).distinct
