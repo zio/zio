@@ -39,11 +39,13 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
 
   @tailrec
   final def attemptDone(): Boolean = {
-    val oldFlags    = getIndicator()
-    val oldStatus   = FiberStatusIndicator.getStatus(oldFlags)
-    val oldMessages = FiberStatusIndicator.getMessages(oldFlags)
+    val oldFlags  = getIndicator()
+    val oldStatus = FiberStatusIndicator.getStatus(oldFlags)
+    val hasMessages =
+      FiberStatusIndicator.getPendingMessages(oldFlags) > 0 ||
+        FiberStatusIndicator.getMessages(oldFlags)
 
-    if (oldMessages) false
+    if (hasMessages) false
     else {
       assert(oldStatus != FiberStatusIndicator.Status.Done)
 
@@ -119,6 +121,21 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
     else hasMessages
   }
 
+  @tailrec
+  final def enterSuspend(interruptible: Boolean): Int = {
+    val oldFlags  = getIndicator()
+    val oldAsyncs = FiberStatusIndicator.getAsyncs(oldFlags)
+    val newAsyncs = oldAsyncs + 1
+    val newFlags = FiberStatusIndicator.withInterruptible(
+      FiberStatusIndicator
+        .withAsyncs(FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Suspended), newAsyncs),
+      interruptible
+    )
+
+    if (!ref.compareAndSet(oldFlags, newFlags)) enterSuspend(interruptible)
+    else newAsyncs
+  }
+
   final def getStatus(): FiberStatusIndicator.Status = FiberStatusIndicator.getStatus(getIndicator())
 
   @tailrec
@@ -137,21 +154,6 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
 
     if (!ref.compareAndSet(oldFlags, newFlags)) setInterrupting(interrupting)
     else ()
-  }
-
-  @tailrec
-  final def enterSuspend(interruptible: Boolean): Int = {
-    val oldFlags  = getIndicator()
-    val oldAsyncs = FiberStatusIndicator.getAsyncs(oldFlags)
-    val newAsyncs = oldAsyncs + 1
-    val newFlags = FiberStatusIndicator.withInterruptible(
-      FiberStatusIndicator
-        .withAsyncs(FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Suspended), newAsyncs),
-      interruptible
-    )
-
-    if (!ref.compareAndSet(oldFlags, newFlags)) enterSuspend(interruptible)
-    else newAsyncs
   }
 }
 object FiberStatusState {

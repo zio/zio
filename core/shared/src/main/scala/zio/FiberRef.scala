@@ -387,6 +387,9 @@ object FiberRef {
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
 
+  private[zio] val interruptible: FiberRef[Boolean] =
+    FiberRef.unsafeMake(true, identity(_), (parent, _) => parent)
+
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]
   )(implicit trace: ZTraceElement): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =

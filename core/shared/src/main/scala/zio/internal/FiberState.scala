@@ -69,28 +69,65 @@ object FiberState extends Serializable {
 
 import java.util.{HashMap => JavaMap, Set => JavaSet}
 
+final case class FiberSuspension(blockingOn: FiberId, location: ZTraceElement)
+
+object FiberState2 {
+  def apply[E, A](refs: FiberRefs): FiberState2[E, A] = new FiberState2(refs)
+}
 class FiberState2[E, A](fiberRefs0: FiberRefs) {
   import FiberStatusIndicator.Status
 
   val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
   val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
 
-  var children  = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
-  var fiberRefs = fiberRefs0
-  var observers = List.empty[Exit[Nothing, Exit[E, A]] => Unit]
+  var _children  = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
+  var fiberRefs  = fiberRefs0
+  var observers  = List.empty[Exit[Nothing, Exit[E, A]] => Unit]
+  var suspension = null.asInstanceOf[FiberSuspension]
 
-  @volatile var exitValue = null.asInstanceOf[Exit[E, A]]
+  @volatile var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
     UIO.suspendSucceed {
-      if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
+      if (addMessage(effect)) ZIO.unit else orElse.unit
     }
 
-  final def unsafeAddObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
+  final def addChild(child: FiberContext[_, _]): Unit = {
+    if (_children eq null) {
+      _children = Platform.newWeakSet[FiberContext[_, _]]()
+    }
+    _children.add(child)
+  }
+
+  final def addMessage(effect: UIO[Any]): Boolean = {
+    @tailrec
+    def loop(message: UIO[Any]): Unit = {
+      val oldMessages = mailbox.get
+
+      val newMessages =
+        if (oldMessages eq ZIO.unit) message else (oldMessages *> message)(ZTraceElement.empty)
+
+      if (!mailbox.compareAndSet(oldMessages, newMessages)) loop(message)
+      else ()
+    }
+
+    if (statusState.beginAddMessage()) {
+      try {
+        loop(effect)
+        true
+      } finally statusState.endAddMessage()
+    } else false
+  }
+
+  final def addObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
     observers = observer :: observers
 
-  final def unsafeRemoveObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
-    observers = observers.filter(_ ne observer)
+  /**
+   * Attempts to place the state of the fiber in interruption, but only if the
+   * fiber is currently asynchronously suspended (hence, "async interruption").
+   */
+  final def attemptAsyncInterrupt(asyncs: Int): Boolean =
+    statusState.attemptAsyncInterrupt(asyncs)
 
   /**
    * Attempts to set the state of the fiber to done. This may fail if there are
@@ -101,19 +138,35 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
    *   `null` if the state of the fiber was set to done, or the pending
    *   messages, otherwise.
    */
-  final def unsafeAttemptDone(e: Exit[E, A]): UIO[Any] = {
-    exitValue = e
+  final def attemptDone(e: Exit[E, A]): UIO[Any] = {
+    _exitValue = e
 
     if (statusState.attemptDone()) {
       null.asInstanceOf[UIO[Any]]
-    } else unsafeDrainMailbox()
+    } else drainMailbox()
+  }
+
+  /**
+   * Attempts to place the state of the fiber into running, from a previous
+   * suspended state, identified by the async count.
+   *
+   * Returns `true` if the state was successfully transitioned, or `false` if it
+   * cannot be transitioned, because the fiber state was already resumed or even
+   * completed.
+   */
+  final def attemptResume(asyncs: Int): Boolean = {
+    val resumed = statusState.attemptResume(asyncs)
+
+    if (resumed) suspension = null
+
+    resumed
   }
 
   /**
    * Drains the mailbox of all messages. If the mailbox is empty, this will
    * return `ZIO.unit`.
    */
-  private final def unsafeDrainMailbox(): UIO[Any] = {
+  final def drainMailbox(): UIO[Any] = {
     @tailrec
     def clearMailbox(): UIO[Any] = {
       val oldMailbox = mailbox.get
@@ -126,21 +179,83 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
     else ZIO.unit
   }
 
-  private final def unsafeAddMessage(effect: UIO[Any]): Boolean = {
-    @tailrec
-    def loop(message: UIO[Any]): Unit = {
-      val oldMessages = mailbox.get
+  /**
+   * Changes the state to be suspended.
+   */
+  final def enterSuspend(): Int =
+    statusState.enterSuspend(getFiberRef(FiberRef.interruptible))
 
-      if (!mailbox.compareAndSet(oldMessages, (oldMessages *> message)(ZTraceElement.empty))) loop(message)
-      else ()
+  /**
+   * Retrieves the exit value of the fiber state, which will be `null` if not
+   * currently set.
+   */
+  final def exitValue(): Exit[E, A] = _exitValue
+
+  /**
+   * Retrieves the current number of async suspensions of the fiber, which can
+   * be used to uniquely identify each suspeension.
+   */
+  final def getAsyncs(): Int = statusState.getAsyncs()
+
+  /**
+   * Retrieves the state of the fiber ref, or else the specified value.
+   */
+  final def getFiberRefOrElse[A](fiberRef: FiberRef[A], orElse: => A): A =
+    fiberRefs.get(fiberRef).getOrElse(orElse)
+
+  /**
+   * Retrieves the state of the fiber ref, or else its initial value.
+   */
+  final def getFiberRef[A](fiberRef: FiberRef[A]): A =
+    fiberRefs.getOrDefault(fiberRef)
+
+  /**
+   * Determines if the fiber state contains messages to process by the fiber run
+   * loop. Due to race conditions, if this method returns true, it means only
+   * that, if the messages were not drained, there will be some messages at some
+   * point later, before the fiber state transitions to done.
+   */
+  final def hasMessages(): Boolean = {
+    val indicator = statusState.getIndicator()
+
+    FiberStatusIndicator.getPendingMessages(indicator) > 0 || FiberStatusIndicator.getMessages(indicator)
+  }
+
+  /**
+   * Removes the child from the children list.
+   */
+  final def removeChild(child: FiberContext[_, _]): Unit =
+    if (_children ne null) {
+      _children.remove(child)
     }
 
-    if (statusState.beginAddMessage()) {
-      try {
-        loop(effect)
-        true
-      } finally statusState.endAddMessage()
-    } else false
+  /**
+   * Removes the specified observer from the list of observers.
+   */
+  final def removeObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
+    observers = observers.filter(_ ne observer)
+
+  /**
+   * Retrieves a snapshot of the status of the fibers.
+   */
+  final def status(): Fiber.Status = {
+    import FiberStatusIndicator.Status
+
+    val indicator = statusState.getIndicator()
+
+    val status       = FiberStatusIndicator.getStatus(indicator)
+    val interrupting = FiberStatusIndicator.getInterrupting(indicator)
+
+    if (status == Status.Done) Fiber.Status.Done
+    else if (status == Status.Running) Fiber.Status.Running(interrupting)
+    else {
+      val interruptible = FiberStatusIndicator.getInterruptible(indicator)
+      val asyncs        = FiberStatusIndicator.getAsyncs(indicator)
+      val blockingOn    = if (suspension eq null) FiberId.None else suspension.blockingOn
+      val asyncTrace    = if (suspension eq null) ZTraceElement.empty else suspension.location
+
+      Fiber.Status.Suspended(interrupting, interruptible, asyncs, blockingOn, asyncTrace)
+    }
   }
 }
 

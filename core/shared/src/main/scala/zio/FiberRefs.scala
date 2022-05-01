@@ -121,6 +121,7 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
 }
 
 object FiberRefs {
+  val empty = FiberRefs(Map())
 
   private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
     new FiberRefs(fiberRefLocals)

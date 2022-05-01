@@ -151,6 +151,13 @@ object FiberStatusStateSpec extends ZIOBaseSpec {
 
           assertTrue(state.attemptDone() == false)
         } +
+        test("attemptDone - failure due to partial pending messages") {
+          val state = make()
+
+          state.beginAddMessage()
+
+          assertTrue(state.attemptDone() == false)
+        } +
         test("attemptDone - catastrophic failure due to already done") {
           val state = make()
 
