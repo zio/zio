@@ -3558,9 +3558,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   )(implicit trace: Trace): ZIO[R, E, A] =
     checkInterruptible(flag => k(ZIO.InterruptStatusRestore(flag)).interruptible)
 
+  /**
+   * Retrieves the definition of a fatal error.
+   */
   def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
     isFatalWith(isFatal => ZIO.succeedNow(isFatal))
 
+  /**
+   * Constructs an effect based on the definition of a fatal error.
+   */
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentFatal.getWith(fatal => f(t => fatal.exists(_.isAssignableFrom(t.getClass))))
 
