@@ -2131,10 +2131,6 @@ object ZIOSpec extends ZIOBaseSpec {
         val io = ZIO.suspend[Any, Nothing](throw ExampleError).either
         assertZIO(io)(isLeft(equalTo(ExampleError)))
       },
-      test("suspendWith must catch throwable") {
-        val io = ZIO.suspendWith[Any, Nothing]((_, _) => throw ExampleError).either
-        assertZIO(io)(isLeft(equalTo(ExampleError)))
-      },
       test("suspendSucceed must be evaluatable") {
         assertZIO(ZIO.suspendSucceed(ZIO.succeed(42)))(equalTo(42))
       },

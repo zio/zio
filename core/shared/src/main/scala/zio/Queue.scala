@@ -205,7 +205,7 @@ object Queue {
       }
 
     def shutdown(implicit trace: Trace): UIO[Unit] =
-      ZIO.suspendSucceedWith { (_, fiberId) =>
+      ZIO.fiberIdWith { fiberId =>
         shutdownFlag.set(true)
 
         ZIO
@@ -218,7 +218,7 @@ object Queue {
     def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
 
     def take(implicit trace: Trace): UIO[A] =
-      ZIO.suspendSucceedWith { (_, fiberId) =>
+      ZIO.fiberIdWith { fiberId =>
         if (shutdownFlag.get) ZIO.interrupt
         else {
           queue.poll(null.asInstanceOf[A]) match {
@@ -329,7 +329,7 @@ object Queue {
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+        ZIO.fiberIdWith { fiberId =>
           val p = Promise.unsafeMake[Nothing, Boolean](fiberId)
 
           ZIO.suspendSucceed {

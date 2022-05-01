@@ -152,7 +152,7 @@ object Hub {
           }
         }
       def shutdown(implicit trace: Trace): UIO[Unit] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+        ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
@@ -219,7 +219,7 @@ object Hub {
       def offerAll(as: Iterable[Nothing])(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeedNow(false)
       def shutdown(implicit trace: Trace): UIO[Unit] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+        ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
@@ -235,7 +235,7 @@ object Hub {
           else ZIO.succeedNow(subscription.size())
         }
       def take(implicit trace: Trace): UIO[A] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+        ZIO.fiberIdWith { fiberId =>
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val empty   = null.asInstanceOf[A]
@@ -374,7 +374,7 @@ object Hub {
         as: Iterable[A],
         isShutDown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+        ZIO.fiberIdWith { fiberId =>
           val promise = Promise.unsafeMake[Nothing, Boolean](fiberId)
           ZIO.suspendSucceed {
             unsafeOffer(as, promise)

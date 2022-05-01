@@ -355,7 +355,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
 
     def hh(e: E) =
-      ZIO.suspendSucceedWith((isFatal, _) => if (isFatal(e)) ZIO.die(e) else h(e))
+      ZIO.isFatalWith(isFatal => if (isFatal(e)) ZIO.die(e) else h(e))
     self.foldZIO[R1, E2, A1](hh, ZIO.succeedNow)
   }
 
@@ -2598,10 +2598,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   def attempt[A](effect: => A)(implicit trace: Trace): Task[A] =
-    succeedWith { (isFatal, _) =>
-      try effect
-      catch {
-        case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
+    isFatalWith { isFatal =>
+      ZIO.succeedNow {
+        try effect
+        catch {
+          case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
+        }
       }
     }
 
@@ -3557,6 +3559,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     checkInterruptible(flag => k(ZIO.InterruptStatusRestore(flag)).interruptible)
 
   /**
+   * Retrieves the definition of a fatal error.
+   */
+  def isFatal(implicit trace: Trace): UIO[Throwable => Boolean] =
+    isFatalWith(isFatal => ZIO.succeedNow(isFatal))
+
+  /**
+   * Constructs an effect based on the definition of a fatal error.
+   */
+  def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    FiberRef.currentFatal.getWith(fatal => f(t => fatal.exists(_.isAssignableFrom(t.getClass))))
+
+  /**
    * Iterates with the specified effectual function. The moral equivalent of:
    *
    * {{{
@@ -4217,19 +4231,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blocking(ZIO.succeed(a))
 
   /**
-   * The same as [[ZIO.succeed]], but also provides access to the definition of
-   * a fatal error and fiber id.
-   */
-  def succeedWith[A](f: (Throwable => Boolean, FiberId) => A)(implicit trace: Trace): UIO[A] =
-    new ZIO.SucceedWith(f, trace)
-
-  /**
    * Returns a lazily constructed effect, whose construction may itself require
    * effects. When no environment is required (i.e., when R == Any) it is
    * conceptually equivalent to `flatten(effect(io))`.
    */
   def suspend[R, A](rio: => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    suspendSucceedWith { (isFatal, _) =>
+    ZIO.isFatalWith { isFatal =>
       try rio
       catch {
         case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
@@ -4245,31 +4252,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def suspendSucceed[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     new ZIO.Suspend(() => zio, trace)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. The effect must not throw any exceptions. When no environment is
-   * required (i.e., when R == Any) it is conceptually equivalent to
-   * `flatten(succeed(zio))`. If you wonder if the effect throws exceptions, do
-   * not use this method, use [[ZIO.suspend]] or [[ZIO.suspend]].
-   */
-  def suspendSucceedWith[R, E, A](f: (Throwable => Boolean, FiberId) => ZIO[R, E, A])(implicit
-    trace: Trace
-  ): ZIO[R, E, A] =
-    new ZIO.SuspendWith(f, trace)
-
-  /**
-   * Returns a lazily constructed effect, whose construction may itself require
-   * effects. When no environment is required (i.e., when R == Any) it is
-   * conceptually equivalent to `flatten(effect(io))`.
-   */
-  def suspendWith[R, A](f: (Throwable => Boolean, FiberId) => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    suspendSucceedWith((isFatal, fiberId) =>
-      try f(isFatal, fiberId)
-      catch {
-        case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
-      }
-    )
 
   /**
    * Retreives the `System` service for this workflow.
@@ -5178,28 +5160,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     final val SucceedNow             = 4
     final val Fail                   = 5
     final val Succeed                = 6
-    final val SucceedWith            = 7
-    final val Suspend                = 8
-    final val SuspendWith            = 9
-    final val Async                  = 10
-    final val InterruptStatus        = 11
-    final val CheckInterrupt         = 12
-    final val Fork                   = 13
-    final val Descriptor             = 14
-    final val Shift                  = 15
-    final val Yield                  = 16
-    final val FiberRefNew            = 17
-    final val FiberRefModify         = 18
-    final val CaptureTrace           = 19
-    final val RaceWith               = 20
-    final val Supervise              = 21
-    final val GetForkScope           = 22
-    final val OverrideForkScope      = 23
-    final val Logged                 = 24
-    final val FiberRefModifyAll      = 25
-    final val FiberRefLocally        = 26
-    final val FiberRefDelete         = 27
-    final val FiberRefWith           = 28
+    final val Suspend                = 7
+    final val Async                  = 8
+    final val InterruptStatus        = 9
+    final val CheckInterrupt         = 10
+    final val Fork                   = 11
+    final val Descriptor             = 12
+    final val Shift                  = 13
+    final val Yield                  = 14
+    final val FiberRefNew            = 15
+    final val FiberRefModify         = 16
+    final val CaptureTrace           = 17
+    final val RaceWith               = 18
+    final val Supervise              = 19
+    final val GetForkScope           = 20
+    final val OverrideForkScope      = 21
+    final val Logged                 = 22
+    final val FiberRefModifyAll      = 23
+    final val FiberRefLocally        = 24
+    final val FiberRefDelete         = 25
+    final val FiberRefWith           = 26
   }
 
   private[zio] final case class ZioError[E, A](exit: Exit[E, A], trace: Trace) extends Throwable with NoStackTrace
@@ -5245,29 +5225,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Succeed
   }
 
-  private[zio] final class SucceedWith[A](val effect: (Throwable => Boolean, FiberId) => A, val trace: Trace)
-      extends UIO[A] {
-    def unsafeLog: () => String =
-      () => s"SucceedWith at ${trace}"
-
-    override def tag = Tags.SucceedWith
-  }
-
   private[zio] final class Suspend[R, E, A](val make: () => ZIO[R, E, A], val trace: Trace) extends ZIO[R, E, A] {
     def unsafeLog: () => String =
       () => s"Suspend at ${trace}"
 
     override def tag = Tags.Suspend
-  }
-
-  private[zio] final class SuspendWith[R, E, A](
-    val make: (Throwable => Boolean, FiberId) => ZIO[R, E, A],
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"SuspendWith at ${trace}"
-
-    override def tag = Tags.SuspendWith
   }
 
   private[zio] final class Async[R, E, A](

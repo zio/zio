@@ -272,8 +272,6 @@ Here are some of the most important changes:
 | `ZIO.effectBlockingInterrupt`  | `ZIO.attemptBlockingInterrupt`    |
 | `ZIO.effectSuspend`            | `ZIO.suspend`                     |
 | `ZIO.effectSuspendTotal`       | `ZIO.suspendSucceed`              |
-| `ZIO.effectSuspendTotalWith`   | `ZIO.suspendSucceedWith`          |
-| `ZIO.effectSuspendWith`        | `ZIO.suspendWith`                 |
 | `ZIO.effectTotal`              | `ZIO.succeed`                     |
 |                                |                                   |
 | `ZIO.foreach_`                 | `ZIO.foreachDiscard`              |
