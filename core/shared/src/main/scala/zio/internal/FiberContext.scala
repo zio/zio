@@ -204,18 +204,6 @@ private[zio] final class FiberContext[E, A](
 
                         curZio = k(value)
 
-                      case ZIO.Tags.SucceedWith =>
-                        val io2    = nested.asInstanceOf[ZIO.SucceedWith[Any]]
-                        val effect = io2.effect
-
-                        val isFatal = unsafeGetIsFatal()
-
-                        extraTrace = zio.trace
-                        val value = effect(isFatal, fiberId)
-                        extraTrace = emptyTraceElement
-
-                        curZio = k(value)
-
                       case ZIO.Tags.Yield =>
                         extraTrace = zio.trace
                         unsafeRunLater(k(()))
@@ -243,14 +231,6 @@ private[zio] final class FiberContext[E, A](
                     val effect = zio.effect
 
                     curZio = unsafeNextEffect(effect())
-
-                  case ZIO.Tags.SucceedWith =>
-                    val zio    = curZio.asInstanceOf[ZIO.SucceedWith[Any]]
-                    val effect = zio.effect
-
-                    val isFatal = unsafeGetIsFatal()
-
-                    curZio = unsafeNextEffect(effect(isFatal, fiberId))
 
                   case ZIO.Tags.Fail =>
                     val zio = curZio.asInstanceOf[ZIO.Fail[Any]]
@@ -302,13 +282,6 @@ private[zio] final class FiberContext[E, A](
                     val zio = curZio.asInstanceOf[ZIO.Suspend[Any, Any, Any]]
 
                     curZio = zio.make()
-
-                  case ZIO.Tags.SuspendWith =>
-                    val zio = curZio.asInstanceOf[ZIO.SuspendWith[Any, Any, Any]]
-
-                    val isFatal = unsafeGetIsFatal()
-
-                    curZio = zio.make(isFatal, fiberId)
 
                   case ZIO.Tags.InterruptStatus =>
                     val zio = curZio.asInstanceOf[ZIO.InterruptStatus[Any, Any, Any]]

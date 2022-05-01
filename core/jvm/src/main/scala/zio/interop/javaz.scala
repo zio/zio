@@ -27,7 +27,7 @@ import scala.concurrent.ExecutionException
 private[zio] object javaz {
 
   def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: Trace): Task[T] =
-    ZIO.suspendSucceedWith[Any, Throwable, T] { (isFatal, _) =>
+    ZIO.isFatalWith[Any, Throwable, T] { isFatal =>
       ZIO.async { k =>
         val handler = new CompletionHandler[T, Any] {
           def completed(result: T, u: Any): Unit = k(ZIO.succeedNow(result))
@@ -68,7 +68,7 @@ private[zio] object javaz {
 
   def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: Trace): Task[A] =
     ZIO.attempt(thunk).flatMap { cs =>
-      ZIO.suspendSucceedWith { (isFatal, _) =>
+      ZIO.isFatalWith { isFatal =>
         val cf = cs.toCompletableFuture
         if (cf.isDone) {
           unwrapDone(isFatal)(cf)
@@ -92,7 +92,7 @@ private[zio] object javaz {
    */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
     ZIO.attempt(thunk).flatMap { future =>
-      ZIO.suspendSucceedWith { (isFatal, _) =>
+      ZIO.isFatalWith { isFatal =>
         if (future.isDone) {
           unwrapDone(isFatal)(future)
         } else {
