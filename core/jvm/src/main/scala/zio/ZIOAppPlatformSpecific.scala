@@ -10,11 +10,16 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
    */
   final def main(args0: Array[String]): Unit = {
     implicit val trace: Trace = Trace.empty
-    val newRuntime            = runtime.mapRuntimeConfig(hook)
 
-    newRuntime.unsafeRun {
+    val newLayer =
+      Scope.default +!+ ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
+        bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
+
+    runtime.unsafeRun {
       (for {
-        fiber <- invokeWith(newRuntime)(Chunk.fromIterable(args0)).provideEnvironment(newRuntime.environment).fork
+        runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
+        _       <- installSignalHandlers(runtime)
+        fiber   <- runtime.run(run).fork
         _ <-
           ZIO.succeed(Platform.addShutdownHook { () =>
             if (!shuttingDown.getAndSet(true)) {
@@ -25,10 +30,10 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
                     "Catastrophic error encountered. " +
                     "Application not safely interrupted. " +
                     "Resources may be leaked. " +
-                    "Check the logs for more details and consider overriding `RuntimeConfig.reportFatal` to capture context."
+                    "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
                 )
               } else {
-                try newRuntime.unsafeRunSync(fiber.interrupt)
+                try runtime.unsafeRunSync(fiber.interrupt)
                 catch { case _: Throwable => }
               }
 
@@ -37,7 +42,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
           })
         result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
         _      <- exit(result)
-      } yield ())
+      } yield ()).provideLayer(newLayer)
     }
   }
 

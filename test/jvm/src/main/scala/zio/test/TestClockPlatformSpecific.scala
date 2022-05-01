@@ -37,7 +37,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
         }
 
         def asScheduledExecutorService: ScheduledExecutorService = {
-          val executor = runtime.runtimeConfig.executor
+          val executor = runtime.executor
 
           def compute[A](a: => A): Either[Throwable, A] =
             try {

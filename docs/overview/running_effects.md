@@ -34,7 +34,7 @@ Most applications are not greenfield, meaning they must integrate with legacy co
 
 In these cases, a better solution for running effects is to create a `Runtime`, which can be passed around and used to run effects wherever required.
 
-ZIO contains a default runtime called `Runtime.default`. This `Runtime` bundles together production implementations of all ZIO modules (including `Console`, `System`, `Clock`, `Random`, and `Scheduler`), and it can run effects that require any combination of these modules.
+ZIO contains a default runtime called `Runtime.default`.
 
 To access it, merely use
 
@@ -54,20 +54,17 @@ In addition to `unsafeRun`, there are other methods which allow the asynchonous 
 
 If you are using a custom environment for your application, you may find it useful to create a `Runtime` specifically tailored for that environment.
 
-A custom `Runtime[R]` can be created with two values:
+A custom `Runtime[R]` can be created with an `Environment[R]`. This represents the environment that will be provided to effects when they are executed.
 
- - **`R` Environment**. This represents the environment that will be provided to effects when they are executed.
- - **`RuntimeConfig`**. This is the runtime configuration that is required by ZIO in order to bootstrap the runtime system.
-
-For example, the following creates a `Runtime` that can provide an `Int` to effects using the default `RuntimeConfig` provided by ZIO:
+For example, the following creates a `Runtime` that can provide an `Int` to effects :
 
 ```scala mdoc:silent
-val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), RuntimeConfig.default)
+val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), FiberRefs.empty)
 ```
 
 ## Error Reporting
 
-In the `RuntimeConfig` that is a part of every runtime, there is an error reporter that is called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter that can log unhandled errors to a file.
+In the `Runtime` there is an error reporter that is called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter that can log unhandled errors to a file.
 
 The default unhandled error reporter merely logs the error to standard error (`stderr`).
 

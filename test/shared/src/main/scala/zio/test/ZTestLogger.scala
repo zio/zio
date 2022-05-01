@@ -33,7 +33,7 @@ object ZTestLogger {
 
   /**
    * A layer which constructs a new `ZTestLogger` and runs the effect it is
-   * provided to with the `RuntimeConfig` updated to add the `ZTestLogger`.
+   * provided to with the `Runtime` updated to add the `ZTestLogger`.
    */
   val default: ZLayer[Any, Nothing, Any] =
     ZLayer.scoped {
@@ -47,8 +47,8 @@ object ZTestLogger {
    * Accesses the contents of the current test logger.
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
+    ZIO.loggersWith { loggers =>
+      loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
         testLogger.logOutput
       }
         .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))

@@ -433,6 +433,20 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * Constructs an aspect from a layer that does not produce any services.
+   */
+  def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] = {
+    val fromLayer = new TestAspect.PerTest[Nothing, R0, E0, Any] {
+      def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
+        trace: Trace
+      ): ZIO[R, TestFailure[E], TestSuccess] =
+        test.provideSomeLayer[R](layer.mapError(TestFailure.fail))
+    }
+
+    before(ZIO.yieldNow(Trace.empty)) >>> fromLayer >>> after(ZIO.yieldNow(Trace.empty))
+  }
+
+  /**
    * As aspect that runs each test with the specified `ZIOAspect`.
    */
   def fromZIOAspect[LowerR, UpperR, LowerE, UpperE](
@@ -758,12 +772,6 @@ object TestAspect extends TimeoutVariants {
     }
     restoreTestEnvironment >>> retry
   }
-
-  /**
-   * As aspect that runs each test with the specified `RuntimeConfigAspect`.
-   */
-  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): TestAspectPoly =
-    fromZIOAspect(ZIOAspect.runtimeConfig(runtimeConfigAspect))
 
   /**
    * An aspect that runs each test with the number of sufficient samples to

@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
   reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(Trace.empty),
   bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
     implicit val emptyTracer = Trace.empty
@@ -43,7 +42,7 @@ final case class TestRunner[R, E](
   }
 ) { self =>
 
-  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty, runtimeConfig)
+  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.
@@ -97,14 +96,8 @@ final case class TestRunner[R, E](
   def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =
     copy(reporter = reporter)
 
-  /**
-   * Creates a copy of this runner replacing the runtime configuration.
-   */
-  def withRuntimeConfig(f: RuntimeConfig => RuntimeConfig): TestRunner[R, E] =
-    copy(runtimeConfig = f(runtimeConfig))
-
   private[test] def buildRuntime(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
-    bootstrap.toRuntime(runtimeConfig)
+    bootstrap.toRuntime
 }

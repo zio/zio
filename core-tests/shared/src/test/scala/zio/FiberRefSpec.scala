@@ -393,7 +393,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         actual   <- ZIO.succeedBlocking(runtime.unsafeRun(ZIO.clock))
       } yield assertTrue(actual == expected)
     }
-  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
+  ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
 }
 
 object FiberRefSpecUtil {

@@ -563,54 +563,11 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ### Method Deprecation and Renaming
 
-We renamed the `Platform` data type to the `RuntimeConfig`, and moved it from the `zio.internal` to the `zio` package with some member deprecation:
-
-| ZIO 1.0                         | ZIO 2.x              |
-|---------------------------------|----------------------|
-| `zio.internal.Platfom`          | `zio.RuntimeConfig`  |
-| `Platform#withBlockingExecutor` | `RuntimeConfig#copy` |
-| `Platform#withExecutor`         | `RuntimeConfig#copy` |
-| `Platform#withFatal`            | `RuntimeConfig#copy` |
-| `Platform#withReportFatal`      | `RuntimeConfig#copy` |
-| `Platform#withReportFailure`    | `RuntimeConfig#copy` |
-| `Platform#withSupervisor`       | `RuntimeConfig#copy` |
-| `Platform#withTracing`          | `RuntimeConfig#copy` |
-
 Also, we moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
 |-------------------------|----------------|
 | `zio.internal.Executor` | `zio.Executor` |
-
-In regard to renaming the `Platform` data-type to the `RuntimeConfig` we have some similar renaming in other data-types like `Runtime` and `ZIO`:
-
-| ZIO 1.0               | ZIO 2.x                    |
-|-----------------------|----------------------------|
-| `Runtime#mapPlatform` | `Runtime#mapRuntimeConfig` |
-| `Runtime#platfom`     | `Runtime#runtimeConfig`    |
-| `ZIO.platfom`         | `ZIO.runtimeConfig`        |
-
-### Runtime Config Aspect
-
-ZIO 2.x, introduced a new data-type called `RuntimeConfigAspect` with the following methods:
-
-* `addLogger`
-* `addReportFailure`
-* `addReportFatal`
-* `addSupervisor`
-* `identity`
-* `setBlockingExecutor`
-* `setExecutor`
-* `setTracing`
-
-### Compositional Runtime Config
-
-ZIO 2.x allows us to run part of an effect on a different `RuntimeConfig`:
-
-```scala
-ZIO.withRuntimeConfig(newRuntimeConfiguration)(effect)
-```
-After running the effect on the specified runtime configuration, it will restore the old runtime configuration.
 
 ## ZLayer
 

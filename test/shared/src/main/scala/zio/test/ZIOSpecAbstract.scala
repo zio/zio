@@ -113,7 +113,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         ]
       environment0: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
       environment1: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
-      runtimeConfig                                     = hook(runtime.runtimeConfig)
       sharedLayer: ZLayer[Any, Any, Environment] =
         ZLayer.succeedEnvironment(environment0) >>> bootstrap
       perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
@@ -130,8 +129,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               perTestLayer,
               executionEventSinkLayer,
               _ => ZIO.unit
-            ),
-          runtimeConfig
+            )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       summary <-
@@ -159,7 +157,6 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     for {
       _                                                <- ZIO.unit
       environment1: ZEnvironment[ZIOAppArgs with Scope] = castedRuntime.environment
-      runtimeConfig                                     = hook(castedRuntime.runtimeConfig)
       sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
         ZLayer.succeedEnvironment(castedRuntime.environment)
       perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
@@ -176,8 +173,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
               perTestLayer,
               executionEventSinkLayer,
               eventHandlerZ
-            ),
-          runtimeConfig
+            )
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       summary <-

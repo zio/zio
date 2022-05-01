@@ -49,7 +49,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
         }
       }
 
-      val app1 = ZIOAppDefault(ZIO.fail("Uh oh!"), RuntimeConfigAspect.addLogger(logger1))
+      val app1 = ZIOApp(ZIO.fail("Uh oh!"), Runtime.addLogger(logger1))
 
       for {
         c <- app1.invoke(Chunk.empty).exitCode

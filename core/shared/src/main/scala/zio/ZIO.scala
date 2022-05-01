@@ -355,7 +355,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   )(implicit ev1: CanFail[E], ev2: E <:< Throwable, trace: Trace): ZIO[R1, E2, A1] = {
 
     def hh(e: E) =
-      ZIO.runtime[Any].flatMap(runtime => if (runtime.runtimeConfig.isFatal(e)) ZIO.die(e) else h(e))
+      ZIO.suspendSucceedWith((isFatal, _) => if (isFatal(e)) ZIO.die(e) else h(e))
     self.foldZIO[R1, E2, A1](hh, ZIO.succeedNow)
   }
 
@@ -2598,10 +2598,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * }}}
    */
   def attempt[A](effect: => A)(implicit trace: Trace): Task[A] =
-    succeedWith { (runtimeConfig, _) =>
+    succeedWith { (isFatal, _) =>
       try effect
       catch {
-        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -2638,7 +2638,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Retrieves the executor for all blocking tasks.
    */
   def blockingExecutor(implicit trace: Trace): UIO[Executor] =
-    ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig.blockingExecutor))
+    FiberRef.currentBlockingExecutor.get
 
   /**
    * Checks the interrupt status, and produces the effect returned by the
@@ -2938,6 +2938,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def executor(implicit trace: Trace): UIO[Executor] =
     ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
+
+  /**
+   * Constructs an effect based on the current executor.
+   */
+  def executorWith[R, E, A](f: Executor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.descriptorWith(descriptor => f(descriptor.executor))
 
   /**
    * Determines whether any element of the `Iterable[A]` satisfies the effectual
@@ -3582,6 +3588,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     succeed(Left(a))
 
   /**
+   * Retrieves the current loggers for this effect.
+   */
+  def loggers(implicit trace: Trace): UIO[Set[ZLogger[String, Any]]] =
+    FiberRef.currentLoggers.get
+
+  /**
+   * Constructs an effect based on the current loggers.
+   */
+  def loggersWith[R, E, A](f: Set[ZLogger[String, Any]] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    FiberRef.currentLoggers.getWith(f)
+
+  /**
    * Loops with the specified effectual function, collecting the results into a
    * list. The moral equivalent of:
    *
@@ -4054,17 +4072,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def runtime[R](implicit trace: Trace): URIO[R, Runtime[R]] =
     for {
-      environment   <- environment[R]
-      runtimeConfig <- suspendSucceedWith((p, _) => ZIO.succeedNow(p))
-      executor      <- executor
-      fiberRefs     <- ZIO.getFiberRefs
-    } yield Runtime(environment, runtimeConfig.copy(executor = executor), fiberRefs)
-
-  /**
-   * Retrieves the runtimeConfig that this effect is running on.
-   */
-  def runtimeConfig(implicit trace: Trace): UIO[RuntimeConfig] =
-    ZIO.suspendSucceedWith((runtimeConfig, _) => ZIO.succeedNow(runtimeConfig))
+      environment <- environment[R]
+      fiberRefs   <- ZIO.getFiberRefs
+    } yield Runtime(environment, fiberRefs)
 
   /**
    * Returns the current scope.
@@ -4207,10 +4217,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     blocking(ZIO.succeed(a))
 
   /**
-   * The same as [[ZIO.succeed]], but also provides access to the underlying
-   * RuntimeConfig and fiber id.
+   * The same as [[ZIO.succeed]], but also provides access to the definition of
+   * a fatal error and fiber id.
    */
-  def succeedWith[A](f: (RuntimeConfig, FiberId) => A)(implicit trace: Trace): UIO[A] =
+  def succeedWith[A](f: (Throwable => Boolean, FiberId) => A)(implicit trace: Trace): UIO[A] =
     new ZIO.SucceedWith(f, trace)
 
   /**
@@ -4219,10 +4229,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * conceptually equivalent to `flatten(effect(io))`.
    */
   def suspend[R, A](rio: => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    suspendSucceedWith { (runtimeConfig, _) =>
+    suspendSucceedWith { (isFatal, _) =>
       try rio
       catch {
-        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     }
 
@@ -4243,7 +4253,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * `flatten(succeed(zio))`. If you wonder if the effect throws exceptions, do
    * not use this method, use [[ZIO.suspend]] or [[ZIO.suspend]].
    */
-  def suspendSucceedWith[R, E, A](f: (RuntimeConfig, FiberId) => ZIO[R, E, A])(implicit
+  def suspendSucceedWith[R, E, A](f: (Throwable => Boolean, FiberId) => ZIO[R, E, A])(implicit
     trace: Trace
   ): ZIO[R, E, A] =
     new ZIO.SuspendWith(f, trace)
@@ -4253,11 +4263,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effects. When no environment is required (i.e., when R == Any) it is
    * conceptually equivalent to `flatten(effect(io))`.
    */
-  def suspendWith[R, A](f: (RuntimeConfig, FiberId) => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
-    suspendSucceedWith((runtimeConfig, fiberId) =>
-      try f(runtimeConfig, fiberId)
+  def suspendWith[R, A](f: (Throwable => Boolean, FiberId) => RIO[R, A])(implicit trace: Trace): RIO[R, A] =
+    suspendSucceedWith((isFatal, fiberId) =>
+      try f(isFatal, fiberId)
       catch {
-        case t: Throwable if !runtimeConfig.isFatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
       }
     )
 
@@ -5235,7 +5245,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     override def tag = Tags.Succeed
   }
 
-  private[zio] final class SucceedWith[A](val effect: (RuntimeConfig, FiberId) => A, val trace: Trace) extends UIO[A] {
+  private[zio] final class SucceedWith[A](val effect: (Throwable => Boolean, FiberId) => A, val trace: Trace)
+      extends UIO[A] {
     def unsafeLog: () => String =
       () => s"SucceedWith at ${trace}"
 
@@ -5250,7 +5261,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final class SuspendWith[R, E, A](
-    val make: (RuntimeConfig, FiberId) => ZIO[R, E, A],
+    val make: (Throwable => Boolean, FiberId) => ZIO[R, E, A],
     val trace: Trace
   ) extends ZIO[R, E, A] {
     def unsafeLog: () => String =

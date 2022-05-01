@@ -188,36 +188,6 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that runs effects with the runtime configuration modified with
-   * the specified `RuntimeConfigAspect`.
-   */
-  def runtimeConfig(runtimeConfigAspect: RuntimeConfigAspect): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = {
-
-        def setRuntimeConfig(runtimeConfig: RuntimeConfig): UIO[Unit] =
-          FiberRef.currentBlockingExecutor.set(runtimeConfig.blockingExecutor) *>
-            FiberRef.currentExecutor.set(runtimeConfig.executor) *>
-            FiberRef.currentFatal.set(runtimeConfig.fatal) *>
-            FiberRef.currentLoggers.set(runtimeConfig.loggers) *>
-            FiberRef.currentReportFatal.set(runtimeConfig.reportFatal) *>
-            FiberRef.currentRuntimeConfigFlags.set(runtimeConfig.flags) *>
-            FiberRef.currentSupervisors.set(runtimeConfig.supervisors) *>
-            ZIO.yieldNow
-
-        ZIO.runtimeConfig.flatMap { currentRuntimeConfig =>
-          ZIO.acquireReleaseWith {
-            setRuntimeConfig(runtimeConfigAspect(currentRuntimeConfig))
-          } { _ =>
-            setRuntimeConfig(currentRuntimeConfig)
-          } { _ =>
-            zio
-          }
-        }
-      }
-    }
-
-  /**
    * An aspect that times out effects.
    */
   def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Any, E1, Any, Nothing, Any] =
