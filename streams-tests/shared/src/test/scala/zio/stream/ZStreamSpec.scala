@@ -1024,6 +1024,73 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(execution)(equalTo(List("First", "Second")))
           }
         ),
+        suite("conflate")(
+          test("should not aggregate if downstream is as fast")(check(Gen.chunkOfN(10)(Gen.int(0, 10))) { chunk =>
+            var aggregated = false
+
+            for {
+              producerQueue <- Queue.bounded[Int](1)
+              stream         = ZStream.fromQueue(producerQueue).conflate { (sum, i) => aggregated = true; sum + i }
+              consumerQueue <- stream.toQueueOfElements(1)
+              resultExits <- ZIO.foreach(chunk) { int =>
+                               producerQueue.offer(int) *> consumerQueue.take
+                             }
+              resultChunk = resultExits.collect { case Exit.Success(i) => i }
+            } yield assert(resultChunk)(equalTo(chunk)) && assert(aggregated)(isFalse)
+          }),
+          test("should aggregate on slow downstream") {
+            assertWithChunkCoordination(List(Chunk(1, 1), Chunk(1, 1), Chunk(1, 1, 1))) { c =>
+              for {
+                fiber <- ZStream
+                           .fromQueue(c.queue)
+                           .collectWhileSuccess
+                           .flattenChunks
+                           .conflate(_ + _)
+                           .tap(_ => c.proceed)
+                           .runCollect
+                           .fork
+                _      <- c.offer
+                _      <- c.offer
+                _      <- c.awaitNext
+                _      <- c.offer
+                _      <- c.awaitNext
+                result <- fiber.join
+              } yield assert(result)(equalTo(Chunk(4, 3)))
+            }
+          },
+          test("should aggregate all on very slow downstream")(check(Gen.chunkOfN(10)(Gen.int(0, 10))) { chunk =>
+            for {
+              producerQueue <- Queue.unbounded[Int]
+              _             <- ZIO.foreach(chunk)(int => producerQueue.offer(int))
+              stream         = ZStream.fromQueue(producerQueue).conflate(_ + _)
+              consumerQueue <- stream.toQueueOfElements(1)
+              result        <- consumerQueue.take
+            } yield assert(result)(succeeds(equalTo(chunk.sum)))
+          }),
+          test("backpressure consumer when upstream is slower") {
+            for {
+              producerQueue <- Queue.unbounded[Int]
+              _             <- producerQueue.offerAll(Chunk(1, 2, 3))
+              stream         = ZStream.fromQueue(producerQueue).conflate(_ + _)
+              consumerQueue <- stream.toQueueOfElements(1)
+              result0       <- consumerQueue.take
+              fiber         <- consumerQueue.take.timeout(1.minute).fork
+              _             <- TestClock.adjust(1.minute)
+              result1       <- fiber.join
+            } yield assert(result0)(succeeds(equalTo(6))) && assert(result1)(isNone)
+          } @@ nonFlaky(10),
+          test("should at least emit seed") {
+            var aggregated = false
+
+            for {
+              producerQueue <- Queue.bounded[Int](1)
+              stream         = ZStream.fromQueue(producerQueue).conflate { (sum, i) => aggregated = true; sum + i }
+              consumerQueue <- stream.toQueueOfElements(1)
+              _             <- producerQueue.offer(0)
+              result        <- consumerQueue.take
+            } yield assert(result)(succeeds(equalTo(0))) && assert(aggregated)(isFalse)
+          }
+        ),
         suite("distributedWithDynamic")(
           test("ensures no race between subscription and stream end") {
             ZIO.scoped {

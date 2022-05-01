@@ -920,6 +920,84 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     new ZStream(channel *> that.channel)
 
   /**
+   * Allows a faster producer to progress independently of a slower consumer by
+   * conflating elements into a summary until the consumer is ready to accept
+   * them.
+   *
+   * See also [[ZStream#conflateWithSeed]] for the more powerful variant.
+   *
+   * @note
+   *   This combinator destroys the chunking structure. It's recommended to use
+   *   rechunk afterwards.
+   */
+  final def conflate[A1 >: A](f: (A1, A1) => A1)(implicit trace: Trace): ZStream[R, E, A1] =
+    conflateWithSeed[A1](identity)(f)
+
+  /**
+   * Allows a faster producer to progress independently of a slower consumer by
+   * conflating elements into a summary until the consumer is ready to accept
+   * them.
+   *
+   * This variant derives a seed from the first element with the seed function
+   * and change the aggregated type to be different than the input type.
+   *
+   * @note
+   *   This combinator destroys the chunking structure. It's recommended to use
+   *   rechunk afterwards.
+   */
+  final def conflateWithSeed[S](seed: A => S)(f: (S, A) => S)(implicit trace: Trace): ZStream[R, E, S] = {
+    type MVar = TRef[Option[Exit[Option[E], S]]]
+
+    def put(queue: MVar)(exit: Exit[Option[E], S]): UIO[Unit] =
+      (queue.get.collect { case None => () } *> queue.set(Some(exit))).commit
+
+    def take(queue: MVar): UIO[Exit[Option[E], S]] =
+      (queue.get.collect { case Some(a) => a }.flatMap(a => queue.set(None) as a)).commit
+
+    def producer(queue: MVar): ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+        in =>
+          ZChannel.fromZIO {
+            STM.atomically {
+              queue.get.flatMap {
+                case Some(Exit.Success(s)) =>
+                  queue.set(Some(Exit.succeed(in.foldLeft[S](s)(f))))
+                case _ =>
+                  in.headOption.fold(STM.unit) { head =>
+                    queue.set(Some(Exit.succeed(in.tail.foldLeft[S](seed(head))(f))))
+                  }
+              }
+            }
+          } *> producer(queue),
+        cause => ZChannel.fromZIO(put(queue)(Exit.failCause(cause.map(Some(_))))),
+        _ => ZChannel.fromZIO(put(queue)(Exit.failCause(Cause.fail(None))))
+      )
+
+    def consumer(queue: MVar): ZChannel[R, Any, Any, Any, E, Chunk[S], Unit] = {
+      lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[S], Unit] =
+        ZChannel.fromZIO(take(queue)).flatMap {
+          case Exit.Success(s) =>
+            ZChannel.write(Chunk.single(s)) *> process
+          case Exit.Failure(cause) =>
+            Cause
+              .flipCauseOption(cause)
+              .fold[ZChannel[Any, Any, Any, Any, E, Nothing, Unit]](ZChannel.unit)(ZChannel.failCause(_))
+        }
+
+      process
+    }
+
+    new ZStream(
+      ZChannel.unwrapScoped[R] {
+        for {
+          queue <- TRef.make[Option[Exit[Option[E], S]]](None).commit
+          _     <- (self.channel >>> producer(queue)).runScoped.forkScoped
+        } yield consumer(queue)
+      }
+    )
+  }
+
+  /**
    * Composes this stream with the specified stream to create a cartesian
    * product of elements. The `that` stream would be run multiple times, for
    * every element in the `this` stream.
