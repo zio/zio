@@ -1095,6 +1095,81 @@ As we discussed earlier, it is dangerous for fibers to interrupt others. The dan
 - If this interruption occurs in the middle of a _critical section_, it will cause an application state to become inconsistent.
 - It is also a threat to _resource safety_. If the fiber is in the middle of acquiring a resource and is interrupted, the application will leak resources.
 
+In the following code, we have a _stateful_ application. The state is a set of names. We have a function that gets names from the user and adds them to the state. Finally, we have a function that persists all names in the state to the database:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  type State = Set[String]
+
+  def run =
+    for {
+      state <- Ref.make[State](Set.empty)
+      _ <- getNames(state)
+      _ <- persistNames(state)
+    } yield ()
+
+  def getNames(state: Ref[State]) =
+    for {
+      _ <- ZIO.debug(s"stateful app started with $state")
+      _ <- Console.printLine("please enter 5 names:")
+      task = (i: Int) => for {
+        _ <- Console.print(s"$i. ")
+        name <- Console.readLine
+        _ <- state.update(_ + name)
+      } yield ()
+      _ <- ZIO.foreach(1 to 5)(task)
+    } yield ()
+
+  def persistNames(state: Ref[State]) =
+    for {
+      _ <- ZIO.debug(s"persist started with $state")
+      names <- state.get
+      _ <- ZIO.foreach(names)(name => ZIO.debug(s"persist $name"))
+    } yield ()
+
+}
+```
+
+So what happens if the `getNames` function is interrupted after the user entered a name and before it is added to the state? We will miss the name that the user entered. So we might need to retry the input operation and ask the user to enter the name again. But this is not user-friendly. 
+
+Instead, we can fix this by postponing the interruption of the `getNames` function by using the `uninterruptible` combinator:
+
+```scala mdoc:compile-only
+def getNames(state: Ref[State]) =
+  for {
+    _ <- ZIO.debug(s"stateful app started with $state")
+    _ <- Console.printLine("please enter 5 names:")
+    task = (i: Int) => for {
+      _ <- Console.print(s"$i. ")
+      _ <- ZIO.uninterruptible(
+        for {
+          name <- Console.readLine  
+          _ <- state.update(_ + name)
+        } yield ()
+      )
+    } yield ()
+    _ <- ZIO.foreach(1 to 5)(task)
+  } yield ()
+```
+
+Using this approach, we can avoid the problem of missing a name that the user entered. In this way, if in between the line `Console.readLine` and the line `state.update(_ + name)` the interruption occurs, the interruption will be postponed until the line `state.update(_ + name)` is executed. So we don't miss the name that the user entered.
+
+But this approach causes another problem. The `Console.readLine` is a blocking operation (semantic blocking). So if the interruption occurs while the `Console.readLine` is executing, the interruption gets stuck and the application will block indefinitely.
+
+To reproduce this scenario, we can use the `timeout` combinator to limit the time of the `getNames` function:
+
+```scala
+for {
+  state <- Ref.make[State](Set.empty)
+  _ <- getNames(state).timeout(10.seconds)
+  _ <- persistNames(state)
+} yield ()
+```
+
+By timing out the `getNames`, if the user doesn't enter all 5 names in 10 seconds the `Console.readLine` cannot be interrupted and the application will block indefinitely.
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
