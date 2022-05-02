@@ -3838,7 +3838,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new Logged(() => message, cause, someWarning, trace)
 
   /**
-   * Logs the specified cause at the warning log level.
+   * Logs the specified cause at the warning log level..
    */
   def logWarningCause(cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
     logWarningCause("", cause)
