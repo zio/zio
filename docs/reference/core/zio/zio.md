@@ -1088,6 +1088,13 @@ The zio-fiber-9 fiber which is the underlying fiber of the random boolean task i
 The zio-fiber-8 fiber which is the underlying fiber of the random number task interrupted by zio-fiber-7
 ```
 
+### Postponing Interruption of Fibers
+
+As we discussed earlier, it is dangerous for fibers to interrupt others. The danger with such an interruption is that:
+- If the interruption occurs during the execution of an operation that must be _finalized_, the finalization will not be executed.
+- If this interruption occurs in the middle of a _critical section_, it will cause an application state to become inconsistent.
+- It is also a threat to _resource safety_. If the fiber is in the middle of acquiring a resource and is interrupted, the application will leak resources.
+
 ## Blocking Operations
 
 ZIO provides access to a thread pool that can be used for performing blocking operations, such as thread sleeps, synchronous socket/file reads, and so forth.
