@@ -185,7 +185,7 @@ lazy val coreJS = core.js
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
     },
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val coreNative = core.native
@@ -226,7 +226,7 @@ lazy val coreTestsJS = coreTests.js
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
     },
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -254,7 +254,7 @@ lazy val managedJVM = managed.jvm
 lazy val managedJS = managed.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val managedNative = managed.native
@@ -290,7 +290,7 @@ lazy val managedTestsJS = managedTests.js
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
     },
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -358,7 +358,7 @@ lazy val streamsJVM = streams.jvm
 lazy val streamsJS = streams.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val streamsNative = streams.native
@@ -393,7 +393,7 @@ lazy val streamsTestsJS = streamsTests.js
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
     },
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -429,7 +429,7 @@ lazy val testJS = test.js
       "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M1",
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
     ),
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
@@ -460,7 +460,7 @@ lazy val testTestsJS = testTests.js
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
     },
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
@@ -496,7 +496,7 @@ lazy val testMagnoliaJVM = testMagnolia.jvm
 lazy val testMagnoliaJS = testMagnolia.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
@@ -519,7 +519,7 @@ lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
 lazy val testMagnoliaTestsJS = testMagnoliaTests.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
@@ -541,7 +541,7 @@ lazy val testRefinedJVM = testRefined.jvm
 lazy val testRefinedJS = testRefined.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -571,7 +571,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val stacktracerJS = stacktracer.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 lazy val stacktracerJVM = stacktracer.jvm
   .settings(dottySettings)
@@ -607,7 +607,7 @@ lazy val testRunnerJS = testRunner.js
     libraryDependencies ++= Seq(
       ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
     ),
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 lazy val testRunnerNative = testRunner.native
   .settings(nativeSettings)
@@ -685,7 +685,7 @@ lazy val concurrentJVM = concurrent.jvm
 lazy val concurrentJS = concurrent.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val concurrentNative = concurrent.native
@@ -708,7 +708,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
 lazy val examplesJS = examples.js
   .settings(dottySettings)
   .settings(
-    Test/parallelExecution := false
+    Test / parallelExecution := false
   )
 
 lazy val examplesJVM = examples.jvm
