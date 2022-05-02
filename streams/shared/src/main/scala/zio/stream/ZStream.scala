@@ -3764,8 +3764,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       for {
         doneRef <- Ref.make(false).toManaged_
         pull = doneRef.modify { done =>
-                 if (done || c.isEmpty) Pull.end -> true
-                 else ZIO.succeedNow(c)          -> true
+                 if (done) {
+                   Pull.end -> true
+                 } else {
+                   val c0 = c
+                   if (c0.isEmpty) {
+                     Pull.end -> true
+                   } else {
+                     ZIO.succeedNow(c0) -> true
+                   }
+                 }
                }.flatten
       } yield pull
     }
