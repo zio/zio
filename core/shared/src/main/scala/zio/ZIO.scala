@@ -4717,22 +4717,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       )
   }
 
-  final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithPartiallyApplied[R](private val dummy: Unit) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: Trace): URIO[R, A] =
       ZIO.environment.map(f)
   }
 
-  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Unit) extends AnyVal {
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: Trace): ZIO[R with R1, E, A] =
       ZIO.environment.flatMap(f)
   }
 
-  final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class ScopedPartiallyApplied[R](private val dummy: Unit) extends AnyVal {
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       Scope.make.flatMap(_.use[R](zio))
   }
 
-  final class UsingPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class UsingPartiallyApplied[R](private val dummy: Unit) extends AnyVal {
     def apply[R1, E, A, B](
       resource: ZIO[R with Scope, E, A]
     )(use: A => ZIO[R1, E, B])(implicit trace: Trace): ZIO[R with R1, E, B] =
@@ -4745,21 +4745,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
-  final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+  final class ServiceAtPartiallyApplied[Service](private val dummy: Unit) extends AnyVal {
     def apply[Key](
       key: => Key
     )(implicit tag: EnvironmentTag[Map[Key, Service]], trace: Trace): URIO[Map[Key, Service], Option[Service]] =
       ZIO.environmentWith(_.getAt(key))
   }
 
-  final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+  final class ServiceWithPartiallyApplied[Service](private val dummy: Unit) extends AnyVal {
     def apply[A](
       f: Service => A
     )(implicit tagged: Tag[Service], trace: Trace): ZIO[Service, Nothing, A] =
       ZIO.serviceWithZIO(service => ZIO.succeedNow(f(service)))
   }
 
-  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+  final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Unit) extends AnyVal {
     def apply[R <: Service, E, A](
       f: Service => ZIO[R, E, A]
     )(implicit
@@ -4773,14 +4773,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
   }
 
-  final class StatefulPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+  final class StatefulPartiallyApplied[R](private val dummy: Unit) extends AnyVal {
     def apply[S, E, A](
       s: S
     )(zio: => ZIO[ZState[S] with R, E, A])(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[R, E, A] =
       zio.provideSomeLayer[R](ZState.initial(s))
   }
 
-  final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
+  final class GetStateWithPartiallyApplied[S](private val dummy: Unit) extends AnyVal {
     def apply[A](f: S => A)(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[ZState[S], Nothing, A] =
       ZIO.serviceWithZIO(_.get.map(f))
   }
