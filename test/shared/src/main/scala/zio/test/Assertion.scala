@@ -45,7 +45,11 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
 
 object Assertion extends AssertionVariants {
 
-  def smartAssert[A](expr: => A, codeString: Option[String] = None, assertionString: Option[String] = None)(
+  private[test] def smartAssert[A](
+    expr: => A,
+    codeString: Option[String] = None,
+    assertionString: Option[String] = None
+  )(
     assertion: Assertion[A]
   )(implicit trace: Trace): TestResult = {
     lazy val value0 = expr
@@ -61,7 +65,7 @@ object Assertion extends AssertionVariants {
     )
   }
 
-  def smartAssertZIO[R, E, A](
+  private[test] def smartAssertZIO[R, E, A](
     expr: => ZIO[R, E, A]
   )(assertion: Assertion[A])(implicit trace: Trace): ZIO[R, E, TestResult] = {
     lazy val value0 = expr
@@ -81,6 +85,19 @@ object Assertion extends AssertionVariants {
           }
         }
         .withCode(name)
+    )
+
+  def assertionRec[A, B](name: String)(assertion: Assertion[B])(get: A => Option[B]): Assertion[A] =
+    Assertion(
+      TestArrow
+        .make[A, B] { a =>
+          get(a).fold[TestTrace[B]](
+            TestTrace.fail(M.text("Custom Assertion") + M.value(name) + M.choice("succeeded", "failed"))
+          ) { b =>
+            TestTrace.succeed(b)
+          }
+        }
+        .withCode(name) >>> assertion.arrow
     )
 
   // TODO: Extend Syntax
