@@ -1,34 +1,99 @@
 package zio.test.render
 
 import zio.Trace
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Message
-import zio.test.{ExecutionEvent, Summary, TestAnnotation, TestAnnotationRenderer}
-
-import scala.annotation.tailrec
-import scala.util.Try
+import zio.test._
 
 trait IntelliJRenderer extends TestRenderer {
   import IntelliJRenderer._
 
-  override def render(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
-    mkTree(results).flatMap(renderTree)
+  override def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit
+    trace: Trace
+  ): Seq[ExecutionResult] =
+    event match {
+      case SectionStart(labelsReversed, _, _) =>
+        val depth = labelsReversed.length - 1
+        labelsReversed.reverse match {
+          case Nil => Seq.empty
+          case nonEmptyList =>
+            Seq(
+              ExecutionResult.withoutSummarySpecificOutput(
+                ResultType.Suite,
+                label = nonEmptyList.last,
+                Status.Started,
+                offset = depth,
+                annotations = Nil,
+                lines = Nil
+              )
+            )
+        }
 
-  private def renderTree(t: Node[ExecutionResult]): List[String] =
-    t.value.resultType match {
-      case ResultType.Suite =>
-        onSuiteStarted(t.value) +: t.children.flatMap(renderTree) :+ onSuiteFinished(t.value)
-      case ResultType.Test =>
-        onTestStarted(t.value) +: t.children.flatMap(renderTree) :+
-          (t.value.status match {
-            case Status.Passed  => onTestFinished(t.value, None)
-            case Status.Failed  => onTestFailed(t.value)
-            case Status.Ignored => onTestIgnored(t.value)
-          })
+      case Test(labelsReversed, results, annotations, _, _, _) =>
+        val labels       = labelsReversed.reverse
+        val initialDepth = labels.length - 1
+        val (streamingOutput, summaryOutput) =
+          testCaseOutput(labels, results, includeCause)
 
-      case ResultType.Other => Nil
+        Seq(
+          ExecutionResult(
+            ResultType.Test,
+            labels.lastOption.getOrElse(""),
+            results match {
+              case Left(_) => Status.Failed
+              case Right(value: TestSuccess) =>
+                value match {
+                  case TestSuccess.Succeeded(_) => Status.Passed
+                  case TestSuccess.Ignored(_)   => Status.Ignored
+                }
+            },
+            initialDepth,
+            List(annotations),
+            streamingOutput,
+            summaryOutput
+          )
+        )
+      case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+        val depth = event.labels.length
+        failure match {
+          case TestFailure.Assertion(result, _) =>
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
+          case TestFailure.Runtime(cause, _) =>
+            Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
+        }
+      case SectionEnd(labelsReversed, _, _) =>
+        val depth = labelsReversed.length - 1
+        labelsReversed.reverse match {
+          case Nil => Seq.empty
+          case nonEmptyList =>
+            Seq(
+              ExecutionResult.withoutSummarySpecificOutput(
+                ResultType.Suite,
+                label = nonEmptyList.last,
+                Status.Passed,
+                offset = depth,
+                List(TestAnnotationMap.empty),
+                lines = List(fr(nonEmptyList.last).toLine)
+              )
+            )
+        }
+      case TopLevelFlush(_) =>
+        Nil
+    }
+
+  override protected def renderOutput(results: Seq[ExecutionResult])(implicit trace: Trace): Seq[String] =
+    results.foldLeft(List.empty[String]) { (acc, result) =>
+      result match {
+        case r @ ExecutionResult(ResultType.Suite, _, Status.Started, _, _, _, _) => acc :+ onSuiteStarted(r)
+        case r @ ExecutionResult(ResultType.Suite, _, _, _, _, _, _)              => acc :+ onSuiteFinished(r)
+        case r @ ExecutionResult(ResultType.Test, _, Status.Passed, _, _, _, _) =>
+          acc :+ onTestStarted(r) :+ onTestFinished(r, None)
+        case r @ ExecutionResult(ResultType.Test, _, Status.Failed, _, _, _, _) =>
+          acc :+ onTestStarted(r) :+ onTestFailed(r)
+        case r @ ExecutionResult(ResultType.Test, _, Status.Ignored, _, _, _, _) => acc :+ onTestIgnored(r)
+      }
     }
 
   private def onSuiteStarted(result: ExecutionResult) =
@@ -38,7 +103,9 @@ trait IntelliJRenderer extends TestRenderer {
     tc(s"testSuiteFinished name='${escape(result.label)}'")
 
   private def onTestStarted(result: ExecutionResult) =
-    tc(s"testStarted name='${escape(result.label)}' locationHint='${escape(location(result))}'")
+    tc(
+      s"testStarted name='${escape(result.label)}' locationHint='${escape(location(result))}' captureStandardOutput='true'"
+    )
 
   private def onTestFinished(result: ExecutionResult, timing: Option[String]) =
     tc(s"testFinished name='${escape(result.label)}' duration='${timing.getOrElse("")}'")
@@ -71,68 +138,13 @@ trait IntelliJRenderer extends TestRenderer {
       case Nil              => ""
     }
 
-  import zio.duration2DurationOps
-  def render(summary: Summary): String =
-    s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
-       |Executed in ${summary.duration.render}
-       |""".stripMargin
+  def renderSummary(summary: Summary): String = ""
 }
 object IntelliJRenderer extends IntelliJRenderer {
-  private type Graph[A] = Map[Int, List[Node[A]]]
-
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>
       child.headOption.collect { case Trace(_, file, line) =>
         s"file://$file:$line"
       }
     }
-
-  private case class Node[A](value: A, children: List[Node[A]]) {
-    def find(value: A): Option[Node[A]] = children.find(_.value == value)
-
-    def replace(n: Node[A], r: Node[A]): List[Node[A]] = children.updated(children.indexOf(n), r)
-  }
-
-  private def mkTree(results: Seq[ExecutionResult]): List[Node[ExecutionResult]] = {
-    def add(result: ExecutionResult)(graph: Graph[ExecutionResult]): Graph[ExecutionResult] = {
-      @tailrec
-      def buildGraph(id: Int, node: Node[ExecutionResult], graph: Graph[ExecutionResult]): Graph[ExecutionResult] =
-        graph.get(id) match {
-          case None => graph
-          case Some(nodes) =>
-            nodes match {
-              case Nil => throw new Exception("Unexpected empty node")
-              case _ =>
-                val last  = nodes.last
-                val child = last.find(node.value)
-                val newNode = last.copy(children = child match {
-                  case None    => last.children :+ node
-                  case Some(c) => last.replace(c, node)
-                })
-                buildGraph(id - 1, newNode, graph.updated(id, nodes.init :+ newNode))
-            }
-        }
-
-      val id = result.offset match {
-        case 0                         => Try(graph.keys.max).getOrElse(0)
-        case size if size > graph.size => graph.size
-        case size                      => size
-      }
-      val node = Node(result, Nil)
-
-      val g = graph.get(id) match {
-        case None        => graph + (id -> List(node))
-        case Some(nodes) => graph.updated(id, nodes :+ node)
-      }
-      buildGraph(id - 1, node, g)
-    }
-
-    results
-      .foldLeft[Graph[ExecutionResult]](Map.empty) { case (g, res) =>
-        add(res)(g)
-      }
-      .getOrElse(0, Nil)
-  }
-
-  override def render(reporterEvent: ExecutionEvent, includeCause: Boolean): Option[String] = ???
 }

@@ -16,7 +16,9 @@
 
 package zio.test.sbt
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Summary
+import zio.test.render.ConsoleRenderer
 
 /**
  * The ScalaJS SBT Runner uses strings to send and receive summaries. To

@@ -40,7 +40,7 @@ object SummaryBuilder {
 
     val rendered: String =
       ConsoleRenderer
-        .renderForSummary(failures.flatMap(DefaultTestReporter.render(_, true)), TestAnnotationRenderer.silent)
+        .renderForSummary(failures.flatMap(ConsoleRenderer.renderEvent(_, true)), TestAnnotationRenderer.silent)
         .mkString("\n")
 
     val newSummary = Summary(success, fail, ignore, rendered)

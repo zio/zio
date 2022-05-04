@@ -18,9 +18,9 @@ package zio.test
 
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
-import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render._
+import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
+import zio.test.render.ConsoleRenderer
 
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
@@ -29,12 +29,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
-    Chunk.empty
-
-  def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
-    trace: Trace
-  ): TestReporter =
-    ??? // DefaultTestReporter(testRenderer, testAnnotationRenderer)
+    Chunk(TestAspect.fibers)
 
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = Trace.empty
@@ -75,21 +70,17 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      _       <- ZIO.debug("runSpec")
       summary <- runSpecInfallible(spec, testArgs, console)
-      _ <- ZIO.when(summary.status == Summary.Failure)(
-             ZIO.fail(new Exception("Failed tests."))
-           )
+      _ <- ZIO.when(testArgs.printSummary) {
+             console.printLine(ConsoleRenderer.renderSummary(summary)).orDie
+           }
     } yield summary
 
-  private def createTestReporter(rendererName: String)(implicit trace: Trace): TestReporter = {
-    val renderer = rendererName match {
-      case "intellij" => IntelliJRenderer
-      case _          => ???
+  private def getTestEventRenderer(testArgs: TestArgs) =
+    testArgs.testRenderer match {
+      case Some("intellij") => IntelliJEventRenderer
+      case _                => ConsoleEventRenderer
     }
-    //testReporter(renderer, TestAnnotationRenderer.default)
-    ???
-  }
 
   /*
    * Regardless of test assertion or runtime failures, this method will always return a summary
@@ -98,7 +89,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   private[zio] def runSpecInfallible(
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
-    console: Console
+    console: Console,
+    testEventHandler: ZTestEventHandler = ZTestEventHandler.silent
   )(implicit
     trace: Trace
   ): URIO[
@@ -118,23 +110,21 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         ZLayer.succeedEnvironment(environment0) >>> bootstrap
       perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
                        .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
-      executionEventSinkLayer = sinkLayerWithConsole(console)
+
+      eventRenderer           = getTestEventRenderer(testArgs)
+      executionEventSinkLayer = sinkLayer(console, eventRenderer)
       runner =
         TestRunner(
           TestExecutor
-            .default[
-              Environment,
-              Any
-            ](
+            .default[Environment, Any](
               sharedLayer,
               perTestLayer,
               executionEventSinkLayer,
-              _ => ZIO.unit
+              testEventHandler
             )
         )
-      testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       summary <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+        runner.run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
 
@@ -143,7 +133,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     testArgs: TestArgs,
     console: Console,
     runtime: Runtime[_],
-    eventHandlerZ: ZTestEventHandler
+    testEventHandler: ZTestEventHandler
   )(implicit
     trace: Trace
   ): URIO[
@@ -163,24 +153,20 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       perTestLayer: ZLayer[Any, Nothing, TestEnvironment with Scope with ZIOAppArgs] =
         (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
           .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
-      executionEventSinkLayer = sharedLayer
+
+      eventRenderer           = getTestEventRenderer(testArgs)
+      executionEventSinkLayer = sinkLayer(console, eventRenderer)
       runner =
         TestRunner(
           TestExecutor
-            .default[
-              Environment,
-              Any
-            ](
+            .default[Environment, Any](
               sharedLayer,
               perTestLayer,
               executionEventSinkLayer,
-              eventHandlerZ
+              testEventHandler
             )
         )
-      testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
-      summary <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+      summary <- runner.run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
-
 }

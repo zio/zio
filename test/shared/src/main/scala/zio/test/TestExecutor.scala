@@ -16,12 +16,9 @@
 
 package zio.test
 
-import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.{ConsoleRenderer, LogLine}
-import zio.test.render.LogLine.Fragment.Style
-import zio.test.render.LogLine.Message
-import zio.{ExecutionStrategy, ZIO, Trace}
+import zio.test.render.ConsoleRenderer
+import zio._
 
 /**
  * A `TestExecutor[R, E]` is capable of executing specs that require an
@@ -44,7 +41,7 @@ object TestExecutor {
       ): UIO[Summary] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
-          summary  <- Ref.make[Summary](Summary(0, 0, 0, ""))
+          summary  <- Ref.make[Summary](Summary.empty)
           topParent = SuiteId.global
           _ <- {
             def loop(
@@ -75,7 +72,7 @@ object TestExecutor {
                       ) *>
                         sink.process(
                           event
-                        )
+                        ) *> eventHandlerZ.handle(event)
                     }
 
                 case Spec.MultipleCase(specs) =>
@@ -83,7 +80,9 @@ object TestExecutor {
                     for {
                       newMultiSectionId <- SuiteId.newRandom
                       newAncestors       = sectionId :: ancestors
-                      _                 <- sink.process(ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors))
+                      start              = ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors)
+                      _                 <- sink.process(start) *> eventHandlerZ.handle(start)
+                      end                = ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors)
                       _ <-
                         restore(
                           ZIO.foreachExec(specs)(exec)(spec =>
@@ -91,7 +90,7 @@ object TestExecutor {
                           )
                         )
                           .ensuring(
-                            sink.process(ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors))
+                            sink.process(end) *> eventHandlerZ.handle(end)
                           )
                     } yield ()
                   )
@@ -135,14 +134,15 @@ object TestExecutor {
                   )
                 })
 
+            val event = ExecutionEvent.TopLevelFlush(
+              topParent
+            )
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
             } *>
               sink.process(
-                ExecutionEvent.TopLevelFlush(
-                  topParent
-                )
-              )
+                event
+              ) *> eventHandlerZ.handle(event)
           }
           summary <- summary.get
         } yield summary).provideLayer(sinkLayer)

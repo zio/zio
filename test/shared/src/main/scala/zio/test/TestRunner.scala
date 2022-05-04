@@ -29,17 +29,7 @@ import java.util.concurrent.TimeUnit
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  reporter: TestReporter = TestReporter.silent,
-  bootstrap: ULayer[TestOutput with ExecutionEventSink] = {
-    implicit val emptyTracer = Trace.empty
-
-    ZLayer.make[TestOutput with ExecutionEventSink](
-      ExecutionEventPrinter.live(ConsoleEventRenderer),
-      TestLogger.fromConsole(Console.ConsoleLive),
-      TestOutput.live,
-      ExecutionEventSink.live
-    )
-  }
+  bootstrap: ULayer[TestOutput with ExecutionEventSink] = TestRunner.defaultBootstrap
 ) { self =>
 
   val runtime: Runtime[Any] = Runtime.default
@@ -47,10 +37,12 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(spec: Spec[R, E])(implicit trace: Trace): UIO[Summary] =
+  def run(spec: Spec[R, E], defExec: ExecutionStrategy = ExecutionStrategy.ParallelN(4))(implicit
+    trace: Trace
+  ): UIO[Summary] =
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-      summary  <- executor.run(spec, ExecutionStrategy.ParallelN(4))
+      summary  <- executor.run(spec, defExec)
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
@@ -66,7 +58,7 @@ final case class TestRunner[R, E](
    */
   def unsafeRunAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace): Unit =
     runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
-      case Exit.Success(v) => k
+      case Exit.Success(_) => k
       case Exit.Failure(c) => throw FiberFailure(c)
     }
 
@@ -76,14 +68,21 @@ final case class TestRunner[R, E](
   def unsafeRunSync(spec: Spec[R, E])(implicit trace: Trace): Exit[Nothing, Unit] =
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 
-  /**
-   * Creates a copy of this runner replacing the reporter.
-   */
-  def withReporter(reporter: TestReporter): TestRunner[R, E] =
-    copy(reporter = reporter)
-
   private[test] def buildRuntime(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
     bootstrap.toRuntime
+}
+
+object TestRunner {
+  lazy val defaultBootstrap = {
+    implicit val emptyTracer = Trace.empty
+
+    ZLayer.make[TestOutput with ExecutionEventSink](
+      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      TestLogger.fromConsole(Console.ConsoleLive),
+      TestOutput.live,
+      ExecutionEventSink.live
+    )
+  }
 }
