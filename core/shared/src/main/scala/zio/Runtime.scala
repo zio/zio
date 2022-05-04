@@ -36,8 +36,13 @@ trait Runtime[+R] { self =>
    * The `FiberRef` values that will be used for workflows executed by the
    * runtime.
    */
-  def fiberRefs: FiberRefs =
-    FiberRefs.empty
+  def fiberRefs: FiberRefs
+
+  def addLogger(logger: ZLogger[String, Any]): Runtime[R] =
+    Runtime(environment, fiberRefs.update(FiberId.none)(FiberRef.currentLoggers)(_ + logger))
+
+  def addSupervisor(supervisor: Supervisor[Any]): Runtime[R] =
+    Runtime(environment, fiberRefs.update(FiberId.none)(FiberRef.currentSupervisors)(_ + supervisor))
 
   /**
    * Constructs a new `Runtime` with the specified new environment.
@@ -349,6 +354,15 @@ trait Runtime[+R] { self =>
     }
   }
 
+  def setBlockingExecutor(executor: Executor): Runtime[R] =
+    Runtime(environment, fiberRefs.update(FiberId.none)(FiberRef.currentBlockingExecutor)(_ => executor))
+
+  def setExecutor(executor: Executor): Runtime[R] =
+    Runtime(environment, fiberRefs.update(FiberId.none)(FiberRef.currentExecutor)(_ => executor))
+
+  def withReportFatal(f: Throwable => Nothing): Runtime[R] =
+    Runtime(environment, fiberRefs.update(FiberId.none)(FiberRef.currentReportFatal)(_ => f))
+
   private final def unsafeRunWith[E, A](
     zio: ZIO[R, E, A]
   )(k: Exit[E, A] => Any)(implicit trace: Trace): FiberId => (Exit[E, A] => Any) => Unit = {
@@ -381,7 +395,7 @@ trait Runtime[+R] { self =>
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       StackBool(InterruptStatus.Interruptible.toBoolean),
-      new java.util.concurrent.atomic.AtomicReference(fiberRefs.update(fiberId)(runtimeFiberRefs).fiberRefLocals),
+      new java.util.concurrent.atomic.AtomicReference(fiberRefs.setAll(fiberId)(runtimeFiberRefs).fiberRefLocals),
       children
     )
 
@@ -428,12 +442,19 @@ object Runtime extends RuntimePlatformSpecific {
     }
 
   /**
+   * The minimum [[Runtime]] for ZIO applications. This runtime is configured
+   * with the minimum runtime configuration, which is the most customizable.
+   */
+  val bootstrap: Runtime[Any] =
+    Runtime(ZEnvironment.empty, FiberRefs.empty)
+
+  /**
    * The default [[Runtime]] for most ZIO applications. This runtime is
    * configured with the the default runtime configuration, which is optimized
    * for typical ZIO applications.
    */
   val default: Runtime[Any] =
-    Runtime(ZEnvironment.empty, FiberRefs.empty)
+    Runtime.defaultLoggers.foldLeft(bootstrap)(_.addLogger(_))
 
   val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
@@ -519,11 +540,26 @@ object Runtime extends RuntimePlatformSpecific {
      */
     def shutdown(): Unit
 
+    override def addLogger(logger: ZLogger[String, Any]): Runtime.Scoped[R] =
+      Scoped(environment, fiberRefs.update(FiberId.none)(FiberRef.currentLoggers)(_ + logger), shutdown)
+
+    override def addSupervisor(supervisor: Supervisor[Any]): Runtime.Scoped[R] =
+      Scoped(environment, fiberRefs.update(FiberId.none)(FiberRef.currentSupervisors)(_ + supervisor), shutdown)
+
     override final def as[R1](r1: ZEnvironment[R1]): Runtime.Scoped[R1] =
       map(_ => r1)
 
     override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
       Scoped(f(environment), fiberRefs, () => shutdown())
+
+    override def setBlockingExecutor(executor: Executor): Runtime.Scoped[R] =
+      Scoped(environment, fiberRefs.update(FiberId.none)(FiberRef.currentBlockingExecutor)(_ => executor), shutdown)
+
+    override def setExecutor(executor: Executor): Runtime.Scoped[R] =
+      Scoped(environment, fiberRefs.update(FiberId.none)(FiberRef.currentExecutor)(_ => executor), shutdown)
+
+    override def withReportFatal(f: Throwable => Nothing): Runtime.Scoped[R] =
+      Scoped(environment, fiberRefs.update(FiberId.none)(FiberRef.currentReportFatal)(_ => f), shutdown)
   }
 
   object Scoped {

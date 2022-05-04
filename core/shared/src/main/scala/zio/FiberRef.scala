@@ -404,16 +404,16 @@ object FiberRef {
     FiberRef.unsafeMakeSet(Runtime.defaultFatal)
 
   private[zio] val currentLoggers: FiberRef.WithPatch[Set[ZLogger[String, Any]], SetPatch[ZLogger[String, Any]]] =
-    FiberRef.unsafeMakeSet(Runtime.defaultLoggers)
+    FiberRef.unsafeMakeSet(Set.empty)
 
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
     FiberRef.unsafeMake(Runtime.defaultReportFatal)
 
   private[zio] val currentRuntimeFlags: FiberRef.WithPatch[Set[RuntimeFlag], SetPatch[RuntimeFlag]] =
-    FiberRef.unsafeMakeSet(Runtime.defaultFlags)
+    FiberRef.unsafeMakeSet(Set.empty)
 
   private[zio] val currentSupervisors: FiberRef.WithPatch[Set[Supervisor[Any]], SetPatch[Supervisor[Any]]] =
-    FiberRef.unsafeMakeSet(Runtime.defaultSupervisors)
+    FiberRef.unsafeMakeSet(Set.empty)
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]

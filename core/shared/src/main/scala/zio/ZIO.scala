@@ -4127,11 +4127,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.scopeWith(_.fork.flatMap(_.extend[R](zio)))
 
   /**
-   * Sets the `FiberRef` values for the fiber running this effect to the values
-   * in the specified collection of `FiberRef` values.
+   * Inherits the `FiberRef` values for the fiber running this effect from the
+   * specified collection of `FiberRef` values.
    */
-  def setFiberRefs(fiberRefs: => FiberRefs)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed(fiberRefs.setAll)
+  def inheritFiberRefs(fiberRefs: => FiberRefs)(implicit trace: Trace): UIO[Unit] =
+    ZIO.suspendSucceed(fiberRefs.inheritRefs)
 
   /**
    * Sets a state in the environment to the specified value.

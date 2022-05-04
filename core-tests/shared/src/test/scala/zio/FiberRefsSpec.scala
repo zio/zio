@@ -10,7 +10,7 @@ object FiberRefsSpec extends ZIOBaseSpec {
         fiberRef <- FiberRef.make(false)
         queue    <- Queue.unbounded[FiberRefs]
         producer <- (fiberRef.set(true) *> ZIO.getFiberRefs.flatMap(queue.offer)).fork
-        consumer <- (queue.take.flatMap(ZIO.setFiberRefs(_)) *> fiberRef.get).fork
+        consumer <- (queue.take.flatMap(ZIO.inheritFiberRefs(_)) *> fiberRef.get).fork
         _        <- producer.join
         value    <- consumer.join
       } yield assertTrue(value)
