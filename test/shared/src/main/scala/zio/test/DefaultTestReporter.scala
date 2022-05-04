@@ -32,16 +32,6 @@ import scala.annotation.tailrec
 
 // TODO Needs to be re-written or simply dropped for new streaming behavior. #6484
 object DefaultTestReporter {
-  def apply[E](testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
-    trace: Trace
-  ): TestReporter[E] = { (duration: Duration, executedSpec: ExecutionEvent) =>
-    // val rendered = testRenderer.render(render(executedSpec, true), testAnnotationRenderer)
-    // val stats    = testRenderer.render(logStats(duration, executedSpec) :: Nil, testAnnotationRenderer)
-    val rendered = List.empty
-    val stats    = List.empty
-    TestLogger.logLine((rendered ++ stats).mkString("\n")) // Ensures 1 big string is reported per ExecutedSpec
-  }
-
   def render(
     reporterEvent: ExecutionEvent,
     includeCause: Boolean

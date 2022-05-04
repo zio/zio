@@ -33,8 +33,8 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
     trace: Trace
-  ): TestReporter[Any] =
-    DefaultTestReporter(testRenderer, testAnnotationRenderer)
+  ): TestReporter =
+    ??? // DefaultTestReporter(testRenderer, testAnnotationRenderer)
 
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = Trace.empty
@@ -82,12 +82,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
            )
     } yield summary
 
-  private def createTestReporter(rendererName: String)(implicit trace: Trace): TestReporter[Any] = {
+  private def createTestReporter(rendererName: String)(implicit trace: Trace): TestReporter = {
     val renderer = rendererName match {
       case "intellij" => IntelliJRenderer
-      case _          => TestRenderer.default
+      case _          => ???
     }
-    testReporter(renderer, TestAnnotationRenderer.default)
+    //testReporter(renderer, TestAnnotationRenderer.default)
+    ???
   }
 
   /*

@@ -1,8 +1,8 @@
 package zio.test.sbt
 
 import sbt.testing._
+import zio.test.render.ConsoleRenderer
 import zio.test.render.LogLine.Message
-import zio.test.render.{ConsoleRenderer, ExecutionResult}
 import zio.test.{DefaultTestReporter, ExecutionEvent, TestAnnotation, TestSuccess}
 
 final case class ZTestEvent(

@@ -28,11 +28,8 @@ import zio.{ExecutionStrategy, ZIO, Trace}
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
-  def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit
-    trace: Trace
-  ): UIO[Summary]
+  def run(spec: Spec[R, E], defExec: ExecutionStrategy)(implicit trace: Trace): UIO[Summary]
 }
-
 object TestExecutor {
 
   def default[R, E](
@@ -44,9 +41,7 @@ object TestExecutor {
     new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
       def run(spec: Spec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
         trace: Trace
-      ): UIO[
-        Summary
-      ] =
+      ): UIO[Summary] =
         (for {
           sink     <- ZIO.service[ExecutionEventSink]
           summary  <- Ref.make[Summary](Summary(0, 0, 0, ""))
