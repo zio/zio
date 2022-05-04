@@ -16,13 +16,10 @@
 
 package zio.test.render
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{Summary, TestAnnotationRenderer}
+import zio.test.{ExecutionEvent, Summary, TestAnnotationRenderer}
 
 trait TestRenderer {
   def render(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String]
+  def render(reporterEvent: ExecutionEvent, includeCause: Boolean): Option[String]
   def render(summary: Summary): String
-}
-object TestRenderer {
-  lazy val default: TestRenderer = ConsoleRenderer
 }

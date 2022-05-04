@@ -18,10 +18,7 @@ package zio.test
 
 import zio.Clock.ClockLive
 import zio._
-import zio.internal.Platform
-import zio.internal.stacktracer.Tracer
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.TestRenderer
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 
 import java.util.concurrent.TimeUnit
 
@@ -32,13 +29,16 @@ import java.util.concurrent.TimeUnit
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(Trace.empty),
-  bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
+  reporter: TestReporter = TestReporter.silent,
+  bootstrap: ULayer[TestOutput with ExecutionEventSink] = {
     implicit val emptyTracer = Trace.empty
-    val printerLayer =
-      TestLogger.fromConsole(Console.ConsoleLive)
 
-    printerLayer >+> sinkLayer(Console.ConsoleLive)
+    ZLayer.make[TestOutput with ExecutionEventSink](
+      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      TestLogger.fromConsole(Console.ConsoleLive),
+      TestOutput.live,
+      ExecutionEventSink.live
+    )
   }
 ) { self =>
 
@@ -47,13 +47,7 @@ final case class TestRunner[R, E](
   /**
    * Runs the spec, producing the execution results.
    */
-  def run(
-    spec: Spec[R, E]
-  )(implicit
-    trace: Trace
-  ): UIO[
-    Summary
-  ] =
+  def run(spec: Spec[R, E])(implicit trace: Trace): UIO[Summary] =
     for {
       start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       summary  <- executor.run(spec, ExecutionStrategy.ParallelN(4))
@@ -64,19 +58,13 @@ final case class TestRunner[R, E](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  def unsafeRun(
-    spec: Spec[R, E]
-  )(implicit trace: Trace): Unit =
+  def unsafeRun(spec: Spec[R, E])(implicit trace: Trace): Unit =
     runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
-  def unsafeRunAsync(
-    spec: Spec[R, E]
-  )(
-    k: => Unit
-  )(implicit trace: Trace): Unit =
+  def unsafeRunAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace): Unit =
     runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k
       case Exit.Failure(c) => throw FiberFailure(c)
@@ -85,19 +73,17 @@ final case class TestRunner[R, E](
   /**
    * An unsafe, synchronous run of the specified spec.
    */
-  def unsafeRunSync(
-    spec: Spec[R, E]
-  )(implicit trace: Trace): Exit[Nothing, Unit] =
+  def unsafeRunSync(spec: Spec[R, E])(implicit trace: Trace): Exit[Nothing, Unit] =
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 
   /**
    * Creates a copy of this runner replacing the reporter.
    */
-  def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =
+  def withReporter(reporter: TestReporter): TestRunner[R, E] =
     copy(reporter = reporter)
 
   private[test] def buildRuntime(implicit
     trace: Trace
-  ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
+  ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
     bootstrap.toRuntime
 }

@@ -5,7 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Message
-import zio.test.{Summary, TestAnnotation, TestAnnotationRenderer}
+import zio.test.{ExecutionEvent, Summary, TestAnnotation, TestAnnotationRenderer}
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -133,4 +133,6 @@ object IntelliJRenderer extends IntelliJRenderer {
       }
       .getOrElse(0, Nil)
   }
+
+  override def render(reporterEvent: ExecutionEvent, includeCause: Boolean): Option[String] = ???
 }

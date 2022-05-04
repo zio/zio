@@ -21,6 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
 import zio.test.Spec.LabeledCase
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 
 import scala.language.implicitConversions
 
@@ -175,17 +176,17 @@ package object test extends CompileVariants {
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   /**
-   * A `TestReporter[E]` is capable of reporting test results with error type
-   * `E`.
+   * A `TestReporter` is capable of reporting test results to the specified
+   * output.
    */
-  type TestReporter[-E] = (Duration, ExecutionEvent) => URIO[TestLogger, Unit]
+  type TestReporter = (Duration, ExecutionEvent) => URIO[TestOutput, Unit]
 
   object TestReporter {
 
     /**
      * TestReporter that does nothing
      */
-    val silent: TestReporter[Any] = (_, _) => ZIO.unit
+    val silent: TestReporter = (_, _) => ZIO.unit
   }
 
   /**
@@ -542,7 +543,7 @@ package object test extends CompileVariants {
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
     TestLogger.fromConsole(
       console
-    ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+    ) >>> ExecutionEventPrinter.live(ConsoleEventRenderer) >>> TestOutput.live >>> ExecutionEventSink.live
 
   /**
    * A `Runner` that provides a default testable environment.

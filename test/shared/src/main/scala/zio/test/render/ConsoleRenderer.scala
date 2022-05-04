@@ -21,7 +21,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
-import zio.test.{ConsoleUtils, Summary, TestAnnotation, TestAnnotationMap, TestAnnotationRenderer}
+import zio.test.{ConsoleUtils, ExecutionEvent, Summary, TestAnnotation, TestAnnotationMap, TestAnnotationRenderer}
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -42,6 +42,8 @@ trait ConsoleRenderer extends TestRenderer {
       val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
+
+  override def render(reporterEvent: ExecutionEvent, includeCause: Boolean): Option[String] = None
 
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
