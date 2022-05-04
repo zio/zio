@@ -22,6 +22,7 @@ import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLay
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.render.ConsoleRenderer
 
 final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
@@ -42,16 +43,16 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val ignore = allSummaries.map(_.ignore).sum
 
     val compositeSummary =
-      allSummaries.foldLeft(Summary(0, 0, 0, ""))(_.add(_))
+      allSummaries.foldLeft(Summary.empty)(_.add(_))
 
-    val renderedSummary = ConsoleRenderer.render(compositeSummary)
+    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
 
     if (allSummaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else {
       renderedSummary +
         allSummaries
-          .map(_.summary)
+          .map(ConsoleRenderer.renderSummary)
           .filter(_.nonEmpty)
           .flatMap(summary => colored(summary) :: "\n" :: Nil)
           .mkString("", "", "Done")
@@ -74,7 +75,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs with zio.Scope, Any, Any])(_ +!+ _)
 
     val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
-      sharedLayerFromSpecs +!+ sinkLayer(console)
+      sharedLayerFromSpecs +!+ sinkLayer(console, ConsoleEventRenderer)
 
     val runtime: zio.Runtime[ExecutionEventSink] =
       zio.Runtime.unsafeFromLayer(sharedLayer)

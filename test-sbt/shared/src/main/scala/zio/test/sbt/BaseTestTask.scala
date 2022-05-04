@@ -33,7 +33,7 @@ abstract class BaseTestTask[T](
     ZIO.consoleWith { console =>
       (for {
         summary <- spec
-                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime, eventHandlerZ)
+                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, Some(runtime), eventHandlerZ)
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
       } yield ())
         .provideLayer(

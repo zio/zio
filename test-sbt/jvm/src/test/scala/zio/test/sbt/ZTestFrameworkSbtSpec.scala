@@ -103,7 +103,7 @@ object ZTestFrameworkSbtSpec {
           s"${reset("info: ")}    ${Console.BLUE}Hello,",
           s"${reset("info: ")}${blue("World!")} did not satisfy ${cyan("equalTo(Hello, World!)")}",
           s"${reset("info: ")}    ${assertSourceLocation()}",
-          s"""${reset("info: ")}${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
+          s"""${reset("info: ")}${ConsoleRenderer.renderSummary(Summary(0, 1, 0, ""))}"""
         ).mkString("\n")
       )
     )
@@ -126,7 +126,7 @@ object ZTestFrameworkSbtSpec {
         List(
           s"${reset("info:")} ${green("+")} some suite",
           s"${reset("info:")}     ${green("+")} passing test",
-          s"""${reset("info: ")}${ConsoleRenderer.render(Summary(1, 0, 0, ""))}"""
+          s"""${reset("info: ")}${ConsoleRenderer.renderSummary(Summary(1, 0, 0, ""))}"""
         ).mkString("\n")
       )
     }

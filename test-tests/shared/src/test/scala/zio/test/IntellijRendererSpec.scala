@@ -1,10 +1,10 @@
 package zio.test
 
 import zio.test.Assertion.equalTo
+import zio.test.ReporterEventRenderer.IntelliJEventRenderer
 import zio.test.ReportingTestUtils._
-import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Scope, ZIO, ZIOAppArgs, ZLayer, Trace}
+import zio.{ExecutionStrategy, Scope, Trace, ZIO}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -41,8 +41,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       test("correctly reports negated failures") {
         runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
       }
-    ) @@ silent @@ TestAspect.ignore
-  // TODO Investigate these expectations once ZIO-intellij plugin is updated
+    )
 
   def test1Expected(implicit trace: Trace): Vector[String] = Vector(
     testStarted("Addition works fine"),
@@ -186,30 +185,12 @@ object IntelliJRenderUtils {
   def testFailed(name: String, error: Vector[String]): String =
     s"##teamcity[testFailed name='$name' message='Assertion failed:' details='${escape(error.mkString)}']" + "\n"
 
-  // TODO de-dup layer creation
   def runLog(
     spec: Spec[TestEnvironment, String]
   )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
-      _ <-
-        IntelliJTestRunner(testEnvironment)
-          .run(spec)
-          .provideLayer[Nothing, TestEnvironment with Scope](
-            TestClock.default ++ sinkLayer(zio.Console.ConsoleLive)
-          )
+      _ <- TestTestRunner(testEnvironment, sinkLayer(zio.Console.ConsoleLive, IntelliJEventRenderer))
+             .run(spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
     } yield output.mkString
-
-  private[this] def IntelliJTestRunner(
-    testEnvironment: ZLayer[Scope, Nothing, TestEnvironment]
-  )(implicit trace: Trace) =
-    TestRunner[TestEnvironment, String](
-      executor = TestExecutor.default[TestEnvironment, String](
-        Scope.default >>> testEnvironment,
-        (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
-        sinkLayer(zio.Console.ConsoleLive),
-        _ => ZIO.unit // Does Intellij need to report events?
-      ),
-      reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
-    )
 }
