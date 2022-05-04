@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio._
-import zio.test.Assertion.equalTo
+import zio.test.Assertion.{equalTo, fails}
 import zio.test._
 
 import scala.io.Source
@@ -140,6 +140,18 @@ object ZPipelineSpec extends ZIOBaseSpec {
             ZStream(1, 2, 3, 4, 5).via(ZPipeline.take(100)).runCollect
           )(equalTo(Chunk(1, 2, 3, 4, 5)))
         }
+      ),
+      test("mapError")(
+        assertZIO(
+          ZStream(1, 2, 3)
+            .via(
+              ZPipeline
+                .fromChannel(ZChannel.fail("failed"))
+                .mapError(_ + "!!!")
+            )
+            .runCollect
+            .exit
+        )(fails(equalTo("failed!!!")))
       )
     )
 

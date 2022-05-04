@@ -114,6 +114,14 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: Trace): ZPipeline[Env1, Err1, In2, Out] =
     self <<< that
+
+  /**
+   * Transforms the errors emitted by this pipeline using `f`.
+   */
+  def mapError[Err2](
+    f: Err => Err2
+  )(implicit trace: Trace): ZPipeline[Env, Err2, In, Out] =
+    new ZPipeline(self.channel.mapError(f))
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
