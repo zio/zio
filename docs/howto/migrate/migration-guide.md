@@ -9,6 +9,8 @@ import zio._
 
 In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
 
+## Automatic Migration
+
 Before you migrate your own codebase, confirm that all of your ZIO-related dependencies have been migrated to ZIO 2.x with our [ZIO Ecosystem Tool](https://zio-ecosystem.herokuapp.com/).
 
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
@@ -122,7 +124,24 @@ object MainApp extends ZIOAppDefault {
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
 4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
 
-## Has
+## Deletion of Type Alias Companion Objects
+
+In ZIO 1.x, using the type aliases as objects created another way to do things and potentially led to confusion about whether these were the same or somehow different with little benefit.
+
+In ZIO 2.x, we removed companion objects for type aliases. We still can use type aliases such as `UIO[Int]`, but we couldn't do `UIO.succeed(1)` anymore:
+
+```diff
+- val effect: UIO[Int] = UIO.succeed(1)
++ val effect: UIO[Int] = ZIO.succeedNow(1)
+
+// another examp:
+- val stream: UStream[Int] = UStream.succeed(1)
++ val stream: UStream[Int] = ZStream.succeed(1)
+```
+
+The [migration script](#automatic-migration) will automatically convert all the usages of type aliases to the corresponding objects.
+
+## Deletion of Has Data Type
 
 The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
 
