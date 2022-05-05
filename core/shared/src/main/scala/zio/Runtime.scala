@@ -450,6 +450,11 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.LogRuntime))
   }
 
+  val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ -- Runtime.defaultLoggers))
+  }
+
   def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentBlockingExecutor.locallyScoped(executor))
 
