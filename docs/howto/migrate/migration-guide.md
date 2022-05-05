@@ -587,23 +587,20 @@ For example:
 + test("TestLiveClock") { ... } @@ withLiveClock
 ```
 
-4. In ZIO 1.x, whenever we wanted to provide our own versions of ZIO default services, we could do that using one of the `ZIO#provide*` operators. In ZIO 2.x if we need to modify the implementation of one of these services on a more fine-grained basis we can do `ZEnv.services.locally` or one of its variants:
+4. In ZIO 1.x, whenever we wanted to provide our own versions of ZIO default services, we could do that using one of the `ZIO#provide*` operators. In ZIO 2.x if we need to modify the implementation of one of these services on a more fine-grained basis we can use of the following combinators:
+  - `ZIO.withConsole`/`ZIO.withConsoleScoped`
+  - `ZIO.withClock`/`ZIO.withClockScoped`
+  - `ZIO.withRandom`/`ZIO.withRandomScoped`
+  - `ZIO.withSystem`/`ZIO.withSystemScoped`
 
 ```scala
 import zio._
 
-object MyConsoleLive extends Console {
+object MyClockLive extends Clock {
   ... 
 }
 
-ZEnv.services.locally(
-  ZEnvironment[Clock, Console, System, Random](
-    Clock.ClockLive,
-    MyConsoleLive,
-    System.SystemLive,
-    Random.RandomLive
-  )
-)(effect)
+ZIO.withClock(MyClockLive)(effect)
 ```
 
 ## ZIO App
