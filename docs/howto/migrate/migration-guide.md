@@ -1623,6 +1623,34 @@ suite("Ref") {
 
 In ZIO 2.x, to create a test suite, it's not important that whether we are testing pure or effectful tests. The syntax is the same, and the `test`, and `testM` are unified. So the `testM` was removed.
 
+### Unification of `Assertion` and `AssertionM`
+
+In ZIO 2.x, `Assertion` and `AssertionM` were unified to a single type, `Assertion`, so the `AssertionM` was removed. In ZIO 2.x, instead of writing effectful assertions (`AssertionM`) and then asserting workflows, we should perform workflows and then simply assert the result of the workflow.
+
+Assume we have written the following test in ZIO 1.x:
+
+```scala
+testM("Effectful Assertion ZIO 1.x") {
+  def myEffectfulAssertion[Int](reference: Int): AssertionM[Int] = ???
+
+  val sut = ZIO.effect(???)
+  assertM(sut)(effectfulAssertion(5))
+}
+```
+
+We can extract effectful operations from the effectful assertion and then perform the assertion like below:
+
+```scala
+test("Effectful Assertion ZIO 2.x") {
+  def myAssertion[Int](reference: Int): Assertion[Int] = ???
+  
+  val res = for {
+    sut <- ZIO.effect(???)
+    res <- extractedOperations(sut)
+  } yield assert(res)(myAssertion(5))
+}
+```
+
 ### Smart Assertion
 
 ZIO 2.x, introduced a new test method, named `assertTrue` which allows us to assert an expected behavior using ordinary Scala expressions that return `Boolean` values instead of specialized assertion operators.
