@@ -453,7 +453,7 @@ object Runtime extends RuntimePlatformSpecific {
    * configured with the the default runtime configuration, which is optimized
    * for typical ZIO applications.
    */
-  val default: Runtime[Any] =
+  lazy val default: Runtime[Any] =
     Runtime.defaultLoggers.foldLeft(bootstrap)(_.addLogger(_))
 
   val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
