@@ -58,7 +58,7 @@ We can also use methods in the companion objects of the `ZIO` type aliases:
 ```scala mdoc:compile-only
 import zio._
 
-val s2: Task[Int] = Task.succeed(42)
+val s2: Task[Int] = ZIO.succeed(42)
 ```
 
 ### Failure Values
