@@ -1409,10 +1409,10 @@ object Schedule {
    *
    * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
    */
-  def secondOfMinute(second0: => Int)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
+  def secondOfMinute(second0: => Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = Long
-      val initial = 0L
+      type State = (OffsetDateTime, Long)
+      val initial = (OffsetDateTime.MIN, 0L)
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
@@ -1421,11 +1421,13 @@ object Schedule {
             new IllegalArgumentException(s"Invalid argument in `secondOfMinute($second)`. Must be in range 0...59")
           )
         } else {
-          val second00 = nextSecond(now, second0)
-          val start    = maxOffsetDateTime(beginningOfSecond(second00), now)
+          val (end0, n) = state
+          val now0     = maxOffsetDateTime(end0, now)
+          val second00 = nextSecond(now0, second0)
+          val start    = maxOffsetDateTime(beginningOfSecond(second00), now0)
           val end      = endOfSecond(second00)
           val interval = Interval(start, end)
-          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1436,21 +1438,23 @@ object Schedule {
    *
    * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
    */
-  def minuteOfHour(minute: Int)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
+  def minuteOfHour(minute: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = Long
-      val initial = 0L
+      type State = (OffsetDateTime, Long)
+      val initial = (OffsetDateTime.MIN, 0L)
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
         if (minute < 0 || 59 < minute) {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
         } else {
-          val minute0  = nextMinute(now, minute)
-          val start    = maxOffsetDateTime(beginningOfMinute(minute0), now)
+          val (end0, n) = state
+          val now0     = maxOffsetDateTime(end0, now)
+          val minute0  = nextMinute(maxOffsetDateTime(end0, now0), minute)
+          val start    = maxOffsetDateTime(beginningOfMinute(minute0), now0)
           val end      = endOfMinute(minute0)
           val interval = Interval(start, end)
-          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1460,21 +1464,23 @@ object Schedule {
    *
    * NOTE: `hour` parameter is validated lazily. Must be in range 0...23.
    */
-  def hourOfDay(hour: Int)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
+  def hourOfDay(hour: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = Long
-      val initial = 0L
+      type State = (OffsetDateTime, Long)
+      val initial = (OffsetDateTime.MIN, 0L)
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
         if (hour < 0 || 23 < hour) {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `hourOfDay($hour)`. Must be in range 0...23"))
         } else {
-          val hour0    = nextHour(now, hour)
-          val start    = maxOffsetDateTime(beginningOfHour(hour0), now)
+          val (end0, n) = state
+          val now0     = maxOffsetDateTime(end0, now)
+          val hour0    = nextHour(now0, hour)
+          val start    = maxOffsetDateTime(beginningOfHour(hour0), now0)
           val end      = endOfHour(hour0)
           val interval = Interval(start, end)
-          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1485,10 +1491,10 @@ object Schedule {
    * NOTE: `day` parameter is validated lazily. Must be in range 1 (Monday)...7
    * (Sunday).
    */
-  def dayOfWeek(day: Int)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
+  def dayOfWeek(day: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = Long
-      val initial = 0L
+      type State = (OffsetDateTime, Long)
+      val initial = (OffsetDateTime.MIN, 0L)
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
@@ -1499,11 +1505,13 @@ object Schedule {
             )
           )
         } else {
-          val day0     = nextDay(now, day)
-          val start    = maxOffsetDateTime(beginningOfDay(day0), now)
+          val (end0, n) = state
+          val now0     = maxOffsetDateTime(end0, now)
+          val day0     = nextDay(now0, day)
+          val start    = maxOffsetDateTime(beginningOfDay(day0), now0)
           val end      = endOfDay(day0)
           val interval = Interval(start, end)
-          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
@@ -1515,21 +1523,23 @@ object Schedule {
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1...31.
    */
-  def dayOfMonth(day: Int)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
+  def dayOfMonth(day: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
-      type State = Long
-      val initial = 0L
+      type State = (OffsetDateTime, Long)
+      val initial = (OffsetDateTime.MIN, 0L)
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
         if (day < 1 || 31 < day) {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfMonth($day)`. Must be in range 1...31"))
         } else {
-          val day0     = nextDayOfMonth(now, day)
-          val start    = maxOffsetDateTime(beginningOfDay(day0), now)
+          val (end0, n) = state
+          val now0     = maxOffsetDateTime(end0, now)
+          val day0     = nextDayOfMonth(now0, day)
+          val start    = maxOffsetDateTime(beginningOfDay(day0), now0)
           val end      = endOfDay(day0)
           val interval = Interval(start, end)
-          ZIO.succeedNow((state + 1, state, Decision.Continue(interval)))
+          ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
         }
     }
 
