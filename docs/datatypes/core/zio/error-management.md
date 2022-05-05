@@ -1016,14 +1016,14 @@ In the following example, `foldZIO` is used to handle both failure and success o
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
+def readUrls(file: String): Task[List[String]] = ZIO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = ZIO.succeed(OkContent("Roger"))
 ```
 
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
-    error   => IO.succeed(NoContent(error)), 
+    error   => ZIO.succeed(NoContent(error)), 
     success => fetchContent(success)
   )
 ```
