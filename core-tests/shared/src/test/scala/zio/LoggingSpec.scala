@@ -1,6 +1,5 @@
 package zio
 
-import zio.ZIOAspect.disableLogging
 import zio.test._
 
 object LoggingSpec extends ZIOBaseSpec {
@@ -52,12 +51,6 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- ZTestLogger.logOutput
           _      <- ZIO.debug(output(0).call(ZLogger.default))
         } yield assertTrue(true)
-      },
-      test("none") {
-        for {
-          _      <- ZIO.log("It's alive!") @@ disableLogging
-          output <- ZTestLogger.logOutput
-        } yield assertTrue(output.isEmpty)
       },
       test("log annotations") {
         val key   = "key"
