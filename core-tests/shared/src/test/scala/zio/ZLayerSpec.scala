@@ -63,15 +63,15 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("Size of Test layers") {
         for {
           r1 <- testSize(Annotations.live, 1, "Annotations.live")
-          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 1, "TestConsole.default")
-          r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
-          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 1, "TestRandom.live")
+          r2 <- testSize(liveEnvironment >>> Live.default >>> TestConsole.debug, 1, "TestConsole.default")
+          r3 <- testSize(liveEnvironment >>> Live.default, 1, "Live.default")
+          r4 <- testSize(liveEnvironment >>> TestRandom.deterministic, 1, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
           r6 <- testSize(TestSystem.default, 1, "TestSystem.default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       test("Size of >>> (9)") {
-        val layer = ZEnv.live >>>
+        val layer = liveEnvironment >>>
           (Annotations.live ++ (Live.default >>> TestConsole.debug) ++
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
             ++ TestSystem.default)
@@ -517,9 +517,9 @@ object ZLayerSpec extends ZIOBaseSpec {
         } yield assertTrue(person == ZEnvironment(Person("Jane Doe", 42)))
       },
       test("preserves failures") {
-        val layer1   = ZEnv.live >>> TestEnvironment.live
+        val layer1   = liveEnvironment >>> TestEnvironment.live
         val layer2   = ZLayer.fromZIO(ZIO.fail("fail"))
-        val layer3   = ZEnv.live >>> TestEnvironment.live
+        val layer3   = liveEnvironment >>> TestEnvironment.live
         val combined = layer1 ++ layer2 ++ layer3
         for {
           exit <- ZIO.scoped(combined.build).exit

@@ -367,7 +367,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         testConsole <- testConsole
         testRandom  <- testRandom
         testSystem  <- testSystem
-        fiberRef    <- FiberRef.makeEnvironment(ZEnv.Services.live)
+        fiberRef    <- FiberRef.makeEnvironment(DefaultServices.live)
         _           <- fiberRef.update(_.add(testClock))
         left        <- fiberRef.update(_.add(testConsole)).fork
         right       <- fiberRef.update(_.add(testRandom)).fork

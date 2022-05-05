@@ -4,7 +4,7 @@ import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Random, Scope, ZEnv, ZIO, ZIOAppArgs, ZLayer, Trace}
+import zio.{Random, Scope, ZIO, ZIOAppArgs, ZLayer, Trace}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -206,7 +206,7 @@ object IntelliJRenderUtils {
     TestRunner[TestEnvironment, String](
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,
-        (ZEnv.live ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
+        (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
         sinkLayer,
         _ => ZIO.unit // Does Intellij need to report events?
       ),

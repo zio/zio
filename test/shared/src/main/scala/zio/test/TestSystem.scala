@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{IO, Layer, Ref, System, UIO, URIO, ZEnv, ZIO, ZLayer, Trace}
+import zio.{IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
