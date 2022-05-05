@@ -1005,7 +1005,7 @@ object TestAspect extends TimeoutVariants {
         val layer = ZLayer.scoped {
           for {
             clock <- live(ZIO.clock)
-            _     <- ZEnv.services.locallyScopedWith(_.add(clock))
+            _     <- ZIO.withClockScoped(clock)
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1021,7 +1021,7 @@ object TestAspect extends TimeoutVariants {
         val layer = ZLayer.scoped {
           for {
             console <- live(ZIO.console)
-            _       <- ZEnv.services.locallyScopedWith(_.add(console))
+            _       <- ZIO.withConsoleScoped(console)
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1046,7 +1046,7 @@ object TestAspect extends TimeoutVariants {
         val layer = ZLayer.scoped {
           for {
             random <- live(ZIO.random)
-            _      <- ZEnv.services.locallyScopedWith(_.add(random))
+            _      <- ZIO.withRandomScoped(random)
           } yield ()
         }
         spec.provideSomeLayer[R](layer)
@@ -1062,7 +1062,7 @@ object TestAspect extends TimeoutVariants {
         val layer = ZLayer.scoped {
           for {
             system <- live(ZIO.system)
-            _      <- ZEnv.services.locallyScopedWith(_.add(system))
+            _      <- ZIO.withSystemScoped(system)
           } yield ()
         }
         spec.provideSomeLayer[R](layer)

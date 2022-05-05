@@ -193,7 +193,7 @@ object TestSystem extends Serializable {
       for {
         ref <- ZIO.succeed(Ref.unsafeMake(data))
         test = Test(ref)
-        _   <- ZEnv.services.locallyScopedWith(_.add(test))
+        _   <- ZIO.withSystemScoped(test)
       } yield test
     }
   }
