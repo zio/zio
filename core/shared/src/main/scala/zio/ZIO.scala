@@ -4524,7 +4524,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Executes the specified workflow with the specified implementation of the
    * clock service.
    */
-  def withClock[R, E, A <: Clock, B](clock: => A)(zio: => ZIO[R, E, B])(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+  def withClock[R, E, A <: Clock, B](clock: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
     ZEnv.services.locallyWith(_.add(clock))(zio)
 
   /**
@@ -4538,7 +4540,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Executes the specified workflow with the specified implementation of the
    * console service.
    */
-  def withConsole[R, E, A <: Console, B](console: => A)(zio: => ZIO[R, E, B])(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+  def withConsole[R, E, A <: Console, B](console: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
     ZEnv.services.locallyWith(_.add(console))(zio)
 
   /**
@@ -4566,7 +4570,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Executes the specified workflow with the specified implementation of the
    * random service.
    */
-  def withRandom[R, E, A <: Random, B](random: => A)(zio: => ZIO[R, E, B])(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+  def withRandom[R, E, A <: Random, B](random: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
     ZEnv.services.locallyWith(_.add(random))(zio)
 
   /**
@@ -4580,7 +4586,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Executes the specified workflow with the specified implementation of the
    * system service.
    */
-  def withSystem[R, E, A <: System, B](system: => A)(zio: => ZIO[R, E, B])(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+  def withSystem[R, E, A <: System, B](system: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
     ZEnv.services.locallyWith(_.add(system))(zio)
 
   /**
