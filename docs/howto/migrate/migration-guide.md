@@ -519,6 +519,109 @@ ZIO.succeed(Set(3, 4, 3)).head
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ```
 
+## Elimination of Default Services From The ZIO Environment
+
+In ZIO 1.x we used default ZIO services such as `Clock`, `Console`, `Random`, and `System` along with the service pattern. So each time we used one of these services by obtaining them from the environment, the requirement of our effect becomes bigger and bigger. Finally, at the end of the world, we had two options, one was to use the default implementation of these services, and the other one was to use our own implementations.
+
+For example, in ZIO 1.x, we have the following boilerplate code to print random numbers every second. The environment type of the `myApp` effect is `Console with Clock with Random`:
+
+```scala
+import zio._
+import zio.clock.Clock
+import zio.duration.durationInt
+import zio.random.Random
+import java.io.IOException
+import zio.console._
+
+object MainApp extends App {
+  val myApp: ZIO[Clock with Console with Random, IOException, Unit] =
+    for {
+      rnd <- random.nextIntBounded(100)
+      _   <- console.putStrLn(s"Random number: $rnd")
+      _   <- clock.sleep(1.second)
+    } yield ()
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.forever.exitCode  
+    // or we can provide our own implementation 
+    // myApp.forever.provideLayer(Console.live ++ Clock.live ++ Random.live).exitCode
+}
+```
+
+But these services did not fit well with the _service pattern_ because they were too low level and users frequently used them directly in their code to use the default implementation out of the box. So in most cases, users were not meant to provide their own implementation of these services. In another hand, as they are low level, they are used very often, so they pollute the environment type of the effect. They are too small to be used with the _service pattern_.
+
+To improve on this, in ZIO 2.x, we deleted default services from the environment, instead, we built these services into the ZIO Runtime. So these services can still be modified and testable. In ZIO 2.x we encourage using the environment for higher-level services.
+
+Therefore, the previous example In ZIO 2.x can be rewritten very simply as below:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+object MainApp extends App {
+  val myApp: ZIO[Any, IOException, Unit] =
+    for {
+      rnd <- Random.nextIntBounded(100)
+      _   <- Console.printLine(s"Random number: $rnd")
+      _   <- Clock.sleep(1.second)
+    } yield ()
+
+  def run = myApp.forever
+}
+```
+
+In nutshell, to migrate from ZIO 1.x to ZIO 2.x, we need follow these steps:
+
+1. We aren't required to obtain default services from the environment using functions like `ZIO.service[Console]`, instead we should obtain the `Console` service using `ZIO.console`. So there is no need to access these services from the environment anymore, they are built into the ZIO Runtime. If we want to access them, we can use these functions instead:
+- `ZIO.console`/`ZIO.consoleWith`
+- `ZIO.clock`/`ZIO.clockWith`
+- `ZIO.random`/`ZIO.randomWith`
+- `ZIO.system`/`ZIO.systemWith`
+
+```diff
+for {
+-  random <- ZIO.service[Random]
++  random <- ZIO.random
+} yield ()
+```
+
+2. By removing these services from the environment, all usage of `ZEnv`, `Console`, `Clock`, `Random`, or `System` in the environment type of `ZIO`, `ZStream` and `ZLayer` should be generally deleted:
+
+```diff
+val myApp: ZIO[Clock with Console with Random with UserRepo with Logging, IOException, Unit] = ???
+val myApp: ZIO[UserRepo with Logging, IOException, Unit] = ???
+```
+
+3. If we want to use the live version in tests we can use these test aspects instead of providing them as layers:
+   `withLiveClock`
+   `withLiveConsole`
+   `withLiveRandom`
+   `withLiveSystem`
+   `withLiveEnvironment`
+
+For example:
+
+```diff
+- testM("TestLiveClock") { ... }.provideLayer(Clock.live)
++ test("TestLiveClock") { ... } @@ withLiveClock
+```
+
+4. In ZIO 1.x, whenever we wanted to provide our own versions of ZIO default services, we could do that using one of the `ZIO#provide*` operators. In ZIO 2.x if we need to modify the implementation of one of these services on a more fine-grained basis we can use of the following combinators:
+  - `ZIO.withConsole`/`ZIO.withConsoleScoped`
+  - `ZIO.withClock`/`ZIO.withClockScoped`
+  - `ZIO.withRandom`/`ZIO.withRandomScoped`
+  - `ZIO.withSystem`/`ZIO.withSystemScoped`
+
+```scala
+import zio._
+
+object MyClockLive extends Clock {
+  ... 
+}
+
+ZIO.withClock(MyClockLive)(effect)
+```
+
 ## ZIO App
 
 ### ZIOApp
