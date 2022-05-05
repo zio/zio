@@ -15,13 +15,13 @@ object GenUtils {
   def checkFinite[A, B](
     gen: Gen[Any, A]
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
-    assertM(gen.sample.collectSome.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
+    assertZIO(gen.sample.collectSome.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
 
   def checkSample[A, B](
     gen: Gen[Sized, A],
     size: Int = 100
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
-    assertM(provideSize(sample100(gen).map(f))(size))(assertion)
+    assertZIO(provideSize(sample100(gen).map(f))(size))(assertion)
 
   def checkShrink[A](gen: Gen[Sized, A])(a: A): UIO[TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)
@@ -64,8 +64,8 @@ object GenUtils {
       case e @ Failure(_) => Left(e)
     }
 
-  def provideSize[A](zio: ZIO[Sized, Nothing, A])(n: Int): UIO[A] =
-    zio.provideLayer(Sized.live(n))
+  def provideSize[R, A](zio: ZIO[Sized with R, Nothing, A])(n: Int): URIO[R, A] =
+    zio.provideSomeLayer[R](Sized.live(n))
 
   val random: Gen[Any, Gen[Any, Int]] =
     Gen.const(Gen.int(-10, 10))

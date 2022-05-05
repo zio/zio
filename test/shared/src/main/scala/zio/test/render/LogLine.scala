@@ -53,7 +53,7 @@ object LogLine {
     def apply(lineText: String): Message = Fragment(lineText).toLine.toMessage
     val empty: Message                   = Message()
   }
-  case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) {
+  case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) { self =>
     def +:(fragment: Fragment): Line       = Line(fragment +: fragments)
     def :+(fragment: Fragment): Line       = Line(fragments :+ fragment)
     def +(fragment: Fragment): Line        = Line(fragments :+ fragment)

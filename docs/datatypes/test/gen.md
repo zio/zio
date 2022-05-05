@@ -341,7 +341,7 @@ import zio.test.{test, _}
 
 test("ZIO.foldLeft should have the same result with List.foldLeft") {
   check(Gen.listOf(Gen.int), Gen.int, func2) { case (in, zero, f) =>
-    assertM(
+    assertZIO(
       ZIO.foldLeft(in)(zero)((s, a) => ZIO.attempt(f(s, a)))
     )(Assertion.equalTo(
       in.foldLeft(zero)((s, a) => f(s, a)))

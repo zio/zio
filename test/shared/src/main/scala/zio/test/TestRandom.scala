@@ -68,26 +68,26 @@ import scala.math.{log, sqrt}
  * generation.
  */
 trait TestRandom extends Random with Restorable {
-  def clearBooleans(implicit trace: ZTraceElement): UIO[Unit]
-  def clearBytes(implicit trace: ZTraceElement): UIO[Unit]
-  def clearChars(implicit trace: ZTraceElement): UIO[Unit]
-  def clearDoubles(implicit trace: ZTraceElement): UIO[Unit]
-  def clearFloats(implicit trace: ZTraceElement): UIO[Unit]
-  def clearInts(implicit trace: ZTraceElement): UIO[Unit]
-  def clearLongs(implicit trace: ZTraceElement): UIO[Unit]
-  def clearStrings(implicit trace: ZTraceElement): UIO[Unit]
-  def clearUUIDs(implicit trace: ZTraceElement): UIO[Unit]
-  def feedBooleans(booleans: Boolean*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedChars(chars: Char*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedDoubles(doubles: Double*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedFloats(floats: Float*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedInts(ints: Int*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedLongs(longs: Long*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedStrings(strings: String*)(implicit trace: ZTraceElement): UIO[Unit]
-  def feedUUIDs(UUIDs: UUID*)(implicit trace: ZTraceElement): UIO[Unit]
-  def getSeed(implicit trace: ZTraceElement): UIO[Long]
-  def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit]
+  def clearBooleans(implicit trace: Trace): UIO[Unit]
+  def clearBytes(implicit trace: Trace): UIO[Unit]
+  def clearChars(implicit trace: Trace): UIO[Unit]
+  def clearDoubles(implicit trace: Trace): UIO[Unit]
+  def clearFloats(implicit trace: Trace): UIO[Unit]
+  def clearInts(implicit trace: Trace): UIO[Unit]
+  def clearLongs(implicit trace: Trace): UIO[Unit]
+  def clearStrings(implicit trace: Trace): UIO[Unit]
+  def clearUUIDs(implicit trace: Trace): UIO[Unit]
+  def feedBooleans(booleans: Boolean*)(implicit trace: Trace): UIO[Unit]
+  def feedBytes(bytes: Chunk[Byte]*)(implicit trace: Trace): UIO[Unit]
+  def feedChars(chars: Char*)(implicit trace: Trace): UIO[Unit]
+  def feedDoubles(doubles: Double*)(implicit trace: Trace): UIO[Unit]
+  def feedFloats(floats: Float*)(implicit trace: Trace): UIO[Unit]
+  def feedInts(ints: Int*)(implicit trace: Trace): UIO[Unit]
+  def feedLongs(longs: Long*)(implicit trace: Trace): UIO[Unit]
+  def feedStrings(strings: String*)(implicit trace: Trace): UIO[Unit]
+  def feedUUIDs(UUIDs: UUID*)(implicit trace: Trace): UIO[Unit]
+  def getSeed(implicit trace: Trace): UIO[Long]
+  def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit]
 }
 
 object TestRandom extends Serializable {
@@ -101,55 +101,55 @@ object TestRandom extends Serializable {
     /**
      * Clears the buffer of booleans.
      */
-    def clearBooleans(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearBooleans(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(booleans = List.empty))
 
     /**
      * Clears the buffer of bytes.
      */
-    def clearBytes(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearBytes(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(bytes = List.empty))
 
     /**
      * Clears the buffer of characters.
      */
-    def clearChars(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearChars(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(chars = List.empty))
 
     /**
      * Clears the buffer of doubles.
      */
-    def clearDoubles(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearDoubles(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(doubles = List.empty))
 
     /**
      * Clears the buffer of floats.
      */
-    def clearFloats(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearFloats(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(floats = List.empty))
 
     /**
      * Clears the buffer of integers.
      */
-    def clearInts(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearInts(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(integers = List.empty))
 
     /**
      * Clears the buffer of longs.
      */
-    def clearLongs(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearLongs(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(longs = List.empty))
 
     /**
      * Clears the buffer of strings.
      */
-    def clearStrings(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearStrings(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(strings = List.empty))
 
     /**
      * Clears the buffer of UUIDs.
      */
-    def clearUUIDs(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearUUIDs(implicit trace: Trace): UIO[Unit] =
       bufferState.update(_.copy(uuids = List.empty))
 
     /**
@@ -157,7 +157,7 @@ object TestRandom extends Serializable {
      * the sequence will be the first to be taken. These values will be taken
      * before any values that were previously in the buffer.
      */
-    def feedBooleans(booleans: Boolean*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedBooleans(booleans: Boolean*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(booleans = booleans.toList ::: data.booleans))
 
     /**
@@ -165,7 +165,7 @@ object TestRandom extends Serializable {
      * value in the sequence will be the first to be taken. These values will be
      * taken before any values that were previously in the buffer.
      */
-    def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedBytes(bytes: Chunk[Byte]*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(bytes = bytes.toList ::: data.bytes))
 
     /**
@@ -173,7 +173,7 @@ object TestRandom extends Serializable {
      * in the sequence will be the first to be taken. These values will be taken
      * before any values that were previously in the buffer.
      */
-    def feedChars(chars: Char*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedChars(chars: Char*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(chars = chars.toList ::: data.chars))
 
     /**
@@ -181,7 +181,7 @@ object TestRandom extends Serializable {
      * the sequence will be the first to be taken. These values will be taken
      * before any values that were previously in the buffer.
      */
-    def feedDoubles(doubles: Double*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedDoubles(doubles: Double*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(doubles = doubles.toList ::: data.doubles))
 
     /**
@@ -189,7 +189,7 @@ object TestRandom extends Serializable {
      * the sequence will be the first to be taken. These values will be taken
      * before any values that were previously in the buffer.
      */
-    def feedFloats(floats: Float*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedFloats(floats: Float*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(floats = floats.toList ::: data.floats))
 
     /**
@@ -197,7 +197,7 @@ object TestRandom extends Serializable {
      * the sequence will be the first to be taken. These values will be taken
      * before any values that were previously in the buffer.
      */
-    def feedInts(ints: Int*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedInts(ints: Int*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(integers = ints.toList ::: data.integers))
 
     /**
@@ -205,7 +205,7 @@ object TestRandom extends Serializable {
      * sequence will be the first to be taken. These values will be taken before
      * any values that were previously in the buffer.
      */
-    def feedLongs(longs: Long*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedLongs(longs: Long*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(longs = longs.toList ::: data.longs))
 
     /**
@@ -213,7 +213,7 @@ object TestRandom extends Serializable {
      * the sequence will be the first to be taken. These values will be taken
      * before any values that were previously in the buffer.
      */
-    def feedStrings(strings: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedStrings(strings: String*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(strings = strings.toList ::: data.strings))
 
     /**
@@ -221,13 +221,13 @@ object TestRandom extends Serializable {
      * sequence will be the first to be taken. These values will be taken before
      * any values that were previously in the buffer.
      */
-    def feedUUIDs(uuids: UUID*)(implicit trace: ZTraceElement): UIO[Unit] =
+    def feedUUIDs(uuids: UUID*)(implicit trace: Trace): UIO[Unit] =
       bufferState.update(data => data.copy(uuids = uuids.toList ::: data.uuids))
 
     /**
      * Gets the seed of this `TestRandom`.
      */
-    def getSeed(implicit trace: ZTraceElement): UIO[Long] =
+    def getSeed(implicit trace: Trace): UIO[Long] =
       randomState.get.map { case Data(seed1, seed2, _) =>
         ((seed1.toLong << 24) | seed2) ^ 0x5deece66dL
       }
@@ -236,21 +236,21 @@ object TestRandom extends Serializable {
      * Takes a boolean from the buffer if one exists or else generates a
      * pseudo-random boolean.
      */
-    def nextBoolean(implicit trace: ZTraceElement): UIO[Boolean] =
+    def nextBoolean(implicit trace: Trace): UIO[Boolean] =
       ZIO.succeed(unsafeNextBoolean())
 
     /**
      * Takes a chunk of bytes from the buffer if one exists or else generates a
      * pseudo-random chunk of bytes of the specified length.
      */
-    def nextBytes(length: => Int)(implicit trace: ZTraceElement): UIO[Chunk[Byte]] =
+    def nextBytes(length: => Int)(implicit trace: Trace): UIO[Chunk[Byte]] =
       ZIO.succeed(unsafeNextBytes(length))
 
     /**
      * Takes a double from the buffer if one exists or else generates a
      * pseudo-random, uniformly distributed double between 0.0 and 1.0.
      */
-    def nextDouble(implicit trace: ZTraceElement): UIO[Double] =
+    def nextDouble(implicit trace: Trace): UIO[Double] =
       ZIO.succeed(unsafeNextDouble())
 
     /**
@@ -258,7 +258,7 @@ object TestRandom extends Serializable {
      * pseudo-random double in the specified range.
      */
     def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): UIO[Double] =
       ZIO.succeed(unsafeNextDoubleBetween(minInclusive, maxExclusive))
 
@@ -266,14 +266,14 @@ object TestRandom extends Serializable {
      * Takes a float from the buffer if one exists or else generates a
      * pseudo-random, uniformly distributed float between 0.0 and 1.0.
      */
-    def nextFloat(implicit trace: ZTraceElement): UIO[Float] =
+    def nextFloat(implicit trace: Trace): UIO[Float] =
       ZIO.succeed(unsafeNextFloat())
 
     /**
      * Takes a float from the buffer if one exists or else generates a
      * pseudo-random float in the specified range.
      */
-    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: ZTraceElement): UIO[Float] =
+    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: Trace): UIO[Float] =
       ZIO.succeed(unsafeNextFloatBetween(minInclusive, maxExclusive))
 
     /**
@@ -281,21 +281,21 @@ object TestRandom extends Serializable {
      * pseudo-random double from a normal distribution with mean 0.0 and
      * standard deviation 1.0.
      */
-    def nextGaussian(implicit trace: ZTraceElement): UIO[Double] =
+    def nextGaussian(implicit trace: Trace): UIO[Double] =
       ZIO.succeed(unsafeNextGaussian())
 
     /**
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer.
      */
-    def nextInt(implicit trace: ZTraceElement): UIO[Int] =
+    def nextInt(implicit trace: Trace): UIO[Int] =
       ZIO.succeed(unsafeNextInt())
 
     /**
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer in the specified range.
      */
-    def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: ZTraceElement): UIO[Int] =
+    def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: Trace): UIO[Int] =
       ZIO.succeed(unsafeNextIntBetween(minInclusive, maxExclusive))
 
     /**
@@ -303,21 +303,21 @@ object TestRandom extends Serializable {
      * pseudo-random integer between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    def nextIntBounded(n: => Int)(implicit trace: ZTraceElement): UIO[Int] =
+    def nextIntBounded(n: => Int)(implicit trace: Trace): UIO[Int] =
       ZIO.succeed(unsafeNextIntBounded(n))
 
     /**
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long.
      */
-    def nextLong(implicit trace: ZTraceElement): UIO[Long] =
+    def nextLong(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeNextLong())
 
     /**
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long in the specified range.
      */
-    def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: ZTraceElement): UIO[Long] =
+    def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeNextLongBetween(minInclusive, maxExclusive))
 
     /**
@@ -325,35 +325,35 @@ object TestRandom extends Serializable {
      * pseudo-random long between 0 (inclusive) and the specified value
      * (exclusive).
      */
-    def nextLongBounded(n: => Long)(implicit trace: ZTraceElement): UIO[Long] =
+    def nextLongBounded(n: => Long)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeNextLongBounded(n))
 
     /**
      * Takes a character from the buffer if one exists or else generates a
      * pseudo-random character from the ASCII range 33-126.
      */
-    def nextPrintableChar(implicit trace: ZTraceElement): UIO[Char] =
+    def nextPrintableChar(implicit trace: Trace): UIO[Char] =
       ZIO.succeed(unsafeNextPrintableChar())
 
     /**
      * Takes a string from the buffer if one exists or else generates a
      * pseudo-random string of the specified length.
      */
-    def nextString(length: => Int)(implicit trace: ZTraceElement): UIO[String] =
+    def nextString(length: => Int)(implicit trace: Trace): UIO[String] =
       ZIO.succeed(unsafeNextString(length))
 
     /**
      * Takes a UUID from the buffer if one exists or else generates a
      * pseudo-random UUID.
      */
-    def nextUUID(implicit trace: ZTraceElement): UIO[UUID] =
+    def nextUUID(implicit trace: Trace): UIO[UUID] =
       ZIO.succeed(unsafeNextUUID())
 
     /**
      * Saves the `TestRandom`'s current state in an effect which, when run, will
      * restore the `TestRandom` state to the saved state.
      */
-    def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
         randomData <- randomState.get
         bufferData <- bufferState.get
@@ -362,7 +362,7 @@ object TestRandom extends Serializable {
     /**
      * Sets the seed of this `TestRandom` to the specified value.
      */
-    def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
+    def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit] =
       ZIO.succeed(unsafeSetSeed(seed))
 
     /**
@@ -370,7 +370,7 @@ object TestRandom extends Serializable {
      */
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       list: => Collection[A]
-    )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: ZTraceElement): UIO[Collection[A]] =
+    )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
       ZIO.succeed(unsafeShuffle(list))
 
     override private[zio] def unsafeNextBoolean(): Boolean =
@@ -639,132 +639,132 @@ object TestRandom extends Serializable {
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of booleans.
    */
-  def clearBooleans(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearBooleans(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearBooleans)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of bytes.
    */
-  def clearBytes(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearBytes(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearBytes)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of characters.
    */
-  def clearChars(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearChars(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearChars)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of doubles.
    */
-  def clearDoubles(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearDoubles(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearDoubles)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of floats.
    */
-  def clearFloats(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearFloats(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearFloats)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of integers.
    */
-  def clearInts(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearInts(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearInts)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of longs.
    */
-  def clearLongs(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearLongs(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearLongs)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of strings.
    */
-  def clearStrings(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearStrings(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearStrings)
 
   /**
    * Accesses a `TestRandom` instance in the environment and clears the buffer
    * of UUIDs.
    */
-  def clearUUIDs(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearUUIDs(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearUUIDs)
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of booleans.
    */
-  def feedBooleans(booleans: Boolean*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedBooleans(booleans: Boolean*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedBooleans(booleans: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of chunks of bytes.
    */
-  def feedBytes(bytes: Chunk[Byte]*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedBytes(bytes: Chunk[Byte]*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedBytes(bytes: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of characters.
    */
-  def feedChars(chars: Char*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedChars(chars: Char*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedChars(chars: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of doubles.
    */
-  def feedDoubles(doubles: Double*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedDoubles(doubles: Double*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedDoubles(doubles: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of floats.
    */
-  def feedFloats(floats: Float*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedFloats(floats: Float*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedFloats(floats: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of integers.
    */
-  def feedInts(ints: Int*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedInts(ints: Int*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedInts(ints: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of longs.
    */
-  def feedLongs(longs: Long*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedLongs(longs: Long*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedLongs(longs: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of strings.
    */
-  def feedStrings(strings: String*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedStrings(strings: String*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedStrings(strings: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and feeds the buffer
    * with the specified sequence of UUIDs.
    */
-  def feedUUIDs(uuids: UUID*)(implicit trace: ZTraceElement): UIO[Unit] =
+  def feedUUIDs(uuids: UUID*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedUUIDs(uuids: _*))
 
   /**
    * Accesses a `TestRandom` instance in the environment and gets the seed.
    */
-  def getSeed(implicit trace: ZTraceElement): UIO[Long] =
+  def getSeed(implicit trace: Trace): UIO[Long] =
     testRandomWith(_.getSeed)
 
   /**
@@ -806,7 +806,7 @@ object TestRandom extends Serializable {
    * Constructs a new `Test` object that implements the `TestRandom` interface.
    * This can be useful for mixing in with implementations of other interfaces.
    */
-  def makeTest(data: Data)(implicit trace: ZTraceElement): UIO[Test] =
+  def makeTest(data: Data)(implicit trace: Trace): UIO[Test] =
     for {
       data   <- ZIO.succeed(Ref.unsafeMake(data))
       buffer <- ZIO.succeed(Ref.unsafeMake(Buffer()))
@@ -817,14 +817,14 @@ object TestRandom extends Serializable {
    * state in an effect which, when run, will restore the `TestRandom` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+  def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testRandomWith(_.save)
 
   /**
    * Accesses a `TestRandom` instance in the environment and sets the seed to
    * the specified value.
    */
-  def setSeed(seed: => Long)(implicit trace: ZTraceElement): UIO[Unit] =
+  def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.setSeed(seed))
 
   /**

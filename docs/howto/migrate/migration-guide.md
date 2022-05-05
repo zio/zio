@@ -13,7 +13,7 @@ Before you migrate your own codebase, confirm that all of your ZIO-related depen
 
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
 
-ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to the ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
+ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
 1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://zio-ecosystem.herokuapp.com/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
 
@@ -52,7 +52,7 @@ Let's see an example of that in the ZIO source code:
 trait ZIO[-R, +E, +A] {
 -  def map[B](f: A => B): ZIO[R, E, B] =
      flatMap(a => ZIO.succeedNow(f(a)))
-+  def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = 
++  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] = 
      flatMap(a => ZIO.succeedNow(f(a)))
 }
 ```
@@ -89,9 +89,9 @@ To avoid messing up our user's execution trace, we should add implicit trace par
 import zio._
 
 object FooLibrary {
-  def foo(implicit trace: ZTraceElement) = bar.flatMap(x => ZIO.succeed(x * 2))
-  private def bar(implicit trace: ZTraceElement) = baz.flatMap(x => ZIO.succeed(x * x))
-  private def baz(implicit trace: ZTraceElement) = ZIO.fail("Oh uh!").as(5)
+  def foo(implicit trace: Trace) = bar.flatMap(x => ZIO.succeed(x * 2))
+  private def bar(implicit trace: Trace) = baz.flatMap(x => ZIO.succeed(x * x))
+  private def baz(implicit trace: Trace) = ZIO.fail("Oh uh!").as(5)
 }
 
 object MainApp extends ZIOAppDefault {
@@ -126,7 +126,7 @@ object MainApp extends ZIOAppDefault {
 
 The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
 
-For example, in the ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
+For example, in ZIO 1.x, the following layer denotes this layer requires `Logging`, `Random`, `Database` and produce the `UserRepo`:
 
 ```scala
 val userRepo: ZLayer[Has[Logging] with Has[Random] with Has[Database], Throwable, Has[UserRepo]] = ???
@@ -144,7 +144,7 @@ trait Logging
 val userRepo: ZLayer[Logging with Random with Database, Throwable, UserRepo] = ???
 ```
 
-Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into the ZIO. Let's see how this changes the way we can provide a service to the environment.
+Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into ZIO. Let's see how this changes the way we can provide a service to the environment.
 
 Using the following code snippet, we demonstrate how we used to access and provide instances of `Config` service to the application environment using ZIO 1.x:
 
@@ -272,8 +272,6 @@ Here are some of the most important changes:
 | `ZIO.effectBlockingInterrupt`  | `ZIO.attemptBlockingInterrupt`    |
 | `ZIO.effectSuspend`            | `ZIO.suspend`                     |
 | `ZIO.effectSuspendTotal`       | `ZIO.suspendSucceed`              |
-| `ZIO.effectSuspendTotalWith`   | `ZIO.suspendSucceedWith`          |
-| `ZIO.effectSuspendWith`        | `ZIO.suspendWith`                 |
 | `ZIO.effectTotal`              | `ZIO.succeed`                     |
 |                                |                                   |
 | `ZIO.foreach_`                 | `ZIO.foreachDiscard`              |
@@ -301,6 +299,8 @@ Here are some of the most important changes:
 |                                |                                   |
 | `ZIO.validate_`                | `ZIO.validateDiscard`             |
 | `ZIO.validatePar_`             | `ZIO.validateParDiscard`          |
+|                                |                                   |
+| `ZIO.tapCause`                 | `ZIO.tapErrorCause`               |
 
 ### Lazy Evaluation of Parameters
 
@@ -325,7 +325,7 @@ The newbie user expects that this program prints 3 different random numbers, whi
 1085597917
 ```
 
-This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acuqire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
+This is because the user incorrectly introduced a raw effect into the `acquire` parameter of `bracket` operation. As the `acquire` is _by-value parameter_, the value passed to the function evaluated _eagerly_, only once:
 
 ```scala
 def bracket[R, E, A](acquire: ZIO[R, E, A]): ZIO.BracketAcquire[R, E, A]
@@ -418,7 +418,7 @@ So instead of writing a parallel task like this:
 
 ```scala mdoc:invisible
 val urls: List[String] = List.empty
-def download(url: String): Task[String] = Task.attempt(???)
+def download(url: String): Task[String] = ZIO.attempt(???)
 ```
 
 ```scala mdoc:silent:warn
@@ -561,54 +561,11 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ### Method Deprecation and Renaming
 
-We renamed the `Platform` data type to the `RuntimeConfig`, and moved it from the `zio.internal` to the `zio` package with some member deprecation:
-
-| ZIO 1.0                         | ZIO 2.x              |
-|---------------------------------|----------------------|
-| `zio.internal.Platfom`          | `zio.RuntimeConfig`  |
-| `Platform#withBlockingExecutor` | `RuntimeConfig#copy` |
-| `Platform#withExecutor`         | `RuntimeConfig#copy` |
-| `Platform#withFatal`            | `RuntimeConfig#copy` |
-| `Platform#withReportFatal`      | `RuntimeConfig#copy` |
-| `Platform#withReportFailure`    | `RuntimeConfig#copy` |
-| `Platform#withSupervisor`       | `RuntimeConfig#copy` |
-| `Platform#withTracing`          | `RuntimeConfig#copy` |
-
 Also, we moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
 |-------------------------|----------------|
 | `zio.internal.Executor` | `zio.Executor` |
-
-In regard to renaming the `Platform` data-type to the `RuntimeConfig` we have some similar renaming in other data-types like `Runtime` and `ZIO`:
-
-| ZIO 1.0               | ZIO 2.x                    |
-|-----------------------|----------------------------|
-| `Runtime#mapPlatform` | `Runtime#mapRuntimeConfig` |
-| `Runtime#platfom`     | `Runtime#runtimeConfig`    |
-| `ZIO.platfom`         | `ZIO.runtimeConfig`        |
-
-### Runtime Config Aspect
-
-ZIO 2.x, introduced a new data-type called `RuntimeConfigAspect` with the following methods:
-
-* `addLogger`
-* `addReportFailure`
-* `addReportFatal`
-* `addSupervisor`
-* `identity`
-* `setBlockingExecutor`
-* `setExecutor`
-* `setTracing`
-
-### Compositional Runtime Config
-
-ZIO 2.x allows us to run part of an effect on a different `RuntimeConfig`:
-
-```scala
-ZIO.withRuntimeConfig(newRuntimeConfiguration)(effect)
-```
-After running the effect on the specified runtime configuration, it will restore the old runtime configuration.
 
 ## ZLayer
 
@@ -1268,14 +1225,14 @@ The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The
 
 Here is list of other deprecated methods:
 
-| ZIO 1.x                             | ZIO 2.x                               |
-|-------------------------------------|---------------------------------------|
+| ZIO 1.x                    | ZIO 2.x                      |
+|----------------------------|------------------------------|
 | `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
 | `ZLayer.fromFunctionManyM` | `ZLayer.fromFunctionManyZIO` |
-| `ZLayer.identity`          | `ZLayer.environment`         |
-| `ZLayer.requires`          | `ZLayer.environment`         |
+| `ZLayer.identity`          | `ZLayer.service`             |
+| `ZLayer.requires`          | `ZLayer.service`             |
 
 ## Scopes
 
@@ -1346,6 +1303,18 @@ Scopes are simple because they don't require us to learn any new data types. Sco
 In addition to providing simpler, more powerful, and faster resource management, the replacement of Managed with scopes is going to tremendously simplify the ZIO API: there will not be any more `toManaged`, `mapManaged`, etc, variants. Layers will always be constructed with `ZIO`.
 
 ### Migration from `ZManaged` to `Scope`
+
+#### Deferred Migration
+For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
+
+So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
+```
+And then by adding `import zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
+
+#### Immediate Migration
 
 Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is removed from `ZIO` and all usages in ZIO Core, ZIO Stream, and ZIO Test are reimplemented in terms of `Scope`. We should follow these steps to migrate the `ZManaged` codebase to `Scope`:
 
@@ -1515,15 +1484,19 @@ def transfer(from: String, to: String): IO[Throwable, Unit] =
 
 As we can see, the migration is quite straightforward, and it doesn't require much extra work.
 
-For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
+## Simplification of Concurrent Data Types
 
-So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
+Even though highly polymorphic versions of ZIO concurrent data structures (e.g. `ZRef`, `ZQueue`) were elegant, they were used rarely. There was also some cost associated with polymorphism, such as errors, readability, and maintainability.
 
-```scala
-libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
-```
+Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
 
-And then by importing `zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
+| ZIO 1.x (removed)                   | ZIO 2.x              |
+|-------------------------------------|----------------------|
+|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
+|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
+|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
+|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
+|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
 
 ## Ref
 
@@ -1537,9 +1510,9 @@ As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subt
 
 To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
-| ZIO 1.x                  | ZIO 2.x                                 |
-|--------------------------|-----------------------------------------|
-| `RefM#dequeueRef`       | `Ref.Synchronized#SubscriptionRef`     |
+| ZIO 1.x                 | ZIO 2.x                                |
+|-------------------------|----------------------------------------|
+| `RefM#dequeueRef`       | `zio.stream.SubscriptionRef#changes`   |
 | `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
 | `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
 | `RefM#modify`           | `Ref.Synchronized#modifyZIO`           |
@@ -1643,7 +1616,7 @@ import zio.test._
 suite("Ref") {
   test("updateAndGet") {
     val result = Ref.make(0).flatMap(_.updateAndGet(_ + 1))
-    assertM(result)(Assertion.equalTo(1))
+    assertZIO(result)(Assertion.equalTo(1))
   }
 }
 ```
@@ -1663,7 +1636,7 @@ val option = Option.empty[Int]
 
 suite("ZIO 1.x Test Assertions")(
   test("contains")(assert(list)(Assertion.contains(5))),
-  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")()(actual => actual % 2 == 0)))),
+  test("forall")(assert(list)(Assertion.forall(Assertion.assertion("even")(actual => actual % 2 == 0)))),
   test("less than")(assert(number)(Assertion.isLessThan(0))),
   test("isSome")(assert(option)(Assertion.equalTo(Some(3))))
 )
@@ -1715,7 +1688,7 @@ val bigSuite = fooSuite + barSuite + bazSuite
 
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
 
-So far, before ZIO 2.0, the ZIO Stream has included three main abstractions:
+So far, before ZIO 2.0, ZIO Stream has included three main abstractions:
 1. **`ZStream`** — represents the source of elements
 2. **`ZSink`** — represents consumers of elements that can be composed together to create composite consumers
 3. **`ZTransducer`** — represents generalized stateful and effectful stream processing
@@ -1906,7 +1879,7 @@ ZStream.from(ZIO.succeed(List(1,2,3)))
 
 ### ZState
 
-`ZState` is a new data type that the ZIO 2.0 introduced:
+`ZState` is a new data type that ZIO 2.0 introduced:
 
 ```scala
 sealed trait ZState[S] {
@@ -2038,7 +2011,7 @@ ZIO Logging calculates the running duration of that span and includes that in th
 
 ### Compile-time Execution Tracing
 
-ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that it not helpful to the user is understanding where in their code an error occurred.
+ZIO 1.x's execution trace is not as useful as it could be because it contains tracing information for internal ZIO operators that is not helpful to the user is understanding where in their code an error occurred.
 
 Let's say we have the following application, in ZIO 1.x:
 
@@ -2130,7 +2103,7 @@ object TracingExample extends ZIOAppDefault {
 }
 ```
 
-The output is more descriptive than the ZIO 1.x. It is similar to the Java stacktrace:
+The output is more descriptive than in ZIO 1.x. It is similar to the Java stacktrace:
 
 ```
 Hello!
@@ -2142,7 +2115,7 @@ timestamp=2021-12-19T08:25:09.372926403Z level=ERROR thread=#zio-fiber-163990230
 
 As we see, the first line of execution trace, point to the exact location on the source code which causes the failure (`ZIO.fail("Boom!")`), which is line number 8.
 
-In ZIO 2.x, the tracing is not optional, and unlike the ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
+In ZIO 2.x, the tracing is not optional, and unlike in ZIO 1.x, it is impossible to disable async tracing, either globally, or for specific effects. ZIO now always generates async stack traces, and it is impossible to turn this feature off, either at the global level or at the level of individual effects. Since nearly all users were running ZIO with tracing turned on, this change should have minimal impact on ZIO applications.
 
 Another improvement about ZIO tracing is its performance. Tracing in ZIO 1.x slows down the application performance by two times. In ZIO 1.x, we wrap and unwrap every combinator at runtime to be able to trace the execution. While it is happening on the runtime, it takes a lot of allocations which all need to be garbage collected afterward. So it adds a huge amount of complexity at the runtime.
 

@@ -184,7 +184,7 @@ def repeat[E, A](n: Int)(io: IO[E, A]): IO[E, Unit] =
       if (i < n)
         io *> iRef.update(_ + 1) *> loop
       else
-        IO.unit
+        ZIO.unit
     }
     loop
   }
@@ -288,11 +288,11 @@ object S {
 
         def P = (vref.get.flatMap { v =>
           if (v < 0)
-            IO.fail(())
+            ZIO.fail(())
           else
             vref.modify(v0 => if (v0 == v) (true, v - 1) else (false, v)).flatMap {
-              case false => IO.fail(())
-              case true  => IO.unit
+              case false => ZIO.fail(())
+              case true  => ZIO.unit
             }
         } <> P).unit
       }

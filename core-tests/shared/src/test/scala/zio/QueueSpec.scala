@@ -34,9 +34,9 @@ object QueueSpec extends ZIOBaseSpec {
     test("parallel takes and sequential offers ") {
       for {
         queue <- Queue.bounded[Int](10)
-        f     <- IO.forkAll(List.fill(10)(queue.take))
+        f     <- ZIO.forkAll(List.fill(10)(queue.take))
         values = Range.inclusive(1, 10).toList
-        _     <- values.map(queue.offer).foldLeft[UIO[Boolean]](IO.succeed(false))(_ *> _)
+        _     <- values.map(queue.offer).foldLeft[UIO[Boolean]](ZIO.succeed(false))(_ *> _)
         v     <- f.join
       } yield assert(v.toSet)(equalTo(values.toSet))
     },
@@ -44,7 +44,7 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue <- Queue.bounded[Int](10)
         values = Range.inclusive(1, 10).toList
-        f     <- IO.forkAll(values.map(queue.offer))
+        f     <- ZIO.forkAll(values.map(queue.offer))
         _     <- waitForSize(queue, 10)
         out   <- Ref.make[List[Int]](Nil)
         _     <- queue.take.flatMap(i => out.update(i :: _)).repeatN(9)
@@ -67,7 +67,7 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue <- Queue.bounded[Int](5)
         values = Range.inclusive(1, 10).toList
-        f     <- IO.forkAll(values.map(queue.offer))
+        f     <- ZIO.forkAll(values.map(queue.offer))
         _     <- waitForSize(queue, 10)
         out   <- Ref.make[List[Int]](Nil)
         _     <- queue.take.flatMap(i => out.update(i :: _)).repeatN(9)
@@ -131,7 +131,7 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _     <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+        _     <- values.map(queue.offer).foldLeft(ZIO.succeed(false))(_ *> _)
         _     <- queue.offer(5).fork
         _     <- waitForSize(queue, 5)
         v     <- queue.takeAll
@@ -231,7 +231,7 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue <- Queue.bounded[Int](4)
         values = List(1, 2, 3, 4)
-        _     <- values.map(queue.offer).foldLeft(IO.succeed(false))(_ *> _)
+        _     <- values.map(queue.offer).foldLeft(ZIO.succeed(false))(_ *> _)
         f     <- queue.offer(5).fork
         _     <- waitForSize(queue, 5)
         c     <- queue.takeUpTo(5)
@@ -358,7 +358,7 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](50)
         orders  = Range.inclusive(1, 100).toList
-        takers <- IO.forkAll(List.fill(100)(queue.take))
+        takers <- ZIO.forkAll(List.fill(100)(queue.take))
         _      <- waitForSize(queue, -100)
         _      <- queue.offerAll(orders)
         l      <- takers.join
@@ -370,7 +370,7 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](256)
         orders  = Range.inclusive(1, 128).toList
-        takers <- IO.forkAll(List.fill(64)(queue.take))
+        takers <- ZIO.forkAll(List.fill(64)(queue.take))
         _      <- waitForSize(queue, -64)
         _      <- queue.offerAll(orders)
         l      <- takers.join
@@ -383,9 +383,9 @@ object QueueSpec extends ZIOBaseSpec {
       for {
         queue  <- Queue.bounded[Int](200)
         values  = Range.inclusive(1, 100).toList
-        takers <- IO.forkAll(List.fill(100)(queue.take))
+        takers <- ZIO.forkAll(List.fill(100)(queue.take))
         _      <- waitForSize(queue, -100)
-        f      <- IO.forkAll(List.fill(100)(queue.take))
+        f      <- ZIO.forkAll(List.fill(100)(queue.take))
         _      <- waitForSize(queue, -200)
         _      <- queue.offerAll(values)
         l      <- takers.join
@@ -631,7 +631,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("dropping strategy with offerAll") {
       for {
-        capacity <- IO.succeed(4)
+        capacity <- ZIO.succeed(4)
         queue    <- Queue.dropping[Int](capacity)
         iter      = Range.inclusive(1, 5)
         _        <- queue.offerAll(iter)
@@ -640,7 +640,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("dropping strategy with offerAll, check offer returns false") {
       for {
-        capacity <- IO.succeed(2)
+        capacity <- ZIO.succeed(2)
         queue    <- Queue.dropping[Int](capacity)
         v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         _        <- queue.takeAll
@@ -648,7 +648,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("dropping strategy with offerAll, check ordering") {
       for {
-        capacity <- IO.succeed(128)
+        capacity <- ZIO.succeed(128)
         queue    <- Queue.dropping[Int](capacity)
         iter      = Range.inclusive(1, 256)
         _        <- queue.offerAll(iter)
@@ -657,7 +657,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("dropping strategy with pending taker") {
       for {
-        capacity <- IO.succeed(2)
+        capacity <- ZIO.succeed(2)
         queue    <- Queue.dropping[Int](capacity)
         iter      = Range.inclusive(1, 4)
         f        <- queue.take.fork
@@ -669,7 +669,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("sliding strategy with pending taker") {
       for {
-        capacity <- IO.succeed(2)
+        capacity <- ZIO.succeed(2)
         queue    <- Queue.sliding[Int](capacity)
         iter      = Range.inclusive(1, 4)
         _        <- queue.take.fork
@@ -681,7 +681,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("sliding strategy, check offerAll returns true") {
       for {
-        capacity <- IO.succeed(5)
+        capacity <- ZIO.succeed(5)
         queue    <- Queue.sliding[Int](capacity)
         iter      = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
@@ -689,7 +689,7 @@ object QueueSpec extends ZIOBaseSpec {
     },
     test("bounded strategy, check offerAll returns true") {
       for {
-        capacity <- IO.succeed(5)
+        capacity <- ZIO.succeed(5)
         queue    <- Queue.bounded[Int](capacity)
         iter      = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)

@@ -18,7 +18,7 @@ package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{Gen, Sized}
-import zio.ZTraceElement
+import zio.Trace
 
 /**
  * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
@@ -44,39 +44,39 @@ object GenIntegralPoly {
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for bytes.
    */
-  def byte(implicit trace: ZTraceElement): GenIntegralPoly =
+  def byte(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.byte, Numeric.ByteIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for
    * characters.
    */
-  def char(implicit trace: ZTraceElement): GenIntegralPoly =
+  def char(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.char, Numeric.CharIsIntegral)
 
   /**
    * A generator of polymorphic values constrainted to have an `Integral`
    * instance.
    */
-  def genIntegralPoly(implicit trace: ZTraceElement): Gen[Any, GenIntegralPoly] =
+  def genIntegralPoly(implicit trace: Trace): Gen[Any, GenIntegralPoly] =
     Gen.elements(byte, char, int, long, short)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for
    * integers.
    */
-  def int(implicit trace: ZTraceElement): GenIntegralPoly =
+  def int(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.int, Numeric.IntIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for longs.
    */
-  def long(implicit trace: ZTraceElement): GenIntegralPoly =
+  def long(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.long, Numeric.LongIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for shorts.
    */
-  def short(implicit trace: ZTraceElement): GenIntegralPoly =
+  def short(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.short, Numeric.ShortIsIntegral)
 }

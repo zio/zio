@@ -84,27 +84,26 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         .provide(
           Scope.default >>> (ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
           ZIOAppArgs.empty,
-          spec.layer
+          spec.bootstrap
         )
     )
     description
   }
 
   override def run(notifier: RunNotifier): Unit = {
-    val _ = zio.Runtime(ZEnvironment.empty, spec.runtime.runtimeConfig).unsafeRun {
+    val _ = zio.Runtime.default.unsafeRun {
 
       val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
-        .runSpec(
+        .runSpecInfallible(
           instrumented,
           TestArgs.empty,
           Console.ConsoleLive
         )
         .provide(
-          Scope.default >>> (ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          ZIOAppArgs.empty,
-          spec.layer
+          Scope.default >>> (ZEnv.live >>> TestEnvironment.live ++ ZLayer.environment[Scope] ++ spec.bootstrap),
+          ZIOAppArgs.empty
         )
     }
   }
@@ -131,11 +130,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
   private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
-      result
-        .fold(details =>
-          rendered(Test, label, Failed, 0, DefaultTestReporter.renderAssertionResult(details, 0).lines: _*)
-        )(_ && _, _ || _, !_)
-        .lines
+      rendered(
+        Test,
+        label,
+        Failed,
+        0,
+        DefaultTestReporter.renderAssertionResult(result.result, 0).lines: _*
+      ).streamingLines
     )
 
   private def testDescription(label: String, path: Vector[String]): Description = {
@@ -155,8 +156,8 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           case Runtime(cause, _)    => reportRuntimeFailure(notifier, path, label, cause)
         },
         {
-          case Succeeded(_, _) => notifier.fireTestFinished(label, path)
-          case Ignored(_)      => notifier.fireTestIgnored(label, path)
+          case Succeeded(_) => notifier.fireTestFinished(label, path)
+          case Ignored(_)   => notifier.fireTestIgnored(label, path)
         }
       )
     def loop(specCase: ZSpecCase, path: Vector[String] = Vector.empty): ZSpecCase =

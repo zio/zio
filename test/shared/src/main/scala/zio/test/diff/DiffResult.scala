@@ -1,5 +1,6 @@
 package zio.test.diff
 
+import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ConsoleUtils._
 import zio.test.PrettyPrint
@@ -22,29 +23,34 @@ sealed trait DiffResult {
 
   def render: String = self match {
     case Nested(label, fields) =>
-      scala.Console.RESET +
-        s"""
+      s"""
 $label(
   ${indent(
-          fields
-            .filter(_._2.hasDiff)
-            .map {
-              case (Some(label), Different(_, _, Some(custom))) => dim(label + " = ") + indent(custom, label.length + 3)
-              case (Some(label), diff)                          => dim(label + " = ") + diff.render
-              case (None, diff)                                 => diff.render
-            }
-            .mkString(",\n")
-        )}
+        fields
+          .filter(_._2.hasDiff)
+          .map {
+            case (Some(label), Different(_, _, Some(custom))) => dim(label + " = ") + indent(custom, label.length + 3)
+            case (Some(label), diff) =>
+              val color = diff match {
+                case Removed(_) => scala.Console.RED
+                case Added(_)   => scala.Console.GREEN
+                case _          => ""
+              }
+              dim(color + label + " = ") + diff.render
+            case (None, diff) => diff.render
+          }
+          .mkString(",\n")
+      )}
 )
          """.trim
     case Different(_, _, Some(custom)) =>
       custom
     case Different(oldValue, newValue, None) =>
-      s"${red(PrettyPrint(oldValue))} → ${green(PrettyPrint(newValue))}"
+      s"${PrettyPrint(oldValue).red} → ${PrettyPrint(newValue).green}"
     case Removed(oldValue) =>
-      red(PrettyPrint(oldValue))
+      PrettyPrint(oldValue).red
     case Added(newValue) =>
-      green(PrettyPrint(newValue))
+      PrettyPrint(newValue).green
     case Identical(value) =>
       PrettyPrint(value)
   }

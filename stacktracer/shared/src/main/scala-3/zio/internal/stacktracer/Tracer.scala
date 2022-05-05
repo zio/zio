@@ -4,7 +4,7 @@ object Tracer {
   type Traced = Any
 
   /**
-   * This implicit is always in scope and will generate a new ZTraceElement any time one is
+   * This implicit is always in scope and will generate a new Trace any time one is
    * implicitly required (or the method is explicitly called)
    *
    * This can be disabled by importing

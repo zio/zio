@@ -2,7 +2,7 @@ package zio.stream
 
 import zio.test.Assertion.equalTo
 import zio.test.{Assertion, TestResult, assert}
-import zio.{IO, UIO}
+import zio.{UIO, ZIO}
 
 object SinkUtils {
 
@@ -10,8 +10,8 @@ object SinkUtils {
     ZSink
       .fold[A, Option[A]](None)(_.isEmpty)((_, v) => if (a == v) Some(a) else None)
       .mapZIO {
-        case Some(v) => IO.succeedNow(v)
-        case None    => IO.fail(())
+        case Some(v) => ZIO.succeedNow(v)
+        case None    => ZIO.fail(())
       }
 
   def sinkRaceLaw[E, A, L](

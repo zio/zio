@@ -32,21 +32,17 @@ import java.util.concurrent.TimeUnit
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
-  reporter: TestReporter[E] =
-    DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
+  reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(Trace.empty),
   bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
-    implicit val emptyTracer = ZTraceElement.empty
+    implicit val emptyTracer = Trace.empty
     val printerLayer =
       TestLogger.fromConsole(Console.ConsoleLive)
-
-    val sinkLayer = ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
 
     Clock.live ++ (printerLayer >+> sinkLayer) ++ Random.live
   }
 ) { self =>
 
-  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty, runtimeConfig)
+  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.
@@ -54,7 +50,7 @@ final case class TestRunner[R, E](
   def run(
     spec: Spec[R, E]
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): UIO[
     Summary
   ] =
@@ -70,7 +66,7 @@ final case class TestRunner[R, E](
    */
   def unsafeRun(
     spec: Spec[R, E]
-  )(implicit trace: ZTraceElement): Unit =
+  )(implicit trace: Trace): Unit =
     runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
   /**
@@ -80,7 +76,7 @@ final case class TestRunner[R, E](
     spec: Spec[R, E]
   )(
     k: => Unit
-  )(implicit trace: ZTraceElement): Unit =
+  )(implicit trace: Trace): Unit =
     runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k
       case Exit.Failure(c) => throw FiberFailure(c)
@@ -91,7 +87,7 @@ final case class TestRunner[R, E](
    */
   def unsafeRunSync(
     spec: Spec[R, E]
-  )(implicit trace: ZTraceElement): Exit[Nothing, Unit] =
+  )(implicit trace: Trace): Exit[Nothing, Unit] =
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 
   /**
@@ -100,14 +96,8 @@ final case class TestRunner[R, E](
   def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =
     copy(reporter = reporter)
 
-  /**
-   * Creates a copy of this runner replacing the runtime configuration.
-   */
-  def withRuntimeConfig(f: RuntimeConfig => RuntimeConfig): TestRunner[R, E] =
-    copy(runtimeConfig = f(runtimeConfig))
-
   private[test] def buildRuntime(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
-    bootstrap.toRuntime(runtimeConfig)
+    bootstrap.toRuntime
 }

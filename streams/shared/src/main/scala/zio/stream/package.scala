@@ -20,11 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 package object stream {
   type Stream[+E, +A] = ZStream[Any, E, A]
-  val Stream = ZStream
 
   type UStream[+A] = ZStream[Any, Nothing, A]
-  val UStream = ZStream
 
   type Sink[+OutErr, -In, +L, +Z] = ZSink[Any, OutErr, In, L, Z]
-  val Sink = ZSink
 }

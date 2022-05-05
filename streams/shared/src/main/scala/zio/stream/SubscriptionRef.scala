@@ -37,7 +37,7 @@ object SubscriptionRef {
   /**
    * Creates a new `SubscriptionRef` with the specified value.
    */
-  def make[A](a: => A)(implicit trace: ZTraceElement): UIO[SubscriptionRef[A]] =
+  def make[A](a: => A)(implicit trace: Trace): UIO[SubscriptionRef[A]] =
     for {
       ref <- Ref.Synchronized.make(a)
       hub <- Hub.unbounded[A]
@@ -50,13 +50,13 @@ object SubscriptionRef {
             }
           }
         }
-      def get(implicit trace: ZTraceElement): UIO[A] =
+      def get(implicit trace: Trace): UIO[A] =
         ref.get
-      def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: ZTraceElement): ZIO[R, E, B] =
+      def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B] =
         ref.modifyZIO(a => f(a).tap { case (_, a) => hub.publish(a) })
-      def set(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
+      def set(a: A)(implicit trace: Trace): UIO[Unit] =
         ref.set(a)
-      def setAsync(a: A)(implicit trace: ZTraceElement): UIO[Unit] =
+      def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
         ref.setAsync(a)
     }
 }

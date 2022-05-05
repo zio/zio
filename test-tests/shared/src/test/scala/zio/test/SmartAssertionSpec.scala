@@ -324,7 +324,24 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val l1 = Seq("Alpha", "This is a wonderful way to dance and party", "Potato")
         val l2 = Seq("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
         assertTrue(l1 == l2)
-      } @@ failing
+      } @@ failing,
+      suite("String diffs")(
+        test("words") {
+          val s1 = "This is a wonderful way to dance and party"
+          val s2 = "This is a wonderful way to live and die"
+          assertTrue(s1 == s2)
+        } @@ failing,
+        test("characters") {
+          val s1 = "abcdefghijklmnopqrstuvwxyz"
+          val s2 = "abCdefghiiJklmnopqrstuvwxyzZ"
+          assertTrue(s1 == s2)
+        } @@ failing,
+        test("multi-line") {
+          val s1 = "Hello\nThis is a wonderful way to dance and party\nThis is a wonderful way to live and die"
+          val s2 = "Hello\nThis is a wonderful way to live and die\nThis is a wonderful way to dance and party"
+          assertTrue(s1 == s2)
+        } @@ failing
+      )
     ),
     test("Package qualified identifiers") {
       assertTrue(zio.Duration.fromNanos(0) == zio.Duration.Zero)
@@ -380,7 +397,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(cause.is(_.failure) == "UH OH")
         },
         test("interrupted") {
-          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1, ZTraceElement.empty))
+          val cause: Cause[Int] = Cause.interrupt(FiberId(123, 1, Trace.empty))
           assertTrue(!cause.is(_.interrupted))
         }
       ),
@@ -394,7 +411,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           assertTrue(exit.is(_.failure) == 88)
         },
         test("interrupted") {
-          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1, ZTraceElement.empty))
+          val exit: Exit[Int, String] = Exit.interrupt(FiberId(123, 1, Trace.empty))
           assertTrue(!exit.is(_.interrupted))
         },
         test("success") {
@@ -481,7 +498,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
 
   // The implicit trace will be used by assertTrue to report the
   // actual location.
-  def customAssertion(string: String)(implicit trace: ZTraceElement): Assert =
+  def customAssertion(string: String)(implicit trace: Trace): TestResult =
     assertTrue(string == "cool")
 
   // Test Types

@@ -3,7 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{Runtime, RuntimeConfig, Task, UIO, URIO, ZEnvironment, ZIO}
+import zio.{FiberRefs, Runtime, Task, UIO, URIO, ZEnvironment, ZIO}
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -65,16 +65,15 @@ We don't usually use this method to run our effects. One of the use cases of thi
 
 ## Default Runtime
 
-ZIO contains a default runtime called `Runtime.default`, configured with a default `RuntimeConfig` designed to work well for mainstream usage. It is already implemented as below:
+ZIO contains a default runtime called `Runtime.default` designed to work well for mainstream usage. It is already implemented as below:
 
 ```scala
 object Runtime {
-  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty, RuntimeConfig.default)
+  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty)
 }
 ```
 
-The default runtime includes a default `RuntimeConfig` which contains minimum capabilities to bootstrap execution of ZIO tasks.
-```
+The default runtime contains minimum capabilities to bootstrap execution of ZIO tasks.
 
 We can easily access the default `Runtime` to run an effect:
 
@@ -88,7 +87,7 @@ object MainApp extends scala.App {
 
 ## Custom Runtime
 
-Sometimes we need to create a custom `Runtime` with a user-defined environment and user-specified `RuntimeConfig`. Many real applications should not use `Runtime.default`. Instead, they should make their own `Runtime` which configures the `RuntimeConfig` and environment accordingly.
+Sometimes we need to create a custom `Runtime` with a user-defined environment.
 
 Some use-cases of custom Runtimes:
 
@@ -139,7 +138,7 @@ Let's create a custom runtime that contains these two service implementations in
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
   ZEnvironment[Logging, Email](LoggingLive(), EmailMock()),
-  RuntimeConfig.default
+  FiberRefs.empty
 )
 ```
 
@@ -161,107 +160,4 @@ testableRuntime.unsafeRun(
     _ <- Email.send("David", "Hi! Here is today's newsletter.")
   } yield ()
 )
-```
-
-### Application Monitoring
-
-Sometimes to diagnose runtime issues and understand what is going on in our application we need to add some sort of monitoring task to the Runtime System. It helps us to track fibers and their status.
-
-By adding a `Supervisor` to the current configuration of the Runtime System, we can track the activity of fibers in a program. So every time a fiber gets started, forked, or every time a fiber ends its life, all these contextual pieces of information get reported to that `Supervisor`.
-
-For example, the [ZIO ZMX](https://zio.github.io/zio-zmx/) enables us to monitor our ZIO application. To include that in our project we must add the following line to our `build.sbt`:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio-zmx" % "0.0.6"
-```
-
-ZIO ZMX has a specialized `Supervisor` called `ZMXSupervisor` that can be added to our existing `Runtime`:
-
-```scala
-import zio._
-import zio.console._
-import zio.zmx._
-import zio.zmx.diagnostics._
-
-val program: ZIO[Any, Throwable, Unit] =
-  for {
-    _ <- putStrLn("Waiting for input")
-    a <- getStrLn
-    _ <- putStrLn("Thank you for " + a)
-  } yield ()
-
-val diagnosticsLayer: ZLayer[ZEnv, Throwable, Diagnostics] =
-  Diagnostics.make("localhost", 1111)
-
-val runtime: Runtime[ZEnv] =
-  Runtime.default.mapRuntimeConfig(_.withSupervisor(ZMXSupervisor))
-
-runtime.unsafeRun(program.provideCustom(diagnosticsLayer))
-```
-
-### User-defined Executor
-
-An executor is responsible for executing effects. The way how each effect will be run including detail of threading, scheduling, and so forth, is separated from the caller. So, if we need to have a specialized executor according to our requirements, we can provide that to the ZIO `Runtime`:
-
-```scala mdoc:silent:nest
-import zio.Executor
-import java.util.concurrent.{ThreadPoolExecutor, TimeUnit, LinkedBlockingQueue}
-
-val runtime = Runtime.default.mapRuntimeConfig(
-  _.copy(
-    executor = 
-      Executor.fromThreadPoolExecutor(_ => 1024)(
-        new ThreadPoolExecutor(
-          5,
-          10,
-          5000,
-          TimeUnit.MILLISECONDS,
-          new LinkedBlockingQueue[Runnable]()
-        )
-      )
-  )
-)
-```
-
-### Benchmarking
-
-To do benchmark operations, we need a `Runtime` with settings suitable for that, in particular with tracing and auto-yielding disabled. ZIO has a built-in `RuntimeConfig` proper for benchmark operations, called `RuntimeConfig.benchmark`, so we can map the default `RuntimeConfig` to the benchmark version:
-
-```scala mdoc:silent:nest
-val benchmarkRuntime = Runtime.default.mapRuntimeConfig(_ => RuntimeConfig.benchmark)
-```
-
-## RuntimeConfig Aspect
-
-ZIO has a `RuntimeConfigAspect` which helps us easily transform an existing `RuntimeConfig` to the customized one. We can think of a `RuntimeConfigAspect` as a function of type `RuntimeConfig => RuntimeConfig`. So if we have a `RuntimeConfig`, by applying it to a `RuntimeConfig` we will get back a new `RuntimeConfig` which is the modified version of the former one.
-
-It has the following constructors:
-
-| Constructor                               | Input                         | Output                |
-|-------------------------------------------|-------------------------------|-----------------------|
-| `RuntimeConfigAspect.addLogger`           | `logger: ZLogger[Any]`        | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.addReportFatal`      | `f: Throwable => Nothing`     | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.addSupervisor`       | `supervisor: Supervisor[Any]` | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.identity`            |                               | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.setBlockingExecutor` | `executor: Executor`          | `RuntimeConfigAspect` |
-| `RuntimeConfigAspect.setExecutor`         | `executor: Executor`          | `RuntimeConfigAspect` |
-
-
-The `ZIOAppDefault` (and also the `ZIOApp`) has a `hook` member of type `RuntimeConfigAspect`. The following code illustrates how to hook into the ZIO runtime system by creating and composing multiple aspects:
-
-```scala mdoc:invisible
-val myAppLogic = ZIO.succeed(???)
-```
-
-```scala mdoc:compile-only
-import zio._
-
-val loggly  = RuntimeConfigAspect.addLogger(???)
-val zmx     = RuntimeConfigAspect.addSupervisor(???)
-
-object Main extends ZIOAppDefault {
-  override def hook = loggly >>> zmx
-  
-  def run = myAppLogic
-}
 ```

@@ -467,10 +467,13 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
     },
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
-        Seq.empty
+        Seq(
+          ("com.softwaremill.magnolia1_3" %%% "magnolia" % "1.1.1")
+            .exclude("org.scala-lang", "scala-compiler")
+        )
       else
         Seq(
-          ("com.propensive" %%% "magnolia" % "0.17.0")
+          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.1")
             .exclude("org.scala-lang", "scala-compiler")
         )
     }
@@ -770,7 +773,7 @@ lazy val scalafixOutput = project
     scalafixSettings,
     publish / skip := true
   )
-  .dependsOn(coreJVM, testJVM, streamsJVM)
+  .dependsOn(coreJVM, testJVM, streamsJVM, managedJVM)
 
 lazy val scalafixTests = project
   .in(file("scalafix/tests"))

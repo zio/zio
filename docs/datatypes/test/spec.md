@@ -121,7 +121,7 @@ case class EmbeddedKafka() extends Kafka {
     ZIO.succeed(Chunk.empty)
 
   override def produce(topic: String, key: String, value: String): Task[Unit] =
-    Task.unit
+    ZIO.unit
 }
 
 object EmbeddedKafka {

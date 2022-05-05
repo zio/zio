@@ -38,8 +38,8 @@ object Main extends App {
   def update(target: raw.Element) = {
       for {
         time   <- currentTime(TimeUnit.SECONDS)
-        output <- UIO.succeed(progress((time % 11).toInt, 10))
-        _      <- UIO.succeed(target.innerHTML = output)
+        output <- ZIO.succeed(progress((time % 11).toInt, 10))
+        _      <- ZIO.succeed(target.innerHTML = output)
       } yield ()
   }
 

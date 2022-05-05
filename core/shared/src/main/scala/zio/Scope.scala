@@ -32,19 +32,20 @@ trait Scope extends Serializable { self =>
    * Adds a finalizer to this scope. The finalizer is guaranteed to be run when
    * the scope is closed.
    */
-  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit]
+  def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit]
 
   /**
-   * Forks a new scope that is a child of this scope. The child scope will
-   * automatically be closed when this scope is closed.
+   * Forks a new scope that is a child of this scope. Finalizers added to the
+   * child scope will be run according to the specified `ExecutionStrategy`. The
+   * child scope will automatically be closed when this scope is closed.
    */
-  def fork(implicit trace: ZTraceElement): UIO[Scope.Closeable]
+  def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable]
 
   /**
    * A simplified version of `addFinalizerWith` when the `finalizer` does not
    * depend on the `Exit` value that the scope is closed with.
    */
-  final def addFinalizer(finalizer: => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+  final def addFinalizer(finalizer: => UIO[Any])(implicit trace: Trace): UIO[Unit] =
     addFinalizerExit(_ => finalizer)
 
   /**
@@ -55,6 +56,15 @@ trait Scope extends Serializable { self =>
    */
   final def extend[R]: Scope.ExtendPartiallyApplied[R] =
     new Scope.ExtendPartiallyApplied[R](self)
+
+  /**
+   * Forks a new scope that is a child of this scope. Finalizers added to this
+   * scope will be run sequentially in the reverse of the order in which they
+   * were added when this scope is closed. The child scope will automatically be
+   * closed when this scope is closed.
+   */
+  final def fork(implicit trace: Trace): UIO[Scope.Closeable] =
+    forkWith(ExecutionStrategy.Sequential)
 }
 
 object Scope {
@@ -65,7 +75,7 @@ object Scope {
      * Closes a scope with the specified exit value, running all finalizers that
      * have been added to the scope.
      */
-    def close(exit: => Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit]
+    def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit]
 
     /**
      * Uses the scope by providing it to a `ZIO` workflow that needs a scope,
@@ -80,14 +90,14 @@ object Scope {
   /**
    * Accesses a scope in the environment and adds a finalizer to it.
    */
-  def addFinalizer(finalizer: => UIO[Any])(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Unit] =
+  def addFinalizer(finalizer: => UIO[Any])(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizer(finalizer))
 
   /**
    * Accesses a scope in the environment and adds a finalizer to it.
    */
   def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Scope, Nothing, Unit] =
     ZIO.serviceWithZIO(_.addFinalizerExit(finalizer))
 
@@ -97,8 +107,14 @@ object Scope {
    * interruption. This can be used to close a scope when providing a layer to a
    * workflow.
    */
-  val default: ZLayer[Any, Nothing, Scope.Closeable] =
-    ZLayer.scope
+  val default: ZLayer[Any, Nothing, Scope] =
+    ZLayer.scopedEnvironment(
+      ZIO
+        .acquireReleaseExit(Scope.make(Trace.empty))((scope, exit) => scope.close(exit)(Trace.empty))(
+          Trace.empty
+        )
+        .map(ZEnvironment[Scope](_))(Trace.empty)
+    )(Trace.empty)
 
   /**
    * The global scope which is never closed. Finalizers added to this scope will
@@ -106,12 +122,12 @@ object Scope {
    */
   val global: Scope.Closeable =
     new Scope.Closeable {
-      def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+      def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
-      def close(exit: => Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
+      def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
-      def fork(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
-        make
+      def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
+        makeWith(executionStrategy)
     }
 
   /**
@@ -119,24 +135,24 @@ object Scope {
    * the reverse of the order in which they were added when this scope is
    * closed.
    */
-  def make(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
+  def make(implicit trace: Trace): UIO[Scope.Closeable] =
     makeWith(ExecutionStrategy.Sequential)
 
   /**
    * Makes a scope. Finalizers added to this scope will be run according to the
    * specified `ExecutionStrategy`.
    */
-  def makeWith(executionStrategy: => ExecutionStrategy)(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
+  def makeWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
     ReleaseMap.make.map { releaseMap =>
       new Scope.Closeable { self =>
-        def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+        def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any])(implicit trace: Trace): UIO[Unit] =
           releaseMap.add(finalizer).unit
-        def close(exit: => Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Unit] =
+        def close(exit: => Exit[Any, Any])(implicit trace: Trace): UIO[Unit] =
           ZIO.suspendSucceed(releaseMap.releaseAll(exit, executionStrategy).unit)
-        def fork(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
+        def forkWith(executionStrategy: => ExecutionStrategy)(implicit trace: Trace): UIO[Scope.Closeable] =
           ZIO.uninterruptible {
             for {
-              scope     <- Scope.make
+              scope     <- Scope.makeWith(executionStrategy)
               finalizer <- releaseMap.add(scope.close(_))
               _         <- scope.addFinalizerExit(finalizer)
             } yield scope
@@ -148,16 +164,16 @@ object Scope {
    * Makes a scope. Finalizers added to this scope will be run in parallel when
    * this scope is closed.
    */
-  def parallel(implicit trace: ZTraceElement): UIO[Scope.Closeable] =
+  def parallel(implicit trace: Trace): UIO[Scope.Closeable] =
     makeWith(ExecutionStrategy.Parallel)
 
   final class ExtendPartiallyApplied[R](private val scope: Scope) extends AnyVal {
-    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       zio.provideSomeEnvironment[R](_.union[Scope](ZEnvironment(scope)))
   }
 
   final class UsePartiallyApplied[R](private val scope: Scope.Closeable) extends AnyVal {
-    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       scope.extend[R](zio).onExit(scope.close(_))
   }
 
@@ -190,7 +206,7 @@ object Scope {
      * The finalizer returned from this method will remove the original
      * finalizer from the map and run it.
      */
-    def add(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Finalizer]
+    def add(finalizer: Finalizer)(implicit trace: Trace): UIO[Finalizer]
 
     /**
      * Adds a finalizer to the finalizers associated with this scope. If the
@@ -200,43 +216,43 @@ object Scope {
      * be executed immediately (with the [[Exit]] value with which the scope has
      * ended) and no Key will be returned.
      */
-    def addIfOpen(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Option[Key]]
+    def addIfOpen(finalizer: Finalizer)(implicit trace: Trace): UIO[Option[Key]]
 
     /**
      * Retrieves the finalizer associated with this key.
      */
-    def get(key: Key)(implicit trace: ZTraceElement): UIO[Option[Finalizer]]
+    def get(key: Key)(implicit trace: Trace): UIO[Option[Finalizer]]
 
     /**
      * Runs the specified finalizer and removes it from the finalizers
      * associated with this scope.
      */
-    def release(key: Key, exit: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Any]
+    def release(key: Key, exit: Exit[Any, Any])(implicit trace: Trace): UIO[Any]
 
     /**
      * Runs the finalizers associated with this scope using the specified
      * execution strategy. After this action finishes, any finalizers added to
      * this scope will be run immediately.
      */
-    def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[Any]
+    def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: Trace): UIO[Any]
 
     /**
      * Removes the finalizer associated with this key and returns it.
      */
-    def remove(key: Key)(implicit trace: ZTraceElement): UIO[Option[Finalizer]]
+    def remove(key: Key)(implicit trace: Trace): UIO[Option[Finalizer]]
 
     /**
      * Replaces the finalizer associated with this key and returns it. If the
      * finalizers associated with this scope have already been run this
      * finalizer will be run immediately.
      */
-    def replace(key: Key, finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Option[Finalizer]]
+    def replace(key: Key, finalizer: Finalizer)(implicit trace: Trace): UIO[Option[Finalizer]]
 
     /**
      * Updates the finalizers associated with this scope using the specified
      * function.
      */
-    def updateAll(f: Finalizer => Finalizer)(implicit trace: ZTraceElement): UIO[Unit]
+    def updateAll(f: Finalizer => Finalizer)(implicit trace: Trace): UIO[Unit]
   }
 
   private object ReleaseMap {
@@ -244,7 +260,7 @@ object Scope {
     /**
      * Creates a new ReleaseMap.
      */
-    def make(implicit trace: ZTraceElement): UIO[ReleaseMap] =
+    def make(implicit trace: Trace): UIO[ReleaseMap] =
       ZIO.succeed(unsafeMake())
 
     /**
@@ -268,39 +284,39 @@ object Scope {
       new ReleaseMap {
         type Key = Long
 
-        def add(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Finalizer] =
+        def add(finalizer: Finalizer)(implicit trace: Trace): UIO[Finalizer] =
           addIfOpen(finalizer).map {
             case Some(key) => release(key, _)
-            case None      => _ => UIO.unit
+            case None      => _ => ZIO.unit
           }
 
-        def addIfOpen(finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Option[Key]] =
+        def addIfOpen(finalizer: Finalizer)(implicit trace: Trace): UIO[Option[Key]] =
           ref.modify {
             case Exited(nextKey, exit, update) =>
               finalizer(exit).as(None) -> Exited(next(nextKey), exit, update)
             case Running(nextKey, fins, update) =>
-              UIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
+              ZIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
           }.flatten
 
-        def get(key: Key)(implicit trace: ZTraceElement): UIO[Option[Finalizer]] =
+        def get(key: Key)(implicit trace: Trace): UIO[Option[Finalizer]] =
           ref.get.map {
             case Exited(_, _, _)     => None
             case Running(_, fins, _) => fins get key
           }
 
-        def release(key: Key, exit: Exit[Any, Any])(implicit trace: ZTraceElement): UIO[Any] =
+        def release(key: Key, exit: Exit[Any, Any])(implicit trace: Trace): UIO[Any] =
           ref.modify {
-            case s @ Exited(_, _, _) => (UIO.unit, s)
+            case s @ Exited(_, _, _) => (ZIO.unit, s)
             case s @ Running(_, fins, update) =>
               (
-                fins.get(key).fold(UIO.unit: UIO[Any])(fin => update(fin)(exit)),
+                fins.get(key).fold(ZIO.unit: UIO[Any])(fin => update(fin)(exit)),
                 s.copy(finalizers = fins - key)
               )
           }.flatten
 
-        def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: ZTraceElement): UIO[Any] =
+        def releaseAll(exit: Exit[Any, Any], execStrategy: ExecutionStrategy)(implicit trace: Trace): UIO[Any] =
           ref.modify {
-            case s @ Exited(_, _, _) => (UIO.unit, s)
+            case s @ Exited(_, _, _) => (ZIO.unit, s)
             case Running(nextKey, fins, update) =>
               execStrategy match {
                 case ExecutionStrategy.Sequential =>
@@ -337,20 +353,20 @@ object Scope {
               }
           }.flatten
 
-        def remove(key: Key)(implicit trace: ZTraceElement): UIO[Option[Finalizer]] =
+        def remove(key: Key)(implicit trace: Trace): UIO[Option[Finalizer]] =
           ref.modify {
             case Exited(nk, exit, update)  => (None, Exited(nk, exit, update))
             case Running(nk, fins, update) => (fins get key, Running(nk, fins - key, update))
           }
 
-        def replace(key: Key, finalizer: Finalizer)(implicit trace: ZTraceElement): UIO[Option[Finalizer]] =
+        def replace(key: Key, finalizer: Finalizer)(implicit trace: Trace): UIO[Option[Finalizer]] =
           ref.modify {
             case Exited(nk, exit, update) => (finalizer(exit).as(None), Exited(nk, exit, update))
             case Running(nk, fins, update) =>
-              (UIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
+              (ZIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
           }.flatten
 
-        def updateAll(f: Finalizer => Finalizer)(implicit trace: ZTraceElement): UIO[Unit] =
+        def updateAll(f: Finalizer => Finalizer)(implicit trace: Trace): UIO[Unit] =
           ref.update {
             case Exited(key, exit, update)  => Exited(key, exit, update.andThen(f))
             case Running(key, exit, update) => Running(key, exit, update.andThen(f))

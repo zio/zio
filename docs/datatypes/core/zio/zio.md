@@ -78,11 +78,8 @@ Many applications will model failures with classes that extend `Throwable` or `E
 ```scala mdoc:compile-only
 import zio._
 
-val f2 = Task.fail(new Exception("Uh oh!"))
+val f2 = ZIO.fail(new Exception("Uh oh!"))
 ```
-
-Note that unlike the other effect companion objects, the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
-
 
 ### From Values
 ZIO contains several constructors which help us to convert various data types into `ZIO` effects.
@@ -369,7 +366,7 @@ import zio._
 import java.net.ServerSocket
 
 def accept(l: ServerSocket) =
-  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(ZIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -379,7 +376,7 @@ import zio._
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.attempt {
+  ZIO.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 
@@ -414,7 +411,7 @@ object legacy {
     onFailure: AuthError => Unit): Unit = ???
 }
 
-val login: ZIO[Any, AuthError, User] =
+val login: IO[AuthError, User] =
   ZIO.async[Any, AuthError, User] { callback =>
     legacy.login(
       user => callback(ZIO.succeed(user)),
@@ -427,12 +424,10 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 ### Creating Suspended Effects
 
-| Function                 | Input Type                                 | Output Type    |
-|--------------------------|--------------------------------------------|----------------|
-| `suspend`                | `RIO[R, A]`                                | `RIO[R, A]`    |
-| `suspendSucceed`         | `ZIO[R, E, A]`                             | `ZIO[R, E, A]` |
-| `suspendSucceedWith`     | `(RuntimeConfig, FiberId) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
-| `suspendWith`            | `(RuntimeConfig, FiberId) => RIO[R, A]`    | `RIO[R, A]`    |
+| Function                 | Input Type                                        | Output Type    |
+|--------------------------|---------------------------------------------------|----------------|
+| `suspend`                | `RIO[R, A]`                                       | `RIO[R, A]`    |
+| `suspendSucceed`         | `ZIO[R, E, A]`                                    | `ZIO[R, E, A]` |
 
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
@@ -824,11 +819,7 @@ Let's learn about the `ZIO.acquireReleaseWith` operator. This operator takes thr
 3. **`use`** an effect that describes resource usage
 
 ```scala mdoc:compile-only
-ZIO.acquireReleaseWith(
-  acquire = ???,
-  release = ???,
-  use       = ???
-)
+ZIO.acquireReleaseWith(acquire = ???)(release = ???)(use = ???)
 ```
 
 This operator guarantees us that if the _resource acquisition (acquire)_  the _release_ effect will be executed whether the _use_ effect succeeded or not:
@@ -848,11 +839,7 @@ def wordCount(fileName: String): ZIO[Any, Throwable, Int] = {
   def wordCount(source: => Source): ZIO[Any, Throwable, Int] =
     ZIO.attemptBlocking(source.getLines().length)
 
-  ZIO.acquireReleaseWith(
-    acquire = openFile(fileName),
-    release = (s: Source) => closeFile(s),
-    use     = (s: Source) => wordCount(s)
-  )
+  ZIO.acquireReleaseWith(openFile(fileName))(closeFile(_))(wordCount(_))
 }
 ```
 
@@ -861,11 +848,13 @@ Let's try a simple `acquireRelease` workflow to see how its control flow works:
 ```scala mdoc:compile-only
 object MainApp extends ZIOAppDefault {
   def run =
-    ZIO.acquireReleaseWith(
-      acquire = ZIO.succeed("resource").tap(r => ZIO.debug(s"$r acquired")),
-      release = (i: String) => ZIO.debug(s"$i released"),
-      use = (i: String) => ZIO.debug(s"start using $i")
-    )
+    ZIO.acquireReleaseWith {
+      ZIO.succeed("resource").tap(r => ZIO.debug(s"$r acquired"))
+    } { i =>
+      ZIO.debug(s"$i released")
+    } { i =>
+      ZIO.debug(s"start using $i")
+    }
 }
 // Output:
 // resource acquired
@@ -1021,7 +1010,7 @@ val myApp =
     fiber   <- ZIO.attemptBlockingCancelable(
       effect = service.start()
     )(
-      cancel = UIO.succeed(service.close())
+      cancel = ZIO.succeed(service.close())
     ).fork
     _       <- fiber.interrupt.schedule(
       Schedule.delayed(
@@ -1038,7 +1027,7 @@ import java.net.{Socket, ServerSocket}
 import zio._
 
 def accept(ss: ServerSocket): Task[Socket] =
-  ZIO.attemptBlockingCancelable(ss.accept())(UIO.succeed(ss.close()))
+  ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
 ```
 
 ## Mapping
@@ -1049,7 +1038,7 @@ We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a 
 ```scala mdoc:compile-only
 import zio._
 
-val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
+val mappedValue: UIO[Int] = ZIO.succeed(21).map(_ * 2)
 ```
 
 
@@ -1099,8 +1088,8 @@ We can execute two actions in sequence with the `flatMap` method. The second act
 ```scala mdoc:compile-only
 import zio._
 
-val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
-  IO.succeed(list.map(_ + 1))
+val chainedActionsValue: UIO[List[Int]] = ZIO.succeed(List(1, 2, 3)).flatMap { list =>
+  ZIO.succeed(list.map(_ + 1))
 }
 ```
 
@@ -1188,7 +1177,7 @@ ZIO lets us race multiple effects in parallel, returning the first successful re
 import zio._
 
 for {
-  winner <- IO.succeed("Hello").race(IO.succeed("Goodbye"))
+  winner <- ZIO.succeed("Hello").race(ZIO.succeed("Goodbye"))
 } yield winner
 ```
 
@@ -1211,10 +1200,10 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 import zio._
 
 val finalizer = 
-  UIO.succeed(println("Finalizing!"))
+  ZIO.succeed(println("Finalizing!"))
 
 val finalized: IO[String, Unit] = 
-  IO.fail("Failed!").ensuring(finalizer)
+  ZIO.fail("Failed!").ensuring(finalizer)
 ```
 
 The finalizer is not allowed to fail, which means that it must handle any errors internally.
@@ -1231,9 +1220,9 @@ import zio._
 import zio.Task
 var i: Int = 0
 val action: Task[String] =
-  Task.succeed(i += 1) *>
-    Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.succeed(i -= 1)
+  ZIO.succeed(i += 1) *>
+    ZIO.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = ZIO.succeed(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
@@ -1288,16 +1277,16 @@ Acquire release consist of an *acquire* action, a *utilize* action (which uses t
 import zio._
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.succeed(???)
-def decodeData(f: File): IO[IOException, Unit] = IO.unit
-def groupData(u: Unit): IO[IOException, Unit] = IO.unit
+def openFile(s: String): IO[IOException, File] = ZIO.attempt(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = ZIO.succeed(???)
+def decodeData(f: File): IO[IOException, Unit] = ZIO.unit
+def groupData(u: Unit): IO[IOException, Unit] = ZIO.unit
 ```
 
 ```scala mdoc:compile-only
 import zio._
 
-val groupedFileData: IO[IOException, Unit] = openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
+val groupedFileData: IO[IOException, Unit] = ZIO.acquireReleaseWith(openFile("data.json"))(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)
@@ -1323,7 +1312,7 @@ object Main extends ZIOAppDefault {
     ZIO.succeed(is.close())
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.attempt {
+    ZIO.attempt {
       val buffer = new Array[Byte](len.toInt)
       is.read(buffer)
       println(new String(buffer, StandardCharsets.UTF_8))
@@ -1333,7 +1322,7 @@ object Main extends ZIOAppDefault {
   val myAcquireRelease: Task[Unit] = for {
     file   <- ZIO.attempt(new File("/tmp/hello"))
     len    = file.length
-    string <- ZIO.attempt(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))
+    string <- ZIO.acquireReleaseWith(ZIO.attempt(new FileInputStream(file)))(closeStream)(convertBytes(_, len))
   } yield string
 }
 ```

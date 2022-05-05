@@ -19,7 +19,7 @@ package zio.stream.internal
 import zio.Chunk
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object Utils {
+private[zio] object Utils {
   def zipChunks[A, B, C](cl: Chunk[A], cr: Chunk[B], f: (A, B) => C): (Chunk[C], Either[Chunk[A], Chunk[B]]) =
     if (cl.size > cr.size)
       (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))

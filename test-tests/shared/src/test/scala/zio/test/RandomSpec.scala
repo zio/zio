@@ -111,7 +111,7 @@ object RandomSpec extends ZIOBaseSpec {
         _          <- testRandom.setSeed(seed)
         values     <- ZIO.succeed(List.fill(100)(generate(sRandom)))
         _          <- feed(testRandom, values)
-        results    <- UIO.foreach(List.range(0, 100))(_ => extract(testRandom))
+        results    <- ZIO.foreach(List.range(0, 100))(_ => extract(testRandom))
         random     <- extract(testRandom)
         expected   <- ZIO.succeed(generate(new SRandom(seed)))
       } yield {
@@ -143,7 +143,7 @@ object RandomSpec extends ZIOBaseSpec {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        actual     <- UIO.foreach(List.fill(100)(()))(_ => f(testRandom))
+        actual     <- ZIO.foreach(List.fill(100)(()))(_ => f(testRandom))
         expected   <- ZIO.succeed(List.fill(100)(g(sRandom)))
       } yield assert(actual)(equalTo(expected))
     }
@@ -154,7 +154,7 @@ object RandomSpec extends ZIOBaseSpec {
         sRandom    <- ZIO.succeed(new SRandom(seed))
         testRandom <- TestRandom.makeTest(DefaultData)
         _          <- testRandom.setSeed(seed)
-        actual     <- UIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
+        actual     <- ZIO.foreach(List.range(0, 100))(testRandom.nextBytes(_))
         expected <- ZIO.succeed(List.range(0, 100).map(new Array[Byte](_)).map { arr =>
                       sRandom.nextBytes(arr)
                       Chunk.fromArray(arr)

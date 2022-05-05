@@ -20,21 +20,21 @@ object ClockSpec extends ZIOBaseSpec {
     test("should output equal instant no matter what timezone") {
       val zioEuropeAmsterdamClock = Clock.ClockJava(europeAmsterdamFixedClock)
       val zioAmericaPhoenixClock  = Clock.ClockJava(americaPhoenixFixedClock)
-      assertM(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.instant, zioAmericaPhoenixClock.instant)))(
+      assertZIO(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.instant, zioAmericaPhoenixClock.instant)))(
         not(isDistinct)
       )
     },
     test("should output a offsetDateTime matching to timezone from java.time.Clock") {
       val zioEuropeAmsterdamClock = Clock.ClockJava(europeAmsterdamFixedClock)
       val zioAmericaPhoenixClock  = Clock.ClockJava(americaPhoenixFixedClock)
-      assertM(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.currentDateTime, zioAmericaPhoenixClock.currentDateTime)))(
+      assertZIO(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.currentDateTime, zioAmericaPhoenixClock.currentDateTime)))(
         isDistinct
       )
     },
     test("should output a localDateTime matching to timezone from java.time.Clock") {
       val zioEuropeAmsterdamClock = Clock.ClockJava(europeAmsterdamFixedClock)
       val zioAmericaPhoenixClock  = Clock.ClockJava(americaPhoenixFixedClock)
-      assertM(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.localDateTime, zioAmericaPhoenixClock.localDateTime)))(
+      assertZIO(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.localDateTime, zioAmericaPhoenixClock.localDateTime)))(
         isDistinct
       )
     }

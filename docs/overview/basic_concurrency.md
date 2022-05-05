@@ -43,7 +43,7 @@ The following code creates a single fiber, which executes `fib(100)`:
 
 ```scala mdoc:silent
 def fib(n: Long): UIO[Long] = ZIO.succeed {
-  if (n <= 1) UIO.succeed(n)
+  if (n <= 1) ZIO.succeed(n)
   else fib(n - 1).zipWith(fib(n - 2))(_ + _)
 }.flatten
 
@@ -59,7 +59,7 @@ One of the methods on `Fiber` is `Fiber#join`, which returns an effect. The effe
 
 ```scala mdoc:silent
 for {
-  fiber   <- IO.succeed("Hi!").fork
+  fiber   <- ZIO.succeed("Hi!").fork
   message <- fiber.join
 } yield message
 ```
@@ -70,7 +70,7 @@ Another method on `Fiber` is `Fiber#await`, which returns an effect containing a
 
 ```scala mdoc:silent
 for {
-  fiber <- IO.succeed("Hi!").fork
+  fiber <- ZIO.succeed("Hi!").fork
   exit  <- fiber.await
 } yield exit
 ```
@@ -83,7 +83,7 @@ Like `await`, `Fiber#interrupt` returns an `Exit` describing how the fiber compl
 
 ```scala mdoc:silent
 for {
-  fiber <- IO.succeed("Hi!").forever.fork
+  fiber <- ZIO.succeed("Hi!").forever.fork
   exit  <- fiber.interrupt
 } yield exit
 ```
@@ -92,7 +92,7 @@ By design, the effect returned by `Fiber#interrupt` does not resume until the fi
 
 ```scala mdoc:silent
 for {
-  fiber <- IO.succeed("Hi!").forever.fork
+  fiber <- ZIO.succeed("Hi!").forever.fork
   _     <- fiber.interrupt.fork // I don't care!
 } yield ()
 ```
@@ -105,8 +105,8 @@ These methods combine two fibers into a single fiber that produces the results o
 
 ```scala mdoc:silent
 for {
-  fiber1 <- IO.succeed("Hi!").fork
-  fiber2 <- IO.succeed("Bye!").fork
+  fiber1 <- ZIO.succeed("Hi!").fork
+  fiber2 <- ZIO.succeed("Bye!").fork
   fiber   = fiber1.zip(fiber2)
   tuple  <- fiber.join
 } yield tuple
@@ -116,8 +116,8 @@ Another way fibers compose is with `Fiber#orElse`. If the first fiber succeeds, 
 
 ```scala mdoc:silent
 for {
-  fiber1 <- IO.fail("Uh oh!").fork
-  fiber2 <- IO.succeed("Hurray!").fork
+  fiber1 <- ZIO.fail("Uh oh!").fork
+  fiber2 <- ZIO.succeed("Hurray!").fork
   fiber   = fiber1.orElse(fiber2)
   message  <- fiber.join
 } yield message
@@ -127,7 +127,7 @@ for {
 
 ZIO provides many operations for performing effects in parallel. These methods are all named with a `Par` suffix that helps you identify opportunities to parallelize your code.
 
-For example, the ordinary `ZIO#zip` method zips two effects together, sequentially. But there is also a `ZIO#zipPar` method, which zips two effects together in parallel.
+For example, the ordinary `ZIO#zip` method zips two effects together sequentially. But there is also a `ZIO#zipPar` method, which zips two effects together in parallel.
 
 The following table summarizes some of the sequential operations and their corresponding parallel versions:
 
@@ -141,7 +141,7 @@ The following table summarizes some of the sequential operations and their corre
 | Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
 | Merges many values             | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
 
-For all the parallel operations, if one effect fails, then others will be interrupted, to minimize unnecessary computation.
+For all parallel operations, if one effect fails, others will be interrupted to minimize unnecessary computation.
 
 If the fail-fast behavior is not desired, potentially failing effects can be first converted into infallible effects using the `ZIO#either` or `ZIO#option` methods.
 
@@ -151,7 +151,7 @@ ZIO lets you race multiple effects in parallel, returning the first successful r
 
 ```scala mdoc:silent
 for {
-  winner <- IO.succeed("Hello").race(IO.succeed("Goodbye"))
+  winner <- ZIO.succeed("Hello").race(ZIO.succeed("Goodbye"))
 } yield winner
 ```
 
@@ -162,11 +162,11 @@ If you want the first success or failure, rather than the first success, then yo
 ZIO lets you timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala mdoc:silent
-IO.succeed("Hello").timeout(10.seconds)
+ZIO.succeed("Hello").timeout(10.seconds)
 ```
 
 If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
 
 ## Next Steps
 
-If you are comfortable with basic concurrency, then the next step is to learn about [testing effects](testing_effects.md).
+If you are comfortable with basic concurrency, the next step is to learn about [testing effects](testing_effects.md).

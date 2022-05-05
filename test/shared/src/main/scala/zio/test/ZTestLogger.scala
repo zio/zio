@@ -33,16 +33,13 @@ object ZTestLogger {
 
   /**
    * A layer which constructs a new `ZTestLogger` and runs the effect it is
-   * provided to with the `RuntimeConfig` updated to add the `ZTestLogger`.
+   * provided to with the `Runtime` updated to add the `ZTestLogger`.
    */
   val default: ZLayer[Any, Nothing, Any] =
     ZLayer.scoped {
       for {
-        runtimeConfig <- ZIO.runtimeConfig
-        testLogger    <- ZTestLogger.make
-        acquire        = ZIO.setRuntimeConfig(runtimeConfig.copy(logger = testLogger))
-        release        = ZIO.setRuntimeConfig(runtimeConfig)
-        _             <- ZIO.acquireRelease(acquire)(_ => release)
+        testLogger <- ZTestLogger.make
+        acquire    <- FiberRef.currentLoggers.locallyScopedWith(_ + testLogger)
       } yield ()
     }
 
@@ -50,11 +47,11 @@ object ZTestLogger {
    * Accesses the contents of the current test logger.
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
-    ZIO.runtimeConfig.flatMap { runtimeConfig =>
-      runtimeConfig.logger match {
-        case testLogger: ZTestLogger[_, _] => testLogger.logOutput
-        case _                             => ZIO.dieMessage("Defect: ZTestLogger is missing")
+    ZIO.loggersWith { loggers =>
+      loggers.collectFirst { case testLogger: ZTestLogger[_, _] =>
+        testLogger.logOutput
       }
+        .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
     }
 
   /**
@@ -62,7 +59,7 @@ object ZTestLogger {
    * structure.
    */
   final case class LogEntry(
-    trace: ZTraceElement,
+    trace: Trace,
     fiberId: FiberId,
     logLevel: LogLevel,
     message: () => String,
@@ -86,7 +83,7 @@ object ZTestLogger {
       new ZTestLogger[String, Unit] {
         @tailrec
         def apply(
-          trace: ZTraceElement,
+          trace: Trace,
           fiberId: FiberId,
           logLevel: LogLevel,
           message: () => String,

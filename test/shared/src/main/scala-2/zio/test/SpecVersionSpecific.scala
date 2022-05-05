@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.ZLayer
+import zio.{EnvironmentTag, Tag, Trace, ZLayer}
 import zio.internal.macros.LayerMacros
 
 private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
@@ -45,8 +45,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    * val spec2: ZSpec[Random, Nothing] = spec.provideSome[Random](clockLayer)
    * }}}
    */
-  def provideSome[R0]: provideSomePartiallyApplied[R0, R, E] =
-    new provideSomePartiallyApplied[R0, R, E](self)
+  def provideSome[R0]: ProvideSomePartiallyApplied[R0, R, E] =
+    new ProvideSomePartiallyApplied[R0, R, E](self)
 
   /**
    * Automatically assembles a layer for the spec, sharing services between all
@@ -89,11 +89,11 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    * val spec2 = spec.provideSomeShared[Random](intLayer)
    * }}}
    */
-  final def provideSomeShared[R0]: provideSomeSharedPartiallyApplied[R0, R, E] =
-    new provideSomeSharedPartiallyApplied[R0, R, E](self)
+  final def provideSomeShared[R0]: ProvideSomeSharedPartiallyApplied[R0, R, E] =
+    new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
 }
 
-private final class provideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
 
   type ZSpec[-R, +E, +T] = Spec[R, E]
 
@@ -106,12 +106,9 @@ private final class provideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]
     macro LayerMacros.provideSomeImpl[ZSpec, R0, R, E1, TestSuccess]
 }
 
-private final class provideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
-
-  def provideLayerShared[E1 >: E](
-    layer: ZLayer[R0, E1, R]
-  ): Spec[R0, E1] =
-    self.provideLayerShared(layer)
+final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+  def provideSomeLayerShared: Spec.ProvideSomeLayerShared[R0, R, E] =
+    new Spec.ProvideSomeLayerShared[R0, R, E](self)
 
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]

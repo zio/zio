@@ -16,7 +16,7 @@
 
 package zio.test.magnolia
 
-import magnolia._
+import magnolia1._
 import zio.Chunk
 import zio.test.{Gen, Sized}
 
@@ -239,10 +239,10 @@ object DeriveGen {
 
   type Typeclass[T] = DeriveGen[T]
 
-  def combine[T](caseClass: CaseClass[Typeclass, T]): Typeclass[T] =
+  def join[T](caseClass: CaseClass[Typeclass, T]): Typeclass[T] =
     instance(Gen.suspend(Gen.collectAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
 
-  def dispatch[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
+  def split[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
     instance(Gen.suspend(Gen.oneOf(sealedTrait.subtypes.map(_.typeclass.derive): _*)))
 
   implicit def gen[T]: Typeclass[T] = macro Magnolia.gen[T]

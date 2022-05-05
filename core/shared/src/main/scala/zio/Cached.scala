@@ -24,13 +24,13 @@ trait Cached[+Error, +Resource] {
   /**
    * Retrieves the current value stored in the cache.
    */
-  def get(implicit trace: ZTraceElement): IO[Error, Resource]
+  def get(implicit trace: Trace): IO[Error, Resource]
 
   /**
    * Refreshes the cache. This method will not return until either the refresh
    * is successful, or the refresh operation fails.
    */
-  def refresh(implicit trace: ZTraceElement): IO[Error, Unit]
+  def refresh(implicit trace: Trace): IO[Error, Unit]
 }
 
 object Cached {
@@ -43,7 +43,7 @@ object Cached {
    * constructor.
    */
   def auto[R, Error, Resource](acquire: ZIO[R, Error, Resource], policy: Schedule[Any, Any, Any])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R with Scope, Nothing, Cached[Error, Resource]] =
     for {
       manual <- manual(acquire)
@@ -59,7 +59,7 @@ object Cached {
    */
   def manual[R, Error, Resource](
     acquire: ZIO[R, Error, Resource]
-  )(implicit trace: ZTraceElement): ZIO[R with Scope, Nothing, Cached[Error, Resource]] =
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Cached[Error, Resource]] =
     for {
       env <- ZIO.environment[R]
       ref <- ScopedRef.fromAcquire(acquire.exit)
@@ -69,8 +69,8 @@ object Cached {
     ref: ScopedRef[Exit[Error, Resource]],
     acquire: ZIO[Scope, Error, Resource]
   ) extends Cached[Error, Resource] {
-    def get(implicit trace: ZTraceElement): IO[Error, Resource] = ref.get.flatMap(ZIO.done(_))
+    def get(implicit trace: Trace): IO[Error, Resource] = ref.get.flatMap(ZIO.done(_))
 
-    def refresh(implicit trace: ZTraceElement): IO[Error, Unit] = ref.set[Any, Error](acquire.map(Exit.succeed(_)))
+    def refresh(implicit trace: Trace): IO[Error, Unit] = ref.set[Any, Error](acquire.map(Exit.succeed(_)))
   }
 }
