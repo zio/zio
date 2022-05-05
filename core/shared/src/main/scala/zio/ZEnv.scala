@@ -40,6 +40,6 @@ object ZEnv {
   /**
    * The default ZIO services.
    */
-  val services: FiberRef.WithPatch[ZEnvironment[ZEnv], ZEnvironment.Patch[ZEnv, ZEnv]] =
+  private[zio] val services: FiberRef.WithPatch[ZEnvironment[ZEnv], ZEnvironment.Patch[ZEnv, ZEnv]] =
     FiberRef.unsafeMakeEnvironment(Services.live)
 }

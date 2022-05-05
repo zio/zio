@@ -779,7 +779,7 @@ object TestRandom extends Serializable {
         data   <- ZIO.succeed(Ref.unsafeMake(data))
         buffer <- ZIO.succeed(Ref.unsafeMake(Buffer()))
         test    = Test(data, buffer)
-        _      <- ZEnv.services.locallyScopedWith(_.add(test))
+        _      <- ZIO.withRandomScoped(test)
       } yield test
     }
   }
