@@ -320,9 +320,11 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(inTimeSecondNanosec, inTimeSecond, beforeTime, afterTime).map((_, ()))
 
         assertZIO(runManually(Schedule.secondOfMinute(1), input).map(toOffsetDateTime)) {
-          val expected          = originOffset.withSecond(1)
-          val afterTimeExpected = expected.withMinute(expected.getMinute + 1)
-          equalTo(List(inTimeSecondNanosec, inTimeSecond, inTimeSecond, afterTimeExpected))
+          val expected             = originOffset.withSecond(1)
+          val inTimeSecondExpected = expected.withMinute(expected.getMinute + 1)
+          val beforeTimeExpected   = expected.withMinute(expected.getMinute + 2)
+          val afterTimeExpected    = expected.withMinute(expected.getMinute + 3)
+          equalTo(List(inTimeSecondNanosec, inTimeSecondExpected, beforeTimeExpected, afterTimeExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `second` argument of `secondOfMinute`") {
@@ -345,9 +347,11 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(inTimeMinuteNanosec, inTimeMinute, beforeTime, afterTime).map((_, ()))
 
         assertZIO(runManually(Schedule.minuteOfHour(1), input).map(toOffsetDateTime)) {
-          val expected          = originOffset.withMinute(1)
-          val afterTimeExpected = expected.withHour(expected.getHour + 1)
-          equalTo(List(inTimeMinuteNanosec, inTimeMinute, inTimeMinute, afterTimeExpected))
+          val expected             = originOffset.withMinute(1)
+          val inTimeMinuteExpected = expected.withHour(expected.getHour + 1)
+          val beforeTimeExpected   = expected.withHour(expected.getHour + 2)
+          val afterTimeExpected    = expected.withHour(expected.getHour + 3)
+          equalTo(List(inTimeMinuteNanosec, inTimeMinuteExpected, beforeTimeExpected, afterTimeExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `minute` argument of `minuteOfHour`") {
@@ -372,9 +376,11 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(inTimeHourSecond, inTimeHour, beforeTime, afterTime).map((_, ()))
 
         assertZIO(runManually(Schedule.hourOfDay(1), input).map(toOffsetDateTime)) {
-          val expected          = originOffset.withHour(1)
-          val afterTimeExpected = expected.withDayOfYear(expected.getDayOfYear).plusDays(1L)
-          equalTo(List(inTimeHourSecond, inTimeHour, inTimeHour, afterTimeExpected))
+          val expected           = originOffset.withHour(1)
+          val inTimeHourExpected = expected.withDayOfYear(expected.getDayOfYear).plusDays(1L)
+          val beforeTimeExpected = expected.withDayOfYear(expected.getDayOfYear).plusDays(2L)
+          val afterTimeExpected  = expected.withDayOfYear(expected.getDayOfYear).plusDays(3L)
+          equalTo(List(inTimeHourSecond, inTimeHourExpected, beforeTimeExpected, afterTimeExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `hour` argument of `hourOfDay`") {
@@ -399,9 +405,11 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(tuesdayHour, tuesday, monday, wednesday).map((_, ()))
 
         assertZIO(runManually(Schedule.dayOfWeek(2), input).map(toOffsetDateTime)) {
-          val expectedTuesday = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
-          val nextTuesday     = expectedTuesday.plusDays(7).`with`(ChronoField.DAY_OF_WEEK, 2)
-          equalTo(List(tuesdayHour, tuesday, tuesday, nextTuesday))
+          val expectedTuesday   = originOffset.`with`(ChronoField.DAY_OF_WEEK, 2)
+          val tuesdayExpected   = expectedTuesday.plusDays(7).`with`(ChronoField.DAY_OF_WEEK, 2)
+          val mondayExpected    = expectedTuesday.plusDays(14).`with`(ChronoField.DAY_OF_WEEK, 2)
+          val wednesdayExpected = expectedTuesday.plusDays(21).`with`(ChronoField.DAY_OF_WEEK, 2)
+          equalTo(List(tuesdayHour, tuesdayExpected, mondayExpected, wednesdayExpected))
         }
       },
       test("throw IllegalArgumentException on invalid `day` argument of `dayOfWeek`") {
@@ -428,9 +436,11 @@ object ScheduleSpec extends ZIOBaseSpec {
         val input = List(inTimeDate1, inTimeDate2, before, after).map((_, ()))
 
         assertZIO(runManually(Schedule.dayOfMonth(2), input).map(toOffsetDateTime)) {
-          val expectedBefore = originOffset.withDayOfMonth(2)
-          val expectedAfter  = originOffset.withDayOfMonth(2).plusMonths(1)
-          equalTo(List(inTimeDate1, inTimeDate2, expectedBefore, expectedAfter))
+          val expectedBefore      = originOffset.withDayOfMonth(2)
+          val inTimeDate2Expected = expectedBefore.plusMonths(1)
+          val beforeExpected      = expectedBefore.plusMonths(2)
+          val afterExpected       = expectedBefore.plusMonths(3)
+          equalTo(List(inTimeDate1, inTimeDate2Expected, beforeExpected, afterExpected))
         }
       },
       test("recur only in months containing valid number of days") {
