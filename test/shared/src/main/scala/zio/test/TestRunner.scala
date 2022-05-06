@@ -38,7 +38,7 @@ final case class TestRunner[R, E](
     val printerLayer =
       TestLogger.fromConsole(Console.ConsoleLive)
 
-    Clock.live ++ (printerLayer >+> sinkLayer) ++ Random.live
+    printerLayer >+> sinkLayer
   }
 ) { self =>
 

@@ -467,7 +467,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *       Spider.live,
      *       Fly.live,
      *       Bear.live,
-     *       Console.live,
      *       ZLayer.Debug.tree
      *     )
      *
@@ -476,10 +475,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * // ◉ OldLady.live
      * // ├─◑ Spider.live
      * // │ ╰─◑ Fly.live
-     * // │   ╰─◑ Console.live
      * // ╰─◑ Bear.live
      * //   ╰─◑ Fly.live
-     * //     ╰─◑ Console.live
      *
      * }}}
      */
@@ -498,7 +495,6 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *       Spider.live,
      *       Fly.live,
      *       Bear.live,
-     *       Console.live,
      *       ZLayer.Debug.mermaid
      *     )
      *
@@ -507,10 +503,8 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * // ◉ OldLady.live
      * // ├─◑ Spider.live
      * // │ ╰─◑ Fly.live
-     * // │   ╰─◑ Console.live
      * // ╰─◑ Bear.live
      * //   ╰─◑ Fly.live
-     * //     ╰─◑ Console.live
      * //
      * // Mermaid Live Editor Link
      * // https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBTcGlkZXIubGl2ZSAtLT4gRmx5LmxpdmVcbiAgICBGbHkubGl2ZSAtLT4gQ29uc29sZS5saXZlXG4gICAgT2xkTGFkeS5saXZlIC0tPiBTcGlkZXIubGl2ZVxuICAgIE9sZExhZHkubGl2ZSAtLT4gQmVhci5saXZlXG4gICAgQmVhci5saXZlIC0tPiBGbHkubGl2ZVxuICAgICIsIm1lcm1haWQiOiAie1xuICBcInRoZW1lXCI6IFwiZGVmYXVsdFwiXG59IiwgInVwZGF0ZUVkaXRvciI6IHRydWUsICJhdXRvU3luYyI6IHRydWUsICJ1cGRhdGVEaWFncmFtIjogdHJ1ZX0=

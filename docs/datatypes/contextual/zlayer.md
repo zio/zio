@@ -499,8 +499,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized")) ++
-      Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers.update[AppConfig](c =>
@@ -545,8 +544,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized")) ++
-      Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers ++ ZLayer.succeed(AppConfig(8))
@@ -636,15 +634,12 @@ val myApp: ZIO[Cake, IOException, Unit] = for {
 } yield ()
 ```
 
-The type of `myApp` indicates we should provide `Console` and `Cake` to this ZIO application to run it. Let's give it those and see what happens:
+The type of `myApp` indicates we should provide `Cake` to this ZIO application to run it. Let's give it that and see what happens:
 
 ```scala mdoc:fail:silent
 object MainApp extends ZIOAppDefault {
   def run =
-    myApp.provide(
-      Cake.live,
-      Console.live
-    )
+    myApp.provide(Cake.live)
 }
 
 // error:
@@ -683,7 +678,6 @@ object MainApp extends ZIOAppDefault {
   def run =
     myApp.provide(
       Cake.live,
-      Console.live,
       Chocolate.live,
       Flour.live
     )
