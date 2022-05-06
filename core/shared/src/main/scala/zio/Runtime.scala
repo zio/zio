@@ -504,7 +504,7 @@ object Runtime extends RuntimePlatformSpecific {
       }
     }
 
-    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown)
+    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
