@@ -53,7 +53,7 @@ package object test extends CompileVariants {
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZLayer[ZEnv, Nothing, TestEnvironment] = {
+    val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       Annotations.live ++
         Live.default ++
@@ -67,11 +67,21 @@ package object test extends CompileVariants {
     }
   }
 
-  val liveEnvironment: Layer[Nothing, ZEnv] = ZEnv.live
+  val liveEnvironment: Layer[Nothing, Clock with Console with System with Random] = {
+    implicit val trace = Trace.empty
+    ZLayer.succeedEnvironment(
+      ZEnvironment[Clock, Console, System, Random](
+        Clock.ClockLive,
+        Console.ConsoleLive,
+        System.SystemLive,
+        Random.RandomLive
+      )
+    )
+  }
 
   val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
-    ZEnv.live >>> TestEnvironment.live
+    liveEnvironment >>> TestEnvironment.live
   }
 
   /**
@@ -93,7 +103,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testClockWith[R, E, A](f: TestClock => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestClock]].get))
+    DefaultServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[TestClock]].get))
 
   /**
    * Retrieves the `TestConsole` service for this test.
@@ -106,7 +116,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testConsoleWith[R, E, A](f: TestConsole => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestConsole]].get))
+    DefaultServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[TestConsole]].get))
 
   /**
    * Retrieves the `TestRandom` service for this test.
@@ -119,7 +129,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testRandomWith[R, E, A](f: TestRandom => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestRandom]].get))
+    DefaultServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[TestRandom]].get))
 
   /**
    * Retrieves the `TestSystem` service for this test.
@@ -132,7 +142,7 @@ package object test extends CompileVariants {
    * specified workflow.
    */
   def testSystemWith[R, E, A](f: TestSystem => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.asInstanceOf[ZEnvironment[TestSystem]].get))
+    DefaultServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[TestSystem]].get))
 
   /**
    * Transforms this effect with the specified function. The test environment

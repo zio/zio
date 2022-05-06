@@ -2660,7 +2660,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def clockWith[R, E, A](f: Clock => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[Clock]))
+    DefaultServices.currentServices.getWith(services => f(services.get[Clock]))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -2869,7 +2869,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def consoleWith[R, E, A](f: Console => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[Console]))
+    DefaultServices.currentServices.getWith(services => f(services.get[Console]))
 
   /**
    * Prints the specified message to the console for debugging purposes.
@@ -4020,7 +4020,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def randomWith[R, E, A](f: Random => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[Random]))
+    DefaultServices.currentServices.getWith(services => f(services.get[Random]))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -4264,7 +4264,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def systemWith[R, E, A](f: System => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[System]))
+    DefaultServices.currentServices.getWith(services => f(services.get[System]))
 
   /**
    * Capture ZIO trace at the current point
@@ -4527,14 +4527,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withClock[R, E, A <: Clock, B](clock: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    ZEnv.services.locallyWith(_.add(clock))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(clock))(zio)
 
   /**
    * Sets the implementation of the clock service to the specified value and
    * restores it to its original value when the scope is closed.
    */
   def withClockScoped[A <: Clock](clock: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZEnv.services.locallyScopedWith(_.add(clock))
+    DefaultServices.currentServices.locallyScopedWith(_.add(clock))
 
   /**
    * Executes the specified workflow with the specified implementation of the
@@ -4543,14 +4543,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withConsole[R, E, A <: Console, B](console: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    ZEnv.services.locallyWith(_.add(console))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(console))(zio)
 
   /**
    * Sets the implementation of the console service to the specified value and
    * restores it to its original value when the scope is closed.
    */
   def withConsoleScoped[A <: Console](console: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZEnv.services.locallyScopedWith(_.add(console))
+    DefaultServices.currentServices.locallyScopedWith(_.add(console))
 
   /**
    * Runs the specified effect with the specified maximum number of fibers for
@@ -4573,14 +4573,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withRandom[R, E, A <: Random, B](random: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    ZEnv.services.locallyWith(_.add(random))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(random))(zio)
 
   /**
    * Sets the implementation of the random service to the specified value and
    * restores it to its original value when the scope is closed.
    */
   def withRandomScoped[A <: Random](random: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZEnv.services.locallyScopedWith(_.add(random))
+    DefaultServices.currentServices.locallyScopedWith(_.add(random))
 
   /**
    * Executes the specified workflow with the specified implementation of the
@@ -4589,14 +4589,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withSystem[R, E, A <: System, B](system: => A)(
     zio: => ZIO[R, E, B]
   )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
-    ZEnv.services.locallyWith(_.add(system))(zio)
+    DefaultServices.currentServices.locallyWith(_.add(system))(zio)
 
   /**
    * Sets the implementation of the system service to the specified value and
    * restores it to its original value when the scope is closed.
    */
   def withSystemScoped[A <: System](system: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZEnv.services.locallyScopedWith(_.add(system))
+    DefaultServices.currentServices.locallyScopedWith(_.add(system))
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh

@@ -27,8 +27,6 @@ package object zio
     with VersionSpecific
     with DurationModule {
 
-  type ZEnv = Clock with Console with System with Random
-
   type ZNothing <: Nothing
 
   type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.

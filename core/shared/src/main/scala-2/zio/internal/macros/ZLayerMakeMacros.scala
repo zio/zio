@@ -1,7 +1,7 @@
 package zio.internal.macros
 
 import zio.internal.ansi.AnsiStringOps
-import zio.{ZLayer, ZEnv}
+import zio.ZLayer
 
 import scala.reflect.macros.blackbox
 

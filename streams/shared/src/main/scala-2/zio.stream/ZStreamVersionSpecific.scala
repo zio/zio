@@ -1,7 +1,7 @@
 package zio.stream
 
 import zio.internal.macros.LayerMacros
-import zio.{ZEnv, ZLayer}
+import zio.ZLayer
 
 private[stream] trait ZStreamVersionSpecific[-R, +E, +O] { self: ZStream[R, E, O] =>
 
