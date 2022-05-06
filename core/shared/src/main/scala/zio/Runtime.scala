@@ -473,7 +473,7 @@ object Runtime extends RuntimePlatformSpecific {
    * A layer that adds a supervisor that tracks all forked fibers in a set. Note
    * that this may have a negative impact on performance.
    */
-  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Any] =
+  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     addSupervisor(Supervisor.unsafeTrack(weak))
 
   val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
