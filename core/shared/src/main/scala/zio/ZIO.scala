@@ -2660,7 +2660,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def clockWith[R, E, A](f: Clock => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    DefaultServices.currentServices.getWith(services => f(services.get[Clock]))
+    DefaultServices.currentServices.getWith(services => f(services.get(Clock.tag)))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -2869,7 +2869,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def consoleWith[R, E, A](f: Console => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    DefaultServices.currentServices.getWith(services => f(services.get[Console]))
+    DefaultServices.currentServices.getWith(services => f(services.get(Console.tag)))
 
   /**
    * Prints the specified message to the console for debugging purposes.
@@ -4020,7 +4020,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def randomWith[R, E, A](f: Random => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    DefaultServices.currentServices.getWith(services => f(services.get[Random]))
+    DefaultServices.currentServices.getWith(services => f(services.get(Random.tag)))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
