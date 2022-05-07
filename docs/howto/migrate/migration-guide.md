@@ -822,7 +822,7 @@ trait UserRepo {}
 
 trait DocRepo {}
 
-case class LoggerImpl(console: Console) extends Logging {}
+case class LoggerImpl() extends Logging {}
 
 case class DatabaseImp() extends Database {}
 
@@ -833,12 +833,8 @@ case class BlobStorageImpl(logging: Logging) extends BlobStorage {}
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo {}
 
 object Logging {
-  val live: URLayer[Console, Logging] =
-    ZLayer {
-      for {
-        console <- ZIO.service[Console]
-      } yield LoggerImpl(console)
-    }
+  val live: URLayer[Any, Logging] =
+    ZLayer.succeed(LoggerImpl())
 }
 
 object Database {
@@ -880,7 +876,7 @@ object DocRepo {
 val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
 ```
 
-```scala mdoc:silent:nest
+```scala
 val appLayer: URLayer[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
@@ -912,7 +908,6 @@ In ZIO 2.x, we can automatically construct dependencies with friendly compile-ti
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
   myApp.provide(
-    Console.live,
     Logging.live,
     Database.live,
     BlobStorage.live,
@@ -930,8 +925,7 @@ val res: ZIO[Any, Nothing, Unit] =
     BlobStorage.live,
     Logging.live,
     Database.live,
-    UserRepo.live,
-    Console.live
+    UserRepo.live
   )
 ```
 
@@ -944,8 +938,7 @@ val app: ZIO[Any, Nothing, Unit] =
     BlobStorage.live,
 //    Logging.live,
     Database.live,
-    UserRepo.live,
-    Console.live
+    UserRepo.live
   )
 ```
 
@@ -963,7 +956,6 @@ We can also directly construct a layer using `ZLayer.make`:
 
 ```scala mdoc:silent:nest
 val layer = ZLayer.make[DocRepo with UserRepo](
-  Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -975,8 +967,7 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
-  Logging.live,
+val layer = ZLayer.makeSome[Logging, DocRepo with UserRepo](
   DocRepo.live,
   Database.live,
   BlobStorage.live,
@@ -986,7 +977,7 @@ val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
 
 In ZIO 1.x, the `ZIO#provideSomeLayer` provides environment partially:
 
-```scala mdoc:silent:nest
+```scala
 val app: ZIO[Console, Nothing, Unit] =
   myApp.provideSomeLayer[Console](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
@@ -997,9 +988,8 @@ val app: ZIO[Console, Nothing, Unit] =
 In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#provideSome[Rest](l1, l2, ...)` operator:
 
 ```scala mdoc:silent:nest:warn
-val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSome[Console](
-    Logging.live,
+val app: ZIO[Any, Nothing, Unit] =
+  myApp.provideSome[Logging](
     DocRepo.live,
     Database.live,
     BlobStorage.live,
@@ -1017,7 +1007,6 @@ To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.t
 
 ```scala
 val layer = ZLayer.make[DocRepo with UserRepo](
-  Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -1032,15 +1021,12 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 [info] 
 [info] ◉ DocRepo.live
 [info] ├─◑ Logging.live
-[info] │ ╰─◑ Console.live
 [info] ├─◑ Database.live
 [info] ╰─◑ BlobStorage.live
 [info]   ╰─◑ Logging.live
-[info]     ╰─◑ Console.live
 [info] 
 [info] ◉ UserRepo.live
 [info] ├─◑ Logging.live
-[info] │ ╰─◑ Console.live
 [info] ╰─◑ Database.live
 [info] 
 [info] Mermaid Live Editor Link
@@ -1163,7 +1149,6 @@ object MainApp extends ZIOAppDefault {
 
   def run =
     myApp.provide(
-      Console.live,
       Random.live,
       ZLayer.succeed(Config("localhost", 8080)),
       LoggerLive.layer
