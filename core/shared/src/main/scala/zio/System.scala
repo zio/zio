@@ -77,7 +77,7 @@ trait System extends Serializable {
 
 object System extends Serializable {
 
-  implicit val tag: Tag[System] = Tag[System]
+  val tag: Tag[System] = Tag[System]
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]] =

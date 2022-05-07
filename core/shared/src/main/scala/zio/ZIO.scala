@@ -4264,7 +4264,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified workflow.
    */
   def systemWith[R, E, A](f: System => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    DefaultServices.currentServices.getWith(services => f(services.get[System]))
+    DefaultServices.currentServices.getWith(services => f(services.get(System.tag)))
 
   /**
    * Capture ZIO trace at the current point

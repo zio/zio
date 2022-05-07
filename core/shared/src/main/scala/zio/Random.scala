@@ -86,7 +86,7 @@ trait Random extends Serializable {
 
 object Random extends Serializable {
 
-  implicit val tag: Tag[Random] = Tag[Random]
+  val tag: Tag[Random] = Tag[Random]
 
   object RandomLive extends Random {
 
