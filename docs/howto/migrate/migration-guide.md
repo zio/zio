@@ -679,11 +679,131 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 |----------------|---------------|
 | `zio.Fiber.ID` | `zio.FiberID` |
 
-## Platform, Executor, and Runtime
+## Runtime, Platform and Executor
 
-### Method Deprecation and Renaming
+### Runtime Customization using Layers
 
-Also, we moved the `Executor` from `zio.internal` to the `zio` package:
+In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
+
+In ZIO 1.x, we had the `Platform` data type useful for providing custom execution configurations to the runtime:
+- `Platform#withExecutor`— To provide a custom `Executor`
+- `Platform#withTracing` to config tracing functionality
+- `Platform#withSupervisor` to provide a `Supervisor`
+- `Platform#withScheduler` to provide a `Scheduler`
+- etc.
+
+Here is an example of creating a custom `Runtime` in ZIO 1.x:
+
+```scala
+import zio._
+import zio.internal.Executor
+
+object MainApp extends zio.App {
+  val customExecutor: Executor = ???
+
+  val myApp: UIO[Unit] =
+    ZIO.debug("Application started")
+
+  def run(args: List[String]): URIO[ZEnv, ExitCode] =
+    ZIO
+      .runtime[ZEnv]
+      .map { runtime =>
+        runtime
+          .mapPlatform(_.withExecutor(customExecutor))
+          .unsafeRun(myApp)
+      }
+      .exitCode
+}
+```
+
+In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of-the-box layers for runtime customization, defined in the companion object of the `Runtime` trait. Here are some of them:
+- `Runtime.addLogger` to add a logger
+- `Runtime.setExecutor` to provide a custom `Executor`
+- `Runtime.logRuntime` to log runtime information
+- `Runtime.trackRuntimeMetrics` to track runtime metrics
+- etc.
+
+Let's see how a previous example can be rewritten in ZIO 2.x:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val customExecutor: zio.Executor = ???
+
+  val myApp = 
+    ZIO.debug("Application started")
+
+  def run =
+    myApp.provide(
+      Runtime.setExecutor(customExecutor)
+    )
+}
+```
+
+Note that ZIO ecosystem libraries like ZMX may have their own layers that install all necessary functionality.
+
+### Runtime Customization Using ZIO Data Type
+
+To access information about the configuration of our ZIO program as we are running, there are some more specific operators that we can use, such as:
+- `ZIO.executor`/`ZIO.executorWith`
+- `ZIO.logger`/`ZIO.loggerWith`
+- `ZIO.isFatal`/`ZIO.isFatalWith`
+
+### Runtime Configurations are Scoped
+
+When we access a `Runtime` using `ZIO.runtime` it will inherit all the configuration of the current workflow so if we use it to run effects they will be run with the same logger and so on:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val workflow1 = ZIO.debug("workflow1 is running") *> ZIO.log("This line will never get logged")
+  val workflow2 = ZIO.debug("workflow2 is running") *> ZIO.log("This line will get logged")
+  val workflow3 = ZIO.debug("workflow3 is running") *> ZIO.log("This line will never get logged")
+
+  def run =
+    ZIO.provideLayer(Runtime.removeDefaultLoggers) {
+      ZIO.runtime[Any].flatMap(_.run(workflow1)) *>
+        ZIO.provideLayer(Runtime.addLogger(Runtime.defaultLoggers.head)) {
+          ZIO.runtime[Any].flatMap(_.run(workflow2))
+        } *> workflow3
+    }
+}
+```
+
+### Custom Runtime for Mixed Applications
+
+In ZIO 2.x, to create a custom runtime in mixed applications we combine all the layers that do our customization and then perform the `Runtime.unsafeFromLayer` operation:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp {
+  val sl4jlogger: ZLogger[String, Any] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def zioApplication(): Int =
+    Runtime
+      .unsafeFromLayer(
+        Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+      )
+      .unsafeRun(zioWorkflow)
+
+  def main(args: Array[String]): Unit = {
+    val result = zioApplication()
+    legacyApplication(result)
+  }
+
+}
+```
+
+### Executor
+
+We moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
 |-------------------------|----------------|
