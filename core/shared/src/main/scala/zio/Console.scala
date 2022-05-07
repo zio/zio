@@ -55,6 +55,8 @@ trait Console extends Serializable {
 
 object Console extends Serializable {
 
+  implicit val tag: Tag[Console] = Tag[Console]
+
   object ConsoleLive extends Console {
 
     def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =

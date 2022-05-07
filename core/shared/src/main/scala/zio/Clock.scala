@@ -61,6 +61,8 @@ trait Clock extends Serializable { self =>
 
 object Clock extends ClockPlatformSpecific with Serializable {
 
+  implicit val tag: Tag[Clock] = Tag[Clock]
+
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
    */

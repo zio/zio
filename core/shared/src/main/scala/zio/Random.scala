@@ -86,6 +86,8 @@ trait Random extends Serializable {
 
 object Random extends Serializable {
 
+  implicit val tag: Tag[Random] = Tag[Random]
+
   object RandomLive extends Random {
 
     def nextBoolean(implicit trace: Trace): UIO[Boolean] =

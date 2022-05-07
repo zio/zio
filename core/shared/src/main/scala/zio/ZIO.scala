@@ -2650,13 +2650,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.CheckInterrupt(f, trace)
 
   /**
-   * Retreives the `Clock` service for this workflow.
+   * Retrieves the `Clock` service for this workflow.
    */
   def clock(implicit trace: Trace): UIO[Clock] =
     ZIO.clockWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `Clock` service for this workflow and uses it to run the
+   * Retrieves the `Clock` service for this workflow and uses it to run the
    * specified workflow.
    */
   def clockWith[R, E, A](f: Clock => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -2859,13 +2859,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(if (predicate) ZIO.succeedNow(result) else ZIO.fail(error))
 
   /**
-   * Retreives the `Console` service for this workflow.
+   * Retrieves the `Console` service for this workflow.
    */
   def console(implicit trace: Trace): UIO[Console] =
     ZIO.consoleWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `Console` service for this workflow and uses it to run the
+   * Retrieves the `Console` service for this workflow and uses it to run the
    * specified workflow.
    */
   def consoleWith[R, E, A](f: Console => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -4016,7 +4016,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.randomWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `Random` service for this workflow and uses it to run the
+   * Retrieves the `Random` service for this workflow and uses it to run the
    * specified workflow.
    */
   def randomWith[R, E, A](f: Random => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -4254,13 +4254,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.Suspend(() => zio, trace)
 
   /**
-   * Retreives the `System` service for this workflow.
+   * Retrieves the `System` service for this workflow.
    */
   def system(implicit trace: Trace): UIO[System] =
     ZIO.systemWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `System` service for this workflow and uses it to run the
+   * Retrieves the `System` service for this workflow and uses it to run the
    * specified workflow.
    */
   def systemWith[R, E, A](f: System => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
