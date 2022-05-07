@@ -242,7 +242,7 @@ abstract class RingBuffer[A](override final val capacity: Int) extends MutableQu
     }
   }
 
-  override final def offerAll(as: Iterable[A]): Chunk[A] = {
+  override final def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
     val aCapacity = capacity
 
     val aSeq   = seq

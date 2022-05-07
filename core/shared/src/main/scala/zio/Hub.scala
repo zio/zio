@@ -35,10 +35,10 @@ abstract class Hub[A] extends Enqueue[A] {
   def publish(a: A)(implicit trace: Trace): UIO[Boolean]
 
   /**
-   * Publishes all of the specified messages to the hub, returning whether they
-   * were published to the hub.
+   * Publishes all of the specified messages to the hub, returning any messages
+   * that were not published to the hub.
    */
-  def publishAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean]
+  def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
@@ -56,7 +56,7 @@ abstract class Hub[A] extends Enqueue[A] {
   final def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
     publish(a)
 
-  final def offerAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean] =
+  final def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
     publishAll(as)
 }
 
@@ -141,14 +141,17 @@ object Hub {
             strategy.handleSurplus(hub, subscribers, Chunk(a), shutdownFlag)
           }
         }
-      def publishAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean] =
+      def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val surplus = unsafePublishAll(hub, as)
             strategy.unsafeCompleteSubscribers(hub, subscribers)
-            if (surplus.isEmpty) ZIO.succeedNow(true)
-            else strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag)
+            if (surplus.isEmpty) ZIO.succeedNow(Chunk.empty)
+            else
+              strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag).map { published =>
+                if (published) Chunk.empty else surplus
+              }
           }
         }
       def shutdown(implicit trace: Trace): UIO[Unit] =
@@ -216,8 +219,8 @@ object Hub {
         ZIO.succeed(shutdownFlag.get)
       def offer(a: Nothing)(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeedNow(false)
-      def offerAll(as: Iterable[Nothing])(implicit trace: Trace): UIO[Boolean] =
-        ZIO.succeedNow(false)
+      def offerAll[A1 <: Nothing](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+        ZIO.succeedNow(Chunk.fromIterable(as))
       def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
@@ -544,7 +547,7 @@ object Hub {
   /**
    * Unsafely publishes the specified values to a hub.
    */
-  private def unsafePublishAll[A](hub: internal.Hub[A], as: Iterable[A]): Chunk[A] =
+  private def unsafePublishAll[A, B <: A](hub: internal.Hub[A], as: Iterable[B]): Chunk[B] =
     hub.publishAll(as)
 
   /**
