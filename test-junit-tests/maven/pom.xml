@@ -12,9 +12,9 @@
         <maven.compiler.source>1.7</maven.compiler.source>
         <maven.compiler.target>1.7</maven.compiler.target>
         <encoding>UTF-8</encoding>
-        <scala.version>2.13.6</scala.version>
+        <scala.version>2.13.8</scala.version>
         <scala.compat.version>2.12</scala.compat.version>
-        <zio.version>1.0.12</zio.version>
+        <zio.version>1.0.14</zio.version>
     </properties>
 
     <dependencies>
@@ -66,7 +66,7 @@
                 <!-- see http://davidb.github.com/scala-maven-plugin -->
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-                <version>4.5.4</version>
+                <version>4.5.6</version>
                 <executions>
                     <execution>
                         <goals>

@@ -84,6 +84,11 @@ object JavaSpec extends ZIOBaseSpec {
         lazy val someValue: CompletionStage[Int] = CompletableFuture.completedFuture(42)
         assertM(ZIO.fromCompletionStage(someValue))(equalTo(42))
       },
+      testM("return an `IO` that is interrupted if `Future` is cancelled") {
+        val future = new CompletableFuture[Unit]
+        future.cancel(true)
+        assertM(ZIO.fromCompletionStage(future).run)(isInterrupted)
+      },
       testM("handle null produced by the completed `Future`") {
         lazy val someValue: CompletionStage[String] = CompletableFuture.completedFuture[String](null)
         assertM(ZIO.fromCompletionStage(someValue).map(Option(_)))(isNone)

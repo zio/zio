@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,12 +26,38 @@ import java.nio.channels.{AsynchronousServerSocketChannel, AsynchronousSocketCha
 import java.nio.file.StandardOpenOption._
 import java.nio.file.{OpenOption, Path}
 import java.nio.{Buffer, ByteBuffer}
+import java.security.MessageDigest
 import java.util.zip.{DataFormatException, Inflater}
 import java.{util => ju}
 import scala.annotation.tailrec
 
 trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
+
+  /**
+   * Creates a sink which digests incoming bytes using Java's MessageDigest
+   * class, returning in a single byte chunk with the digest value once the
+   * stream completes.
+   *
+   * @param createDigest
+   *   A block that creates an empty MessageDirect, typically by invoking
+   *   MessageDigest.getInstance with e.g. "SHA-1" or "SHA-256".
+   */
+  def digest(createDigest: => MessageDigest): ZSink[Any, Nothing, Byte, Nothing, Chunk[Byte]] =
+    ZSink {
+      for {
+        digest <- ZManaged.succeed(createDigest)
+      } yield { (optChunk: Option[Chunk[Byte]]) =>
+        optChunk match {
+          case None =>
+            ZIO.fail((Right(Chunk.fromArray(digest.digest())), Chunk.empty))
+          case Some(chunk) =>
+            ZIO.succeed {
+              digest.update(chunk.toArray)
+            }
+        }
+      }
+    }
 
   /**
    * Uses the provided `OutputStream` to create a [[ZSink]] that consumes byte
@@ -459,19 +485,19 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   final def fromJavaStream[A](stream: => ju.stream.Stream[A]): ZStream[Any, Throwable, A] =
-    ZStream.fromJavaIterator(stream.iterator())
+    ZStream.fromJavaIteratorManaged(ZManaged.makeEffect(stream)(_.close()).map(_.iterator()))
 
   /**
    * Creates a stream from a Java stream
    */
   final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
+    ZStream.fromEffect(stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a managed Java stream
    */
   final def fromJavaStreamManaged[R, A](stream: ZManaged[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
+    ZStream.managed(stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a Java stream

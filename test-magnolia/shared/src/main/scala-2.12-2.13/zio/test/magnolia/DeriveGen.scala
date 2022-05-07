@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2020-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@ package zio.test.magnolia
 
 import _root_.zio.test.{Gen, Sized}
 import magnolia._
+import zio.Chunk
 import zio.random.Random
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
 
 /**
@@ -78,12 +79,37 @@ object DeriveGen {
   implicit val genUUID: DeriveGen[UUID]                   = instance(Gen.anyUUID)
   implicit val genInstant: DeriveGen[Instant]             = instance(Gen.anyInstant)
   implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.anyLocalDateTime)
-  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDateTime.map(_.toLocalDate()))
+  implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.anyLocalDate)
+  implicit val genLocalTime: DeriveGen[LocalTime]         = instance(Gen.anyLocalTime)
+
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
     Gen.bigDecimal(
       BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
       BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
     )
+  )
+
+  implicit val genBigInt: DeriveGen[BigInt] = instance(
+    Gen.bigInt(
+      BigInt(Int.MinValue) * BigInt(Int.MaxValue),
+      BigInt(Int.MaxValue) * BigInt(Int.MaxValue)
+    )
+  )
+
+  implicit val genBigIntegerJava: DeriveGen[java.math.BigInteger] = instance(
+    Gen
+      .bigIntegerJava(
+        BigInt(Int.MinValue) * BigInt(Int.MaxValue),
+        BigInt(Int.MaxValue) * BigInt(Int.MaxValue)
+      )
+  )
+
+  implicit val genJavaBigDecimalGen: DeriveGen[java.math.BigDecimal] = instance(
+    Gen
+      .bigDecimalJava(
+        BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
+        BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
+      )
   )
 
   implicit def genEither[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Either[A, B]] =
@@ -97,6 +123,9 @@ object DeriveGen {
 
   implicit def genList[A](implicit ev: DeriveGen[A]): DeriveGen[List[A]] =
     instance(Gen.listOf(ev.derive))
+
+  implicit def genChunk[A](implicit ev: DeriveGen[A]): DeriveGen[Chunk[A]] =
+    instance(Gen.chunkOf(ev.derive))
 
   implicit def genMap[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Map[A, B]] =
     instance(Gen.mapOf(ev1.derive, ev2.derive))

@@ -390,6 +390,25 @@ object ZLayerSpec extends ZIOBaseSpec {
           _     <- layer.build.useNow
           value <- ref.get
         } yield assert(value)(equalTo("bar"))
+      },
+      testM("caching values in dependencies") {
+        case class Config(value: Int)
+        case class A(value: Int)
+        val aLayer = ((conf: Config) => A(conf.value)).toLayer
+
+        case class B(value: Int)
+        val bLayer = ((a: A) => B(a.value)).toLayer
+
+        case class C(value: Int)
+        val cLayer = ((a: A) => C(a.value)).toLayer
+
+        val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
+        val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
+        for {
+          (b, c) <- (fedB ++ fedC).build.useNow.map(v => (v.get[B], v.get[C]))
+        } yield {
+          assert(b.value)(equalTo(c.value))
+        }
       }
     )
 }

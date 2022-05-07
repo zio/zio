@@ -619,7 +619,7 @@ object ZLayerApp0 extends zio.App {
   import moduleB._
 
   val env = Console.live ++ Clock.live ++ (ModuleA.live >>> ModuleB.live)
-  val program: ZIO[Console with Clock with moduleB.ModuleB, IOException, Unit] =
+  val program: ZIO[Console with Clock with ModuleB, IOException, Unit] =
     for {
       _ <- putStrLn(s"Welcome to ZIO!")
       _ <- sleep(Finite(1000))

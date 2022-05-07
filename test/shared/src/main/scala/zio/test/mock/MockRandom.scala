@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package zio.test.mock
 import zio.random.Random
 import zio.{Chunk, Has, UIO, URLayer, ZLayer}
 
+import java.util.UUID
+
 object MockRandom extends Mock[Random] {
 
   object NextBoolean       extends Effect[Unit, Nothing, Boolean]
@@ -36,6 +38,7 @@ object MockRandom extends Mock[Random] {
   object NextLongBounded   extends Effect[Long, Nothing, Long]
   object NextPrintableChar extends Effect[Unit, Nothing, Char]
   object NextString        extends Effect[Int, Nothing, String]
+  object NextUUID          extends Effect[Unit, Nothing, UUID]
   object SetSeed           extends Effect[Long, Nothing, Unit]
   object Shuffle           extends Effect[Iterable[Any], Nothing, Iterable[Any]]
 
@@ -61,6 +64,7 @@ object MockRandom extends Mock[Random] {
         def nextLongBounded(n: Long): UIO[Long]  = proxy(NextLongBounded, n)
         val nextPrintableChar: UIO[Char]         = proxy(NextPrintableChar)
         def nextString(length: Int): UIO[String] = proxy(NextString, length)
+        override val nextUUID: UIO[UUID]         = proxy(NextUUID)
         def setSeed(seed: Long): UIO[Unit]       = proxy(SetSeed, seed)
         def shuffle[A, Collection[+Element] <: Iterable[Element]](
           collection: Collection[A]

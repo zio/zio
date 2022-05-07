@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,20 +21,22 @@ package zio.test
  * were specified, the spec returns unchanged.
  */
 private[zio] object FilteredSpec {
-  def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] = {
-    def filtered: Option[ZSpec[R, E]] =
-      (args.testSearchTerms, args.tagSearchTerms) match {
-        case (Nil, Nil) => None
-        case (testSearchTerms, Nil) =>
-          spec.filterLabels(label => testSearchTerms.exists(term => label.contains(term)))
-        case (Nil, tagSearchTerms) =>
-          spec.filterTags(tag => tagSearchTerms.contains(tag))
-        case (testSearchTerms, tagSearchTerms) =>
-          spec
-            .filterTags(tag => testSearchTerms.contains(tag))
-            .flatMap(_.filterLabels(label => tagSearchTerms.exists(term => label.contains(term))))
-      }
-
-    filtered.getOrElse(spec)
-  }
+  def apply[R, E](spec: ZSpec[R, E], args: TestArgs): ZSpec[R, E] =
+    (args.testSearchTerms, args.tagSearchTerms) match {
+      case (Nil, Nil) =>
+        spec
+      case (testSearchTerms, Nil) =>
+        spec
+          .filterLabels(label => testSearchTerms.exists(term => label.contains(term)))
+          .getOrElse(Spec.empty)
+      case (Nil, tagSearchTerms) =>
+        spec
+          .filterTags(tag => tagSearchTerms.contains(tag))
+          .getOrElse(Spec.empty)
+      case (testSearchTerms, tagSearchTerms) =>
+        spec
+          .filterTags(tag => testSearchTerms.contains(tag))
+          .flatMap(_.filterLabels(label => tagSearchTerms.exists(term => label.contains(term))))
+          .getOrElse(Spec.empty)
+    }
 }

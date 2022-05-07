@@ -503,7 +503,7 @@ It comprises these policies:
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "com.github.ghostdogpr" %% "caliban" % "1.1.0"
+libraryDependencies += "nl.vroste" %% "rezilience" % "0.7.0"
 ```
 
 ### Example

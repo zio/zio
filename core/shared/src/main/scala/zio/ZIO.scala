@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2017-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -3883,6 +3883,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ios: Iterable[ZIO[R1, E, A]]
   ): ZIO[R1, E, A] =
     zio.raceAll(ios)
+
+  /**
+   * Returns an effect that races this effect with all the specified effects,
+   * yielding the first result to complete, whether by success or failure. If
+   * neither effect completes, then the composed effect will not complete.
+   *
+   * WARNING: The raced effect will safely interrupt the "losers", but will not
+   * resume until the losers have been cleanly terminated. If early return is
+   * desired, then instead of performing `ZIO.raceFirst(l, rs)`, perform
+   * `ZIO.raceFirst(l.disconnect, rs.map(_.disconnect))`, which disconnects left
+   * and rights interrupt signal, allowing a fast return, with interruption
+   * performed in the background.
+   */
+  def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: Iterable[ZIO[R1, E, A]]): ZIO[R1, E, A] =
+    (zio.run raceAll ios.map(_.run)).flatMap(ZIO.done(_)).refailWithTrace
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.

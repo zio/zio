@@ -85,8 +85,8 @@ lazy val root = project
   )
   .aggregate(
     benchmarks,
-    concurrentJVM,
     concurrentJS,
+    concurrentJVM,
     concurrentNative,
     coreJS,
     coreJVM,
@@ -146,12 +146,23 @@ lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
   .settings(dottySettings)
+  .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "com.github.lolgab" %%% "native-loop-core" % "0.2.0"
+      "com.github.lolgab" %%% "native-loop-core" % "0.2.1"
     )
   )
 
@@ -177,6 +188,15 @@ lazy val coreTestsJVM = coreTests.jvm
 
 lazy val coreTestsJS = coreTests.js
   .settings(dottySettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform)
   .in(file("macros"))
@@ -246,6 +266,15 @@ lazy val streamsTestsJVM = streamsTests.jvm
 
 lazy val streamsTestsJS = streamsTests.js
   .settings(dottySettings)
+  .settings(
+    scalacOptions ++= {
+      if (scalaVersion.value == Scala3) {
+        List()
+      } else {
+        List("-P:scalajs:nowarnGlobalExecutionContext")
+      }
+    }
+  )
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -269,8 +298,8 @@ lazy val testJS = test.js
   .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.3.0",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.3.0"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M1",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
     )
   )
 lazy val testNative = test.native
@@ -478,7 +507,7 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(core)
   .settings(stdSettings("zio-concurrent"))
   .settings(crossProjectSettings)
-  .settings(buildInfoSettings("zio.stream"))
+  .settings(buildInfoSettings("zio.concurrent"))
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(testRunner % Test)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -593,14 +622,11 @@ lazy val docs = project.module
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
-      "commons-io"          % "commons-io"                % "2.11.0" % "provided",
-      "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
-      "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
-      "org.jsoup"           % "jsoup"                     % "1.14.3" % "provided",
-      "org.reactivestreams" % "reactive-streams-examples" % "1.0.3"  % "provided",
-      /* to evict 1.3.0 brought in by mdoc-js */
-      "org.scala-js"                   % "scalajs-compiler"              % scalaJSVersion cross CrossVersion.full,
-      "org.scala-js"                  %% "scalajs-linker"                % scalaJSVersion,
+      "commons-io"                     % "commons-io"                    % "2.11.0" % "provided",
+      "io.7mind.izumi"                %% "distage-core"                  % "1.0.8",
+      "io.7mind.izumi"                %% "logstage-core"                 % "1.0.8",
+      "org.jsoup"                      % "jsoup"                         % "1.14.3" % "provided",
+      "org.reactivestreams"            % "reactive-streams-examples"     % "1.0.3"  % "provided",
       "org.typelevel"                 %% "cats-effect"                   % catsEffectV,
       "dev.zio"                       %% "zio-actors"                    % zioActorsV,
       "dev.zio"                       %% "zio-akka-cluster"              % "0.2.0",
@@ -668,5 +694,5 @@ lazy val docs = project.module
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)

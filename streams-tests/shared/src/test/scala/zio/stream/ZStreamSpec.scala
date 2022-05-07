@@ -1452,6 +1452,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        testM("foldWhile") {
+          val stream = ZStream(1, 1, 1, 1, 1)
+          for {
+            sum <- stream.foldWhile(0)(_ < 3)(_ + _)
+          } yield assertTrue(sum == 3)
+        },
         suite("foreach")(
           testM("foreach") {
             for {
@@ -2161,6 +2167,16 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .run
               count <- interrupted.get
             } yield assert(count)(equalTo(2)) && assert(result)(fails(equalTo("Boom")))
+          } @@ nonFlaky,
+          testM("propagates error of original stream") {
+            for {
+              fiber <- (ZStream(1, 2, 3, 4, 5, 6, 7, 8, 9, 10) ++ ZStream.fail(new Throwable("Boom")))
+                         .mapMPar(2)(_ => ZIO.sleep(1.second))
+                         .runDrain
+                         .fork
+              _    <- TestClock.adjust(4.seconds)
+              exit <- fiber.await
+            } yield assert(exit)(fails(hasMessage(equalTo("Boom"))))
           } @@ nonFlaky
         ),
         suite("mapMParUnordered")(

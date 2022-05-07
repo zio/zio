@@ -24,7 +24,7 @@ object BuildHelper {
   val Scala213: String = versions("2.13")
   val Scala3: String   = versions("3")
 
-  val SilencerVersion = "1.7.7"
+  val SilencerVersion = "1.7.8"
 
   private val stdOptions = Seq(
     "-deprecation",
@@ -77,14 +77,6 @@ object BuildHelper {
         Seq("-Xfatal-warnings")
       else
         Seq()
-    },
-    Compile / doc / sources := {
-      val old = (Compile / doc / sources).value
-      if (scalaVersion.value == Scala3) {
-        Nil
-      } else {
-        old
-      }
     },
     Test / parallelExecution := {
       val old = (Test / parallelExecution).value
@@ -243,7 +235,9 @@ object BuildHelper {
     Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    Compile / fork := true,
+    Test / fork    := false
   )
 
   def macroExpansionSettings = Seq(

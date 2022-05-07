@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2019-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -326,6 +326,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
+   * A generator of [[java.math.BigDecimal]] inside the specified range: [start,
+   * end]. The shrinker will shrink toward the lower end of the range
+   * ("smallest").
+   * @see
+   *   See [[bigDecimal]] for implementation.
+   */
+  def bigDecimalJava(min: BigDecimal, max: BigDecimal): Gen[Random, java.math.BigDecimal] =
+    Gen
+      .bigDecimal(min, max)
+      .map(_.underlying)
+
+  /**
    * A generator of big integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
@@ -345,6 +357,18 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         effect.map(Sample.shrinkIntegral(min))
       }
     }
+
+  /**
+   * A generator of [[java.math.BigInteger]] inside the specified range: [start,
+   * end]. The shrinker will shrink toward the lower end of the range
+   * ("smallest").
+   * @see
+   *   See [[bigInt]] for implementation.
+   */
+  def bigIntegerJava(min: BigInt, max: BigInt): Gen[Random, java.math.BigInteger] =
+    Gen
+      .bigInt(min, max)
+      .map(_.underlying)
 
   /**
    * A generator of booleans. Shrinks toward 'false'.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2022 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1242,7 +1242,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case None =>
                 IO.succeedNow(s1)
             },
-            (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(loop)
+            (ch: Chunk[O]) => ch.foldWhileM(s1)(cont)(f).flatMap(loop)
           )
 
       ZManaged.fromEffect(loop(s))
@@ -2138,15 +2138,25 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
                  latch <- Promise.make[Nothing, Unit]
                  _     <- out.offer(p.await.mapError(Some(_)))
                  _ <- permits.withPermit {
-                        latch.succeed(()) *>                 // Make sure we start evaluation before moving on to the next element
-                          (errorSignal.await raceFirst f(a)) // Interrupt evaluation if another task fails
-                            .tapCause(errorSignal.halt)      // Notify other tasks of a failure
-                            .to(p)                           // Transfer the result to the consuming stream
+                        latch.succeed(()) *>
+                          ZIO.uninterruptibleMask { restore =>
+                            restore {
+                              (errorSignal.await raceFirst f(a))
+                                .tapCause(errorSignal.halt)
+                            }.run.flatMap {
+                              case Exit.Failure(cause) =>
+                                errorSignal.poll.flatMap {
+                                  case Some(io) => io.foldCauseM(cause => p.halt(cause), _ => p.halt(cause))
+                                  case None     => p.halt(cause)
+                                }
+                              case Exit.Success(a) => p.succeed(a)
+                            }
+                          }
                       }.fork
                  _ <- latch.await
                } yield ()
              }.foldCauseM(
-               c => out.offer(Pull.halt(c)).toManaged_,
+               c => errorSignal.halt(c).toManaged_ *> out.offer(Pull.halt(c)).toManaged_,
                _ => (permits.withPermits(n.toLong)(ZIO.unit).interruptible *> out.offer(Pull.end)).toManaged_
              ).fork
         consumer = out.take.flatten.map(Chunk.single(_))
@@ -3754,8 +3764,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       for {
         doneRef <- Ref.make(false).toManaged_
         pull = doneRef.modify { done =>
-                 if (done || c.isEmpty) Pull.end -> true
-                 else ZIO.succeedNow(c)          -> true
+                 if (done) {
+                   Pull.end -> true
+                 } else {
+                   val c0 = c
+                   if (c0.isEmpty) {
+                     Pull.end -> true
+                   } else {
+                     ZIO.succeedNow(c0) -> true
+                   }
+                 }
                }.flatten
       } yield pull
     }
