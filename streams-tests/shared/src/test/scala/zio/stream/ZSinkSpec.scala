@@ -614,7 +614,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
             override def offer(a: A)(implicit trace: Trace): ZIO[Any, Nothing, Boolean] = q.offer(a)
 
-            override def offerAll(as: Iterable[A])(implicit trace: Trace): ZIO[Any, Nothing, Boolean] =
+            override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A1]] =
               q.offerAll(as)
 
             override def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.succeed(this.isShutDown = true)

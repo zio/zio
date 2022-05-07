@@ -5006,7 +5006,7 @@ object ZStreamSpec extends ZIOBaseSpec {
 
   trait ChunkCoordination[A] {
     def queue: Queue[Exit[Option[Nothing], Chunk[A]]]
-    def offer: UIO[Boolean]
+    def offer: UIO[Unit]
     def proceed: UIO[Unit]
     def awaitNext: UIO[Unit]
   }
@@ -5030,7 +5030,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                             val offer = ref.modify {
                               case x :: xs => (x, xs)
                               case Nil     => (Nil, Nil)
-                            }.flatMap(queue.offerAll)
+                            }.flatMap(queue.offerAll).unit
                             val proceed   = ps.offer(()).unit
                             val awaitNext = ps.take
                           }
