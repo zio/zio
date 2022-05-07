@@ -2,10 +2,6 @@
 id: runtime
 title: "Runtime"
 ---
-```scala mdoc:invisible
-import zio.{Runtime, ZIO, UIO, URIO, Has, Task}
-import zio.internal.Platform
-```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
 
@@ -62,7 +58,9 @@ trait App {
 Assume we have written an effect using ZIO:
 
 ```scala mdoc:silent
+import zio.{Runtime, ZIO, UIO, URIO, Has, Task}
 import zio.console._
+import zio.internal.Platform
 
 def myAppLogic =
   for {

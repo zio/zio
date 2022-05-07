@@ -5,13 +5,11 @@ title: "Managed"
 
 `Managed[E, A]` is a type alias for `ZManaged[Any, E, A]`, which represents a managed resource that has no requirements, and may fail with an `E`, or succeed with an `A`.
 
-```scala mdoc:invisible
-import zio.ZManaged
-```
-
 The `Managed` type alias is defined as follows:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent
+import zio.ZManaged
+
 type Managed[+E, +A] = ZManaged[Any, E, A]
 ```
 
@@ -51,7 +49,7 @@ val managedFromValue: Managed[Nothing, Int] = Managed.succeed(3)
 
 `Managed[E, A]` is actually an alias for `ZManaged[Any, E, A]`. If you'd like your `acquire`, `release` or `use` functions to require an environment R, just use `ZManaged` instead of `Managed`.
 
-```scala mdoc:silent
+```scala mdoc:silent:reset
 import zio._
 import zio.console._
 
@@ -63,19 +61,14 @@ val zUsedResource: URIO[Console, Unit] = zManagedResource.use { _ => console.put
 
 It is possible to combine multiple `Managed` using `flatMap` to obtain a single `Managed` that will acquire and release all the resources.
 
-```scala mdoc:silent
+```scala mdoc:reset
 import zio._
-```
-
-```scala mdoc:invisible:nest
 import java.io.{ File, IOException }
 
 def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
 def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)
 def doSomething(queue: Queue[Int], file: File): UIO[Unit] = IO.effectTotal(???)
-```
 
-```scala mdoc:silent
 val managedQueue: Managed[Nothing, Queue[Int]] = Managed.make(Queue.unbounded[Int])(_.shutdown)
 val managedFile: Managed[IOException, File] = Managed.make(openFile("data.json"))(closeFile)
 
@@ -85,5 +78,4 @@ val combined: Managed[IOException, (Queue[Int], File)] = for {
 } yield (queue, file)
 
 val usedCombinedRes: IO[IOException, Unit] = combined.use { case (queue, file) => doSomething(queue, file) }
-
 ```

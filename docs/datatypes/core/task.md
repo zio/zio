@@ -7,11 +7,9 @@ title: "Task"
 
 Let's see how the `Task` type alias is defined:
 
-```scala mdoc:invisible
-import zio.ZIO
-```
-
 ```scala mdoc:silent
+import zio.ZIO
+
 type Task[+A] = ZIO[Any, Throwable, A]
 ```
 

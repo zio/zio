@@ -25,12 +25,10 @@ The ZIO STM API is inspired by Haskell's [STM library](http://hackage.haskell.or
 
 Let's start from a simple `inc` function, which takes a mutable reference of `Int` and increase it by `amount`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import zio.{Ref, ZIO}
 import zio.stm.{TRef, STM}
-```
 
-```scala mdoc:silent
 def inc(counter: Ref[Int], amount: Int) = for {
   c <- counter.get
   _ <- counter.set(c + amount)
@@ -67,37 +65,33 @@ The `modify` function takes these three steps:
 
 Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
 
-```scala mdoc:invisible
+```scala mdoc:silent:nest
 import java.util.concurrent.atomic.AtomicReference
 import zio.UIO
-```
 
-```scala mdoc:silent:nest
-  final case class Ref[A](value: AtomicReference[A]) { self =>
-    def modify[B](f: A => (B, A)): UIO[B] = UIO.effectTotal {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = f(current)
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
-      }
-      b
+final case class Ref[A](value: AtomicReference[A]) { self =>
+  def modify[B](f: A => (B, A)): UIO[B] = UIO.effectTotal {
+    var loop = true
+    var b: B = null.asInstanceOf[B]
+    while (loop) {
+      val current = value.get
+      val tuple   = f(current)
+      b = tuple._1
+      loop = !value.compareAndSet(current, tuple._2)
     }
- }
+    b
+  }
+}
 ```
 
 As we see, the `modify` operation is implemented in terms of the `compare-and-swap` operation which helps us to perform read and update atomically.
 
 Let's rename the `inc` function to the `deposit` as follows to try the classic problem of transferring money from one account to another:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio.{Ref, ZIO, IO}
 import zio.stm.{TRef, STM}
-```
 
-```scala mdoc:silent
 def deposit(accountBalance: Ref[Int], amount: Int) = accountBalance.update(_ + amount)
 ```
 

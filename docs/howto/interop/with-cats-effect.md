@@ -29,10 +29,6 @@ libraryDependencies += "dev.zio" %% "zio-interop-cats" % "3.1.1.0"
 
 Most of the interop functionality resides in the following package:
 
-```scala mdoc:silent
-import zio.interop.catz._
-```
-
 ## Cats Effect Instances
 
 ZIO integrates with Typelevel libraries by providing instances of Cats Effect type classes. These type classes are used by `fs2`, `doobie`, `http4s`, and a variety of other libraries in the functional Scala ecosystem.
@@ -41,11 +37,10 @@ Due to the limitations of the Cats Effect, ZIO cannot provide instances for arbi
 
 For convenience, ZIO includes the `Task` and `RIO` type aliases, which fix the error type to `Throwable`, and may be useful for interop with Cats Effect:
 
-```scala mdoc:invisible
-import zio.{ZIO, Task, RIO}
-```
-
 ```scala
+import zio.{ZIO, Task, RIO}
+import zio.interop.catz._
+
 type Task[+A]    = ZIO[Any, Throwable, A]
 type RIO[-R, +A] = ZIO[  R, Throwable, A]
 ```
@@ -73,7 +68,7 @@ object ZioCatsEffectInterop extends scala.App {
 
 If we are working with Cats Effect 3.x, the `catsEffectApp[Task]` will be expanded as if we called the following code explicitly:
 
-```scala mdoc:invisible
+```scala mdoc
 import ZioCatsEffectInterop.catsEffectApp
 ```
 

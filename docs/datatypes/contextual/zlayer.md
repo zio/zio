@@ -62,11 +62,9 @@ def succeed[A: Tag](a: A): ULayer[Has[A]]
 
 In the following example, we are going to create a `nameLayer` that provides us the name of `Adam`.
 
-```scala mdoc:invisible
-import zio._
-```
-
 ```scala mdoc:silent
+import zio._
+
 val nameLayer: ULayer[Has[String]] = ZLayer.succeed("Adam")
 ```
 
@@ -110,11 +108,9 @@ Fortunately, the construction of ZIO layers can be effectful and resourceful, th
 
 We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
 
-```scala mdoc:invisible
-import scala.io.BufferedSource
-```
-
 ```scala mdoc:silent:nest
+import scala.io.BufferedSource
+
 val managedFile = ZManaged.fromAutoCloseable(
   ZIO.effect(scala.io.Source.fromFile("file.txt"))
 )
@@ -130,7 +126,7 @@ val fileLayer: ZLayer[Any, Throwable, Has[BufferedSource]] = managedFile.toLayer
 
 Let's see another real-world example of creating a layer from managed resources. Assume we have written a managed `UserRepository`:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio._
 import zio.blocking._
 import zio.console._
@@ -148,9 +144,7 @@ case class UserRepository(xa: Transactor)
 object UserRepository {
   def apply(xa: Transactor): UserRepository = new UserRepository(xa) 
 }
-```
 
-```scala mdoc:silent:nest
 def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged_
   _ <- initializeDb(cfg).toManaged_
@@ -185,11 +179,9 @@ val layer_ = ZIO.succeed("Hello, World!").toLayer
 
 Assume we have a `ZIO` effect that read the application config from a file, we can create a layer from that:
 
-```scala mdoc:invisible
-trait AppConfig
-```
-
 ```scala mdoc:nest
+trait AppConfig
+
 def loadConfig: Task[AppConfig] = Task.effect(???)
 val configLayer = ZLayer.fromEffect(loadConfig)
 ```
@@ -220,12 +212,10 @@ object logging {
 
 We can create that by using `ZLayer.fromService` constructor, which depends on `Console` service:
 
-```scala mdoc:invisible
+```scala mdoc:silent:nest
 import logging.Logging
 import logging.Logging._
-```
 
-```scala mdoc:silent:nest
 val live: ZLayer[Console, Nothing, Logging] = ZLayer.fromService(console =>
   new Service {
     override def log(msg: String): UIO[Unit] = console.putStrLn(msg).orDie
@@ -245,13 +235,11 @@ We said that we can think of the `ZLayer` as a more powerful _constructor_. Cons
 
 Let's get into an example, assume we have these services with their implementations:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio.blocking.Blocking
 import zio.console.Console
 import zio._
-```
 
-```scala mdoc:silent:nest
 trait Logging { }
 trait Database { }
 trait BlobStorage { }
@@ -304,7 +292,7 @@ If we don't want to share a module, we should create a fresh, non-shared version
 
 ## Updating Local Dependencies
 
-```scala mdoc:invisible:reset
+```scala mdoc:reset
 import zio.{ Has, IO, Layer, UIO, URIO, ZEnv, ZIO, ZLayer }
 import zio.clock.Clock
 import zio.console.Console
@@ -472,7 +460,7 @@ val layer: ZLayer[Any, Nothing, Has[Connection] with UserRepo] = connection >+> 
 
 Here, the `Connection` dependency has been passed through, and is available to all downstream services. This allows a style of composition where the `>+>` operator is used to build a progressively larger set of services, with each new service able to depend on all the services before it.
 
-```scala mdoc:invisible
+```scala mdoc
 type Baker = Has[Baker.Service]
 type Ingredients = Has[Ingredients.Service]
 type Oven = Has[Oven.Service]
@@ -498,9 +486,7 @@ object Dough {
 object Cake {
   trait Service
 }
-```
 
-```scala mdoc
 lazy val baker: ZLayer[Any, Nothing, Baker] = ???
 lazy val ingredients: ZLayer[Any, Nothing, Ingredients] = ???
 lazy val oven: ZLayer[Any, Nothing, Oven] = ???
@@ -543,7 +529,7 @@ We can acquire resources asynchronously or in a blocking fashion, and spend some
 
 This application demonstrates a ZIO program with a single dependency on a simple string value:
 
-```scala mdoc:silent
+```scala mdoc:silent:reset
 import zio._
 
 object Example extends zio.App {
@@ -574,7 +560,7 @@ In the following example, our ZIO application has several dependencies:
 
 `ModuleB` in turn depends upon `ModuleA`:
 
-```scala mdoc:silent
+```scala mdoc:silent:reset
 import zio._
 import zio.clock._
 import zio.console._
@@ -656,7 +642,7 @@ object ZLayerApp0 extends zio.App {
 
 In this example, we can see that `ModuleC` depends upon `ModuleA`, `ModuleB`, and `Clock`. The layer provided to the runnable application shows how dependency layers can be combined using `++` into a single combined layer. The combined layer will then be able to produce both of the outputs of the original layers as a single layer:
 
-```scala mdoc:silent
+```scala mdoc:silent:reset
 import zio._
 import zio.clock._
 

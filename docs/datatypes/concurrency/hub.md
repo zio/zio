@@ -153,11 +153,8 @@ trait ZStream[-R, +E, +O] {
 
 We would now like to have multiple downstream consumers process each of these transactions, for example to persist them and log them in addition to applying our business logic to them. With `Hub` this is easy because we can just use the `toQueue` operator to view any `Hub` as a `Queue` that can only be written to.
 
-```scala mdoc:invisible
-type ??? = Nothing
-```
-
 ```scala mdoc:compile-only
+type ??? = Nothing
 type Transaction = ???
 
 val transactionStream: ZStream[Any, Nothing, Transaction] =
@@ -175,7 +172,9 @@ All of the elements from the transaction stream will now be published to the hub
 
 Like many of the other data structures in ZIO, a `Hub` is actually a type alias for a more polymorphic data structure called a `ZHub`.
 
-```scala mdoc:nest
+```scala mdoc:reset
+import zio._
+
 trait ZHub[-RA, -RB, +EA, +EB, -A, B] {
   def publish(a: A): ZIO[RA, EA, Boolean]
   def subscribe: ZManaged[Any, Nothing, ZDequeue[RB, EB, B]]
@@ -197,18 +196,16 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
   def map[C](f: B => C): ZHub[RA, RB, EA, EB, A, C]
   def mapM[RC <: RB, EC >: EB, C](f: B => ZIO[RC, EC, C]): ZHub[RA, RC, EA, EC, A, C]
 }
+
+type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
 ```
 
 The `map` operator allows us to transform the type of messages received from the hub with the specified function. Conceptually, every time a message is taken from the hub by a subscriber it will first be transformed with the function `f` before being received by the subscriber.
 
 The `mapM` operator works the same way except it allows us to perform an effect each time a value is taken from the hub. We could use this for example to log each time a message is taken from the hub.
 
-```scala mdoc:reset:invisible
-import zio._
-import zio.console._
-```
-
 ```scala mdoc:compile-only
+import zio.console._
 import zio.clock._
 
 val hub: Hub[Int] = ???
@@ -236,6 +233,8 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
     f: C => ZIO[RC, EC, A]
   ): ZHub[RC, RB, EC, EB, C, B]
 }
+
+type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
 ```
 
 The `contramap` operator allows us to transform each value published to the hub by applying the specified function. Conceptually it returns a new hub where every time we publish a value we first transform it with the specified function before publishing it to the original hub.
@@ -244,14 +243,7 @@ The `contramapM` operator works the same way except it allows us to perform an e
 
 Using these operators, we could describe a hub that validates its inputs, allowing publishers to publish raw data and subscribers to receive validated data while signaling to publishers when data they attempt to publish is not valid.
 
-```scala mdoc:reset:invisible
-import zio._
-import zio.console._
-```
-
 ```scala mdoc:compile-only
-import zio.clock._
-
 val hub: Hub[Int] = ???
 
 val hubWithLogging: ZHub[Any, Any, String, Nothing, String, Int] =
@@ -273,6 +265,8 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
     g: B => ZIO[RD, ED, D]
   ): ZHub[RC, RD, EC, ED, C, D]
 }
+
+type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
 ```
 
 These correspond to transforming the inputs and outputs of a hub at the same time using the specified functions. This is the same as transforming the outputs with `map` or `mapM` and the inputs with `contramap` or `contramapM`.
@@ -294,6 +288,8 @@ trait ZHub[-RA, -RB, +EA, +EB, -A, +B] {
     f: B => ZIO[RB1, EB1, Boolean]
   ): ZHub[RA, RB1, EA, EB1, A, B]
 }
+
+type Hub[A] = ZHub[Any, Any, Nothing, Nothing, A, A]
 ```
 
 Filtering the inputs to a hub conceptually "throws away" messages that do not meet the filter predicate before they are published to the hub. The `publish` operator will return `false` to signal that such a message was not successfully published to the hub.
@@ -345,12 +341,10 @@ The managed effect here describes subscribing to receive messages from the hub w
 
 Here is an example of using it:
 
-```scala mdoc:reset:invisible
+```scala mdoc:silent:reset
 import zio._
 import zio.stream._
-```
 
-```scala mdoc:silent
 for {
   promise <- Promise.make[Nothing, Unit]
   hub     <- Hub.bounded[String](2)

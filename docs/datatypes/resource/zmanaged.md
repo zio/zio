@@ -17,8 +17,8 @@ In this section, we explore some common ways to create managed resources.
 
 `ZManaged` has a `make` constructor which requires `acquire` and `release` actions:
 
-```scala mdoc:invisible
-import java.io._
+```scala mdoc:silent
+import java.io.{BufferedReader, FileReader}
 import zio.blocking._
 import zio.console._
 import zio._
@@ -27,16 +27,13 @@ trait Resource
 def use(resource: Resource): Task[Any]     = Task.effect(???)
 def release(resource: Resource): UIO[Unit] = Task.effectTotal(???)
 def acquire: Task[Resource]                = Task.effect(???)
-```
 
-```scala mdoc:silent:nest
 val managed = ZManaged.make(acquire)(release)
 ```
 
 In the following example, we have a managed resource which requires `Console` as an environment to print the first line of a given file. The `BufferedReader` will be acquired before printing the first line and automatically will be released after using `BufferedReader`:
 
-```scala mdoc:silent:nest
-import zio.console._
+```scala mdoc:silent
 def printFirstLine(file: String): ZIO[Console, Throwable, Unit] = {
   def acquire(file: String) = ZIO.effect(new BufferedReader(new FileReader(file)))
   def release(reader: BufferedReader) = ZIO.effectTotal(reader.close())
@@ -49,7 +46,7 @@ def printFirstLine(file: String): ZIO[Console, Throwable, Unit] = {
 
 If we need to have different logic in `release` action based on exit status of `acquire` action, we can use `ZManaged.makeExit` constructor:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent
 trait ZManaged[-R, +E, +A] {
   def makeExit[R, R1 <: R, E, A](
     acquire: ZIO[R, E, A]
@@ -79,7 +76,7 @@ val managedHello_ = putStrLn("Hello, World!").toManaged_
 
 This is useful when we want to combine `ZManaged` effects with `ZIO` effects. Assume during creation of managed resource, we need to log some information, we can lift a `ZIO` effect to `ZManaged` world:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio._
 import zio.blocking._
 import zio.console._
@@ -97,9 +94,7 @@ case class UserRepository(xa: Transactor)
 object UserRepository {
   def apply(xa: Transactor): UserRepository = new UserRepository(xa) 
 }
-```
 
-```scala mdoc:silent:nest
 def userRepository: ZManaged[Blocking with Console, Throwable, UserRepository] = for {
   cfg <- dbConfig.toManaged_
   _ <- putStrLn("Read database config").toManaged_
@@ -144,14 +139,12 @@ trait ZManaged[-R, +E, +A] {
 
 `Reservation` data type is defined as follows:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio._
 import java.io.{FileInputStream, FileOutputStream, Closeable}
 import zio.console._
 import scala.io.Source._
-```
 
-```scala mdoc:silent:nest
 final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[Any, Any] => URIO[R, Any])
 ```
 

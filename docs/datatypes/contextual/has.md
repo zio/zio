@@ -16,14 +16,12 @@ ZIO Wrap services with `Has` data type to:
 ### Combining Services
 Two or more `Has[_]` elements can be combined _horizontally_ using their `++` operator:
 
-```scala mdoc:invisible
+```scala mdoc:silent:nest
 import zio._
 
 trait Logging 
 trait RandomInt
-```
 
-```scala mdoc:silent:nest
 val logger: Has[Logging]   = Has(new Logging{})
 val random: Has[RandomInt] = Has(new RandomInt{})
 
@@ -55,11 +53,9 @@ ZIO environment has a `ZIO#provide` which takes an `R` and returns a `ZIO` effec
 
 Assume we have two `Logging` and `RandomInt` services:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio._
-```
 
-```scala mdoc:silent:nest
 trait Logging {
   def log(line: String): UIO[Unit]
 }
@@ -206,7 +202,7 @@ case class RandomIntLive() extends RandomInt {
 
 Now, we can lift these two implementations into the `ZLayer`. The `ZLayer` will wrap our services into the `Has[_]` data type:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio._
 trait Logging {
   def log(line: String): UIO[Unit]
@@ -242,9 +238,7 @@ case class RandomIntLive() extends RandomInt {
   override def random: UIO[Int] =
     ZIO.effectTotal(scala.util.Random.nextInt())
 }
-```
 
-```scala mdoc:silent
 object LoggingLive {
   val layer: URLayer[Any, Has[Logging]] =
     (LoggingLive.apply _).toLayer

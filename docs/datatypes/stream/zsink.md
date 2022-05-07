@@ -2,16 +2,6 @@
 id: zsink
 title: "ZSink"
 ---
-```scala mdoc:invisible
-import zio.clock.Clock
-import zio.console.Console
-import zio.blocking.Blocking
-import zio.duration._
-import zio.console._
-import java.io.IOException
-import java.nio.file.{Path, Paths}
-import zio.stream.ZSink.Push
-```
 
 ## Introduction
 
@@ -36,7 +26,18 @@ The `zio.stream` provides numerous kinds of sinks to use.
 
 **ZSink.head** — It creates a sink containing the first element, returns `None` for empty streams:
 
-```scala mdoc:silent:nest
+```scala mdoc:silent:reset
+import zio._
+import zio.clock.Clock
+import zio.console.Console
+import zio.blocking.Blocking
+import zio.duration._
+import zio.console._
+import java.io.IOException
+import java.nio.file.{Path, Paths}
+import zio.stream._
+import zio.stream.ZSink.Push
+
 val sink: ZSink[Any, Nothing, Int, Int, Option[Int]] = ZSink.head[Int]
 val head: ZIO[Any, Nothing, Option[Int]]             = ZStream(1, 2, 3, 4).run(sink)
 // Result: Some(1)
@@ -383,7 +384,7 @@ val sum: ZIO[Any, Nothing, String] =
 
 Like `ZStream`, two `ZSink` can be zipped together. Both of them will be run in parallel, and their results will be combined in a tuple:
 
-```scala mdoc:invisible
+```scala mdoc
 case class Record()
 ```
 

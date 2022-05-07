@@ -26,13 +26,11 @@ The `ZIO[R, E, A]` data type has three type parameters:
 
 In the following example, the `getStrLn` function requires the `Console` service, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import zio.{ZIO, IO, URIO, UIO, Task, RIO, Schedule}
 import zio.console._
 import java.io.IOException
-```
 
-```scala mdoc:silent
 val getStrLn: ZIO[Console, IOException, String] =
   ZIO.accessM(_.get.getStrLn)
 ```
@@ -162,11 +160,9 @@ val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 
 We can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`)
 
-```scala mdoc:invisible
-trait Team
-```
-
 ```scala mdoc:silent
+trait Team
+
 val maybeId: IO[Option[Nothing], String] = ZIO.fromOption(Some("abc123"))
 def getUser(userId: String): IO[Throwable, Option[User]] = ???
 def getTeam(teamId: String): IO[Throwable, Team] = ???
@@ -260,12 +256,10 @@ The error type of the resulting effect will always be `Throwable`, because `Futu
 
 A `Promise` can be converted into a ZIO effect using `ZIO.fromPromiseScala`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import scala.util.{Success, Failure}
 import zio.Fiber
-```
 
-```scala mdoc:silent
 val func: String => String = s => s.toUpperCase
 for {
   promise <- ZIO.succeed(scala.concurrent.Promise[String]())
@@ -400,14 +394,12 @@ def safeDownload(url: String) =
 
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.effectAsync`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 trait User { 
   def teamId: String
 }
 trait AuthError
-```
 
-```scala mdoc:silent
 object legacy {
   def login(
     onSuccess: User => Unit,
@@ -621,13 +613,11 @@ def sqrt(io: UIO[Double]): IO[String, Double] =
 #### Catching All Errors 
 If we want to catch and recover from all types of errors and effectfully attempt recovery, we can use the `catchAll` method:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import java.io.{ FileNotFoundException, IOException }
 def readFile(s: String): IO[IOException, Array[Byte]] = 
   ZIO.effect(???).refineToOrDie[IOException]
-```
 
-```scala mdoc:silent
 val z: IO[IOException, Array[Byte]] = 
   readFile("primary.json").catchAll(_ => 
     readFile("backup.json"))
@@ -701,14 +691,13 @@ Nearly all error handling methods are defined in terms of `foldM`, because it is
 
 In the following example, `foldM` is used to handle both failure and success of the `readUrls` method:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
 def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
 def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
-```
-```scala mdoc:silent
+
 val urls: UIO[Content] =
   readUrls("urls.json").foldM(
     error   => IO.succeed(NoContent(error)), 
@@ -840,12 +829,10 @@ Brackets are a built-in primitive that let us safely acquire and release resourc
 
 Brackets consist of an *acquire* action, a *utilize* action (which uses the acquired resource), and a *release* action.
 
-```scala mdoc:silent
-import zio.{ UIO, IO }
-```
-
-```scala mdoc:invisible
+```scala mdoc:reset
 import java.io.{ File, IOException }
+import zio.{ UIO, IO }
+import zio.console._
 
 def openFile(s: String): IO[IOException, File] = IO.effect(???).refineToOrDie[IOException]
 def closeFile(f: File): UIO[Unit] = IO.effectTotal(???)

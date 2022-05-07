@@ -7,11 +7,6 @@ There are many approaches to testing functional effects, including using free mo
 
 This section introduces environmental effects and shows you how to write testable functional code using them.
 
-```scala mdoc:invisible
-import zio._
-import zio.console._
-```
-
 ## Environments
 
 The ZIO data type has an `R` type parameter, which is used to describe the type of _environment_ required by the effect. 
@@ -19,6 +14,9 @@ The ZIO data type has an `R` type parameter, which is used to describe the type 
 ZIO effects can access the environment using `ZIO.environment`, which provides direct access to the environment, as a value of type `R`.
 
 ```scala mdoc:silent
+import zio._
+import zio.console._
+
 for {
   env <- ZIO.environment[Int]
   _   <- putStrLn(s"The value of the environment is: $env")
@@ -89,13 +87,11 @@ In this section, we'll explore how to use environmental effects by developing a 
 
 We will define the database service with the help of a module, which is an interface that contains only a single field, which provides access to the service.
 
-```scala mdoc:invisible
+```scala mdoc:silent
 trait UserID
 trait UserProfile
 val userId = new UserID { }
-```
 
-```scala mdoc:silent
 object Database {
   trait Service {
     def lookup(id: UserID): Task[UserProfile]

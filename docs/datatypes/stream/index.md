@@ -3,15 +3,6 @@ id: index
 title: "Introduction"
 ---
 
-```scala mdoc:invisible
-import zio.{ZIO, Task}
-import zio.Queue
-import zio.stream.{ZStream, ZTransducer}
-import java.nio.file.{Files, Path, Paths}
-import zio.console._
-import java.io.IOException
-```
-
 ## Introduction
 
 The primary goal of a streaming library is to introduce **a high-level API that abstracts the mechanism of reading and writing operations using data sources and destinations**.
@@ -39,6 +30,13 @@ So streams are everywhere. We can see all of these different things as being str
 Assume, we would like to take a list of numbers and grab all the prime numbers and then do some more hard work on each of these prime numbers. We can do it using `ZIO.foreachParN` and `ZIO.filterPar` operators like this:
 
 ```scala mdoc:silent
+import zio.{ZIO, Task}
+import zio.Queue
+import zio.stream.{ZStream, ZTransducer}
+import java.nio.file.{Files, Path, Paths}
+import zio.console._
+import java.io.IOException
+
 def isPrime(number: Int): Task[Boolean] = Task.succeed(???)
 def moreHardWork(i: Int): Task[Boolean] = Task.succeed(???)
 

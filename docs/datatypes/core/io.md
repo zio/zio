@@ -11,11 +11,9 @@ title: "IO"
 
 Let's see how the `IO` type alias is defined:
 
-```scala mdoc:invisible
-import zio.ZIO
-```
-
 ```scala mdoc:silent
+import zio.ZIO
+
 type IO[+E, +A] = ZIO[Any, E, A]
 ```
 

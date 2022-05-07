@@ -20,14 +20,11 @@ If the job of the _capability_ is to call on another _capability_, how should we
 A pure function is such a function which operates only on its inputs and produces only its output. Command-like methods, by definition are impure, as
 their job is to change state of the collaborating object (performing a _side effect_). For example:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 trait Event
-```
-
-```scala mdoc:silent
-import scala.concurrent.Future
 
 def processEvent(event: Event): Future[Unit] = Future(println(s"Got $event"))
 ```
@@ -40,13 +37,11 @@ not the one you expected.
 
 Inside the future there may be happening any side effects. It may open a file, print to console, connect to databases. We simply don't know. Let's have a look how this problem would be solved using ZIO's effect system:
 
-```scala mdoc:invisible:reset
-trait Event
-```
-
-```scala mdoc:silent
+```scala mdoc:silent:reset
 import zio._
 import zio.console.Console
+
+trait Event
 
 def processEvent(event: Event): URIO[Console, Unit] =
   console.putStrLn(s"Got $event").orDie
@@ -104,9 +99,7 @@ object Example {
     def stream(a: Int)                         : ZStream[Any, String, Int]
   }
 }
-```
 
-```scala mdoc:silent
 // test sources
 
 object ExampleMock extends Mock[Example] {
@@ -148,12 +141,10 @@ For overloaded methods we nest a list of numbered objects, each representing sub
 Finally we need to define a _compose layer_ that can create our environment from a `Proxy`.
 A `Proxy` holds the mock state and serves predefined responses to calls.
 
-```scala mdoc:invisible
-def withRuntime[R]: URIO[R, Runtime[R]] = ???
-```
-
 ```scala mdoc:silent
 import ExampleMock._
+
+def withRuntime[R]: URIO[R, Runtime[R]] = ???
 
 val compose: URLayer[Has[Proxy], Example] =
   ZLayer.fromServiceM { proxy =>
@@ -185,17 +176,14 @@ multiple services.
 
 ## Complete example
 
-```scala mdoc:invisible:reset
-trait AccountEvent
-```
-
-```scala mdoc:silent
+```scala mdoc:reset
 // main sources
 
 import zio._
 import zio.console.Console
 import zio.test.mock._
 
+trait AccountEvent
 type AccountObserver = Has[AccountObserver.Service]
 
 object AccountObserver {
@@ -259,7 +247,11 @@ For each built-in ZIO service you will find their mockable counterparts in `zio.
 
 To create expectations we use the previously defined _capability tags_:
 
-```scala mdoc:invisible
+```scala mdoc:silent
+import zio.test.Assertion._
+import zio.test.mock.Expectation._
+import zio.test.mock.MockSystem
+
 object Example {
   trait Service {
     def zeroArgs: UIO[Int]
@@ -274,12 +266,6 @@ object ExampleMock extends Mock[Has[Example.Service]] {
     def singleArg(arg1: Int) = proxy(SingleArg, arg1)
   })
 }
-```
-
-```scala mdoc:silent
-import zio.test.Assertion._
-import zio.test.mock.Expectation._
-import zio.test.mock.MockSystem
 
 val exp01 = ExampleMock.SingleArg( // capability to build an expectation for
   equalTo(42), // assertion of the expected input argument

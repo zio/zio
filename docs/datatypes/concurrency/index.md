@@ -39,25 +39,23 @@ As the lock-oriented programming does not compose and has lots of drawbacks, ZIO
 
 Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
 
-```scala mdoc:invisible
+```scala mdoc:compile-only
 import java.util.concurrent.atomic.AtomicReference
 import zio.UIO
-```
 
-```scala mdoc:silent
-  final case class Ref[A](value: AtomicReference[A]) { self =>
-    def modify[B](f: A => (B, A)): UIO[B] = UIO.effectTotal {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = f(current)
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
-      }
-      b
+final case class Ref[A](value: AtomicReference[A]) { self =>
+  def modify[B](f: A => (B, A)): UIO[B] = UIO.effectTotal {
+    var loop = true
+    var b: B = null.asInstanceOf[B]
+    while (loop) {
+      val current = value.get
+      val tuple   = f(current)
+      b = tuple._1
+      loop = !value.compareAndSet(current, tuple._2)
     }
- }
+    b
+  }
+}
 ```
 
 The idea behind the `modify` is that a variable is only updated if it still has the same value as the time we had read the value from the original memory location. If the value has changed, it retries in the while loop until it succeeds. 

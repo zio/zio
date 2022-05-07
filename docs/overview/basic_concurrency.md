@@ -30,11 +30,6 @@ The `Fiber[E, A]` data type in ZIO has two type parameters:
 
 Fibers do not have an `R` type parameter, because they model effects that are already running, and which already had their required environment provided to them.
 
-```scala mdoc:invisible
-
-import zio._
-```
-
 ### Forking Effects
 
 The most fundamental way of creating a fiber is to take an existing effect and _fork_ it. Conceptually, _forking_ an effect begins executing the effect on a new fiber, giving you a reference to the newly-created `Fiber`.
@@ -42,6 +37,8 @@ The most fundamental way of creating a fiber is to take an existing effect and _
 The following code creates a single fiber, which executes `fib(100)`:
 
 ```scala mdoc:silent
+import zio._
+
 def fib(n: Long): UIO[Long] = UIO {
   if (n <= 1) UIO.succeed(n)
   else fib(n - 1).zipWith(fib(n - 2))(_ + _)

@@ -16,12 +16,10 @@ Scala has a `try` / `finally` construct which helps us to make sure we don't lea
 
 Assume we want to read a file and return the number of its lines:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import java.io._
 import zio.{Task, UIO, ZIO, ZManaged}
-```
 
-```scala mdoc:silent:nest
 def lines(file: String): Task[Long] = Task.effect {
   def countLines(br: BufferedReader): Long = br.lines().count()
   val bufferedReader = new BufferedReader(
@@ -77,11 +75,9 @@ Every bracket requires three actions:
 2. **Using Resource**— An effect describing the actual process to produce a result. For example, counting the number of lines in a file.
 3. **Releasing Resource**— An effect describing the final step of releasing or cleaning up the resource. For example, closing a file.
 
-```scala mdoc:invisible
-trait Resource
-```
-
 ```scala mdoc:silent
+trait Resource
+
 def use(resource: Resource): Task[Any] = Task.effect(???)
 def release(resource: Resource): UIO[Unit] = Task.effectTotal(???)
 def acquire: Task[Resource]                = Task.effect(???)

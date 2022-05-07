@@ -3,12 +3,6 @@ id: schedule
 title: "Schedule"
 ---
 
-```scala mdoc:invisible
-import zio._
-import zio.duration._
-import zio.console._
-```
-
 A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.
 
 Schedules are defined as a possibly infinite set of intervals spread out over time. Each interval defines a window in which recurrence is possible.
@@ -89,6 +83,10 @@ val repeated = action retryOrElse (policy, orElse)
 A schedule that does not recur, just stops and returns one `Unit` element:
 
 ```scala mdoc:silent
+import zio._
+import zio.duration._
+import zio.console._
+
 val stop = Schedule.stop
 ```
 

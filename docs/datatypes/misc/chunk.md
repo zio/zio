@@ -4,10 +4,6 @@ title: "Chunk"
 ---
 A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually backed by arrays, but expose a purely functional, safe interface to the underlying elements, and they become lazy on operations that would be costly with arrays, such as repeated concatenation.
 
-```scala mdoc:invisible
-import zio._
-```
-
 ## Why Chunk?
 Arrays are fast and don’t box primitive values. ZIO Chunk is a wrapper on Java array. So also Chunks have zero boxing for primitives, but due to ClassTag requirements and mutability, they are painful to use and don’t integrate well into functional code.
 
@@ -33,7 +29,9 @@ When we are doing data streaming, a lot of times the source stream is a stream o
 ### Creating a Chunk
 
 Creating empty `Chunk`:
-```
+```scala mdoc:silent
+import zio._
+
 val emptyChunk = Chunk.empty
 ```
 

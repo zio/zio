@@ -7,16 +7,14 @@ Clock service contains some functionality related to time and scheduling.
 
 To get the current time in a specific time unit, the `currentTime` function takes a unit as `TimeUnit` and returns `UIO[Long]`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import zio.clock._
 import zio.console._
 import zio.duration._
 import zio.{URIO, ZIO}
 import java.util.concurrent.TimeUnit
 import java.time.DateTimeException
-```
 
-```scala mdoc:silent
 val inMiliseconds: URIO[Clock, Long] = currentTime(TimeUnit.MILLISECONDS)
 val inDays: URIO[Clock, Long] = currentTime(TimeUnit.DAYS)
 ```

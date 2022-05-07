@@ -26,11 +26,6 @@ The `Ref` has lots of operations. Here we are going to introduce the most import
 ### make
 `Ref` is never empty and it always contains something. We can create `Ref` by providing the initial value to the `make`,  which is a constructor of the `Ref` data type. We should pass an **immutable value** of type `A` to the constructor, and it returns an `UIO[Ref[A]]` value:
 
-```scala mdoc:invisible
-import zio._
-import zio.console._
-```
-
 ```scala
 def make[A](a: A): UIO[Ref[A]]
 ```
@@ -40,6 +35,9 @@ As we can see, the output is wrapped in `UIO`, which means creating `Ref` is eff
 Let's create some `Ref`s from immutable values:
 
 ```scala mdoc
+import zio._
+import zio.console._
+
 val counterRef = Ref.make(0)
 val stringRef = Ref.make("initial") 
 

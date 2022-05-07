@@ -10,12 +10,9 @@ A `Supervisor[A]` is allowed to supervise the launching and termination of fiber
 ### track
 The `track` creates a new supervisor that tracks children in a set. It takes a boolean `weak` parameter as input, which indicates whether track children in a `Weakset` or not.
 
-
-```scala mdoc:invisible
-import zio.Supervisor
-```
-
 ```scala mdoc
+import zio.Supervisor
+
 val supervisor = Supervisor.track(true)
 ```
 
@@ -26,13 +23,11 @@ The `fibersIn` creates a new supervisor with an initial sorted set of fibers.
 
 In the following example we are creating a new supervisor from an initial set of fibers:
 
-```scala mdoc:invisible
+```scala mdoc:compile-only
 import zio.{Ref, Fiber}
 import scala.collection.immutable.SortedSet
 def fibers: Seq[Fiber.Runtime[Any, Any]] = ???
-```
 
-```scala mdoc
 def fiberListSupervisor = for { 
   ref <- Ref.make(SortedSet.from(fibers))
   s <- Supervisor.fibersIn(ref)
@@ -43,15 +38,10 @@ def fiberListSupervisor = for {
 
 Whenever we need to supervise a ZIO effect, we can call `ZIO#supervised` function, `supervised` takes a supervisor and return another effect. The behavior of children fibers is reported to the provided supervisor:
 
-```scala mdoc:invisible
+```scala mdoc:compile-only
 import zio._
-import zio.console._
-import zio.clock._
-import zio.duration._
 def fib(n: Int): ZIO[Any, Nothing, Int] = ???
-```
 
-```scala mdoc:silent
 val supervised = supervisor.flatMap(s => fib(20).supervised(s))
 ```
 
@@ -60,7 +50,12 @@ Now we can access all information of children fibers through the supervisor.
 ## Example
 In the following example we are going to periodically monitor the number of fibers throughout our application life cycle:
 
-```scala mdoc:silent
+```scala mdoc:silent:reset
+import zio._
+import zio.console._
+import zio.clock._
+import zio.duration._
+
 object SupervisorExample extends zio.App {
   import zio.duration._
 

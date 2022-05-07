@@ -11,11 +11,9 @@ title: "UIO"
 
 Let's see how the `UIO` type alias is defined:
 
-```scala mdoc:invisible
-import zio.ZIO
-```
-
 ```scala mdoc:silent
+import zio.ZIO
+
 type UIO[+A] = ZIO[Any, Nothing, A]
 ```
 

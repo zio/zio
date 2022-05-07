@@ -11,11 +11,9 @@ title: "URIO"
 
 Let's see how the `URIO` type alias is defined:
 
-```scala mdoc:invisible
-import zio.ZIO
-```
-
 ```scala mdoc:silent
+import zio.ZIO
+
 type URIO[-R, +A] = ZIO[R, Nothing, A]
 ```
 
@@ -23,14 +21,12 @@ So the `URIO` just equal to `ZIO` which requires `R` and cannot fail because in 
 
 In following example, the type of `putStrLn` is `URIO[Console, Unit]` which means, it requires `Console` service as an environment, and it succeeds with `Unit` value:
 
-```scala mdoc:invisible:reset
+```scala mdoc:silent:reset
 import zio._
 import zio.console._
 
 import java.io.IOException
-```
 
-```scala mdoc:silent
 def putStrLn(line: => String): ZIO[Console, IOException, Unit] =
   ZIO.accessM(_.get putStrLn line)
 ```

@@ -9,7 +9,7 @@ A `ZStream[R, E, O]` is a description of a program that, when evaluated, may emi
 
 One way to think of `ZStream` is as a `ZIO` program that could emit multiple values. As we know, a `ZIO[R, E, A]` data type, is a functional effect which is a description of a program that needs an environment of type `R`, it may end with an error of type `E`, and in case of success, it returns a value of type `A`. The important note about `ZIO` effects is that in the case of success they always end with exactly one value. There is no optionality here, no multiple infinite values, we always get exact value:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import zio.{ZIO, Task, ZManaged, Chunk}
 import zio.stm.{STM, TQueue}
 import zio.blocking.Blocking
@@ -24,9 +24,7 @@ import java.net.URL
 import zio.Cause.Die
 import java.lang.IllegalArgumentException
 import scala.concurrent.TimeoutException
-```
 
-```scala mdoc:silent:nest
 val failedEffect: ZIO[Any, String, Nothing]       = ZIO.fail("fail!")
 val oneIntValue : ZIO[Any, Nothing, Int]          = ZIO.succeed(3)
 val oneListValue: ZIO[Any, Nothing, List[Int]]    = ZIO.succeed(List(1, 2, 3))
@@ -265,12 +263,10 @@ val list = ZStream.fromIterable(List(1, 2, 3))
 
 Assume we have a database that returns a list of users using `Task`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import zio._
 case class User(name: String)
-```
 
-```scala mdoc:silent:nest
 trait Database {
   def getUsers: Task[List[User]]
 }
@@ -422,11 +418,9 @@ One might ask what is the difference between `unfold` and `paginate` combinators
 
 Assume we have a paginated API that returns an enormous amount of data in a paginated fashion. When we call that API, it returns a data type `ResultPage` which contains the first-page result and, it also contains a flag indicating whether that result is the last one, or we have more data on the next page:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 case class RowData()
-```
 
-```scala mdoc:silent:nest
 case class PageResult(results: Chunk[RowData], isLast: Boolean)
 
 def listPaginated(pageNumber: Int): ZIO[Console, Throwable, PageResult] = ???
@@ -1257,12 +1251,10 @@ val c2 = a concat b
 
 Also, we can use `ZStream.concatAll` constructor to concatenate given streams together:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 val a = ZStream(1, 2, 3)
 val b = ZStream(4, 5)
-```
 
-```scala mdoc:silent:nest
 val c3 = ZStream.concatAll(Chunk(a, b))
 ```
 
@@ -1276,11 +1268,9 @@ val stream = ZStream(1, 2, 3).flatMap(x => ZStream.repeat(x).take(4))
 
 Assume we have an API that takes an author name and returns all its book:
 
-```scala mdoc:invisible
-case class Book()
-```
-
 ```scala mdoc:silent
+case class Book()
+
 def getAuthorBooks(author: String): ZStream[Any, Throwable, Book] = ZStream(???)
 ```
 
@@ -1361,13 +1351,11 @@ We can launch the Kafka consumer, the HTTP server, and our job runner and fork t
 
 So another idea is to watch background components. The `ZIO#forkManaged` enables us to race all forked fibers in a `ZManaged` context. By using `ZIO.raceAll` as soon as one of those fibers terminates with either success or failure, it will interrupt all the rest components as the part of the release action of `ZManaged`:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 val kafkaConsumer     : ZStream[Any, Nothing, Int] = ZStream.fromEffect(ZIO.succeed(???))
 val httpServer        : ZIO[Any, Nothing, Nothing] = ZIO.never
 val scheduledJobRunner: ZIO[Any, Nothing, Nothing] = ZIO.never
-```
 
-```scala mdoc:silent:nest
 val managedApp = for {
   kafka <- kafkaConsumer.runDrain.forkManaged
   http  <- httpServer.forkManaged
@@ -1662,12 +1650,10 @@ abstract class ZStream[-R, +E, +O] {
 
 When we are doing I/O, batching is very important. With ZIO streams, we can create user-defined batches. It is pretty easy to do that with the `ZStream#aggregateAsyncWithin` operator. Let's see the below snippet code:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 case class Record()
 val dataStream: ZStream[Any, Nothing, Record] = ZStream.repeat(Record())
-```
 
-```scala mdoc:silent:nest
 dataStream.aggregateAsyncWithin(
    ZTransducer.collectAllN(2000),
    Schedule.fixed(30.seconds)

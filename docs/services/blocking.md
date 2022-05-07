@@ -3,11 +3,6 @@ id: blocking
 title: "Blocking"
 ---
 
-```scala mdoc:invisible
-import zio.duration._
-import zio.{Schedule, RIO, UIO}
-```
-
 ## Introduction
 
 The **Blocking** service provides access to a thread pool that can be used for performing
@@ -37,7 +32,7 @@ and continuously create new threads as necessary.
 
 The `blocking` operator takes a ZIO effect and return another effect that is going to run on a blocking thread pool:
 
-```scala mdoc:invisible:nest
+```scala mdoc:nest
 val program = ZIO.foreachPar((1 to 100).toArray)(t => zio.blocking.blocking(blockingTask(t)))
 ```
 
@@ -60,6 +55,9 @@ By default, when we convert a blocking operation into the ZIO effects using `eff
 Let's create a blocking effect from an endless loop:
 
 ```scala mdoc:silent:nest
+import zio.duration._
+import zio.Schedule
+
 for {
   _ <- putStrLn("Starting a blocking operation")
   fiber <- effectBlocking {
@@ -139,6 +137,8 @@ final case class BlockingService() {
 So, to translate ZIO interruption into cancellation of these types of blocking operations we should use `effectBlockingCancelation`. This method takes a `cancel` effect which responsible to signal the blocking code to close itself when ZIO interruption occurs:
 
 ```scala mdoc:silent:nest
+import zio.UIO
+
 val myApp =
   for {
     service <- ZIO.effect(BlockingService())
@@ -158,7 +158,9 @@ val myApp =
 Here is another example of the cancelation of a blocking operation. When we `accept` a server socket, this blocking operation will never interrupted until we close that using `ServerSocket#close` method:
 
 ```scala mdoc:silent:nest
+import zio.RIO
 import java.net.{Socket, ServerSocket}
+
 def accept(ss: ServerSocket): RIO[Blocking, Socket] =
   effectBlockingCancelable(ss.accept())(UIO.effectTotal(ss.close()))
 ```

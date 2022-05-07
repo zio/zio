@@ -14,12 +14,13 @@ In the following example, we should pass in `updateEffect` to it which is the de
 
 ```scala mdoc:silent
 import zio._
+
 for {
   refM   <- RefM.make("current")
   updateEffect = IO.effectTotal("update")
   _ <- refM.update(_ => updateEffect)
   value <- refM.get
-} yield assert(value == "update")
+} yield assert(value == "update2")
 ```
 
 In real-world applications, there are cases where we want to run an effect, e.g. query a database, and then update the shared state. This is where `RefM` can help us to update the shared state in a more actor model fashion. We have a shared mutable state but for every different command or message, and we want execute our effect and update the state. 
@@ -28,7 +29,7 @@ We can pass in an effectful program into every single update. All of them will b
 
 In the following example, we are going to send `getAge` request to usersApi for each user and updating the state respectively:
 
-```scala mdoc:invisible
+```scala mdoc:silent
 import scala.collection.mutable.HashMap
 
 val users: List[String] = List("a", "b")
@@ -37,9 +38,7 @@ object api {
 
   def getAge(user: String): UIO[Int] = UIO(users(user))
 }
-```
 
-```scala mdoc:silent
 val meanAge =
   for {
     ref <- RefM.make(0)

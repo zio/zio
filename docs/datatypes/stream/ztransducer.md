@@ -3,14 +3,6 @@ id: ztransducer
 title: "ZTransducer"
 ---
 
-```scala mdoc:invisible
-import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
-import zio.{Schedule, Chunk, IO, ZIO}
-import zio.console._
-import zio.blocking.Blocking
-import java.nio.file.Paths
-```
-
 ## Introduction
 
 A `ZTransducer[R, E, I, O]` is a stream transformer. Transducers accept a stream as input, and return the transformed stream as output.
@@ -29,7 +21,13 @@ There is no fundamental requirement for transducers to exist, because everything
 
 The `ZTransducer.fromEffect` creates a transducer that always evaluates the specified effect. Let's write a transducer that fails with a message: 
 
-```scala mdoc:silent:nest
+```scala mdoc:silent
+import zio.stream.{UStream, ZStream, ZTransducer, ZSink}
+import zio.{Schedule, Chunk, IO, ZIO}
+import zio.console._
+import zio.blocking.Blocking
+import java.nio.file.Paths
+
 val error: ZTransducer[Any, String, Any, Nothing] = ZTransducer.fromEffect(IO.fail("Ouch"))
 ```
 
