@@ -55,6 +55,8 @@ object Duration {
 
   def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
 
+  def apply(amount: Long, unit: ChronoUnit): Duration = fromNanos(unit.getDuration.toNanos * amount)
+
   def fromMillis(millis: Long): Duration = java.time.Duration.ofMillis(millis)
 
   def fromNanos(nanos: Long): Duration = nanos.nanos

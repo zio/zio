@@ -20,14 +20,16 @@ import zio.internal.stacktracer.Tracer
 import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
-
 import java.lang.{System => JSystem}
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 trait Clock extends Serializable { self =>
 
   def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long]
+
+  def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long]
 
   def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime]
 
@@ -45,6 +47,9 @@ trait Clock extends Serializable { self =>
 
   private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
     Runtime.default.unsafeRun(currentTime(unit)(Trace.empty))(Trace.empty)
+
+  private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+    Runtime.default.unsafeRun(currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty)
 
   private[zio] def unsafeCurrentDateTime(): OffsetDateTime =
     Runtime.default.unsafeRun(currentDateTime(Trace.empty))(Trace.empty)
@@ -71,6 +76,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(unsafeCurrentDateTime())
     def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeCurrentTime(unit))
+    def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
+      ZIO.succeed(unsafeCurrentTime(unit))
     def instant(implicit trace: Trace): UIO[Instant] =
       ZIO.succeed(unsafeInstant())
     def javaClock(implicit trace: Trace): UIO[java.time.Clock] =
@@ -96,6 +103,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
         case _ => unit.convert(instant.toEpochMilli, TimeUnit.MILLISECONDS)
       }
     }
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+      unit.between(Instant.EPOCH, unsafeInstant())
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime =
       OffsetDateTime.now(clock)
     override private[zio] def unsafeInstant(): Instant =
@@ -108,6 +117,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
 
   object ClockLive extends Clock {
     def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(unsafeCurrentTime(unit))
+
+    def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
       ZIO.succeed(unsafeCurrentTime(unit))
 
     def nanoTime(implicit trace: Trace): UIO[Long] =
@@ -159,6 +171,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
       }
     }
 
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit) =
+      unit.between(Instant.EPOCH, unsafeInstant())
+
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime =
       OffsetDateTime.now()
 
@@ -176,6 +191,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * Returns the current time, relative to the Unix epoch.
    */
   def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
+    ZIO.clockWith(_.currentTime(unit))
+
+  def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
     ZIO.clockWith(_.currentTime(unit))
 
   /**
