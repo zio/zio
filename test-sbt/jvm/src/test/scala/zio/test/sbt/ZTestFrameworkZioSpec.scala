@@ -40,7 +40,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       for {
         returnError <-
           loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
-      } yield assertTrue(returnError.exists(_.getMessage.contains("Other Kafka container already grabbed your port")))
+      } yield assertTrue(returnError.exists(_.toString.contains("Other Kafka container already grabbed your port")))
     ) @@ TestAspect.nonFlaky,
     test("ensure shared layers are not re-initialized")(
       for {

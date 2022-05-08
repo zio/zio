@@ -61,7 +61,6 @@ object FrameworkSpecInstances {
   //    https://github.com/zio/zio/pull/6614 is merged
   object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
     override val bootstrap = ZLayer.fromZIO(
-      ZIO.debug("constructing faulty layer") *>
         ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
     )
 
