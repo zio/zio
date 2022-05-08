@@ -19,8 +19,8 @@ package zio.test
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.io.IOException
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.SortedSet
@@ -124,6 +124,9 @@ object TestClock extends Serializable {
      */
     def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
       clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
+
+    def currentTime(unit: => ChronoUnit)(implicit trace: ZTraceElement, d: DummyImplicit): UIO[Long] =
+      clockState.get.map(data => unit.between(Instant.EPOCH, data.duration.addTo(Instant.EPOCH)))
 
     /**
      * Returns the current clock time in nanoseconds.

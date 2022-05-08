@@ -20,14 +20,16 @@ import zio.internal.stacktracer.Tracer
 import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
-
 import java.lang.{System => JSystem}
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime}
 import java.util.concurrent.TimeUnit
 
 trait Clock extends Serializable {
 
   def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]
+
+  def currentTime(unit: => ChronoUnit)(implicit trace: ZTraceElement, d: DummyImplicit): UIO[Long]
 
   def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime]
 
@@ -209,6 +211,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
           }
         }
       }
+    def currentTime(unit: => ChronoUnit)(implicit trace: ZTraceElement, d: DummyImplicit): UIO[Long] =
+      ZIO.suspendSucceed(instant.map(unit.between(Instant.EPOCH, _)))
     def instant(implicit trace: ZTraceElement): UIO[Instant] =
       ZIO.succeed(clock.instant())
     def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
@@ -243,6 +247,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
+    def currentTime(unit: => ChronoUnit)(implicit trace: ZTraceElement, d: DummyImplicit): UIO[Long] =
+      ZIO.suspendSucceed(instant.map(unit.between(Instant.EPOCH, _)))
+
     def nanoTime(implicit trace: ZTraceElement): UIO[Long] = IO.succeed(JSystem.nanoTime)
 
     def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
@@ -271,6 +278,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
    * Returns the current time, relative to the Unix epoch.
    */
   def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): URIO[Clock, Long] =
+    ZIO.serviceWithZIO(_.currentTime(unit))
+
+  def currentTime(unit: => ChronoUnit)(implicit trace: ZTraceElement, d: DummyImplicit): URIO[Clock, Long] =
     ZIO.serviceWithZIO(_.currentTime(unit))
 
   /**

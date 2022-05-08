@@ -19,19 +19,20 @@ package zio.test.mock
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.util.concurrent.TimeUnit
 
 object MockClock extends Mock[Clock] {
 
-  object CurrentTime     extends Effect[TimeUnit, Nothing, Long]
-  object CurrentDateTime extends Effect[Unit, Nothing, OffsetDateTime]
-  object Instant         extends Effect[Unit, Nothing, java.time.Instant]
-  object LocalDateTime   extends Effect[Unit, Nothing, java.time.LocalDateTime]
-  object NanoTime        extends Effect[Unit, Nothing, Long]
-  object Scheduler       extends Effect[Unit, Nothing, Scheduler]
-  object Sleep           extends Effect[Duration, Nothing, Unit]
+  object CurrentTime           extends Effect[TimeUnit, Nothing, Long]
+  object CurrentTimeChronoUnit extends Effect[ChronoUnit, Nothing, Long]
+  object CurrentDateTime       extends Effect[Unit, Nothing, OffsetDateTime]
+  object Instant               extends Effect[Unit, Nothing, java.time.Instant]
+  object LocalDateTime         extends Effect[Unit, Nothing, java.time.LocalDateTime]
+  object NanoTime              extends Effect[Unit, Nothing, Long]
+  object Scheduler             extends Effect[Unit, Nothing, Scheduler]
+  object Sleep                 extends Effect[Duration, Nothing, Unit]
 
   val compose: URLayer[Proxy, Clock] = {
     implicit val trace = Tracer.newTrace
@@ -39,7 +40,9 @@ object MockClock extends Mock[Clock] {
       .service[Proxy]
       .map { proxy =>
         new Clock {
-          def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]       = proxy(CurrentTime, unit)
+          def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] = proxy(CurrentTime, unit)
+          def currentTime(unit: => ChronoUnit)(implicit trace: ZTraceElement, d: DummyImplicit): UIO[Long] =
+            proxy(CurrentTimeChronoUnit, unit)
           def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime]            = proxy(CurrentDateTime)
           def nanoTime(implicit trace: ZTraceElement): UIO[Long]                             = proxy(NanoTime)
           def scheduler(implicit trace: ZTraceElement): UIO[Scheduler]                       = proxy(Scheduler)
