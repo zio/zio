@@ -2,7 +2,7 @@ package zio
 
 import zio.test.Assertion.equalTo
 import zio.test.assert
-
+import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration => ScalaDuration}
@@ -25,6 +25,9 @@ object DurationSpec extends ZIOBaseSpec {
       },
       test("Creating it with a j.u.c.TimeUnit is identical") {
         assert(Duration(12L, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(12L)))
+      },
+      test("Creating it with a j.t.t.ChronoUnit is identical") {
+        assert(Duration(12L, ChronoUnit.NANOS))(equalTo(Duration.fromNanos(12L)))
       },
       test("It knows its length in ns") {
         assert(Duration.fromNanos(123L).toNanos)(equalTo(123L))
@@ -202,6 +205,9 @@ object DurationSpec extends ZIOBaseSpec {
       },
       test("One second multiplied with 60") {
         assert(Duration(1, TimeUnit.SECONDS) * 60)(equalTo(Duration(1, TimeUnit.MINUTES)))
+      },
+      test("One second multiplied with 60 using ChronoUnit") {
+        assert(Duration(1, ChronoUnit.SECONDS) * 60)(equalTo(Duration(1, ChronoUnit.MINUTES)))
       }
     ),
     suite("Render duration:")(
@@ -231,6 +237,35 @@ object DurationSpec extends ZIOBaseSpec {
       },
       test(" 3 d 2 h 5 min") {
         assert(Duration(4445, TimeUnit.MINUTES).render)(equalTo("3 d 2 h 5 m"))
+      }
+    ),
+    suite("Render duration using ChronoUnit:")(
+      test(" 0 ns") {
+        assert(Duration(0, ChronoUnit.NANOS).render)(equalTo("0 ns"))
+      },
+      test(" < 1 ms") {
+        assert(Duration(23456, ChronoUnit.NANOS).render)(equalTo("23456 ns"))
+      },
+      test(" 1 ms") {
+        assert(Duration(1, ChronoUnit.MILLIS).render)(equalTo("1 ms"))
+      },
+      test(" 1 s") {
+        assert(Duration(1, ChronoUnit.SECONDS).render)(equalTo("1 s"))
+      },
+      test(" 2 s 500 ms") {
+        assert(Duration(2500, ChronoUnit.MILLIS).render)(equalTo("2 s 500 ms"))
+      },
+      test(" 1 min") {
+        assert(Duration(1, ChronoUnit.MINUTES).render)(equalTo("1 m"))
+      },
+      test(" 2 min 30 s") {
+        assert(Duration(150, ChronoUnit.SECONDS).render)(equalTo("2 m 30 s"))
+      },
+      test(" 1 h 1 min") {
+        assert(Duration(61, ChronoUnit.MINUTES).render)(equalTo("1 h 1 m"))
+      },
+      test(" 3 d 2 h 5 min") {
+        assert(Duration(4445, ChronoUnit.MINUTES).render)(equalTo("3 d 2 h 5 m"))
       }
     ),
     suite("Long:")(
