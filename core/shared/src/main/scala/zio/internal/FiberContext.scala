@@ -99,7 +99,7 @@ private[zio] final class FiberContext[E, A](
     if (childFiberRefs.fiberRefLocals.isEmpty) UIO.unit
     else
       ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
-        parentFiberRefs.join(parentFiberId)(childFiberRefs)
+        parentFiberRefs.joinAs(parentFiberId)(childFiberRefs)
       }
   }
 
@@ -723,10 +723,7 @@ private[zio] final class FiberContext[E, A](
   )(implicit trace: ZTraceElement): FiberContext[E, A] = {
     val childId = FiberId.unsafeMake(trace)
 
-    val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
-      fiberRefLocals.get.transform { case (fiberRef, stack) =>
-        ::(childId -> fiberRef.patch(fiberRef.fork)(stack.head._2.asInstanceOf[fiberRef.Value]), stack)
-      }
+    val childFiberRefLocals = FiberRefs(fiberRefLocals.get).forkAs(childId).fiberRefLocals
 
     val parentScope = (forkScope orElse unsafeGetRef(forkScopeOverride)).getOrElse(scope)
 
@@ -1047,11 +1044,7 @@ private[zio] final class FiberContext[E, A](
   @tailrec
   private[zio] def unsafeSetRef[A](fiberRef: FiberRef[A], value: A): Unit = {
     val oldState = fiberRefLocals.get
-    val oldStack = oldState.get(fiberRef).getOrElse(List.empty)
-    val newStack =
-      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
-      else ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
-    val newState = oldState.updated(fiberRef, newStack)
+    val newState = FiberRefs(oldState).updatedAs(fiberId)(fiberRef, value).fiberRefLocals
     if (!fiberRefLocals.compareAndSet(oldState, newState))
       unsafeSetRef(fiberRef, value)
     else ()

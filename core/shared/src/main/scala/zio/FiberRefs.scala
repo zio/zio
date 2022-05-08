@@ -25,13 +25,29 @@ import scala.annotation.tailrec
  * This allows safely propagating `FiberRef` values across fiber boundaries, for
  * example between an asynchronous producer and consumer.
  */
-final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]) { self =>
+final class FiberRefs private (
+  private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]
+) { self =>
 
   /**
    * Returns a set of each `FiberRef` in this collection.
    */
   def fiberRefs: Set[FiberRef[_]] =
     fiberRefLocals.keySet
+
+  /**
+   * Forks this collection of fiber refs as the specified child fiber id. This
+   * will potentially modify the value of the fiber refs, as determined by the
+   * individual fiber refs that make up the collection.
+   */
+  def forkAs(childId: FiberId.Runtime): FiberRefs = {
+    val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
+      fiberRefLocals.transform { case (fiberRef, stack) =>
+        ::(childId -> fiberRef.patch(fiberRef.fork)(stack.head._2.asInstanceOf[fiberRef.Value]), stack)
+      }
+
+    FiberRefs(childFiberRefLocals)
+  }
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
@@ -48,15 +64,11 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
     get(fiberRef).getOrElse(fiberRef.initial)
 
   /**
-   * Sets the value of each `FiberRef` for the fiber running this effect to the
-   * value in this collection of `FiberRef` values.
+   * Joins this collection of fiber refs to the specified collection, as the
+   * specified fiber id. This will perform diffing and merging to ensure
+   * preservation of maximum information from both child and parent refs.
    */
-  def setAll(implicit trace: ZTraceElement): UIO[Unit] =
-    ZIO.foreachDiscard(fiberRefs) { fiberRef =>
-      fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
-    }
-
-  private[zio] def join(fiberId: FiberId.Runtime)(that: FiberRefs): FiberRefs = {
+  def joinAs(fiberId: FiberId)(that: FiberRefs): FiberRefs = {
     val parentFiberRefs = self.fiberRefLocals
     val childFiberRefs  = that.fiberRefLocals
 
@@ -118,11 +130,30 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
 
     FiberRefs(fiberRefLocals)
   }
+
+  /**
+   * Sets the value of each `FiberRef` for the fiber running this effect to the
+   * value in this collection of `FiberRef` values.
+   */
+  def setAll(implicit trace: ZTraceElement): UIO[Unit] =
+    ZIO.foreachDiscard(fiberRefs) { fiberRef =>
+      fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
+    }
+
+  def updatedAs[A](fiberId: FiberId.Runtime)(fiberRef: FiberRef[A], value: A): FiberRefs = {
+    val oldStack = fiberRefLocals.get(fiberRef).getOrElse(List.empty)
+    val newStack =
+      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
+      else ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+    FiberRefs(fiberRefLocals.updated(fiberRef, newStack))
+  }
 }
 
 object FiberRefs {
   val empty = FiberRefs(Map())
 
-  private[zio] def apply(fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]): FiberRefs =
+  private[zio] def apply(
+    fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]
+  ): FiberRefs =
     new FiberRefs(fiberRefLocals)
 }

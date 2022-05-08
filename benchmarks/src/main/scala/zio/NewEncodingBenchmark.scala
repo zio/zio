@@ -26,10 +26,10 @@ class NewEncodingBenchmark {
   def experimentBroadFlatMap(): Int = {
     import partial._
 
-    def fib(n: Int): Experiment[Int] =
-      if (n <= 1) Experiment.succeed(n)
+    def fib(n: Int): Task[Int] =
+      if (n <= 1) Task.succeed(n)
       else
-        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Experiment.succeed(a + b)))
+        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Task.succeed(a + b)))
 
     fib(depth).unsafeRun()
   }
@@ -38,10 +38,10 @@ class NewEncodingBenchmark {
   def experimentFullBroadFlatMap(): Int = {
     import capture._
 
-    def fib(n: Int): Experiment[Int] =
-      if (n <= 1) Experiment.succeed(n)
+    def fib(n: Int): Task[Int] =
+      if (n <= 1) Task.succeed(n)
       else
-        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Experiment.succeed(a + b)))
+        fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => Task.succeed(a + b)))
 
     fib(depth).unsafeRun()
   }
@@ -92,22 +92,22 @@ object Classic {
 }
 
 package partial {
-  sealed trait Experiment[+A] { self =>
-    def unsafeRun(): A = Experiment.eval(self)
+  sealed trait Task[+A] { self =>
+    def unsafeRun(): A = Task.eval(self)
 
-    def flatMap[B](f: A => Experiment[B]): Experiment[B] = Experiment.FlatMap(self, f)
+    def flatMap[B](f: A => Task[B]): Task[B] = Task.FlatMap(self, f)
 
-    def map[B](f: A => B): Experiment[B] = self.flatMap(a => Experiment.succeed(f(a)))
+    def map[B](f: A => B): Task[B] = self.flatMap(a => Task.succeed(f(a)))
   }
-  object Experiment {
-    case class Succeed[A](thunk: () => A)                                       extends Experiment[A]
-    case class FlatMap[A, B](first: Experiment[A], andThen: A => Experiment[B]) extends Experiment[B]
+  object Task {
+    case class Succeed[A](thunk: () => A)                           extends Task[A]
+    case class FlatMap[A, B](first: Task[A], andThen: A => Task[B]) extends Task[B]
 
-    def succeed[A](a: => A): Experiment[A] = Succeed(() => a)
+    def succeed[A](a: => A): Task[A] = Succeed(() => a)
 
-    private def eval[A](effect: Experiment[A]): A = {
-      type Erased  = Experiment[Any]
-      type ErasedK = Any => Experiment[Any]
+    private def eval[A](effect: Task[A]): A = {
+      type Erased  = Task[Any]
+      type ErasedK = Any => Task[Any]
 
       var cur: Erased = effect
       var done: A     = null.asInstanceOf[A]
@@ -133,34 +133,59 @@ package capture {
 
   import scala.util.control.NoStackTrace
   import scala.annotation.tailrec
-  sealed trait Experiment[+A] { self =>
-    def unsafeRun(): A = Experiment.eval(self)
+  sealed trait Task[+A] { self =>
+    def unsafeRun(): A = Task.eval(self)
 
-    def flatMap[B](f: A => Experiment[B]): Experiment[B] = Experiment.FlatMap(self, f)
+    def catchAll[A1 >: A](t: Throwable => Task[A1]): Task[A1] =
+      Task.Rescue(self, t)
 
-    def map[B](f: A => B): Experiment[B] = self.flatMap(a => Experiment.succeed(f(a)))
+    def flatMap[B](f: A => Task[B]): Task[B] = Task.FlatMap(self, f)
+
+    def map[B](f: A => B): Task[B] = self.flatMap(a => Task.succeed(f(a)))
   }
-  object Experiment {
-    case class Succeed[A](thunk: () => A)                                       extends Experiment[A]
-    case class FlatMap[A, B](first: Experiment[A], andThen: A => Experiment[B]) extends Experiment[B]
-    case class Async[A](registerCallback: (Experiment[A] => Unit) => Unit)      extends Experiment[A]
+  object Task {
+    sealed trait Continuation[-A, +B] { self =>
+      def onSuccess(a: A): Task[B]
 
-    type Erased  = Experiment[Any]
-    type ErasedK = Any => Experiment[Any]
+      def erase: Continuation[Any, Any] = self.asInstanceOf[Continuation[Any, Any]]
+    }
+    sealed trait FailureCont[-A, +B] extends Continuation[A, B] { self =>
+      def onFailure(t: Throwable): Task[B]
+
+      override def erase: FailureCont[Any, Any] = self.asInstanceOf[FailureCont[Any, Any]]
+    }
+
+    case class Succeed[A](thunk: () => A) extends Task[A]
+    case class FlatMap[A, B](first: Task[A], andThen: A => Task[B]) extends Task[B] with Continuation[A, B] {
+      def onSuccess(a: A): Task[B] = andThen(a)
+    }
+    case class Rescue[A](first: Task[A], rescuer: Throwable => Task[A]) extends Task[A] with FailureCont[A, A] {
+      def onSuccess(a: A): Task[A] = Task.succeed(a)
+
+      def onFailure(t: Throwable): Task[A] = rescuer(t)
+    }
+    case class Async[A](registerCallback: (Task[A] => Unit) => Unit) extends Task[A]
+
+    type Erased  = Task[Any]
+    type ErasedK = Continuation[Any, Any]
 
     sealed abstract class ReifyStack extends Exception with NoStackTrace {
       def stack: ChunkBuilder[ErasedK]
     }
 
-    case class AsyncJump(registerCallback: (Experiment[Any] => Unit) => Unit, stack: ChunkBuilder[ErasedK])
+    final case class AsyncJump(registerCallback: (Task[Any] => Unit) => Unit, stack: ChunkBuilder[ErasedK])
         extends ReifyStack
 
-    case class Trampoline(effect: Experiment[Any], stack: ChunkBuilder[ErasedK]) extends ReifyStack
+    final case class Trampoline(effect: Task[Any], stack: ChunkBuilder[ErasedK]) extends ReifyStack
 
-    def succeed[A](a: => A): Experiment[A] = Succeed(() => a)
+    final case class ErrorWrapper(error: Throwable, stack: ChunkBuilder[ErasedK]) extends ReifyStack
 
-    def eval[A](effect: Experiment[A]): A = {
-      def loop[A](effect: Experiment[A], depth: Int, stack: Chunk[ErasedK]): A = {
+    def succeed[A](a: => A): Task[A] = Succeed(() => a)
+
+    def fail(t: => Throwable): Task[Nothing] = succeed(throw ErrorWrapper(t, ChunkBuilder.make()))
+
+    def eval[A](effect: Task[A]): A = {
+      def loop[A](effect: Task[A], depth: Int, stack: Chunk[ErasedK]): A = {
         var cur: Erased = effect
         var done: A     = null.asInstanceOf[A]
         var stackIndex  = 0
@@ -171,12 +196,12 @@ package capture {
 
         while (done == null) {
           cur match {
-            case FlatMap(first, andThen) =>
+            case flatMap @ FlatMap(first, andThen) =>
               try {
-                cur = andThen.asInstanceOf[ErasedK](loop(first, depth + 1, null))
+                cur = flatMap.erase.onSuccess(loop(first, depth + 1, null))
               } catch {
                 case reifyStack: ReifyStack =>
-                  reifyStack.stack += andThen.asInstanceOf[ErasedK]
+                  reifyStack.stack += flatMap.erase
 
                   if ((stack ne null) && stackIndex <= stack.length) {
                     reifyStack.stack ++= stack.drop(stackIndex)
@@ -198,11 +223,38 @@ package capture {
               val value = thunk()
 
               if ((stack ne null) && stackIndex < stack.length) {
-                cur = stack(stackIndex)(value)
+                cur = stack(stackIndex).onSuccess(value)
 
                 stackIndex += 1
               } else {
                 done = value.asInstanceOf[A]
+              }
+
+            case rescue @ Rescue(first, rescuer) =>
+              try {
+                val value = loop(first, depth + 1, null)
+
+                if ((stack ne null) && stackIndex < stack.length) {
+                  cur = stack(stackIndex).onSuccess(value)
+
+                  stackIndex += 1
+                } else {
+                  done = value.asInstanceOf[A]
+                }
+              } catch {
+                case ErrorWrapper(throwable, stack) =>
+                  val _ = stack // TODO: Use stack to attach trace to throwable
+
+                  cur = rescuer(throwable)
+
+                case reifyStack: ReifyStack =>
+                  reifyStack.stack += rescue.erase
+
+                  if ((stack ne null) && stackIndex <= stack.length) {
+                    reifyStack.stack ++= stack.drop(stackIndex)
+                  }
+
+                  throw reifyStack
               }
           }
         }
@@ -210,13 +262,13 @@ package capture {
         done
       }
 
-      def resumeOuterLoop(effect: Experiment[Any], stack: Chunk[ErasedK]): Unit = {
+      def resumeOuterLoop(effect: Task[Any], stack: Chunk[ErasedK]): Unit = {
         outerLoop(effect, stack)
         ()
       }
 
       @tailrec
-      def outerLoop(effect: Experiment[Any], stack: Chunk[ErasedK]): Any =
+      def outerLoop(effect: Task[Any], stack: Chunk[ErasedK]): Any =
         try {
           loop(effect, 0, stack)
         } catch {
@@ -236,22 +288,22 @@ package capture {
 }
 
 package stack_versus_heap_10 {
-  sealed trait Experiment[+A] { self =>
-    def unsafeRun(): A = Experiment.eval(self)
+  sealed trait Task[+A] { self =>
+    def unsafeRun(): A = Task.eval(self)
 
-    def flatMap[B](f: A => Experiment[B]): Experiment[B] = Experiment.FlatMap(self, f)
+    def flatMap[B](f: A => Task[B]): Task[B] = Task.FlatMap(self, f)
 
-    def map[B](f: A => B): Experiment[B] = self.flatMap(a => Experiment.succeed(f(a)))
+    def map[B](f: A => B): Task[B] = self.flatMap(a => Task.succeed(f(a)))
   }
-  object Experiment {
-    case class Succeed[A](thunk: () => A)                                       extends Experiment[A]
-    case class FlatMap[A, B](first: Experiment[A], andThen: A => Experiment[B]) extends Experiment[B]
+  object Task {
+    case class Succeed[A](thunk: () => A)                           extends Task[A]
+    case class FlatMap[A, B](first: Task[A], andThen: A => Task[B]) extends Task[B]
 
-    def succeed[A](a: => A): Experiment[A] = Succeed(() => a)
+    def succeed[A](a: => A): Task[A] = Succeed(() => a)
 
-    private def eval[A](effect: Experiment[A]): A = {
-      type Erased  = Experiment[Any]
-      type ErasedK = Any => Experiment[Any]
+    private def eval[A](effect: Task[A]): A = {
+      type Erased  = Task[Any]
+      type ErasedK = Any => Task[Any]
 
       var cur: Erased                             = effect
       var done: A                                 = null.asInstanceOf[A]

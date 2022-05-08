@@ -72,9 +72,9 @@ import java.util.{HashMap => JavaMap, Set => JavaSet}
 final case class FiberSuspension(blockingOn: FiberId, location: ZTraceElement)
 
 object FiberState2 {
-  def apply[E, A](refs: FiberRefs): FiberState2[E, A] = new FiberState2(refs)
+  def apply[E, A](fiberId: FiberId.Runtime, refs: FiberRefs): FiberState2[E, A] = new FiberState2(fiberId, refs)
 }
-class FiberState2[E, A](fiberRefs0: FiberRefs) {
+class FiberState2[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) {
   import FiberStatusIndicator.Status
 
   val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
@@ -82,7 +82,7 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
 
   var _children  = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
   var fiberRefs  = fiberRefs0
-  var observers  = List.empty[Exit[Nothing, Exit[E, A]] => Unit]
+  var observers  = Nil: List[Exit[Nothing, Exit[E, A]] => Unit]
   var suspension = null.asInstanceOf[FiberSuspension]
 
   @volatile var _exitValue = null.asInstanceOf[Exit[E, A]]
@@ -92,6 +92,10 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
       if (addMessage(effect)) ZIO.unit else orElse.unit
     }
 
+  /**
+   * Adds a weakly-held reference to the specified fiber inside the children
+   * set.
+   */
   final def addChild(child: FiberContext[_, _]): Unit = {
     if (_children eq null) {
       _children = Platform.newWeakSet[FiberContext[_, _]]()
@@ -99,6 +103,10 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
     _children.add(child)
   }
 
+  /**
+   * Adds a message to the mailbox and returns true if the state is not done.
+   * Otherwise, returns false to indicate the fiber cannot accept messages.
+   */
   final def addMessage(effect: UIO[Any]): Boolean = {
     @tailrec
     def loop(message: UIO[Any]): Unit = {
@@ -119,6 +127,9 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
     } else false
   }
 
+  /**
+   * Adds an observer to the list of observers.
+   */
   final def addObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
     observers = observer :: observers
 
@@ -210,6 +221,11 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
     fiberRefs.getOrDefault(fiberRef)
 
   /**
+   * Retrieves the interruptibility status of the fiber state.
+   */
+  final def getInterruptible(): Boolean = getFiberRef(FiberRef.interruptible)
+
+  /**
    * Determines if the fiber state contains messages to process by the fiber run
    * loop. Due to race conditions, if this method returns true, it means only
    * that, if the messages were not drained, there will be some messages at some
@@ -220,6 +236,12 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
 
     FiberStatusIndicator.getPendingMessages(indicator) > 0 || FiberStatusIndicator.getMessages(indicator)
   }
+
+  /**
+   * Retrieves the location from whence the fiber was forked, which is a way to
+   * tie the executing logic of the fiber back to source code locations.
+   */
+  final def location: ZTraceElement = fiberId.location
 
   /**
    * Removes the child from the children list.
@@ -234,6 +256,18 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
    */
   final def removeObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
     observers = observers.filter(_ ne observer)
+
+  /**
+   * Sets the fiber ref to the specified value.
+   */
+  final def setFiberRef[A](fiberRef: FiberRef[A], value: A): Unit =
+    fiberRefs = fiberRefs.updatedAs(fiberId)(fiberRef, value)
+
+  /**
+   * Sets the interruptibility status of the fiber to the specified value.
+   */
+  final def setInterruptible(interruptible: Boolean): Unit =
+    setFiberRef(FiberRef.interruptible, interruptible)
 
   /**
    * Retrieves a snapshot of the status of the fibers.
@@ -257,351 +291,4 @@ class FiberState2[E, A](fiberRefs0: FiberRefs) {
       Fiber.Status.Suspended(interrupting, interruptible, asyncs, blockingOn, asyncTrace)
     }
   }
-}
-
-object successor {
-
-  // class FiberState[E, A](
-  //   interruptible0: Boolean,
-  //   runtimeConfig0: RuntimeConfig,
-  //   location0: ZTraceElement
-  // ) {
-  //   val fiberId         = FiberId.unsafeMake(location0)
-  //   val interruptStatus = StackBool(interruptible0)
-  //   val stack           = Stack[ZIO.TracedCont[Any, Any, Any, Any]]()
-  //   var _fiberRefs      = null.asInstanceOf[JavaMap[FiberRef[_], Any]]
-  //   var runtimeConfig   = runtimeConfig0
-  //   var _children       = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
-  //   val mailbox         = new AtomicReference[UIO[Any]](ZIO.unit)
-  //   val flagsState      = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
-  //   var exit            = null.asInstanceOf[Exit[E, A]]
-  //   var suppressed      = null.asInstanceOf[Cause[Nothing]]
-
-  //   final def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
-  //     ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
-  //       { k =>
-  //         val observer = (x: Exit[Nothing, Exit[E, A]]) => k(ZIO.done(x))
-
-  //         if (unsafeEvalOn(ZIO.succeed(unsafeAddObserver(observer)))) {
-  //           Left(evalOn(ZIO.succeed(unsafeRemoveObserver(observer)), ZIO.unit))
-  //         } else {
-  //           Right(ZIO.succeedNow(unsafeGetDone()))
-  //         }
-  //       },
-  //       fiberId
-  //     )
-
-  //   final def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
-  //     evalOnZIO(
-  //       ZIO.succeed {
-  //         val chunkBuilder = ChunkBuilder.make[Fiber.Runtime[_, _]](_children.size)
-
-  //         val iterator = _children.iterator()
-
-  //         while (iterator.hasNext()) {
-  //           chunkBuilder += iterator.next()
-  //         }
-
-  //         chunkBuilder.result()
-  //       },
-  //       ZIO.succeed(Chunk.empty)
-  //     )
-
-  //   private final def childSet: JavaSet[FiberContext[_, _]] = {
-  //     if (_children eq null) {
-  //       _children = Platform.newWeakSet[FiberContext[_, _]]()
-  //     }
-  //     _children
-  //   }
-
-  //   final def eval(effect: zio.UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
-  //     evalOn(effect, effect).unit
-
-  //   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
-  //     UIO.suspendSucceed {
-  //       if (unsafeEvalOn(effect)) ZIO.unit else orElse.unit
-  //     }
-
-  //   // TODO: Delete
-  //   def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
-  //     trace: ZTraceElement
-  //   ): ZIO[R, E2, A2] =
-  //     for {
-  //       r <- ZIO.environment[R]
-  //       p <- Promise.make[E2, A2]
-  //       _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
-  //       a <- p.await
-  //     } yield a
-
-  //   def evalZIO[R, E2, A2](effect: ZIO[R, E2, A2])(implicit
-  //     trace: ZTraceElement
-  //   ): ZIO[R, E2, A2] = evalOnZIO(effect, effect)
-
-  //   private final def fiberRefs: JavaMap[FiberRef[_], Any] = {
-  //     if (_fiberRefs eq null) {
-  //       _fiberRefs = new JavaMap[FiberRef[_], Any]
-  //     }
-  //     _fiberRefs
-  //   }
-
-  //   final def getRef[A](ref: FiberRef[A])(implicit trace: ZTraceElement): UIO[A] =
-  //     evalZIO(ZIO.succeed(unsafeGetRefOrInitial(ref)))
-
-  //   final def id: FiberId.Runtime = fiberId
-
-  //   final def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] =
-  //     eval {
-  //       UIO.suspendSucceed {
-  //         import scala.collection.JavaConverters._
-
-  //         if (_fiberRefs eq null) ZIO.unit
-  //         else {
-  //           val locals = _fiberRefs.asScala
-
-  //           if (locals.isEmpty) UIO.unit
-  //           else
-  //             UIO.foreachDiscard(locals) { case (fiberRef, value) =>
-  //               val ref = fiberRef.asInstanceOf[FiberRef[Any]]
-  //               ref.update(old => ref.join(old, value))
-  //             }
-  //         }
-  //       }
-  //     }
-
-  //   final def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
-  //     ??? // TODO
-
-  //   final def location: ZTraceElement = fiberId.location
-
-  //   final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]] =
-  //     ZIO.succeed(unsafePoll())
-
-  //   final def run(nextEffect: ZIO[_, _, _]): Unit =
-  //     runUntil(nextEffect, unsafeGetExecutor().yieldOpCount)
-
-  //   /**
-  //    * The main evaluator loop for the fiber. For purely synchronous effects,
-  //    * this will run either to completion, or for the specified maximum
-  //    * operation count. For effects with asynchronous callbacks, the loop will
-  //    * proceed no further than the first asynchronous boundary.
-  //    */
-  //   final def runUntil(nextEffect0: ZIO[_, _, _], maxOpCount: Int): Unit =
-  //     ???
-
-  //   override final def toString(): String =
-  //     s"FiberContext($fiberId)"
-
-  //   final def status(implicit trace: ZTraceElement): UIO[Fiber.Status] =
-  //     evalOnZIO(ZIO.succeed(unsafeGetStatus()), ZIO.succeed(Fiber.Status.Done))
-
-  //   final def trace(implicit trace0: ZTraceElement): UIO[ZTrace] =
-  //     ZIO.succeed(unsafeCaptureTrace(Nil))
-
-  //   final def unsafeAddInterruptor(fiberId: FiberId): Unit =
-  //     unsafeSetRef(FiberRef.interruptors, unsafeGetInterruptors() + fiberId)
-
-  //   final def unsafeAddObserver(k: Exit[Nothing, Exit[E, A]] => Unit): Unit =
-  //     unsafeSetListeners(k :: unsafeGetListeners())
-
-  //   // TODO: Rename due to async nature of this method
-  //   final def unsafeAddObserverMaybe(k: Exit[Nothing, Exit[E, A]] => Unit): Exit[E, A] =
-  //     if (unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k))(ZTraceElement.empty))) null.asInstanceOf[Exit[E, A]]
-  //     else unsafeGetDone()
-
-  //   final def unsafeAddSuppressed(cause: Cause[Nothing]): Unit = {
-  //     suppressed = suppressed ++ cause
-  //   }
-
-  //   final def unsafeCaptureTrace(prefix: List[ZTraceElement]): ZTrace = {
-  //     val builder = StackTraceBuilder.unsafeMake()
-
-  //     prefix.foreach(builder += _)
-  //     stack.foreach(k => builder += k.trace)
-
-  //     ZTrace(fiberId, builder.result())
-  //   }
-
-  //   final def unsafeClearSuppressed(): Cause[Nothing] = {
-  //     val suppressed = unsafeGetRefOrInitial(FiberRef.suppressed)
-
-  //     unsafeDeleteRef(FiberRef.suppressed)
-
-  //     suppressed
-  //   }
-
-  //   final def unsafeDeleteRef(ref: FiberRef[_]): Unit =
-  //     fiberRefs.remove(ref)
-
-  //   final def unsafeDisableInterrupting(): Unit =
-  //     interruptStatus.push(false)
-
-  //   @tailrec
-  //   final def unsafeDrainMailbox(): UIO[Any] = {
-  //     val message = mailbox.get
-
-  //     if (!mailbox.compareAndSet(message, ZIO.unit)) unsafeDrainMailbox()
-  //     else message
-  //   }
-
-  //   final def unsafeEvalOn(effect: UIO[Any]): Boolean = {
-  //     val oldMailbox = mailbox.get
-
-  //     if (oldMailbox == null) false
-  //     else {
-  //       val newMailbox =
-  //         if (oldMailbox eq ZIO.unit) effect
-  //         else oldMailbox.flatMap(_ => effect)(ZTraceElement.empty)
-
-  //       if (!mailbox.compareAndSet(oldMailbox, newMailbox)) unsafeEvalOn(effect)
-  //       else true
-  //     }
-  //   }
-
-  //   final def unsafeGetAsyncs(): Int =
-  //     flagsState.getAsyncs()
-
-  //   final def unsafeGetCurrentExecutor(): Option[Executor] =
-  //     unsafeGetRefOrElse(FiberRef.currentExecutor, None)
-
-  //   private def unsafeGetDescriptor(implicit trace: ZTraceElement): Fiber.Descriptor2 =
-  //     Fiber.Descriptor2(
-  //       fiberId,
-  //       unsafeGetStatus(),
-  //       unsafeGetInterruptors(),
-  //       InterruptStatus.fromBoolean(unsafeIsInterruptible()),
-  //       unsafeGetExecutor(),
-  //       fiberRefs.containsKey(FiberRef.currentExecutor)
-  //     )
-
-  //   final def unsafeGetDone(): Exit[E, A] =
-  //     unsafeGetRefOrElse(FiberRef.exit, Exit.empty).asInstanceOf[Exit[E, A]]
-
-  //   final def unsafeGetEnvironment(): ZEnvironment[Any] =
-  //     unsafeGetRefOrElse(FiberRef.currentEnvironment, ZEnvironment.empty)
-
-  //   private def unsafeGetExecutor(): zio.Executor =
-  //     unsafeGetRefOrInitial(FiberRef.currentExecutor).getOrElse(runtimeConfig.executor)
-
-  //   final def unsafeGetForkScopeOverride(): Option[FiberScope] =
-  //     unsafeGetRefOrInitial(FiberRef.forkScopeOverride)
-
-  //   final def unsafeGetInterruptors(): Set[FiberId] = unsafeGetRefOrElse(FiberRef.interruptors, Set.empty[FiberId])
-
-  //   final def unsafeGetInterruptorsCause: Cause[Nothing] =
-  //     unsafeGetInterruptors().foldLeft[Cause[Nothing]](Cause.empty) { case (acc, interruptor) =>
-  //       acc ++ Cause.interrupt(interruptor)
-  //     }
-
-  //   final def unsafeGetListeners(): List[Exit[Nothing, Exit[E, A]] => Unit] =
-  //     unsafeGetRefOrElse(FiberRef.listeners, Nil).asInstanceOf[List[Exit[Nothing, Exit[E, A]] => Unit]]
-
-  //   final def unsafeGetRef[A](ref: FiberRef[A]): Option[A] =
-  //     if (fiberRefs.containsKey(ref)) Some(fiberRefs.get(ref).asInstanceOf[A])
-  //     else None
-
-  //   final def unsafeGetRefOrInitial[A](ref: FiberRef[A]): A =
-  //     if (fiberRefs.containsKey(ref)) fiberRefs.get(ref).asInstanceOf[A]
-  //     else ref.initial
-
-  //   final def unsafeGetRefOrElse[A](ref: FiberRef[A], orElse: A): A =
-  //     if (fiberRefs.containsKey(ref)) fiberRefs.get(ref).asInstanceOf[A]
-  //     else orElse
-
-  //   final def unsafeGetStatus(): Fiber.Status =
-  //     if (unsafeIsDone()) Fiber.Status.Done
-  //     else
-  //       Fiber.Status.Running(
-  //         unsafeIsInterrupting()
-  //       )
-
-  //   final def unsafeGetSuppressed(): Cause[Nothing] = unsafeGetRefOrInitial(FiberRef.suppressed)
-
-  //   final def unsafeIsDone(): Boolean = flagsState.getStatus() == FiberStatusIndicator.Status.Done
-
-  //   final def unsafeIsInterruptible(): Boolean = interruptStatus.peekOrElse(true)
-
-  //   final def unsafeIsInterrupting(): Boolean = flagsState.getInterrupting()
-
-  //   final def unsafeIsRunning(): Boolean = flagsState.getStatus() == FiberStatusIndicator.Status.Running
-
-  //   final def unsafeIsSuspended(): Boolean = flagsState.getStatus() == FiberStatusIndicator.Status.Suspended
-
-  //   final def unsafeLog(
-  //     message: () => String,
-  //     trace: ZTraceElement,
-  //     cause: () => Cause[Any] = null,
-  //     overrideLogLevel: Option[LogLevel] = None,
-  //     overrideRef1: FiberRef[_] = null,
-  //     overrideValue1: AnyRef = null
-  //   ): Unit = {
-  //     val logLevel =
-  //       if (overrideLogLevel.isDefined) overrideLogLevel.get else unsafeGetRefOrInitial(FiberRef.currentLogLevel)
-  //     val spans       = unsafeGetRefOrInitial(FiberRef.currentLogSpan)
-  //     val annotations = unsafeGetRefOrInitial(FiberRef.currentLogAnnotations)
-
-  //     val contextMap =
-  //       if (overrideRef1 ne null) {
-  //         val map: Map[FiberRef[_], AnyRef] = ??? // FIXME
-
-  //         if (overrideValue1 eq null) map - overrideRef1
-  //         else map.updated(overrideRef1, overrideValue1)
-  //       } else ??? // FIXME
-
-  //     runtimeConfig.logger(
-  //       trace,
-  //       fiberId,
-  //       logLevel,
-  //       message,
-  //       if (cause eq null) Cause.empty else cause(),
-  //       contextMap,
-  //       spans,
-  //       annotations
-  //     ) // FIXME
-  //   }
-
-  //   final def unsafePoll(): Option[Exit[E, A]] =
-  //     if (unsafeIsDone()) Some(unsafeGetDone())
-  //     else None
-
-  //   final def unsafeRemoveObserver(k: Exit[Nothing, Exit[E, A]] => Unit): Unit =
-  //     unsafeSetListeners(unsafeGetListeners().filter(_ ne k))
-
-  //   final def unsafeReportUnhandled(v: Exit[E, A], trace: ZTraceElement): Unit = v match {
-  //     case Exit.Failure(cause) =>
-  //       try {
-  //         unsafeLog(() => "Fiber failed with an unhandled error", trace, () => cause, ZIO.someDebug)
-  //       } catch {
-  //         case t: Throwable =>
-  //           if (runtimeConfig.fatal(t)) {
-  //             runtimeConfig.reportFatal(t)
-  //           } else {
-  //             println("An exception was thrown by a logger:")
-  //             t.printStackTrace
-  //           }
-  //       }
-  //     case _ =>
-  //   }
-
-  //   final def unsafeRunLater(zio: ZIO[_, _, _]): Unit =
-  //     if (stack.isEmpty) unsafeGetExecutor().unsafeSubmitAndYieldOrThrow(() => run(zio))
-  //     else unsafeGetExecutor().unsafeSubmitOrThrow(() => run(zio))
-
-  //   final def unsafeSetCurrentExecutor(executor: Executor): Unit =
-  //     unsafeSetRef(FiberRef.currentExecutor, Some(executor))
-
-  //   final def unsafeSetDone(exit: Exit[E, A]): Unit =
-  //     unsafeSetRef(FiberRef.exit, exit)
-
-  //   final def unsafeSetEnvironment(env: ZEnvironment[Any]): Unit =
-  //     unsafeSetRef(FiberRef.currentEnvironment, env)
-
-  //   final def unsafeSetInterrupting(): Unit =
-  //     flagsState.setInterrupting()
-
-  //   final def unsafeSetListeners(ls: List[Exit[Nothing, Exit[E, A]] => Unit]): Unit =
-  //     unsafeSetRef(FiberRef.listeners, ls.asInstanceOf[List[Exit[Nothing, Exit[Any, Any]] => Unit]])
-
-  //   final def unsafeSetRef[A](ref: FiberRef[A], value: A): Unit =
-  //     fiberRefs.put(ref, value)
-  // }
 }
