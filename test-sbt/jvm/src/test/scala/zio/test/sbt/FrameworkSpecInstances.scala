@@ -2,18 +2,9 @@ package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler}
 import zio.{UIO, ZIO, ZLayer, durationInt}
-import zio.test.{
-  Annotations,
-  Assertion,
-  ExecutionEvent,
-  Spec,
-  TestAspect,
-  TestFailure,
-  ZIOSpecDefault,
-  ZTestEventHandler,
-  assertCompletes
-}
+import zio.test.{Annotations, Assertion, ExecutionEvent, Spec, TestAspect, TestFailure, ZIOSpecDefault, ZTestEventHandler, assertCompletes}
 
+import java.net.BindException
 import java.util.concurrent.atomic.AtomicInteger
 
 object FrameworkSpecInstances {
@@ -68,19 +59,19 @@ object FrameworkSpecInstances {
 
   // TODO Restore this once
   //    https://github.com/zio/zio/pull/6614 is merged
-//  object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
-//    override val layer = ZLayer.fromZIO(
-//      ZIO.debug("constructing faulty layer") *>
-//        ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
-//    )
-//
-//    def spec =
-//      suite("kafka suite")(
-//        test("does stuff with a live kafka cluster") {
-//          assertCompletes
-//        }
-//      )
-//  }
+  object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
+    override val bootstrap = ZLayer.fromZIO(
+      ZIO.debug("constructing faulty layer") *>
+        ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
+    )
+
+    def spec =
+      suite("kafka suite")(
+        test("does stuff with a live kafka cluster") {
+          assertCompletes
+        }
+      )
+  }
 
   object Spec1UsingSharedLayer extends zio.test.ZIOSpec[Int] {
     override def bootstrap = sharedLayer

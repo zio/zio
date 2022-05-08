@@ -2,12 +2,10 @@ package zio.test.sbt
 
 import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
-import zio.test.{Summary, TestAspect, ZIOSpecAbstract}
+import zio.test.{ExecutionEventSink, Summary, TestAspect, ZIOSpecAbstract, ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
+import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
 import zio.test.sbt.TestingSupport.{green, red}
-
-import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
@@ -38,17 +36,12 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     // TODO Restore this once
     //    https://github.com/zio/zio/pull/6614 is merged
-//    test("displays runtime exceptions during spec layer construction")(
-//      for {
-//        returnError <-
-//          loadAndExecuteAll(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
-//        _      <- ZIO.debug("Returned error: " + returnError)
-//        output <- testOutput
-//      } yield assertTrue(output.length == 2) &&
-//        assertTrue(output(0).contains("Top-level defect prevented test execution")) &&
-//        assertTrue(output(0).contains("java.net.BindException: Other Kafka container already grabbed your port")) &&
-//        assertTrue(output(1).startsWith("0 tests passed. 0 tests failed. 0 tests ignored."))
-//    ) @@ TestAspect.nonFlaky,
+    test("displays runtime exceptions during spec layer construction")(
+      for {
+        returnError <-
+          loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
+      } yield assertTrue(returnError.exists(_.getMessage.contains("Other Kafka container already grabbed your port")))
+    ) @@ TestAspect.nonFlaky,
     test("ensure shared layers are not re-initialized")(
       for {
         _ <- loadAndExecuteAll(
@@ -60,6 +53,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       test("TODO")(
         for {
           _ <- loadAndExecuteAll(Seq())
+          _ <- testOutput.debug("no tests")
         } yield assertCompletes
       )
     ),
@@ -98,7 +92,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
       } yield assertTrue(output.mkString("").contains(expected)) && assertTrue(output.length == 3)
     }
-  ) @@ TestAspect.ignore // TODO restore once the transition to flat specs is complete
+  ) // TODO restore once the transition to flat specs is complete
 
   private val durationPattern = "Executed in (\\d+) (.*)".r
   private def extractTestRunDuration(output: Vector[String]): zio.Duration = {
@@ -132,11 +126,40 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
 
-    new ZTestFramework()
-      .runner(testArgs, Array(), getClass.getClassLoader)
-      .tasksZ(tasks)
-      .map(_.run(FrameworkSpecInstances.dummyHandler))
-      .headOption
-      .getOrElse(ZIO.unit)
+    ZIO.attempt(
+      new ZTestFramework()
+        .runner(testArgs, Array(), getClass.getClassLoader)
+        .tasksZ(tasks)
+        .map(_.run(FrameworkSpecInstances.dummyHandler))
+        .headOption
+        .getOrElse(ZIO.unit)
+      )
+  }
+
+  private def loadAndExecuteAllZ[T <: ZIOSpecAbstract](
+                                                       specs: Seq[T],
+                                                       testArgs: Array[String] = Array.empty
+                                                     ): ZIO[Any, ::[Throwable], Unit] = {
+    val tasks =
+      specs
+        .map(_.getClass.getName)
+        .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
+        .toArray
+
+    for {
+      tasksZ <-
+        ZIO.attempt(
+          new ZTestFramework()
+            .runner(testArgs, Array(), getClass.getClassLoader)
+            .tasksZ(tasks)
+
+        ).mapError(error => ::(error, Nil))
+      _ <- ZIO.validate(tasksZ.toList){ t => ZIO.attempt(t.run(FrameworkSpecInstances.dummyHandler))}
+    } yield ()
+
+
+//        .map( t => ZIO.attempt(t.run(FrameworkSpecInstances.dummyHandler)))
+//        .headOption
+//        .getOrElse(ZIO.unit)
   }
 }
