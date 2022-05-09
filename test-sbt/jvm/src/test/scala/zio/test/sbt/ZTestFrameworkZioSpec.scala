@@ -24,9 +24,9 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays timeouts")(
       for {
-        _      <- loadAndExecute(TimeOutSpec).flip
+        _      <- loadAndExecute(TimeOutSpec)
         output <- testOutput
-      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 3)
+      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 2)
     ),
     test("displays runtime exceptions helpfully")(
       for {
@@ -35,13 +35,9 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         _ <- ZIO.debug("supposedly executed some scary tests")
         output <- testOutput
       } yield assertTrue(
-        output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
-      ) && assertTrue(
         output.mkString("").contains("Good luck ;)")
-      ) && assertTrue(output.length == 3)
+      ) && assertTrue(output.length == 2)
     ),
-    // TODO Restore this once
-    //    https://github.com/zio/zio/pull/6614 is merged
     test("displays runtime exceptions during spec layer construction")(
       for {
         returnError <-

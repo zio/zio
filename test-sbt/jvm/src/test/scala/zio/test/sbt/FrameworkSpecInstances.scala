@@ -45,19 +45,16 @@ object FrameworkSpecInstances {
   }
 
   object RuntimeExceptionSpec extends zio.test.ZIOSpecDefault {
-    println("?!?!?")
 
     def spec =
       suite("exploding suite")(
         test("boom") {
-          println("!!!")
-          assertCompletes
-//          for {
-//           _ <- ZIO.debug("gonna blow")
-//            _ <- ZIO.succeed(
-//              if (true) throw new RuntimeException("Good luck ;)") else ()
-//            )
-//          } yield assertCompletes
+          for {
+           _ <- ZIO.debug("gonna blow")
+            _ <- ZIO.succeed(
+              if (true) throw new RuntimeException("Good luck ;)") else ()
+            )
+          } yield assertCompletes
         }
       )
   }
