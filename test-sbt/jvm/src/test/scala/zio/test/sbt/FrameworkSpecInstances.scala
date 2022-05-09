@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import zio.{UIO, ZIO, ZLayer, durationInt}
-import zio.test.{Annotations, Assertion, ExecutionEvent, Spec, TestAspect, TestFailure, ZIOSpecDefault, ZTestEventHandler, assertCompletes}
+import zio.test.{Annotations, Assertion, ExecutionEvent, Spec, TestAspect, TestFailure, ZIOSpecDefault, ZTestEventHandler, assertCompletes, assertTrue}
 
 import java.net.BindException
 import java.util.concurrent.atomic.AtomicInteger
@@ -30,6 +30,17 @@ object FrameworkSpecInstances {
       suite("simple suite")(
         numberedTest(specIdx = 1, suiteIdx = 1, 1)
       ) @@ TestAspect.parallel
+  }
+
+  object CombinedWithPlusSpec extends ZIOSpecDefault {
+    override def spec = suite("spec A") {
+      test("successful test") {
+        assertTrue(true)
+      } +
+        test("failing test") {
+          assertTrue(false)
+        } @@ TestAspect.ignore
+    }
   }
 
   object TimeOutSpec extends zio.test.ZIOSpecDefault {

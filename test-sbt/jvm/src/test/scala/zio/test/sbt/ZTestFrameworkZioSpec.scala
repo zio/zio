@@ -5,7 +5,7 @@ import zio.{Duration, ZIO}
 import zio.test.{ExecutionEventSink, Summary, TestAspect, TestConsole, ZIOSpecAbstract, ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 import zio.test.render.ConsoleRenderer
 import zio.test.sbt.FrameworkSpecInstances._
-import zio.test.sbt.TestingSupport.{green, red}
+import zio.test.sbt.TestingSupport._
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
@@ -15,12 +15,36 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         _      <- loadAndExecute(SimpleSpec)
         output <- testOutput
       } yield assertTrue(
-        output.mkString("").contains(
-          s"""${green("+")} simple suite
-             |    ${green("+")} spec 1 suite 1 test 1
-             |""".stripMargin
+        output ==
+          Vector(
+          s"${green("+")} simple suite\n",
+             s"    ${green("+")} spec 1 suite 1 test 1\n"
         )
       )
+    ),
+    test("renders suite names 1 time in plus-combined specs")(
+      for {
+        _      <- loadAndExecute(CombinedWithPlusSpec)
+        output <- testOutput
+        _ <- ZIO.debug("================\n" + output.mkString("") + "\n================")
+      } yield assertTrue(output.length == 3) && (
+        // TODO Look for more generic way of asserting on these lines that can be shuffled
+        assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${green("+")} successful test\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n",
+            )
+        ) || assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n",
+              s"    ${green("+")} successful test\n",
+            )
+        )
+        )
     ),
     test("displays timeouts")(
       for {
@@ -61,7 +85,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays multi-colored lines")(
       for {
-        _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec)).ignore
+        _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec))
         output <-
           testOutput
         expected =
