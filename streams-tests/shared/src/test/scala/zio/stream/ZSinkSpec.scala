@@ -614,7 +614,7 @@ object ZSinkSpec extends ZIOBaseSpec {
 
             override def offer(a: A)(implicit trace: Trace): ZIO[Any, Nothing, Boolean] = q.offer(a)
 
-            override def offerAll(as: Iterable[A])(implicit trace: Trace): ZIO[Any, Nothing, Boolean] =
+            override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A1]] =
               q.offerAll(as)
 
             override def shutdown(implicit trace: Trace): UIO[Unit] = ZIO.succeed(this.isShutDown = true)
@@ -685,7 +685,7 @@ object ZSinkSpec extends ZIOBaseSpec {
           check(Gen.listOf(Gen.int(0, 10)), Gen.boolean, Gen.boolean) { (ints, success1, success2) =>
             val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
             sinkRaceLaw(
-              ZStream.fromIterableZIO(Random.shuffle(stream).provideLayer(Random.live)),
+              ZStream.fromIterableZIO(Random.shuffle(stream)),
               findSink(20),
               findSink(40)
             )
@@ -697,7 +697,7 @@ object ZSinkSpec extends ZIOBaseSpec {
               val stream = ints ++ (if (success1) List(20) else Nil) ++ (if (success2) List(40) else Nil)
 
               zipParLaw(
-                ZStream.fromIterableZIO(Random.shuffle(stream).provideLayer(Random.live)),
+                ZStream.fromIterableZIO(Random.shuffle(stream)),
                 findSink(20),
                 findSink(40)
               )

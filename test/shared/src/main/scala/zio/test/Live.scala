@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{IO, ZEnv, ZIO, ZLayer, Trace}
+import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -38,14 +38,14 @@ object Live {
    * the `Live` service but could be useful if you are mixing in interfaces to
    * create your own environment type.
    */
-  val default: ZLayer[ZEnv, Nothing, Live] = {
+  val default: ZLayer[Clock with Console with System with Random, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
     ZLayer {
       ZIO
-        .environmentWith[ZEnv] { zenv =>
+        .environmentWith[Clock with Console with System with Random] { zenv =>
           new Live {
             def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-              ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
+              DefaultServices.currentServices.locallyWith(_.unionAll(zenv))(zio)
           }
         }
     }
@@ -64,5 +64,5 @@ object Live {
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
   )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, E1, B] =
-    ZEnv.services.getWith(services => live(f(ZEnv.services.locally(services)(zio))))
+    DefaultServices.currentServices.getWith(services => live(f(DefaultServices.currentServices.locally(services)(zio))))
 }

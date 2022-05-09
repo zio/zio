@@ -450,6 +450,11 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.LogRuntime))
   }
 
+  val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
+    implicit val trace = Trace.empty
+    ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ -- Runtime.defaultLoggers))
+  }
+
   def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentBlockingExecutor.locallyScoped(executor))
 
@@ -468,7 +473,7 @@ object Runtime extends RuntimePlatformSpecific {
    * A layer that adds a supervisor that tracks all forked fibers in a set. Note
    * that this may have a negative impact on performance.
    */
-  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Any] =
+  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     addSupervisor(Supervisor.unsafeTrack(weak))
 
   val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
@@ -499,7 +504,7 @@ object Runtime extends RuntimePlatformSpecific {
       }
     }
 
-    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown)
+    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {

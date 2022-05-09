@@ -52,7 +52,7 @@ abstract class Hub[A] extends Serializable {
    * Publishes the specified values to the hub, returning the values that could
    * not be successfully published to the hub.
    */
-  def publishAll(as: Iterable[A]): Chunk[A]
+  def publishAll[A1 <: A](as: Iterable[A1]): Chunk[A1]
 
   /**
    * The current number of values in the hub.

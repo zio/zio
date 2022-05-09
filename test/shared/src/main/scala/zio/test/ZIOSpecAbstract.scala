@@ -41,7 +41,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
     runSpec.provideSomeLayer[ZIOAppArgs with Scope](
       ZLayer.environment[ZIOAppArgs with Scope] +!+
-        (ZEnv.live >>> TestEnvironment.live +!+ bootstrap +!+ TestLogger.fromConsole(Console.ConsoleLive))
+        (liveEnvironment >>> TestEnvironment.live +!+ bootstrap +!+ TestLogger.fromConsole(Console.ConsoleLive))
     )
   }
 
@@ -115,7 +115,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       environment1: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
       sharedLayer: ZLayer[Any, Any, Environment] =
         ZLayer.succeedEnvironment(environment0) >>> bootstrap
-      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
+      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
                        .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
       executionEventSinkLayer = sinkLayerWithConsole(console)
       runner =
@@ -159,7 +159,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       environment1: ZEnvironment[ZIOAppArgs with Scope] = castedRuntime.environment
       sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
         ZLayer.succeedEnvironment(castedRuntime.environment)
-      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ ZEnv.live) >>> (TestEnvironment.live ++ ZLayer
+      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
                        .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
       executionEventSinkLayer = sharedLayer
       runner =

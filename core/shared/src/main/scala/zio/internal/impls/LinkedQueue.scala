@@ -48,7 +48,7 @@ private[zio] final class LinkedQueue[A] extends MutableConcurrentQueue[A] with S
     success
   }
 
-  override def offerAll(as: Iterable[A]): Chunk[A] = {
+  override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
     import collection.JavaConverters._
     jucConcurrentQueue.addAll(as.asJavaCollection): @silent("JavaConverters")
     enqueuedCounter.addAndGet(as.size.toLong)

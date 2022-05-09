@@ -499,8 +499,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized")) ++
-      Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers.update[AppConfig](c =>
@@ -545,8 +544,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized")) ++
-      Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers ++ ZLayer.succeed(AppConfig(8))
@@ -636,15 +634,12 @@ val myApp: ZIO[Cake, IOException, Unit] = for {
 } yield ()
 ```
 
-The type of `myApp` indicates we should provide `Console` and `Cake` to this ZIO application to run it. Let's give it those and see what happens:
+The type of `myApp` indicates we should provide `Cake` to this ZIO application to run it. Let's give it that and see what happens:
 
 ```scala mdoc:fail:silent
 object MainApp extends ZIOAppDefault {
   def run =
-    myApp.provide(
-      Cake.live,
-      Console.live
-    )
+    myApp.provide(Cake.live)
 }
 
 // error:
@@ -683,7 +678,6 @@ object MainApp extends ZIOAppDefault {
   def run =
     myApp.provide(
       Cake.live,
-      Console.live,
       Chocolate.live,
       Flour.live
     )
@@ -945,52 +939,6 @@ val mainEffectSome: ZIO[Any, Nothing, Unit] =
 > **Note:**
 >
 > When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
-
-#### Using `ZIO#provideCustom` Method
-
-`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications. Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.
-
-As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. The `ZIO#provideCustom` method helps us to do so. It returns an effect that only depends on `ZEnv`.
-
-Let's write an effect that has some built-in services and also has a `Logging` service:
-
-```scala mdoc:invisible:reset
-import zio._
-import zio.Console._
-import zio.Clock._
-```
-
-```scala mdoc:silent
-trait Logging {
-  def log(str: String): UIO[Unit]
-}
-
-object Logging {
-  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
-}
-
-object LoggingLive {
-  val layer: ULayer[Logging] = ZLayer.succeed {
-    new Logging {
-      override def log(str: String): UIO[Unit] = ???
-    }
-  }
-}
-
-val myApp: ZIO[Logging, Nothing, Unit] = for {
-  _       <- Logging.log("Application Started!")
-  current <- Clock.currentDateTime
-  _       <- Console.printLine(s"Current Data Time: $current").orDie
-} yield ()
-```
-
-This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
-
-By using `ZIO#provideCustom` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
-
-```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provide(LoggingLive.layer)
-```
 
 ## Environment Scope
 

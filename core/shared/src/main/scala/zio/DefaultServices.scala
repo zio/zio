@@ -19,27 +19,21 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object ZEnv {
-
-  private[zio] object Services {
-    val live: ZEnvironment[ZEnv] =
-      ZEnvironment[Clock, Console, System, Random](
-        Clock.ClockLive,
-        Console.ConsoleLive,
-        System.SystemLive,
-        Random.RandomLive
-      )
-  }
-
-  val any: ZLayer[ZEnv, Nothing, ZEnv] =
-    ZLayer.environment[ZEnv](Tracer.newTrace)
-
-  val live: Layer[Nothing, ZEnv] =
-    Clock.live ++ Console.live ++ System.live ++ Random.live
+object DefaultServices {
 
   /**
    * The default ZIO services.
    */
-  val services: FiberRef.WithPatch[ZEnvironment[ZEnv], ZEnvironment.Patch[ZEnv, ZEnv]] =
-    FiberRef.unsafeMakeEnvironment(Services.live)
+  val live: ZEnvironment[Clock with Console with System with Random] =
+    ZEnvironment[Clock, Console, System, Random](
+      Clock.ClockLive,
+      Console.ConsoleLive,
+      System.SystemLive,
+      Random.RandomLive
+    )(Clock.tag, Console.tag, System.tag, Random.tag)
+
+  private[zio] val currentServices: FiberRef.WithPatch[ZEnvironment[
+    Clock with Console with System with Random
+  ], ZEnvironment.Patch[Clock with Console with System with Random, Clock with Console with System with Random]] =
+    FiberRef.unsafeMakeEnvironment(live)
 }

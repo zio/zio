@@ -9,6 +9,8 @@ import zio._
 
 In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
 
+## Automatic Migration
+
 Before you migrate your own codebase, confirm that all of your ZIO-related dependencies have been migrated to ZIO 2.x with our [ZIO Ecosystem Tool](https://zio-ecosystem.herokuapp.com/).
 
 ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
@@ -122,7 +124,24 @@ object MainApp extends ZIOAppDefault {
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
 4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
 
-## Has
+## Deletion of Type Alias Companion Objects
+
+In ZIO 1.x, using the type aliases as objects created another way to do things and potentially led to confusion about whether these were the same or somehow different with little benefit.
+
+In ZIO 2.x, we removed companion objects for type aliases. We still can use type aliases such as `UIO[Int]`, but we couldn't do `UIO.succeed(1)` anymore:
+
+```diff
+- val effect: UIO[Int] = UIO.succeed(1)
++ val effect: UIO[Int] = ZIO.succeedNow(1)
+
+// another examp:
+- val stream: UStream[Int] = UStream.succeed(1)
++ val stream: UStream[Int] = ZStream.succeed(1)
+```
+
+The [migration script](#automatic-migration) will automatically convert all the usages of type aliases to the corresponding objects.
+
+## Deletion of Has Data Type
 
 The Has data type, which was used for combining services, was removed. Therefore, we no longer need to wrap services in the `Has` data type.
 
@@ -500,6 +519,109 @@ ZIO.succeed(Set(3, 4, 3)).head
 // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ```
 
+## Elimination of Default Services From The ZIO Environment
+
+In ZIO 1.x we used default ZIO services such as `Clock`, `Console`, `Random`, and `System` along with the service pattern. So each time we used one of these services by obtaining them from the environment, the requirement of our effect becomes bigger and bigger. Finally, at the end of the world, we had two options, one was to use the default implementation of these services, and the other one was to use our own implementations.
+
+For example, in ZIO 1.x, we have the following boilerplate code to print random numbers every second. The environment type of the `myApp` effect is `Console with Clock with Random`:
+
+```scala
+import zio._
+import zio.clock.Clock
+import zio.duration.durationInt
+import zio.random.Random
+import java.io.IOException
+import zio.console._
+
+object MainApp extends App {
+  val myApp: ZIO[Clock with Console with Random, IOException, Unit] =
+    for {
+      rnd <- random.nextIntBounded(100)
+      _   <- console.putStrLn(s"Random number: $rnd")
+      _   <- clock.sleep(1.second)
+    } yield ()
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
+    myApp.forever.exitCode  
+    // or we can provide our own implementation 
+    // myApp.forever.provideLayer(Console.live ++ Clock.live ++ Random.live).exitCode
+}
+```
+
+But these services did not fit well with the _service pattern_ because they were too low level and users frequently used them directly in their code to use the default implementation out of the box. So in most cases, users were not meant to provide their own implementation of these services. In another hand, as they are low level, they are used very often, so they pollute the environment type of the effect. They are too small to be used with the _service pattern_.
+
+To improve on this, in ZIO 2.x, we deleted default services from the environment, instead, we built these services into the ZIO Runtime. So these services can still be modified and testable. In ZIO 2.x we encourage using the environment for higher-level services.
+
+Therefore, the previous example In ZIO 2.x can be rewritten very simply as below:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+object MainApp extends App {
+  val myApp: ZIO[Any, IOException, Unit] =
+    for {
+      rnd <- Random.nextIntBounded(100)
+      _   <- Console.printLine(s"Random number: $rnd")
+      _   <- Clock.sleep(1.second)
+    } yield ()
+
+  def run = myApp.forever
+}
+```
+
+In nutshell, to migrate from ZIO 1.x to ZIO 2.x, we need follow these steps:
+
+1. We aren't required to obtain default services from the environment using functions like `ZIO.service[Console]`, instead we should obtain the `Console` service using `ZIO.console`. So there is no need to access these services from the environment anymore, they are built into the ZIO Runtime. If we want to access them, we can use these functions instead:
+- `ZIO.console`/`ZIO.consoleWith`
+- `ZIO.clock`/`ZIO.clockWith`
+- `ZIO.random`/`ZIO.randomWith`
+- `ZIO.system`/`ZIO.systemWith`
+
+```diff
+for {
+-  random <- ZIO.service[Random]
++  random <- ZIO.random
+} yield ()
+```
+
+2. By removing these services from the environment, all usage of `ZEnv`, `Console`, `Clock`, `Random`, or `System` in the environment type of `ZIO`, `ZStream` and `ZLayer` should be generally deleted:
+
+```diff
+val myApp: ZIO[Clock with Console with Random with UserRepo with Logging, IOException, Unit] = ???
+val myApp: ZIO[UserRepo with Logging, IOException, Unit] = ???
+```
+
+3. If we want to use the live version in tests we can use these test aspects instead of providing them as layers:
+   `withLiveClock`
+   `withLiveConsole`
+   `withLiveRandom`
+   `withLiveSystem`
+   `withLiveEnvironment`
+
+For example:
+
+```diff
+- testM("TestLiveClock") { ... }.provideLayer(Clock.live)
++ test("TestLiveClock") { ... } @@ withLiveClock
+```
+
+4. In ZIO 1.x, whenever we wanted to provide our own versions of ZIO default services, we could do that using one of the `ZIO#provide*` operators. In ZIO 2.x if we need to modify the implementation of one of these services on a more fine-grained basis we can use of the following combinators:
+  - `ZIO.withConsole`/`ZIO.withConsoleScoped`
+  - `ZIO.withClock`/`ZIO.withClockScoped`
+  - `ZIO.withRandom`/`ZIO.withRandomScoped`
+  - `ZIO.withSystem`/`ZIO.withSystemScoped`
+
+```scala
+import zio._
+
+object MyClockLive extends Clock {
+  ... 
+}
+
+ZIO.withClock(MyClockLive)(effect)
+```
+
 ## ZIO App
 
 ### ZIOApp
@@ -557,11 +679,131 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 |----------------|---------------|
 | `zio.Fiber.ID` | `zio.FiberID` |
 
-## Platform, Executor, and Runtime
+## Runtime, Platform and Executor
 
-### Method Deprecation and Renaming
+### Runtime Customization using Layers
 
-Also, we moved the `Executor` from `zio.internal` to the `zio` package:
+In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
+
+In ZIO 1.x, we had the `Platform` data type useful for providing custom execution configurations to the runtime:
+- `Platform#withExecutor`— To provide a custom `Executor`
+- `Platform#withTracing` to config tracing functionality
+- `Platform#withSupervisor` to provide a `Supervisor`
+- `Platform#withScheduler` to provide a `Scheduler`
+- etc.
+
+Here is an example of creating a custom `Runtime` in ZIO 1.x:
+
+```scala
+import zio._
+import zio.internal.Executor
+
+object MainApp extends zio.App {
+  val customExecutor: Executor = ???
+
+  val myApp: UIO[Unit] =
+    ZIO.debug("Application started")
+
+  def run(args: List[String]): URIO[ZEnv, ExitCode] =
+    ZIO
+      .runtime[ZEnv]
+      .map { runtime =>
+        runtime
+          .mapPlatform(_.withExecutor(customExecutor))
+          .unsafeRun(myApp)
+      }
+      .exitCode
+}
+```
+
+In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of-the-box layers for runtime customization, defined in the companion object of the `Runtime` trait. Here are some of them:
+- `Runtime.addLogger` to add a logger
+- `Runtime.setExecutor` to provide a custom `Executor`
+- `Runtime.logRuntime` to log runtime information
+- `Runtime.trackRuntimeMetrics` to track runtime metrics
+- etc.
+
+Let's see how a previous example can be rewritten in ZIO 2.x:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val customExecutor: zio.Executor = ???
+
+  val myApp = 
+    ZIO.debug("Application started")
+
+  def run =
+    myApp.provide(
+      Runtime.setExecutor(customExecutor)
+    )
+}
+```
+
+Note that ZIO ecosystem libraries like ZMX may have their own layers that install all necessary functionality.
+
+### Runtime Customization Using ZIO Data Type
+
+To access information about the configuration of our ZIO program as we are running, there are some more specific operators that we can use, such as:
+- `ZIO.executor`/`ZIO.executorWith`
+- `ZIO.logger`/`ZIO.loggerWith`
+- `ZIO.isFatal`/`ZIO.isFatalWith`
+
+### Runtime Configurations are Scoped
+
+When we access a `Runtime` using `ZIO.runtime` it will inherit all the configuration of the current workflow so if we use it to run effects they will be run with the same logger and so on:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val workflow1 = ZIO.debug("workflow1 is running") *> ZIO.log("This line will never get logged")
+  val workflow2 = ZIO.debug("workflow2 is running") *> ZIO.log("This line will get logged")
+  val workflow3 = ZIO.debug("workflow3 is running") *> ZIO.log("This line will never get logged")
+
+  def run =
+    ZIO.provideLayer(Runtime.removeDefaultLoggers) {
+      ZIO.runtime[Any].flatMap(_.run(workflow1)) *>
+        ZIO.provideLayer(Runtime.addLogger(Runtime.defaultLoggers.head)) {
+          ZIO.runtime[Any].flatMap(_.run(workflow2))
+        } *> workflow3
+    }
+}
+```
+
+### Custom Runtime for Mixed Applications
+
+In ZIO 2.x, to create a custom runtime in mixed applications we combine all the layers that do our customization and then perform the `Runtime.unsafeFromLayer` operation:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp {
+  val sl4jlogger: ZLogger[String, Any] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def zioApplication(): Int =
+    Runtime
+      .unsafeFromLayer(
+        Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+      )
+      .unsafeRun(zioWorkflow)
+
+  def main(args: Array[String]): Unit = {
+    val result = zioApplication()
+    legacyApplication(result)
+  }
+
+}
+```
+
+### Executor
+
+We moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
 |-------------------------|----------------|
@@ -700,7 +942,7 @@ trait UserRepo {}
 
 trait DocRepo {}
 
-case class LoggerImpl(console: Console) extends Logging {}
+case class LoggerImpl() extends Logging {}
 
 case class DatabaseImp() extends Database {}
 
@@ -711,12 +953,8 @@ case class BlobStorageImpl(logging: Logging) extends BlobStorage {}
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo {}
 
 object Logging {
-  val live: URLayer[Console, Logging] =
-    ZLayer {
-      for {
-        console <- ZIO.service[Console]
-      } yield LoggerImpl(console)
-    }
+  val live: URLayer[Any, Logging] =
+    ZLayer.succeed(LoggerImpl())
 }
 
 object Database {
@@ -758,7 +996,7 @@ object DocRepo {
 val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
 ```
 
-```scala mdoc:silent:nest
+```scala
 val appLayer: URLayer[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
@@ -790,7 +1028,6 @@ In ZIO 2.x, we can automatically construct dependencies with friendly compile-ti
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
   myApp.provide(
-    Console.live,
     Logging.live,
     Database.live,
     BlobStorage.live,
@@ -808,8 +1045,7 @@ val res: ZIO[Any, Nothing, Unit] =
     BlobStorage.live,
     Logging.live,
     Database.live,
-    UserRepo.live,
-    Console.live
+    UserRepo.live
   )
 ```
 
@@ -822,8 +1058,7 @@ val app: ZIO[Any, Nothing, Unit] =
     BlobStorage.live,
 //    Logging.live,
     Database.live,
-    UserRepo.live,
-    Console.live
+    UserRepo.live
   )
 ```
 
@@ -841,7 +1076,6 @@ We can also directly construct a layer using `ZLayer.make`:
 
 ```scala mdoc:silent:nest
 val layer = ZLayer.make[DocRepo with UserRepo](
-  Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -853,8 +1087,7 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
-  Logging.live,
+val layer = ZLayer.makeSome[Logging, DocRepo with UserRepo](
   DocRepo.live,
   Database.live,
   BlobStorage.live,
@@ -864,7 +1097,7 @@ val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
 
 In ZIO 1.x, the `ZIO#provideSomeLayer` provides environment partially:
 
-```scala mdoc:silent:nest
+```scala
 val app: ZIO[Console, Nothing, Unit] =
   myApp.provideSomeLayer[Console](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
@@ -875,9 +1108,8 @@ val app: ZIO[Console, Nothing, Unit] =
 In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#provideSome[Rest](l1, l2, ...)` operator:
 
 ```scala mdoc:silent:nest:warn
-val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSome[Console](
-    Logging.live,
+val app: ZIO[Any, Nothing, Unit] =
+  myApp.provideSome[Logging](
     DocRepo.live,
     Database.live,
     BlobStorage.live,
@@ -895,7 +1127,6 @@ To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.t
 
 ```scala
 val layer = ZLayer.make[DocRepo with UserRepo](
-  Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -910,15 +1141,12 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 [info] 
 [info] ◉ DocRepo.live
 [info] ├─◑ Logging.live
-[info] │ ╰─◑ Console.live
 [info] ├─◑ Database.live
 [info] ╰─◑ BlobStorage.live
 [info]   ╰─◑ Logging.live
-[info]     ╰─◑ Console.live
 [info] 
 [info] ◉ UserRepo.live
 [info] ├─◑ Logging.live
-[info] │ ╰─◑ Console.live
 [info] ╰─◑ Database.live
 [info] 
 [info] Mermaid Live Editor Link
@@ -1041,7 +1269,6 @@ object MainApp extends ZIOAppDefault {
 
   def run =
     myApp.provide(
-      Console.live,
       Random.live,
       ZLayer.succeed(Config("localhost", 8080)),
       LoggerLive.layer
@@ -1622,6 +1849,34 @@ suite("Ref") {
 ```
 
 In ZIO 2.x, to create a test suite, it's not important that whether we are testing pure or effectful tests. The syntax is the same, and the `test`, and `testM` are unified. So the `testM` was removed.
+
+### Unification of `Assertion` and `AssertionM`
+
+In ZIO 2.x, `Assertion` and `AssertionM` were unified to a single type, `Assertion`, so the `AssertionM` was removed. In ZIO 2.x, instead of writing effectful assertions (`AssertionM`) and then asserting workflows, we should perform workflows and then simply assert the result of the workflow.
+
+Assume we have written the following test in ZIO 1.x:
+
+```scala
+testM("Effectful Assertion ZIO 1.x") {
+  def myEffectfulAssertion[Int](reference: Int): AssertionM[Int] = ???
+
+  val sut = ZIO.effect(???)
+  assertM(sut)(effectfulAssertion(5))
+}
+```
+
+We can extract effectful operations from the effectful assertion and then perform the assertion like below:
+
+```scala
+test("Effectful Assertion ZIO 2.x") {
+  def myAssertion[Int](reference: Int): Assertion[Int] = ???
+  
+  val res = for {
+    sut <- ZIO.effect(???)
+    res <- extractedOperations(sut)
+  } yield assert(res)(myAssertion(5))
+}
+```
 
 ### Smart Assertion
 

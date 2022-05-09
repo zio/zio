@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZEnv, ZIO, ZLayer, Trace}
+import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZIO, ZLayer, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -219,7 +219,7 @@ object TestConsole extends Serializable {
         ref      <- ZIO.succeed(Ref.unsafeMake(data))
         debugRef <- FiberRef.make(debug)
         test      = Test(ref, live, debugRef)
-        _        <- ZEnv.services.locallyScopedWith(_.add(test))
+        _        <- ZIO.withConsoleScoped(test)
       } yield test
     }
 

@@ -103,15 +103,6 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that disables logging for the specified effect.
-   */
-  val disableLogging: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        FiberRef.currentLoggers.locally(Set.empty)(zio)
-    }
-
-  /**
    * An aspect that logs values by using [[ZIO.log]].
    */
   val logged: ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =

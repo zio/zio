@@ -3,16 +3,7 @@ package zio.test.sbt
 import sbt.testing.{Event, EventHandler, Logger, Status, Task, TaskDef}
 import zio.{CancelableFuture, Console, Runtime, Scope, UIO, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, Trace}
 import zio.test.render.ConsoleRenderer
-import zio.test.{
-  ExecutionEvent,
-  FilteredSpec,
-  Summary,
-  TestArgs,
-  TestEnvironment,
-  TestLogger,
-  ZIOSpecAbstract,
-  ZTestEventHandler
-}
+import zio.test._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
@@ -31,7 +22,7 @@ abstract class BaseTestTask[T](
     console: Console
   )(implicit trace: Trace): ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
     ZIOAppArgs.empty +!+ (
-      (zio.ZEnv.live ++ Scope.default) >>>
+      (liveEnvironment ++ Scope.default) >>>
         TestEnvironment.live >+> TestLogger.fromConsole(console)
     )
   } +!+ Scope.default

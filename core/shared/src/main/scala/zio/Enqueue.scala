@@ -45,20 +45,22 @@ trait Enqueue[-A] extends Serializable {
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
-   * the queue and always returns true. If the queue has reached capacity, then
-   * the fiber performing the `offerAll` will be suspended until there is room
-   * in the queue.
+   * the queue and always returns no leftovers. If the queue has reached
+   * capacity, then the fiber performing the `offerAll` will be suspended until
+   * there is room in the queue.
    *
-   * For Unbounded Queue: Places all values in the queue and returns true.
+   * For Unbounded Queue: Places all values in the queue and returns no
+   * leftovers.
    *
    * For Sliding Queue: uses `Sliding` Strategy If there is room in the queue,
    * it places the values otherwise it removes the old elements and enqueues the
-   * new ones. Always returns true.
+   * new ones. Always returns no leftovers.
    *
    * For Dropping Queue: uses `Dropping` Strategy, It places the values in the
-   * queue but if there is no room it will not enqueue them and return false.
+   * queue but if there is no room it will not enqueue them and return the
+   * leftovers.
    */
-  def offerAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean]
+  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`. Future calls

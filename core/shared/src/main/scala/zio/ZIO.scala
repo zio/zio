@@ -2650,17 +2650,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.CheckInterrupt(f, trace)
 
   /**
-   * Retreives the `Clock` service for this workflow.
+   * Retrieves the `Clock` service for this workflow.
    */
   def clock(implicit trace: Trace): UIO[Clock] =
     ZIO.clockWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `Clock` service for this workflow and uses it to run the
+   * Retrieves the `Clock` service for this workflow and uses it to run the
    * specified workflow.
    */
   def clockWith[R, E, A](f: Clock => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[Clock]))
+    DefaultServices.currentServices.getWith(services => f(services.get(Clock.tag)))
 
   /**
    * Evaluate each effect in the structure from left to right, collecting the
@@ -2859,17 +2859,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(if (predicate) ZIO.succeedNow(result) else ZIO.fail(error))
 
   /**
-   * Retreives the `Console` service for this workflow.
+   * Retrieves the `Console` service for this workflow.
    */
   def console(implicit trace: Trace): UIO[Console] =
     ZIO.consoleWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `Console` service for this workflow and uses it to run the
+   * Retrieves the `Console` service for this workflow and uses it to run the
    * specified workflow.
    */
   def consoleWith[R, E, A](f: Console => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[Console]))
+    DefaultServices.currentServices.getWith(services => f(services.get(Console.tag)))
 
   /**
    * Prints the specified message to the console for debugging purposes.
@@ -4016,11 +4016,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.randomWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `Random` service for this workflow and uses it to run the
+   * Retrieves the `Random` service for this workflow and uses it to run the
    * specified workflow.
    */
   def randomWith[R, E, A](f: Random => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[Random]))
+    DefaultServices.currentServices.getWith(services => f(services.get(Random.tag)))
 
   /**
    * Reduces an `Iterable[IO]` to a single `IO`, working sequentially.
@@ -4254,17 +4254,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     new ZIO.Suspend(() => zio, trace)
 
   /**
-   * Retreives the `System` service for this workflow.
+   * Retrieves the `System` service for this workflow.
    */
   def system(implicit trace: Trace): UIO[System] =
     ZIO.systemWith(ZIO.succeedNow)
 
   /**
-   * Retreives the `System` service for this workflow and uses it to run the
+   * Retrieves the `System` service for this workflow and uses it to run the
    * specified workflow.
    */
   def systemWith[R, E, A](f: System => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZEnv.services.getWith(services => f(services.get[System]))
+    DefaultServices.currentServices.getWith(services => f(services.get(System.tag)))
 
   /**
    * Capture ZIO trace at the current point
@@ -4521,6 +4521,38 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
+   * Executes the specified workflow with the specified implementation of the
+   * clock service.
+   */
+  def withClock[R, E, A <: Clock, B](clock: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    DefaultServices.currentServices.locallyWith(_.add(clock))(zio)
+
+  /**
+   * Sets the implementation of the clock service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withClockScoped[A <: Clock](clock: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    DefaultServices.currentServices.locallyScopedWith(_.add(clock))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * console service.
+   */
+  def withConsole[R, E, A <: Console, B](console: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    DefaultServices.currentServices.locallyWith(_.add(console))(zio)
+
+  /**
+   * Sets the implementation of the console service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withConsoleScoped[A <: Console](console: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    DefaultServices.currentServices.locallyScopedWith(_.add(console))
+
+  /**
    * Runs the specified effect with the specified maximum number of fibers for
    * parallel operators.
    */
@@ -4533,6 +4565,38 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def withParallelismUnbounded[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed(Parallelism.locally(None)(zio))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * random service.
+   */
+  def withRandom[R, E, A <: Random, B](random: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    DefaultServices.currentServices.locallyWith(_.add(random))(zio)
+
+  /**
+   * Sets the implementation of the random service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withRandomScoped[A <: Random](random: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    DefaultServices.currentServices.locallyScopedWith(_.add(random))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * system service.
+   */
+  def withSystem[R, E, A <: System, B](system: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    DefaultServices.currentServices.locallyWith(_.add(system))(zio)
+
+  /**
+   * Sets the implementation of the system service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withSystemScoped[A <: System](system: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    DefaultServices.currentServices.locallyScopedWith(_.add(system))
 
   /**
    * Returns an effect that yields to the runtime system, starting on a fresh

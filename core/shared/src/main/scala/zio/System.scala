@@ -77,15 +77,7 @@ trait System extends Serializable {
 
 object System extends Serializable {
 
-  val any: ZLayer[System, Nothing, System] = {
-    implicit val trace = Tracer.newTrace
-    ZLayer.service[System]
-  }
-
-  val live: Layer[Nothing, System] = {
-    implicit val trace = Tracer.newTrace
-    ZLayer.succeed[System](SystemLive)
-  }
+  val tag: Tag[System] = Tag[System]
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]] =
