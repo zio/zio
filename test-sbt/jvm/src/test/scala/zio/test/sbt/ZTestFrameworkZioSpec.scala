@@ -12,7 +12,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
       (for {
-        _      <- loadAndExecuteAll(Seq(SimpleSpec))
+        _      <- loadAndExecute(SimpleSpec)
         output <- testOutput
       } yield assertTrue(
         output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
@@ -20,14 +20,14 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     )),
     test("displays timeouts")(
       for {
-        _      <- loadAndExecuteAll(Seq(TimeOutSpec)).flip
+        _      <- loadAndExecute(TimeOutSpec).flip
         output <- testOutput
       } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 3)
     ),
     test("displays runtime exceptions helpfully")(
       for {
         _ <- ZIO.debug("Gonna execute some scary tests")
-        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec))
+        _      <- loadAndExecute(RuntimeExceptionSpec)
         _ <- ZIO.debug("supposedly executed some scary tests")
         output <- testOutput
       } yield assertTrue(
@@ -46,7 +46,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ) @@ TestAspect.nonFlaky,
     test("ensure shared layers are not re-initialized")(
       for {
-        _ <- loadAndExecuteAll(
+        _ <- loadAndExecuteAllZ(
                Seq(FrameworkSpecInstances.Spec1UsingSharedLayer, FrameworkSpecInstances.Spec2UsingSharedLayer)
              )
       } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
@@ -54,14 +54,14 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     suite("warn when no tests are executed")(
       test("TODO")(
         for {
-          _ <- loadAndExecuteAll(Seq())
+          _ <- loadAndExecuteAllZ(Seq())
           _ <- testOutput.debug("no tests")
         } yield assertCompletes
       )
     ),
     test("displays multi-colored lines")(
       for {
-        _ <- loadAndExecuteAll(Seq(FrameworkSpecInstances.MultiLineSharedSpec)).ignore
+        _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec)).ignore
         output <-
           testOutput
         expected =
@@ -77,8 +77,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("only executes selected test") {
       for {
-        _ <- loadAndExecuteAll(
-               Seq(FrameworkSpecInstances.SimpleFailingSharedSpec),
+        _ <- loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec,
                testArgs = Array("-t", "passing test")
              )
         output <- testOutput
@@ -114,27 +113,15 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   private val testOutput =
     for {
-      console <- testConsole.debug("testOutput retrieved in zioSpec")
+      console <- testConsole.debug("testOutput retrieved in framework zioSpec")
       output  <- console.output
     } yield output
 
-  private def loadAndExecuteAll[T <: ZIOSpecAbstract](
-    specs: Seq[T],
+  private def loadAndExecute[T <: ZIOSpecAbstract](
+    spec: T,
     testArgs: Array[String] = Array.empty
-  ): ZIO[Any, Throwable, Unit] = {
-    val tasks =
-      specs
-        .map(_.getClass.getName)
-        .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
-        .toArray
-
-      new ZTestFramework()
-        .runner(testArgs, Array(), getClass.getClassLoader)
-        .tasksZ(tasks)
-        .map(_.run(FrameworkSpecInstances.dummyHandler))
-        .headOption
-        .getOrElse(ZIO.unit)
-  }
+  ): ZIO[Any, Throwable, Unit] =
+    loadAndExecuteAllZ(Seq(spec), testArgs).mapError(_.head)
 
   private def loadAndExecuteAllZ[T <: ZIOSpecAbstract](
                                                        specs: Seq[T],
@@ -152,7 +139,6 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
           new ZTestFramework()
             .runner(testArgs, Array(), getClass.getClassLoader)
             .tasksZ(tasks)
-
         ).mapError(error => ::(error, Nil))
       _ <- ZIO.validate(tasksZ.toList){ t => ZIO.attempt(t.run(FrameworkSpecInstances.dummyHandler))}
     } yield ()

@@ -60,7 +60,7 @@ package object test extends CompileVariants {
         Sized.live(100) ++
         ((Live.default ++ Annotations.live) >>> TestClock.default) ++
         TestConfig.live(100, 100, 200, 1000) ++
-        (Live.default >>> TestConsole.debug) ++
+        (Live.default >>> TestConsole.debug.debug("TestConsole in package.TestEnvironment")) ++
         TestRandom.deterministic ++
         TestSystem.default
 
