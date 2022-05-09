@@ -12,11 +12,12 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
       (for {
+        _ <- testConsole.debug("Console at beginning of test")
         _      <- loadAndExecute(SimpleSpec)
         output <- testOutput
       } yield assertTrue(
-        output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
-      ) && assertTrue(output.length == 3)
+        output.mkString("").contains("suite and test name")
+      )
     )),
     test("displays timeouts")(
       for {
@@ -134,13 +135,15 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         .toArray
 
     for {
+      testC <- testConsole.debug("1 testConsole in loadAndExecutationAllZ")
       tasksZ <-
         ZIO.attempt(
           new ZTestFramework()
             .runner(testArgs, Array(), getClass.getClassLoader)
-            .tasksZ(tasks)
+            .tasksZ(tasks, testC)
         ).mapError(error => ::(error, Nil))
-      _ <- ZIO.validate(tasksZ.toList){ t => ZIO.attempt(t.run(FrameworkSpecInstances.dummyHandler))}
+      _ <- ZIO.validate(tasksZ.toList){ t => t.run(FrameworkSpecInstances.dummyHandler)}
+      _ <- testConsole.debug("2 testConsole in loadAndExecutationAllZ")
     } yield ()
 
 

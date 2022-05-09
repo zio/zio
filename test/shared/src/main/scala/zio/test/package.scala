@@ -60,7 +60,7 @@ package object test extends CompileVariants {
         Sized.live(100) ++
         ((Live.default ++ Annotations.live) >>> TestClock.default) ++
         TestConfig.live(100, 100, 200, 1000) ++
-        (Live.default >>> TestConsole.debug.debug("TestConsole in package.TestEnvironment")) ++
+        (Live.default >>> TestConsole.debug /*.debug("TestConsole in package.TestEnvironment") */ ) ++
         TestRandom.deterministic ++
         TestSystem.default
 
@@ -532,8 +532,8 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
-  val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] =
-    sinkLayerWithConsole(Console.ConsoleLive)(Trace.empty)
+  def sinkLayer(console: Console): ZLayer[Any, Nothing, ExecutionEventSink] =
+    sinkLayerWithConsole(console)(Trace.empty)
 
   def sinkLayerWithConsole(console: Console)(implicit
     trace: Trace
@@ -551,7 +551,7 @@ package object test extends CompileVariants {
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer,
+        sinkLayer(Console.ConsoleLive), // TODO COnfirm live instance usage here
         _ => ZIO.unit // There is no EventHandler available here, so we can't do much.
       )
     )
