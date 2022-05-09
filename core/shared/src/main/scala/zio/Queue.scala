@@ -170,7 +170,7 @@ object Queue {
         }
       }
 
-    def offerAll(as: Iterable[A])(implicit trace: Trace): UIO[Boolean] =
+    def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
@@ -180,16 +180,18 @@ object Queue {
             unsafeCompletePromise(taker, item)
           }
 
-          if (remaining.isEmpty) ZIO.succeedNow(true)
+          if (remaining.isEmpty) ZIO.succeedNow(Chunk.empty)
           else {
             // not enough takers, offer to the queue
             val surplus = unsafeOfferAll(queue, remaining)
             strategy.unsafeCompleteTakers(queue, takers)
 
             if (surplus.isEmpty)
-              ZIO.succeedNow(true)
+              ZIO.succeedNow(Chunk.empty)
             else
-              strategy.handleSurplus(surplus, queue, takers, shutdownFlag)
+              strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
+                if (offered) Chunk.empty else surplus
+              }
           }
         }
       }
@@ -450,7 +452,7 @@ object Queue {
   /**
    * Offer items to the queue
    */
-  private def unsafeOfferAll[A](q: MutableConcurrentQueue[A], as: Iterable[A]): Chunk[A] =
+  private def unsafeOfferAll[A, B <: A](q: MutableConcurrentQueue[A], as: Iterable[B]): Chunk[B] =
     q.offerAll(as)
 
   /**

@@ -3,7 +3,7 @@ package zio.stm
 import zio.stm.TRandom._
 import zio.test.Assertion.{isGreaterThanEqualTo, isLessThan}
 import zio.test._
-import zio.{Random, ZIOBaseSpec}
+import zio.ZIOBaseSpec
 
 object TRandomSpec extends ZIOBaseSpec {
 
@@ -46,7 +46,7 @@ object TRandomSpec extends ZIOBaseSpec {
           assert(n)(isLessThan(max))
       }
     }
-  ).provideCustomLayer(Random.live >>> TRandom.live)
+  ).provideCustomLayer(TRandom.live)
 
   val genDoubles: Gen[Any, (Double, Double)] =
     for {

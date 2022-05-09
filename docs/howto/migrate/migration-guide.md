@@ -679,11 +679,131 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 |----------------|---------------|
 | `zio.Fiber.ID` | `zio.FiberID` |
 
-## Platform, Executor, and Runtime
+## Runtime, Platform and Executor
 
-### Method Deprecation and Renaming
+### Runtime Customization using Layers
 
-Also, we moved the `Executor` from `zio.internal` to the `zio` package:
+In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
+
+In ZIO 1.x, we had the `Platform` data type useful for providing custom execution configurations to the runtime:
+- `Platform#withExecutor`— To provide a custom `Executor`
+- `Platform#withTracing` to config tracing functionality
+- `Platform#withSupervisor` to provide a `Supervisor`
+- `Platform#withScheduler` to provide a `Scheduler`
+- etc.
+
+Here is an example of creating a custom `Runtime` in ZIO 1.x:
+
+```scala
+import zio._
+import zio.internal.Executor
+
+object MainApp extends zio.App {
+  val customExecutor: Executor = ???
+
+  val myApp: UIO[Unit] =
+    ZIO.debug("Application started")
+
+  def run(args: List[String]): URIO[ZEnv, ExitCode] =
+    ZIO
+      .runtime[ZEnv]
+      .map { runtime =>
+        runtime
+          .mapPlatform(_.withExecutor(customExecutor))
+          .unsafeRun(myApp)
+      }
+      .exitCode
+}
+```
+
+In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of-the-box layers for runtime customization, defined in the companion object of the `Runtime` trait. Here are some of them:
+- `Runtime.addLogger` to add a logger
+- `Runtime.setExecutor` to provide a custom `Executor`
+- `Runtime.logRuntime` to log runtime information
+- `Runtime.trackRuntimeMetrics` to track runtime metrics
+- etc.
+
+Let's see how a previous example can be rewritten in ZIO 2.x:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val customExecutor: zio.Executor = ???
+
+  val myApp = 
+    ZIO.debug("Application started")
+
+  def run =
+    myApp.provide(
+      Runtime.setExecutor(customExecutor)
+    )
+}
+```
+
+Note that ZIO ecosystem libraries like ZMX may have their own layers that install all necessary functionality.
+
+### Runtime Customization Using ZIO Data Type
+
+To access information about the configuration of our ZIO program as we are running, there are some more specific operators that we can use, such as:
+- `ZIO.executor`/`ZIO.executorWith`
+- `ZIO.logger`/`ZIO.loggerWith`
+- `ZIO.isFatal`/`ZIO.isFatalWith`
+
+### Runtime Configurations are Scoped
+
+When we access a `Runtime` using `ZIO.runtime` it will inherit all the configuration of the current workflow so if we use it to run effects they will be run with the same logger and so on:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val workflow1 = ZIO.debug("workflow1 is running") *> ZIO.log("This line will never get logged")
+  val workflow2 = ZIO.debug("workflow2 is running") *> ZIO.log("This line will get logged")
+  val workflow3 = ZIO.debug("workflow3 is running") *> ZIO.log("This line will never get logged")
+
+  def run =
+    ZIO.provideLayer(Runtime.removeDefaultLoggers) {
+      ZIO.runtime[Any].flatMap(_.run(workflow1)) *>
+        ZIO.provideLayer(Runtime.addLogger(Runtime.defaultLoggers.head)) {
+          ZIO.runtime[Any].flatMap(_.run(workflow2))
+        } *> workflow3
+    }
+}
+```
+
+### Custom Runtime for Mixed Applications
+
+In ZIO 2.x, to create a custom runtime in mixed applications we combine all the layers that do our customization and then perform the `Runtime.unsafeFromLayer` operation:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp {
+  val sl4jlogger: ZLogger[String, Any] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def zioApplication(): Int =
+    Runtime
+      .unsafeFromLayer(
+        Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+      )
+      .unsafeRun(zioWorkflow)
+
+  def main(args: Array[String]): Unit = {
+    val result = zioApplication()
+    legacyApplication(result)
+  }
+
+}
+```
+
+### Executor
+
+We moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
 |-------------------------|----------------|
@@ -822,7 +942,7 @@ trait UserRepo {}
 
 trait DocRepo {}
 
-case class LoggerImpl(console: Console) extends Logging {}
+case class LoggerImpl() extends Logging {}
 
 case class DatabaseImp() extends Database {}
 
@@ -833,12 +953,8 @@ case class BlobStorageImpl(logging: Logging) extends BlobStorage {}
 case class DocRepoImpl(logging: Logging, database: Database, blobStorage: BlobStorage) extends DocRepo {}
 
 object Logging {
-  val live: URLayer[Console, Logging] =
-    ZLayer {
-      for {
-        console <- ZIO.service[Console]
-      } yield LoggerImpl(console)
-    }
+  val live: URLayer[Any, Logging] =
+    ZLayer.succeed(LoggerImpl())
 }
 
 object Database {
@@ -880,7 +996,7 @@ object DocRepo {
 val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
 ```
 
-```scala mdoc:silent:nest
+```scala
 val appLayer: URLayer[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
@@ -912,7 +1028,6 @@ In ZIO 2.x, we can automatically construct dependencies with friendly compile-ti
 ```scala mdoc:silent:nest
 val res: ZIO[Any, Nothing, Unit] =
   myApp.provide(
-    Console.live,
     Logging.live,
     Database.live,
     BlobStorage.live,
@@ -930,8 +1045,7 @@ val res: ZIO[Any, Nothing, Unit] =
     BlobStorage.live,
     Logging.live,
     Database.live,
-    UserRepo.live,
-    Console.live
+    UserRepo.live
   )
 ```
 
@@ -944,8 +1058,7 @@ val app: ZIO[Any, Nothing, Unit] =
     BlobStorage.live,
 //    Logging.live,
     Database.live,
-    UserRepo.live,
-    Console.live
+    UserRepo.live
   )
 ```
 
@@ -963,7 +1076,6 @@ We can also directly construct a layer using `ZLayer.make`:
 
 ```scala mdoc:silent:nest
 val layer = ZLayer.make[DocRepo with UserRepo](
-  Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -975,8 +1087,7 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 And also the `ZLayer.makeSome` helps us to construct a layer which requires on some service and produces some other services (`URLayer[Int, Out]`) using `ZLayer.makeSome[In, Out]`:
 
 ```scala mdoc:silent:nest
-val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
-  Logging.live,
+val layer = ZLayer.makeSome[Logging, DocRepo with UserRepo](
   DocRepo.live,
   Database.live,
   BlobStorage.live,
@@ -986,7 +1097,7 @@ val layer = ZLayer.makeSome[Console, DocRepo with UserRepo](
 
 In ZIO 1.x, the `ZIO#provideSomeLayer` provides environment partially:
 
-```scala mdoc:silent:nest
+```scala
 val app: ZIO[Console, Nothing, Unit] =
   myApp.provideSomeLayer[Console](
     ((Logging.live ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
@@ -997,9 +1108,8 @@ val app: ZIO[Console, Nothing, Unit] =
 In ZIO 2.x, we have a similar functionality but for injection, which is the `ZIO#provideSome[Rest](l1, l2, ...)` operator:
 
 ```scala mdoc:silent:nest:warn
-val app: ZIO[Console, Nothing, Unit] =
-  myApp.provideSome[Console](
-    Logging.live,
+val app: ZIO[Any, Nothing, Unit] =
+  myApp.provideSome[Logging](
     DocRepo.live,
     Database.live,
     BlobStorage.live,
@@ -1017,7 +1127,6 @@ To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.t
 
 ```scala
 val layer = ZLayer.make[DocRepo with UserRepo](
-  Console.live,
   Logging.live,
   DocRepo.live,
   Database.live,
@@ -1032,15 +1141,12 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 [info] 
 [info] ◉ DocRepo.live
 [info] ├─◑ Logging.live
-[info] │ ╰─◑ Console.live
 [info] ├─◑ Database.live
 [info] ╰─◑ BlobStorage.live
 [info]   ╰─◑ Logging.live
-[info]     ╰─◑ Console.live
 [info] 
 [info] ◉ UserRepo.live
 [info] ├─◑ Logging.live
-[info] │ ╰─◑ Console.live
 [info] ╰─◑ Database.live
 [info] 
 [info] Mermaid Live Editor Link
@@ -1163,7 +1269,6 @@ object MainApp extends ZIOAppDefault {
 
   def run =
     myApp.provide(
-      Console.live,
       Random.live,
       ZLayer.succeed(Config("localhost", 8080)),
       LoggerLive.layer

@@ -579,7 +579,7 @@ object QueueSpec extends ZIOBaseSpec {
         v     <- queue.offerAll(List(1, 2, 3))
         size  <- queue.size
       } yield assert(size)(equalTo(2)) &&
-        assert(v)(isTrue)
+        assert(v)(isEmpty)
     },
     test("sliding strategy with enough capacity") {
       for {
@@ -596,7 +596,7 @@ object QueueSpec extends ZIOBaseSpec {
         v1    <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         l     <- queue.takeAll
       } yield assert(l)(equalTo(Chunk(5, 6))) &&
-        assert(v1)(isTrue)
+        assert(v1)(isEmpty)
     },
     test("awaitShutdown") {
       for {
@@ -644,7 +644,7 @@ object QueueSpec extends ZIOBaseSpec {
         queue    <- Queue.dropping[Int](capacity)
         v1       <- queue.offerAll(Iterable(1, 2, 3, 4, 5, 6))
         _        <- queue.takeAll
-      } yield assert(v1)(isFalse)
+      } yield assert(v1)(equalTo(Chunk(3, 4, 5, 6)))
     },
     test("dropping strategy with offerAll, check ordering") {
       for {
@@ -665,7 +665,7 @@ object QueueSpec extends ZIOBaseSpec {
         oa       <- queue.offerAll(iter.toList)
         j        <- f.join
       } yield assert(j)(equalTo(1)) &&
-        assert(oa)(isFalse)
+        assert(oa)(equalTo(Chunk(4)))
     },
     test("sliding strategy with pending taker") {
       for {
@@ -677,7 +677,7 @@ object QueueSpec extends ZIOBaseSpec {
         oa       <- queue.offerAll(iter.toList)
         t        <- queue.take
       } yield assert(t)(equalTo(3)) &&
-        assert(oa)(isTrue)
+        assert(oa)(isEmpty)
     },
     test("sliding strategy, check offerAll returns true") {
       for {
@@ -685,7 +685,7 @@ object QueueSpec extends ZIOBaseSpec {
         queue    <- Queue.sliding[Int](capacity)
         iter      = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
-      } yield assert(oa)(isTrue)
+      } yield assert(oa)(isEmpty)
     },
     test("bounded strategy, check offerAll returns true") {
       for {
@@ -693,7 +693,7 @@ object QueueSpec extends ZIOBaseSpec {
         queue    <- Queue.bounded[Int](capacity)
         iter      = Range.inclusive(1, 3)
         oa       <- queue.offerAll(iter.toList)
-      } yield assert(oa)(isTrue)
+      } yield assert(oa)(isEmpty)
     },
     test("poll on empty queue") {
       for {

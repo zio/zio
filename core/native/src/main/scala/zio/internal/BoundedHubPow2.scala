@@ -51,7 +51,7 @@ private final class BoundedHubPow2[A](requestedCapacity: Int) extends Hub[A] {
       true
     }
 
-  def publishAll(as: Iterable[A]): Chunk[A] = {
+  def publishAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
     val n         = as.size
     val size      = (publisherIndex - subscribersIndex).toInt
     val available = capacity - size
