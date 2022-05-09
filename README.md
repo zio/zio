@@ -124,6 +124,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Radix Labs](https://www.radix.bio/)
 * [Railroad19](https://www.railroad19.com)
 * [Randstad Groep Nederland](https://www.werkenbijrandstad.nl)
+* [Rapidor](https://www.rapidor.co)
 * [PIM Solutions](https://pimsolutions.ru/)
 * [REWE Digital](http://rewe-digital.com/)
 * [Risk Ident](https://riskident.com/)
