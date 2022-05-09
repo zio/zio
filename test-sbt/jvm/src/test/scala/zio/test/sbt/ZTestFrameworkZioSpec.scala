@@ -135,7 +135,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         .toArray
 
     for {
-      testC <- testConsole.debug("1 testConsole in loadAndExecutationAllZ")
+      testC <- testConsole
       tasksZ <-
         ZIO.attempt(
           new ZTestFramework()
@@ -143,7 +143,6 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             .tasksZ(tasks, testC)
         ).mapError(error => ::(error, Nil))
       _ <- ZIO.validate(tasksZ.toList){ t => t.run(FrameworkSpecInstances.dummyHandler)}
-      _ <- testConsole.debug("2 testConsole in loadAndExecutationAllZ")
     } yield ()
 
 

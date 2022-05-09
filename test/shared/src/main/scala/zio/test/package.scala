@@ -20,6 +20,8 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
+import zio.test.Spec.LabeledCase
+
 import scala.language.implicitConversions
 
 /**
@@ -585,13 +587,20 @@ package object test extends CompileVariants {
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: Trace
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
-    Spec.labeled(
-      label,
-      if (specs.isEmpty) Spec.empty
-//      else if (specs.length == 1) suiteConstructor(specs.head)
-      else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
-    )
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] = {
+      Spec.labeled(
+        label,
+        if (specs.isEmpty) Spec.empty
+        else if (specs.length == 1) {
+          specs.head match {
+            case Spec(LabeledCase(_, _)) =>
+              Spec.multiple(Chunk(suiteConstructor(specs.head)))
+            case _ => suiteConstructor(specs.head)
+          }
+        }
+        else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+      )
+  }
 
   /**
    * Builds a spec with a single test.
