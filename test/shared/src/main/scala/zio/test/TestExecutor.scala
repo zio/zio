@@ -73,6 +73,7 @@ object TestExecutor {
                         .flatMap(loop(labels, _, exec, ancestors, sectionId))
                     )
                     .catchAllCause { e =>
+                      println("Handling a scoped runtime failure.")
                       val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                       summary.update(
@@ -119,7 +120,9 @@ object TestExecutor {
                     _ <- summary.update(_.add(event)) *> sink.process(event) *> eventHandlerZ.handle(event)
                   } yield ()).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
-                    ConsoleRenderer.render(e, labels).foreach(println)
+                    println("Handling a runtime failure.")
+                    ZIO.foreach(ConsoleRenderer.render(e, labels))(ZIO.debug(_)) *>
+//                    ConsoleRenderer.render(e, labels).foreach(println)
                     summary.update(_.add(event)) *> sink.process(event)
                   }
               }

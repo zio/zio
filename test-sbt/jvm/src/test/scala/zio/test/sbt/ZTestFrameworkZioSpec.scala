@@ -2,22 +2,22 @@ package zio.test.sbt
 
 import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
-import zio.test.{ExecutionEventSink, Summary, TestAspect, ZIOSpecAbstract, ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
+import zio.test.{ExecutionEventSink, Summary, TestAspect, TestConsole, ZIOSpecAbstract, ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionDuringLayerConstructionSpec, RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
+import zio.test.sbt.FrameworkSpecInstances._
 import zio.test.sbt.TestingSupport.{green, red}
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
-      for {
+      (for {
         _      <- loadAndExecuteAll(Seq(SimpleSpec))
         output <- testOutput
       } yield assertTrue(
         output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
       ) && assertTrue(output.length == 3)
-    ),
+    )),
     test("displays timeouts")(
       for {
         _      <- loadAndExecuteAll(Seq(TimeOutSpec)).flip
@@ -26,7 +26,9 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays runtime exceptions helpfully")(
       for {
-        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec)).flip
+        _ <- ZIO.debug("Gonna execute some scary tests")
+        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec))
+        _ <- ZIO.debug("supposedly executed some scary tests")
         output <- testOutput
       } yield assertTrue(
         output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
@@ -112,7 +114,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   private val testOutput =
     for {
-      console <- testConsole
+      console <- testConsole.debug("testOutput retrieved in zioSpec")
       output  <- console.output
     } yield output
 
@@ -126,14 +128,12 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
 
-    ZIO.attempt(
       new ZTestFramework()
         .runner(testArgs, Array(), getClass.getClassLoader)
         .tasksZ(tasks)
         .map(_.run(FrameworkSpecInstances.dummyHandler))
         .headOption
         .getOrElse(ZIO.unit)
-      )
   }
 
   private def loadAndExecuteAllZ[T <: ZIOSpecAbstract](

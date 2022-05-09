@@ -1,15 +1,13 @@
 package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler, Logger, Status, Task, TaskDef}
-import zio.{CancelableFuture, Console, Runtime, Scope, Trace, UIO, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{CancelableFuture, Console, Runtime, Scope, UIO, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, Trace}
 import zio.test.render.ConsoleRenderer
 import zio.test._
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
-import java.nio.file.StandardOpenOption
 
 abstract class BaseTestTask[T](
   val taskDef: TaskDef,
@@ -35,7 +33,7 @@ abstract class BaseTestTask[T](
     ZIO.consoleWith { console =>
       (for {
         summary <- spec
-                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime, eventHandlerZ)
+                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime, eventHandlerZ).debug("infallible")
         _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
       } yield ())
         .provideLayer(
@@ -46,19 +44,6 @@ abstract class BaseTestTask[T](
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     implicit val trace = Trace.empty
 
-    println("TaskDef: " + taskDef)
-    import java.nio.file.{Paths, Files}
-    import java.nio.charset.StandardCharsets
-    import java.io.File
-
-    val htmlDir = Paths.get(s"target/test-reports-html")
-    htmlDir.toFile.mkdirs()
-    val html = htmlDir.resolve(s"${taskDef.fullyQualifiedName()}.html")
-    if (!Files.exists(htmlDir)) {
-      html.toFile.createNewFile()
-    }
-
-    Files.write(html, "<html>".getBytes(StandardCharsets.UTF_8))
     val zTestHandler                      = new ZTestEventHandlerSbt(eventHandler, taskDef)
     var resOutter: CancelableFuture[Unit] = null
     try {
@@ -69,7 +54,6 @@ abstract class BaseTestTask[T](
 
       resOutter = res
       Await.result(res, Duration.Inf)
-      Files.write(html, "</html>".getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
       Array()
     } catch {
       case t: Throwable =>

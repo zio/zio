@@ -159,8 +159,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       environment1: ZEnvironment[ZIOAppArgs with Scope] = castedRuntime.environment
       sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
         ZLayer.succeedEnvironment(castedRuntime.environment)
-      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
-                       .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
+      perTestLayer: ZLayer[Any, Nothing, TestEnvironment with Scope with ZIOAppArgs] =
+        (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (
+          TestEnvironment.live ++ ZLayer .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
       executionEventSinkLayer = sharedLayer
       runner =
         TestRunner(

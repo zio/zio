@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 object FrameworkSpecInstances {
 
   val dummyHandler: ZTestEventHandler = new ZTestEventHandler {
-    override def handle(event: ExecutionEvent.Test[_]): UIO[Unit] = ZIO.unit
+    override def handle(event: ExecutionEvent.Test[_]): UIO[Unit] = ZIO.debug("Invoking dummy handler")
   }
 
   val counter = new AtomicInteger(0)
@@ -21,7 +21,7 @@ object FrameworkSpecInstances {
 
   def numberedTest(specIdx: Int, suiteIdx: Int, testIdx: Int) =
     zio.test.test(s"spec $specIdx suite $suiteIdx test $testIdx") {
-      assertCompletes
+      zio.Console.printLine("hi!").map(_ => assertCompletes)
     }
 
   object SimpleSpec extends zio.test.ZIOSpec[Int] {
@@ -45,14 +45,20 @@ object FrameworkSpecInstances {
       ) @@ TestAspect.withLiveClock @@ TestAspect.timeout(1.second)
   }
 
-  object RuntimeExceptionSpec extends zio.test.ZIOSpec[Int] {
-    override def bootstrap = ZLayer.succeed(1)
+  object RuntimeExceptionSpec extends zio.test.ZIOSpecDefault {
+    println("?!?!?")
 
     def spec =
-      suite("explording suite")(
+      suite("exploding suite")(
         test("boom") {
-          if (true) throw new RuntimeException("Good luck ;)")
+          println("!!!")
           assertCompletes
+//          for {
+//           _ <- ZIO.debug("gonna blow")
+//            _ <- ZIO.succeed(
+//              if (true) throw new RuntimeException("Good luck ;)") else ()
+//            )
+//          } yield assertCompletes
         }
       )
   }
