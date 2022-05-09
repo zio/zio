@@ -147,13 +147,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
                   if (stack ne null) {
                     while ((cur eq null) && stackIndex < stack.length) {
                       stack(stackIndex) match {
-                        case successCont: SuccessCont =>
-                          cur = successCont.onSuccess(value)
-
-                        case changeInterruptibility: ChangeInterruptibility =>
-                          interruptible = changeInterruptibility.interruptible
-
-                        case _: FailureCont => ()
+                        case k: SuccessCont            => cur = k.onSuccess(value)
+                        case k: ChangeInterruptibility => interruptible = k.interruptible
+                        case _: FailureCont            => ()
                       }
 
                       stackIndex += 1
@@ -172,13 +168,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     if (stack ne null) {
                       while ((cur eq null) && stackIndex < stack.length) {
                         stack(stackIndex) match {
-                          case successCont: SuccessCont =>
-                            cur = successCont.onSuccess(value)
-
-                          case changeInterruptibility: ChangeInterruptibility =>
-                            interruptible = changeInterruptibility.interruptible
-
-                          case _: FailureCont => ()
+                          case k: SuccessCont            => cur = k.onSuccess(value)
+                          case k: ChangeInterruptibility => interruptible = k.interruptible
+                          case _: FailureCont            => ()
                         }
 
                         stackIndex += 1
@@ -213,13 +205,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
                 if (stack ne null) {
                   while ((cur eq null) && stackIndex < stack.length) {
                     stack(stackIndex) match {
-                      case _: SuccessCont => ()
-
-                      case changeInterruptibility: ChangeInterruptibility =>
-                        interruptible = changeInterruptibility.interruptible
-
-                      case failureCont: FailureCont =>
-                        cur = failureCont.onFailure(raisingError.tracedCause(fiberId))
+                      case _: SuccessCont            => ()
+                      case k: ChangeInterruptibility => interruptible = k.interruptible
+                      case k: FailureCont            => cur = k.onFailure(raisingError.tracedCause(fiberId))
                     }
 
                     stackIndex += 1
