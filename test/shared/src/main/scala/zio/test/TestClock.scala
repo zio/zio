@@ -239,6 +239,9 @@ object TestClock extends Serializable {
     override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
       unit.convert(clockState.unsafeGet.duration.toMillis, TimeUnit.MILLISECONDS)
 
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+      unit.between(Instant.EPOCH, clockState.unsafeGet.duration.addTo(Instant.EPOCH))
+
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime = {
       val data = clockState.unsafeGet
       toDateTime(data.duration, data.timeZone)
