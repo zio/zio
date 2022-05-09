@@ -74,26 +74,22 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             // s"""${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
           ).mkString("\n")
       } yield assertTrue(output.mkString("").contains(expected))
-    ),
+    ) @@ TestAspect.ignore,
     test("only executes selected test") {
       for {
         _ <- loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec,
                testArgs = Array("-t", "passing test")
              )
         output <- testOutput
-        testTime =
-          extractTestRunDuration(output)
-
         expected =
           List(
-            s"${green("+")} some suite",
-            s"    ${green("+")} passing test",
-            s"""${ConsoleRenderer.render(Summary(1, 0, 0, "", testTime))}"""
-          ).mkString("\n")
+            s"${green("+")} some suite\n",
+            s"    ${green("+")} passing test\n",
+          )
 
-      } yield assertTrue(output.mkString("").contains(expected)) && assertTrue(output.length == 3)
+      } yield assertTrue(output.equals(expected))
     }
-  ) // TODO restore once the transition to flat specs is complete
+  )
 
   private val durationPattern = "Executed in (\\d+) (.*)".r
   private def extractTestRunDuration(output: Vector[String]): zio.Duration = {
