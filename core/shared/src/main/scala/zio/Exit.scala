@@ -209,6 +209,12 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
     case Failure(cause) => Left(FiberFailure(cause))
   }
 
+  final def toTry(implicit ev: E <:< Throwable): scala.util.Try[A] =
+    self match {
+      case Success(value) => scala.util.Try(value)
+      case Failure(cause) => scala.util.Failure(cause.squash)
+    }
+
   /**
    * Converts the `Exit` to a `ZIO` effect.
    */

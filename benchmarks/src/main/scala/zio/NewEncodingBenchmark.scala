@@ -192,70 +192,84 @@ package capture {
 
         if (depth > 1000) {
           throw Trampoline(effect, ChunkBuilder.make())
-        }
-
-        while (done == null) {
-          cur match {
-            case flatMap @ FlatMap(first, andThen) =>
+        } else {
+          try {
+            while (done == null) {
               try {
-                cur = flatMap.erase.onSuccess(loop(first, depth + 1, null))
-              } catch {
-                case reifyStack: ReifyStack =>
-                  reifyStack.stack += flatMap.erase
+                cur match {
+                  case flatMap @ FlatMap(first, andThen) =>
+                    try {
+                      cur = flatMap.erase.onSuccess(loop(first, depth + 1, null))
+                    } catch {
+                      case reifyStack: ReifyStack =>
+                        reifyStack.stack += flatMap.erase
 
-                  if ((stack ne null) && stackIndex <= stack.length) {
-                    reifyStack.stack ++= stack.drop(stackIndex)
+                        throw reifyStack
+                    }
+
+                  case Async(registerCallback) => throw AsyncJump(registerCallback, ChunkBuilder.make())
+
+                  case Succeed(thunk) =>
+                    val value = thunk()
+
+                    if ((stack ne null) && stackIndex < stack.length) {
+                      cur = stack(stackIndex).onSuccess(value)
+
+                      stackIndex += 1
+                    } else {
+                      done = value.asInstanceOf[A]
+                    }
+
+                  case rescue @ Rescue(first, rescuer) =>
+                    try {
+                      val value = loop(first, depth + 1, null)
+
+                      if ((stack ne null) && stackIndex < stack.length) {
+                        cur = stack(stackIndex).onSuccess(value)
+
+                        stackIndex += 1
+                      } else {
+                        done = value.asInstanceOf[A]
+                      }
+                    } catch {
+                      case ErrorWrapper(throwable, stack) =>
+                        val _ = stack // TODO: Use stack to attach trace to throwable
+
+                        cur = rescuer(throwable)
+
+                      case reifyStack: ReifyStack =>
+                        reifyStack.stack += rescue.erase
+
+                        throw reifyStack
+                    }
+                }
+              } catch {
+                case error @ ErrorWrapper(throwable, _) =>
+                  // TODO: attach trace to throwable
+                  cur = null
+
+                  if (stack ne null) {
+                    while (stackIndex < stack.length) {
+                      stack(stackIndex) match {
+                        case failure: FailureCont[_, _] =>
+                          cur = failure.onFailure(throwable)
+
+                        case _: FlatMap[_, _] => ()
+                      }
+                      stackIndex += 1
+                    }
                   }
 
-                  throw reifyStack
+                  if (cur eq null) throw error
               }
-
-            case Async(registerCallback) =>
-              val reifyStack = AsyncJump(registerCallback, ChunkBuilder.make())
-
+            }
+          } catch {
+            case reifyStack: ReifyStack =>
               if ((stack ne null) && stackIndex <= stack.length) {
                 reifyStack.stack ++= stack.drop(stackIndex)
               }
 
               throw reifyStack
-
-            case Succeed(thunk) =>
-              val value = thunk()
-
-              if ((stack ne null) && stackIndex < stack.length) {
-                cur = stack(stackIndex).onSuccess(value)
-
-                stackIndex += 1
-              } else {
-                done = value.asInstanceOf[A]
-              }
-
-            case rescue @ Rescue(first, rescuer) =>
-              try {
-                val value = loop(first, depth + 1, null)
-
-                if ((stack ne null) && stackIndex < stack.length) {
-                  cur = stack(stackIndex).onSuccess(value)
-
-                  stackIndex += 1
-                } else {
-                  done = value.asInstanceOf[A]
-                }
-              } catch {
-                case ErrorWrapper(throwable, stack) =>
-                  val _ = stack // TODO: Use stack to attach trace to throwable
-
-                  cur = rescuer(throwable)
-
-                case reifyStack: ReifyStack =>
-                  reifyStack.stack += rescue.erase
-
-                  if ((stack ne null) && stackIndex <= stack.length) {
-                    reifyStack.stack ++= stack.drop(stackIndex)
-                  }
-
-                  throw reifyStack
-              }
           }
         }
 
