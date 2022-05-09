@@ -11,14 +11,17 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
-      (for {
-        _ <- testConsole.debug("Console at beginning of test")
+      for {
         _      <- loadAndExecute(SimpleSpec)
         output <- testOutput
       } yield assertTrue(
-        output.mkString("").contains("suite and test name")
+        output.mkString("").contains(
+          s"""${green("+")} simple suite
+             |    ${green("+")} spec 1 suite 1 test 1
+             |""".stripMargin
+        )
       )
-    )),
+    ),
     test("displays timeouts")(
       for {
         _      <- loadAndExecute(TimeOutSpec).flip
@@ -114,7 +117,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   private val testOutput =
     for {
-      console <- testConsole.debug("testOutput retrieved in framework zioSpec")
+      console <- testConsole
       output  <- console.output
     } yield output
 

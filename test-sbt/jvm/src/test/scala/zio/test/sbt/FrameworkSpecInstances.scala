@@ -1,6 +1,5 @@
 package zio.test.sbt
 
-import sbt.testing.{Event, EventHandler}
 import zio.{UIO, ZIO, ZLayer, durationInt}
 import zio.test.{Annotations, Assertion, ExecutionEvent, Spec, TestAspect, TestFailure, ZIOSpecDefault, ZTestEventHandler, assertCompletes}
 
@@ -10,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
 object FrameworkSpecInstances {
 
   val dummyHandler: ZTestEventHandler = new ZTestEventHandler {
-    override def handle(event: ExecutionEvent.Test[_]): UIO[Unit] = ZIO.debug("Invoking dummy handler")
+    override def handle(event: ExecutionEvent.Test[_]): UIO[Unit] = ZIO.unit
   }
 
   val counter = new AtomicInteger(0)
@@ -21,7 +20,7 @@ object FrameworkSpecInstances {
 
   def numberedTest(specIdx: Int, suiteIdx: Int, testIdx: Int) =
     zio.test.test(s"spec $specIdx suite $suiteIdx test $testIdx") {
-      zio.Console.printLine("hi!").map(_ => assertCompletes)
+      assertCompletes
     }
 
   object SimpleSpec extends zio.test.ZIOSpec[Int] {
