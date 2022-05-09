@@ -32,190 +32,220 @@ object NewEncodingSpec extends ZIOBaseSpec {
     implicit class EffectThrowableSyntax[A](self: Effect[Throwable, A]) {
       def unsafeRun(): A = Effect.eval(self)
     }
-    sealed trait Continuation[-A, +E, +B] { self =>
+    sealed trait Continuation { self =>
       def trace: ZTraceElement
-
-      def onSuccess(a: A): Effect[E, B]
-
-      def erase: Continuation[Any, Any, Any] = self.asInstanceOf[Continuation[Any, Any, Any]]
     }
-    sealed trait FailureCont[-A, -E1, +E2, +B] extends Continuation[A, E2, B] { self =>
-      def onFailure(t: Cause[E1]): Effect[E2, B]
-
-      override def erase: FailureCont[Any, Any, Any, Any] = self.asInstanceOf[FailureCont[Any, Any, Any, Any]]
+    sealed trait SuccessCont extends Continuation { self =>
+      def onSuccess(a: Any): Effect[Any, Any]
     }
-    sealed trait ChangeInterruptibility extends Continuation[Any, Any, Any] {
+    sealed trait FailureCont extends Continuation { self =>
+      def onFailure(t: Cause[Any]): Effect[Any, Any]
+    }
+    sealed trait ChangeInterruptibility extends Continuation {
       final def trace = ZTraceElement.empty
 
       def interruptible: Boolean
     }
     object ChangeInterruptibility {
       def apply(b: Boolean): ChangeInterruptibility = if (b) MakeInterruptible else MakeUninterruptible
-    }
-    case object MakeInterruptible extends ChangeInterruptibility {
-      def onSuccess(a: Any): Effect[Any, Any] = Effect.succeed(a)
 
-      def interruptible: Boolean = true
-    }
-    case object MakeUninterruptible extends ChangeInterruptibility {
-      def onSuccess(a: Any): Effect[Any, Any] = Effect.succeed(a)
+      case object MakeInterruptible extends ChangeInterruptibility {
+        def onSuccess(a: Any): Effect[Any, Any] = Effect.succeed(a)
 
-      def interruptible: Boolean = false
+        def interruptible: Boolean = true
+      }
+      case object MakeUninterruptible extends ChangeInterruptibility {
+        def onSuccess(a: Any): Effect[Any, Any] = Effect.succeed(a)
+
+        def interruptible: Boolean = false
+      }
     }
 
     final case class Sync[A](eval: () => A)                                        extends Effect[Nothing, A]
     final case class Async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit) extends Effect[E, A]
     final case class OnSuccess[A, E, B](trace: ZTraceElement, first: Effect[E, A], andThen: A => Effect[E, B])
         extends Effect[E, B]
-        with Continuation[A, E, B] {
-      def onSuccess(a: A): Effect[E, B] = andThen(a)
+        with SuccessCont {
+      def onSuccess(a: Any): Effect[Any, Any] = andThen(a.asInstanceOf[A])
     }
     final case class OnFailure[E1, E2, A](
       trace: ZTraceElement,
       first: Effect[E1, A],
       rescuer: Cause[E1] => Effect[E2, A]
     ) extends Effect[E2, A]
-        with FailureCont[A, E1, E2, A] {
-      def onSuccess(a: A): Effect[Nothing, A] = Effect.succeed(a)
-
-      def onFailure(t: Cause[E1]): Effect[E2, A] = rescuer(t)
+        with FailureCont {
+      def onFailure(c: Cause[Any]): Effect[Any, Any] = rescuer(c.asInstanceOf[Cause[E1]])
     }
     final case class ChangeInterruptionWithin[E, A](newInterruptible: Boolean, scope: Boolean => Effect[E, A])
         extends Effect[E, A]
 
     case object AsyncReturn
 
-    type Erased  = Effect[Any, Any]
-    type ErasedK = Continuation[Any, Any, Any]
+    type Erased = Effect[Any, Any]
 
     sealed abstract class ReifyStack extends Exception with NoStackTrace {
-      def stack: ChunkBuilder[ErasedK]
+      def stack: ChunkBuilder[Continuation]
 
-      final def addAndThrow(k: ErasedK): Nothing = {
+      final def addAndThrow(k: Continuation): Nothing = {
         stack += (k)
         throw this
       }
+
+      final def toStackTrace(fiberId: FiberId): ZTrace =
+        ZTrace(
+          fiberId,
+          stack.result().collect {
+            case k if k.trace != ZTraceElement.empty => k.trace
+          }
+        )
     }
 
-    final case class AsyncJump(registerCallback: (Effect[Any, Any] => Unit) => Unit, stack: ChunkBuilder[ErasedK])
+    final case class AsyncJump(registerCallback: (Effect[Any, Any] => Unit) => Unit, stack: ChunkBuilder[Continuation])
         extends ReifyStack
 
-    final case class Trampoline(effect: Effect[Any, Any], stack: ChunkBuilder[ErasedK]) extends ReifyStack
+    final case class Trampoline(effect: Effect[Any, Any], stack: ChunkBuilder[Continuation]) extends ReifyStack
 
-    final case class ErrorWrapper(cause: Cause[Any], stack: ChunkBuilder[ErasedK]) extends ReifyStack
+    final case class RaisingError(cause: Cause[Any], stack: ChunkBuilder[Continuation]) extends ReifyStack {
+      def tracedCause(fiberId: FiberId): Cause[Any] = cause.traced(toStackTrace(fiberId))
+    }
 
     def succeed[A](a: => A): Effect[Nothing, A] = Sync(() => a)
 
     def fail[E](e: => E): Effect[E, Nothing] = failCause(Cause.fail(e))
 
-    def failCause[E](c: => Cause[E]): Effect[E, Nothing] = succeed(throw ErrorWrapper(c, ChunkBuilder.make()))
+    def failCause[E](c: => Cause[E]): Effect[E, Nothing] = succeed(throw RaisingError(c, ChunkBuilder.make()))
 
     def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit): Effect[E, A] = Async(registerCallback)
 
     def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit): Exit[E, A] = {
-      def loop[A](effect: Effect[Any, Any], depth: Int, stack: Chunk[ErasedK], initialInterruptible: Boolean): A = {
-        var cur: Erased   = effect
-        var done: A       = null.asInstanceOf[A]
+      val fiberId = FiberId.None // TODO: FiberId
+
+      def loop[A](effect: Effect[Any, Any], depth: Int, stack: Chunk[Continuation], interruptible0: Boolean): A = {
+        var cur           = effect
+        var done          = null.asInstanceOf[A with AnyRef]
         var stackIndex    = 0
-        var interruptible = initialInterruptible
+        var interruptible = interruptible0
 
-        if (depth > 1000) {
-          throw Trampoline(effect, ChunkBuilder.make())
-        } else {
-          try {
-            while (done == null) {
-              try {
-                cur match {
-                  case flatMap @ OnSuccess(_, first, andThen) =>
-                    try {
-                      cur = flatMap.erase.onSuccess(loop(first, depth + 1, null, interruptible))
-                    } catch {
-                      case reifyStack: ReifyStack => reifyStack.addAndThrow(flatMap.erase)
-                    }
+        if (depth > 1000) throw Trampoline(effect, ChunkBuilder.make())
 
-                  case Async(registerCallback) => throw AsyncJump(registerCallback, ChunkBuilder.make())
+        try {
+          while (done eq null) {
+            try {
+              cur match {
+                case effect @ OnSuccess(_, _, _) =>
+                  try {
+                    cur = effect.onSuccess(loop(effect.first, depth + 1, null, interruptible))
+                  } catch {
+                    case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
+                  }
 
-                  case Sync(thunk) =>
-                    val value = thunk()
+                case effect @ Sync(_) =>
+                  val value = effect.eval()
 
-                    if ((stack ne null) && stackIndex < stack.length) {
-                      cur = stack(stackIndex).onSuccess(value)
-
-                      stackIndex += 1
-                    } else {
-                      done = value.asInstanceOf[A]
-                    }
-
-                  case rescue @ OnFailure(_, first, rescuer) =>
-                    try {
-                      val value = loop(first, depth + 1, null, interruptible)
-
-                      if ((stack ne null) && stackIndex < stack.length) {
-                        cur = stack(stackIndex).onSuccess(value)
-
-                        stackIndex += 1
-                      } else {
-                        done = value.asInstanceOf[A]
-                      }
-                    } catch {
-                      case ErrorWrapper(cause, stack) =>
-                        val _ = stack // TODO: Use stack to attach trace to throwable
-
-                        cur = rescuer(cause)
-
-                      case reifyStack: ReifyStack => reifyStack.addAndThrow(rescue.erase)
-                    }
-
-                  case ChangeInterruptionWithin(newInterruptible, scope) =>
-                    val oldInterruptible = interruptible
-
-                    interruptible = newInterruptible
-
-                    try {
-                      loop(scope(oldInterruptible), depth + 1, null, interruptible)
-
-                      interruptible = oldInterruptible
-                    } catch {
-                      case reifyStack: ReifyStack => reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
-                    }
-                }
-              } catch {
-                case error @ ErrorWrapper(cause, _) =>
-                  // TODO: attach trace to throwable
                   cur = null
 
                   if (stack ne null) {
                     while ((cur eq null) && stackIndex < stack.length) {
                       stack(stackIndex) match {
-                        case failure: FailureCont[_, _, _, _] =>
-                          cur = failure.erase.onFailure(cause)
+                        case successCont: SuccessCont =>
+                          cur = successCont.onSuccess(value)
 
-                        case _: OnSuccess[_, _, _] => ()
+                        case changeInterruptibility: ChangeInterruptibility =>
+                          interruptible = changeInterruptibility.interruptible
 
-                        case change: ChangeInterruptibility =>
-                          interruptible = change.interruptible
+                        case _: FailureCont => ()
                       }
+
                       stackIndex += 1
                     }
                   }
 
-                  if (cur eq null) throw error
-              }
-            }
-          } catch {
-            case reifyStack: ReifyStack =>
-              if ((stack ne null) && stackIndex <= stack.length) {
-                reifyStack.stack ++= stack.drop(stackIndex)
-              }
+                  if (cur eq null) done = value.asInstanceOf[A with AnyRef]
 
-              throw reifyStack
+                case effect @ Async(registerCallback) =>
+                  throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
+
+                case effect @ OnFailure(_, _, _) =>
+                  try {
+                    val value = loop(effect.first, depth + 1, null, interruptible)
+
+                    if (stack ne null) {
+                      while ((cur eq null) && stackIndex < stack.length) {
+                        stack(stackIndex) match {
+                          case successCont: SuccessCont =>
+                            cur = successCont.onSuccess(value)
+
+                          case changeInterruptibility: ChangeInterruptibility =>
+                            interruptible = changeInterruptibility.interruptible
+
+                          case _: FailureCont => ()
+                        }
+
+                        stackIndex += 1
+                      }
+                    }
+
+                    if (cur eq null) done = value.asInstanceOf[A with AnyRef]
+                  } catch {
+                    case raisingError @ RaisingError(_, _) =>
+                      cur = effect.rescuer(raisingError.tracedCause(fiberId))
+
+                    case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
+                  }
+
+                case effect @ ChangeInterruptionWithin(_, _) =>
+                  val oldInterruptible = interruptible
+
+                  interruptible = effect.newInterruptible
+
+                  try {
+                    loop(effect.scope(oldInterruptible), depth + 1, null, interruptible)
+
+                    interruptible = oldInterruptible
+                  } catch {
+                    case reifyStack: ReifyStack => reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
+                  }
+              }
+            } catch {
+              case raisingError @ RaisingError(_, _) =>
+                cur = null
+
+                if (stack ne null) {
+                  while ((cur eq null) && stackIndex < stack.length) {
+                    stack(stackIndex) match {
+                      case _: SuccessCont => ()
+
+                      case changeInterruptibility: ChangeInterruptibility =>
+                        interruptible = changeInterruptibility.interruptible
+
+                      case failureCont: FailureCont =>
+                        cur = failureCont.onFailure(raisingError.tracedCause(fiberId))
+                    }
+
+                    stackIndex += 1
+                  }
+                }
+
+                if (cur eq null) throw raisingError
+            }
           }
+        } catch {
+          case reifyStack: ReifyStack =>
+            if ((stack ne null) && stackIndex <= stack.length) {
+              reifyStack.stack ++= stack.drop(stackIndex)
+            }
+
+            throw reifyStack
         }
 
         done
       }
 
-      def resumeOuterLoop[E, A](effect: Effect[Any, Any], stack: Chunk[ErasedK], onDone: Exit[E, A] => Unit): Unit =
+      def resumeOuterLoop[E, A](
+        effect: Effect[Any, Any],
+        stack: Chunk[Continuation],
+        onDone: Exit[E, A] => Unit
+      ): Unit =
         scala.concurrent.ExecutionContext.global.execute { () =>
           outerLoop[E, A](effect, stack, onDone, true) // TODO: Interruptibility
           ()
@@ -224,7 +254,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
       @tailrec
       def outerLoop[E, A](
         effect: Effect[Any, Any],
-        stack: Chunk[ErasedK],
+        stack: Chunk[Continuation],
         onDone: Exit[E, A] => Unit,
         interruptible: Boolean
       ): Exit[E, A] =
@@ -244,8 +274,8 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
             null
 
-          case e: ErrorWrapper =>
-            val exit = Exit.failCause(e.cause.asInstanceOf[Cause[E]]) // TODO: attach e.stack
+          case raisingError: RaisingError =>
+            val exit = Exit.failCause(raisingError.tracedCause(fiberId).asInstanceOf[Cause[E]])
 
             onDone(exit)
 
