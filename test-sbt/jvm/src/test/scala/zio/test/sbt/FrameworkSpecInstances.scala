@@ -43,6 +43,17 @@ object FrameworkSpecInstances {
     }
   }
 
+  object CombinedWithCommasSpec extends ZIOSpecDefault {
+    override def spec = suite("spec A")(
+      test("successful test") {
+        assertTrue(true)
+      },
+        test("failing test") {
+          assertTrue(false)
+        } @@ TestAspect.ignore
+    )
+  }
+
   object TimeOutSpec extends zio.test.ZIOSpecDefault {
 
     def spec =

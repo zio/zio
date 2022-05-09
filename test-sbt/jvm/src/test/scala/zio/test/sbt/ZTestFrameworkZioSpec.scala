@@ -26,9 +26,31 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       for {
         _      <- loadAndExecute(CombinedWithPlusSpec)
         output <- testOutput
-        _ <- ZIO.debug("================\n" + output.mkString("") + "\n================")
       } yield assertTrue(output.length == 3) && (
-        // TODO Look for more generic way of asserting on these lines that can be shuffled
+        // Look for more generic way of asserting on these lines that can be shuffled
+        assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${green("+")} successful test\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n",
+            )
+        ) || assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n",
+              s"    ${green("+")} successful test\n",
+            )
+        )
+        )
+    ),
+    test("renders suite names 1 time in commas-combined specs")(
+      for {
+        _      <- loadAndExecute(CombinedWithCommasSpec)
+        output <- testOutput
+      } yield assertTrue(output.length == 3) && (
+        // Look for more generic way of asserting on these lines that can be shuffled
         assertTrue(
           output ==
             Vector(
@@ -54,9 +76,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
     ),
     test("displays runtime exceptions helpfully")(
       for {
-        _ <- ZIO.debug("Gonna execute some scary tests")
         _      <- loadAndExecute(RuntimeExceptionSpec)
-        _ <- ZIO.debug("supposedly executed some scary tests")
         output <- testOutput
       } yield assertTrue(
         output.mkString("").contains("Good luck ;)")
@@ -74,14 +94,6 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
                Seq(FrameworkSpecInstances.Spec1UsingSharedLayer, FrameworkSpecInstances.Spec2UsingSharedLayer)
              )
       } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
-    ),
-    suite("warn when no tests are executed")(
-      test("TODO")(
-        for {
-          _ <- loadAndExecuteAllZ(Seq())
-          _ <- testOutput.debug("no tests")
-        } yield assertCompletes
-      )
     ),
     test("displays multi-colored lines")(
       for {
