@@ -62,7 +62,7 @@ package object test extends CompileVariants {
         Sized.live(100) ++
         ((Live.default ++ Annotations.live) >>> TestClock.default) ++
         TestConfig.live(100, 100, 200, 1000) ++
-        (Live.default >>> TestConsole.debug /*.debug("TestConsole in package.TestEnvironment") */ ) ++
+        (Live.default >>> TestConsole.debug) ++
         TestRandom.deterministic ++
         TestSystem.default
 
@@ -553,7 +553,7 @@ package object test extends CompileVariants {
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer(Console.ConsoleLive), // TODO COnfirm live instance usage here
+        sinkLayer(Console.ConsoleLive),
         _ => ZIO.unit // There is no EventHandler available here, so we can't do much.
       )
     )
@@ -587,20 +587,22 @@ package object test extends CompileVariants {
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
     trace: Trace
-  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] = {
-      Spec.labeled(
-        label,
-        if (specs.isEmpty) Spec.empty
-        else if (specs.length == 1) {
-          specs.head match {
-            case Spec(LabeledCase(_, _)) =>
-              Spec.multiple(Chunk(suiteConstructor(specs.head)))
-            case _ => suiteConstructor(specs.head)
-          }
-        }
-        else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
-      )
-  }
+  ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
+    Spec.labeled(
+      label,
+      if (specs.isEmpty) Spec.empty
+      else if (specs.length == 1) {
+        wrapIfLabelledCase(specs.head)
+      } else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+    )
+
+  // Ensures we render suite label when we have an individual Labeled test case
+  private def wrapIfLabelledCase[In](spec: In)(implicit suiteConstructor: SuiteConstructor[In], trace: Trace) =
+    spec match {
+      case Spec(LabeledCase(_, _)) =>
+        Spec.multiple(Chunk(suiteConstructor(spec)))
+      case _ => suiteConstructor(spec)
+    }
 
   /**
    * Builds a spec with a single test.

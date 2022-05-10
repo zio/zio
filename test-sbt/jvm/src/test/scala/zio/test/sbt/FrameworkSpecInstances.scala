@@ -1,7 +1,18 @@
 package zio.test.sbt
 
 import zio.{UIO, ZIO, ZLayer, durationInt}
-import zio.test.{Annotations, Assertion, ExecutionEvent, Spec, TestAspect, TestFailure, ZIOSpecDefault, ZTestEventHandler, assertCompletes, assertTrue}
+import zio.test.{
+  Annotations,
+  Assertion,
+  ExecutionEvent,
+  Spec,
+  TestAspect,
+  TestFailure,
+  ZIOSpecDefault,
+  ZTestEventHandler,
+  assertCompletes,
+  assertTrue
+}
 
 import java.net.BindException
 import java.util.concurrent.atomic.AtomicInteger
@@ -48,9 +59,9 @@ object FrameworkSpecInstances {
       test("successful test") {
         assertTrue(true)
       },
-        test("failing test") {
-          assertTrue(false)
-        } @@ TestAspect.ignore
+      test("failing test") {
+        assertTrue(false)
+      } @@ TestAspect.ignore
     )
   }
 
@@ -71,21 +82,15 @@ object FrameworkSpecInstances {
     def spec =
       suite("exploding suite")(
         test("boom") {
-          for {
-           _ <- ZIO.debug("gonna blow")
-            _ <- ZIO.succeed(
-              if (true) throw new RuntimeException("Good luck ;)") else ()
-            )
-          } yield assertCompletes
+          if (true) throw new RuntimeException("Good luck ;)") else ()
+          assertCompletes
         }
       )
   }
 
-  // TODO Restore this once
-  //    https://github.com/zio/zio/pull/6614 is merged
   object RuntimeExceptionDuringLayerConstructionSpec extends zio.test.ZIOSpec[Int] {
     override val bootstrap = ZLayer.fromZIO(
-        ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
+      ZIO.attempt(throw new BindException("Other Kafka container already grabbed your port"))
     )
 
     def spec =
