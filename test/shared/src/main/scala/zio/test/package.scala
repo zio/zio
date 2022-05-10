@@ -20,6 +20,8 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
+import zio.test.Spec.LabeledCase
+
 import scala.language.implicitConversions
 
 /**
@@ -532,8 +534,8 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
-  val sinkLayer: ZLayer[Any, Nothing, ExecutionEventSink] =
-    sinkLayerWithConsole(Console.ConsoleLive)(Trace.empty)
+  def sinkLayer(console: Console): ZLayer[Any, Nothing, ExecutionEventSink] =
+    sinkLayerWithConsole(console)(Trace.empty)
 
   def sinkLayerWithConsole(console: Console)(implicit
     trace: Trace
@@ -551,7 +553,7 @@ package object test extends CompileVariants {
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer,
+        sinkLayer(Console.ConsoleLive),
         _ => ZIO.unit // There is no EventHandler available here, so we can't do much.
       )
     )
@@ -589,9 +591,18 @@ package object test extends CompileVariants {
     Spec.labeled(
       label,
       if (specs.isEmpty) Spec.empty
-      else if (specs.length == 1) suiteConstructor(specs.head)
-      else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
+      else if (specs.length == 1) {
+        wrapIfLabelledCase(specs.head)
+      } else Spec.multiple(Chunk.fromIterable(specs).map(spec => suiteConstructor(spec)))
     )
+
+  // Ensures we render suite label when we have an individual Labeled test case
+  private def wrapIfLabelledCase[In](spec: In)(implicit suiteConstructor: SuiteConstructor[In], trace: Trace) =
+    spec match {
+      case Spec(LabeledCase(_, _)) =>
+        Spec.multiple(Chunk(suiteConstructor(spec)))
+      case _ => suiteConstructor(spec)
+    }
 
   /**
    * Builds a spec with a single test.

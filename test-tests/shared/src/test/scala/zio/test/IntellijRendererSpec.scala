@@ -195,7 +195,7 @@ object IntelliJRenderUtils {
         IntelliJTestRunner(testEnvironment)
           .run(spec)
           .provideLayer[Nothing, TestEnvironment with Scope](
-            TestClock.default ++ sinkLayer
+            TestClock.default ++ sinkLayer(zio.Console.ConsoleLive)
           )
       output <- TestConsole.output
     } yield output.mkString
@@ -207,7 +207,7 @@ object IntelliJRenderUtils {
       executor = TestExecutor.default[TestEnvironment, String](
         Scope.default >>> testEnvironment,
         (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
-        sinkLayer,
+        sinkLayer(zio.Console.ConsoleLive),
         _ => ZIO.unit // Does Intellij need to report events?
       ),
       reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)

@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{Scope, ZIO, ZIOAppArgs, ZLayer, Trace}
+import zio.{Scope, Trace, ZIO, ZIOAppArgs, ZLayer}
 import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer}
 
 import java.util.concurrent.atomic.AtomicReference
@@ -59,19 +59,22 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
-    tasksZ(defs)(Trace.empty).toArray
+    tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
 
   private[sbt] def tasksZ(
-    defs: Array[TaskDef]
+    defs: Array[TaskDef],
+    console: zio.Console
   )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
     val testArgs = TestArgs.parse(args)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
-      (Scope.default ++ ZIOAppArgs.empty) >>> specTasks.map(_.bootstrap).reduce(_ +!+ _)
+      (Scope.default ++ ZIOAppArgs.empty) >>> specTasks
+        .map(_.bootstrap)
+        .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs with zio.Scope, Any, Any])(_ +!+ _)
 
     val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
-      sharedLayerFromSpecs +!+ sinkLayer
+      sharedLayerFromSpecs +!+ sinkLayer(console)
 
     val runtime: zio.Runtime[ExecutionEventSink] =
       zio.Runtime.unsafeFromLayer(sharedLayer)
