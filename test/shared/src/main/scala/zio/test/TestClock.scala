@@ -19,8 +19,8 @@ package zio.test
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.io.IOException
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.SortedSet
@@ -134,6 +134,9 @@ object TestClock extends Serializable {
     def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeCurrentTime(unit))
 
+    def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
+      ZIO.succeed(unsafeCurrentTime(unit))
+
     /**
      * Returns the current clock time in nanoseconds.
      */
@@ -235,6 +238,9 @@ object TestClock extends Serializable {
 
     override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
       unit.convert(clockState.unsafeGet.duration.toMillis, TimeUnit.MILLISECONDS)
+
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+      unit.between(Instant.EPOCH, clockState.unsafeGet.duration.addTo(Instant.EPOCH))
 
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime = {
       val data = clockState.unsafeGet
