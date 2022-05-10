@@ -589,7 +589,7 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Write the entire Chuck[Byte] to the socket channel. The caller of this
+     * Write the entire Chunk[Byte] to the socket channel. The caller of this
      * function is NOT responsible for closing the `AsynchronousSocketChannel`.
      *
      * The sink will yield the count of bytes written.
