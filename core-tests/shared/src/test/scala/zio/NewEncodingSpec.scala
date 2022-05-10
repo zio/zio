@@ -16,6 +16,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
     def catchAllCause[E2, A1 >: A](t: Cause[E] => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
       Effect.OnFailure(trace, self, t)
 
+    def ensuring(finalizer: Effect[Nothing, Any]): Effect[E, A] =
+      Effect.Ensuring(self, finalizer)
+
     def exit: Effect[Nothing, Exit[E, A]] =
       map(Exit.succeed(_)).catchAll(cause => Effect.succeed(Exit.fail(cause)))
 
@@ -37,6 +40,14 @@ object NewEncodingSpec extends ZIOBaseSpec {
     }
     sealed trait SuccessCont extends Continuation { self =>
       def onSuccess(a: Any): Effect[Any, Any]
+    }
+    object SuccessCont {
+      def apply[A](onSuccess: A => Effect[Any, Any], trace0: ZTraceElement): SuccessCont =
+        new SuccessCont {
+          def trace = trace0
+
+          def onSuccess(a: Any): Effect[Any, Any] = onSuccess(a.asInstanceOf[A])
+        }
     }
     sealed trait FailureCont extends Continuation { self =>
       def onFailure(t: Cause[Any]): Effect[Any, Any]
@@ -77,6 +88,8 @@ object NewEncodingSpec extends ZIOBaseSpec {
       def onFailure(c: Cause[Any]): Effect[Any, Any] = rescuer(c.asInstanceOf[Cause[E1]])
     }
     final case class ChangeInterruptionWithin[E, A](newInterruptible: Boolean, scope: Boolean => Effect[E, A])
+        extends Effect[E, A]
+    final case class Ensuring[E, A](first: Effect[E, A], finalizer: Effect[Nothing, Any], trace: ZTraceElement)
         extends Effect[E, A]
 
     case object AsyncReturn
@@ -184,6 +197,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
                     case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                   }
+
+                case effect @ Ensuring(_, _) =>
+                  ???
 
                 case effect @ ChangeInterruptionWithin(_, _) =>
                   val oldInterruptible = interruptible
