@@ -16,8 +16,8 @@ object NewEncodingSpec extends ZIOBaseSpec {
     def catchAllCause[E2, A1 >: A](t: Cause[E] => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
       Effect.OnFailure(trace, self, t)
 
-    def ensuring(finalizer: Effect[Nothing, Any]): Effect[E, A] =
-      Effect.Ensuring(self, finalizer)
+    def ensuring(finalizer: Effect[Nothing, Any])(implicit trace: ZTraceElement): Effect[E, A] =
+      Effect.Ensuring(self, finalizer, trace)
 
     def exit: Effect[Nothing, Exit[E, A]] =
       map(Exit.succeed(_)).catchAll(cause => Effect.succeed(Exit.fail(cause)))
@@ -42,11 +42,11 @@ object NewEncodingSpec extends ZIOBaseSpec {
       def onSuccess(a: Any): Effect[Any, Any]
     }
     object SuccessCont {
-      def apply[A](onSuccess: A => Effect[Any, Any], trace0: ZTraceElement): SuccessCont =
+      def apply[A](onSuccess0: A => Effect[Any, Any], trace0: ZTraceElement): SuccessCont =
         new SuccessCont {
           def trace = trace0
 
-          def onSuccess(a: Any): Effect[Any, Any] = onSuccess(a.asInstanceOf[A])
+          def onSuccess(a: Any): Effect[Any, Any] = onSuccess0(a.asInstanceOf[A])
         }
     }
     sealed trait FailureCont extends Continuation { self =>
@@ -198,7 +198,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                   }
 
-                case effect @ Ensuring(_, _) =>
+                case effect @ Ensuring(_, _, _) =>
                   ???
 
                 case effect @ ChangeInterruptionWithin(_, _) =>
