@@ -622,6 +622,54 @@ object MyClockLive extends Clock {
 ZIO.withClock(MyClockLive)(effect)
 ```
 
+5. According to the removal of default services from the ZIO environment we no longer need layers defined in the ZIO library which produce default ZIO services. So all these layers were removed, such as the following layers:
+- `Console.live`, `Clock.any`
+- `Clock.live`, `Clock.javaClock`, `Clock.any`
+- `Random.live`, `Random.scalaRandom`, `Random.any`
+- `System.live`, `System.any`
+
+6. In ZIO some services have an alternative implementation rather than the default one. In ZIO 1.x, the default implementation of these services was provided by the environment. So when we wanted to use the default implementation, we don't require to provide them explicitly at the end of the world. But if we wanted to use the alternative implementation, we need to provide them explicitly. For example, to use the java implementation of `Clock`, we need to provide the `Clock.javaClock` layer:
+
+```scala
+import zio._
+import zio.clock.Clock
+
+object MainApp extends App {
+  def run(args: List[String]) =
+    clock.localDateTime
+      .debug("local date time")
+      .provideCustomLayer(
+        ZLayer.succeed(
+          java.time.Clock.systemDefaultZone()
+        ) >>> Clock.javaClock
+      )
+      .orDie
+      .exitCode
+}
+```
+
+By removal of default services from the environment, their corresponding layers were removed. So we should call them directly as follows:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    Clock.ClockJava(java.time.Clock.systemDefaultZone())
+      .currentDateTime
+      .debug("current date time")
+}
+```
+
+The same approach applies to the `Random` service:
+
+| ZIO 1.x (ZLayer)     | ZIO 2.x              |
+|----------------------|----------------------|
+| `Clock.javaClock`    | `Clock.ClockJava`    |
+| `Random.scalaRandom` | `Random.RandomScala` |
+
+7. In ZIO 1.x, the `ZEnv` was the type alias for all default services used in the ZIO environment. In ZIO 2.x, as the default services were removed from the environment, the `ZEnv` type alias was removed. And we have the `DefaultServices.live` to access the live implementation of default services.
+
 ## ZIO App
 
 ### ZIOApp
