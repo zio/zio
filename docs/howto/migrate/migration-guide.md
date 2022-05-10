@@ -668,6 +668,8 @@ The same approach applies to the `Random` service:
 | `Clock.javaClock`    | `Clock.ClockJava`    |
 | `Random.scalaRandom` | `Random.RandomScala` |
 
+7. In ZIO 1.x, the `ZEnv` was the type alias for all default services used in the ZIO environment. In ZIO 2.x, as the default services were removed from the environment, the `ZEnv` type alias was removed. And we have the `DefaultServices.live` to access the live implementation of default services.
+
 ## ZIO App
 
 ### ZIOApp
