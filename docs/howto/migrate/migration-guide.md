@@ -857,6 +857,92 @@ We moved the `Executor` from `zio.internal` to the `zio` package:
 |-------------------------|----------------|
 | `zio.internal.Executor` | `zio.Executor` |
 
+### Auto-Blocking
+
+In ZIO 1.x, we have two groups of constructors for importing _synchronous side effects_, one for importing synchronous side effects, such as `zio.effect` and the other one for importing synchronous side effects, but we know that they are blocking, such as `zio.blocking.effectBlocking`.
+
+The first one uses an asynchronous thread pool to execute side effects, while the second one uses a blocking thread pool.
+
+For performance reasons, the number of asynchronous threads is limited to a fixed number. So if the programmer mistakenly imports a blocking operation using the `ZIO.effect` instead of `zio.blocking.effectBlocking` it might block all limited threads in the asynchronous pool, and then starvation might occur.
+
+So if we run the following code if the `ioBoundWorkflow` starts executing before the `cpuBoundWorkflow` for some amount of time, all threads in the asynchronous thread pool will be blocked and the `cpuBoundWorkflow` will never get executed:
+
+```scala
+// ZIO 1.x
+import zio._
+import zio.duration.durationInt
+
+import scala.annotation.tailrec
+
+object MainApp extends App {
+
+  def fib(n: Int): BigInt = {
+    @tailrec
+    def go(n: BigInt, a: BigInt, b: BigInt): BigInt = {
+      if (n == 0) a
+      else go(n - 1, b, a + b)
+    }
+    go(n, 0, 1)
+  }
+
+  def ioBoundWorkflow =
+    ZIO.debug("Starting I/O bound workflow") *>
+      ZIO.foreachPar_(1 to 100)(_ => ZIO.effect(Thread.sleep(Long.MaxValue))) *>
+      ZIO.debug("Finished I/O bound workflow")
+
+  def cpuBoundWorkflow =
+    ZIO.debug("Starting CPU bound workflow") *>
+      ZIO.foreachPar_(1 to 100)(i => ZIO.effect(fib(i))) *>
+      ZIO.debug("Finished CPU bound workflow")
+
+  // the delay for the CPU bound workflow is not needed but we want to take 
+  // a chance that all threads in the asynchronous thread pool will be blocked
+  def run(args: List[String]) =
+    (ioBoundWorkflow <&> cpuBoundWorkflow.delay(1.second)).exitCode
+}
+```
+
+This is why we should import blocking synchronous side effects using the `zio.blocking.effectBlocking` instead of the `ZIO.effect`.
+
+In ZIO 2.x, as the same as in ZIO 1.x, we encourage separating blocking operations (I/O work operations) from the ordinary side effects (CPU work operations).
+
+But the one thing that makes ZIO 2.x more powerful than ZIO 1.x is that if the programmer accidentally imports a blocking synchronous side effect using the `ZIO.attempt` instead of `ZIO.attemptBlocking` the runtime scheduler will automatically detect blocking workflows and shift them to the blocking executor:
+
+```scala mdoc:compile-only
+// ZIO 2.x
+import zio._
+
+import scala.annotation.tailrec
+
+object MainApp extends ZIOAppDefault {
+
+  def fib(n: Int): BigInt = {
+    @tailrec
+    def go(n: BigInt, a: BigInt, b: BigInt): BigInt = {
+      if (n == 0) a
+      else go(n - 1, b, a + b)
+    }
+    go(n, 0, 1)
+  }
+
+  def ioBoundWorkflow =
+    ZIO.debug("Starting I/O bound workflow") *>
+      ZIO.foreachParDiscard(1 to 100)(_ =>
+        ZIO.attempt(Thread.sleep(Long.MaxValue))
+      ) *>
+      ZIO.debug("Finished I/O bound workflow")
+
+  def cpuBoundWorkflow =
+    ZIO.debug("Starting CPU bound workflow") *>
+      ZIO.foreachParDiscard(1 to 100)(i => ZIO.attempt(fib(i))) *>
+      ZIO.debug("Finished CPU bound workflow")
+
+  def run = ioBoundWorkflow <&> cpuBoundWorkflow.delay(1.second)
+}
+```
+
+In the above example, although we imported the blocking operation wrongly, the runtime scheduler will detect that and prevent the blocking operation from being executed in the asynchronous thread pool. So the `cpuBoundWorkflow` will be executed without any starvation problem.
+
 ## ZLayer
 
 ### Constructing Layers
