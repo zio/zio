@@ -196,6 +196,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else
       self match {
         case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
+        case Chunk.Concat(l, r)   =>
+          if (n > l.length) r.drop(n - l.length)
+          else Chunk.Concat(l.drop(n), r)
         case _                    => Chunk.Slice(self, n, len - n)
       }
   }
@@ -211,6 +214,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else
       self match {
         case Chunk.Slice(c, o, l) => Chunk.Slice(c, o, l - n)
+        case Chunk.Concat(l, r)   =>
+          if (n > r.length) l.dropRight(n - r.length)
+          else Chunk.Concat(l, r.dropRight(n))
         case _                    => Chunk.Slice(self, 0, len - n)
       }
   }
@@ -780,6 +786,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else
       self match {
         case Chunk.Slice(c, o, _) => Chunk.Slice(c, o, n)
+        case Chunk.Concat(l, r)   =>
+          if (n > l.length) Chunk.Concat(l, r.take(n - l.length))
+          else l.take(n)
         case _                    => Chunk.Slice(self, 0, n)
       }
 
@@ -792,6 +801,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else
       self match {
         case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + l - n, n)
+        case Chunk.Concat(l, r)   =>
+          if (n > r.length) Chunk.Concat(l.takeRight(n - r.length), r)
+          else r.takeRight(n)
         case _                    => Chunk.Slice(self, length - n, n)
       }
 
