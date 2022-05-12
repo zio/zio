@@ -102,6 +102,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           Console.ConsoleLive
         )
         .provide(
+//          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
           Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope] ++ spec.bootstrap),
           ZIOAppArgs.empty
         )
