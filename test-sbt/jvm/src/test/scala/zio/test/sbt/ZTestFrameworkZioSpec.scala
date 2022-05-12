@@ -2,70 +2,112 @@ package zio.test.sbt
 
 import sbt.testing.{SuiteSelector, TaskDef}
 import zio.{Duration, ZIO}
-import zio.test.{Summary, TestAspect, ZIOSpecAbstract}
+import zio.test.{
+  ExecutionEventSink,
+  Summary,
+  TestAspect,
+  TestConsole,
+  ZIOSpecAbstract,
+  ZIOSpecDefault,
+  assertCompletes,
+  assertTrue,
+  testConsole
+}
 import zio.test.render.ConsoleRenderer
-import zio.test.sbt.FrameworkSpecInstances.{RuntimeExceptionSpec, SimpleSpec, TimeOutSpec}
-import zio.test.sbt.TestingSupport.{green, red}
-
-import zio.test.{ZIOSpecDefault, assertCompletes, assertTrue, testConsole}
+import zio.test.sbt.FrameworkSpecInstances._
+import zio.test.sbt.TestingSupport._
 
 object ZTestFrameworkZioSpec extends ZIOSpecDefault {
 
   override def spec = suite("test framework in a more ZIO-centric way")(
     test("basic happy path")(
       for {
-        _      <- loadAndExecuteAll(Seq(SimpleSpec))
+        _      <- loadAndExecute(SimpleSpec)
         output <- testOutput
       } yield assertTrue(
-        output.mkString("").contains("1 tests passed. 0 tests failed. 0 tests ignored.")
-      ) && assertTrue(output.length == 3)
+        output ==
+          Vector(
+            s"${green("+")} simple suite\n",
+            s"    ${green("+")} spec 1 suite 1 test 1\n"
+          )
+      )
+    ),
+    test("renders suite names 1 time in plus-combined specs")(
+      for {
+        _      <- loadAndExecute(CombinedWithPlusSpec)
+        output <- testOutput
+      } yield assertTrue(output.length == 3) && (
+        // Look for more generic way of asserting on these lines that can be shuffled
+        assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${green("+")} successful test\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n"
+            )
+        ) || assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n",
+              s"    ${green("+")} successful test\n"
+            )
+        )
+      )
+    ),
+    test("renders suite names 1 time in commas-combined specs")(
+      for {
+        _      <- loadAndExecute(CombinedWithCommasSpec)
+        output <- testOutput
+      } yield assertTrue(output.length == 3) && (
+        // Look for more generic way of asserting on these lines that can be shuffled
+        assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${green("+")} successful test\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n"
+            )
+        ) || assertTrue(
+          output ==
+            Vector(
+              s"${green("+")} spec A\n",
+              s"    ${yellow("-")} ${yellow("failing test")}\n",
+              s"    ${green("+")} successful test\n"
+            )
+        )
+      )
     ),
     test("displays timeouts")(
       for {
-        _      <- loadAndExecuteAll(Seq(TimeOutSpec)).flip
+        _      <- loadAndExecute(TimeOutSpec)
         output <- testOutput
-      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 3)
+      } yield assertTrue(output.mkString("").contains("Timeout of 1 s exceeded.")) && assertTrue(output.length == 2)
     ),
     test("displays runtime exceptions helpfully")(
       for {
-        _      <- loadAndExecuteAll(Seq(RuntimeExceptionSpec)).flip
+        _      <- loadAndExecute(RuntimeExceptionSpec)
         output <- testOutput
       } yield assertTrue(
-        output.mkString("").contains("0 tests passed. 1 tests failed. 0 tests ignored.")
-      ) && assertTrue(
         output.mkString("").contains("Good luck ;)")
-      ) && assertTrue(output.length == 3)
+      ) && assertTrue(output.length == 2)
     ),
-    // TODO Restore this once
-    //    https://github.com/zio/zio/pull/6614 is merged
-//    test("displays runtime exceptions during spec layer construction")(
-//      for {
-//        returnError <-
-//          loadAndExecuteAll(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
-//        _      <- ZIO.debug("Returned error: " + returnError)
-//        output <- testOutput
-//      } yield assertTrue(output.length == 2) &&
-//        assertTrue(output(0).contains("Top-level defect prevented test execution")) &&
-//        assertTrue(output(0).contains("java.net.BindException: Other Kafka container already grabbed your port")) &&
-//        assertTrue(output(1).startsWith("0 tests passed. 0 tests failed. 0 tests ignored."))
-//    ) @@ TestAspect.nonFlaky,
+    test("displays runtime exceptions during spec layer construction")(
+      for {
+        returnError <-
+          loadAndExecuteAllZ(Seq(SimpleSpec, RuntimeExceptionDuringLayerConstructionSpec)).flip
+      } yield assertTrue(returnError.exists(_.toString.contains("Other Kafka container already grabbed your port")))
+    ) @@ TestAspect.nonFlaky,
     test("ensure shared layers are not re-initialized")(
       for {
-        _ <- loadAndExecuteAll(
+        _ <- loadAndExecuteAllZ(
                Seq(FrameworkSpecInstances.Spec1UsingSharedLayer, FrameworkSpecInstances.Spec2UsingSharedLayer)
              )
       } yield assertTrue(FrameworkSpecInstances.counter.get == 1)
     ),
-    suite("warn when no tests are executed")(
-      test("TODO")(
-        for {
-          _ <- loadAndExecuteAll(Seq())
-        } yield assertCompletes
-      )
-    ),
     test("displays multi-colored lines")(
       for {
-        _ <- loadAndExecuteAll(Seq(FrameworkSpecInstances.MultiLineSharedSpec)).ignore
+        _ <- loadAndExecuteAllZ(Seq(FrameworkSpecInstances.MultiLineSharedSpec))
         output <-
           testOutput
         expected =
@@ -78,27 +120,20 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             // s"""${ConsoleRenderer.render(Summary(0, 1, 0, ""))}"""
           ).mkString("\n")
       } yield assertTrue(output.mkString("").contains(expected))
-    ),
+    ) @@ TestAspect.ignore,
     test("only executes selected test") {
       for {
-        _ <- loadAndExecuteAll(
-               Seq(FrameworkSpecInstances.SimpleFailingSharedSpec),
-               testArgs = Array("-t", "passing test")
-             )
+        _      <- loadAndExecute(FrameworkSpecInstances.SimpleFailingSharedSpec, testArgs = Array("-t", "passing test"))
         output <- testOutput
-        testTime =
-          extractTestRunDuration(output)
-
         expected =
           List(
-            s"${green("+")} some suite",
-            s"    ${green("+")} passing test",
-            s"""${ConsoleRenderer.render(Summary(1, 0, 0, "", testTime))}"""
-          ).mkString("\n")
+            s"${green("+")} some suite\n",
+            s"    ${green("+")} passing test\n"
+          )
 
-      } yield assertTrue(output.mkString("").contains(expected)) && assertTrue(output.length == 3)
+      } yield assertTrue(output.equals(expected))
     }
-  ) @@ TestAspect.ignore // TODO restore once the transition to flat specs is complete
+  )
 
   private val durationPattern = "Executed in (\\d+) (.*)".r
   private def extractTestRunDuration(output: Vector[String]): zio.Duration = {
@@ -122,21 +157,34 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
       output  <- console.output
     } yield output
 
-  private def loadAndExecuteAll[T <: ZIOSpecAbstract](
+  private def loadAndExecute[T <: ZIOSpecAbstract](
+    spec: T,
+    testArgs: Array[String] = Array.empty
+  ): ZIO[Any, Throwable, Unit] =
+    loadAndExecuteAllZ(Seq(spec), testArgs).mapError(_.head)
+
+  private def loadAndExecuteAllZ[T <: ZIOSpecAbstract](
     specs: Seq[T],
     testArgs: Array[String] = Array.empty
-  ): ZIO[Any, Throwable, Unit] = {
+  ): ZIO[Any, ::[Throwable], Unit] = {
     val tasks =
       specs
         .map(_.getClass.getName)
         .map(fqn => new TaskDef(fqn, ZioSpecFingerprint, false, Array(new SuiteSelector)))
         .toArray
 
-    new ZTestFramework()
-      .runner(testArgs, Array(), getClass.getClassLoader)
-      .tasksZ(tasks)
-      .map(_.run(FrameworkSpecInstances.dummyHandler))
-      .headOption
-      .getOrElse(ZIO.unit)
+    for {
+      testC <- testConsole
+      tasksZ <-
+        ZIO
+          .attempt(
+            new ZTestFramework()
+              .runner(testArgs, Array(), getClass.getClassLoader)
+              .tasksZ(tasks, testC)
+          )
+          .mapError(error => ::(error, Nil))
+      _ <- ZIO.validate(tasksZ.toList)(t => t.run(FrameworkSpecInstances.dummyHandler))
+    } yield ()
+
   }
 }

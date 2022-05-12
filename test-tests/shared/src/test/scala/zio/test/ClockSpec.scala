@@ -7,7 +7,7 @@ import zio.stream._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestClock._
-
+import java.time.temporal.ChronoUnit
 import java.time.{OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
@@ -63,6 +63,13 @@ object ClockSpec extends ZIOBaseSpec {
           time1 <- currentTime(TimeUnit.NANOSECONDS)
           _     <- adjust(1.millis)
           time2 <- currentTime(TimeUnit.NANOSECONDS)
+        } yield assert(time2 - time1)(equalTo(1.millis.toNanos))
+      },
+      test("adjust correctly advances currentTime using ChronoUnit") {
+        for {
+          time1 <- currentTime(ChronoUnit.NANOS)
+          _     <- adjust(1.millis)
+          time2 <- currentTime(ChronoUnit.NANOS)
         } yield assert(time2 - time1)(equalTo(1.millis.toNanos))
       },
       test("adjust correctly advances currentDateTime") {

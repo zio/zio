@@ -3,14 +3,175 @@ id: gen
 title: "Gen"
 ---
 
-A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. Generators may be random or deterministic.
+A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. The `Gen` data type is the base functionality for generating test data for property-based testing. We use them to produce deterministic and non-deterministic (PRNG) random values.
 
-We encoded it as a stream of optional samples:
+It is encoded as a stream of optional samples:
 
 ```scala
-case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) {
+case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]])
+```
 
+Before deep into the generators, let's see what is property-based testing and what problem it solves in the testing world.
+
+## What is Property-Based Testing?
+
+In property-based testing, instead of testing individual values and making assertions on the results, we rely on testing the properties of the system which is under the test.
+
+To be more acquainted with property-based testing, let's look at how we can test a simple addition function. So assume we have a function `add` that adds two numbers:
+
+```scala mdoc:silent
+def add(a: Int, b: Int): Int = ???
+```
+
+in a typical test we start with some well-known values as test inputs and check if the function returns the expected values for each of the pair inputs:
+
+| input   | expected output |
+|---------|-----------------|
+| (0, 0)  |               0 |
+| (1, 0)  |               1 |
+| (0, 1)  |               1 |
+| (0, -1) |              -1 |
+| (-1, 0) |              -1 |
+| ...     |             ... |
+
+Now we can test all the inputs and make sure the `add` function returns the expected values:
+
+```scala mdoc:compile-only
+import zio.test._
+
+object AdditionSpec extends ZIOSpecDefault {
+
+  def add(a: Int, b: Int): Int = ???
+
+  val testData = Seq(
+    ((0, 0), 0),
+    ((1, 0), 1),
+    ((0, 1), 1),
+    ((0, -1), -1),
+    ((-1, 0), -1),
+    ((1, 1), 2),
+    ((1, -1), 0),
+    ((-1, 1), 0)
+  )
+
+  def spec =
+    test("test add function") {
+      assertTrue {
+        testData.forall { case ((a, b), expected) =>
+          add(a, b) == expected
+        }
+      }
+    }
 }
+```
+
+This is not a very good approach because it is very hard to find a set of inputs that will cover all possible behaviors of the addition function.
+
+Instead, in property-based testing, we extract the set of properties that our function must satisfy. So let's think about the `add` function and find out what properties it must satisfy:
+
+```scala mdoc:invisible
+import zio.test.assertTrue
+val (a, b, c) = (0, 0, 0)
+```
+
+1. **Commutative Property**— It says that changing the order of addends does not change the result. So for all `a` and `b`, `add(a, b)` must be equal to `add(a, b)`:
+
+```scala mdoc:compile-only
+assertTrue(add(a, b) == add(b, a))
+```
+
+2. **Associative Property**— This says that changing the grouping of addends does not change the result. So for all `a`, `b` and `c`, the `add(add(a, b), c)` must be equal to `add(a, add(b, c))`:
+
+```scala mdoc:compile-only
+assertTrue(add(add(a, b), c) == add(a, add(b, c)))
+```
+
+3. **Identity Property**— For all `a`, `add(a, 0)` must be equal to `a`:
+
+```scala mdoc:compile-only
+assertTrue(add(a, 0) == a)
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+If we test all of these properties we can be sure that the `add` function works as expected, so let's see how we can do that using the `Gen` data type:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test._
+
+object AdditionSpec extends ZIOSpecDefault {
+
+  def add(a: Int, b: Int): Int = ???
+
+  def spec = suite("Add Spec")(
+    test("add is commutative") {
+      check(Gen.int, Gen.int) { (a, b) =>
+        assertTrue(add(a, b) == add(b, a))
+      }
+    },
+    test("add is associative") {
+      check(Gen.int, Gen.int, Gen.int) { (a, b, c) =>
+        assertTrue(add(add(a, b), c) == add(a, add(b, c)))
+      }
+    },
+    test("add is identitive") {
+      check(Gen.int) { a =>
+        assertTrue(add(a, 0) == a)
+      }
+    }
+  )
+}
+```
+
+## Generators Are Deterministic by Default
+
+The important fact about generators is that they produce deterministic values. This means that if we run the same generator multiple times, it will always produce the same sequence of values. So the let us add some debugging print lines inside a test and see what values are produced:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.TestAspect._
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5)
+}
+```
+
+We can see, every time we run the test, the generator will produce the same sequence of values:
+
+```scala
+runSpec
+9
+3
+0
+9
+6
++ example test
+```
+
+This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm. The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values. For more information, there is a separate page about this on [TestRandom](../test/environment/random.md) which is the underlying service for generating test values.
+
+This behavior helps us to have reproducible tests. But, if we might need non-deterministic tests values, we can use the `TestAspect.nondeterministic` to change the default behavior:
+
+```scala mdoc:invisible
+import zio.test._
+val myspec: Spec[Any, Nothing] = test("my test") { assertTrue(true) }
+```
+
+```scala mdoc:compile-only
+myspec @@ TestAspect.nondeterministic
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 ```scala mdoc:invisible

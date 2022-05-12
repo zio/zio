@@ -46,6 +46,6 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.success == 1)
     }
-  ).provide(sinkLayer)
+  ).provide(sinkLayer(zio.Console.ConsoleLive))
 
 }
