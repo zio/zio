@@ -49,6 +49,38 @@ object MainApp extends ZIOAppDefault {
 
 In the above example, we created an empty `MVar`, and then we created two `ZIO` workflow that will be executed concurrently. The first one will wait for the second one to finish its work. But the second one in some point of its execution, will need to synchronize with the first one. It need to make sure that the first one has finished its work before it continues its own work.
 
+## Synchronized Mutable Variable
+
+We can have synchronized mutable variables using the `MVar` data type:
+
+```scala mdoc:compile-only
+
+import zio._
+import zio.concurrent.MVar
+
+object MainApp extends ZIOAppDefault {
+  def inc(state: MVar[Int]) =
+    state.update(_ + 1)
+
+  def run =
+    MVar
+      .make(0)
+      .flatMap(s => ZIO.foreachParDiscard(1 to 100)(_ => inc(s)) *> s.take)
+      .debug("result")
+}
+```
+
+In this case, we executed the same `inc` workflow 100 times concurrently. All the concurrent fibers access the same shared mutable variable called `state` in a synchronized way.
+
+Note that what if we had So this is why we used the `update` operation instead, which is an atomic operation.written the `inc` workflow as below:
+
+```scala mdoc:compile-only
+def inc(state: MVar[Int]) =
+  state.take.flatMap(s => state.put(s + 1))
+```
+
+Can we say this is the same as the previous `inc` function? No, because although the `take` and `put` are atomic by themselves, their composition is not. So in a real-world scenario, in a concurrent environment it is possible that in between the `take` and `put` operations, the `state` is modified by another fiber. So this is why we used the `update` operation instead, which is an atomic operation.
+
 ## Producer/Consumer Channel
 
 We can use an `MVar` to implement a producer/consumer channel:
