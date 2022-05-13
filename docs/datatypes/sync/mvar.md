@@ -47,7 +47,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-In the above example, we created an empty `MVar`, and then we created two `ZIO` workflow that will be executed concurrently. The first one will wait for the second one to finish its work. But the second one in some point of its execution, will need to synchronize with the first one. It need to make sure that the first one has finished its work before it continues its own work.
+In the above example, we created an empty `MVar`, and then we created two `ZIO` workflows that will be executed concurrently. The first one will wait for the second one to finish its work. But the second one at some point in its execution will need to synchronize with the first one. It needs to make sure that the first one has finished its work before it continues its own work.
 
 ## Synchronized Mutable Variable
 
