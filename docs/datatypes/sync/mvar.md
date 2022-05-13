@@ -101,12 +101,12 @@ object MainApp extends ZIOAppDefault {
   def producer(state: MVar[Int]) =
     Random.nextIntBounded(100)
       .flatMap(state.put)
-      .delay(1.second)
       .forever
  
   def consumer(state: MVar[Int]) =
     state.take
       .flatMap(i => ZIO.debug(s"$i consumed!"))
+      .delay(1.second)
       .forever
 
   def run =
