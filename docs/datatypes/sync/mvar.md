@@ -3,11 +3,19 @@ id: mvar
 title: "MVar"
 ---
 
-An `MVar[A]` is a mutable location that is either empty or contains a value of type `A`. It has two fundamental operations: 
-- `put` which fills an `MVar` if it is empty and blocks otherwise.
-- `take` which empties an `MVar` if it is full and blocks otherwise. 
+An `MVar[A]` is a mutable location that is either empty or contains a value of type `A`. So the `MVar` acts like a _single-element buffer_.
 
-They can be used in multiple different ways:
+It has two fundamental operations:
+- `put` which fills an `MVar` if it is empty and blocks otherwise.
+- `take` which empties an `MVar` if it is full and blocks otherwise.
+
+So we can put something into it, making it full, or take something out, making it empty, and in two cases, it will block the calling fiber:
+- If it is full and the calling fiber tries to put something in it.
+- If it is empty and the calling fiber tries to take something out of it.
+
+These two features of `MVar` make it possible to synchronize multiple fibers.
+
+`MVar` can be used in multiple different ways:
 - As synchronized mutable variables
 - As channels, with `take` and `put` as `receive` and `send`
 - As a binary semaphore `MVar[Unit]`, with `take` and `put` as `wait` and `signal`
