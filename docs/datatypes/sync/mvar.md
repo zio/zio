@@ -48,3 +48,32 @@ object MainApp extends ZIOAppDefault {
 ```
 
 In the above example, we created an empty `MVar`, and then we created two `ZIO` workflow that will be executed concurrently. The first one will wait for the second one to finish its work. But the second one in some point of its execution, will need to synchronize with the first one. It need to make sure that the first one has finished its work before it continues its own work.
+
+## Producer/Consumer Channel
+
+We can use an `MVar` to implement a producer/consumer channel:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.MVar
+
+object MainApp extends ZIOAppDefault {
+  def producer(state: MVar[Int]) =
+    Random.nextIntBounded(100)
+      .flatMap(state.put)
+      .delay(1.second)
+      .forever
+ 
+  def consumer(state: MVar[Int]) =
+    state.take
+      .flatMap(i => ZIO.debug(s"$i consumed!"))
+      .forever
+
+  def run =
+    MVar.empty[Int].flatMap { s =>
+      producer(s) <&> consumer(s)
+    }
+}
+```
+
+In such a case we want to model a producer/consumer channel to make sure the producer doesn't produce any value unless the consumer is ready to consume it. So in this example, `MVar` acts as one element size channel that handles backpressure.
