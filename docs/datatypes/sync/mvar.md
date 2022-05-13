@@ -116,4 +116,28 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-In such a case we want to model a producer/consumer channel to make sure the producer doesn't produce any value unless the consumer is ready to consume it. So in this example, `MVar` acts as one element size channel that handles backpressure.
+In such a case we want to model a producer/consumer channel to make sure the producer doesn't produce any value unless the consumer is ready to consume it. So in this example, `MVar` acts as one element size channel that handles backpressure. 
+
+If we add more consumers, the speed of consuming elements will be increased. Note that, by having multiple consumers, the data will not be duplicated through the consumers. If we have three consumers, each piece of data will be consumed only by one of the consumers:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.MVar
+
+object MainApp extends ZIOAppDefault {
+  def producer(state: MVar[Int]) =
+    ZIO.foreachDiscard(1 to Int.MaxValue)(state.put)
+
+  def consumer(state: MVar[Int])(name: String) =
+    state.take
+      .flatMap(i => ZIO.debug(s"Consumer $name: $i consumed!"))
+      .delay(1.second)
+      .forever
+
+  def run =
+    MVar.empty[Int].flatMap { s =>
+      producer(s) <&>
+        consumer(s)("A") <&> consumer(s)("B") <&> consumer(s)("C")
+    }
+}
+```
