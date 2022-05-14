@@ -930,4 +930,10 @@ package object test extends CompileVariants {
     }
   }
 
+  implicit final class TestResultZIOOps[R, E](private val self: ZIO[R, E, TestResult]) extends AnyVal {
+    def &&[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
+      self.zipWith(that)(_ && _)
+    def ||[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
+      self.zipWith(that)(_ || _)
+  }
 }
