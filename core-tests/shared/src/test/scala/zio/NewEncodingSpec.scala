@@ -8,28 +8,35 @@ object NewEncodingSpec extends ZIOBaseSpec {
   import scala.annotation.tailrec
 
   sealed trait Effect[+E, +A] { self =>
-    def catchAll[E2, A1 >: A](t: E => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
+    final def catchAll[E2, A1 >: A](t: E => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
       self.catchAllCause { cause =>
         cause.failureOrCause.fold(t, Effect.failCause(_))
       }
 
-    def catchAllCause[E2, A1 >: A](t: Cause[E] => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
+    final def catchAllCause[E2, A1 >: A](t: Cause[E] => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
       Effect.OnFailure(trace, self, t)
 
-    def ensuring(finalizer: Effect[Nothing, Any])(implicit trace: ZTraceElement): Effect[E, A] =
+    final def ensuring(finalizer: Effect[Nothing, Any])(implicit trace: ZTraceElement): Effect[E, A] =
       Effect.Ensuring(self, finalizer, trace)
 
-    def exit: Effect[Nothing, Exit[E, A]] =
-      map(Exit.succeed(_)).catchAll(cause => Effect.succeed(Exit.fail(cause)))
+    final def exit(implicit trace: ZTraceElement): Effect[Nothing, Exit[E, A]] =
+      self.map(Exit.succeed(_)).catchAllCause(cause => Effect.succeed(Exit.failCause(cause)))
 
-    def flatMap[E1 >: E, B](f: A => Effect[E1, B])(implicit trace: ZTraceElement): Effect[E1, B] =
+    final def flatMap[E1 >: E, B](f: A => Effect[E1, B])(implicit trace: ZTraceElement): Effect[E1, B] =
       Effect.OnSuccess(trace, self, f)
 
-    def map[B](f: A => B)(implicit trace: ZTraceElement): Effect[E, B] =
+    final def foldCauseZIO[E2, B](onError: Cause[E] => Effect[E2, B], onSuccess: A => Effect[E2, B])(implicit
+      trace: ZTraceElement
+    ): Effect[E2, B] =
+      Effect.OnSuccessAndFailure(trace, self, onSuccess, onError)
+
+    final def map[B](f: A => B)(implicit trace: ZTraceElement): Effect[E, B] =
       self.flatMap(a => Effect.succeed(f(a)))
 
-    def mapError[E2](f: E => E2)(implicit trace: ZTraceElement): Effect[E2, A] =
+    final def mapError[E2](f: E => E2)(implicit trace: ZTraceElement): Effect[E2, A] =
       self.catchAll(e => Effect.fail(f(e)))
+
+    def trace: ZTraceElement
   }
   object Effect {
     implicit class EffectThrowableSyntax[A](self: Effect[Throwable, A]) {
@@ -88,14 +95,25 @@ object NewEncodingSpec extends ZIOBaseSpec {
       }
     }
 
-    final case class Sync[A](eval: () => A)                                        extends Effect[Nothing, A]
-    final case class Async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit) extends Effect[E, A]
+    final case class Sync[A](trace: ZTraceElement, eval: () => A) extends Effect[Nothing, A]
+    final case class Async[E, A](trace: ZTraceElement, registerCallback: (Effect[E, A] => Unit) => Unit)
+        extends Effect[E, A]
     sealed trait OnSuccessOrFailure[E1, E2, A, B] extends Effect[E2, B] with EvaluationStep.Continuation[E1, E2, A, B] {
       self =>
       def first: Effect[E1, A]
 
       final override def erase: OnSuccessOrFailure[Any, Any, Any, Any] =
         self.asInstanceOf[OnSuccessOrFailure[Any, Any, Any, Any]]
+    }
+    final case class OnSuccessAndFailure[E1, E2, A, B](
+      trace: ZTraceElement,
+      first: Effect[E1, A],
+      successK: A => Effect[E2, B],
+      failureK: Cause[E1] => Effect[E2, B]
+    ) extends OnSuccessOrFailure[E1, E2, A, B] {
+      def onFailure(c: Cause[E1]): Effect[E2, B] = failureK(c)
+
+      def onSuccess(a: A): Effect[E2, B] = successK(a.asInstanceOf[A])
     }
     final case class OnSuccess[A, E, B](trace: ZTraceElement, first: Effect[E, A], successK: A => Effect[E, B])
         extends OnSuccessOrFailure[E, E, A, B] {
@@ -113,7 +131,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
       def onSuccess(a: A): Effect[E2, A] = Effect.succeed(a)
     }
     final case class ChangeInterruptionWithin[E, A](newInterruptible: Boolean, scope: Boolean => Effect[E, A])
-        extends Effect[E, A]
+        extends Effect[E, A] {
+      def trace: ZTraceElement = ZTraceElement.empty
+    }
     final case class Ensuring[E, A](first: Effect[E, A], finalizer: Effect[Nothing, Any], trace: ZTraceElement)
         extends Effect[E, A]
     // final case class Stateful[E, A](onState: FiberState[E, A] => Effect[E, A]) extends Effect[E, A]
@@ -150,13 +170,14 @@ object NewEncodingSpec extends ZIOBaseSpec {
       def tracedCause(fiberId: FiberId): Cause[Any] = cause.traced(toStackTrace(fiberId))
     }
 
-    def succeed[A](a: => A): Effect[Nothing, A] = Sync(() => a)
+    def succeed[A](a: => A)(implicit trace: ZTraceElement): Effect[Nothing, A] = Sync(trace, () => a)
 
     def fail[E](e: => E): Effect[E, Nothing] = failCause(Cause.fail(e))
 
     def failCause[E](c: => Cause[E]): Effect[E, Nothing] = succeed(throw RaisingError(c, ChunkBuilder.make()))
 
-    def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit): Effect[E, A] = Async(registerCallback)
+    def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit)(implicit trace: ZTraceElement): Effect[E, A] =
+      Async(trace, registerCallback)
 
     def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit): Exit[E, A] = {
       val fiberId = FiberId.None // TODO: FiberId
@@ -187,7 +208,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                   }
 
-                case effect @ Sync(_) =>
+                case effect @ Sync(_, _) =>
                   val value = effect.eval()
 
                   cur = null
@@ -205,7 +226,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
                   if (cur eq null) done = value.asInstanceOf[A with AnyRef]
 
-                case effect @ Async(registerCallback) =>
+                case effect @ Async(_, registerCallback) =>
                   throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
 
                 case effect @ Ensuring(_, _, _) =>
@@ -473,7 +494,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
             runTerminalFailTest(100) +
             runTerminalFailTest(1000) +
             runTerminalFailTest(10000)
-        } + 
+        } +
         suite("defects") {
           test("death in succeed") {
             for {
