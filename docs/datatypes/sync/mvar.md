@@ -77,9 +77,11 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-In this case, we executed the same `inc` workflow 100 times concurrently. All the concurrent fibers access the same shared mutable variable called `state` in a synchronized way.
+In this case, we executed the same `inc` workflow 100 times concurrently. All the concurrent fibers access the same shared mutable variable called `state` in a synchronized way. In this case, we used the `update`, a safe operation that will atomically update the value of `MVar`.
 
-Note that what if we had So this is why we used the `update` operation instead, which is an atomic operation.written the `inc` workflow as below:
+A question that may be raised is that can we compose `take` and `update` to implement the same functionality for the `inc` workflow as below?
+
+```scala mdoc:compile-onl
 
 ```scala mdoc:invisible
 import zio._
