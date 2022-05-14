@@ -57,6 +57,86 @@ object MainApp extends ZIOAppDefault {
 
 In the above example, we created an empty `MVar`, and then we created two `ZIO` workflows that will be executed concurrently. The first one will wait for the second one to finish its work. But the second one at some point in its execution will need to synchronize with the first one. It needs to make sure that the first one has finished its work before it continues its own work.
 
+## Binary Semaphore
+
+Assume we have a function `inc` that takes a `Ref[Int]` and increments its value by one as below:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.MVar
+
+object MainApp extends ZIOAppDefault {
+
+  def inc(ref: Ref[Int]) =
+    for {
+      v <- ref.get
+      result = v + 1
+      _ <- ref.set(result)
+    } yield ()
+    
+  def run =
+    for {
+      ref <- Ref.make(0)
+      _ <- ZIO.foreachParDiscard(1 to 100)(_ => inc(ref))
+      _ <- ref.get.debug("result")
+    } yield ()
+
+}
+```
+
+When we perform the `inc` function, 100 times, we expect the final value of the `ref` to be 100. But if we run the program multiple times, we will get different results. This is because the `inc` function is not atomic, and the `ref` may be updated by another thread between the time we read it and the time we write it.
+
+So we need a way to ensure that between the time we read the ref and the time we write to it, no other threads will be able to make changes to it.
+
+We know that `Ref` has the `update` operation that is atomic. So if we rewrite the `inc` as below, our program will work as expected:
+
+```scala mdoc:invisible
+import zio._
+```
+
+```scala mdoc:compile-only
+def inc(ref: Ref[Int]) =
+  ref.update(_ + 1)
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+Although the solution to this problem is `Ref#update`, we want to use `MVar` to implement the same functionality for pedagogical purposes. So let's see how we can do that using `MVar`:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.MVar
+
+object MainApp extends ZIOAppDefault {
+
+  def inc(ref: Ref[Int]) =
+    for {
+      v <- ref.get
+      result = v + 1
+      _ <- ref.set(result)
+    } yield ()
+    
+  def run =
+    for {
+      semaphore <- MVar.make[Unit](())
+      ref <- Ref.make(0)
+      _ <- ZIO.foreachParDiscard(1 to 100) { _ =>
+          for {
+            _ <- semaphore.take     // acquire
+            _ <- inc(ref)
+            _ <- semaphore.put(())  // release
+          } yield ()
+      }
+      _ <- ref.get.debug("result")
+    } yield ()
+
+}
+```
+
+So we used the `take` as `acquire` and the `put` as the `release` operation of the binary semaphore.
+
 ## Synchronized Mutable Variable
 
 We can have synchronized mutable variables using the `MVar` data type:
@@ -80,8 +160,6 @@ object MainApp extends ZIOAppDefault {
 In this case, we executed the same `inc` workflow 100 times concurrently. All the concurrent fibers access the same shared mutable variable called `state` in a synchronized way. In this case, we used the `update`, a safe operation that will atomically update the value of `MVar`.
 
 A question that may be raised is that can we compose `take` and `update` to implement the same functionality for the `inc` workflow as below?
-
-```scala mdoc:compile-onl
 
 ```scala mdoc:invisible
 import zio._
