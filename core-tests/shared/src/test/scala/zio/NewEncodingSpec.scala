@@ -17,7 +17,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
       Effect.OnFailure(trace, self, t)
 
     final def ensuring(finalizer: Effect[Nothing, Any])(implicit trace: ZTraceElement): Effect[E, A] =
-      Effect.Ensuring(self, finalizer, trace)
+      Effect.Ensuring(trace, self, finalizer)
 
     final def exit(implicit trace: ZTraceElement): Effect[Nothing, Exit[E, A]] =
       self.map(Exit.succeed(_)).catchAllCause(cause => Effect.succeed(Exit.failCause(cause)))
@@ -30,6 +30,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
     ): Effect[E2, B] =
       Effect.OnSuccessAndFailure(trace, self, onSuccess, onError)
 
+    final def interruptible(implicit trace: ZTraceElement): Effect[E, A] =
+      Effect.ChangeInterruptionWithin.Interruptible(trace, self)
+
     final def map[B](f: A => B)(implicit trace: ZTraceElement): Effect[E, B] =
       self.flatMap(a => Effect.succeed(f(a)))
 
@@ -37,6 +40,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
       self.catchAll(e => Effect.fail(f(e)))
 
     def trace: ZTraceElement
+
+    final def uninterruptible(implicit trace: ZTraceElement): Effect[E, A] =
+      Effect.ChangeInterruptionWithin.Uninterruptible(trace, self)
   }
   object Effect {
     implicit class EffectThrowableSyntax[A](self: Effect[Throwable, A]) {
@@ -76,6 +82,13 @@ object NewEncodingSpec extends ZIOBaseSpec {
       }
       object Continuation {
         type Erased = Continuation[Any, Any, Any, Any]
+
+        def ensuring[E, A](finalizer: Effect[Nothing, Any])(implicit trace0: ZTraceElement): Continuation[E, E, A, A] =
+          new Continuation[E, E, A, A] {
+            def trace                  = trace0
+            def onSuccess(a: A)        = finalizer.flatMap(_ => Effect.succeed(a))
+            def onFailure(c: Cause[E]) = finalizer.flatMap(_ => Effect.failCause(c))
+          }
 
         def fromSuccess[E, A, B](f: A => Effect[E, B])(implicit trace0: ZTraceElement): Continuation[E, E, A, B] =
           new Continuation[E, E, A, B] {
@@ -130,15 +143,34 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
       def onSuccess(a: A): Effect[E2, A] = Effect.succeed(a)
     }
-    final case class ChangeInterruptionWithin[E, A](newInterruptible: Boolean, scope: Boolean => Effect[E, A])
-        extends Effect[E, A] {
-      def trace: ZTraceElement = ZTraceElement.empty
-    }
-    final case class Ensuring[E, A](first: Effect[E, A], finalizer: Effect[Nothing, Any], trace: ZTraceElement)
-        extends Effect[E, A]
-    // final case class Stateful[E, A](onState: FiberState[E, A] => Effect[E, A]) extends Effect[E, A]
+    sealed trait ChangeInterruptionWithin[E, A] extends Effect[E, A] {
+      def newInterruptible: Boolean
 
-    case object AsyncReturn
+      def scope(oldInterruptible: Boolean): Effect[E, A]
+    }
+    object ChangeInterruptionWithin {
+      final case class Interruptible[E, A](trace: ZTraceElement, effect: Effect[E, A])
+          extends ChangeInterruptionWithin[E, A] {
+        def newInterruptible: Boolean = true
+
+        def scope(oldInterruptible: Boolean): Effect[E, A] = effect
+      }
+      final case class Uninterruptible[E, A](trace: ZTraceElement, effect: Effect[E, A])
+          extends ChangeInterruptionWithin[E, A] {
+        def newInterruptible: Boolean = false
+
+        def scope(oldInterruptible: Boolean): Effect[E, A] = effect
+      }
+      final case class Dynamic[E, A](trace: ZTraceElement, newInterruptible: Boolean, f: Boolean => Effect[E, A])
+          extends ChangeInterruptionWithin[E, A] {
+        def scope(oldInterruptible: Boolean): Effect[E, A] = f(oldInterruptible)
+      }
+    }
+    final case class Ensuring[E, A](trace: ZTraceElement, first: Effect[E, A], finalizer: Effect[Nothing, Any])
+        extends Effect[E, A] { self =>
+      def erase: Ensuring[Any, Any] = self.asInstanceOf[Ensuring[Any, Any]]
+    }
+    // final case class Stateful[E, A](onState: FiberState[E, A] => Effect[E, A]) extends Effect[E, A]
 
     type Erased = Effect[Any, Any]
 
@@ -158,26 +190,59 @@ object NewEncodingSpec extends ZIOBaseSpec {
           }
         )
     }
+    object ReifyStack {
+      final case class AsyncJump(
+        registerCallback: (Effect[Any, Any] => Unit) => Unit,
+        stack: ChunkBuilder[EvaluationStep],
+        interruptible: Boolean
+      ) extends ReifyStack
 
-    final case class AsyncJump(
-      registerCallback: (Effect[Any, Any] => Unit) => Unit,
-      stack: ChunkBuilder[EvaluationStep]
-    ) extends ReifyStack
+      final case class Trampoline(effect: Effect[Any, Any], stack: ChunkBuilder[EvaluationStep], interruptible: Boolean)
+          extends ReifyStack {
+        def modifyEffect(f: Effect[Any, Any] => Effect[Any, Any]): ReifyStack =
+          copy(effect = f(effect))
+      }
 
-    final case class Trampoline(effect: Effect[Any, Any], stack: ChunkBuilder[EvaluationStep]) extends ReifyStack
-
-    final case class RaisingError(cause: Cause[Any], stack: ChunkBuilder[EvaluationStep]) extends ReifyStack {
-      def tracedCause(fiberId: FiberId): Cause[Any] = cause.traced(toStackTrace(fiberId))
+      final case class RaisingError(cause: Cause[Any], stack: ChunkBuilder[EvaluationStep]) extends ReifyStack {
+        def tracedCause(fiberId: FiberId): Cause[Any] = cause.traced(toStackTrace(fiberId))
+      }
     }
 
-    def succeed[A](a: => A)(implicit trace: ZTraceElement): Effect[Nothing, A] = Sync(trace, () => a)
+    import ReifyStack.{AsyncJump, Trampoline, RaisingError}
+
+    def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit)(implicit trace: ZTraceElement): Effect[E, A] =
+      Async(trace, registerCallback)
 
     def fail[E](e: => E): Effect[E, Nothing] = failCause(Cause.fail(e))
 
     def failCause[E](c: => Cause[E]): Effect[E, Nothing] = succeed(throw RaisingError(c, ChunkBuilder.make()))
 
-    def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit)(implicit trace: ZTraceElement): Effect[E, A] =
-      Async(trace, registerCallback)
+    def succeed[A](a: => A)(implicit trace: ZTraceElement): Effect[Nothing, A] = Sync(trace, () => a)
+
+    sealed trait InterruptibilityRestorer {
+      def apply[E, A](effect: Effect[E, A])(implicit trace: ZTraceElement): Effect[E, A]
+    }
+    object InterruptibilityRestorer {
+      case object MakeInterruptible extends InterruptibilityRestorer {
+        def apply[E, A](effect: Effect[E, A])(implicit trace: ZTraceElement): Effect[E, A] =
+          Effect.ChangeInterruptionWithin.Interruptible(trace, effect)
+      }
+      case object MakeUninterruptible extends InterruptibilityRestorer {
+        def apply[E, A](effect: Effect[E, A])(implicit trace: ZTraceElement): Effect[E, A] =
+          Effect.ChangeInterruptionWithin.Uninterruptible(trace, effect)
+      }
+    }
+
+    def uninterruptibleMask[E, A](
+      f: InterruptibilityRestorer => Effect[E, A]
+    )(implicit trace: ZTraceElement): Effect[E, A] =
+      Effect.ChangeInterruptionWithin.Dynamic(
+        trace,
+        false,
+        old =>
+          if (old) f(InterruptibilityRestorer.MakeInterruptible)
+          else f(InterruptibilityRestorer.MakeUninterruptible)
+      )
 
     def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit): Exit[E, A] = {
       val fiberId = FiberId.None // TODO: FiberId
@@ -190,7 +255,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
         var stackIndex    = 0
         var interruptible = interruptible0
 
-        if (depth > 1000) throw Trampoline(effect, ChunkBuilder.make())
+        if (depth > 1000) throw Trampoline(effect, ChunkBuilder.make(), interruptible)
 
         try {
           while (done eq null) {
@@ -227,25 +292,55 @@ object NewEncodingSpec extends ZIOBaseSpec {
                   if (cur eq null) done = value.asInstanceOf[A with AnyRef]
 
                 case effect @ Async(_, registerCallback) =>
-                  throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
+                  throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), interruptible)
 
-                case effect @ Ensuring(_, _, _) =>
-                  ???
+                case effect0 @ Ensuring(_, _, _) =>
+                  val effect = effect0.erase
 
-                case effect @ ChangeInterruptionWithin(_, _) =>
+                  cur =
+                    try {
+                      val value = loop(effect.first, depth + 1, null, interruptible)
+
+                      val oldInterruptible = interruptible
+
+                      interruptible = false
+
+                      try {
+                        // Finalizer is not interruptible:
+                        loop(effect.finalizer, depth + 1, null, interruptible)
+
+                        interruptible = oldInterruptible
+
+                        Effect.succeed(value)
+                      } catch {
+                        case reifyStack: ReifyStack => reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
+                      }
+                    } catch {
+                      case raisingError @ RaisingError(_, _) =>
+                        effect.finalizer.foldCauseZIO(_ => throw raisingError, _ => throw raisingError)
+
+                      case trampoline: Trampoline =>
+                        trampoline.stack += Continuation.ensuring(effect.finalizer)
+
+                        throw trampoline
+                    }
+
+                case effect: ChangeInterruptionWithin[_, _] =>
                   val oldInterruptible = interruptible
 
                   interruptible = effect.newInterruptible
 
-                  try {
-                    loop(effect.scope(oldInterruptible), depth + 1, null, interruptible)
+                  cur =
+                    try {
+                      val value = loop(effect.scope(oldInterruptible), depth + 1, null, interruptible)
 
-                    interruptible = oldInterruptible
-                  } catch {
-                    case reifyStack: ReifyStack =>
-                      // TODO: Persist `oldInterruptible` in the fiber state
-                      reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
-                  }
+                      interruptible = oldInterruptible
+
+                      Effect.succeed(value)
+                    } catch {
+                      case reifyStack: ReifyStack =>
+                        reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
+                    }
               }
             } catch {
               case raisingError @ RaisingError(_, _) =>
@@ -285,10 +380,11 @@ object NewEncodingSpec extends ZIOBaseSpec {
       def resumeOuterLoop[E, A](
         effect: Effect[Any, Any],
         stack: Chunk[EvaluationStep],
-        onDone: Exit[E, A] => Unit
+        onDone: Exit[E, A] => Unit,
+        interruptible: Boolean
       ): Unit =
         scala.concurrent.ExecutionContext.global.execute { () =>
-          outerLoop[E, A](effect, stack, onDone, true) // TODO: Interruptibility
+          outerLoop[E, A](effect, stack, onDone, interruptible)
           ()
         }
 
@@ -306,11 +402,12 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
           exit
         } catch {
-          case t: Trampoline => outerLoop(t.effect, t.stack.result(), onDone, interruptible)
+          case trampoline: Trampoline =>
+            outerLoop(trampoline.effect, trampoline.stack.result(), onDone, trampoline.interruptible)
 
-          case a: AsyncJump =>
-            a.registerCallback { value =>
-              resumeOuterLoop[E, A](value, a.stack.result(), onDone)
+          case asyncJump: AsyncJump =>
+            asyncJump.registerCallback { value =>
+              resumeOuterLoop[E, A](value, asyncJump.stack.result(), onDone, asyncJump.interruptible)
             }
 
             null
@@ -498,11 +595,48 @@ object NewEncodingSpec extends ZIOBaseSpec {
         suite("defects") {
           test("death in succeed") {
             for {
-              result <- ZIO.succeed(Effect.succeed(throw TestObj).exit.unsafeRun())
-            } yield assertTrue(result.causeOption.get.defects(0) == TestObj)
-          }
+              result <- ZIO.succeed(Effect.succeed(throw TestException).exit.unsafeRun())
+            } yield assertTrue(result.causeOption.get.defects(0) == TestException)
+          } +
+            suite("finalizers") {
+              test("foldCauseZIO finalization - success") {
+                var finalized = false
+
+                val finalize = Effect.succeed { finalized = true }
+
+                for {
+                  _ <- ZIO.succeed(Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+                } yield assertTrue(finalized == true)
+              } +
+                test("foldCauseZIO finalization - failure") {
+                  var finalized = false
+
+                  val finalize = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(Effect.fail(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+                  } yield assertTrue(finalized == true)
+                } +
+                test("foldCauseZIO nested finalization - double failure") {
+                  var finalized = false
+
+                  val finalize1 = Effect.succeed(throw TestException)
+                  val finalize2 = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(
+                           Effect
+                             .fail(())
+                             .foldCauseZIO(_ => finalize1, _ => finalize1)
+                             .foldCauseZIO(_ => finalize2, _ => finalize2)
+                             .exit
+                             .unsafeRun()
+                         )
+                  } yield assertTrue(finalized == true)
+                }
+            }
         }
     }
 }
 
-object TestObj extends Exception("Test exception")
+object TestException extends Exception("Test exception")
