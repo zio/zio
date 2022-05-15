@@ -18,7 +18,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
     final def catchAll[E2, A1 >: A](t: E => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
       self.catchAllCause { cause =>
-        cause.failureOrCause.fold(t, Effect.failCause(_))
+        cause.failureOrCause.fold(t, Effect.refailCause(_))
       }
 
     final def catchAllCause[E2, A1 >: A](t: Cause[E] => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
@@ -26,7 +26,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
     final def ensuring(finalizer: Effect[Nothing, Any])(implicit trace: ZTraceElement): Effect[E, A] =
       Effect.uninterruptibleMask { restore =>
-        restore(self).foldCauseZIO(cause => finalizer *> Effect.failCause(cause), a => finalizer.map(_ => a))
+        restore(self).foldCauseZIO(cause => finalizer *> Effect.refailCause(cause), a => finalizer.map(_ => a))
       }
 
     final def exit(implicit trace: ZTraceElement): Effect[Nothing, Exit[E, A]] =
@@ -98,14 +98,14 @@ object NewEncodingSpec extends ZIOBaseSpec {
           new Continuation[E, E, A, A] {
             def trace                  = trace0
             def onSuccess(a: A)        = finalizer.flatMap(_ => Effect.succeed(a))
-            def onFailure(c: Cause[E]) = finalizer.flatMap(_ => Effect.failCause(c))
+            def onFailure(c: Cause[E]) = finalizer.flatMap(_ => Effect.refailCause(c))
           }
 
         def fromSuccess[E, A, B](f: A => Effect[E, B])(implicit trace0: ZTraceElement): Continuation[E, E, A, B] =
           new Continuation[E, E, A, B] {
             def trace                  = trace0
             def onSuccess(a: A)        = f(a)
-            def onFailure(c: Cause[E]) = Effect.failCause(c)
+            def onFailure(c: Cause[E]) = Effect.refailCause(c)
           }
 
         def fromFailure[E1, E2, A](
@@ -141,7 +141,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
     }
     final case class OnSuccess[A, E, B](trace: ZTraceElement, first: Effect[E, A], successK: A => Effect[E, B])
         extends OnSuccessOrFailure[E, E, A, B] {
-      def onFailure(c: Cause[E]): Effect[E, B] = Effect.failCause(c)
+      def onFailure(c: Cause[E]): Effect[E, B] = Effect.refailCause(c)
 
       def onSuccess(a: A): Effect[E, B] = successK(a.asInstanceOf[A])
     }
@@ -219,7 +219,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
     def fail[E](e: => E)(implicit trace: ZTraceElement): Effect[E, Nothing] = failCause(Cause.fail(e))
 
-    def failCause[E](c: => Cause[E])(implicit trace0: ZTraceElement): Effect[E, Nothing] = 
+    def failCause[E](c: => Cause[E])(implicit trace0: ZTraceElement): Effect[E, Nothing] =
       Effect.trace(trace0).flatMap(trace => refailCause(c.traced(trace)))
 
     def refail[E](e: => E)(implicit trace: ZTraceElement): Effect[E, Nothing] = refailCause(Cause.fail(e))
@@ -420,7 +420,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
             exit
 
           case traceGen: TraceGen =>
-            val stack = traceGen.stack.result()
+            val stack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
 
             val builder = StackTraceBuilder.unsafeMake()
 
@@ -595,18 +595,52 @@ object NewEncodingSpec extends ZIOBaseSpec {
       t <- firstLevelCallStack
     } yield t
 
+  def secondLevelCallStackFail =
+    for {
+      _ <- Effect.succeed(10)
+      _ <- Effect.succeed(20)
+      _ <- Effect.succeed(30)
+      t <- Effect.fail("Uh oh!")
+    } yield t
+
+  def firstLevelCallStackFail =
+    for {
+      _ <- Effect.succeed(10)
+      _ <- Effect.succeed(20)
+      _ <- Effect.succeed(30)
+      t <- secondLevelCallStackFail
+    } yield t
+
+  def stackTraceTest2 =
+    for {
+      _ <- Effect.succeed(10)
+      _ <- Effect.succeed(20)
+      _ <- Effect.succeed(30)
+      t <- firstLevelCallStackFail
+    } yield t
+
   def spec =
     suite("NewEncodingSpec") {
       suite("stack traces") {
-        test("simple test 1") {
+        test("2nd-level trace") {
           for {
             t <- ZIO.succeed(stackTraceTest1.unsafeRun())
-            _ <- ZIO.debug(t)
           } yield assertTrue(t.size == 3) &&
             assertTrue(t.stackTrace(0).toString().contains("secondLevelCallStack")) &&
             assertTrue(t.stackTrace(1).toString().contains("firstLevelCallStack")) &&
             assertTrue(t.stackTrace(2).toString().contains("stackTraceTest1"))
-        }
+        } +
+          test("2nd-level auto-trace through fail") {
+            for {
+              exit <- ZIO.succeed(stackTraceTest2.exit.unsafeRun())
+              t     = exit.causeOption.get.trace
+              _    <- ZIO.debug(t)
+            } yield assertTrue(t.size == 4) &&
+              assertTrue(t.stackTrace(0).toString().contains("secondLevelCallStackFail")) &&
+              assertTrue(t.stackTrace(1).toString().contains("firstLevelCallStackFail")) &&
+              assertTrue(t.stackTrace(2).toString().contains("stackTraceTest2")) &&
+              assertTrue(t.stackTrace(3).toString().contains("spec"))
+          }
       } +
         suite("fib") {
           runFibTest(0) +
