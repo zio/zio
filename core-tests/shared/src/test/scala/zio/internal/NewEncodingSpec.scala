@@ -209,26 +209,29 @@ object NewEncodingSpec extends ZIOBaseSpec {
       final case class Trampoline(effect: Effect[Any, Any], stack: ChunkBuilder[EvaluationStep], interruptible: Boolean)
           extends ReifyStack
 
-      final case class RaisingError(cause: Cause[Any], stack: ChunkBuilder[EvaluationStep]) extends ReifyStack {
-        def tracedCause(fiberId: FiberId): Cause[Any] = cause.traced(toStackTrace(fiberId))
-      }
-
       final case class TraceGen(stack: ChunkBuilder[EvaluationStep], interruptible: Boolean) extends ReifyStack
     }
 
-    import ReifyStack.{AsyncJump, Trampoline, RaisingError, TraceGen}
+    import ReifyStack.{AsyncJump, Trampoline, TraceGen}
 
     def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit)(implicit trace: ZTraceElement): Effect[E, A] =
       Async(trace, registerCallback)
 
-    def fail[E](e: => E): Effect[E, Nothing] = failCause(Cause.fail(e))
+    def fail[E](e: => E)(implicit trace: ZTraceElement): Effect[E, Nothing] = failCause(Cause.fail(e))
 
-    def failCause[E](c: => Cause[E]): Effect[E, Nothing] = succeed(throw RaisingError(c, ChunkBuilder.make()))
+    def failCause[E](c: => Cause[E])(implicit trace0: ZTraceElement): Effect[E, Nothing] = 
+      Effect.trace(trace0).flatMap(trace => refailCause(c.traced(trace)))
+
+    def refail[E](e: => E)(implicit trace: ZTraceElement): Effect[E, Nothing] = refailCause(Cause.fail(e))
+
+    def refailCause[E](c: => Cause[E])(implicit trace: ZTraceElement): Effect[E, Nothing] = succeed(throw ZIOError(c))
 
     def succeed[A](a: => A)(implicit trace: ZTraceElement): Effect[Nothing, A] = Sync(trace, () => a)
 
     def trace(implicit trace: ZTraceElement): Effect[Nothing, ZTrace] =
       GenerateStackTrace(trace)
+
+    final case class ZIOError(cause: Cause[Any]) extends Exception with NoStackTrace
 
     sealed trait InterruptibilityRestorer {
       def apply[E, A](effect: Effect[E, A])(implicit trace: ZTraceElement): Effect[E, A]
@@ -255,9 +258,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
           else f(InterruptibilityRestorer.MakeUninterruptible)
       )
 
-    val unit: Effect[Nothing, Unit] = Effect.succeed(())
+    val unit: Effect[Nothing, Unit] = Effect.succeed(())(ZTraceElement.empty)
 
-    def yieldNow: Effect[Nothing, Unit] =
+    def yieldNow(implicit trace: ZTraceElement): Effect[Nothing, Unit] =
       async[Nothing, Unit](k => k(Effect.unit))
 
     def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit, maxDepth: Int = 1000): Exit[E, A] = {
@@ -283,8 +286,8 @@ object NewEncodingSpec extends ZIOBaseSpec {
                   try {
                     cur = effect.onSuccess(loop(effect.first, depth + 1, null, interruptible))
                   } catch {
-                    case raisingError @ RaisingError(_, _) =>
-                      cur = effect.onFailure(raisingError.tracedCause(fiberId)) // TODO: Losing error
+                    case zioError: ZIOError =>
+                      cur = effect.onFailure(zioError.cause) // TODO: Losing error if we get a throw here!
 
                     case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                   }
@@ -308,7 +311,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
                   if (cur eq null) done = value.asInstanceOf[AnyRef]
 
-                case effect @ Async(_, registerCallback) =>
+                case effect: Async[_, _] =>
                   throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), interruptible)
 
                 case effect: ChangeInterruptionWithin[_, _] =>
@@ -339,13 +342,13 @@ object NewEncodingSpec extends ZIOBaseSpec {
                   cur = stateful.onState(???)
               }
             } catch {
-              case raisingError: RaisingError =>
+              case zioError: ZIOError =>
                 cur = null
 
                 if (stack ne null) {
                   while ((cur eq null) && stackIndex < stack.length) {
                     stack(stackIndex) match {
-                      case k: Continuation[_, _, _, _] => cur = k.erase.onFailure(raisingError.tracedCause(fiberId))
+                      case k: Continuation[_, _, _, _] => cur = k.erase.onFailure(zioError.cause)
                       case k: ChangeInterruptibility   => interruptible = k.interruptible
                       case k: UpdateTrace              => ()
                     }
@@ -354,12 +357,12 @@ object NewEncodingSpec extends ZIOBaseSpec {
                   }
                 }
 
-                if (cur eq null) throw raisingError
+                if (cur eq null) throw zioError
 
               case reifyStack: ReifyStack => throw reifyStack
 
               case throwable: Throwable => // TODO: If non-fatal
-                cur = Effect.failCause(Cause.die(throwable))
+                cur = Effect.failCause(Cause.die(throwable))(ZTraceElement.empty)
             }
           }
         } catch {
@@ -409,8 +412,8 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
             null
 
-          case raisingError: RaisingError =>
-            val exit = Exit.failCause(raisingError.tracedCause(fiberId).asInstanceOf[Cause[E]])
+          case zioError: ZIOError =>
+            val exit = Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
 
             onDone(exit)
 
