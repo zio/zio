@@ -1,4 +1,6 @@
-package zio
+package zio.internal
+
+import zio.{Promise => _, _}
 
 import zio.test._
 import scala.concurrent._
@@ -8,6 +10,12 @@ object NewEncodingSpec extends ZIOBaseSpec {
   import scala.annotation.tailrec
 
   sealed trait Effect[+E, +A] { self =>
+    final def *>[E1 >: E, B](that: => Effect[E1, B]): Effect[E1, B] =
+      self.flatMap(_ => that)
+
+    final def <*[E1 >: E](that: => Effect[E1, Any]): Effect[E1, A] =
+      self.flatMap(a => that.map(_ => a))
+
     final def catchAll[E2, A1 >: A](t: E => Effect[E2, A1])(implicit trace: ZTraceElement): Effect[E2, A1] =
       self.catchAllCause { cause =>
         cause.failureOrCause.fold(t, Effect.failCause(_))
@@ -17,7 +25,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
       Effect.OnFailure(trace, self, t)
 
     final def ensuring(finalizer: Effect[Nothing, Any])(implicit trace: ZTraceElement): Effect[E, A] =
-      Effect.Ensuring(trace, self, finalizer)
+      Effect.uninterruptibleMask { restore =>
+        restore(self).foldCauseZIO(cause => finalizer *> Effect.failCause(cause), a => finalizer.map(_ => a))
+      }
 
     final def exit(implicit trace: ZTraceElement): Effect[Nothing, Exit[E, A]] =
       self.map(Exit.succeed(_)).catchAllCause(cause => Effect.succeed(Exit.failCause(cause)))
@@ -46,7 +56,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
   }
   object Effect {
     implicit class EffectThrowableSyntax[A](self: Effect[Throwable, A]) {
-      def unsafeRun(): A = Effect.eval(self)
+      def unsafeRun(maxDepth: Int = 1000): A = Effect.eval(self, maxDepth)
     }
     sealed trait EvaluationStep { self =>
       def trace: ZTraceElement
@@ -71,6 +81,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
           def interruptible: Boolean = false
         }
       }
+      final case class UpdateTrace(trace: ZTraceElement) extends EvaluationStep
       sealed trait Continuation[E1, E2, A, B] extends EvaluationStep { self =>
         def trace: ZTraceElement
 
@@ -166,11 +177,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
         def scope(oldInterruptible: Boolean): Effect[E, A] = f(oldInterruptible)
       }
     }
-    final case class Ensuring[E, A](trace: ZTraceElement, first: Effect[E, A], finalizer: Effect[Nothing, Any])
-        extends Effect[E, A] { self =>
-      def erase: Ensuring[Any, Any] = self.asInstanceOf[Ensuring[Any, Any]]
-    }
-    // final case class Stateful[E, A](onState: FiberState[E, A] => Effect[E, A]) extends Effect[E, A]
+    final case class GenerateStackTrace(trace: ZTraceElement) extends Effect[Nothing, ZTrace]
+    final case class Stateful[E, A](trace: ZTraceElement, onState: FiberState2[E, A] => Effect[E, A])
+        extends Effect[E, A]
 
     type Erased = Effect[Any, Any]
 
@@ -198,17 +207,16 @@ object NewEncodingSpec extends ZIOBaseSpec {
       ) extends ReifyStack
 
       final case class Trampoline(effect: Effect[Any, Any], stack: ChunkBuilder[EvaluationStep], interruptible: Boolean)
-          extends ReifyStack {
-        def modifyEffect(f: Effect[Any, Any] => Effect[Any, Any]): ReifyStack =
-          copy(effect = f(effect))
-      }
+          extends ReifyStack
 
       final case class RaisingError(cause: Cause[Any], stack: ChunkBuilder[EvaluationStep]) extends ReifyStack {
         def tracedCause(fiberId: FiberId): Cause[Any] = cause.traced(toStackTrace(fiberId))
       }
+
+      final case class TraceGen(stack: ChunkBuilder[EvaluationStep], interruptible: Boolean) extends ReifyStack
     }
 
-    import ReifyStack.{AsyncJump, Trampoline, RaisingError}
+    import ReifyStack.{AsyncJump, Trampoline, RaisingError, TraceGen}
 
     def async[E, A](registerCallback: (Effect[E, A] => Unit) => Unit)(implicit trace: ZTraceElement): Effect[E, A] =
       Async(trace, registerCallback)
@@ -218,6 +226,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
     def failCause[E](c: => Cause[E]): Effect[E, Nothing] = succeed(throw RaisingError(c, ChunkBuilder.make()))
 
     def succeed[A](a: => A)(implicit trace: ZTraceElement): Effect[Nothing, A] = Sync(trace, () => a)
+
+    def trace(implicit trace: ZTraceElement): Effect[Nothing, ZTrace] =
+      GenerateStackTrace(trace)
 
     sealed trait InterruptibilityRestorer {
       def apply[E, A](effect: Effect[E, A])(implicit trace: ZTraceElement): Effect[E, A]
@@ -244,18 +255,23 @@ object NewEncodingSpec extends ZIOBaseSpec {
           else f(InterruptibilityRestorer.MakeUninterruptible)
       )
 
-    def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit): Exit[E, A] = {
+    val unit: Effect[Nothing, Unit] = Effect.succeed(())
+
+    def yieldNow: Effect[Nothing, Unit] =
+      async[Nothing, Unit](k => k(Effect.unit))
+
+    def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit, maxDepth: Int = 1000): Exit[E, A] = {
       val fiberId = FiberId.None // TODO: FiberId
 
-      def loop[A](effect: Effect[Any, Any], depth: Int, stack: Chunk[EvaluationStep], interruptible0: Boolean): A = {
+      def loop(effect: Effect[Any, Any], depth: Int, stack: Chunk[EvaluationStep], interruptible0: Boolean): AnyRef = {
         import EvaluationStep._
 
         var cur           = effect
-        var done          = null.asInstanceOf[A with AnyRef]
+        var done          = null.asInstanceOf[AnyRef]
         var stackIndex    = 0
         var interruptible = interruptible0
 
-        if (depth > 1000) throw Trampoline(effect, ChunkBuilder.make(), interruptible)
+        if (depth > maxDepth) throw Trampoline(effect, ChunkBuilder.make(), interruptible)
 
         try {
           while (done eq null) {
@@ -268,12 +284,12 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     cur = effect.onSuccess(loop(effect.first, depth + 1, null, interruptible))
                   } catch {
                     case raisingError @ RaisingError(_, _) =>
-                      cur = effect.onFailure(raisingError.tracedCause(fiberId))
+                      cur = effect.onFailure(raisingError.tracedCause(fiberId)) // TODO: Losing error
 
                     case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                   }
 
-                case effect @ Sync(_, _) =>
+                case effect: Sync[_] =>
                   val value = effect.eval()
 
                   cur = null
@@ -283,47 +299,17 @@ object NewEncodingSpec extends ZIOBaseSpec {
                       stack(stackIndex) match {
                         case k: Continuation[_, _, _, _] => cur = k.erase.onSuccess(value)
                         case k: ChangeInterruptibility   => interruptible = k.interruptible
+                        case k: UpdateTrace              => ()
                       }
 
                       stackIndex += 1
                     }
                   }
 
-                  if (cur eq null) done = value.asInstanceOf[A with AnyRef]
+                  if (cur eq null) done = value.asInstanceOf[AnyRef]
 
                 case effect @ Async(_, registerCallback) =>
                   throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), interruptible)
-
-                case effect0 @ Ensuring(_, _, _) =>
-                  val effect = effect0.erase
-
-                  cur =
-                    try {
-                      val value = loop(effect.first, depth + 1, null, interruptible)
-
-                      val oldInterruptible = interruptible
-
-                      interruptible = false
-
-                      try {
-                        // Finalizer is not interruptible:
-                        loop(effect.finalizer, depth + 1, null, interruptible)
-
-                        interruptible = oldInterruptible
-
-                        Effect.succeed(value)
-                      } catch {
-                        case reifyStack: ReifyStack => reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
-                      }
-                    } catch {
-                      case raisingError @ RaisingError(_, _) =>
-                        effect.finalizer.foldCauseZIO(_ => throw raisingError, _ => throw raisingError)
-
-                      case trampoline: Trampoline =>
-                        trampoline.stack += Continuation.ensuring(effect.finalizer)
-
-                        throw trampoline
-                    }
 
                 case effect: ChangeInterruptionWithin[_, _] =>
                   val oldInterruptible = interruptible
@@ -341,9 +327,19 @@ object NewEncodingSpec extends ZIOBaseSpec {
                       case reifyStack: ReifyStack =>
                         reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
                     }
+
+                case generateStackTrace: GenerateStackTrace =>
+                  val builder = ChunkBuilder.make[EvaluationStep]()
+
+                  builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
+
+                  throw TraceGen(builder, interruptible)
+
+                case stateful: Stateful[_, _] =>
+                  cur = stateful.onState(???)
               }
             } catch {
-              case raisingError @ RaisingError(_, _) =>
+              case raisingError: RaisingError =>
                 cur = null
 
                 if (stack ne null) {
@@ -351,6 +347,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     stack(stackIndex) match {
                       case k: Continuation[_, _, _, _] => cur = k.erase.onFailure(raisingError.tracedCause(fiberId))
                       case k: ChangeInterruptibility   => interruptible = k.interruptible
+                      case k: UpdateTrace              => ()
                     }
 
                     stackIndex += 1
@@ -396,7 +393,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
         interruptible: Boolean
       ): Exit[E, A] =
         try {
-          val exit: Exit[Nothing, A] = Exit.succeed(loop(effect, 0, stack, interruptible))
+          val exit: Exit[Nothing, A] = Exit.succeed(loop(effect, 0, stack, interruptible).asInstanceOf[A])
 
           onDone(exit)
 
@@ -418,26 +415,37 @@ object NewEncodingSpec extends ZIOBaseSpec {
             onDone(exit)
 
             exit
+
+          case traceGen: TraceGen =>
+            val stack = traceGen.stack.result()
+
+            val builder = StackTraceBuilder.unsafeMake()
+
+            stack.foreach(k => builder += k.trace)
+
+            val trace = ZTrace(fiberId, builder.result())
+
+            outerLoop(Effect.succeed(trace), stack, onDone, traceGen.interruptible)
         }
 
       outerLoop[E, A](effect, null, onDone, true)
     }
 
-    def evalToFuture[A](effect: Effect[Throwable, A]): scala.concurrent.Future[A] = {
+    def evalToFuture[A](effect: Effect[Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
       val promise = Promise[A]()
 
-      evalAsync[Throwable, A](effect, exit => promise.complete(exit.toTry)) match {
+      evalAsync[Throwable, A](effect, exit => promise.complete(exit.toTry), maxDepth) match {
         case null => promise.future
 
         case exit => Future.fromTry(exit.toTry)
       }
     }
 
-    def eval[A](effect: Effect[Throwable, A]): A = {
+    def eval[A](effect: Effect[Throwable, A], maxDepth: Int = 1000): A = {
       import java.util.concurrent._
       import scala.concurrent.duration._
 
-      val future = evalToFuture(effect)
+      val future = evalToFuture(effect, maxDepth)
 
       Await.result(future, Duration(1, TimeUnit.HOURS))
     }
@@ -459,10 +467,10 @@ object NewEncodingSpec extends ZIOBaseSpec {
         b <- oldFib(n - 2)
       } yield a + b
 
-  def runFibTest(num: Int) =
+  def runFibTest(num: Int, maxDepth: Int = 1000) =
     test(s"fib(${num})") {
       for {
-        actual   <- ZIO.succeed(newFib(num).unsafeRun())
+        actual   <- ZIO.succeed(newFib(num).unsafeRun(maxDepth))
         expected <- oldFib(num)
       } yield assertTrue(actual == expected)
     }
@@ -473,10 +481,10 @@ object NewEncodingSpec extends ZIOBaseSpec {
   def oldSum(n: Int): ZIO[Any, Nothing, Int] =
     ZIO.succeed(n).flatMap(n => if (n <= 0) ZIO.succeed(0) else oldSum(n - 1).map(_ + n))
 
-  def runSumTest(num: Int) =
+  def runSumTest(num: Int, maxDepth: Int = 1000) =
     test(s"sum(${num})") {
       for {
-        actual   <- ZIO.succeed(newSum(num).unsafeRun())
+        actual   <- ZIO.succeed(newSum(num).unsafeRun(maxDepth))
         expected <- oldSum(num)
       } yield assertTrue(actual == expected)
     }
@@ -504,10 +512,10 @@ object NewEncodingSpec extends ZIOBaseSpec {
     }
   }
 
-  def runFailAfterTest(num: Int) =
+  def runFailAfterTest(num: Int, maxDepth: Int = 1000) =
     test(s"failAfter(${num})") {
       for {
-        actual   <- ZIO.succeed(newFailAfter(num).unsafeRun())
+        actual   <- ZIO.succeed(newFailAfter(num).unsafeRun(maxDepth))
         expected <- oldFailAfter(num)
       } yield assertTrue(actual == expected)
     }
@@ -544,35 +552,82 @@ object NewEncodingSpec extends ZIOBaseSpec {
     loop(0).exit
   }
 
-  def runTerminalFailTest(num: Int) =
+  def runTerminalFailTest(num: Int, maxDepth: Int = 1000) =
     test(s"terminalFail(${num})") {
       for {
-        actual   <- ZIO.succeed(newTerminalFail(num).unsafeRun())
+        actual   <- ZIO.succeed(newTerminalFail(num).unsafeRun(maxDepth))
         expected <- oldTerminalFail(num)
       } yield assertTrue(actual == expected)
     }
 
-  def runAsyncAfterTest(num: Int) =
+  def runAsyncAfterTest(num: Int, maxDepth: Int = 1000) =
     test(s"asyncAfter(${num})") {
       for {
-        actual   <- ZIO.succeed(newAsyncAfter(num).unsafeRun())
+        actual   <- ZIO.succeed(newAsyncAfter(num).unsafeRun(maxDepth))
         expected <- oldAsyncAfter(num)
       } yield assertTrue(actual == expected)
     }
 
+  def secondLevelCallStack =
+    for {
+      _ <- Effect.succeed(10)
+      _ <- Effect.succeed(20)
+      _ <- Effect.succeed(30)
+      t <- Effect.trace
+    } yield t
+
+  def firstLevelCallStack =
+    for {
+      _ <- Effect.succeed(10)
+      _ <- Effect.succeed(20)
+      _ <- Effect.succeed(30)
+      t <- secondLevelCallStack
+    } yield t
+
+  def stackTraceTest1 =
+    for {
+      _ <- Effect.succeed(10)
+      _ <- Effect.succeed(20)
+      _ <- Effect.succeed(30)
+      t <- firstLevelCallStack
+    } yield t
+
   def spec =
     suite("NewEncodingSpec") {
-      suite("fib") {
-        runFibTest(0) +
-          runFibTest(5) +
-          runFibTest(10) +
-          runFibTest(20)
+      suite("stack traces") {
+        test("simple test 1") {
+          for {
+            t <- ZIO.succeed(stackTraceTest1.unsafeRun())
+            _ <- ZIO.debug(t)
+          } yield assertTrue(t.size == 3) &&
+            assertTrue(t.stackTrace(0).toString().contains("secondLevelCallStack")) &&
+            assertTrue(t.stackTrace(1).toString().contains("firstLevelCallStack")) &&
+            assertTrue(t.stackTrace(2).toString().contains("stackTraceTest1"))
+        }
       } +
+        suite("fib") {
+          runFibTest(0) +
+            runFibTest(5) +
+            runFibTest(10) +
+            runFibTest(20)
+        } +
+        suite("fib - trampoline stress") {
+          runFibTest(0, 2) +
+            runFibTest(5, 2) +
+            runFibTest(10, 2) +
+            runFibTest(20, 2)
+        } +
         suite("sum") {
           runSumTest(0) +
             runSumTest(100) +
             runSumTest(1000) +
             runSumTest(10000)
+        } +
+        suite("sum - trampoline stress") {
+          runSumTest(0, 2) +
+            runSumTest(100, 2) +
+            runSumTest(1000, 2) +
+            runSumTest(10000, 2)
         } +
         suite("failAfter") {
           runFailAfterTest(0) +
@@ -580,11 +635,23 @@ object NewEncodingSpec extends ZIOBaseSpec {
             runFailAfterTest(1000) +
             runFailAfterTest(10000)
         } +
+        suite("failAfter - trampoline stress") {
+          runFailAfterTest(0, 2) +
+            runFailAfterTest(100, 2) +
+            runFailAfterTest(1000, 2) +
+            runFailAfterTest(10000, 2)
+        } +
         suite("asyncAfter") {
           runAsyncAfterTest(0) +
             runAsyncAfterTest(100) +
             runAsyncAfterTest(1000) +
             runAsyncAfterTest(10000)
+        } +
+        suite("asyncAfter - trampoline stress") {
+          runAsyncAfterTest(0, 2) +
+            runAsyncAfterTest(100, 2) +
+            runAsyncAfterTest(1000, 2) +
+            runAsyncAfterTest(10000, 2)
         } +
         suite("terminalFail") {
           runTerminalFailTest(0) +
@@ -592,22 +659,91 @@ object NewEncodingSpec extends ZIOBaseSpec {
             runTerminalFailTest(1000) +
             runTerminalFailTest(10000)
         } +
+        suite("terminalFail - trampoline stress") {
+          runTerminalFailTest(0, 2) +
+            runTerminalFailTest(100, 2) +
+            runTerminalFailTest(1000, 2) +
+            runTerminalFailTest(10000, 2)
+        } +
         suite("defects") {
           test("death in succeed") {
             for {
               result <- ZIO.succeed(Effect.succeed(throw TestException).exit.unsafeRun())
             } yield assertTrue(result.causeOption.get.defects(0) == TestException)
           } +
+            test("death in succeed after async") {
+              for {
+                result <-
+                  ZIO.succeed((Effect.unit *> Effect.yieldNow *> Effect.succeed(throw TestException)).exit.unsafeRun())
+              } yield assertTrue(result.causeOption.get.defects(0) == TestException)
+            } +
             suite("finalizers") {
-              test("foldCauseZIO finalization - success") {
+              test("ensuring - success") {
                 var finalized = false
 
                 val finalize = Effect.succeed { finalized = true }
 
                 for {
-                  _ <- ZIO.succeed(Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+                  _ <- ZIO.succeed(Effect.succeed(()).ensuring(finalize).exit.unsafeRun())
                 } yield assertTrue(finalized == true)
               } +
+                test("ensuring - success after async") {
+                  var finalized = false
+
+                  val finalize = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(
+                           (Effect.unit *> Effect.yieldNow *> Effect.succeed(())).ensuring(finalize).exit.unsafeRun()
+                         )
+                  } yield assertTrue(finalized == true)
+                } +
+                test("ensuring - failure") {
+                  var finalized = false
+
+                  val finalize = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(Effect.fail(()).ensuring(finalize).exit.unsafeRun())
+                  } yield assertTrue(finalized == true)
+                } +
+                test("ensuring - failure after async") {
+                  var finalized = false
+
+                  val finalize = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(
+                           (Effect.unit *> Effect.yieldNow *> Effect.fail(())).ensuring(finalize).exit.unsafeRun()
+                         )
+                  } yield assertTrue(finalized == true)
+                } +
+                test("ensuring - double failure") {
+                  var finalized = false
+
+                  val finalize1 = Effect.succeed(throw TestException)
+                  val finalize2 = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(
+                           Effect
+                             .fail(())
+                             .ensuring(finalize1)
+                             .ensuring(finalize2)
+                             .exit
+                             .unsafeRun()
+                         )
+                  } yield assertTrue(finalized == true)
+                } +
+                test("foldCauseZIO finalization - success") {
+                  var finalized = false
+
+                  val finalize = Effect.succeed { finalized = true }
+
+                  for {
+                    _ <- ZIO.succeed(Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+                  } yield assertTrue(finalized == true)
+                } +
                 test("foldCauseZIO finalization - failure") {
                   var finalized = false
 

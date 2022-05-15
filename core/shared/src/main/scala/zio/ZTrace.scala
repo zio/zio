@@ -28,12 +28,16 @@ final case class ZTrace(
   def ++(that: ZTrace): ZTrace =
     ZTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
+  def size: Int = stackTrace.length
+
   /**
    * Converts the ZIO trace into a Java stack trace, by converting each trace
    * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
     stackTrace.flatMap(ZTraceElement.toJava)
+
+  override def toString: String = toJava.mkString("\t", "\n\t", "")
 }
 
 object ZTrace {
