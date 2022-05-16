@@ -58,8 +58,7 @@ final class MVar[A] private (private val content: TRef[Option[A]]) {
 
   /**
    * Take a value from an `MVar`, put a new value into the `MVar` and return the
-   * value taken. This function is atomic only if there are no other producers
-   * for this `MVar`.
+   * value taken.
    */
   def swap(x: A): UIO[A] =
     (for {
