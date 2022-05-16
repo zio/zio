@@ -16,9 +16,10 @@ So we can put something into it, making it full, or take something out, making i
 These two features of `MVar` make it possible to synchronize multiple fibers.
 
 `MVar` can be used in multiple different ways:
-- As synchronized mutable variables
-- As channels, with `take` and `put` as `receive` and `send`
-- As a binary semaphore `MVar[Unit]`, with `take` and `put` as `wait` and `signal`
+- As a simple on/off latch
+- As a binary semaphore `MVar[Unit]`, with `take` and `put` as `acquire` and `release`
+- As a synchronized mutable variable
+- As a channel, with `take` and `put` as `receive` and `send`
 
 They were introduced in the paper [Concurrent Haskell](#http://research.microsoft.com/~simonpj/papers/concurrent-haskell.ps.gz) by Simon Peyton Jones, Andrew Gordon and Sigbjorn Finne.
 
