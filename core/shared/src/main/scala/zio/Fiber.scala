@@ -858,8 +858,8 @@ object Fiber extends FiberPlatformSpecific {
 
   /**
    * Retrieves the fiber currently executing on this thread, if any. This will
-   * always be `None` unless called from within an executing effect and the
-   * runtime executing this effect is configured to enable this feature.
+   * always be `None` unless called from within an executing effect and this
+   * feature is enabled using [[Runtime.enableCurrentFiber]].
    */
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
