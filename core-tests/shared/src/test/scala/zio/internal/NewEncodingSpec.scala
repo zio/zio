@@ -266,8 +266,11 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
     private def assertNonNull(a: Any, message: String, location: ZTraceElement): Unit =
       if (a == null) {
-        throw new NullPointerException(message + ": " + k.trace.toString)
+        throw new NullPointerException(message + ": " + location.toString)
       }
+
+    private def assertNonNullContinuation(a: Any, location: ZTraceElement): Unit =
+      assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
 
     def evalAsync[E, A](
       effect: Effect[E, A],
@@ -337,12 +340,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
                     element match {
                       case k: Continuation[_, _, _, _] =>
-                        assertNonNull(
-                          cur,
-                          "The return value of success & failure handlers must always be an effect",
-                          k.trace
-                        )
                         cur = k.erase.onSuccess(value)
+
+                        assertNonNullContinuation(cur, k.trace)
 
                       case k: ChangeInterruptibility => interruptible = k.interruptible
                       case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
@@ -405,11 +405,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                       try {
                         cur = k.erase.onFailure(cause)
 
-                        assertNonNull(
-                          cur,
-                          "The return value of success & failure handlers must always be an effect",
-                          k.trace
-                        )
+                        assertNonNullContinuation(cur, k.trace)
                       } catch {
                         case zioError: ZIOError =>
                           cause = cause.stripFailures ++ zioError.cause
