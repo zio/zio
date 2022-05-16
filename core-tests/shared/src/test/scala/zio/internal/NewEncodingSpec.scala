@@ -184,6 +184,9 @@ object NewEncodingSpec extends ZIOBaseSpec {
     ) extends Effect[E, A] { self =>
       def erase: Stateful[Any, Any] = self.asInstanceOf[Stateful[Any, Any]]
     }
+    final case class Refail[E](cause: Cause[E]) extends Effect[E, Nothing] {
+      def trace: ZTraceElement = ZTraceElement.empty
+    }
 
     type Erased = Effect[Any, Any]
 
@@ -222,9 +225,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
     def failCause[E](c: => Cause[E])(implicit trace0: ZTraceElement): Effect[E, Nothing] =
       Effect.trace(trace0).flatMap(trace => refailCause(c.traced(trace)))
 
-    def refail[E](e: => E)(implicit trace: ZTraceElement): Effect[E, Nothing] = refailCause(Cause.fail(e))
-
-    def refailCause[E](c: => Cause[E])(implicit trace: ZTraceElement): Effect[E, Nothing] = succeed(throw ZIOError(c))
+    def refailCause[E](cause: Cause[E])(implicit trace: ZTraceElement): Effect[E, Nothing] = Refail(cause)
 
     def succeed[A](a: => A)(implicit trace: ZTraceElement): Effect[Nothing, A] = Sync(trace, () => a)
 
@@ -288,112 +289,137 @@ object NewEncodingSpec extends ZIOBaseSpec {
           // Save local variables to heap:
           fiberState.setInterruptible(interruptible)
 
-          throw Trampoline(effect, ChunkBuilder.make())
+          val builder = ChunkBuilder.make[EvaluationStep]()
+
+          builder ++= stack
+
+          throw Trampoline(effect, builder)
         }
 
-        try {
-          while (done eq null) {
-            lastTrace = cur.trace
+        while (done eq null) {
+          val nextTrace = cur.trace
+          if (nextTrace ne ZTraceElement.empty) lastTrace = nextTrace
 
-            try {
-              cur match {
-                case effect0: OnSuccessOrFailure[_, _, _, _] =>
-                  val effect = effect0.erase
+          try {
+            cur match {
+              case effect0: OnSuccessOrFailure[_, _, _, _] =>
+                val effect = effect0.erase
 
-                  try {
-                    cur = effect.onSuccess(loop(fiberState, effect.first, depth + 1, null, interruptible))
-                  } catch {
-                    case zioError: ZIOError =>
-                      cur = effect.onFailure(zioError.cause) // TODO: Losing error if we get a throw here!
+                try {
+                  cur = effect.onSuccess(loop(fiberState, effect.first, depth + 1, Chunk.empty, interruptible))
+                } catch {
+                  case zioError1: ZIOError =>
+                    cur =
+                      try {
+                        effect.onFailure(zioError1.cause)
+                      } catch {
+                        case zioError2: ZIOError => Refail(zioError1.cause.stripFailures ++ zioError2.cause)
+                      }
 
-                    case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
-                  }
+                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                }
 
-                case effect: Sync[_] =>
+              case effect: Sync[_] =>
+                try {
                   val value = effect.eval()
 
                   cur = null
 
-                  if (stack ne null) {
-                    while ((cur eq null) && stackIndex < stack.length) {
-                      stack(stackIndex) match {
-                        case k: Continuation[_, _, _, _] => cur = k.erase.onSuccess(value)
-                        case k: ChangeInterruptibility   => interruptible = k.interruptible
-                        case k: UpdateTrace              => lastTrace = k.trace
-                      }
+                  while ((cur eq null) && stackIndex < stack.length) {
+                    val element = stack(stackIndex)
 
-                      stackIndex += 1
+                    stackIndex += 1
+
+                    element match {
+                      case k: Continuation[_, _, _, _] => cur = k.erase.onSuccess(value)
+                      case k: ChangeInterruptibility   => interruptible = k.interruptible
+                      case k: UpdateTrace              => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                     }
                   }
 
                   if (cur eq null) done = value.asInstanceOf[AnyRef]
+                } catch {
+                  case zioError: ZIOError =>
+                    cur = Refail(zioError.cause)
+                }
 
-                case effect: Async[_, _] =>
-                  // Save local variables to heap:
-                  fiberState.setInterruptible(interruptible)
+              case effect: Async[_, _] =>
+                // Save local variables to heap:
+                fiberState.setInterruptible(interruptible)
 
-                  throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
+                throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
 
-                case effect: ChangeInterruptionWithin[_, _] =>
-                  val oldInterruptible = interruptible
+              case effect: ChangeInterruptionWithin[_, _] =>
+                val oldInterruptible = interruptible
 
-                  interruptible = effect.newInterruptible
+                interruptible = effect.newInterruptible
 
-                  cur =
-                    try {
-                      val value = loop(fiberState, effect.scope(oldInterruptible), depth + 1, null, interruptible)
+                cur =
+                  try {
+                    val value = loop(fiberState, effect.scope(oldInterruptible), depth + 1, Chunk.empty, interruptible)
 
-                      interruptible = oldInterruptible
+                    interruptible = oldInterruptible
 
-                      Effect.succeed(value)
-                    } catch {
-                      case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
-                    }
+                    Effect.succeed(value)
+                  } catch {
+                    case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
+                  }
 
-                case generateStackTrace: GenerateStackTrace =>
-                  val builder = ChunkBuilder.make[EvaluationStep]()
+              case generateStackTrace: GenerateStackTrace =>
+                val builder = ChunkBuilder.make[EvaluationStep]()
 
-                  builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
+                builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
 
-                  // Save local variables to heap:
-                  fiberState.setInterruptible(interruptible)
+                // Save local variables to heap:
+                fiberState.setInterruptible(interruptible)
 
-                  throw TraceGen(builder)
+                throw TraceGen(builder)
 
-                case stateful: Stateful[_, _] =>
-                  cur = stateful.erase.onState(fiberState, interruptible, lastTrace)
-              }
-            } catch {
-              case zioError: ZIOError =>
+              case stateful: Stateful[_, _] =>
+                cur = stateful.erase.onState(fiberState, interruptible, lastTrace)
+
+              case refail: Refail[_] =>
+                var cause = refail.cause.asInstanceOf[Cause[Any]]
+
                 cur = null
 
-                if (stack ne null) {
-                  while ((cur eq null) && stackIndex < stack.length) {
-                    stack(stackIndex) match {
-                      case k: Continuation[_, _, _, _] => cur = k.erase.onFailure(zioError.cause)
-                      case k: ChangeInterruptibility   => interruptible = k.interruptible
-                      case k: UpdateTrace              => lastTrace = k.trace
-                    }
+                while ((cur eq null) && stackIndex < stack.length) {
+                  val element = stack(stackIndex)
 
-                    stackIndex += 1
+                  stackIndex += 1
+
+                  element match {
+                    case k: Continuation[_, _, _, _] =>
+                      try {
+                        cur = k.erase.onFailure(cause)
+
+                        if (cur eq null)
+                          throw new NullPointerException(
+                            s"The return value of any continuation must not be null: ${k.trace}"
+                          )
+                      } catch {
+                        case zioError: ZIOError =>
+                          // TODO: Strip failures because defect?
+                          cause = cause.stripFailures ++ zioError.cause
+                      }
+                    case k: ChangeInterruptibility => interruptible = k.interruptible
+                    case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                   }
                 }
 
-                if (cur eq null) throw zioError
-
-              case reifyStack: ReifyStack => throw reifyStack
-
-              case throwable: Throwable => // TODO: If non-fatal
-                cur = Effect.failCause(Cause.die(throwable))(ZTraceElement.empty)
+                if (cur eq null) throw ZIOError(cause)
             }
+          } catch {
+            case zioError: ZIOError => throw zioError
+
+            case reifyStack: ReifyStack =>
+              if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)
+
+              throw reifyStack
+
+            case throwable: Throwable => // TODO: If non-fatal
+              cur = Refail(Cause.die(throwable))
           }
-        } catch {
-          case reifyStack: ReifyStack =>
-            if ((stack ne null) && stackIndex <= stack.length) {
-              reifyStack.stack ++= stack.drop(stackIndex)
-            }
-
-            throw reifyStack
         }
 
         done
@@ -457,7 +483,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
       val fiberState = FiberState2[Any, Any](trace0, fiberRefs0)
 
-      outerLoop(fiberState, effect, null, onDone.asInstanceOf[Exit[Any, Any] => Unit]).asInstanceOf[Exit[E, A]]
+      outerLoop(fiberState, effect, Chunk.empty, onDone.asInstanceOf[Exit[Any, Any] => Unit]).asInstanceOf[Exit[E, A]]
     }
 
     def evalToFuture[A](effect: Effect[Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
