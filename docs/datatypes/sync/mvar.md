@@ -35,7 +35,7 @@ val full = MVar.make(42)
 
 ## Operations
 
-### Synchronous `put` and `take`
+### Blocking `put` and `take`
 
 `MVar` has two fundamental operations:
 
@@ -56,6 +56,21 @@ So we can put something into it, making it full, or take something out, making i
 - If it is empty and the calling fiber tries to take something out of it.
 
 These two features of `MVar` make it possible to synchronize multiple fibers.
+
+### Nonblocking `tryPut` and `tryTake`
+
+While `put` and `take` are blocking operations, there are also non-blocking versions of these operations:
+- `MVar#tryPut` which tries to fill an `MVar` and returns `true` if successful or `false` if it is full.
+- `MVar#tryTake` which tries to empty an `MVar` and returns `Some(x)` if it is full of `x` or `None` if it is empty.
+
+```scala mdoc:compile-only
+import zio._
+
+class MVar[A] {
+  def tryPut(x: A): UIO[Boolean] = ???
+  def tryTake: UIO[Option[A]] = ???
+}
+```
 
 ## Simple On/Off Latch
 
