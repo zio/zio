@@ -593,22 +593,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
   .settings(stdSettings("zio-test-junit"))
   .settings(crossProjectSettings)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
-  .settings(libraryDependencies += "com.github.sbt" % "junit-interface" % "0.13.2" % Test)
   .dependsOn(test)
-
-
-lazy val testJunitRunnerDemo = project
-  .in(file("test-junit-demo"))
-//  .settings(stdSettings("zio-test-junit-demo"))
-//  .settings(crossProjectSettings)
-//  .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
-  .settings(libraryDependencies += "com.github.sbt" % "junit-interface" % "0.13.3" % Test)
-//  .settings(libraryDependencies += "org.scala-sbt" % "test-agent" % "1.5.5" % Test)
-//  .settings(testOptions += Tests.Argument(TestFrameworks.JUnit))
-//  .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .dependsOn(testJunitRunner.jvm)
-//  .settings(dottySettings)
-
 
 lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
 
@@ -689,7 +674,6 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .settings(crossProjectSettings)
   .settings(macroExpansionSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-  .settings(libraryDependencies += "com.github.sbt" % "junit-interface" % "0.13.2" % Test)
   .settings(publish / skip := true)
   .dependsOn(macros, testRunner)
 
