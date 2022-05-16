@@ -264,6 +264,11 @@ object NewEncodingSpec extends ZIOBaseSpec {
     def yieldNow(implicit trace: ZTraceElement): Effect[Nothing, Unit] =
       async[Nothing, Unit](k => k(Effect.unit))
 
+    private def assertNonNull(a: Any, message: String, location: ZTraceElement): Unit =
+      if (a == null) {
+        throw new NullPointerException(message + ": " + k.trace.toString)
+      }
+
     def evalAsync[E, A](
       effect: Effect[E, A],
       onDone: Exit[E, A] => Unit,
@@ -331,9 +336,16 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     stackIndex += 1
 
                     element match {
-                      case k: Continuation[_, _, _, _] => cur = k.erase.onSuccess(value)
-                      case k: ChangeInterruptibility   => interruptible = k.interruptible
-                      case k: UpdateTrace              => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                      case k: Continuation[_, _, _, _] =>
+                        assertNonNull(
+                          cur,
+                          "The return value of success & failure handlers must always be an effect",
+                          k.trace
+                        )
+                        cur = k.erase.onSuccess(value)
+
+                      case k: ChangeInterruptibility => interruptible = k.interruptible
+                      case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                     }
                   }
 
@@ -393,13 +405,13 @@ object NewEncodingSpec extends ZIOBaseSpec {
                       try {
                         cur = k.erase.onFailure(cause)
 
-                        if (cur eq null)
-                          throw new NullPointerException(
-                            s"The return value of any continuation must not be null: ${k.trace}"
-                          )
+                        assertNonNull(
+                          cur,
+                          "The return value of success & failure handlers must always be an effect",
+                          k.trace
+                        )
                       } catch {
                         case zioError: ZIOError =>
-                          // TODO: Strip failures because defect?
                           cause = cause.stripFailures ++ zioError.cause
                       }
                     case k: ChangeInterruptibility => interruptible = k.interruptible
