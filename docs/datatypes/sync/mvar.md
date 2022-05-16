@@ -42,13 +42,19 @@ val full = MVar.make(42)
 - `MVar#put` which fills an `MVar` if it is empty and blocks otherwise.
 - `MVar#take` which empties an `MVar` if it is full and blocks otherwise.
 
-```scala mdoc:compile-only
+```scala mdoc:invisible
 import zio._
+```
 
+```scala mdoc:compile-only
 class MVar[A] {
   def put(a: A): UIO[Unit] = ???
   def take: UIO[A] = ???
 }
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 So we can put something into it, making it full, or take something out, making it empty, and in two cases, it will block the calling fiber:
@@ -63,24 +69,38 @@ While `put` and `take` are blocking operations, there are also non-blocking vers
 - `MVar#tryPut` which tries to fill an `MVar` and returns `true` if successful or `false` if it is full.
 - `MVar#tryTake` which tries to empty an `MVar` and returns `Some(x)` if it is full of `x` or `None` if it is empty.
 
-```scala mdoc:compile-only
+```scala mdoc:invisible
 import zio._
+```
 
+```scala mdoc:compile-only
 class MVar[A] {
   def tryPut(x: A): UIO[Boolean] = ???
   def tryTake: UIO[Option[A]] = ???
 }
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
 ### Blocking `update`, and `modify`
 
 Using `update` and `modify` we can update the value of an `MVar`. The `update` doesn't return the updated value, but the `modify` does:
 
+```scala mdoc:invisible
+import zio._
+```
+
 ```scala mdoc:compile-only
 class MVar[A] {
-  def update(f: A => A): UIO[Unit] =
-  def modify[B](f: A => (B, A)): UIO[B] =
+  def update(f: A => A): UIO[Unit] = ???
+  def modify[B](f: A => (B, A)): UIO[B] = ???
 }
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 Like the `put` and `take` operations, the `update` and `modify` operations are blocking, this means if the `MVar` is empty, they will block the calling fiber until the `MVar` becomes full.
