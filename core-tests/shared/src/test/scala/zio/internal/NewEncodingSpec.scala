@@ -179,25 +179,25 @@ object NewEncodingSpec extends ZIOBaseSpec {
     }
     final case class GenerateStackTrace(trace: ZTraceElement) extends Effect[Nothing, ZTrace]
     final case class Stateful[E, A](trace: ZTraceElement, onState: FiberState2[E, A] => Effect[E, A])
-        extends Effect[E, A]
+        extends Effect[E, A] { self =>
+      def erase: Stateful[Any, Any] = self.asInstanceOf[Stateful[Any, Any]]
+    }
 
     type Erased = Effect[Any, Any]
 
-    sealed abstract class ReifyStack extends Exception with NoStackTrace {
+    sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
+      def addContinuation(continuation: EvaluationStep.Continuation[_, _, _, _]): Nothing =
+        self.addAndThrow(continuation)
+
+      def changeInterruptibility(interruptible: Boolean): Nothing =
+        self.addAndThrow(EvaluationStep.ChangeInterruptibility(interruptible))
+
       def stack: ChunkBuilder[EvaluationStep]
 
-      final def addAndThrow(k: EvaluationStep): Nothing = {
+      private final def addAndThrow(k: EvaluationStep): Nothing = {
         stack += (k)
         throw this
       }
-
-      final def toStackTrace(fiberId: FiberId): ZTrace =
-        ZTrace(
-          fiberId,
-          stack.result().collect {
-            case k if k.trace != ZTraceElement.empty => k.trace
-          }
-        )
     }
     object ReifyStack {
       final case class AsyncJump(
@@ -263,33 +263,47 @@ object NewEncodingSpec extends ZIOBaseSpec {
     def yieldNow(implicit trace: ZTraceElement): Effect[Nothing, Unit] =
       async[Nothing, Unit](k => k(Effect.unit))
 
-    def evalAsync[E, A](effect: Effect[E, A], onDone: Exit[E, A] => Unit, maxDepth: Int = 1000): Exit[E, A] = {
+    def evalAsync[E, A](
+      effect: Effect[E, A],
+      onDone: Exit[E, A] => Unit,
+      maxDepth: Int = 1000,
+      fiberRefs0: FiberRefs = FiberRefs.empty
+    )(implicit trace0: ZTraceElement): Exit[E, A] = {
       val fiberId = FiberId.None // TODO: FiberId
 
-      def loop(effect: Effect[Any, Any], depth: Int, stack: Chunk[EvaluationStep], interruptible0: Boolean): AnyRef = {
+      def loop(
+        fiberState: FiberState2[Any, Any],
+        effect: Effect[Any, Any],
+        depth: Int,
+        stack: Chunk[EvaluationStep],
+        interruptible0: Boolean
+      ): AnyRef = {
         import EvaluationStep._
 
         var cur           = effect
         var done          = null.asInstanceOf[AnyRef]
         var stackIndex    = 0
         var interruptible = interruptible0
+        var lastTrace     = null.asInstanceOf[ZTraceElement]
 
         if (depth > maxDepth) throw Trampoline(effect, ChunkBuilder.make(), interruptible)
 
         try {
           while (done eq null) {
+            lastTrace = cur.trace
+
             try {
               cur match {
                 case effect0: OnSuccessOrFailure[_, _, _, _] =>
                   val effect = effect0.erase
 
                   try {
-                    cur = effect.onSuccess(loop(effect.first, depth + 1, null, interruptible))
+                    cur = effect.onSuccess(loop(fiberState, effect.first, depth + 1, null, interruptible))
                   } catch {
                     case zioError: ZIOError =>
                       cur = effect.onFailure(zioError.cause) // TODO: Losing error if we get a throw here!
 
-                    case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
+                    case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
                   }
 
                 case effect: Sync[_] =>
@@ -302,7 +316,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                       stack(stackIndex) match {
                         case k: Continuation[_, _, _, _] => cur = k.erase.onSuccess(value)
                         case k: ChangeInterruptibility   => interruptible = k.interruptible
-                        case k: UpdateTrace              => ()
+                        case k: UpdateTrace              => lastTrace = k.trace
                       }
 
                       stackIndex += 1
@@ -321,14 +335,13 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
                   cur =
                     try {
-                      val value = loop(effect.scope(oldInterruptible), depth + 1, null, interruptible)
+                      val value = loop(fiberState, effect.scope(oldInterruptible), depth + 1, null, interruptible)
 
                       interruptible = oldInterruptible
 
                       Effect.succeed(value)
                     } catch {
-                      case reifyStack: ReifyStack =>
-                        reifyStack.addAndThrow(ChangeInterruptibility(oldInterruptible))
+                      case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
                     }
 
                 case generateStackTrace: GenerateStackTrace =>
@@ -339,7 +352,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                   throw TraceGen(builder, interruptible)
 
                 case stateful: Stateful[_, _] =>
-                  cur = stateful.onState(???)
+                  cur = stateful.erase.onState(fiberState)
               }
             } catch {
               case zioError: ZIOError =>
@@ -350,7 +363,7 @@ object NewEncodingSpec extends ZIOBaseSpec {
                     stack(stackIndex) match {
                       case k: Continuation[_, _, _, _] => cur = k.erase.onFailure(zioError.cause)
                       case k: ChangeInterruptibility   => interruptible = k.interruptible
-                      case k: UpdateTrace              => ()
+                      case k: UpdateTrace              => lastTrace = k.trace
                     }
 
                     stackIndex += 1
@@ -377,43 +390,45 @@ object NewEncodingSpec extends ZIOBaseSpec {
         done
       }
 
-      def resumeOuterLoop[E, A](
+      def resumeOuterLoop(
+        fiberState: FiberState2[Any, Any],
         effect: Effect[Any, Any],
         stack: Chunk[EvaluationStep],
-        onDone: Exit[E, A] => Unit,
+        onDone: Exit[Any, Any] => Unit,
         interruptible: Boolean
       ): Unit =
         scala.concurrent.ExecutionContext.global.execute { () =>
-          outerLoop[E, A](effect, stack, onDone, interruptible)
+          outerLoop(fiberState, effect, stack, onDone, interruptible)
           ()
         }
 
       @tailrec
-      def outerLoop[E, A](
+      def outerLoop(
+        fiberState: FiberState2[Any, Any],
         effect: Effect[Any, Any],
         stack: Chunk[EvaluationStep],
-        onDone: Exit[E, A] => Unit,
+        onDone: Exit[Any, Any] => Unit,
         interruptible: Boolean
-      ): Exit[E, A] =
+      ): Exit[Any, Any] =
         try {
-          val exit: Exit[Nothing, A] = Exit.succeed(loop(effect, 0, stack, interruptible).asInstanceOf[A])
+          val exit: Exit[Nothing, Any] = Exit.succeed(loop(fiberState, effect, 0, stack, interruptible))
 
           onDone(exit)
 
           exit
         } catch {
           case trampoline: Trampoline =>
-            outerLoop(trampoline.effect, trampoline.stack.result(), onDone, trampoline.interruptible)
+            outerLoop(fiberState, trampoline.effect, trampoline.stack.result(), onDone, trampoline.interruptible)
 
           case asyncJump: AsyncJump =>
             asyncJump.registerCallback { value =>
-              resumeOuterLoop[E, A](value, asyncJump.stack.result(), onDone, asyncJump.interruptible)
+              resumeOuterLoop(fiberState, value, asyncJump.stack.result(), onDone, asyncJump.interruptible)
             }
 
             null
 
           case zioError: ZIOError =>
-            val exit = Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
+            val exit = Exit.failCause(zioError.cause)
 
             onDone(exit)
 
@@ -428,10 +443,12 @@ object NewEncodingSpec extends ZIOBaseSpec {
 
             val trace = ZTrace(fiberId, builder.result())
 
-            outerLoop(Effect.succeed(trace), stack, onDone, traceGen.interruptible)
+            outerLoop(fiberState, Effect.succeed(trace), stack, onDone, traceGen.interruptible)
         }
 
-      outerLoop[E, A](effect, null, onDone, true)
+      val fiberState = FiberState2[Any, Any](FiberId.unsafeMake(trace0), fiberRefs0)
+
+      outerLoop(fiberState, effect, null, onDone.asInstanceOf[Exit[Any, Any] => Unit], true).asInstanceOf[Exit[E, A]]
     }
 
     def evalToFuture[A](effect: Effect[Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
@@ -634,7 +651,6 @@ object NewEncodingSpec extends ZIOBaseSpec {
             for {
               exit <- ZIO.succeed(stackTraceTest2.exit.unsafeRun())
               t     = exit.causeOption.get.trace
-              _    <- ZIO.debug(t)
             } yield assertTrue(t.size == 4) &&
               assertTrue(t.stackTrace(0).toString().contains("secondLevelCallStackFail")) &&
               assertTrue(t.stackTrace(1).toString().contains("firstLevelCallStackFail")) &&
