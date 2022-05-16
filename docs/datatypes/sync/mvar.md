@@ -5,16 +5,6 @@ title: "MVar"
 
 An `MVar[A]` is a mutable location that is either empty or contains a value of type `A`. So the `MVar` acts like a _single-element buffer_.
 
-It has two fundamental operations:
-- `put` which fills an `MVar` if it is empty and blocks otherwise.
-- `take` which empties an `MVar` if it is full and blocks otherwise.
-
-So we can put something into it, making it full, or take something out, making it empty, and in two cases, it will block the calling fiber:
-- If it is full and the calling fiber tries to put something in it.
-- If it is empty and the calling fiber tries to take something out of it.
-
-These two features of `MVar` make it possible to synchronize multiple fibers.
-
 `MVar` can be used in multiple different ways:
 - As a simple on/off latch
 - As a binary semaphore `MVar[Unit]`, with `take` and `put` as `acquire` and `release`
@@ -35,13 +25,37 @@ import zio.concurrent.MVar
 val empty = MVar.empty[Int]
 ```
 
-2. **`MVar.mak[A]`**— To create an `MVar` of type `A` that is _initially full_, for example:
+2. **`MVar.make[A]`**— To create an `MVar` of type `A` that is _initially full_, for example:
 
 ```scala mdoc:compile-only
 import zio.concurrent.MVar
 
 val full = MVar.make(42)
 ```
+
+## Operations
+
+### Synchronous `put` and `take`
+
+`MVar` has two fundamental operations:
+
+- `MVar#put` which fills an `MVar` if it is empty and blocks otherwise.
+- `MVar#take` which empties an `MVar` if it is full and blocks otherwise.
+
+```scala mdoc:compile-only
+import zio._
+
+class MVar[A] {
+  def put(a: A): UIO[Unit] = ???
+  def take: UIO[A] = ???
+}
+```
+
+So we can put something into it, making it full, or take something out, making it empty, and in two cases, it will block the calling fiber:
+- If it is full and the calling fiber tries to put something in it.
+- If it is empty and the calling fiber tries to take something out of it.
+
+These two features of `MVar` make it possible to synchronize multiple fibers.
 
 ## Simple On/Off Latch
 
