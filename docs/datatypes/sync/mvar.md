@@ -72,6 +72,19 @@ class MVar[A] {
 }
 ```
 
+### Blocking `update`, and `modify`
+
+Using `update` and `modify` we can update the value of an `MVar`. The `update` doesn't return the updated value, but the `modify` does:
+
+```scala mdoc:compile-only
+class MVar[A] {
+  def update(f: A => A): UIO[Unit] =
+  def modify[B](f: A => (B, A)): UIO[B] =
+}
+```
+
+Like the `put` and `take` operations, the `update` and `modify` operations are blocking, this means if the `MVar` is empty, they will block the calling fiber until the `MVar` becomes full.
+
 ## Simple On/Off Latch
 
 We can use an `MVar` to implement a simple on/off latch:
