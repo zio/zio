@@ -137,6 +137,57 @@ object MainApp extends ZIOAppDefault {
 
 So we used the `take` as `acquire` and the `put` as the `release` operation of the binary semaphore.
 
+Note that, in the above solution, if any interruption occurs while we have acquired the semaphore (between `acquire` and `release` operations), the semaphore will not be released. So to prevent such a situation, we need to make sure that we always release the semaphore whether the critical section runs successfully or not. Let's model the whole solution in a new data type called `BinarySemaphore`:
+
+```scala md:compile-only
+import zio._
+import zio.concurrent.MVar
+
+class BinarySemaphore private (mvar: MVar[Unit]) {
+  def acquire: ZIO[Any, Nothing, Unit] = mvar.take
+
+  def release: ZIO[Any, Nothing, Unit] = mvar.put(())
+
+  def guard[R, E, A](
+      region: ZIO[R, E, A]
+  ): ZIO[R, E, A] =
+    ZIO.acquireReleaseWith(acquire)(_ => release)(_ => region)
+}
+
+object BinarySemaphore {
+  def make(): ZIO[Any, Nothing, BinarySemaphore] =
+    MVar.make(()).map(new BinarySemaphore(_))
+}
+```
+
+Now we can apply the `guard` function to the `inc` function of the previous example:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.MVar
+
+object MainApp extends ZIOAppDefault {
+
+  def inc(ref: Ref[Int]) =
+    for {
+      v <- ref.get
+      result = v + 1
+      _ <- ref.set(result)
+    } yield ()
+
+  def run =
+    for {
+      semaphore <- BinarySemaphore.make()
+      ref <- Ref.make(0)
+      _ <- ZIO.foreachParDiscard(1 to 100) { _ =>
+        semaphore.guard(inc(ref))
+      }
+      _ <- ref.get.debug("result")
+    } yield ()
+
+}
+```
+
 ## Synchronized Mutable Variable
 
 We can have synchronized mutable variables using the `MVar` data type:
