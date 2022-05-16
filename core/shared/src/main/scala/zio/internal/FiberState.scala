@@ -72,9 +72,9 @@ import java.util.{HashMap => JavaMap, Set => JavaSet}
 final case class FiberSuspension(blockingOn: FiberId, location: ZTraceElement)
 
 object FiberState2 {
-  def apply[E, A](fiberId: FiberId.Runtime, refs: FiberRefs): FiberState2[E, A] = new FiberState2(fiberId, refs)
+  def apply[E, A](location: ZTraceElement, refs: FiberRefs): FiberState2[E, A] = new FiberState2(location, refs)
 }
-class FiberState2[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) {
+class FiberState2[E, A](location0: ZTraceElement, fiberRefs0: FiberRefs) {
   import FiberStatusIndicator.Status
 
   val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
@@ -84,6 +84,7 @@ class FiberState2[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) {
   var fiberRefs  = fiberRefs0
   var observers  = Nil: List[Exit[Nothing, Exit[E, A]] => Unit]
   var suspension = null.asInstanceOf[FiberSuspension]
+  val fiberId    = FiberId.unsafeMake(location0)
 
   @volatile var _exitValue = null.asInstanceOf[Exit[E, A]]
 

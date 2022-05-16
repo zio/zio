@@ -2,12 +2,11 @@ package zio.internal
 
 import zio._
 import zio.test._
-//import zio.test.TestAspect.ignore
 import zio.ZIOBaseSpec
 
 object FiberStateSpec extends ZIOBaseSpec {
   def newState(): FiberState2[String, Int] =
-    FiberState2(FiberId.unsafeMake(ZTraceElement.empty), FiberRefs.empty)
+    FiberState2(ZTraceElement.empty, FiberRefs.empty)
 
   def spec =
     suite("FiberStateSpec") {
