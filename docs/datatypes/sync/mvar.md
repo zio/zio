@@ -85,7 +85,9 @@ class MVar[A] {
 
 Like the `put` and `take` operations, the `update` and `modify` operations are blocking, this means if the `MVar` is empty, they will block the calling fiber until the `MVar` becomes full.
 
-## Simple On/Off Latch
+## Use Cases
+
+### Simple On/Off Latch
 
 We can use an `MVar` to implement a simple on/off latch:
 
@@ -120,7 +122,7 @@ object MainApp extends ZIOAppDefault {
 
 In the above example, we created an empty `MVar`, and then we created two `ZIO` workflows that will be executed concurrently. The first one will wait for the second one to finish its work. But the second one at some point in its execution will need to synchronize with the first one. It needs to make sure that the first one has finished its work before it continues its own work.
 
-## Binary Semaphore
+### Binary Semaphore
 
 Assume we have a function `inc` that takes a `Ref[Int]` and increments its value by one as below:
 
@@ -255,7 +257,7 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-## Synchronized Mutable Variable
+### Synchronized Mutable Variable
 
 We can have synchronized mutable variables using the `MVar` data type:
 
@@ -295,7 +297,7 @@ def inc(state: MVar[Int]) =
 
 Can we say this is the same as the previous `inc` function? No, because although the `take` and `put` are atomic by themselves, their composition is not. So in a real-world scenario, in a concurrent environment it is possible that in between the `take` and `put` operations, the `state` is modified by another fiber. So this is why we used the `update` operation instead, which is an atomic operation.
 
-## Producer/Consumer Channel
+### Producer/Consumer Channel
 
 We can use an `MVar` to implement a producer/consumer channel:
 
