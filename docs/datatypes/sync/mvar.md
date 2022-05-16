@@ -139,7 +139,7 @@ So we used the `take` as `acquire` and the `put` as the `release` operation of t
 
 Note that, in the above solution, if any interruption occurs while we have acquired the semaphore (between `acquire` and `release` operations), the semaphore will not be released. So to prevent such a situation, we need to make sure that we always release the semaphore whether the critical section runs successfully or not. Let's model the whole solution in a new data type called `BinarySemaphore`:
 
-```scala md:compile-only
+```scala mdoc:silent
 import zio._
 import zio.concurrent.MVar
 
@@ -186,6 +186,10 @@ object MainApp extends ZIOAppDefault {
     } yield ()
 
 }
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 ## Synchronized Mutable Variable
