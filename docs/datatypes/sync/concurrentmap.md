@@ -5,6 +5,42 @@ title: "ConcurrentMap"
 
 A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.
 
+## Motivation
+
+The `HashMap` in the Scala standard library is not thread-safe. This means that if multiple fibers are accessing the same key, and trying to modify the value, this can lead to inconsistent results.
+
+For example, assume we have a `HashMap` with a key `foo` and a value of `0`. Let's see what happens if we perform the `inc` workflow 100 times concurrently:
+
+```scala mdoc:compile-only
+import zio._
+
+import scala.collection.mutable
+
+object MainApp extends ZIOAppDefault {
+
+  def inc(ref: Ref[mutable.HashMap[String, Int]], key: String) =
+    for {
+      _ <- ref.get
+      _ <- ref.update { map =>
+        map.updateWith(key)(_.map(_ + 1))
+        map
+      }
+    } yield ()
+
+  def run =
+    for {
+      ref <- Ref.make(mutable.HashMap(("foo", 0)))
+      _ <- ZIO.foreachParDiscard(1 to 100)(_ => inc(ref, "foo"))
+      _ <- ref.get.map(_.get("foo")).debug("The final value of foo is")
+    } yield ()
+
+}
+```
+
+Since the `HashMap` is not thread-safe, every time we run this program, we might get different results.
+
+So we need a concurrent data structure that can be used safely in concurrent environments, which the `ConcurrentMap` does for us.
+
 ## Operations
 
 ### Creation
