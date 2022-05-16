@@ -253,8 +253,8 @@ trait FiberRef[A] extends Serializable { self =>
    * that needs to access fiber specific data, like MDC contexts and the like.
    * The returned `ThreadLocal` will be backed by this `FiberRef` on all threads
    * that are currently managed by ZIO when this feature is enabled using
-   * [[Runtime.enableCurrentFiber]], and behave like an ordinary
-   * `ThreadLocal` on all other threads.
+   * [[Runtime.enableCurrentFiber]], and behave like an ordinary `ThreadLocal`
+   * on all other threads.
    */
   def unsafeAsThreadLocal(implicit trace: Trace): UIO[ThreadLocal[A]] =
     ZIO.succeed {
