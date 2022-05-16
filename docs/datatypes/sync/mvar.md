@@ -23,6 +23,26 @@ These two features of `MVar` make it possible to synchronize multiple fibers.
 
 They were introduced in the paper [Concurrent Haskell](#http://research.microsoft.com/~simonpj/papers/concurrent-haskell.ps.gz) by Simon Peyton Jones, Andrew Gordon and, Sigbjorn Finne.
 
+## Creation
+
+There are two ways to create an `MVar`:
+
+1. **`MVar.empty[A]`**— To create an `MVar` of type `A` that is _initially empty_, for example:
+
+```scala mdoc:compile-only
+import zio.concurrent.MVar
+
+val empty = MVar.empty[Int]
+```
+
+2. **`MVar.mak[A]`**— To create an `MVar` of type `A` that is _initially full_, for example:
+
+```scala mdoc:compile-only
+import zio.concurrent.MVar
+
+val full = MVar.make(42)
+```
+
 ## Simple On/Off Latch
 
 We can use an `MVar` to implement a simple on/off latch:
