@@ -35,11 +35,34 @@ object MainApp extends ZIOAppDefault {
     } yield ()
 
 }
+// Different outputs on different executions:
+// The final value of foo is Some(72)
+// The final value of foo is Some(84)
+// The final value of foo is Some(78)
+// ...
 ```
 
-Since the `HashMap` is not thread-safe, every time we run this program, we might get different results.
+Since the `HashMap` is not thread-safe, every time we run this program, we might get different results, which is not desirable.
 
-So we need a concurrent data structure that can be used safely in concurrent environments, which the `ConcurrentMap` does for us.
+So we need a concurrent data structure that can be used safely in concurrent environments, which the `ConcurrentMap` does for us:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.ConcurrentMap
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      map <- ConcurrentMap.make(("foo", 0), ("bar", 1), ("baz", 2))
+      _ <- ZIO.foreachParDiscard(1 to 100)(_ =>
+        map.computeIfPresent("foo", (_, v) => v + 1)
+      )
+      _ <- map.get("foo").debug("The final value of foo is")
+    } yield ()
+}
+// Output:
+// The final value of foo is Some(100)
+```
 
 ## Operations
 
