@@ -70,17 +70,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.orDie
 
   /**
-   * Returns the logical conjunction of the `Boolean` value returned by this
-   * effect and the `Boolean` value returned by the specified effect. This
-   * operator has "short circuiting" behavior so if the value returned by this
-   * effect is false the specified effect will not be evaluated.
-   */
-  final def &&[R1 <: R, E1 >: E](
-    that: => ZIO[R1, E1, Boolean]
-  )(implicit ev: A <:< Boolean, trace: Trace): ZIO[R1, E1, Boolean] =
-    self.flatMap(a => if (ev(a)) that else ZIO.succeedNow(false))
-
-  /**
    * Returns an effect that executes both this effect and the specified effect,
    * in parallel, returning result of provided effect. If either side fails,
    * then the other side will be interrupted.
@@ -160,17 +149,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def unary_![R1 <: R, E1 >: E](implicit ev: A <:< Boolean, trace: Trace): ZIO[R1, E1, Boolean] =
     self.map(a => !ev(a))
-
-  /**
-   * Returns the logical conjunction of the `Boolean` value returned by this
-   * effect and the `Boolean` value returned by the specified effect. This
-   * operator has "short circuiting" behavior so if the value returned by this
-   * effect is true the specified effect will not be evaluated.
-   */
-  final def ||[R1 <: R, E1 >: E](
-    that: => ZIO[R1, E1, Boolean]
-  )(implicit ev: A <:< Boolean, trace: Trace): ZIO[R1, E1, Boolean] =
-    self.flatMap(a => if (ev(a)) ZIO.succeedNow(true) else that)
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
@@ -4639,6 +4617,31 @@ object ZIO extends ZIOCompanionPlatformSpecific {
      */
     def withFinalizerAuto(implicit trace: Trace): ZIO[R with Scope, E, A] =
       ZIO.acquireRelease(io)(a => ZIO.succeed(a.close()))
+  }
+
+  implicit final class ZIOBooleanOps[R, E](private val self: ZIO[R, E, Boolean]) extends AnyVal {
+
+    /**
+     * Returns the logical conjunction of the `Boolean` value returned by this
+     * effect and the `Boolean` value returned by the specified effect. This
+     * operator has "short circuiting" behavior so if the value returned by this
+     * effect is false the specified effect will not be evaluated.
+     */
+    final def &&[R1 <: R, E1 >: E](
+      that: => ZIO[R1, E1, Boolean]
+    )(implicit trace: Trace): ZIO[R1, E1, Boolean] =
+      self.flatMap(a => if (a) that else ZIO.succeedNow(false))
+
+    /**
+     * Returns the logical conjunction of the `Boolean` value returned by this
+     * effect and the `Boolean` value returned by the specified effect. This
+     * operator has "short circuiting" behavior so if the value returned by this
+     * effect is true the specified effect will not be evaluated.
+     */
+    final def ||[R1 <: R, E1 >: E](
+      that: => ZIO[R1, E1, Boolean]
+    )(implicit trace: Trace): ZIO[R1, E1, Boolean] =
+      self.flatMap(a => if (a) ZIO.succeedNow(true) else that)
   }
 
   implicit final class ZioRefineToOrDieOps[R, E <: Throwable, A](private val self: ZIO[R, E, A]) extends AnyVal {
