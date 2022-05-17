@@ -68,11 +68,18 @@ object MainApp extends ZIOAppDefault {
 
 ### Creation
 
-| Method                                                                | Definition                                                                              |
-|-----------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-|`empty[K, V]: UIO[ConcurrentMap[K, V]]`                                | Makes an empty `ConcurrentMap`                                                          |
-|`fromIterable[K, V](pairs: Iterable[(K, V)]): UIO[ConcurrentMap[K, V]]`| Makes a new `ConcurrentMap` initialized with the provided collection of key-value pairs |
-|`make[K, V](pairs: (K, V)*): UIO[ConcurrentMap[K, V]]`                 | Makes a new `ConcurrentMap` initialized with the provided key-value pairs               |
+To make an empty `ConcurrentMap` we use `ConcurrentMap.empty`:
+
+```scala mdoc:compile-only
+val empty = ConcurrentMap.empty[String, Int]
+```
+
+And to make a `ConcurrentMap` with some initial values we use `ConcurrentMap.make` or `ConcurrentMap.fromIterable`:
+
+```scala mdoc:compile-only
+val map1 = ConcurrentMap.make(("foo", 0), ("bar", 1), ("baz", 2))
+val map2 = ConcurrentMap.fromIterable(List(("foo", 0), ("bar", 1), ("baz", 2)))
+```
 
 ### Use
 
