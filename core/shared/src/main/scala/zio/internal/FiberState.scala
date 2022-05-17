@@ -89,7 +89,7 @@ class FiberState2[E, A](location0: ZTraceElement, fiberRefs0: FiberRefs) {
   @volatile var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   final def evalOn(effect: zio.UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
-    UIO.suspendSucceed {
+    ZIO.suspendSucceed {
       if (addMessage(effect)) ZIO.unit else orElse.unit
     }
 
