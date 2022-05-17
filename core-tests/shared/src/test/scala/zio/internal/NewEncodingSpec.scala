@@ -14,12 +14,34 @@ object zio2 {
 
   type UIO[+A] = zio2.ZIO[Any, Nothing, A]
 
+  class RuntimeFiber[E, A](location0: ZTraceElement, fiberRefs: FiberRefs)
+      extends FiberState[E, A](location0, fiberRefs) {
+
+    def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] = ???
+
+    def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ???
+
+    def id: FiberId.Runtime = fiberId
+
+    def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = ???
+
+    def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = ???
+
+    def location: ZTraceElement = fiberId.location
+
+    def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]] = ???
+
+    def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = ???
+
+    def trace(implicit trace: ZTraceElement): UIO[ZTrace] = ???
+  }
+
   final case class FiberSuspension(blockingOn: FiberId, location: ZTraceElement)
 
-  object FiberState2 {
-    def apply[E, A](location: ZTraceElement, refs: FiberRefs): FiberState2[E, A] = new FiberState2(location, refs)
+  object FiberState {
+    def apply[E, A](location: ZTraceElement, refs: FiberRefs): FiberState[E, A] = new FiberState(location, refs)
   }
-  class FiberState2[E, A](location0: ZTraceElement, fiberRefs0: FiberRefs) {
+  class FiberState[E, A](location0: ZTraceElement, fiberRefs0: FiberRefs) {
     // import FiberStatusIndicator.Status
 
     val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
@@ -35,14 +57,14 @@ object zio2 {
 
     final def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.suspendSucceed {
-        if (addMessage(effect)) ZIO.unit else orElse.unit
+        if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
       }
 
     /**
      * Adds a weakly-held reference to the specified fiber inside the children
      * set.
      */
-    final def addChild(child: FiberContext[_, _]): Unit = {
+    final def unsafeAddChild(child: FiberContext[_, _]): Unit = {
       if (_children eq null) {
         _children = Platform.newWeakSet[FiberContext[_, _]]()
       }
@@ -54,7 +76,7 @@ object zio2 {
      * Adds a message to the mailbox and returns true if the state is not done.
      * Otherwise, returns false to indicate the fiber cannot accept messages.
      */
-    final def addMessage(effect: UIO[Any]): Boolean = {
+    final def unsafeAddMessage(effect: UIO[Any]): Boolean = {
       @tailrec
       def loop(message: UIO[Any]): Unit = {
         val oldMessages = mailbox.get
@@ -77,7 +99,7 @@ object zio2 {
     /**
      * Adds an observer to the list of observers.
      */
-    final def addObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
+    final def unsafeAddObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
       observers = observer :: observers
 
     /**
@@ -85,7 +107,7 @@ object zio2 {
      * fiber is currently asynchronously suspended (hence, "async
      * interruption").
      */
-    final def attemptAsyncInterrupt(asyncs: Int): Boolean =
+    final def unsafeAttemptAsyncInterrupt(asyncs: Int): Boolean =
       statusState.attemptAsyncInterrupt(asyncs)
 
     /**
@@ -98,12 +120,12 @@ object zio2 {
      *   `null` if the state of the fiber was set to done, or the pending
      *   messages, otherwise.
      */
-    final def attemptDone(e: Exit[E, A]): UIO[Any] = {
+    final def unsafeAttemptDone(e: Exit[E, A]): UIO[Any] = {
       _exitValue = e
 
       if (statusState.attemptDone()) {
         null.asInstanceOf[UIO[Any]]
-      } else drainMailbox()
+      } else unsafeDrainMailbox()
     }
 
     /**
@@ -114,7 +136,7 @@ object zio2 {
      * it cannot be transitioned, because the fiber state was already resumed or
      * even completed.
      */
-    final def attemptResume(asyncs: Int): Boolean = {
+    final def unsafeAttemptResume(asyncs: Int): Boolean = {
       val resumed = statusState.attemptResume(asyncs)
 
       if (resumed) suspension = null
@@ -126,7 +148,7 @@ object zio2 {
      * Drains the mailbox of all messages. If the mailbox is empty, this will
      * return `ZIO.unit`.
      */
-    final def drainMailbox(): UIO[Any] = {
+    final def unsafeDrainMailbox(): UIO[Any] = {
       @tailrec
       def clearMailbox(): UIO[Any] = {
         val oldMailbox = mailbox.get
@@ -142,37 +164,37 @@ object zio2 {
     /**
      * Changes the state to be suspended.
      */
-    final def enterSuspend(): Int =
-      statusState.enterSuspend(getFiberRef(FiberRef.interruptible))
+    final def unsafeEnterSuspend(): Int =
+      statusState.enterSuspend(unsafeGetFiberRef(FiberRef.interruptible))
 
     /**
      * Retrieves the exit value of the fiber state, which will be `null` if not
      * currently set.
      */
-    final def exitValue(): Exit[E, A] = _exitValue
+    final def unsafeExitValue(): Exit[E, A] = _exitValue
 
     /**
      * Retrieves the current number of async suspensions of the fiber, which can
      * be used to uniquely identify each suspeension.
      */
-    final def getAsyncs(): Int = statusState.getAsyncs()
+    final def unsafeGetAsyncs(): Int = statusState.getAsyncs()
 
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
      */
-    final def getFiberRefOrElse[A](fiberRef: FiberRef[A], orElse: => A): A =
+    final def unsafeGetFiberRefOrElse[A](fiberRef: FiberRef[A], orElse: => A): A =
       fiberRefs.get(fiberRef).getOrElse(orElse)
 
     /**
      * Retrieves the state of the fiber ref, or else its initial value.
      */
-    final def getFiberRef[A](fiberRef: FiberRef[A]): A =
+    final def unsafeGetFiberRef[A](fiberRef: FiberRef[A]): A =
       fiberRefs.getOrDefault(fiberRef)
 
     /**
      * Retrieves the interruptibility status of the fiber state.
      */
-    final def getInterruptible(): Boolean = getFiberRef(FiberRef.interruptible)
+    final def unsafeGetInterruptible(): Boolean = unsafeGetFiberRef(FiberRef.interruptible)
 
     /**
      * Determines if the fiber state contains messages to process by the fiber
@@ -180,22 +202,16 @@ object zio2 {
      * only that, if the messages were not drained, there will be some messages
      * at some point later, before the fiber state transitions to done.
      */
-    final def hasMessages(): Boolean = {
+    final def unsafeHasMessages(): Boolean = {
       val indicator = statusState.getIndicator()
 
       FiberStatusIndicator.getPendingMessages(indicator) > 0 || FiberStatusIndicator.getMessages(indicator)
     }
 
     /**
-     * Retrieves the location from whence the fiber was forked, which is a way
-     * to tie the executing logic of the fiber back to source code locations.
-     */
-    final def location: ZTraceElement = fiberId.location
-
-    /**
      * Removes the child from the children list.
      */
-    final def removeChild(child: FiberContext[_, _]): Unit =
+    final def unsafeRemoveChild(child: FiberContext[_, _]): Unit =
       if (_children ne null) {
         _children.remove(child)
         ()
@@ -204,25 +220,25 @@ object zio2 {
     /**
      * Removes the specified observer from the list of observers.
      */
-    final def removeObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
+    final def unsafeRemoveObserver(observer: Exit[Nothing, Exit[E, A]] => Unit): Unit =
       observers = observers.filter(_ ne observer)
 
     /**
      * Sets the fiber ref to the specified value.
      */
-    final def setFiberRef[A](fiberRef: FiberRef[A], value: A): Unit =
+    final def unsafeSetFiberRef[A](fiberRef: FiberRef[A], value: A): Unit =
       fiberRefs = fiberRefs.updatedAs(fiberId)(fiberRef, value)
 
     /**
      * Sets the interruptibility status of the fiber to the specified value.
      */
-    final def setInterruptible(interruptible: Boolean): Unit =
-      setFiberRef(FiberRef.interruptible, interruptible)
+    final def unsafeSetInterruptible(interruptible: Boolean): Unit =
+      unsafeSetFiberRef(FiberRef.interruptible, interruptible)
 
     /**
      * Retrieves a snapshot of the status of the fibers.
      */
-    final def status(): Fiber.Status = {
+    final def unsafeStatus(): Fiber.Status = {
       import FiberStatusIndicator.Status
 
       val indicator = statusState.getIndicator()
@@ -430,7 +446,7 @@ object zio2 {
     final case class GenerateStackTrace(trace: ZTraceElement) extends ZIO[Any, Nothing, ZTrace]
     final case class Stateful[R, E, A](
       trace: ZTraceElement,
-      onState: (FiberState2[E, A], Boolean, ZTraceElement) => ZIO[R, E, A]
+      onState: (FiberState[E, A], Boolean, ZTraceElement) => ZIO[R, E, A]
     ) extends ZIO[R, E, A] { self =>
       def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
     }
@@ -530,28 +546,6 @@ object zio2 {
     private def assertNonNullContinuation(a: Any, location: ZTraceElement): Unit =
       assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
 
-    class RuntimeFiber[E, A]() {
-      def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] = ???
-
-      def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ???
-
-      def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] = ???
-
-      def id: FiberId.Runtime = ???
-
-      def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = ???
-
-      def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] = ???
-
-      def location: ZTraceElement = ???
-
-      def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]] = ???
-
-      def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = ???
-
-      def trace(implicit trace: ZTraceElement): UIO[ZTrace] = ???
-    }
-
     def evalAsync[R, E, A](
       effect: ZIO[R, E, A],
       onDone: Exit[E, A] => Unit,
@@ -559,7 +553,7 @@ object zio2 {
       fiberRefs0: FiberRefs = FiberRefs.empty
     )(implicit trace0: ZTraceElement): Exit[E, A] = {
       def loop(
-        fiberState: FiberState2[Any, Any],
+        fiberState: FiberState[Any, Any],
         effect: ZIO[Any, Any, Any],
         depth: Int,
         stack: Chunk[EvaluationStep],
@@ -575,7 +569,7 @@ object zio2 {
 
         if (depth > maxDepth) {
           // Save local variables to heap:
-          fiberState.setInterruptible(interruptible)
+          fiberState.unsafeSetInterruptible(interruptible)
 
           val builder = ChunkBuilder.make[EvaluationStep]()
 
@@ -637,7 +631,7 @@ object zio2 {
 
               case effect: Async[_, _, _] =>
                 // Save local variables to heap:
-                fiberState.setInterruptible(interruptible)
+                fiberState.unsafeSetInterruptible(interruptible)
 
                 throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
 
@@ -663,7 +657,7 @@ object zio2 {
                 builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
 
                 // Save local variables to heap:
-                fiberState.setInterruptible(interruptible)
+                fiberState.unsafeSetInterruptible(interruptible)
 
                 throw TraceGen(builder)
 
@@ -714,7 +708,7 @@ object zio2 {
       }
 
       def resumeOuterLoop(
-        fiberState: FiberState2[Any, Any],
+        fiberState: FiberState[Any, Any],
         effect: ZIO[Any, Any, Any],
         stack: Chunk[EvaluationStep],
         onDone: Exit[Any, Any] => Unit
@@ -726,13 +720,13 @@ object zio2 {
 
       @tailrec
       def outerLoop(
-        fiberState: FiberState2[Any, Any],
+        fiberState: FiberState[Any, Any],
         effect: ZIO[Any, Any, Any],
         stack: Chunk[EvaluationStep],
         onDone: Exit[Any, Any] => Unit
       ): Exit[Any, Any] =
         try {
-          val interruptible = fiberState.getInterruptible()
+          val interruptible = fiberState.unsafeGetInterruptible()
 
           val exit: Exit[Nothing, Any] = Exit.succeed(loop(fiberState, effect, 0, stack, interruptible))
 
@@ -769,7 +763,7 @@ object zio2 {
             outerLoop(fiberState, ZIO.succeed(trace), stack, onDone)
         }
 
-      val fiberState = FiberState2[Any, Any](trace0, fiberRefs0)
+      val fiberState = FiberState[Any, Any](trace0, fiberRefs0)
 
       outerLoop(fiberState, effect.asInstanceOf[Erased], Chunk.empty, onDone.asInstanceOf[Exit[Any, Any] => Unit])
         .asInstanceOf[Exit[E, A]]
