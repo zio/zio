@@ -35,7 +35,7 @@ The following guides have been written to help you get started with ZIO with min
 15. Metrics and Tracing in ZIO
 16. How to use ZIO Macros?
 
-## Integration with Other Languages/Libraries
+## Integration Guides
 
 1. [How to Interop with Cats Effect?](interop/with-cats-effect.md)
 2. [How to Interop with Future?](interop/with-future.md)
