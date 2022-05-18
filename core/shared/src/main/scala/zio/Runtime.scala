@@ -418,6 +418,9 @@ object Runtime extends RuntimePlatformSpecific {
   def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ + logger))
 
+  def setLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped(FiberRef.currentLoggers.locallyScoped(logger))
+
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentSupervisors.locallyScopedWith(_ + supervisor))
 
