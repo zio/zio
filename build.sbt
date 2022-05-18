@@ -833,7 +833,7 @@ lazy val docs = project.module
       "dev.zio"               %% "zio-config-refined"          % "3.0.0-RC9",
       "dev.zio"               %% "zio-ftp"                     % "0.3.3",
       "dev.zio"               %% "zio-json"                    % "0.3.0-RC8",
-      "dev.zio"               %% "zio-kafka"                   % "2.0.0-RC5",
+//      "dev.zio"               %% "zio-kafka"                   % "2.0.0-RC5",
       "dev.zio"               %% "zio-logging"                 % "0.5.12",
       "dev.zio"               %% "zio-metrics-prometheus"      % "1.0.12",
       "dev.zio"               %% "zio-nio"                     % "1.0.0-RC11",
