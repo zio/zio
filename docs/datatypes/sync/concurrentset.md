@@ -5,40 +5,57 @@ title: "ConcurrentSet"
 
 A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
 
-## Operations
-
-### Creation
+## Creation
 
 | Method                                                      | Definition                                                           |
 |-------------------------------------------------------------|----------------------------------------------------------------------|
 | `empty[A]: UIO[ConcurrentSet[A]]`                           | Makes an empty `ConcurrentSet`                                       |
-| `empty[A](initialCapacity: Int): UIO[ConcurrentSet[A]]`     | Makes an empty `ConcurrentSet` with ìnitial capacity                 |
+| `empty[A](initialCapacity: Int): UIO[ConcurrentSet[A]]`     | Makes an empty `ConcurrentSet` with initial capacity                 |
 | `fromIterable[A](as: Iterable[(A)]): UIO[ConcurrentSet[A]]` | Makes a new `ConcurrentSet` initialized with the provided collection |
 | `make[A](as: A*): UIO[ConcurrentSet[A]]`                    | Makes a new `ConcurrentSet` initialized with the provided elements   |
 
-### Use
+## Update Operations
+
+Basic operations are provided to manipulate the values in the `ConcurrentSet`:
+
+### Adding Values
+
+| Method                                  | Definition          |
+|-----------------------------------------|---------------------|
+| `add(x: A): UIO[Boolean]`               | Adds a new value.   |
+| `addAll(xs: Iterable[A]): UIO[Boolean]` | Adds all new values.|
+
+### Updating Values
+
+| Method                            | Definition                                                            |
+|-----------------------------------|-----------------------------------------------------------------------|
+| `transform(f: A => A): UIO[Unit]` | Transform all elements of the ConcurrentSet using the given function. |
+
+### Removing Values
+
+| Method                                     | Definition                                                                              |
+|--------------------------------------------|-----------------------------------------------------------------------------------------|
+| `remove(x: A): UIO[Boolean]`               | Removes the entry for the given value if it is mapped to an existing element.           |
+| `removeAll(xs: Iterable[A]): UIO[Boolean]` | Removes all the entries for the given values if they are mapped to an existing element. |
+| `removeIf(p: A => Boolean): UIO[Boolean]`  | Removes all elements which satisfy the given predicate.                                 |
+| `retainAll(xs: Iterable[A]): UIO[Boolean]` | Retain all the entries for the given values if they are mapped to an existing element.  |
+| `retainIf(p: A => Boolean): UIO[Boolean]`  | Removes all elements which do not satisfy the given predicate.                          |
+| `clear: UIO[Unit]`                         | Removes all elements.                                                                   |
+
+## Retrieval Operations
 
 | Method                                                        | Definition                                                                                                 |
 |---------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
-| `add(x: A): UIO[Boolean]`                                     | Adds a new value.                                                                                          |
-| `addAll(xs: Iterable[A]): UIO[Boolean]`                       | Adds all new values.                                                                                       |
 | `collectFirst[B](pf: PartialFunction[(A, B)): UIO[Option[B]]` | Finds the first element of a set for which the partial function is defined and applies the function to it. |
 | `exists(p: A => Boolean): UIO[Boolean]`                       | Tests whether a given predicate holds true for at least one element in the set.                            |
 | `fold[R, E, S](zero: S)(f: (S, A) => S): UIO[S]`              | Folds the elements of a set using the given binary operator.                                               |
 | `forall(p: A => Boolean): UIO[Boolean]`                       | Tests whether a predicate is satisfied by all elements of a set.                                           |
 | `find[B](p: A => Boolean): UIO[Option[A]]`                    | Retrieves the elements in which predicate is satisfied.                                                    |
-| `remove(x: A): UIO[Boolean]`                                  | Removes the entry for the given value if it is mapped to an existing element.                              |
-| `removeAll(xs: Iterable[A]): UIO[Boolean]`                    | Removes all the entries for the given values if they are mapped to an existing element.                    |
-| `removeIf(p: A => Boolean): UIO[Boolean]`                     | Removes all elements which satisfy the given predicate.                                                    |
-| `retainAll(xs: Iterable[A]): UIO[Boolean]`                    | Retain all the entries for the given values if they are mapped to an existing element.                     |
-| `retainIf(p: A => Boolean): UIO[Boolean]`                     | Removes all elements which do not satisfy the given predicate.                                             |
-| `clear: UIO[Unit]`                                            | Removes all elements.                                                                                      |
 | `contains(x: A): UIO[Boolean]`                                | Tests whether if the element is in the set.                                                                |
 | `containsAll(xs: Iterable[A]): UIO[Boolean]`                  | Tests if the elements in the collection are a subset of the set.                                           |
 | `size: UIO[Int]`                                              | Number of elements in the set.                                                                             |
 | `isEmpty: UIO[Boolean]`                                       | True if there are no elements in the set.                                                                  |
-| `toSet: UIO[Set[A]]`                                          | Create a concurrent set from a set.                                                                        |
-| `transform(f: A => A): UIO[Unit]`                             | Create a concurrent set from a collection.                                                                 |
+| `toSet: UIO[Set[A]]`                                          | Convert the ConcurrentSet to Set.                                                                          |
 
 ## Example Usage
 
