@@ -197,38 +197,25 @@ module.exports = {
       "datatypes/misc/zstate",
     ]
   },
-  "usecases-sidebar": {
-    "Use Cases": [
-      "usecases/usecases_index",
-      "usecases/usecases_asynchronous",
-      "usecases/usecases_concurrency",
-      "usecases/usecases_parallelism",
-      "usecases/usecases_queueing",
-      "usecases/usecases_retrying",
-      "usecases/usecases_scheduling",
-      "usecases/usecases_streaming",
-      "usecases/usecases_testing"
-    ]
-  },
-  "howto-sidebar": {
-    "Overview": ["howto/index"],
-    "How to": [
-      "howto/handle-errors",
+  "guides-sidebar": {
+    "Overview": ["guides/index"],
+    "Guides": [
+      "guides/handle-errors",
     ],
     "Interop": [
-      "howto/interop/with-cats-effect",
-      "howto/interop/with-future",
-      "howto/interop/with-java",
-      "howto/interop/with-javascript",
-      "howto/interop/with-monix",
-      "howto/interop/with-scalaz-7x",
-      "howto/interop/with-reactive-streams",
-      "howto/interop/with-twitter",
-      "howto/interop/with-guava"
+      "guides/interop/with-cats-effect",
+      "guides/interop/with-future",
+      "guides/interop/with-java",
+      "guides/interop/with-javascript",
+      "guides/interop/with-monix",
+      "guides/interop/with-scalaz-7x",
+      "guides/interop/with-reactive-streams",
+      "guides/interop/with-twitter",
+      "guides/interop/with-guava"
     ],
     "Migrate": [
-      "howto/migrate/from-monix",
-      "howto/migrate/zio-2.x-migration-guide"
+      "guides/migrate/from-monix",
+      "guides/migrate/zio-2.x-migration-guide"
     ]
   },
   "resources-sidebar": {
