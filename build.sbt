@@ -827,7 +827,7 @@ lazy val docs = project.module
       "org.typelevel"         %% "cats-effect"                 % catsEffectV,
       "dev.zio"               %% "zio-actors"                  % zioActorsV,
       "dev.zio"               %% "zio-akka-cluster"            % "0.2.0",
-      "dev.zio"               %% "zio-cache"                   % "0.1.0",
+      "dev.zio"               %% "zio-cache"                   % "0.2.0-RC6",
       "dev.zio"               %% "zio-config-magnolia"         % "3.0.0-RC9",
       "dev.zio"               %% "zio-config-typesafe"         % "3.0.0-RC9",
       "dev.zio"               %% "zio-config-refined"          % "3.0.0-RC9",

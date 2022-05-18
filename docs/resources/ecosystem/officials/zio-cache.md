@@ -32,42 +32,43 @@ Some key features of ZIO Cache:
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-cache" % "0.1.0" // Check the repo for the latest version
+libraryDependencies += "dev.zio" %% "zio-cache" % "0.2.0-RC6"
 ```
 
 ## Example
 
 In this example, we are calling `timeConsumingEffect` three times in parallel with the same key. The ZIO Cache runs this effect only once. So the concurrent lookups will suspend until the value being computed is available:
 
-```scala
+```scala mdoc:compile-only
+import zio._
 import zio.cache.{Cache, Lookup}
-import zio.clock.Clock
-import zio.console.{Console, putStrLn}
-import zio.duration.{Duration, durationInt}
-import zio.{ExitCode, URIO, ZIO}
 
-import java.io.IOException
+object ZIOCacheExample extends ZIOAppDefault {
+  def timeConsumingEffect(key: String) =
+    ZIO.sleep(5.seconds).as(key.hashCode)
 
-def timeConsumingEffect(key: String): ZIO[Clock, Nothing, Int] =
-  ZIO.sleep(5.seconds) *> ZIO.succeed(key.hashCode)
+  def run =
+    for {
+      cache <- Cache.make(
+        capacity = 100,
+        timeToLive = Duration.Infinity,
+        lookup = Lookup(timeConsumingEffect)
+      )
+      result <- cache
+        .get("key1")
+        .zipPar(cache.get("key1"))
+        .zipPar(cache.get("key1"))
+      _ <- ZIO.debug(
+        s"Result of parallel execution of three effects with the same key: $result"
+      )
 
-val myApp: ZIO[Console with Clock, IOException, Unit] =
-  for {
-    cache <- Cache.make(
-      capacity = 100,
-      timeToLive = Duration.Infinity,
-      lookup = Lookup(timeConsumingEffect)
-    )
-    result <- cache.get("key1")
-                .zipPar(cache.get("key1"))
-                .zipPar(cache.get("key1"))
-    _ <- putStrLn(s"Result of parallel execution three effects with the same key: $result")
+      hits <- cache.cacheStats.map(_.hits)
+      misses <- cache.cacheStats.map(_.misses)
+      _ <- ZIO.debug(s"Number of cache hits: $hits")
+      _ <- ZIO.debug(s"Number of cache misses: $misses")
+    } yield ()
 
-    hits <- cache.cacheStats.map(_.hits)
-    misses <- cache.cacheStats.map(_.misses)
-    _ <- putStrLn(s"Number of cache hits: $hits")
-    _ <- putStrLn(s"Number of cache misses: $misses")
-  } yield ()
+}
 ```
 
 The output of this program should be as follows:
