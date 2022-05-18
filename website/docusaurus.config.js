@@ -29,8 +29,7 @@ module.exports = {
       items: [
         { to: 'version-1.x/overview/', label: 'Overview', position: 'right' },
         { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
-        { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
-        { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
+        { to: 'version-1.x/guides/', label: 'Guides', position: 'right' },
         { to: 'version-1.x/resources/', label: 'Resources', position: 'right' },
         { to: 'version-1.x/about/', label: 'About', position: 'right' },
         {
