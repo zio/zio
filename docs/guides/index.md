@@ -3,7 +3,7 @@ id: index
 title: "Guides"
 ---
 
-## ZIO Starters
+## Getting Started Guides
 
 The following guides have been written to help you get started with ZIO with minimal effort and without the need to fully understand the underlying technology:
 
