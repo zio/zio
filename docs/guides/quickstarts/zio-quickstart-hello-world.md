@@ -16,7 +16,7 @@ cd zio-quickstart-hello-world
 
 Once you are inside the project directory, run the application:
 
-```scala
+```bash
 sbt run
 ```
 
@@ -25,8 +25,6 @@ sbt run
 When we prompt the `sbt run` the sbt search for the executable class and will find the `zio.dev.quickstart.MainApp` which contains the following code:
 
 ```scala mdoc:compile-only
-package dev.zio.quickstart
-
 import zio._
 
 object MainApp extends ZIOAppDefault {
@@ -38,9 +36,7 @@ The `MainApp` is the main object of our application which extends the `ZIOAppDef
 
 This example is the simplest, example we can run. Let's change it so that we ask the name of the user and print a hello along with the user's name:
 
-```scala
-package dev.zio.quickstart
-
+```scala mdoc:compile-only
 import zio._
 
 object MainApp extends ZIOAppDefault {
@@ -56,8 +52,6 @@ object MainApp extends ZIOAppDefault {
 In this example, we used `for-comprehension` to compose `print`, `readLine` and `printLine` workflows. We can think of it as the following `flatMap` operations:
 
 ```scala mdoc:compile-only
-package dev.zio.quickstart
-
 import zio._
 
 object MainApp extends ZIOAppDefault {
