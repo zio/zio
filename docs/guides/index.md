@@ -7,7 +7,7 @@ title: "Guides"
 
 The following guides have been written to help you get started with ZIO with minimal effort and without the need to fully understand the underlying technology:
 
-1. [Simple ZIO Application Quickstart](quickstarts/simple-zio-app)
+1. [ZIO Quickstart: Hello World](quickstarts/zio-quickstart-hello-world.md)
 2. Getting Started With ZIO Streaming
 3. Getting Started With ZIO and ScalaJS
 4. Getting Started With a ZIO Application with a RESTful API
@@ -17,22 +17,24 @@ The following guides have been written to help you get started with ZIO with min
 
 ## Tutorial Guides
 
-1. Building a RESTful Web Service
-2. Building a Web Service Client
-3. How to Encode and Decode JSON Data
-4. Building a gRPC Service with its Client
-5. How to Build a Chat Client and Server using ZIO Streams?
-6. How to Deploy a ZIO Application Using Docker?
-7. How to Make a ZIO Application Configurable?
-8. How to Enable Logging in a ZIO Application?
-9. How to Create a Custom Logger for a ZIO Application?
-10. How to Monitor a ZIO Application Using Built-in Metrics
-11. How to Monitor a ZIO Application by Implementing Custom Metrics
-12. How to Integrate ZIO With a Legacy JVM Application?
-13. How to Consume/Produce Data From/To a Kafka Topic?
-14. How to Consume/Produce Data From/To a RabbitMQ Queue?
-15. How to Enable Tracing in ZIO and How to Use it?
-16. [How to Use ZIO Macros?](howto-macros.md)
+1. How to Setup the IntelliJ IDEA to Use ZIO?
+2. How to Setup the VsCode to Use ZIO?
+3. Building a RESTful Web Service
+4. Building a Web Service Client
+5. How to Encode and Decode JSON Data
+6. Building a gRPC Service with its Client
+7. How to Build a Chat Client and Server using ZIO Streams?
+8. How to Deploy a ZIO Application Using Docker?
+9. How to Make a ZIO Application Configurable?
+10. How to Enable Logging in a ZIO Application?
+11. How to Create a Custom Logger for a ZIO Application?
+12. How to Monitor a ZIO Application Using Built-in Metrics
+13. How to Monitor a ZIO Application by Implementing Custom Metrics
+14. How to Integrate ZIO With a Legacy JVM Application?
+15. How to Consume/Produce Data From/To a Kafka Topic?
+16. How to Consume/Produce Data From/To a RabbitMQ Queue?
+17. How to Enable Tracing in ZIO and How to Use it?
+18. [How to Use ZIO Macros?](howto-macros.md)
 
 ## Integration Guides
 

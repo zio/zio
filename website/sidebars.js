@@ -202,7 +202,7 @@ module.exports = {
       "guides/index"
     ],
     "Quickstart Guides": [
-      "guides/quickstarts/simple-zio-app"
+      "guides/quickstarts/zio-quickstart-hello-world"
     ],
     "Tutorial Guides": [
       "guides/handle-errors"
