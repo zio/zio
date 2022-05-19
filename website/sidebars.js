@@ -77,6 +77,18 @@ module.exports = {
         },
         {
             type: "category",
+            label: "Synchronization",
+            items: [
+                "datatypes/sync/index",
+                "datatypes/sync/reentrantlock",
+                "datatypes/sync/countdownlatch",
+                "datatypes/sync/cyclicbarrier",
+                "datatypes/sync/concurrentmap",
+                "datatypes/sync/concurrentset",
+            ]
+        },
+        {
+            type: "category",
             label: "Concurrency Primitives",
             items: [
                 "datatypes/concurrency/index",
