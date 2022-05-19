@@ -3,11 +3,11 @@ id: index
 title: "Guides"
 ---
 
-## Getting Started Guides
+## Quickstart Guides
 
 The following guides have been written to help you get started with ZIO with minimal effort and without the need to fully understand the underlying technology:
 
-1. Getting Started With a Simple ZIO Application
+1. [Simple ZIO Application Quickstart](quickstarts/simple-zio-app)
 2. Getting Started With ZIO Streaming
 3. Getting Started With ZIO and ScalaJS
 4. Getting Started With a ZIO Application with a RESTful API
@@ -15,25 +15,24 @@ The following guides have been written to help you get started with ZIO with min
 6. Getting Started With a ZIO Application With a GraphQL API
 7. Getting Started with a ZIO Application With a Persistent Layer
 
-
-## Tutorials
+## Tutorial Guides
 
 1. Building a RESTful Web Service
 2. Building a Web Service Client
 3. How to Encode and Decode JSON Data
 4. Building a gRPC Service with its Client
-5. How to build a Chat Client and Server using ZIO Streams?
-6. How to deploy a ZIO Application using Docker?
+5. How to Build a Chat Client and Server using ZIO Streams?
+6. How to Deploy a ZIO Application Using Docker?
 7. How to Make a ZIO Application Configurable?
-8. How to enable logging in a ZIO Application?
-9. How to Use a Custom Logger in a ZIO Application?
-10. How to Monitor a ZIO Application using Built-in Metrics
+8. How to Enable Logging in a ZIO Application?
+9. How to Create a Custom Logger for a ZIO Application?
+10. How to Monitor a ZIO Application Using Built-in Metrics
 11. How to Monitor a ZIO Application by Implementing Custom Metrics
-12. How to integrate ZIO with a legacy Scala/Java application?
-13. How to consume/produce data from/to a Kafka Topic?
-14. How to consume/produce data from/to a RabbitMQ Queue?
-15. Metrics and Tracing in ZIO
-16. How to use ZIO Macros?
+12. How to Integrate ZIO With a Legacy JVM Application?
+13. How to Consume/Produce Data From/To a Kafka Topic?
+14. How to Consume/Produce Data From/To a RabbitMQ Queue?
+15. How to Enable Tracing in ZIO and How to Use it?
+16. [How to Use ZIO Macros?](howto-macros.md)
 
 ## Integration Guides
 
@@ -50,5 +49,5 @@ The following guides have been written to help you get started with ZIO with min
 ## Migration Guides
 
 1. [ZIO 2.x Migration Guide](migrate/migration-guide.md)
-2. [How to Migrate from Cats Effect to ZIO?](migrate/from-cats-efect.md)
+2. [How to Migrate from Cats Effect to ZIO?](migrate/from-cats-effect.md)
 3. [How to Migrate from Monix to ZIO?](migrate/from-monix.md)

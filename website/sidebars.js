@@ -198,11 +198,16 @@ module.exports = {
     ]
   },
   "guides-sidebar": {
-    "Overview": ["guides/index"],
-    "Guides": [
-      "guides/handle-errors",
+    "Overview": [
+      "guides/index"
     ],
-    "Interop": [
+    "Quickstart Guides": [
+      "guides/quickstarts/simple-zio-app"
+    ],
+    "Tutorial Guides": [
+      "guides/handle-errors"
+    ],
+    "Integration Guides": [
       "guides/interop/with-cats-effect",
       "guides/interop/with-future",
       "guides/interop/with-java",
@@ -213,9 +218,10 @@ module.exports = {
       "guides/interop/with-twitter",
       "guides/interop/with-guava"
     ],
-    "Migrate": [
+    "Migration Guides": [
+      "guides/migrate/zio-2.x-migration-guide",
+      "guides/migrate/from-cats-effect",
       "guides/migrate/from-monix",
-      "guides/migrate/zio-2.x-migration-guide"
     ]
   },
   "resources-sidebar": {
