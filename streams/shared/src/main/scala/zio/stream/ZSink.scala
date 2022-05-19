@@ -303,16 +303,27 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     } yield push)
 
   /**
-   * Returns the sink that executes this one and times its execution.
+   * Returns a sink that executes this one and reports the start time and the
+   * end time.
    */
-  final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] =
+  final def stopWatched: ZSink[R with Clock, E, I, L, (Z, Long, Long)] =
     ZSink {
       self.push.zipWith(clock.nanoTime.toManaged_) { (push, start) =>
         push(_).catchAll {
-          case (Left(e), leftover)  => Push.fail(e, leftover)
-          case (Right(z), leftover) => clock.nanoTime.flatMap(stop => Push.emit(z -> (stop - start).nanos, leftover))
+          case (Left(e), leftover) =>
+            Push.fail(e, leftover)
+          case (Right(z), leftover) =>
+            clock.nanoTime.flatMap(stop => Push.emit((z, start, stop), leftover))
         }
       }
+    }
+
+  /**
+   * Returns the sink that executes this one and times its execution.
+   */
+  final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] =
+    stopWatched.map { case (z, start, stop) =>
+      (z, (stop - start).nanos)
     }
 
   /**
@@ -959,9 +970,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
+   * A sink that reports start & end time.
+   */
+  def stopWatched: ZSink[Clock, Nothing, Any, Nothing, (Long, Long)] =
+    ZSink.drain.stopWatched.map { case (_, start, stop) => (start, stop) }
+
+  /**
    * A sink with timed execution.
    */
-  def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] = ZSink.drain.timed.map(_._2)
+  def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] =
+    stopWatched.map { case (start, stop) => (stop - start).nanos }
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
