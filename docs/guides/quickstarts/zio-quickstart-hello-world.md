@@ -1,6 +1,7 @@
 ---
 id: zio-quickstart-hello-world
 title: "ZIO Quickstart: Hello World"
+sidebar_label: "Hello World"
 ---
 
 This is the simplest quickstart for a ZIO application. You can download and run it very quickly. This will give you an idea of how to write similar apps.
