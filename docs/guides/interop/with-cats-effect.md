@@ -1,6 +1,7 @@
 ---
 id: with-cats-effect
 title: "How to Interop with Cats Effect?"
+sidebar_label: "Cats Effect"
 ---
 
 ```scala mdoc:invisible

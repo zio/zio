@@ -197,33 +197,33 @@ module.exports = {
       "datatypes/misc/zstate",
     ]
   },
-  "guides-sidebar": {
-    "Overview": [
-      "guides/index"
-    ],
-    "Quickstart Guides": [
-      "guides/quickstarts/zio-quickstart-hello-world"
-    ],
-    "Tutorial Guides": [
-      "guides/handle-errors"
-    ],
-    "Integration Guides": [
-      "guides/interop/with-cats-effect",
-      "guides/interop/with-future",
-      "guides/interop/with-java",
-      "guides/interop/with-javascript",
-      "guides/interop/with-monix",
-      "guides/interop/with-scalaz-7x",
-      "guides/interop/with-reactive-streams",
-      "guides/interop/with-twitter",
-      "guides/interop/with-guava"
-    ],
-    "Migration Guides": [
-      "guides/migrate/zio-2.x-migration-guide",
-      "guides/migrate/from-cats-effect",
-      "guides/migrate/from-monix",
-    ]
-  },
+  "guides-sidebar": [
+    "guides/index",
+    {
+      "Quickstart Guides": [
+        "guides/quickstarts/zio-quickstart-hello-world"
+      ],
+      "Tutorial Guides": [
+        "guides/handle-errors"
+      ],
+      "Integration Guides": [
+        "guides/interop/with-cats-effect",
+        "guides/interop/with-future",
+        "guides/interop/with-java",
+        "guides/interop/with-javascript",
+        "guides/interop/with-monix",
+        "guides/interop/with-scalaz-7x",
+        "guides/interop/with-reactive-streams",
+        "guides/interop/with-twitter",
+        "guides/interop/with-guava"
+      ],
+      "Migration Guides": [
+        "guides/migrate/zio-2.x-migration-guide",
+        "guides/migrate/from-cats-effect",
+        "guides/migrate/from-monix",
+      ]
+    }
+  ],
   "resources-sidebar": {
     "Overview": [
       "resources/index"

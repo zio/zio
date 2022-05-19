@@ -1,6 +1,7 @@
 ---
 id: index
-title: "Guides"
+title: "ZIO Guides"
+sidebar_label: "Overview"
 ---
 
 ## Quickstart Guides
