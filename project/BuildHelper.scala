@@ -78,14 +78,6 @@ object BuildHelper {
       else
         Seq()
     },
-    Compile / doc / sources := {
-      val old = (Compile / doc / sources).value
-      if (scalaVersion.value == Scala3) {
-        Nil
-      } else {
-        old
-      }
-    },
     Test / parallelExecution := {
       val old = (Test / parallelExecution).value
       if (scalaVersion.value == Scala3) {
@@ -243,7 +235,9 @@ object BuildHelper {
     Test / parallelExecution := true,
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     autoAPIMappings := true,
-    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library")
+    unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
+    Compile / fork := true,
+    Test / fork    := false
   )
 
   def macroExpansionSettings = Seq(

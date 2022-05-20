@@ -27,7 +27,7 @@ import scala.annotation.implicitNotFound
     "your effect has Nothing for the error type, which means it cannot " +
     "fail, so there is no need to handle the failure. To find out which " +
     "method you can use instead of this operation, please see the " +
-    "reference chart at: https://zio.dev/docs/can_fail"
+    "reference chart at: https://zio.dev/version-1.x/can_fail"
 )
 sealed abstract class CanFail[-E]
 

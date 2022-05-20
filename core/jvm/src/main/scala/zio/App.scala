@@ -71,7 +71,7 @@ trait App extends BootstrapRuntime {
                      val _ = unsafeRunSync(fiber.interrupt)
                    }
                }))
-          result <- fiber.join
+          result <- fiber.join.catchAllCause(_ => ZIO.succeed(ExitCode.failure))
           _      <- fiber.interrupt
         } yield result.code
       )

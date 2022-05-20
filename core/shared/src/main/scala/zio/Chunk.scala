@@ -195,11 +195,29 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else if (n >= len) Chunk.empty
     else
       self match {
-        case Chunk.Slice(c, o, l)        => Chunk.Slice(c, o + n, l - n)
-        case Chunk.Singleton(_) if n > 0 => Chunk.empty
-        case c @ Chunk.Singleton(_)      => c
-        case Chunk.Empty                 => Chunk.empty
-        case _                           => Chunk.Slice(self, n, len - n)
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
+        case Chunk.Concat(l, r) =>
+          if (n > l.length) r.drop(n - l.length)
+          else Chunk.Concat(l.drop(n), r)
+        case _ => Chunk.Slice(self, n, len - n)
+      }
+  }
+
+  /**
+   * Drops the last `n` elements of the chunk.
+   */
+  override def dropRight(n: Int): Chunk[A] = {
+    val len = self.length
+
+    if (n <= 0) self
+    else if (n >= len) Chunk.empty
+    else
+      self match {
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o, l - n)
+        case Chunk.Concat(l, r) =>
+          if (n > r.length) l.dropRight(n - r.length)
+          else Chunk.Concat(l, r.dropRight(n))
+        case _ => Chunk.Slice(self, 0, len - n)
       }
   }
 
@@ -767,12 +785,26 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] { self =>
     else if (n >= length) this
     else
       self match {
-        case Chunk.Empty => Chunk.Empty
-        case Chunk.Slice(c, o, l) =>
-          if (n >= l) this
-          else Chunk.Slice(c, o, n)
-        case c @ Chunk.Singleton(_) => c
-        case _                      => Chunk.Slice(self, 0, n)
+        case Chunk.Slice(c, o, _) => Chunk.Slice(c, o, n)
+        case Chunk.Concat(l, r) =>
+          if (n > l.length) Chunk.Concat(l, r.take(n - l.length))
+          else l.take(n)
+        case _ => Chunk.Slice(self, 0, n)
+      }
+
+  /**
+   * Takes the last `n` elements of the chunk.
+   */
+  override def takeRight(n: Int): Chunk[A] =
+    if (n <= 0) Chunk.Empty
+    else if (n >= length) this
+    else
+      self match {
+        case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + l - n, n)
+        case Chunk.Concat(l, r) =>
+          if (n > r.length) Chunk.Concat(l.takeRight(n - r.length), r)
+          else r.takeRight(n)
+        case _ => Chunk.Slice(self, length - n, n)
       }
 
   /**

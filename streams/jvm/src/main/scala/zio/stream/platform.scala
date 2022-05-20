@@ -485,19 +485,19 @@ trait ZStreamPlatformSpecificConstructors {
    * Creates a stream from a Java stream
    */
   final def fromJavaStream[A](stream: => ju.stream.Stream[A]): ZStream[Any, Throwable, A] =
-    ZStream.fromJavaIterator(stream.iterator())
+    ZStream.fromJavaIteratorManaged(ZManaged.makeEffect(stream)(_.close()).map(_.iterator()))
 
   /**
    * Creates a stream from a Java stream
    */
   final def fromJavaStreamEffect[R, A](stream: ZIO[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorEffect(stream.flatMap(s => UIO(s.iterator())))
+    ZStream.fromEffect(stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a managed Java stream
    */
   final def fromJavaStreamManaged[R, A](stream: ZManaged[R, Throwable, ju.stream.Stream[A]]): ZStream[R, Throwable, A] =
-    ZStream.fromJavaIteratorManaged(stream.mapM(s => UIO(s.iterator())))
+    ZStream.managed(stream).flatMap(ZStream.fromJavaStream(_))
 
   /**
    * Creates a stream from a Java stream
@@ -589,7 +589,7 @@ trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Write the entire Chuck[Byte] to the socket channel. The caller of this
+     * Write the entire Chunk[Byte] to the socket channel. The caller of this
      * function is NOT responsible for closing the `AsynchronousSocketChannel`.
      *
      * The sink will yield the count of bytes written.
