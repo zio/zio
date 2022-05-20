@@ -594,7 +594,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val jsdocs = project
-  .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
+  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.0.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.6"
