@@ -1,5 +1,5 @@
 ---
-id: zio-quickstart-hello-world
+id: hello-world
 title: "ZIO Quickstart: Hello World"
 sidebar_label: "Hello World"
 ---

@@ -201,7 +201,8 @@ module.exports = {
     "guides/index",
     {
       "Quickstart Guides": [
-        "guides/quickstarts/zio-quickstart-hello-world"
+        "guides/quickstarts/hello-world",
+        "guides/quickstarts/restful-webservice",  
       ],
       "Tutorial Guides": [
         "guides/handle-errors"
