@@ -298,13 +298,18 @@ lazy val testJS = test.js
   .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M1",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
     )
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
+  .settings(
+    libraryDependencies ++= List(
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
+    )
+  )
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
