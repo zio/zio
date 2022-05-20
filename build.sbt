@@ -285,7 +285,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.2")
         .cross(CrossVersion.for3Use2_13)
     )
   )
@@ -298,13 +298,13 @@ lazy val testJS = test.js
   .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M1",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
     )
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
+  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.9")
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -319,7 +319,13 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
-lazy val testTestsJS  = testTests.js.settings(dottySettings)
+lazy val testTestsJS = testTests.js
+  .settings(dottySettings)
+  .settings(
+    libraryDependencies ++= List(
+      ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
+    )
+  )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -590,7 +596,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val jsdocs = project
-  .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
+  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.0.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.6"
