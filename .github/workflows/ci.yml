@@ -7,7 +7,7 @@ env:
 on:
   pull_request:
   push:
-    branches: ['master']
+    branches: [ 'master' ]
   release:
     types:
       - published
@@ -87,8 +87,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.11.12', '2.12.15', '2.13.8', '3.1.2']
-        platform: ['JVM']
+        scala: [ '2.11.12', '2.12.15', '2.13.8', '3.1.2' ]
+        platform: [ 'JVM' ]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -119,8 +119,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['8', '11']
-        platform: ['JVM']
+        java: [ '8', '11' ]
+        platform: [ 'JVM' ]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -141,7 +141,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: ['JS', 'Native']
+        platform: [ 'JS', 'Native' ]
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -158,7 +158,7 @@ jobs:
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, compile, publishLocal, website, test, testJvms, testPlatforms]
+    needs: [ lint, compile, publishLocal, website, test, testJvms, testPlatforms ]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"
@@ -166,7 +166,7 @@ jobs:
   publish:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: [ci]
+    needs: [ ci ]
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
