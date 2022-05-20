@@ -71,10 +71,6 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
-ThisBuild / resolvers += "Sonatype OSS Snapshots".at( // TODO: remove
-  "https://oss.sonatype.org/content/repositories/snapshots"
-)
-
 lazy val root = project
   .in(file("."))
   .settings(
@@ -140,7 +136,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.1-SNAPSHOT")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.0")
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreJVM = core.jvm
