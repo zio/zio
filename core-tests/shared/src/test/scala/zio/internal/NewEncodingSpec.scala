@@ -12,14 +12,33 @@ object zio2 {
   import java.util.{Set => JavaSet}
   import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
-  type UIO[+A] = zio2.ZIO[Any, Nothing, A]
+  type UIO[+A] = ZIO[Any, Nothing, A]
+  type Erased  = ZIO[Any, Any, Any]
 
+  object RuntimeFiber {
+    def apply[E, A](location: ZTraceElement, fiberRefs: FiberRefs): RuntimeFiber[E, A] =
+      new RuntimeFiber(location, fiberRefs)
+  }
   class RuntimeFiber[E, A](location0: ZTraceElement, fiberRefs: FiberRefs)
-      extends FiberState[E, A](location0, fiberRefs) {
+      extends FiberState[E, A](location0, fiberRefs) { self =>
+    import ZIO._
+    import EvaluationStep._
+    import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
 
     def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] = ???
 
-    def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] = ???
+    def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+      evalOnZIO(ZIO.succeed(Chunk.fromJavaIterable(unsafeGetChildren())), ZIO.succeed(Chunk.empty))
+
+    def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
+      trace: ZTraceElement
+    ): ZIO[R, E2, A2] = ???
+    //   for {
+    //     r <- ZIO.environment[R]
+    //     p <- Promise.make[E2, A2]
+    //     _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
+    //     a <- p.await
+    //   } yield a
 
     def id: FiberId.Runtime = fiberId
 
@@ -34,6 +53,222 @@ object zio2 {
     def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = ???
 
     def trace(implicit trace: ZTraceElement): UIO[ZTrace] = ???
+
+    private def assertNonNull(a: Any, message: String, location: ZTraceElement): Unit =
+      if (a == null) {
+        throw new NullPointerException(message + ": " + location.toString)
+      }
+
+    private def assertNonNullContinuation(a: Any, location: ZTraceElement): Unit =
+      assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
+
+    def asyncResume(
+      effect: ZIO[Any, Any, Any],
+      stack: Chunk[EvaluationStep],
+      maxDepth: Int,
+      onDone: Exit[E, A] => Unit
+    ): Unit =
+      scala.concurrent.ExecutionContext.global.execute { () =>
+        resume(effect, stack, maxDepth, onDone)
+        ()
+      }
+
+    @tailrec
+    final def resume(
+      effect: ZIO[Any, Any, Any],
+      stack: Chunk[EvaluationStep],
+      maxDepth: Int,
+      onDone: Exit[E, A] => Unit
+    ): Exit[E, A] =
+      try {
+        val interruptible = self.unsafeGetInterruptible()
+
+        val exit: Exit[Nothing, A] = Exit.succeed(loop(effect, maxDepth, stack, interruptible).asInstanceOf[A])
+
+        onDone(exit)
+
+        exit
+      } catch {
+        case trampoline: Trampoline =>
+          resume(trampoline.effect, trampoline.stack.result(), maxDepth, onDone)
+
+        case asyncJump: AsyncJump =>
+          asyncJump.registerCallback { value =>
+            asyncResume(value, asyncJump.stack.result(), maxDepth, onDone)
+          }
+
+          null
+
+        case zioError: ZIOError =>
+          val exit = Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
+
+          onDone(exit)
+
+          exit
+
+        case traceGen: GenerateTrace =>
+          val stack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
+
+          val builder = StackTraceBuilder.unsafeMake()
+
+          stack.foreach(k => builder += k.trace)
+
+          val trace = ZTrace(self.fiberId, builder.result())
+
+          resume(ZIO.succeed(trace), stack, maxDepth, onDone)
+      }
+
+    def loop(
+      effect: ZIO[Any, Any, Any],
+      remainingDepth: Int,
+      stack: Chunk[ZIO.EvaluationStep],
+      interruptible0: Boolean
+    ): AnyRef = {
+      var cur           = effect
+      var done          = null.asInstanceOf[AnyRef]
+      var stackIndex    = 0
+      var interruptible = interruptible0
+      var lastTrace     = null.asInstanceOf[ZTraceElement]
+
+      if (remainingDepth <= 0) {
+        // Save local variables to heap:
+        self.unsafeSetInterruptible(interruptible)
+
+        val builder = ChunkBuilder.make[EvaluationStep]()
+
+        builder ++= stack
+
+        throw Trampoline(effect, builder)
+      }
+
+      while (done eq null) {
+        val nextTrace = cur.trace
+        if (nextTrace ne ZTraceElement.empty) lastTrace = nextTrace
+
+        try {
+          cur match {
+            case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
+              val effect = effect0.erase
+
+              try {
+                cur = effect.onSuccess(loop(effect.first, remainingDepth - 1, Chunk.empty, interruptible))
+              } catch {
+                case zioError1: ZIOError =>
+                  cur =
+                    try {
+                      effect.onFailure(zioError1.cause)
+                    } catch {
+                      case zioError2: ZIOError => Refail(zioError1.cause.stripFailures ++ zioError2.cause)
+                    }
+
+                case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+              }
+
+            case effect: Sync[_] =>
+              try {
+                val value = effect.eval()
+
+                cur = null
+
+                while ((cur eq null) && stackIndex < stack.length) {
+                  val element = stack(stackIndex)
+
+                  stackIndex += 1
+
+                  element match {
+                    case k: Continuation[_, _, _, _, _] =>
+                      cur = k.erase.onSuccess(value)
+
+                      assertNonNullContinuation(cur, k.trace)
+
+                    case k: ChangeInterruptibility => interruptible = k.interruptible
+                    case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                  }
+                }
+
+                if (cur eq null) done = value.asInstanceOf[AnyRef]
+              } catch {
+                case zioError: ZIOError =>
+                  cur = Refail(zioError.cause)
+              }
+
+            case effect: Async[_, _, _] =>
+              // Save local variables to heap:
+              self.unsafeSetInterruptible(interruptible)
+
+              throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
+
+            case effect: ChangeInterruptionWithin[_, _, _] =>
+              val oldInterruptible = interruptible
+
+              interruptible = effect.newInterruptible
+
+              cur =
+                try {
+                  val value = loop(effect.scope(oldInterruptible), remainingDepth - 1, Chunk.empty, interruptible)
+
+                  interruptible = oldInterruptible
+
+                  ZIO.succeed(value)
+                } catch {
+                  case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
+                }
+
+            case generateStackTrace: GenerateStackTrace =>
+              val builder = ChunkBuilder.make[EvaluationStep]()
+
+              builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
+
+              // Save local variables to heap:
+              self.unsafeSetInterruptible(interruptible)
+
+              throw GenerateTrace(builder)
+
+            case stateful: Stateful[_, _, _] =>
+              cur = stateful.erase.onState(self.asInstanceOf[FiberState[Any, Any]], interruptible, lastTrace)
+
+            case refail: Refail[_] =>
+              var cause = refail.cause.asInstanceOf[Cause[Any]]
+
+              cur = null
+
+              while ((cur eq null) && stackIndex < stack.length) {
+                val element = stack(stackIndex)
+
+                stackIndex += 1
+
+                element match {
+                  case k: Continuation[_, _, _, _, _] =>
+                    try {
+                      cur = k.erase.onFailure(cause)
+
+                      assertNonNullContinuation(cur, k.trace)
+                    } catch {
+                      case zioError: ZIOError =>
+                        cause = cause.stripFailures ++ zioError.cause
+                    }
+                  case k: ChangeInterruptibility => interruptible = k.interruptible
+                  case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                }
+              }
+
+              if (cur eq null) throw ZIOError(cause)
+          }
+        } catch {
+          case zioError: ZIOError => throw zioError
+
+          case reifyStack: ReifyStack =>
+            if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)
+
+            throw reifyStack
+
+          case throwable: Throwable => // TODO: If non-fatal
+            cur = Refail(Cause.die(throwable))
+        }
+      }
+
+      done
+    }
   }
 
   final case class FiberSuspension(blockingOn: FiberId, location: ZTraceElement)
@@ -44,16 +279,17 @@ object zio2 {
   class FiberState[E, A](location0: ZTraceElement, fiberRefs0: FiberRefs) {
     // import FiberStatusIndicator.Status
 
-    val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
-    val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
+    private val mailbox     = new AtomicReference[UIO[Any]](ZIO.unit)
+    private val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
 
-    private var _children = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
-    var fiberRefs         = fiberRefs0
-    var observers         = Nil: List[Exit[Nothing, Exit[E, A]] => Unit]
-    var suspension        = null.asInstanceOf[FiberSuspension]
-    val fiberId           = FiberId.unsafeMake(location0)
+    private var _children  = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
+    private var fiberRefs  = fiberRefs0
+    private var observers  = Nil: List[Exit[Nothing, Exit[E, A]] => Unit]
+    private var suspension = null.asInstanceOf[FiberSuspension]
 
-    @volatile var _exitValue = null.asInstanceOf[Exit[E, A]]
+    protected val fiberId = FiberId.unsafeMake(location0)
+
+    @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
     final def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.suspendSucceed {
@@ -178,6 +414,13 @@ object zio2 {
      * be used to uniquely identify each suspeension.
      */
     final def unsafeGetAsyncs(): Int = statusState.getAsyncs()
+
+    final def unsafeGetChildren(): JavaSet[FiberContext[_, _]] = {
+      if (_children eq null) {
+        _children = Platform.newWeakSet[FiberContext[_, _]]()
+      }
+      _children
+    }
 
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
@@ -454,8 +697,6 @@ object zio2 {
       def trace: ZTraceElement = ZTraceElement.empty
     }
 
-    type Erased = ZIO[Any, Any, Any]
-
     sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
       def addContinuation(continuation: EvaluationStep.Continuation[_, _, _, _, _]): Nothing =
         self.addAndThrow(continuation)
@@ -478,10 +719,8 @@ object zio2 {
 
       final case class Trampoline(effect: ZIO[Any, Any, Any], stack: ChunkBuilder[EvaluationStep]) extends ReifyStack
 
-      final case class TraceGen(stack: ChunkBuilder[EvaluationStep]) extends ReifyStack
+      final case class GenerateTrace(stack: ChunkBuilder[EvaluationStep]) extends ReifyStack
     }
-
-    import ReifyStack.{AsyncJump, Trampoline, TraceGen}
 
     def async[R, E, A](registerCallback: (ZIO[R, E, A] => Unit) => Unit)(implicit
       trace: ZTraceElement
@@ -538,235 +777,15 @@ object zio2 {
       }
     }
 
-    private def assertNonNull(a: Any, message: String, location: ZTraceElement): Unit =
-      if (a == null) {
-        throw new NullPointerException(message + ": " + location.toString)
-      }
-
-    private def assertNonNullContinuation(a: Any, location: ZTraceElement): Unit =
-      assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
-
     def evalAsync[R, E, A](
       effect: ZIO[R, E, A],
       onDone: Exit[E, A] => Unit,
       maxDepth: Int = 1000,
       fiberRefs0: FiberRefs = FiberRefs.empty
     )(implicit trace0: ZTraceElement): Exit[E, A] = {
-      def loop(
-        fiberState: FiberState[Any, Any],
-        effect: ZIO[Any, Any, Any],
-        depth: Int,
-        stack: Chunk[EvaluationStep],
-        interruptible0: Boolean
-      ): AnyRef = {
-        import EvaluationStep._
+      val fiber = RuntimeFiber[E, A](trace0, fiberRefs0)
 
-        var cur           = effect
-        var done          = null.asInstanceOf[AnyRef]
-        var stackIndex    = 0
-        var interruptible = interruptible0
-        var lastTrace     = null.asInstanceOf[ZTraceElement]
-
-        if (depth > maxDepth) {
-          // Save local variables to heap:
-          fiberState.unsafeSetInterruptible(interruptible)
-
-          val builder = ChunkBuilder.make[EvaluationStep]()
-
-          builder ++= stack
-
-          throw Trampoline(effect, builder)
-        }
-
-        while (done eq null) {
-          val nextTrace = cur.trace
-          if (nextTrace ne ZTraceElement.empty) lastTrace = nextTrace
-
-          try {
-            cur match {
-              case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
-                val effect = effect0.erase
-
-                try {
-                  cur = effect.onSuccess(loop(fiberState, effect.first, depth + 1, Chunk.empty, interruptible))
-                } catch {
-                  case zioError1: ZIOError =>
-                    cur =
-                      try {
-                        effect.onFailure(zioError1.cause)
-                      } catch {
-                        case zioError2: ZIOError => Refail(zioError1.cause.stripFailures ++ zioError2.cause)
-                      }
-
-                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
-                }
-
-              case effect: Sync[_] =>
-                try {
-                  val value = effect.eval()
-
-                  cur = null
-
-                  while ((cur eq null) && stackIndex < stack.length) {
-                    val element = stack(stackIndex)
-
-                    stackIndex += 1
-
-                    element match {
-                      case k: Continuation[_, _, _, _, _] =>
-                        cur = k.erase.onSuccess(value)
-
-                        assertNonNullContinuation(cur, k.trace)
-
-                      case k: ChangeInterruptibility => interruptible = k.interruptible
-                      case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
-                    }
-                  }
-
-                  if (cur eq null) done = value.asInstanceOf[AnyRef]
-                } catch {
-                  case zioError: ZIOError =>
-                    cur = Refail(zioError.cause)
-                }
-
-              case effect: Async[_, _, _] =>
-                // Save local variables to heap:
-                fiberState.unsafeSetInterruptible(interruptible)
-
-                throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
-
-              case effect: ChangeInterruptionWithin[_, _, _] =>
-                val oldInterruptible = interruptible
-
-                interruptible = effect.newInterruptible
-
-                cur =
-                  try {
-                    val value = loop(fiberState, effect.scope(oldInterruptible), depth + 1, Chunk.empty, interruptible)
-
-                    interruptible = oldInterruptible
-
-                    ZIO.succeed(value)
-                  } catch {
-                    case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
-                  }
-
-              case generateStackTrace: GenerateStackTrace =>
-                val builder = ChunkBuilder.make[EvaluationStep]()
-
-                builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
-
-                // Save local variables to heap:
-                fiberState.unsafeSetInterruptible(interruptible)
-
-                throw TraceGen(builder)
-
-              case stateful: Stateful[_, _, _] =>
-                cur = stateful.erase.onState(fiberState, interruptible, lastTrace)
-
-              case refail: Refail[_] =>
-                var cause = refail.cause.asInstanceOf[Cause[Any]]
-
-                cur = null
-
-                while ((cur eq null) && stackIndex < stack.length) {
-                  val element = stack(stackIndex)
-
-                  stackIndex += 1
-
-                  element match {
-                    case k: Continuation[_, _, _, _, _] =>
-                      try {
-                        cur = k.erase.onFailure(cause)
-
-                        assertNonNullContinuation(cur, k.trace)
-                      } catch {
-                        case zioError: ZIOError =>
-                          cause = cause.stripFailures ++ zioError.cause
-                      }
-                    case k: ChangeInterruptibility => interruptible = k.interruptible
-                    case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
-                  }
-                }
-
-                if (cur eq null) throw ZIOError(cause)
-            }
-          } catch {
-            case zioError: ZIOError => throw zioError
-
-            case reifyStack: ReifyStack =>
-              if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)
-
-              throw reifyStack
-
-            case throwable: Throwable => // TODO: If non-fatal
-              cur = Refail(Cause.die(throwable))
-          }
-        }
-
-        done
-      }
-
-      def resumeOuterLoop(
-        fiberState: FiberState[Any, Any],
-        effect: ZIO[Any, Any, Any],
-        stack: Chunk[EvaluationStep],
-        onDone: Exit[Any, Any] => Unit
-      ): Unit =
-        scala.concurrent.ExecutionContext.global.execute { () =>
-          outerLoop(fiberState, effect, stack, onDone)
-          ()
-        }
-
-      @tailrec
-      def outerLoop(
-        fiberState: FiberState[Any, Any],
-        effect: ZIO[Any, Any, Any],
-        stack: Chunk[EvaluationStep],
-        onDone: Exit[Any, Any] => Unit
-      ): Exit[Any, Any] =
-        try {
-          val interruptible = fiberState.unsafeGetInterruptible()
-
-          val exit: Exit[Nothing, Any] = Exit.succeed(loop(fiberState, effect, 0, stack, interruptible))
-
-          onDone(exit)
-
-          exit
-        } catch {
-          case trampoline: Trampoline =>
-            outerLoop(fiberState, trampoline.effect, trampoline.stack.result(), onDone)
-
-          case asyncJump: AsyncJump =>
-            asyncJump.registerCallback { value =>
-              resumeOuterLoop(fiberState, value, asyncJump.stack.result(), onDone)
-            }
-
-            null
-
-          case zioError: ZIOError =>
-            val exit = Exit.failCause(zioError.cause)
-
-            onDone(exit)
-
-            exit
-
-          case traceGen: TraceGen =>
-            val stack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
-
-            val builder = StackTraceBuilder.unsafeMake()
-
-            stack.foreach(k => builder += k.trace)
-
-            val trace = ZTrace(fiberState.fiberId, builder.result())
-
-            outerLoop(fiberState, ZIO.succeed(trace), stack, onDone)
-        }
-
-      val fiberState = FiberState[Any, Any](trace0, fiberRefs0)
-
-      outerLoop(fiberState, effect.asInstanceOf[Erased], Chunk.empty, onDone.asInstanceOf[Exit[Any, Any] => Unit])
-        .asInstanceOf[Exit[E, A]]
+      fiber.resume(effect.asInstanceOf[Erased], Chunk.empty, maxDepth, onDone)
     }
 
     def evalToFuture[A](effect: ZIO[Any, Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
