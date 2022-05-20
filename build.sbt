@@ -281,7 +281,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.2")
         .cross(CrossVersion.for3Use2_13)
     )
   )
@@ -318,11 +318,12 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm
-lazy val testTestsJS = testTests.js.settings(
-  libraryDependencies ++= List(
-    "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
+lazy val testTestsJS = testTests.js
+  .settings(
+    libraryDependencies ++= List(
+      ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
+    )
   )
-)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -578,7 +579,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val jsdocs = project
-  .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
+  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.0.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.6"
