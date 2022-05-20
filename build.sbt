@@ -321,7 +321,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
 lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
 lazy val testTestsJS = testTests.js.settings(
   libraryDependencies ++= List(
-    "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
+    ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
   )
 )
 
