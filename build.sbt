@@ -318,7 +318,11 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testTestsJVM = testTests.jvm
-lazy val testTestsJS  = testTests.js
+lazy val testTestsJS = testTests.js.settings(
+  libraryDependencies ++= List(
+    "org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0"
+  )
+)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
