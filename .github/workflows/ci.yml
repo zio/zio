@@ -23,7 +23,7 @@ jobs:
       uses: actions/setup-java@v2.5.0
       with:
         distribution: temurin
-        java-version: 8
+        java-version: 17
         check-latest: true
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
@@ -74,13 +74,13 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Check Website Generation
         run: ./sbt docs/docusaurusCreateSite
-
+        
   test:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
@@ -96,7 +96,7 @@ jobs:
       uses: actions/setup-java@v2.5.0
       with:
         distribution: temurin
-        java-version: 8
+        java-version: 17
         check-latest: true
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
@@ -119,7 +119,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: ['11', '17']
+        java: ['8', '11']
         platform: ['JVM']
     steps:
       - name: Checkout current branch
@@ -149,7 +149,7 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 8
+          java-version: 17
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
