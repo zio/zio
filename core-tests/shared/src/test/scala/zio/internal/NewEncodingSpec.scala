@@ -3,7 +3,7 @@ package zio.internal
 import zio.test._
 
 object zio2 {
-  import zio.{Cause, Chunk, ChunkBuilder, Exit, Fiber, FiberRef, FiberRefs, FiberId, ZTrace, ZTraceElement}
+  import zio.{Cause, Chunk, ChunkBuilder, Executor, Exit, Fiber, FiberRef, FiberRefs, FiberId, ZTrace, ZTraceElement}
 
   import scala.concurrent._
   import scala.annotation.tailrec
@@ -65,36 +65,36 @@ object zio2 {
     def asyncResume(
       effect: ZIO[Any, Any, Any],
       stack: Chunk[EvaluationStep],
-      maxDepth: Int,
-      onDone: Exit[E, A] => Unit
+      maxDepth: Int
     ): Unit =
-      scala.concurrent.ExecutionContext.global.execute { () =>
-        resume(effect, stack, maxDepth, onDone)
+      unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
+        topRunLoop(effect, stack, maxDepth)
         ()
       }
 
     @tailrec
-    final def resume(
+    final def topRunLoop(
       effect: ZIO[Any, Any, Any],
       stack: Chunk[EvaluationStep],
-      maxDepth: Int,
-      onDone: Exit[E, A] => Unit
+      maxDepth: Int
     ): Exit[E, A] =
       try {
         val interruptible = self.unsafeGetInterruptible()
 
-        val exit: Exit[Nothing, A] = Exit.succeed(loop(effect, maxDepth, stack, interruptible).asInstanceOf[A])
+        val exit: Exit[Nothing, A] = Exit.succeed(runLoop(effect, maxDepth, stack, interruptible).asInstanceOf[A])
 
-        onDone(exit)
+        val remainingWork = self.unsafeAttemptDone(exit)
+
+        if (remainingWork ne null) throw Trampoline(remainingWork *> ZIO.done(exit), ChunkBuilder.make())
 
         exit
       } catch {
         case trampoline: Trampoline =>
-          resume(trampoline.effect, trampoline.stack.result(), maxDepth, onDone)
+          topRunLoop(trampoline.effect, trampoline.stack.result(), maxDepth)
 
         case asyncJump: AsyncJump =>
           asyncJump.registerCallback { value =>
-            asyncResume(value, asyncJump.stack.result(), maxDepth, onDone)
+            asyncResume(value, asyncJump.stack.result(), maxDepth)
           }
 
           null
@@ -102,9 +102,10 @@ object zio2 {
         case zioError: ZIOError =>
           val exit = Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
 
-          onDone(exit)
+          val remainingWork = self.unsafeAttemptDone(exit)
 
-          exit
+          if (remainingWork ne null) topRunLoop(remainingWork, Chunk.empty, maxDepth)
+          else exit
 
         case traceGen: GenerateTrace =>
           val stack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
@@ -115,10 +116,10 @@ object zio2 {
 
           val trace = ZTrace(self.fiberId, builder.result())
 
-          resume(ZIO.succeed(trace), stack, maxDepth, onDone)
+          topRunLoop(ZIO.succeed(trace), stack, maxDepth)
       }
 
-    def loop(
+    def runLoop(
       effect: ZIO[Any, Any, Any],
       remainingDepth: Int,
       stack: Chunk[ZIO.EvaluationStep],
@@ -151,7 +152,7 @@ object zio2 {
               val effect = effect0.erase
 
               try {
-                cur = effect.onSuccess(loop(effect.first, remainingDepth - 1, Chunk.empty, interruptible))
+                cur = effect.onSuccess(runLoop(effect.first, remainingDepth - 1, Chunk.empty, interruptible))
               } catch {
                 case zioError1: ZIOError =>
                   cur =
@@ -205,7 +206,7 @@ object zio2 {
 
               cur =
                 try {
-                  val value = loop(effect.scope(oldInterruptible), remainingDepth - 1, Chunk.empty, interruptible)
+                  val value = runLoop(effect.scope(oldInterruptible), remainingDepth - 1, Chunk.empty, interruptible)
 
                   interruptible = oldInterruptible
 
@@ -314,19 +315,19 @@ object zio2 {
      */
     final def unsafeAddMessage(effect: UIO[Any]): Boolean = {
       @tailrec
-      def loop(message: UIO[Any]): Unit = {
+      def runLoop(message: UIO[Any]): Unit = {
         val oldMessages = mailbox.get
 
         val newMessages =
           if (oldMessages eq ZIO.unit) message else (oldMessages *> message)(ZTraceElement.empty)
 
-        if (!mailbox.compareAndSet(oldMessages, newMessages)) loop(message)
+        if (!mailbox.compareAndSet(oldMessages, newMessages)) runLoop(message)
         else ()
       }
 
       if (statusState.beginAddMessage()) {
         try {
-          loop(effect)
+          runLoop(effect)
           true
         } finally statusState.endAddMessage()
       } else false
@@ -349,8 +350,10 @@ object zio2 {
     /**
      * Attempts to set the state of the fiber to done. This may fail if there
      * are pending messages in the mailbox, in which case those messages will be
-     * returned. This method should only be called by the main loop of the
-     * fiber.
+     * returned. If the method succeeds, it will notify any listeners, who are
+     * waiting for the exit value of the fiber.
+     *
+     * This method should only be called by the main runLoop of the fiber.
      *
      * @return
      *   `null` if the state of the fiber was set to done, or the pending
@@ -360,6 +363,17 @@ object zio2 {
       _exitValue = e
 
       if (statusState.attemptDone()) {
+        val e2 = Exit.succeed(e)
+
+        val executor = unsafeGetCurrentExecutor()
+
+        val iterator = observers.iterator
+
+        while (iterator.hasNext) {
+          val observer = iterator.next()
+
+          executor.unsafeSubmitOrThrow(() => observer(e2))
+        }
         null.asInstanceOf[UIO[Any]]
       } else unsafeDrainMailbox()
     }
@@ -422,6 +436,9 @@ object zio2 {
       _children
     }
 
+    final def unsafeGetCurrentExecutor(): Executor =
+      unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)
+
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
      */
@@ -441,9 +458,9 @@ object zio2 {
 
     /**
      * Determines if the fiber state contains messages to process by the fiber
-     * run loop. Due to race conditions, if this method returns true, it means
-     * only that, if the messages were not drained, there will be some messages
-     * at some point later, before the fiber state transitions to done.
+     * run runLoop. Due to race conditions, if this method returns true, it
+     * means only that, if the messages were not drained, there will be some
+     * messages at some point later, before the fiber state transitions to done.
      */
     final def unsafeHasMessages(): Boolean = {
       val indicator = statusState.getIndicator()
@@ -727,6 +744,12 @@ object zio2 {
     ): ZIO[R, E, A] =
       Async(trace, registerCallback)
 
+    def done[E, A](exit: => Exit[E, A]): ZIO[Any, E, A] =
+      exit match {
+        case Exit.Success(a) => ZIO.succeed(a)
+        case Exit.Failure(c) => ZIO.failCause(c)
+      }
+
     def fail[E](e: => E)(implicit trace: ZTraceElement): ZIO[Any, E, Nothing] = failCause(Cause.fail(e))
 
     def failCause[E](c: => Cause[E])(implicit trace0: ZTraceElement): ZIO[Any, E, Nothing] =
@@ -785,7 +808,9 @@ object zio2 {
     )(implicit trace0: ZTraceElement): Exit[E, A] = {
       val fiber = RuntimeFiber[E, A](trace0, fiberRefs0)
 
-      fiber.resume(effect.asInstanceOf[Erased], Chunk.empty, maxDepth, onDone)
+      fiber.unsafeAddObserver(exit => onDone(exit.flatten))
+
+      fiber.topRunLoop(effect.asInstanceOf[Erased], Chunk.empty, maxDepth)
     }
 
     def evalToFuture[A](effect: ZIO[Any, Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
@@ -855,21 +880,21 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
   final case class Failed(value: Int) extends Exception
 
   def newFailAfter(n: Int): Effect[Any, Nothing, Int] = {
-    def loop(i: Int): Effect[Any, Failed, Nothing] =
+    def runLoop(i: Int): Effect[Any, Failed, Nothing] =
       if (i >= n) Effect.fail(Failed(i))
-      else Effect.succeed(i).flatMap(j => loop(j + 1))
+      else Effect.succeed(i).flatMap(j => runLoop(j + 1))
 
-    loop(0).catchAll { case Failed(i) =>
+    runLoop(0).catchAll { case Failed(i) =>
       Effect.succeed(i)
     }
   }
 
   def oldFailAfter(n: Int): ZIO[Any, Nothing, Int] = {
-    def loop(i: Int): ZIO[Any, Throwable, Nothing] =
+    def runLoop(i: Int): ZIO[Any, Throwable, Nothing] =
       if (i >= n) ZIO.fail(Failed(i))
-      else ZIO.succeed(i).flatMap(j => loop(j + 1))
+      else ZIO.succeed(i).flatMap(j => runLoop(j + 1))
 
-    loop(0).catchAll {
+    runLoop(0).catchAll {
       case Failed(i) => ZIO.succeed(i)
       case _         => ???
     }
@@ -884,35 +909,35 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
     }
 
   def newAsyncAfter(n: Int): Effect[Any, Nothing, Int] = {
-    def loop(i: Int): Effect[Any, Nothing, Int] =
+    def runLoop(i: Int): Effect[Any, Nothing, Int] =
       if (i >= n) Effect.async[Any, Nothing, Int](k => k(Effect.succeed(i)))
-      else Effect.succeed(i).flatMap(j => loop(j + 1)).map(_ + i)
+      else Effect.succeed(i).flatMap(j => runLoop(j + 1)).map(_ + i)
 
-    loop(0)
+    runLoop(0)
   }
 
   def oldAsyncAfter(n: Int): ZIO[Any, Nothing, Int] = {
-    def loop(i: Int): ZIO[Any, Nothing, Int] =
+    def runLoop(i: Int): ZIO[Any, Nothing, Int] =
       if (i >= n) ZIO.async[Any, Nothing, Int](k => k(ZIO.succeed(i)))
-      else ZIO.succeed(i).flatMap(j => loop(j + 1)).map(_ + i)
+      else ZIO.succeed(i).flatMap(j => runLoop(j + 1)).map(_ + i)
 
-    loop(0)
+    runLoop(0)
   }
 
   def newTerminalFail(n: Int): Effect[Any, Nothing, Exit[Failed, Int]] = {
-    def loop(i: Int): Effect[Any, Failed, Nothing] =
+    def runLoop(i: Int): Effect[Any, Failed, Nothing] =
       if (i >= n) Effect.fail(Failed(i))
-      else Effect.succeed(i).flatMap(j => loop(j + 1))
+      else Effect.succeed(i).flatMap(j => runLoop(j + 1))
 
-    loop(0).exit
+    runLoop(0).exit
   }
 
   def oldTerminalFail(n: Int): ZIO[Any, Nothing, Exit[Failed, Int]] = {
-    def loop(i: Int): ZIO[Any, Failed, Nothing] =
+    def runLoop(i: Int): ZIO[Any, Failed, Nothing] =
       if (i >= n) ZIO.fail(Failed(i))
-      else ZIO.succeed(i).flatMap(j => loop(j + 1))
+      else ZIO.succeed(i).flatMap(j => runLoop(j + 1))
 
-    loop(0).exit
+    runLoop(0).exit
   }
 
   def runTerminalFailTest(num: Int, maxDepth: Int = 1000) =
