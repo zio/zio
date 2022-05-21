@@ -355,9 +355,9 @@ package object test extends CompileVariants {
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
-   * Checks the test passes for all values from the given random variable. This
-   * is useful for deterministic `Gen` that comprehensively explore all
-   * possibilities in a given domain.
+   * Checks the test passes for all values from the given finite, deterministic
+   * generator. For non-deterministic or infinite generators use `check` or
+   * `checkN`.
    */
   def checkAll[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
