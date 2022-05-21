@@ -6,11 +6,13 @@ import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, T
 import zio.{Layer, Runtime, UIO, ZIO, ZLayer}
 
 abstract class BaseTestTask(
-  val taskDef: TaskDef,
+  taskDef: TaskDef,
   val testClassLoader: ClassLoader,
   val sendSummary: SendSummary,
   val args: TestArgs
 ) extends Task {
+
+  final override def taskDef(): TaskDef = taskDef
 
   protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._

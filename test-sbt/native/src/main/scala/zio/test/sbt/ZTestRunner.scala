@@ -24,10 +24,13 @@ import scala.collection.mutable
 
 sealed abstract class ZTestRunner(
   val args: Array[String],
-  val remoteArgs: Array[String],
+  remoteArgs: Array[String],
   testClassLoader: ClassLoader,
   runnerType: String
 ) extends Runner {
+
+  final override def remoteArgs(): Array[String] = remoteArgs
+
   def sendSummary: SendSummary
 
   val summaries: mutable.Buffer[Summary] = mutable.Buffer.empty
