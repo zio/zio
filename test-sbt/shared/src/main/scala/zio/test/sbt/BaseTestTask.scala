@@ -6,17 +6,17 @@ import zio.test.{AbstractRunnableSpec, FilteredSpec, SummaryBuilder, TestArgs, T
 import zio.{Layer, Runtime, UIO, ZIO, ZLayer}
 
 abstract class BaseTestTask(
-  taskDef: TaskDef,
+  taskDef0: TaskDef,
   val testClassLoader: ClassLoader,
   val sendSummary: SendSummary,
   val args: TestArgs
 ) extends Task {
 
-  final override def taskDef(): TaskDef = taskDef
+  final override def taskDef(): TaskDef = taskDef0
 
   protected lazy val specInstance: AbstractRunnableSpec = {
     import org.portablescala.reflect._
-    val fqn = taskDef.fullyQualifiedName().stripSuffix("$") + "$"
+    val fqn = taskDef0.fullyQualifiedName().stripSuffix("$") + "$"
     Reflect
       .lookupLoadableModuleClass(fqn, testClassLoader)
       .getOrElse(throw new ClassNotFoundException("failed to load object: " + fqn))
@@ -29,7 +29,7 @@ abstract class BaseTestTask(
       spec   <- specInstance.runSpec(FilteredSpec(specInstance.spec, args))
       summary = SummaryBuilder.buildSummary(spec)
       _      <- sendSummary.provide(summary)
-      events  = ZTestEvent.from(spec, taskDef.fullyQualifiedName(), taskDef.fingerprint())
+      events  = ZTestEvent.from(spec, taskDef0.fullyQualifiedName(), taskDef0.fingerprint())
       _      <- ZIO.foreach(events)(e => ZIO.effect(eventHandler.handle(e)))
     } yield ()
 
