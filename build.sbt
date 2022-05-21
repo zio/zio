@@ -398,7 +398,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+      ("org.scalacheck" %%% "scalacheck" % "1.16.0")
     )
   )
 
@@ -556,7 +556,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"    % "2.5.4",
-        "org.scalacheck"            %% "scalacheck"     % "1.15.4",
+        "org.scalacheck"            %% "scalacheck"     % "1.16.0",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
       ),
