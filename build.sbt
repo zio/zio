@@ -394,7 +394,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+      ("org.scalacheck" %%% "scalacheck" % "1.16.0")
     )
   )
 
@@ -465,14 +465,14 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
     crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.1.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.8.3"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.8.3"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.5"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.5"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.5.1"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.32" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.36" % Test
     )
   )
   .dependsOn(test)
@@ -552,7 +552,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"             % "scala-compiler" % scalaVersion.value % Provided,
         "org.scala-lang"             % "scala-reflect"  % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"    % "2.5.4",
-        "org.scalacheck"            %% "scalacheck"     % "1.15.4",
+        "org.scalacheck"            %% "scalacheck"     % "1.16.0",
         "qa.hedgehog"               %% "hedgehog-core"  % "0.7.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"      % "0.10.0"
       ),
