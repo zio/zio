@@ -178,14 +178,14 @@ object TestArrow {
 
         case And(left, right) =>
           for {
-            left  <- loop(left, in)
-            right <- loop(right, in)
+            left  <- TailCalls.tailcall(loop(left, in))
+            right <- TailCalls.tailcall(loop(right, in))
           } yield left && right
 
         case Or(left, right) =>
           for {
-            left  <- loop(left, in)
-            right <- loop(right, in)
+            left  <- TailCalls.tailcall(loop(left, in))
+            right <- TailCalls.tailcall(loop(right, in))
           } yield left || right
 
         case Not(arrow) => TailCalls.tailcall(loop(arrow, in).map(!_))

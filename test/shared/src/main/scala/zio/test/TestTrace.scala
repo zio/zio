@@ -257,8 +257,8 @@ object TestTrace {
 
         case and: TestTrace.And =>
           for {
-            left  <- loop(and.left, negated)
-            right <- loop(and.right, negated)
+            left  <- TailCalls.tailcall(loop(and.left, negated))
+            right <- TailCalls.tailcall(loop(and.right, negated))
           } yield {
             (left, right) match {
               case (None, Some(right)) if !negated => Some(right)
@@ -270,8 +270,8 @@ object TestTrace {
 
         case or: TestTrace.Or =>
           for {
-            left  <- loop(or.left, negated)
-            right <- loop(or.right, negated)
+            left  <- TailCalls.tailcall(loop(or.left, negated))
+            right <- TailCalls.tailcall(loop(or.right, negated))
           } yield {
             (left, right) match {
               case (Some(left), Some(right))                  => Some(TestTrace.Or(left, right))
