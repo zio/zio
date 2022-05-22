@@ -347,7 +347,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    */
   final def summarized[R1 <: R, E1 >: E, B, C](
     summary: => ZIO[R1, E1, B]
-  )(f: (B, B) => C)(implicit trace: Trace) =
+  )(f: (B, B) => C)(implicit trace: Trace): ZSink[R1, E1, In, L, (Z, C)] =
     new ZSink[R1, E1, In, L, (Z, C)](
       ZChannel.unwrap {
         ZIO.succeed(summary).map { summary =>
