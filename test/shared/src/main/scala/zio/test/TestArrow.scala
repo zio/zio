@@ -1,10 +1,12 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import scala.language.implicitConversions
 import zio.Trace
-
+import zio.UIO
+import zio.ZIO
+import zio.internal.stacktracer.Tracer
+import zio.internal.stacktracer.Tracer.instance
 import scala.util.control.NonFatal
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
@@ -156,47 +158,60 @@ object TestArrow {
         TestTrace.die(exception)
     }
 
-  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] = attempt {
-    arrow match {
-      case TestArrowF(f) =>
-        f(in)
+  def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] = {
+    implicit val trace: Trace = Tracer.newTrace
 
-      case AndThen(f, g) =>
-        val t1 = run(f, in)
-        t1.result match {
-          case Result.Fail           => t1.asInstanceOf[TestTrace[B]]
-          case Result.Die(err)       => t1 >>> run(g, Left(err))
-          case Result.Succeed(value) => t1 >>> run(g, Right(value))
-        }
+    def loop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A])(implicit trace: Trace): UIO[TestTrace[B]] =
+      arrow match {
+        case TestArrowF(f) =>
+          ZIO.succeed(f(in))
 
-      case And(lhs, rhs) =>
-        run(lhs, in) && run(rhs, in)
+        case AndThen(f, g) =>
+          loop(f, in).flatMap { t1 =>
+            t1.result match {
+              case Result.Fail           => ZIO.succeed(t1.asInstanceOf[TestTrace[B]])
+              case Result.Die(err)       => loop(g, Left(err)).map(t1 >>> _)
+              case Result.Succeed(value) => loop(g, Right(value)).map(t1 >>> _)
+            }
+          }
 
-      case Or(lhs, rhs) =>
-        run(lhs, in) || run(rhs, in)
+        case And(left, right) =>
+          for {
+            left  <- loop(left, in)
+            right <- loop(right, in)
+          } yield left && right
 
-      case Not(arrow) =>
-        !run(arrow, in)
+        case Or(left, right) =>
+          for {
+            left  <- loop(left, in)
+            right <- loop(right, in)
+          } yield left || right
 
-      case Suspend(f) =>
-        in match {
-          case Left(exception) =>
-            TestTrace.die(exception)
-          case Right(value) =>
-            run(f(value), in)
-        }
+        case Not(arrow) => loop(arrow, in).map(!_)
 
-      case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
-        run(arrow, in)
-          .withSpan(span)
-          .withCode(code)
-          .withParentSpan(parentSpan)
-          .withLocation(location)
-          .withCompleteCode(completeCode)
-          .withCustomLabel(customLabel)
-          .withGenFailureDetails(genFailureDetails)
+        case Suspend(f) =>
+          in match {
+            case Left(exception) =>
+              ZIO.succeedNow(TestTrace.die(exception))
+            case Right(value) =>
+              loop(f(value), in)
+          }
+
+        case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
+          loop(arrow, in).map(
+            _.withSpan(span)
+              .withCode(code)
+              .withParentSpan(parentSpan)
+              .withLocation(location)
+              .withCompleteCode(completeCode)
+              .withCustomLabel(customLabel)
+              .withGenFailureDetails(genFailureDetails)
+          )
+      }
+
+    attempt {
+      zio.Runtime.default.unsafeRun(loop(arrow, in))
     }
-
   }
 
   case class Span(start: Int, end: Int) {

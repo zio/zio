@@ -1,8 +1,10 @@
 package zio.test
 
+import zio.UIO
+import zio.ZIO
+import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestArrow.Span
-
 import scala.annotation.tailrec
 
 sealed trait TestTrace[+A] { self =>
@@ -218,48 +220,71 @@ object TestTrace {
   /**
    * Prune all non-failures from the trace.
    */
-  def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] =
-    trace match {
-      case node @ TestTrace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _, _) =>
-        if (bool == negated) {
-          Some(node.copy(children = node.children.flatMap(prune(_, negated))))
-        } else
-          None
+  def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] = {
+    implicit val zioTrace: zio.Trace = Tracer.newTrace
 
-      case TestTrace.Node(Result.Fail, _, _, _, _, _, _, _, _, _, _) =>
-        if (negated) None else Some(trace)
+    def loop(trace: TestTrace[Boolean], negated: Boolean): UIO[Option[TestTrace[Boolean]]] =
+      trace match {
+        case node @ TestTrace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _, _) =>
+          if (bool == negated) {
+            node.children match {
+              case Some(children) =>
+                loop(children, negated)
+                  .map(ch => Some(node.copy(children = ch)))
+              case None => ZIO.succeedNow(Some(node))
+            }
+          } else
+            ZIO.succeed(None)
 
-      case TestTrace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) =>
-        Some(trace)
+        case TestTrace.Node(Result.Fail, _, _, _, _, _, _, _, _, _, _) =>
+          if (negated) ZIO.succeed(None) else ZIO.succeed(Some(trace))
 
-      case TestTrace.AndThen(left, node: TestTrace.Node[_])
-          if node.annotations.contains(TestTrace.Annotation.Rethrow) =>
-        prune(left.asInstanceOf[TestTrace[Boolean]], negated)
+        case TestTrace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) =>
+          ZIO.succeed(Some(trace))
 
-      case TestTrace.AndThen(left, right) =>
-        prune(right, negated).map { next =>
-          TestTrace.AndThen(left, next)
-        }
+        case TestTrace.AndThen(left, node: TestTrace.Node[_])
+            if node.annotations.contains(TestTrace.Annotation.Rethrow) =>
+          loop(left.asInstanceOf[TestTrace[Boolean]], negated)
 
-      case and: TestTrace.And =>
-        (prune(and.left, negated), prune(and.right, negated)) match {
-          case (None, Some(right)) if !negated => Some(right)
-          case (Some(left), None) if !negated  => Some(left)
-          case (Some(left), Some(right))       => Some(TestTrace.And(left, right))
-          case _                               => None
-        }
+        case TestTrace.AndThen(left, right) =>
+          loop(right, negated).map {
+            _.map { next =>
+              TestTrace.AndThen(left, next)
+            }
+          }
 
-      case or: TestTrace.Or =>
-        (prune(or.left, negated), prune(or.right, negated)) match {
-          case (Some(left), Some(right))                  => Some(TestTrace.Or(left, right))
-          case (Some(left), _) if negated || left.isDie   => Some(left)
-          case (_, Some(right)) if negated || right.isDie => Some(right)
-          case (_, _)                                     => None
-        }
+        case and: TestTrace.And =>
+          for {
+            left  <- loop(and.left, negated)
+            right <- loop(and.right, negated)
+          } yield {
+            (left, right) match {
+              case (None, Some(right)) if !negated => Some(right)
+              case (Some(left), None) if !negated  => Some(left)
+              case (Some(left), Some(right))       => Some(TestTrace.And(left, right))
+              case _                               => None
+            }
+          }
 
-      case not: TestTrace.Not =>
-        prune(not.trace, !negated)
-    }
+        case or: TestTrace.Or =>
+          for {
+            left  <- loop(or.left, negated)
+            right <- loop(or.right, negated)
+          } yield {
+            (left, right) match {
+              case (Some(left), Some(right))                  => Some(TestTrace.Or(left, right))
+              case (Some(left), _) if negated || left.isDie   => Some(left)
+              case (_, Some(right)) if negated || right.isDie => Some(right)
+              case (_, _)                                     => None
+            }
+          }
+
+        case not: TestTrace.Not =>
+          loop(not.trace, !negated)
+      }
+
+    zio.Runtime.default.unsafeRun(loop(trace, negated))
+  }
 
   sealed trait Annotation
 
