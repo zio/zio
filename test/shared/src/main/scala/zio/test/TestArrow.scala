@@ -199,15 +199,17 @@ object TestArrow {
           }
 
         case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
-          TailCalls.tailcall(loop(arrow, in)).map(
-            _.withSpan(span)
-              .withCode(code)
-              .withParentSpan(parentSpan)
-              .withLocation(location)
-              .withCompleteCode(completeCode)
-              .withCustomLabel(customLabel)
-              .withGenFailureDetails(genFailureDetails)
-          )
+          TailCalls
+            .tailcall(loop(arrow, in))
+            .map(
+              _.withSpan(span)
+                .withCode(code)
+                .withParentSpan(parentSpan)
+                .withLocation(location)
+                .withCompleteCode(completeCode)
+                .withCustomLabel(customLabel)
+                .withGenFailureDetails(genFailureDetails)
+            )
       }
 
     loop(arrow, in).result

@@ -222,13 +222,16 @@ object TestTrace {
    * Prune all non-failures from the trace.
    */
   def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] = {
-    def loop(trace: TestTrace[Boolean], negated: Boolean)(implicit zioTrace: Trace): TailRec[Option[TestTrace[Boolean]]] =
+    def loop(trace: TestTrace[Boolean], negated: Boolean)(implicit
+      zioTrace: Trace
+    ): TailRec[Option[TestTrace[Boolean]]] =
       trace match {
         case node @ TestTrace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _, _) =>
           if (bool == negated) {
             node.children match {
               case Some(children) =>
-                TailCalls.tailcall(loop(children, negated))
+                TailCalls
+                  .tailcall(loop(children, negated))
                   .map(ch => Some(node.copy(children = ch)))
               case None => TailCalls.done(Some(node))
             }
@@ -242,7 +245,7 @@ object TestTrace {
           TailCalls.done(Some(trace))
 
         case TestTrace.AndThen(left, node: TestTrace.Node[_])
-          if node.annotations.contains(TestTrace.Annotation.Rethrow) =>
+            if node.annotations.contains(TestTrace.Annotation.Rethrow) =>
           TailCalls.tailcall(loop(left.asInstanceOf[TestTrace[Boolean]], negated))
 
         case TestTrace.AndThen(left, right) =>
