@@ -1,11 +1,12 @@
 package zio.test
 
+import zio.Trace
 import zio.UIO
 import zio.ZIO
-import zio.internal.stacktracer.Tracer
-import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestArrow.Span
 import scala.annotation.tailrec
+import scala.util.control.TailCalls
+import scala.util.control.TailCalls.TailRec
 
 sealed trait TestTrace[+A] { self =>
 
@@ -221,33 +222,31 @@ object TestTrace {
    * Prune all non-failures from the trace.
    */
   def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] = {
-    implicit val zioTrace: zio.Trace = Tracer.newTrace
-
-    def loop(trace: TestTrace[Boolean], negated: Boolean): UIO[Option[TestTrace[Boolean]]] =
+    def loop(trace: TestTrace[Boolean], negated: Boolean)(implicit zioTrace: Trace): TailRec[Option[TestTrace[Boolean]]] =
       trace match {
         case node @ TestTrace.Node(Result.Succeed(bool), _, _, _, _, _, _, _, _, _, _) =>
           if (bool == negated) {
             node.children match {
               case Some(children) =>
-                loop(children, negated)
+                TailCalls.tailcall(loop(children, negated))
                   .map(ch => Some(node.copy(children = ch)))
-              case None => ZIO.succeedNow(Some(node))
+              case None => TailCalls.done(Some(node))
             }
           } else
-            ZIO.succeed(None)
+            TailCalls.done(None)
 
         case TestTrace.Node(Result.Fail, _, _, _, _, _, _, _, _, _, _) =>
-          if (negated) ZIO.succeed(None) else ZIO.succeed(Some(trace))
+          if (negated) TailCalls.done(None) else TailCalls.done(Some(trace))
 
         case TestTrace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) =>
-          ZIO.succeed(Some(trace))
+          TailCalls.done(Some(trace))
 
         case TestTrace.AndThen(left, node: TestTrace.Node[_])
-            if node.annotations.contains(TestTrace.Annotation.Rethrow) =>
-          loop(left.asInstanceOf[TestTrace[Boolean]], negated)
+          if node.annotations.contains(TestTrace.Annotation.Rethrow) =>
+          TailCalls.tailcall(loop(left.asInstanceOf[TestTrace[Boolean]], negated))
 
         case TestTrace.AndThen(left, right) =>
-          loop(right, negated).map {
+          TailCalls.tailcall(loop(right, negated)).map {
             _.map { next =>
               TestTrace.AndThen(left, next)
             }
@@ -280,10 +279,10 @@ object TestTrace {
           }
 
         case not: TestTrace.Not =>
-          loop(not.trace, !negated)
+          TailCalls.tailcall(loop(not.trace, !negated))
       }
 
-    zio.Runtime.default.unsafeRun(loop(trace, negated))
+    loop(trace, negated).result
   }
 
   sealed trait Annotation

@@ -1,13 +1,16 @@
 package zio.test
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-import scala.language.implicitConversions
 import zio.Trace
 import zio.UIO
 import zio.ZIO
-import zio.internal.stacktracer.Tracer
-import zio.internal.stacktracer.Tracer.instance
+import scala.annotation.tailrec
+import scala.language.implicitConversions
 import scala.util.control.NonFatal
+import scala.util.control.TailCalls
+import scala.util.control.TailCalls.Call
+import scala.util.control.TailCalls.TailRec
+import scala.util.control.TailCalls.TailRec
+import scala.util.control.TailCalls.TailRec
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
@@ -159,17 +162,15 @@ object TestArrow {
     }
 
   def run[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A]): TestTrace[B] = {
-    implicit val trace: Trace = Tracer.newTrace
-
-    def loop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A])(implicit trace: Trace): UIO[TestTrace[B]] =
+    def loop[A, B](arrow: TestArrow[A, B], in: Either[Throwable, A])(implicit trace: Trace): TailRec[TestTrace[B]] =
       arrow match {
         case TestArrowF(f) =>
-          ZIO.succeed(f(in))
+          TailCalls.done(f(in))
 
         case AndThen(f, g) =>
-          loop(f, in).flatMap { t1 =>
+          TailCalls.tailcall(loop(f, in)).flatMap { t1 =>
             t1.result match {
-              case Result.Fail           => ZIO.succeed(t1.asInstanceOf[TestTrace[B]])
+              case Result.Fail           => TailCalls.done(t1.asInstanceOf[TestTrace[B]])
               case Result.Die(err)       => loop(g, Left(err)).map(t1 >>> _)
               case Result.Succeed(value) => loop(g, Right(value)).map(t1 >>> _)
             }
@@ -187,18 +188,18 @@ object TestArrow {
             right <- loop(right, in)
           } yield left || right
 
-        case Not(arrow) => loop(arrow, in).map(!_)
+        case Not(arrow) => TailCalls.tailcall(loop(arrow, in).map(!_))
 
         case Suspend(f) =>
           in match {
             case Left(exception) =>
-              ZIO.succeedNow(TestTrace.die(exception))
+              TailCalls.done(TestTrace.die(exception))
             case Right(value) =>
-              loop(f(value), in)
+              TailCalls.tailcall(loop(f(value), in))
           }
 
         case Meta(arrow, span, parentSpan, code, location, completeCode, customLabel, genFailureDetails) =>
-          loop(arrow, in).map(
+          TailCalls.tailcall(loop(arrow, in)).map(
             _.withSpan(span)
               .withCode(code)
               .withParentSpan(parentSpan)
@@ -209,9 +210,7 @@ object TestArrow {
           )
       }
 
-    attempt {
-      zio.Runtime.default.unsafeRun(loop(arrow, in))
-    }
+    loop(arrow, in).result
   }
 
   case class Span(start: Int, end: Int) {
