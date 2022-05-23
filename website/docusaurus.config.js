@@ -29,7 +29,7 @@ const config = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: `/${version}/overview/`, label: 'Overview', position: 'right' },
+        { type: 'docsVersion', label: 'Overview', position: 'right' },
         { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
         { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
         { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
