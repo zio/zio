@@ -154,3 +154,31 @@ transfer-encoding: chunked
 ```
 
 We have scheduled some delays between each line to simulate downloading a big file. So when we run the above `curl` command, we can see that the content of the file will be downloaded gradually.
+
+### Counter App
+
+The next example shows how we can have a stateful web service. Let's look at the type of the `counterApp`:
+
+```scala
+val counterApp: Http[Ref[Int], Nothing, Request, Response] = ???
+```
+
+This is an Http app that requires a `Ref[Int]` as an environment, it cannot fail and it consumes a `Request` and produces a `Response` respectively.
+
+This counter increments every time we access the `/up` endpoint and decrements every time we access the `/down` endpoint:
+
+```bash
+GET http://localhost:8080/up
+Get http://localhost:8080/down
+```
+
+Let's try to access the `up` endpoint 100 times and then access the `down` endpoint 25 times:
+
+```bash
+user@host ~> for i in {1..100}; do curl http://localhost:8080/up; echo -n ' '; done;
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99 100
+user@host ~> for i in {1..25}; do curl http://localhost:8080/down; echo -n ' '; done;
+99 98 97 96 95 94 93 92 91 90 89 88 87 86 85 84 83 82 81 80 79 78 77 76 75
+```
+
+We can see that the state of the counter is maintained between requests. In this example, we used the ZIO environment to store the access and store the state of the counter.
