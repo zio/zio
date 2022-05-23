@@ -34,7 +34,7 @@ In this quickstart, we will build a RESTful web service that has the following H
 - **Counter App**— shows how to have a stateful web service and how to use the ZIO environment for Http Apps.
 - **User App**— shows how to have a stateful web service to register and manage users.
 
-## Greeting App
+### Greeting App
 
 1. When we build and run this quickstart, there is a greeting app that we can access using the following endpoint:
 
@@ -98,3 +98,59 @@ content-length: 21
 Hello Jane and John!⏎
 ```
 
+### Download App
+
+The next example shows how to download a file from the server. First, let's look at the type of the `downloadApp`:
+
+```scala
+val downloadApp: Http[Any, Throwable, Request, Response] = ???
+```
+
+It is an Http App that doesn't require any environment, it may fail with `Throwable` and it consumes a `Request` and produces a `Response` respectively.
+
+Let's try to access this endpoint using curl and see what we get:
+
+
+1. Our first endpoint is `/download` which downloads a file from the server:
+
+```bash
+GET http://localhost:8080/download
+```
+
+If we try to request this endpoint using curl, we will see the following output:
+
+```bash
+user@host ~> curl -i http://localhost:8080/download
+HTTP/1.1 200 OK
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=file.txt
+transfer-encoding: chunked
+
+line number 1
+1, 2, 3, 4, 5
+line number 3
+end of file⏎
+```
+
+Also, if we try to access this URL from the browser, the browser will prompt us to download the file with `file.txt` as the name.
+
+2. The second endpoint is an example of downloading a big file when we want to stream the chunks of the file to the client:
+
+```bash
+GET http://localhost:8080/download/stream
+```
+
+When we try to access this endpoint using curl, we will see the following output:
+
+```bash
+curl -i http://localhost:8080/download/stream
+HTTP/1.1 200 OK
+transfer-encoding: chunked
+
+1
+2
+3
+...
+```
+
+We have scheduled some delays between each line to simulate downloading a big file. So when we run the `curl` command above, we can see that the content of the file will be downloaded gradually.
