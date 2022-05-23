@@ -74,6 +74,20 @@ object ZPoolSpec extends ZIOBaseSpec {
             value  <- count.get
           } yield assertTrue(result == 2 && value == 10)
         } +
+        test("invalidate all items in pool and check that pool.get doesn't hang forever") {
+          for {
+            allocated      <- Ref.make(0)
+            finalized      <- Ref.make(0)
+            get             = ZIO.acquireRelease(allocated.updateAndGet(_ + 1))(_ => finalized.update(_ + 1))
+            pool           <- ZPool.make(get, 2)
+            _              <- allocated.get.repeatUntil(_ == 2)
+            _              <- pool.invalidate(1)
+            _              <- pool.invalidate(2)
+            result         <- ZIO.scoped(pool.get)
+            allocatedCount <- allocated.get
+            finalizedCount <- finalized.get
+          } yield assertTrue(result == 3 && allocatedCount == 4 && finalizedCount == 2)
+        } +
         test("compositional retry") {
           def cond(i: Int) = if (i <= 10) ZIO.fail(i) else ZIO.succeed(i)
           for {
