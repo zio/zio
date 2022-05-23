@@ -27,7 +27,7 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { type: 'docsVersion', to: 'overview/', label: 'Overview', position: 'right' },
+        { to: './overview/', label: 'Overview', position: 'right' },
         { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
         { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
         { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
