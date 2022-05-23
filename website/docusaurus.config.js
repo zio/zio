@@ -1,4 +1,6 @@
-module.exports = {
+const versions = require('./versions.json')
+
+const config = {
   title: 'ZIO',
   tagline: 'Type-safe, composable asynchronous and concurrent programming for Scala',
   url: 'https://zio.dev',
@@ -27,7 +29,7 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { type: 'docsVersion', to: '../overview/', label: 'Overview', position: 'right' },
+        { to: `/${version}/overview/`, label: 'Overview', position: 'right' },
         { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
         { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
         { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
@@ -140,4 +142,7 @@ module.exports = {
       },
     ],
   ],
-};
+}
+
+module.exports = config;
+
