@@ -153,4 +153,4 @@ transfer-encoding: chunked
 ...
 ```
 
-We have scheduled some delays between each line to simulate downloading a big file. So when we run the `curl` command above, we can see that the content of the file will be downloaded gradually.
+We have scheduled some delays between each line to simulate downloading a big file. So when we run the above `curl` command, we can see that the content of the file will be downloaded gradually.
