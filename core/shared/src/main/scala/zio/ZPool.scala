@@ -174,7 +174,7 @@ object ZPool {
                     attempted.result match {
                       case Exit.Success(item) =>
                         invalidated.get.flatMap { set =>
-                          if (set.contains(item)) release(attempted) *> acquire
+                          if (set.contains(item)) finalizeInvalid(attempted) *> acquire
                           else ZIO.succeedNow(attempted)
                         }
                       case _ =>
@@ -194,15 +194,7 @@ object ZPool {
         attempted.result match {
           case Exit.Success(item) =>
             invalidated.get.flatMap { set =>
-              if (set.contains(item))
-                invalidated.update(_ - item) *>
-                  attempted.finalizer *>
-                  state.modify { case State(size, free) =>
-                    if (size <= range.start)
-                      allocate -> State(size, free + 1)
-                    else
-                      ZIO.unit -> State(size - 1, free)
-                  }.flatten
+              if (set.contains(item)) finalizeInvalid(attempted)
               else
                 state.update(state => state.copy(free = state.free + 1)) *>
                   items.offer(attempted) *>
@@ -249,6 +241,16 @@ object ZPool {
 
     def invalidate(item: A)(implicit trace: zio.Trace): UIO[Unit] =
       invalidated.update(_ + item)
+
+    private def finalizeInvalid(attempted: Attempted[E, A])(implicit trace: zio.Trace): UIO[Any] =
+      attempted.forEach(a => invalidated.update(_ - a)) *>
+        attempted.finalizer *>
+        state.modify { case State(size, free) =>
+          if (size <= range.start)
+            allocate -> State(size, free + 1)
+          else
+            ZIO.unit -> State(size - 1, free)
+        }.flatten
 
     /**
      * Shrinks the pool down, but never to less than the minimum size.
