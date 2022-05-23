@@ -30,11 +30,11 @@ const config = {
       },
       items: [
         { type: 'docsVersion', label: 'Overview', position: 'right' },
-        { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
-        { to: 'version-1.x/usecases/', label: 'Use Cases', position: 'right' },
-        { to: 'version-1.x/howto/', label: 'How to', position: 'right' },
-        { to: 'version-1.x/resources/', label: 'Resources', position: 'right' },
-        { to: 'version-1.x/about/', label: 'About', position: 'right' },
+        { type: 'docsVersion', label: 'Data Types', position: 'right' },
+        { type: 'docsVersion', label: 'Use Cases', position: 'right' },
+        { type: 'docsVersion', label: 'How to', position: 'right' },
+        { type: 'docsVersion', label: 'Resources', position: 'right' },
+        { type: 'docsVersion', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
