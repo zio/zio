@@ -51,7 +51,11 @@ package zio2 {
 
     def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.succeed {
-        val selfInterrupt = ZIO.refailCause(Cause.interrupt(fiberId).traced(ZTrace(fiberId, Chunk(trace))))
+        val cause = Cause.interrupt(fiberId).traced(ZTrace(fiberId, Chunk(trace)))
+
+        unsafeAddSuppressedCause(cause)
+
+        val selfInterrupt = ZIO.refailCause(cause)
 
         if (unsafeAsyncInterruptOrAddMessage(selfInterrupt)) {
           asyncResume(selfInterrupt, Chunk.empty, 1000)
@@ -122,7 +126,9 @@ package zio2 {
           null
 
         case zioError: ZIOError =>
-          val exit = Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
+          val cause = zioError.cause.asInstanceOf[Cause[E]]
+
+          val exit = Exit.failCause(cause ++ unsafeGetSuppressedCause())
 
           val remainingWork = self.unsafeAttemptDone(exit)
 
@@ -337,10 +343,10 @@ package zio2 {
      * Adds an interruptor to the set of interruptors that are interrupting this
      * fiber.
      */
-    final def unsafeAddInterruptor(interruptor: FiberId): Unit = {
-      val oldInterruptor = unsafeGetFiberRef(FiberRef.interruptor)
+    final def unsafeAddSuppressedCause(cause: Cause[Nothing]): Unit = {
+      val oldSC = unsafeGetFiberRef(FiberRef.suppressedCause)
 
-      unsafeSetFiberRef(FiberRef.interruptor, oldInterruptor <> interruptor)
+      unsafeSetFiberRef(FiberRef.suppressedCause, oldSC ++ cause)
     }
 
     /**
@@ -509,6 +515,8 @@ package zio2 {
      * Retrieves the interruptibility status of the fiber state.
      */
     final def unsafeGetInterruptible(): Boolean = statusState.getInterruptible()
+
+    final def unsafeGetSuppressedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.suppressedCause)
 
     /**
      * Determines if the fiber state contains messages to process by the fiber

@@ -387,8 +387,8 @@ object FiberRef {
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
 
-  private[zio] val interruptor: FiberRef[FiberId] =
-    FiberRef.unsafeMake(FiberId.None, identity(_), (parent, _) => parent)
+  private[zio] val suppressedCause: FiberRef[Cause[Nothing]] =
+    FiberRef.unsafeMake(Cause.empty, identity(_), (parent, _) => parent)
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]
