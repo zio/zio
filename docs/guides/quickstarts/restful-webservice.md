@@ -129,7 +129,7 @@ transfer-encoding: chunked
 line number 1
 1, 2, 3, 4, 5
 line number 3
-end of file⏎
+end of file
 ```
 
 Also, if we try to access this URL from the browser, the browser will prompt us to download the file with `file.txt` as the name.
@@ -182,3 +182,45 @@ user@host ~> for i in {1..25}; do curl http://localhost:8080/down; echo -n ' '; 
 ```
 
 We can see that the state of the counter is maintained between requests. In this example, we used the ZIO environment to store the access and store the state of the counter.
+
+
+### In-memory User App
+
+The `inmemoryUserApp` is an Http app with the following definition:
+
+```scala
+val inmemoryUserApp: Http[UserRepo, Throwable, Request, Response] = ???
+```
+
+It requires a `UserRepo` service from the ZIO environment, it can fail with `Throwable` and it consumes a `Request` and produces a `Response` respectively. In this example, we use the in-memory version of the `UserRepo` service called `InMemoryUserRepo`.
+
+This app has two endpoints:
+
+```bash
+POST http://localhost:8080/users -d '{"name": "John", "age": 30}'
+GET  http://localhost:8080/users/:id
+```
+
+Let's try to register a new user:
+
+```bash
+user@host ~> curl -i http://localhost:8080/users -d '{"name": "John", "age": 35}'
+HTTP/1.1 200 OK
+content-type: text/plain
+content-length: 36
+
+f0f319ea-404d-4a55-abd0-41bee4ce887e
+```
+
+Now, we can get any registered user by its id:
+
+```bash
+user@host ~> curl -i http://localhost:8080/users/f0f319ea-404d-4a55-abd0-41bee4ce887e
+HTTP/1.1 200 OK
+content-type: application/json
+content-length: 24
+
+{"name":"John","age":35}
+```
+
+While this app is stateful, it is not persistent. We just used the in-memory version of the `UserRepo` service. In the next section, we will use the persistent version of the UserRepo.
