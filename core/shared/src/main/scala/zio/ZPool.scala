@@ -71,7 +71,7 @@ object ZPool {
   ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
     for {
       size <- ZIO.succeed(size)
-      pool <- makeWith(get, size to size)(Strategy.None)
+      pool <- makeWith(get, size to size, NoValidation, NoValidation)(Strategy.None)
     } yield pool
 
   /**
@@ -96,14 +96,45 @@ object ZPool {
   def make[R, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
     trace: Trace
   ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
-    makeWith[R, Any, E, A](get, range)(Strategy.TimeToLive(timeToLive))
+    makeWith[R, Any, E, A](get, range, NoValidation, NoValidation)(Strategy.TimeToLive(timeToLive))
+
+  /**
+   * A more powerful variant of `make` that allows providing validation
+   * functions that will run by the pool to automatically handle invalidation.
+   *
+   * `preValidate` will be checked when `get` acquires an item, to make sure
+   * that no invalid items are ever returned from the pool.
+   *
+   * `postValidate` will be checked when `get` releases an item to avoid putting
+   * back invalid items to the pool.
+   *
+   * To use one of the two validation functions, `ZPool.NoValidation` can be set
+   * on the other one.
+   */
+  def make[R, E, A](
+    get: => ZIO[R, E, A],
+    range: => Range,
+    timeToLive: => Duration,
+    preValidate: A => UIO[Boolean],
+    postValidate: A => UIO[Boolean]
+  )(implicit
+    trace: Trace
+  ): ZIO[R with Scope, Nothing, ZPool[E, A]] =
+    makeWith[R, Any, E, A](get, range, preValidate, postValidate)(Strategy.TimeToLive(timeToLive))
+
+  def NoValidation[A]: A => UIO[Boolean] = _ => ZIO.succeedNow(true)
 
   /**
    * A more powerful variant of `make` that allows specifying a `Strategy` that
    * describes how a pool whose excess items are not being used will be shrunk
    * down to the minimum size.
    */
-  private def makeWith[R, R1, E, A](get: => ZIO[R, E, A], range: => Range)(strategy: => Strategy[R1, E, A])(implicit
+  private def makeWith[R, R1, E, A](
+    get: => ZIO[R, E, A],
+    range: => Range,
+    preValidate: A => UIO[Boolean],
+    postValidate: A => UIO[Boolean]
+  )(strategy: => Strategy[R1, E, A])(implicit
     trace: Trace
   ): ZIO[R with R1 with Scope, Nothing, ZPool[E, A]] =
     ZIO.uninterruptibleMask { restore =>
@@ -124,7 +155,9 @@ object ZPool {
                  state,
                  items,
                  inv,
-                 strategy.track(initial)
+                 strategy.track(initial),
+                 preValidate,
+                 postValidate
                )
         fiber  <- restore(pool.initialize).forkDaemon
         shrink <- restore(strategy.run(initial, pool.excess, pool.shrink)).forkDaemon
@@ -152,7 +185,9 @@ object ZPool {
     state: Ref[State],
     items: Queue[Attempted[E, A]],
     invalidated: Ref[Set[A]],
-    track: Exit[E, A] => UIO[Any]
+    track: Exit[E, A] => UIO[Any],
+    preValidate: A => UIO[Boolean],
+    postValidate: A => UIO[Boolean]
   ) extends ZPool[E, A] {
 
     /**
@@ -173,8 +208,8 @@ object ZPool {
                   items.take.flatMap { attempted =>
                     attempted.result match {
                       case Exit.Success(item) =>
-                        invalidated.get.flatMap { set =>
-                          if (set.contains(item)) finalizeInvalid(attempted) *> acquire
+                        checkInvalid(item, preValidate).flatMap { invalid =>
+                          if (invalid) finalizeInvalid(attempted) *> acquire
                           else ZIO.succeedNow(attempted)
                         }
                       case _ =>
@@ -193,8 +228,8 @@ object ZPool {
       def release(attempted: Attempted[E, A]): UIO[Any] =
         attempted.result match {
           case Exit.Success(item) =>
-            invalidated.get.flatMap { set =>
-              if (set.contains(item)) finalizeInvalid(attempted)
+            checkInvalid(item, postValidate).flatMap { invalid =>
+              if (invalid) finalizeInvalid(attempted)
               else
                 state.update(state => state.copy(free = state.free + 1)) *>
                   items.offer(attempted) *>
@@ -241,6 +276,9 @@ object ZPool {
 
     def invalidate(item: A)(implicit trace: zio.Trace): UIO[Unit] =
       invalidated.update(_ + item)
+
+    private def checkInvalid(item: A, validate: A => UIO[Boolean])(implicit trace: zio.Trace): UIO[Boolean] =
+      invalidated.get.map(_.contains(item)) || !validate(item)
 
     private def finalizeInvalid(attempted: Attempted[E, A])(implicit trace: zio.Trace): UIO[Any] =
       attempted.forEach(a => invalidated.update(_ - a)) *>
@@ -402,5 +440,4 @@ object ZPool {
       }
     }
   }
-
 }

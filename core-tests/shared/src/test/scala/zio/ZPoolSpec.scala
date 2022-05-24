@@ -88,6 +88,34 @@ object ZPoolSpec extends ZIOBaseSpec {
             finalizedCount <- finalized.get
           } yield assertTrue(result == 3 && allocatedCount == 4 && finalizedCount == 2)
         } +
+        test("pre validate") {
+          for {
+            allocated      <- Ref.make(0)
+            finalized      <- Ref.make(0)
+            get             = ZIO.acquireRelease(allocated.updateAndGet(_ + 1))(_ => finalized.update(_ + 1))
+            validation      = (i: Int) => ZIO.succeedNow(i % 2 == 0)
+            pool           <- ZPool.make(get, 2 to 2, Duration.Infinity, validation, ZPool.NoValidation)
+            _              <- allocated.get.repeatUntil(_ == 2)
+            result         <- ZIO.scoped(pool.get)
+            allocatedCount <- allocated.get
+            finalizedCount <- finalized.get
+          } yield assertTrue(result == 2 && allocatedCount == 3 && finalizedCount == 1)
+        } +
+        test("post validate") {
+          for {
+            allocated <- Ref.make(0)
+            finalized <- Ref.make(0)
+            get        = ZIO.acquireRelease(allocated.updateAndGet(_ + 1))(_ => finalized.update(_ + 1))
+            validation = (i: Int) => ZIO.succeedNow(i % 2 == 0)
+            pool      <- ZPool.make(get, 2 to 2, Duration.Infinity, ZPool.NoValidation, validation)
+            _         <- allocated.get.repeatUntil(_ == 2)
+            result1 <- ZIO.scoped(pool.get) // invalidated on release
+            result2 <- ZIO.scoped(pool.get)
+            result3 <- ZIO.scoped(pool.get) // invalidated on release
+            allocatedCount <- allocated.get
+            finalizedCount <- finalized.get
+          } yield assertTrue(result1 == 1 && result2 == 2 && result3 == 3 && allocatedCount == 4 && finalizedCount == 2)
+        } +
         test("compositional retry") {
           def cond(i: Int) = if (i <= 10) ZIO.fail(i) else ZIO.succeed(i)
           for {
