@@ -20,19 +20,15 @@ import java.util.concurrent.atomic.AtomicInteger
 
 final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
   @tailrec
-  final def attemptAsyncInterrupt(asyncs: Int): Boolean = {
+  final def attemptAsyncInterrupt(): Boolean = {
     val oldFlags  = getIndicator()
-    val oldAsyncs = FiberStatusIndicator.getAsyncs(oldFlags)
     val oldStatus = FiberStatusIndicator.getStatus(oldFlags)
 
-    if (
-      (oldAsyncs != asyncs) || (oldStatus != FiberStatusIndicator.Status.Suspended) || !FiberStatusIndicator
-        .getInterruptible(oldFlags)
-    ) false
+    if ((oldStatus != FiberStatusIndicator.Status.Suspended) || !FiberStatusIndicator.getInterruptible(oldFlags)) false
     else {
       val newFlags = FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Running)
 
-      if (!ref.compareAndSet(oldFlags, newFlags)) attemptAsyncInterrupt(asyncs)
+      if (!ref.compareAndSet(oldFlags, newFlags)) attemptAsyncInterrupt()
       else true
     }
   }

@@ -98,43 +98,31 @@ object FiberStatusStateSpec extends ZIOBaseSpec {
         test("attemptAsyncInterrupt - success") {
           val state = make()
 
-          val result = state.enterSuspend(true)
-
-          val attempted = state.attemptAsyncInterrupt(result)
-
-          assertTrue(attempted == true)
-        } +
-        test("attemptAsyncInterrupt - failure due to wrong asyncs") {
-          val state = make()
-
-          val result = state.enterSuspend(true)
-
-          state.attemptResume(result)
           state.enterSuspend(true)
 
-          val attempted = state.attemptAsyncInterrupt(result)
+          val attempted = state.attemptAsyncInterrupt()
 
-          assertTrue(attempted == false)
+          assertTrue(attempted == true)
         } +
         test("attemptAsyncInterrupt - failure due to wrong status") {
           val state = make()
 
-          val result = state.enterSuspend(true)
+          state.enterSuspend(true)
 
           state.ref.set(
             FiberStatusIndicator.withStatus(state.ref.get().asInstanceOf[FiberStatusIndicator], Status.Running)
           )
 
-          val attempted = state.attemptAsyncInterrupt(result)
+          val attempted = state.attemptAsyncInterrupt()
 
           assertTrue(attempted == false)
         } +
         test("attemptAsyncInterrupt - failure due to uninterruptible") {
           val state = make()
 
-          val result = state.enterSuspend(false)
+          state.enterSuspend(false)
 
-          val attempted = state.attemptAsyncInterrupt(result)
+          val attempted = state.attemptAsyncInterrupt()
 
           assertTrue(attempted == false)
         } +
