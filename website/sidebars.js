@@ -318,7 +318,7 @@ module.exports = {
   },
   "about-sidebar": {
     "About": [
-      "about/index",
+      "about/about_index",
       "about/faq",
       "about/coding-guidelines",
       "about/contributing",
