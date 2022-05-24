@@ -334,6 +334,16 @@ package zio2 {
     }
 
     /**
+     * Adds an interruptor to the set of interruptors that are interrupting this
+     * fiber.
+     */
+    final def unsafeAddInterruptor(interruptor: FiberId): Unit = {
+      val oldInterruptor = unsafeGetFiberRef(FiberRef.interruptor)
+
+      unsafeSetFiberRef(FiberRef.interruptor, oldInterruptor <> interruptor)
+    }
+
+    /**
      * Adds a message to the mailbox and returns true if the state is not done.
      * Otherwise, returns false to indicate the fiber cannot accept messages.
      */

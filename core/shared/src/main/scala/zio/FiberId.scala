@@ -63,6 +63,12 @@ sealed trait FiberId extends Serializable { self =>
       case Composite(set) => set.map(_.toOption).collect { case Some(fiberId) => fiberId }.reduceOption(_.combine(_))
       case other          => Some(other)
     }
+
+  final def toSet: Set[FiberId.Runtime] = self match {
+    case None                          => Set.empty[FiberId.Runtime]
+    case Composite(set)                => set
+    case id @ FiberId.Runtime(_, _, _) => Set(id)
+  }
 }
 
 object FiberId {
