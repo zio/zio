@@ -1,4 +1,7 @@
+// @tscheck
 const versions = require('./versions.json')
+
+const version = versions[0]
 
 const config = {
   title: 'ZIO',
@@ -29,12 +32,12 @@ const config = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { type: 'docsVersion', label: 'Overview', position: 'right' },
-        { type: 'docsVersion', label: 'Data Types', position: 'right' },
-        { type: 'docsVersion', label: 'Use Cases', position: 'right' },
-        { type: 'docsVersion', label: 'How to', position: 'right' },
-        { type: 'docsVersion', label: 'Resources', position: 'right' },
-        { type: 'docsVersion', label: 'About', position: 'right' },
+        { type: 'docsVersion', to: 'overview/', label: 'Overview', position: 'right' },
+        { type: 'docsVersion', to: 'datatypes/', label: 'Data Types', position: 'right' },
+        { to: 'version-1.x/overview/', label: 'Use Cases', position: 'right' },
+        { to: 'version-1.x/overview/', label: 'How to', position: 'right' },
+        { to: 'version-1.x/overview/', label: 'Resources', position: 'right' },
+        { to: 'version-1.x/overview/', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -48,8 +51,7 @@ const config = {
       indexName: 'zio'
     },
     footer: {
-      style: 'dark',
-      links: [
+      style: 'dark',     links: [
         {
           items: [
             {
