@@ -15,14 +15,14 @@ object FiberStateSpec extends ZIOBaseSpec {
         test("can get default value of unset fiber ref") {
           val s = newState()
 
-          assertTrue(s.unsafeGetFiberRef(FiberRef.interruptible) == true)
+          assertTrue(s.unsafeGetFiberRef(FiberRef.forkScopeOverride) == None)
         } +
           test("can set value of fiber ref") {
             val s = newState()
 
-            s.unsafeSetFiberRef(FiberRef.interruptible, false)
+            s.unsafeSetFiberRef(FiberRef.forkScopeOverride, Some(null))
 
-            assertTrue(s.unsafeGetFiberRef(FiberRef.interruptible) == false)
+            assertTrue(s.unsafeGetFiberRef(FiberRef.forkScopeOverride) == Some(null))
           }
       } +
         suite("get / set interruptible") {

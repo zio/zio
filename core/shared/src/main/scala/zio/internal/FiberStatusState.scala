@@ -118,17 +118,15 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
   }
 
   @tailrec
-  final def enterSuspend(interruptible: Boolean): Int = {
+  final def enterSuspend(): Int = {
     val oldFlags  = getIndicator()
     val oldAsyncs = FiberStatusIndicator.getAsyncs(oldFlags)
     val newAsyncs = oldAsyncs + 1
-    val newFlags = FiberStatusIndicator.withInterruptible(
+    val newFlags =
       FiberStatusIndicator
-        .withAsyncs(FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Suspended), newAsyncs),
-      interruptible
-    )
+        .withAsyncs(FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Suspended), newAsyncs)
 
-    if (!ref.compareAndSet(oldFlags, newFlags)) enterSuspend(interruptible)
+    if (!ref.compareAndSet(oldFlags, newFlags)) enterSuspend()
     else newAsyncs
   }
 

@@ -456,7 +456,7 @@ package zio2 {
      * Changes the state to be suspended.
      */
     final def unsafeEnterSuspend(): Int =
-      statusState.enterSuspend(unsafeGetFiberRef(FiberRef.interruptible))
+      statusState.enterSuspend()
 
     final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A)(implicit trace: ZTraceElement): A =
       if (unsafeAddMessage(effect)) null.asInstanceOf[A] else orElse
@@ -498,7 +498,7 @@ package zio2 {
     /**
      * Retrieves the interruptibility status of the fiber state.
      */
-    final def unsafeGetInterruptible(): Boolean = unsafeGetFiberRef(FiberRef.interruptible)
+    final def unsafeGetInterruptible(): Boolean = statusState.getInterruptible()
 
     /**
      * Determines if the fiber state contains messages to process by the fiber
@@ -555,7 +555,7 @@ package zio2 {
      * Sets the interruptibility status of the fiber to the specified value.
      */
     final def unsafeSetInterruptible(interruptible: Boolean): Unit =
-      unsafeSetFiberRef(FiberRef.interruptible, interruptible)
+      statusState.setInterruptible(interruptible)
 
     /**
      * Retrieves a snapshot of the status of the fibers.
