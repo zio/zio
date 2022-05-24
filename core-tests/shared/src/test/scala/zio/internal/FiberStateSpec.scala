@@ -39,7 +39,7 @@ object FiberStateSpec extends ZIOBaseSpec {
               assertTrue(s.unsafeGetInterruptible() == false)
             }
         } +
-        suite("attemptAsyncInterrupt") {
+        suite("attempt async interrupt") {
           test("fails in initial case because it is not suspended") {
             val s = newState()
 
@@ -66,9 +66,43 @@ object FiberStateSpec extends ZIOBaseSpec {
               val attempted = s.unsafeAttemptAsyncInterrupt()
 
               assertTrue(attempted == false)
+            } +
+            suite("interrupt or add message") {
+              test("adds a message when fiber is not suspended") {
+                val s = newState()
+
+                val msg = zio2.ZIO.succeed(42)
+
+                val result = s.unsafeAsyncInterruptOrAddMessage(msg)
+
+                assertTrue(result == false && s.unsafeDrainMailbox() == msg)
+              } +
+                test("interrupts a message when fiber is interruptibly suspended") {
+                  val s = newState()
+
+                  val msg = zio2.ZIO.succeed(42)
+
+                  s.unsafeEnterSuspend()
+
+                  val result = s.unsafeAsyncInterruptOrAddMessage(msg)
+
+                  assertTrue(result == true && s.unsafeDrainMailbox() != msg)
+                } +
+                test("adds a message when fiber is uninterruptibly suspended") {
+                  val s = newState()
+
+                  val msg = zio2.ZIO.succeed(42)
+
+                  s.unsafeSetInterruptible(false)
+                  s.unsafeEnterSuspend()
+
+                  val result = s.unsafeAsyncInterruptOrAddMessage(msg)
+
+                  assertTrue(result == false && s.unsafeDrainMailbox() == msg)
+                }
             }
         } +
-        suite("attemptDone") {
+        suite("attempt done") {
           test("succeeds in initial case") {
             val s = newState()
 
