@@ -1,14 +1,9 @@
-// @tscheck
-const versions = require('./versions.json')
-
-const version = versions[0]
-
 const config = {
   title: 'ZIO',
   tagline: 'Type-safe, composable asynchronous and concurrent programming for Scala',
   url: 'https://zio.dev',
   baseUrl: '/',
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.png',
   organizationName: 'zio',
@@ -32,12 +27,12 @@ const config = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { type: 'docsVersion', to: 'overview/', label: 'Overview', position: 'right' },
-        { type: 'docsVersion', to: 'datatypes/', label: 'Data Types', position: 'right' },
-        { to: 'version-1.x/overview/', label: 'Use Cases', position: 'right' },
-        { to: 'version-1.x/overview/', label: 'How to', position: 'right' },
-        { to: 'version-1.x/overview/', label: 'Resources', position: 'right' },
-        { to: 'version-1.x/overview/', label: 'About', position: 'right' },
+        { type: 'docsVersion', label: 'Overview', position: 'right' },
+        { type: 'doc', docId: 'datatypes/index', label: 'Data Types', position: 'right' },
+        { type: 'doc', docId: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
+        { type: 'doc', docId: 'howto/index', label: 'How to', position: 'right' },
+        { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'right' },
+        { type: 'doc', docId: 'about/about_index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -119,6 +114,7 @@ const config = {
     [
       '@docusaurus/preset-classic',
       {
+        debug: true,
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
