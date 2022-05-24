@@ -3,7 +3,7 @@ const config = {
   tagline: 'Type-safe, composable asynchronous and concurrent programming for Scala',
   url: 'https://zio.dev',
   baseUrl: '/',
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.png',
   organizationName: 'zio',
