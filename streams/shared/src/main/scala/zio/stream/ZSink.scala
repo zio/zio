@@ -994,7 +994,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def timed: ZSink[Clock, Nothing, Any, Nothing, Duration] =
     summarized(
       clock.nanoTime
-    )((start, stop) => (start, stop)).map { case (start, stop) => (stop - start).nanos }
+    )((start, stop) => (stop - start).nanos)
 
   final class AccessSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[E, I, L, Z](f: R => ZSink[R, E, I, L, Z]): ZSink[R, E, I, L, Z] =
