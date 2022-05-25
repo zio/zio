@@ -983,7 +983,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   /**
    * A generalized version of `timed`.
    */
-  def summarized[B, C](summary: ZIO[Clock, Nothing, B])(f: (B, B) => C): ZSink[Clock, Nothing, Any, Nothing, C] =
+  def summarized[R, E, B, C](summary: ZIO[R, E, B])(f: (B, B) => C): ZSink[R, E, Any, Nothing, C] =
     ZSink.drain
       .summarized(summary)(f)
       .map { case (_, c) => c }
