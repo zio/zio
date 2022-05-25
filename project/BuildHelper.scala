@@ -225,7 +225,7 @@ object BuildHelper {
     // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
     Compile / packageBin / packageOptions +=
       Package.ManifestAttributes(
-        "Automatic-Module-Name" -> s"${organization.value.replaceAll("-", ".")}.${prjName.replaceAll("-", ".")}"
+        "Automatic-Module-Name" -> s"${organization.value}.$prjName".replaceAll("-", ".")
       )
   )
 
