@@ -88,6 +88,12 @@ object ZPoolSpec extends ZIOBaseSpec {
             finalizedCount <- finalized.get
           } yield assertTrue(result == 3 && allocatedCount == 4 && finalizedCount == 2)
         } +
+        test("retry on failed acquire should not exhaust pool") {
+          for {
+            pool  <- ZPool.make(ZIO.fail(new Exception("err")).as(1), 0 to 1, Duration.Infinity)
+            error <- Live.live(ZIO.scoped(pool.get.retryN(5)).timeoutFail(new Exception("timeout"))(1.second).flip)
+          } yield assertTrue(error.getMessage == "err")
+        } +
         test("compositional retry") {
           def cond(i: Int) = if (i <= 10) ZIO.fail(i) else ZIO.succeed(i)
           for {
