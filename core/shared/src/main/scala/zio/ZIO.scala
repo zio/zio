@@ -2203,6 +2203,19 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.whenZIO(p)(self)
 
   /**
+   * Returns a new scoped workflow that returns the result of this workflow as
+   * well as a finalizer that can be run to close the scope of this workflow.
+   */
+  final def withEarlyRelease(implicit trace: Trace): ZIO[R with Scope, E, (UIO[Unit], A)] =
+    ZIO.scopeWith { parent =>
+      parent.fork.flatMap { child =>
+        child.extend[R](self).map { a =>
+          (ZIO.fiberIdWith(fiberId => child.close(Exit.interrupt(fiberId))), a)
+        }
+      }
+    }
+
+  /**
    * Treats this effect as the acquisition of a resource and adds the specified
    * finalizer to the current scope. This effect will be run uninterruptibly and
    * the finalizer will be run when the scope is closed.
