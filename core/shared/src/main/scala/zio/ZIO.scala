@@ -2208,9 +2208,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def withEarlyRelease(implicit trace: Trace): ZIO[R with Scope, E, (UIO[Unit], A)] =
     ZIO.scopeWith { parent =>
-      scope.fork.flatMap { child =>
+      parent.fork.flatMap { child =>
         child.extend[R](self).map { a =>
-          (ZIO.fiberIdWith(fiberId => scope.close(Exit.interrupt(fiberId))), a)
+          (ZIO.fiberIdWith(fiberId => child.close(Exit.interrupt(fiberId))), a)
         }
       }
     }
