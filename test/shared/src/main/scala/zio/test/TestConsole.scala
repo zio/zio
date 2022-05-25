@@ -91,7 +91,7 @@ object TestConsole extends Serializable {
     def clearOutput(implicit trace: Trace): UIO[Unit] =
       consoleState.update(data => data.copy(output = Vector.empty))
 
-    /** 
+    /**
      * Clears the contents of the output error buffer.
      */
     def clearOutputErr(implicit trace: Trace): UIO[Unit] =
