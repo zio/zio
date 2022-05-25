@@ -34,7 +34,19 @@ In this quickstart, we will build a RESTful web service that has the following H
 - **Counter App**— shows how to have a stateful web service and how to use the ZIO environment for Http Apps.
 - **User App**— shows how to have a stateful web service to register and manage users.
 
-### Greeting App
+### 1. Greeting App
+
+The Greeting App is a simple Http App that returns a greeting message. First, let's see how this app is defined:
+
+```scala
+object GreetingApp {
+  def apply(): Http[Any, Nothing, Request, Response] = ???
+}
+```
+
+So this means that this app doesn't require any services from the environment (`Any`), it doesn't fail (`Nothing`), and it takes a request (`Request`) and returns a response (`Response`).
+
+It has three routes, and we are going to test them one by one:
 
 1. When we build and run this quickstart, there is a greeting app that we can access using the following endpoint:
 
@@ -98,12 +110,14 @@ content-length: 21
 Hello Jane and John!⏎
 ```
 
-### Download App
+### 2. Download App
 
 The next example shows how to download a file from the server. First, let's look at the type of the `downloadApp`:
 
 ```scala
-val downloadApp: Http[Any, Throwable, Request, Response] = ???
+object DownloadApp {
+  def apply(): Http[Any, Throwable, Request, Response] = ???
+}
 ```
 
 It is an Http App that doesn't require any environment, it may fail with `Throwable` and it consumes a `Request` and produces a `Response` respectively.
@@ -155,12 +169,14 @@ transfer-encoding: chunked
 
 We have scheduled some delays between each line to simulate downloading a big file. So when we run the above `curl` command, we can see that the content of the file will be downloaded gradually.
 
-### Counter App
+### 3. Counter App
 
 The next example shows how we can have a stateful web service. Let's look at the type of the `counterApp`:
 
 ```scala
-val counterApp: Http[Ref[Int], Nothing, Request, Response] = ???
+object CounterApp {
+  def apply(): Http[Ref[Int], Nothing, Request, Response] = ???
+}
 ```
 
 This is an Http app that requires a `Ref[Int]` as an environment, it cannot fail and it consumes a `Request` and produces a `Response` respectively.
@@ -184,20 +200,23 @@ user@host ~> for i in {1..25}; do curl http://localhost:8080/down; echo -n ' '; 
 We can see that the state of the counter is maintained between requests. In this example, we used the ZIO environment to store the access and store the state of the counter.
 
 
-### In-memory User App
+### 4. User App
 
-The `inmemoryUserApp` is an Http app with the following definition:
+The `UserApp()` is an Http app with the following definition:
 
 ```scala
-val inmemoryUserApp: Http[UserRepo, Throwable, Request, Response] = ???
+object UserApp {
+  def apply(): Http[UserRepo, Throwable, Request, Response] = ???
+}
 ```
 
-It requires a `UserRepo` service from the ZIO environment, it can fail with `Throwable` and it consumes a `Request` and produces a `Response` respectively. In this example, we use the in-memory version of the `UserRepo` service called `InMemoryUserRepo`.
+It requires a `UserRepo` service from the ZIO environment, it can fail with `Throwable` and it consumes a `Request` and produces a `Response` respectively. In this example, we use the in-memory version of the `UserRepo` service called `InmemoryUserRepo`.
 
-This app has two endpoints:
+This app has three endpoints:
 
 ```bash
 POST http://localhost:8080/users -d '{"name": "John", "age": 30}'
+GET  http://localhost:8080/users
 GET  http://localhost:8080/users/:id
 ```
 
@@ -246,3 +265,5 @@ Server.start(
   PersistentUserRepo.layer
 )
 ```
+
+Now, if we register a new user, the user will be persisted and if the application is restarted, the user will be available.
