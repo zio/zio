@@ -4428,7 +4428,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     repeatZIOChunkOption {
       queue
         .takeBetween(1, maxChunkSize)
-        .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
             if (down && c.isInterrupted) Pull.end
