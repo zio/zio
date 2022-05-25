@@ -62,6 +62,7 @@ import java.io.{EOFException, IOException}
 trait TestConsole extends Console with Restorable {
   def clearInput(implicit trace: Trace): UIO[Unit]
   def clearOutput(implicit trace: Trace): UIO[Unit]
+  def clearOutputErr(implicit trace: Trace): UIO[Unit]
   def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def feedLines(lines: String*)(implicit trace: Trace): UIO[Unit]
   def output(implicit trace: Trace): UIO[Vector[String]]
@@ -89,6 +90,12 @@ object TestConsole extends Serializable {
      */
     def clearOutput(implicit trace: Trace): UIO[Unit] =
       consoleState.update(data => data.copy(output = Vector.empty))
+
+    /** 
+     * Clears the contents of the output error buffer.
+     */
+    def clearOutputErr(implicit trace: Trace): UIO[Unit] =
+      consoleState.update(data => data.copy(errOutput = Vector.empty))
 
     /**
      * Runs the specified effect with the `TestConsole` set to debug mode, so
