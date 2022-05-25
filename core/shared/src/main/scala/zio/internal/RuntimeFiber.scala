@@ -49,13 +49,13 @@ package zio2 {
 
     def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = ??? // fiberRefs.setAll
 
-    def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Unit] =
+    def interruptAsFork(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Unit] =
       ZIO.succeed {
         val cause = Cause.interrupt(fiberId).traced(ZTrace(fiberId, Chunk(trace)))
 
         unsafeAddSuppressedCause(cause)
 
-        val selfInterrupt = ZIO.refailCause(cause)
+        val selfInterrupt = ZIO.InterruptSignal(cause, trace)
 
         if (unsafeAsyncInterruptOrAddMessage(selfInterrupt)) {
           asyncResume(selfInterrupt, Chunk.empty, 1000)
@@ -63,6 +63,9 @@ package zio2 {
 
         ()
       }
+
+    def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
+      interruptAsFork(fiberId) *> await
 
     final def location: ZTraceElement = fiberId.location
 
@@ -90,17 +93,20 @@ package zio2 {
       maxDepth: Int
     ): Unit =
       unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
-        topRunLoop(effect, stack, maxDepth)
+        outerRunLoop(effect, stack, maxDepth)
         ()
       }
 
     @tailrec
-    final def topRunLoop(
-      effect: ZIO[Any, Any, Any],
+    final def outerRunLoop(
+      effect0: ZIO[Any, Any, Any],
       stack: Chunk[EvaluationStep],
       maxDepth: Int
     ): Exit[E, A] =
       try {
+        val mailbox = self.unsafeDrainMailbox()
+        val effect  = if (mailbox eq ZIO.unit) effect0 else mailbox *> effect0
+
         val interruptible = self.unsafeGetInterruptible()
 
         val exit: Exit[Nothing, A] = Exit.succeed(runLoop(effect, maxDepth, stack, interruptible).asInstanceOf[A])
@@ -112,7 +118,7 @@ package zio2 {
         exit
       } catch {
         case trampoline: Trampoline =>
-          topRunLoop(trampoline.effect, trampoline.stack.result(), maxDepth)
+          outerRunLoop(trampoline.effect, trampoline.stack.result(), maxDepth)
 
         case asyncJump: AsyncJump =>
           val epoch = unsafeEnterSuspend()
@@ -132,7 +138,7 @@ package zio2 {
 
           val remainingWork = self.unsafeAttemptDone(exit)
 
-          if (remainingWork ne null) topRunLoop(remainingWork, Chunk.empty, maxDepth)
+          if (remainingWork ne null) outerRunLoop(remainingWork, Chunk.empty, maxDepth)
           else exit
 
         case traceGen: GenerateTrace =>
@@ -144,7 +150,7 @@ package zio2 {
 
           val trace = ZTrace(self.fiberId, builder.result())
 
-          topRunLoop(ZIO.succeed(trace), stack, maxDepth)
+          outerRunLoop(ZIO.succeed(trace), stack, maxDepth)
       }
 
     def runLoop(
@@ -157,7 +163,7 @@ package zio2 {
       var done          = null.asInstanceOf[AnyRef]
       var stackIndex    = 0
       var interruptible = interruptible0
-      var lastTrace     = null.asInstanceOf[ZTraceElement]
+      var lastTrace     = null.asInstanceOf[ZTraceElement] // TODO: Rip out???
 
       if (remainingDepth <= 0) {
         // Save local variables to heap:
@@ -210,8 +216,13 @@ package zio2 {
 
                       assertNonNullContinuation(cur, k.trace)
 
-                    case k: ChangeInterruptibility => interruptible = k.interruptible
-                    case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                    case k: ChangeInterruptibility =>
+                      interruptible = k.interruptible
+
+                      // TODO: Interruption
+                      if (interruptible && unsafeIsInterrupted()) cur = Refail(unsafeGetSuppressedCause())
+
+                    case k: UpdateTrace => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                   }
                 }
 
@@ -228,20 +239,26 @@ package zio2 {
               throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
 
             case effect: ChangeInterruptionWithin[_, _, _] =>
-              val oldInterruptible = interruptible
+              if (effect.newInterruptible && unsafeIsInterrupted()) { // TODO: Interruption
+                cur = Refail(unsafeGetSuppressedCause())
+              } else {
+                val oldInterruptible = interruptible
 
-              interruptible = effect.newInterruptible
+                interruptible = effect.newInterruptible
 
-              cur =
-                try {
-                  val value = runLoop(effect.scope(oldInterruptible), remainingDepth - 1, Chunk.empty, interruptible)
+                cur =
+                  try {
+                    val value = runLoop(effect.scope(oldInterruptible), remainingDepth - 1, Chunk.empty, interruptible)
 
-                  interruptible = oldInterruptible
+                    interruptible = oldInterruptible
 
-                  ZIO.succeed(value)
-                } catch {
-                  case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
-                }
+                    // TODO: Interruption
+                    if (interruptible && unsafeIsInterrupted()) Refail(unsafeGetSuppressedCause())
+                    else ZIO.succeed(value)
+                  } catch {
+                    case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
+                  }
+              }
 
             case generateStackTrace: GenerateStackTrace =>
               val builder = ChunkBuilder.make[EvaluationStep]()
@@ -276,20 +293,33 @@ package zio2 {
                       case zioError: ZIOError =>
                         cause = cause.stripFailures ++ zioError.cause
                     }
-                  case k: ChangeInterruptibility => interruptible = k.interruptible
-                  case k: UpdateTrace            => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                  case k: ChangeInterruptibility =>
+                    interruptible = k.interruptible
+
+                    // TODO: Interruption
+                    if (interruptible && unsafeIsInterrupted())
+                      cur = Refail(cause.stripFailures ++ unsafeGetSuppressedCause())
+
+                  case k: UpdateTrace => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                 }
               }
 
               if (cur eq null) throw ZIOError(cause)
+
+            case InterruptSignal(cause, trace) =>
+              cur = if (interruptible) Refail(cause) else ZIO.unit
           }
         } catch {
-          case zioError: ZIOError => throw zioError
+          case zioError: ZIOError =>
+            throw zioError
 
           case reifyStack: ReifyStack =>
             if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)
 
             throw reifyStack
+
+          case interruptedException: InterruptedException =>
+            cur = Refail(Cause.interrupt(FiberId.None))
 
           case throwable: Throwable => // TODO: If non-fatal
             cur = Refail(Cause.die(throwable))
@@ -535,6 +565,8 @@ package zio2 {
 
       FiberStatusIndicator.getStatus(indicator) == FiberStatusIndicator.Status.Done
     }
+
+    final def unsafeIsInterrupted(): Boolean = !unsafeGetFiberRef(FiberRef.suppressedCause).isEmpty
 
     final def unsafeIsRunning(): Boolean = {
       val indicator = statusState.getIndicator()
@@ -793,6 +825,7 @@ package zio2 {
     final case class Refail[E](cause: Cause[E]) extends ZIO[Any, E, Nothing] {
       def trace: ZTraceElement = ZTraceElement.empty
     }
+    final case class InterruptSignal(cause: Cause[Nothing], trace: ZTraceElement) extends ZIO[Any, Nothing, Unit]
 
     sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
       def addContinuation(continuation: EvaluationStep.Continuation[_, _, _, _, _]): Nothing =
@@ -890,7 +923,7 @@ package zio2 {
 
       fiber.unsafeAddObserver(onDone)
 
-      fiber.topRunLoop(effect.asInstanceOf[Erased], Chunk.empty, maxDepth)
+      fiber.outerRunLoop(effect.asInstanceOf[Erased], Chunk.empty, maxDepth)
     }
 
     def evalToFuture[A](effect: ZIO[Any, Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
