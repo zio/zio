@@ -223,4 +223,26 @@ content-length: 24
 {"name":"John","age":35}
 ```
 
-While this app is stateful, it is not persistent. We just used the in-memory version of the `UserRepo` service. In the next section, we will use the persistent version of the UserRepo.
+While this app is stateful, it is not persistent. We just provided the in-memory version of the `UserRepo` service called `InmemoryUserRepo`:
+
+```scala
+Server.start(
+  port = 8080,
+  http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
+).provide(
+  ZLayer.fromZIO(Ref.make(0)),
+  InmemoryUserRepo.layer
+)
+```
+
+To make it persistent, we can provide the `PersistentUserRepo` service instead:
+
+```scala
+Server.start(
+  port = 8080,
+  http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
+).provide(
+  ZLayer.fromZIO(Ref.make(0)),
+  PersistentUserRepo.layer
+)
+```
