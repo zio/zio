@@ -22,15 +22,15 @@ package zio2 {
     import EvaluationStep._
     import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
 
-    def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] = ???
-    ZIO.async[Any, Nothing, Exit[E, A]] { cb =>
-      val exit = self.unsafeEvalOn[Exit[E, A]](
-        ZIO.succeed(self.unsafeAddObserver(exit => cb(ZIO.succeed(exit)))),
-        self.unsafeExitValue()
-      )
+    def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
+      ZIO.async[Any, Nothing, Exit[E, A]] { cb =>
+        val exit = self.unsafeEvalOn[Exit[E, A]](
+          ZIO.succeed(self.unsafeAddObserver(exit => cb(ZIO.succeed(exit)))),
+          self.unsafeExitValue()
+        )
 
-      if (exit ne null) cb(ZIO.succeed(exit))
-    }
+        if (exit ne null) cb(ZIO.succeed(exit))
+      }
 
     def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
       evalOnZIO(ZIO.succeed(Chunk.fromJavaIterable(unsafeGetChildren())), ZIO.succeed(Chunk.empty))

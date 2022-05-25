@@ -1,6 +1,7 @@
 package zio.internal
 
 import zio.test._
+import zio.internal.zio2.RuntimeFiber
 
 object NewEncodingSpec extends zio.ZIOBaseSpec {
   import zio.{Promise => _, _}
@@ -265,100 +266,114 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
                 result <-
                   ZIO.succeed((Effect.unit *> Effect.yieldNow *> Effect.succeed(throw TestException)).exit.unsafeRun())
               } yield assertTrue(result.causeOption.get.defects(0) == TestException)
+            }
+        } +
+        suite("interruption") {
+          test("simple interruption of never") {
+            val never = Effect.async[Any, Nothing, Int](_ => ())
+
+            val fiber = RuntimeFiber(ZTraceElement.empty, FiberRefs.empty)
+
+            for {
+              fiberId  <- ZIO.fiberId
+              executor <- ZIO.blockingExecutor
+              _        <- ZIO.succeed(executor.unsafeSubmitOrThrow { () => fiber.outerRunLoop(never, Chunk.empty, 1000); () })
+              exit     <- ZIO.succeed(fiber.interruptAs(fiberId).unsafeRun())
+            } yield assertTrue(exit.isInterrupted)
+          }
+        } +
+        suite("finalizers") {
+          test("ensuring - success") {
+            var finalized = false
+
+            val finalize = Effect.succeed { finalized = true }
+
+            for {
+              _ <- ZIO.succeed(Effect.succeed(()).ensuring(finalize).exit.unsafeRun())
+            } yield assertTrue(finalized == true)
+          } +
+            test("ensuring - success after async") {
+              var finalized = false
+
+              val finalize = Effect.succeed { finalized = true }
+
+              for {
+                _ <- ZIO.succeed(
+                       (Effect.unit *> Effect.yieldNow *> Effect.succeed(())).ensuring(finalize).exit.unsafeRun()
+                     )
+              } yield assertTrue(finalized == true)
             } +
-            suite("finalizers") {
-              test("ensuring - success") {
-                var finalized = false
+            test("ensuring - failure") {
+              var finalized = false
 
-                val finalize = Effect.succeed { finalized = true }
+              val finalize = Effect.succeed { finalized = true }
 
-                for {
-                  _ <- ZIO.succeed(Effect.succeed(()).ensuring(finalize).exit.unsafeRun())
-                } yield assertTrue(finalized == true)
-              } +
-                test("ensuring - success after async") {
-                  var finalized = false
+              for {
+                _ <- ZIO.succeed(Effect.fail(()).ensuring(finalize).exit.unsafeRun())
+              } yield assertTrue(finalized == true)
+            } +
+            test("ensuring - failure after async") {
+              var finalized = false
 
-                  val finalize = Effect.succeed { finalized = true }
+              val finalize = Effect.succeed { finalized = true }
 
-                  for {
-                    _ <- ZIO.succeed(
-                           (Effect.unit *> Effect.yieldNow *> Effect.succeed(())).ensuring(finalize).exit.unsafeRun()
-                         )
-                  } yield assertTrue(finalized == true)
-                } +
-                test("ensuring - failure") {
-                  var finalized = false
+              for {
+                _ <- ZIO.succeed(
+                       (Effect.unit *> Effect.yieldNow *> Effect.fail(())).ensuring(finalize).exit.unsafeRun()
+                     )
+              } yield assertTrue(finalized == true)
+            } +
+            test("ensuring - double failure") {
+              var finalized = false
 
-                  val finalize = Effect.succeed { finalized = true }
+              val finalize1 = Effect.succeed(throw TestException)
+              val finalize2 = Effect.succeed { finalized = true }
 
-                  for {
-                    _ <- ZIO.succeed(Effect.fail(()).ensuring(finalize).exit.unsafeRun())
-                  } yield assertTrue(finalized == true)
-                } +
-                test("ensuring - failure after async") {
-                  var finalized = false
+              for {
+                _ <- ZIO.succeed(
+                       Effect
+                         .fail(())
+                         .ensuring(finalize1)
+                         .ensuring(finalize2)
+                         .exit
+                         .unsafeRun()
+                     )
+              } yield assertTrue(finalized == true)
+            } +
+            test("foldCauseZIO finalization - success") {
+              var finalized = false
 
-                  val finalize = Effect.succeed { finalized = true }
+              val finalize = Effect.succeed { finalized = true }
 
-                  for {
-                    _ <- ZIO.succeed(
-                           (Effect.unit *> Effect.yieldNow *> Effect.fail(())).ensuring(finalize).exit.unsafeRun()
-                         )
-                  } yield assertTrue(finalized == true)
-                } +
-                test("ensuring - double failure") {
-                  var finalized = false
+              for {
+                _ <- ZIO.succeed(Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+              } yield assertTrue(finalized == true)
+            } +
+            test("foldCauseZIO finalization - failure") {
+              var finalized = false
 
-                  val finalize1 = Effect.succeed(throw TestException)
-                  val finalize2 = Effect.succeed { finalized = true }
+              val finalize = Effect.succeed { finalized = true }
 
-                  for {
-                    _ <- ZIO.succeed(
-                           Effect
-                             .fail(())
-                             .ensuring(finalize1)
-                             .ensuring(finalize2)
-                             .exit
-                             .unsafeRun()
-                         )
-                  } yield assertTrue(finalized == true)
-                } +
-                test("foldCauseZIO finalization - success") {
-                  var finalized = false
+              for {
+                _ <- ZIO.succeed(Effect.fail(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+              } yield assertTrue(finalized == true)
+            } +
+            test("foldCauseZIO nested finalization - double failure") {
+              var finalized = false
 
-                  val finalize = Effect.succeed { finalized = true }
+              val finalize1 = Effect.succeed(throw TestException)
+              val finalize2 = Effect.succeed { finalized = true }
 
-                  for {
-                    _ <- ZIO.succeed(Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
-                  } yield assertTrue(finalized == true)
-                } +
-                test("foldCauseZIO finalization - failure") {
-                  var finalized = false
-
-                  val finalize = Effect.succeed { finalized = true }
-
-                  for {
-                    _ <- ZIO.succeed(Effect.fail(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
-                  } yield assertTrue(finalized == true)
-                } +
-                test("foldCauseZIO nested finalization - double failure") {
-                  var finalized = false
-
-                  val finalize1 = Effect.succeed(throw TestException)
-                  val finalize2 = Effect.succeed { finalized = true }
-
-                  for {
-                    _ <- ZIO.succeed(
-                           Effect
-                             .fail(())
-                             .foldCauseZIO(_ => finalize1, _ => finalize1)
-                             .foldCauseZIO(_ => finalize2, _ => finalize2)
-                             .exit
-                             .unsafeRun()
-                         )
-                  } yield assertTrue(finalized == true)
-                }
+              for {
+                _ <- ZIO.succeed(
+                       Effect
+                         .fail(())
+                         .foldCauseZIO(_ => finalize1, _ => finalize1)
+                         .foldCauseZIO(_ => finalize2, _ => finalize2)
+                         .exit
+                         .unsafeRun()
+                     )
+              } yield assertTrue(finalized == true)
             }
         }
     }
