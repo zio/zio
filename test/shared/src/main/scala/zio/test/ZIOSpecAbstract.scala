@@ -29,7 +29,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
 
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
-    Chunk(TestAspect.fibers)
+    Chunk.empty
 
   def testReporter(testRenderer: TestRenderer, testAnnotationRenderer: TestAnnotationRenderer)(implicit
     trace: Trace
@@ -133,7 +133,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       summary <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
 
@@ -178,7 +178,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         )
       testReporter = testArgs.testRenderer.fold(runner.reporter)(createTestReporter)
       summary <-
-        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _))
+        runner.withReporter(testReporter).run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
     } yield summary
   }
 
