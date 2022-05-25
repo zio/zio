@@ -307,14 +307,24 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
    * after execution, and then combining the values to produce a summary,
    * together with the result of the sink.
    */
-  final def summarized[R1 <: R, B, C](summary: ZIO[R1, Nothing, B])(f: (B, B) => C): ZSink[R1, E, I, L, (Z, C)] =
+  final def summarized[R1 <: R, E1 >: E, B, C](
+    summary: ZIO[R1, E1, B]
+  )(f: (B, B) => C): ZSink[R1, E1, I, L, (Z, C)] =
     ZSink {
-      self.push.zipWith(summary.toManaged_) { (push, start) =>
+      self.push.zipWith(summary.either.toManaged_) { (push, start) =>
         push(_).catchAll {
           case (Left(e), leftover) =>
-            Push.fail(e, leftover)
+            Push.fail(start.fold(identity, _ => e), leftover)
+
           case (Right(z), leftover) =>
-            summary.flatMap(stop => Push.emit((z, f(start, stop)), leftover))
+            start match {
+              case Left(e) => Push.fail(e, leftover)
+              case Right(start) =>
+                summary.foldM(
+                  e => Push.fail(e, leftover),
+                  end => Push.emit((z, f(start, end)), leftover)
+                )
+            }
         }
       }
     }
