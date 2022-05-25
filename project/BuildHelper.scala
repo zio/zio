@@ -220,7 +220,13 @@ object BuildHelper {
     autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
     Compile / fork := true,
-    Test / fork    := false
+    Test / fork    := false,
+    // For compatibility with Java 9+ module system;
+    // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
+    Compile / packageBin / packageOptions +=
+      Package.ManifestAttributes(
+        "Automatic-Module-Name" -> s"${organization.value.replaceAll("-", ".")}.${prjName.replaceAll("-", ".")}"
+      )
   )
 
   def macroExpansionSettings = Seq(
