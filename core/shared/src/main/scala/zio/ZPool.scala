@@ -211,7 +211,12 @@ object ZPool {
             }.flatten
         }
 
-      ZIO.acquireRelease(acquire)(release(_)).flatMap(_.toZIO).disconnect
+      for {
+        releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease
+        (release, attempted) = releaseAndAttempted
+        _                   <- release.when(attempted.isFailure)
+        item                <- attempted.toZIO.disconnect
+      } yield item
     }
 
     /**
