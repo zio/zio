@@ -303,9 +303,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
     } yield push)
 
   /**
-   * Returns a sink that summarizes an effect by computing some value before and
-   * after execution, and then combining the values to produce a summary,
-   * together with the result of the sink.
+   * Summarize a sink by running an effect when the sink starts and again when
+   * it completes
    */
   final def summarized[R1 <: R, E1 >: E, B, C](
     summary: ZIO[R1, E1, B]
@@ -318,7 +317,8 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
 
           case (Right(z), leftover) =>
             start match {
-              case Left(e) => Push.fail(e, leftover)
+              case Left(e) =>
+                Push.fail(e, leftover)
               case Right(start) =>
                 summary.foldM(
                   e => Push.fail(e, leftover),
