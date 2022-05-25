@@ -335,9 +335,7 @@ abstract class ZSink[-R, +E, -I, +L, +Z] private (
   final def timed: ZSink[R with Clock, E, I, L, (Z, Duration)] =
     summarized(
       clock.nanoTime
-    )((start, stop) => (start, stop)).map { case (z, (start, stop)) =>
-      (z, (stop - start).nanos)
-    }
+    )((start, stop) => (stop - start).nanos)
 
   /**
    * Converts this sink to a transducer that feeds incoming elements to the sink
