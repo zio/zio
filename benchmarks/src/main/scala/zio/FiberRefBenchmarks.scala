@@ -28,6 +28,9 @@ class FiberRefBenchmarks {
   @Param(Array("32"))
   var n: Int = _
 
+  @Param(Array("10000"))
+  var nFibers: Int = _
+
   @Benchmark
   def createUpdateAndRead(): Unit =
     createUpdateAndRead(BenchmarkUtil)
@@ -39,6 +42,18 @@ class FiberRefBenchmarks {
   @Benchmark
   def createFiberRefsAndYield(): Unit =
     createFiberRefsAndYield(BenchmarkUtil)
+
+  @Benchmark
+  def createAndJoin(): Unit =
+    createAndJoin(BenchmarkUtil)
+
+  @Benchmark
+  def createAndJoinUpdatesWide(): Unit =
+    createAndJoinUpdatesWide(BenchmarkUtil)
+
+  @Benchmark
+  def createAndJoinUpdatesDeep(): Unit =
+    createAndJoinUpdatesDeep(BenchmarkUtil)
 
   private def justYield(runtime: Runtime[Any]) = runtime.unsafeRun {
     for {
@@ -68,5 +83,48 @@ class FiberRefBenchmarks {
              )
       } yield ()
     }
+  }
+
+  private def createAndJoin(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
+        _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+        _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.unit))
+      } yield ()
+    }
+  }
+
+  private def createAndJoinUpdatesWide(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
+        _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+        _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))))
+      } yield ()
+    }
+  }
+
+  private def createAndJoinUpdatesDeep(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0)).flatMap { fiberRefs =>
+        def go(depth: Int): UIO[Unit] =
+          if (depth <= 0) ZIO.unit
+          else for {
+            _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+            f1 <- go(depth - 1).fork
+            _ <- f1.join
+          } yield ()
+
+        go(nFibers)
+      }
+    }
+  }
+
+  private val addDiffer = new Differ[Int, Int] {
+    def combine(first: Int, second: Int): Int = first + second
+    def diff(oldValue: Int, newValue: Int): Int = newValue - oldValue
+    def empty: Int = 0
+    def patch(patch: Int)(oldValue: Int): Int = oldValue + patch
   }
 }
