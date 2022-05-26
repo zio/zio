@@ -48,6 +48,10 @@ class FiberRefBenchmarks {
     createAndJoin(BenchmarkUtil)
 
   @Benchmark
+  def createAndJoinInitialValue(): Unit =
+    createAndJoinInitialValue(BenchmarkUtil)
+
+  @Benchmark
   def createAndJoinUpdatesWide(): Unit =
     createAndJoinUpdatesWide(BenchmarkUtil)
 
@@ -90,6 +94,15 @@ class FiberRefBenchmarks {
       for {
         fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
         _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+        _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.unit))
+      } yield ()
+    }
+  }
+
+  private def createAndJoinInitialValue(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        _ <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
         _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.unit))
       } yield ()
     }
