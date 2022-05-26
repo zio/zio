@@ -93,6 +93,18 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     that.prepend(self)
 
   /**
+   * Converts a chunk of ints to a chunk of bits.
+   */
+  final def asBitsInt(endianness: Chunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
+    Chunk.BitChunkInt(self.asInstanceOf[Chunk[Int]], endianness, 0, length << 5)
+
+  /**
+   * Converts a chunk of longs to a chunk of bits.
+   */
+  final def asBitsLong(endianness: Chunk.Endianness)(implicit ev: A <:< Long): Chunk[Boolean] =
+    Chunk.BitChunkLong(self.asInstanceOf[Chunk[Long]], endianness, 0, length << 6)
+
+  /**
    * Converts a chunk of bytes to a chunk of bits.
    */
   final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
@@ -1023,6 +1035,12 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
+  sealed trait Endianness
+  object Endianness {
+    case object BigEndian    extends Endianness
+    case object LittleEndian extends Endianness
+  }
+
   /**
    * Returns a chunk from a number of values.
    */
@@ -1257,6 +1275,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: Update[_]      => x.classTag.asInstanceOf[ClassTag[A]]
       case x: VectorChunk[_] => x.classTag.asInstanceOf[ClassTag[A]]
       case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
+      case _: BitChunkInt    => ClassTag.Int.asInstanceOf[ClassTag[A]]
+      case _: BitChunkLong   => ClassTag.Long.asInstanceOf[ClassTag[A]]
     }
 
   /**
@@ -1804,6 +1824,246 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else BitChunk(bytes, self.minBitIndex + offset, self.minBitIndex + offset + length min self.maxBitIndex)
   }
 
+  private[zio] final case class BitChunkInt(
+    chunk: Chunk[Int],
+    endianness: Endianness,
+    minBitIndex: Int,
+    maxBitIndex: Int
+  ) extends Chunk[Boolean] {
+    self =>
+
+    override val length: Int =
+      maxBitIndex - minBitIndex
+
+    private def elementAt(n: Int): Int =
+      if(endianness == Chunk.Endianness.BigEndian) chunk(n) else Integer.reverse(chunk(n))
+
+    override def apply(n: Int): Boolean =
+      (elementAt(n >> 5) & (1 << (31 - (n & 31)))) != 0
+
+    override def drop(n: Int): BitChunkInt = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toDrop = index >> 5
+      val min    = index & 31
+      val max    = maxBitIndex - index + min
+      BitChunkInt(chunk.drop(toDrop), endianness, min, max)
+    }
+
+    override def foreach[A](f: Boolean => A): Unit = {
+      val minIntIndex     = (minBitIndex + 31) >> 5
+      val maxIntIndex     = maxBitIndex >> 5
+      val minFullBitIndex = (minIntIndex << 5) min maxBitIndex
+      val maxFullBitIndex = (maxIntIndex << 5) max minFullBitIndex
+      var i               = minBitIndex
+      while (i < minFullBitIndex) {
+        f(apply(i))
+        i += 1
+      }
+      i = minIntIndex
+      while (i < maxIntIndex) {
+        val int = elementAt(i)
+        f((int & 0x80000000) != 0)
+        f((int & 0x40000000) != 0)
+        f((int & 0x20000000) != 0)
+        f((int & 0x10000000) != 0)
+        f((int & 0x8000000) != 0)
+        f((int & 0x4000000) != 0)
+        f((int & 0x2000000) != 0)
+        f((int & 0x1000000) != 0)
+        f((int & 0x800000) != 0)
+        f((int & 0x400000) != 0)
+        f((int & 0x200000) != 0)
+        f((int & 0x100000) != 0)
+        f((int & 0x80000) != 0)
+        f((int & 0x40000) != 0)
+        f((int & 0x20000) != 0)
+        f((int & 0x10000) != 0)
+        f((int & 0x8000) != 0)
+        f((int & 0x4000) != 0)
+        f((int & 0x2000) != 0)
+        f((int & 0x1000) != 0)
+        f((int & 0x800) != 0)
+        f((int & 0x400) != 0)
+        f((int & 0x200) != 0)
+        f((int & 0x100) != 0)
+        f((int & 0x80) != 0)
+        f((int & 0x40) != 0)
+        f((int & 0x20) != 0)
+        f((int & 0x10) != 0)
+        f((int & 0x8) != 0)
+        f((int & 0x4) != 0)
+        f((int & 0x2) != 0)
+        f((int & 0x1) != 0)
+        i += 1
+      }
+      i = maxFullBitIndex
+      while (i < maxBitIndex) {
+        f(apply(i))
+        i += 1
+      }
+    }
+
+    override def take(n: Int): BitChunkInt = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toTake = (index + 31) >> 5
+      BitChunkInt(chunk.take(toTake), endianness, minBitIndex, index)
+    }
+
+    override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
+      var i = n
+      while (i < length) {
+        dest(i + n) = apply(i)
+        i += 1
+      }
+    }
+
+    override private[zio] def arrayIterator[A1 >: Boolean]: Iterator[Array[A1]] = {
+      val array = Array.ofDim[Boolean](length)
+      toArray(0, array)
+      Iterator.single(array.asInstanceOf[Array[A1]])
+    }
+
+    override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
+      arrayIterator
+
+  }
+
+  private[zio] final case class BitChunkLong(
+    chunk: Chunk[Long],
+    endianness: Endianness,
+    minBitIndex: Int,
+    maxBitIndex: Int
+  ) extends Chunk[Boolean] {
+    self =>
+
+    override val length: Int =
+      maxBitIndex - minBitIndex
+
+    private def elementAt(n: Int): Long =
+      if(endianness == Chunk.Endianness.BigEndian) chunk(n) else java.lang.Long.reverse(chunk(n))
+
+    override def apply(n: Int): Boolean =
+      (elementAt(n >> 6) & (1L << (63 - (n & 63)))) != 0
+
+    override def drop(n: Int): BitChunkLong = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toDrop = index >> 6
+      val min    = index & 63
+      val max    = maxBitIndex - index + min
+      BitChunkLong(chunk.drop(toDrop), endianness, min, max)
+    }
+
+    override def foreach[A](f: Boolean => A): Unit = {
+      if (this.isEmpty) return
+      val minLongIndex    = (minBitIndex + 63) >> 6
+      val maxLongIndex    = maxBitIndex >> 6
+      val minFullBitIndex = (minLongIndex << 6) min maxBitIndex
+      val maxFullBitIndex = (maxLongIndex << 6) max minFullBitIndex
+      var i               = minBitIndex
+      while (i < minFullBitIndex) {
+        f(apply(i))
+        i += 1
+      }
+      i = minLongIndex
+      while (i < maxLongIndex) {
+        val long = elementAt(i)
+        f((long & 0x8000000000000000L) != 0)
+        f((long & 0x4000000000000000L) != 0)
+        f((long & 0x2000000000000000L) != 0)
+        f((long & 0x1000000000000000L) != 0)
+        f((long & 0x800000000000000L) != 0)
+        f((long & 0x400000000000000L) != 0)
+        f((long & 0x200000000000000L) != 0)
+        f((long & 0x100000000000000L) != 0)
+        f((long & 0x80000000000000L) != 0)
+        f((long & 0x40000000000000L) != 0)
+        f((long & 0x20000000000000L) != 0)
+        f((long & 0x10000000000000L) != 0)
+        f((long & 0x8000000000000L) != 0)
+        f((long & 0x4000000000000L) != 0)
+        f((long & 0x2000000000000L) != 0)
+        f((long & 0x1000000000000L) != 0)
+        f((long & 0x800000000000L) != 0)
+        f((long & 0x400000000000L) != 0)
+        f((long & 0x200000000000L) != 0)
+        f((long & 0x100000000000L) != 0)
+        f((long & 0x80000000000L) != 0)
+        f((long & 0x40000000000L) != 0)
+        f((long & 0x20000000000L) != 0)
+        f((long & 0x10000000000L) != 0)
+        f((long & 0x8000000000L) != 0)
+        f((long & 0x4000000000L) != 0)
+        f((long & 0x2000000000L) != 0)
+        f((long & 0x1000000000L) != 0)
+        f((long & 0x800000000L) != 0)
+        f((long & 0x400000000L) != 0)
+        f((long & 0x200000000L) != 0)
+        f((long & 0x100000000L) != 0)
+        f((long & 0x80000000L) != 0)
+        f((long & 0x40000000L) != 0)
+        f((long & 0x20000000L) != 0)
+        f((long & 0x10000000L) != 0)
+        f((long & 0x8000000L) != 0)
+        f((long & 0x4000000L) != 0)
+        f((long & 0x2000000L) != 0)
+        f((long & 0x1000000L) != 0)
+        f((long & 0x800000L) != 0)
+        f((long & 0x400000L) != 0)
+        f((long & 0x200000L) != 0)
+        f((long & 0x100000L) != 0)
+        f((long & 0x80000L) != 0)
+        f((long & 0x40000L) != 0)
+        f((long & 0x20000L) != 0)
+        f((long & 0x10000L) != 0)
+        f((long & 0x8000L) != 0)
+        f((long & 0x4000L) != 0)
+        f((long & 0x2000L) != 0)
+        f((long & 0x1000L) != 0)
+        f((long & 0x800L) != 0)
+        f((long & 0x400L) != 0)
+        f((long & 0x200L) != 0)
+        f((long & 0x100L) != 0)
+        f((long & 0x80L) != 0)
+        f((long & 0x40L) != 0)
+        f((long & 0x20L) != 0)
+        f((long & 0x10L) != 0)
+        f((long & 0x8L) != 0)
+        f((long & 0x4L) != 0)
+        f((long & 0x2L) != 0)
+        f((long & 0x1L) != 0)
+        i += 1
+      }
+      i = maxFullBitIndex
+      while (i < maxBitIndex) {
+        f(apply(i))
+        i += 1
+      }
+    }
+
+    override def take(n: Int): BitChunkLong = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toTake = (index + 63) >> 6
+      BitChunkLong(chunk.take(toTake), endianness, minBitIndex, index)
+    }
+
+    override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
+      var i = n
+      while (i < length) {
+        dest(i + n) = apply(i)
+        i += 1
+      }
+    }
+
+    override private[zio] def arrayIterator[A1 >: Boolean]: Iterator[Array[A1]] = {
+      val array = Array.ofDim[Boolean](length)
+      toArray(0, array)
+      Iterator.single(array.asInstanceOf[Array[A1]])
+    }
+
+    override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
+      arrayIterator
+
+  }
   private case object Empty extends Chunk[Nothing] { self =>
 
     def chunkIterator: ChunkIterator[Nothing] =
