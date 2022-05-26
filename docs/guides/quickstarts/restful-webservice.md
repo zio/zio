@@ -24,7 +24,7 @@ Once you are inside the project directory, run the application:
 sbt run
 ```
 
-## Explanation
+## HTTP Applications
 
 In this quickstart, we will build a RESTful web service that has the following Http apps:
 
