@@ -41,7 +41,12 @@ trait Http[-R, +E, -A, +B] extends (A => ZIO[R, Option[E], B])
 
 It is a data type that models an HTTP application, just like the `ZIO` data type that models ZIO workflows.
 
-We can say that `Http[R, E, A, B]` is a function that takes an `A` and returns a `ZIO[R, Option[E], B]`. Like the `ZIO` data type, it has can be transformed and also composed with other `Http` data types to build complex and large HTTP applications.
+We can say that `Http[R, E, A, B]` is a function that takes an `A` and returns a `ZIO[R, Option[E], B]`. To put it another way, `HTTP[R, E, A, B]` is an HTTP application that:
+- Accepts an `A` and returns `B`
+- Uses the `R` from the environment
+- Will fail with `E` if there is an error
+
+Like the `ZIO` data type, it can be transformed and also composed with other `Http` data types to build complex and large HTTP applications.
 
 ### 1. Greeting App
 
