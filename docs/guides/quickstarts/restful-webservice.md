@@ -33,6 +33,16 @@ In this quickstart, we will build a RESTful web service that has the following H
 - **Counter App**— shows how to have a stateful web service and how to use the ZIO environment for Http Apps.
 - **User App**— shows how to have a stateful web service to register and manage users.
 
+The most important part of this quickstart is learning how to build an `Http` data type that is used to build the HTTP apps:
+
+```scala
+trait Http[-R, +E, -A, +B] extends (A => ZIO[R, Option[E], B])
+```
+
+It is a data type that models an HTTP application, just like the `ZIO` data type that models ZIO workflows.
+
+We can say that `Http[R, E, A, B]` is a function that takes an `A` and returns a `ZIO[R, Option[E], B]`. Like the `ZIO` data type, it has can be transformed and also composed with other `Http` data types to build complex and large HTTP applications.
+
 ### 1. Greeting App
 
 The Greeting App is a simple Http App that returns a greeting message. First, let's see how this app is defined:
