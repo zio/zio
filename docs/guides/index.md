@@ -10,9 +10,9 @@ The following guides have been written to help you get started with ZIO with min
 
 1. [ZIO Quickstart: Hello World](quickstarts/hello-world.md)
 2. [ZIO Quickstart: Building a RESTful Web Service](quickstarts/restful-webservice.md)
-3. Getting Started With ZIO Streaming
-4. Getting Started With ZIO and ScalaJS
-5. Getting Started With a ZIO Application With a gRPC Service
+3. [ZIO Quickstart: Building a gRPC Server and Client](https://scalapb.github.io/zio-grpc/docs/quickstart/)
+4. Getting Started With ZIO Streaming
+5. Getting Started With ZIO and ScalaJS
 6. Getting Started With a ZIO Application With a GraphQL API
 7. Getting Started with a ZIO Application With a Persistent Layer
 
