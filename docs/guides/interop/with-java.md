@@ -1,6 +1,7 @@
 ---
 id: with-java
 title: "How to Interop with Java?"
+sidebar_label: "Java"
 ---
 
 ZIO has full interoperability with foreign Java code. Let me show you how it works and then *BOOM*, tomorrow you can show off your purely functional Java at work.

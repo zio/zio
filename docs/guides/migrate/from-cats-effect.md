@@ -1,5 +1,5 @@
 ---
-id: from-cats-efect
+id: from-cats-effect
 title:  "How to Migrate from Cats Effect to ZIO?"
 ---
 

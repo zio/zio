@@ -653,7 +653,7 @@ We can find more examples in the `examples` and `test-tests` subproject:
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
 [doc-contextual-types]: ../../contextual/index.md
-[doc-macros]: ../../../howto/howto-macros.md
+[doc-macros]: ../../../guides/howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala

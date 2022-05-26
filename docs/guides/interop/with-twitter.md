@@ -1,6 +1,7 @@
 ---
 id: with-twitter
 title: "How to Interop with Twitter?"
+sidebar_label: "Twitter's Future"
 ---
 
 [`interop-twitter`](https://github.com/zio/interop-twitter) module provides capability to convert [Twitter `Future`](https://twitter.github.io/util/docs/com/twitter/util/Future.html) into ZIO `Task`.

@@ -1,6 +1,7 @@
 ---
 id: with-scalaz-7x
 title: "How to Interop with Scalaz 7.x?"
+sidebar_label: "Scalaz 7.x"
 ---
 
 ## `ZIO` Instances
