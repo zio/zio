@@ -21,7 +21,7 @@ Once you are inside the project directory, run the application:
 sbt run
 ```
 
-## Explanation
+## Testing The Quickstart
 
 When we prompt the `sbt run` the sbt search for the executable class and will find the `zio.dev.quickstart.MainApp` which contains the following code:
 
