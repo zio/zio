@@ -141,6 +141,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [StreamWeaver](https://www.streamweaver.com/)
 * [Stuart](https://stuart.com/)
 * [Teads](https://teads.com)
+* [The Pokemon Company International](https://www.pokemon.com/us/about-pokemon/)
 * [TomTom](https://tomtom.com)
 * [Tinka](https://www.tinka.com/)
 * [Tinkoff](https://tinkoff.ru)
