@@ -1409,7 +1409,7 @@ object Schedule {
    *
    * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
    */
-  def secondOfMinute(second0: => Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
+  def secondOfMinute(second0: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule[Any, Any, Long] {
       type State = (OffsetDateTime, Long)
       val initial = (OffsetDateTime.MIN, 0L)
@@ -1418,7 +1418,7 @@ object Schedule {
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
         if (second0 < 0 || 59 < second0) {
           ZIO.die(
-            new IllegalArgumentException(s"Invalid argument in `secondOfMinute($second)`. Must be in range 0...59")
+            new IllegalArgumentException(s"Invalid argument in `secondOfMinute($second0)`. Must be in range 0...59")
           )
         } else {
           val (end0, n) = state
