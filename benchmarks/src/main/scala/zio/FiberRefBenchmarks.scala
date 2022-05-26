@@ -29,7 +29,7 @@ class FiberRefBenchmarks {
   var n: Int = _
 
   @Param(Array("10000"))
-  var nFibers: Int = _
+  var m: Int = _
 
   @Benchmark
   def createUpdateAndRead(): Unit =
@@ -54,6 +54,10 @@ class FiberRefBenchmarks {
   @Benchmark
   def createAndJoinUpdatesWide(): Unit =
     createAndJoinUpdatesWide(BenchmarkUtil)
+
+  @Benchmark
+  def createAndJoinUpdatesWideExpensive(): Unit =
+    createAndJoinUpdatesWideExpensive(BenchmarkUtil)
 
   @Benchmark
   def createAndJoinUpdatesDeep(): Unit =
@@ -93,8 +97,8 @@ class FiberRefBenchmarks {
     ZIO.scoped {
       for {
         fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
-        _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
-        _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.unit))
+        _         <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+        _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.unit))
       } yield ()
     }
   }
@@ -103,7 +107,7 @@ class FiberRefBenchmarks {
     ZIO.scoped {
       for {
         _ <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
-        _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.unit))
+        _ <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.unit))
       } yield ()
     }
   }
@@ -112,8 +116,18 @@ class FiberRefBenchmarks {
     ZIO.scoped {
       for {
         fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
-        _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
-        _ <- ZIO.collectAllParDiscard(List.fill(nFibers)(ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))))
+        _         <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+        _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))))
+      } yield ()
+    }
+  }
+
+  private def createAndJoinUpdatesWideExpensive(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makeSet(1.to(i).toSet))
+        _         <- ZIO.foreachDiscard(fiberRefs)(_.update(_.map(_ + 1)))
+        _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.foreachDiscard(fiberRefs)(_.update(_.map(_ + 1)))))
       } yield ()
     }
   }
@@ -123,21 +137,22 @@ class FiberRefBenchmarks {
       ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0)).flatMap { fiberRefs =>
         def go(depth: Int): UIO[Unit] =
           if (depth <= 0) ZIO.unit
-          else for {
-            _ <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
-            f1 <- go(depth - 1).fork
-            _ <- f1.join
-          } yield ()
+          else
+            for {
+              _  <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
+              f1 <- go(depth - 1).fork
+              _  <- f1.join
+            } yield ()
 
-        go(nFibers)
+        go(m)
       }
     }
   }
 
   private val addDiffer = new Differ[Int, Int] {
-    def combine(first: Int, second: Int): Int = first + second
+    def combine(first: Int, second: Int): Int   = first + second
     def diff(oldValue: Int, newValue: Int): Int = newValue - oldValue
-    def empty: Int = 0
-    def patch(patch: Int)(oldValue: Int): Int = oldValue + patch
+    def empty: Int                              = 0
+    def patch(patch: Int)(oldValue: Int): Int   = oldValue + patch
   }
 }
