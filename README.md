@@ -44,6 +44,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Adidas](https://www.adidas.com/)
 * [adpulse.io](https://www.adpulse.io/)
 * [adsquare](https://www.adsquare.com/)
+* [Anduin Transactions](https://www.anduintransact.com/)
 * [Ayolab](https://www.ayolab.com/)
 * [Asana](https://asana.com/)
 * [Aurinko](https://www.aurinko.io/)
@@ -51,6 +52,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [AutoScout24](https://www.autoscout24.de)
 * [Avast](https://www.avast.com)
 * [Bank of America](https://www.bofa.com)
+* [Bpp](https://www.bpp.it/)
 * [Broad](https://broad.app)
 * [Caesars Digital](https://www.caesars.com/sportsbook-and-casino)
 * [CalcBank](https://www.calcbank.com.br)
@@ -123,6 +125,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Radix Labs](https://www.radix.bio/)
 * [Railroad19](https://www.railroad19.com)
 * [Randstad Groep Nederland](https://www.werkenbijrandstad.nl)
+* [Rapidor](https://www.rapidor.co)
 * [PIM Solutions](https://pimsolutions.ru/)
 * [REWE Digital](http://rewe-digital.com/)
 * [Risk Ident](https://riskident.com/)
@@ -138,6 +141,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [StreamWeaver](https://www.streamweaver.com/)
 * [Stuart](https://stuart.com/)
 * [Teads](https://teads.com)
+* [The Pokemon Company International](https://www.pokemon.com/us/about-pokemon/)
 * [TomTom](https://tomtom.com)
 * [Tinka](https://www.tinka.com/)
 * [Tinkoff](https://tinkoff.ru)
@@ -146,6 +150,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Tranzzo](https://tranzzo.com)
 * [TreuTech](https://treutech.io)
 * [Tweddle Group](https://tweddle.com)
+* [Undo](https://www.undo.app)
 * [Unit](https://unit.co)
 * [Univalence](https://univalence.io)
 * [Unzer](https://www.unzer.com)
@@ -163,7 +168,6 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 * [Vivid Money](https://vivid.money)
 * [Zalando](https://zalando.com/)
 * [Zooz](https://zooz.com/)
-* [Bpp](https://www.bpp.it/)
 
 # Sponsors
 

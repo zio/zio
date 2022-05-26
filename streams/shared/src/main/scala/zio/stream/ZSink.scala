@@ -333,6 +333,33 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   }
 
   /**
+   * Summarize a sink by running an effect when the sink starts and again when
+   * it completes
+   */
+  final def summarized[R1 <: R, E1 >: E, B, C](
+    summary: ZIO[R1, E1, B]
+  )(f: (B, B) => C): ZSink[R1, E1, I, L, (Z, C)] =
+    ZSink {
+      self.push.zipWith(summary.either.toManaged_) { (push, start) =>
+        push(_).catchAll {
+          case (Left(e), leftover) =>
+            Push.fail(start.fold(identity, _ => e), leftover)
+
+          case (Right(z), leftover) =>
+            start match {
+              case Left(e) =>
+                Push.fail(e, leftover)
+              case Right(start) =>
+                summary.foldM(
+                  e => Push.fail(e, leftover),
+                  end => Push.emit((z, f(start, end)), leftover)
+                )
+            }
+        }
+      }
+    }
+
+  /**
    * Returns the sink that executes this one and times its execution.
    */
   final def timed(implicit trace: Trace): ZSink[R, E, In, L, (Z, Duration)] =
@@ -1596,6 +1623,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     zio: => ZIO[R, E, ZSink[R, E, In, L, Z]]
   )(implicit trace: Trace): ZSink[R, E, In, L, Z] =
     new ZSink(ZChannel.unwrap(zio.map(_.channel)))
+
+  /**
+   * A generalized version of `timed`.
+   */
+  def summarized[R, E, B, C](summary: ZIO[R, E, B])(f: (B, B) => C): ZSink[R, E, Any, Nothing, C] =
+    ZSink.drain
+      .summarized(summary)(f)
+      .map { case (_, c) => c }
 
   /**
    * Creates a sink produced from a scoped effect.

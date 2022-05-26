@@ -439,7 +439,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Write the entire Chuck[Byte] to the socket channel.
+     * Write the entire Chunk[Byte] to the socket channel.
      *
      * The sink will yield the count of bytes written.
      */
