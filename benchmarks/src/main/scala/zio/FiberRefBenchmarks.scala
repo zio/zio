@@ -48,16 +48,16 @@ class FiberRefBenchmarks {
     createAndJoin(BenchmarkUtil)
 
   @Benchmark
+  def createAndJoinExpensive(): Unit =
+    createAndJoinExpensive(BenchmarkUtil)
+
+  @Benchmark
   def createAndJoinInitialValue(): Unit =
     createAndJoinInitialValue(BenchmarkUtil)
 
   @Benchmark
   def createAndJoinUpdatesWide(): Unit =
     createAndJoinUpdatesWide(BenchmarkUtil)
-
-  @Benchmark
-  def createAndJoinUpdatesWideExpensive(): Unit =
-    createAndJoinUpdatesWideExpensive(BenchmarkUtil)
 
   @Benchmark
   def createAndJoinUpdatesDeep(): Unit =
@@ -103,6 +103,16 @@ class FiberRefBenchmarks {
     }
   }
 
+  private def createAndJoinExpensive(runtime: Runtime[Any]) = runtime.unsafeRun {
+    ZIO.scoped {
+      for {
+        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makeSet(1.to(i).toSet))
+        _         <- ZIO.foreachDiscard(fiberRefs)(_.update(_.map(_ + 1)))
+        _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.unit))
+      } yield ()
+    }
+  }
+
   private def createAndJoinInitialValue(runtime: Runtime[Any]) = runtime.unsafeRun {
     ZIO.scoped {
       for {
@@ -118,16 +128,6 @@ class FiberRefBenchmarks {
         fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0))
         _         <- ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))
         _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))))
-      } yield ()
-    }
-  }
-
-  private def createAndJoinUpdatesWideExpensive(runtime: Runtime[Any]) = runtime.unsafeRun {
-    ZIO.scoped {
-      for {
-        fiberRefs <- ZIO.foreach(1.to(n))(i => FiberRef.makeSet(1.to(i).toSet))
-        _         <- ZIO.foreachDiscard(fiberRefs)(_.update(_.map(_ + 1)))
-        _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.foreachDiscard(fiberRefs)(_.update(_.map(_ + 1)))))
       } yield ()
     }
   }

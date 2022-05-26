@@ -93,12 +93,12 @@ private[zio] final class FiberContext[E, A](
   final def id: FiberId.Runtime = fiberId
 
   final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.suspendSucceed {
-    val childFiberRefs = FiberRefs(fiberRefLocals.get)
+    val childFiberRefLocals = fiberRefLocals.get
 
-    if (childFiberRefs.fiberRefLocals.isEmpty) ZIO.unit
+    if (childFiberRefLocals.isEmpty) ZIO.unit
     else
       ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
-        parentFiberRefs.join(parentFiberId)(childFiberRefs)
+        parentFiberRefs.join(parentFiberId)(FiberRefs(childFiberRefLocals))
       }
   }
 

@@ -61,43 +61,60 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
     val childFiberRefs  = that.fiberRefLocals
 
     val fiberRefLocals = childFiberRefs.foldLeft(parentFiberRefs) { case (parentFiberRefs, (fiberRef, childStack)) =>
-      val ref         = fiberRef.asInstanceOf[FiberRef[Any]]
-      val parentStack = parentFiberRefs.get(ref).getOrElse(List.empty)
+      val ref        = fiberRef.asInstanceOf[FiberRef[Any]]
+      val childValue = childStack.head._2
 
-      def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
-        val compare = left.startTimeSeconds.compare(right.startTimeSeconds)
-        if (compare == 0) left.id.compare(right.id) else compare
-      }
+      if (childStack.head._1 == fiberId) {
+        parentFiberRefs
+      } else {
 
-      @tailrec
-      def findAncestor[A](parentStack: List[(FiberId.Runtime, A)], childStack: List[(FiberId.Runtime, A)]): Option[A] =
-        (parentStack, childStack) match {
-          case ((parentFiberId, _) :: parentAncestors, (childFiberId, childValue) :: childAncestors) =>
-            val compare = compareFiberId(parentFiberId, childFiberId)
-            if (compare < 0) findAncestor(parentStack, childAncestors)
-            else if (compare > 0) findAncestor(parentAncestors, childStack)
-            else Some(childValue)
-          case _ =>
-            None
-        }
+        parentFiberRefs
+          .get(ref)
+          .fold {
+            if (childValue == ref.initial) parentFiberRefs
+            else parentFiberRefs + (ref -> ::((fiberId, childValue), Nil))
+          } { parentStack =>
+            def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
+              val compare = left.startTimeSeconds.compare(right.startTimeSeconds)
+              if (compare == 0) left.id.compare(right.id) else compare
+            }
 
-      val ancestor = findAncestor(parentStack, childStack).getOrElse(ref.initial)
-      val child    = childStack.head._2
+            @tailrec
+            def findAncestor(
+              parentStack: List[(FiberId.Runtime, Any)],
+              childStack: List[(FiberId.Runtime, Any)],
+              childModified: Boolean = false
+            ): (Any, Boolean) =
+              (parentStack, childStack) match {
+                case ((parentFiberId, _) :: parentAncestors, (childFiberId, childValue) :: childAncestors) =>
+                  val compare = compareFiberId(parentFiberId, childFiberId)
+                  if (compare < 0) findAncestor(parentStack, childAncestors, true)
+                  else if (compare > 0) findAncestor(parentAncestors, childStack, childModified)
+                  else (childValue, childModified)
+                case _ =>
+                  (ref.initial, true)
+              }
 
-      val patch = ref.diff(ancestor, child)
+            val (ancestor, wasModified) = findAncestor(parentStack, childStack)
 
-      val oldValue = parentStack.headOption.map(_._2).getOrElse(ref.initial)
-      val newValue = ref.patch(patch)(oldValue)
+            if (!wasModified) parentFiberRefs
+            else {
+              val patch = ref.diff(ancestor, childValue)
 
-      if (oldValue == newValue) parentFiberRefs
-      else {
-        val newStack = parentStack match {
-          case (parentFiberId, _) :: tail =>
-            if (parentFiberId == fiberId) ::((parentFiberId, newValue), tail)
-            else ::((fiberId, newValue), parentStack)
-          case Nil => ::((fiberId, newValue), Nil)
-        }
-        parentFiberRefs + (ref -> newStack)
+              val oldValue = parentStack.head._2
+              val newValue = ref.patch(patch)(oldValue)
+
+              if (oldValue == newValue) parentFiberRefs
+              else {
+                val newStack = parentStack match {
+                  case (parentFiberId, _) :: tail =>
+                    if (parentFiberId == fiberId) ::((parentFiberId, newValue), tail)
+                    else ::((fiberId, newValue), parentStack)
+                }
+                parentFiberRefs + (ref -> newStack)
+              }
+            }
+          }
       }
     }
 
