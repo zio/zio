@@ -242,11 +242,9 @@ lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val managedJVM = managed.jvm
-  .settings(dottySettings)
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val managedJS = managed.js
-  .settings(dottySettings)
 
 lazy val managedNative = managed.native
   .settings(nativeSettings)
@@ -267,12 +265,10 @@ lazy val managedTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val managedTestsJVM = managedTests.jvm
-  .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
 
 lazy val managedTestsJS = managedTests.js
-  .settings(dottySettings)
   .settings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -318,8 +314,8 @@ lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
 
-lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
-lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
+lazy val internalMacrosJVM    = internalMacros.jvm
+lazy val internalMacrosJS     = internalMacros.js
 lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)

@@ -66,25 +66,25 @@ private[zio] object javaz {
       ZIO.succeedNow(f.get())
     } catch catchFromGet(isFatal)
 
-  def fromCompletionStage[A](thunk: => CompletionStage[A]): Task[A] =
-    Task.uninterruptibleMask { restore =>
-      Task.effect(thunk).flatMap { cs =>
-        Task.effectSuspendTotalWith { (p, _) =>
+  def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: Trace): Task[A] =
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.attempt(thunk).flatMap { cs =>
+        ZIO.isFatalWith { fatal =>
           val cf = cs.toCompletableFuture
           if (cf.isDone) {
-            unwrapDone(p.fatal)(cf)
+            unwrapDone(fatal)(cf)
           } else {
             restore {
-              Task.effectAsyncInterrupt[A] { cb =>
+              ZIO.asyncInterrupt[Any, Throwable, A] { cb =>
                 val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
-                  val io = Option(t).fold[Task[A]](Task.succeed(v)) { t =>
-                    catchFromGet(p.fatal).lift(t).getOrElse(Task.die(t))
+                  val io = Option(t).fold[Task[A]](ZIO.succeed(v)) { t =>
+                    catchFromGet(fatal).lift(t).getOrElse(ZIO.die(t))
                   }
                   cb(io)
                 }
-                Left(UIO(cf.cancel(false)))
+                Left(ZIO.succeed(cf.cancel(false)))
               }
-            }.onInterrupt(UIO(cf.cancel(false)))
+            }.onInterrupt(ZIO.succeed(cf.cancel(false)))
           }
         }
       }
@@ -94,18 +94,16 @@ private[zio] object javaz {
    * WARNING: this uses the blocking Future#get, consider using
    * `fromCompletionStage`
    */
-  def fromFutureJava[A](thunk: => Future[A]): RIO[Blocking, A] =
-    ZIO.service[Blocking.Service].flatMap { blocking =>
-      Task.uninterruptibleMask { restore =>
-        RIO.effect(thunk).flatMap { future =>
-          RIO.effectSuspendTotalWith { (p, _) =>
-            if (future.isDone) {
-              unwrapDone(p.fatal)(future)
-            } else {
-              restore {
-                blocking.blocking(Task.effectSuspend(unwrapDone(p.fatal)(future)))
-              }.onInterrupt(UIO(future.cancel(false)))
-            }
+  def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.attempt(thunk).flatMap { future =>
+        ZIO.isFatalWith { fatal =>
+          if (future.isDone) {
+            unwrapDone(fatal)(future)
+          } else {
+            restore {
+              ZIO.attemptBlockingCancelable(unwrapDone(fatal)(future))(ZIO.succeed(future.cancel(false))).flatten
+            }.onInterrupt(ZIO.succeed(future.cancel(false)))
           }
         }
       }
