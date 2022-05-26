@@ -46,9 +46,9 @@ private[zio] object javaz {
     }
 
   private def catchFromGet(isFatal: Throwable => Boolean): PartialFunction[Throwable, Task[Nothing]] = {
-    case e: CompletionException =>
+    case e: CompletionException if e.getCause.ne(null) =>
       Task.fail(e.getCause)
-    case e: ExecutionException =>
+    case e: ExecutionException if e.getCause.ne(null) =>
       Task.fail(e.getCause)
     case _: InterruptedException =>
       Task.interrupt
