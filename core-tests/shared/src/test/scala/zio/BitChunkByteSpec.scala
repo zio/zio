@@ -13,12 +13,12 @@ object BitChunkByteSpec extends ZIOBaseSpec {
   val genInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_))
 
-  val genBitChunk: Gen[Sized, Chunk.BitChunk] =
+  val genBitChunk: Gen[Sized, Chunk.BitChunkByte] =
     for {
       chunk <- genByteChunk
       i     <- Gen.int(0, chunk.length * 8)
       j     <- Gen.int(0, chunk.length * 8)
-    } yield Chunk.BitChunk(chunk, i min j, i max j)
+    } yield Chunk.BitChunkByte(chunk, i min j, i max j)
 
   def toBinaryString(byte: Byte): String =
     String.format("%8s", (byte.toInt & 0xff).toBinaryString).replace(' ', '0')
