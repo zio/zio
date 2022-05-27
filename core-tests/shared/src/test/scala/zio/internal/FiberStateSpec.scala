@@ -7,7 +7,7 @@ import zio.ZIOBaseSpec
 object FiberStateSpec extends ZIOBaseSpec {
   import zio2.{FiberState => FiberState2}
   def newState(): FiberState2[String, Int] =
-    FiberState2(ZTraceElement.empty, FiberRefs.empty)
+    FiberState2(FiberId.unsafeMake(ZTraceElement.empty), FiberRefs.empty)
 
   def spec =
     suite("FiberStateSpec") {

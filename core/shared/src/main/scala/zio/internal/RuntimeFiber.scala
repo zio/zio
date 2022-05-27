@@ -11,11 +11,11 @@ package zio2 {
   import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
   object RuntimeFiber {
-    def apply[E, A](location: ZTraceElement, fiberRefs: FiberRefs): RuntimeFiber[E, A] =
-      new RuntimeFiber(location, fiberRefs)
+    def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs): RuntimeFiber[E, A] =
+      new RuntimeFiber(fiberId, fiberRefs)
   }
-  class RuntimeFiber[E, A](location0: ZTraceElement, fiberRefs: FiberRefs)
-      extends FiberState[E, A](location0, fiberRefs) { self =>
+  class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs)
+      extends FiberState[E, A](fiberId, fiberRefs) { self =>
     type Erased = ZIO[Any, Any, Any]
 
     import ZIO._
@@ -32,7 +32,7 @@ package zio2 {
         if (exit ne null) cb(ZIO.succeed(exit))
       }
 
-    def children(implicit trace: ZTraceElement): UIO[Chunk[Fiber.Runtime[_, _]]] =
+    def children(implicit trace: ZTraceElement): UIO[Chunk[RuntimeFiber[_, _]]] =
       evalOnZIO(ZIO.succeed(Chunk.fromJavaIterable(unsafeGetChildren())), ZIO.succeed(Chunk.empty))
 
     def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
@@ -335,20 +335,20 @@ package zio2 {
   import java.util.{HashMap => JavaMap, Set => JavaSet}
 
   object FiberState {
-    def apply[E, A](location: ZTraceElement, refs: FiberRefs): FiberState[E, A] = new FiberState(location, refs)
+    def apply[E, A](fiberId: FiberId.Runtime, refs: FiberRefs): FiberState[E, A] = new FiberState(fiberId, refs)
   }
-  class FiberState[E, A](location0: ZTraceElement, fiberRefs0: FiberRefs) {
+  class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs) {
     // import FiberStatusIndicator.Status
 
     private val mailbox          = new AtomicReference[UIO[Any]](ZIO.unit)
     private[zio] val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
 
-    private var _children  = null.asInstanceOf[JavaSet[FiberContext[_, _]]]
+    private var _children  = null.asInstanceOf[JavaSet[RuntimeFiber[_, _]]]
     private var fiberRefs  = fiberRefs0
     private var observers  = Nil: List[Exit[E, A] => Unit]
     private var suspension = null.asInstanceOf[FiberSuspension]
 
-    protected val fiberId = FiberId.unsafeMake(location0)
+    protected val fiberId = fiberId0
 
     @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
@@ -361,9 +361,9 @@ package zio2 {
      * Adds a weakly-held reference to the specified fiber inside the children
      * set.
      */
-    final def unsafeAddChild(child: FiberContext[_, _]): Unit = {
+    final def unsafeAddChild(child: RuntimeFiber[_, _]): Unit = {
       if (_children eq null) {
-        _children = Platform.newWeakSet[FiberContext[_, _]]()
+        _children = Platform.newWeakSet[RuntimeFiber[_, _]]()
       }
       _children.add(child)
       ()
@@ -519,15 +519,15 @@ package zio2 {
      */
     final def unsafeGetAsyncs(): Int = statusState.getAsyncs()
 
-    final def unsafeGetChildren(): JavaSet[FiberContext[_, _]] = {
+    final def unsafeGetChildren(): JavaSet[RuntimeFiber[_, _]] = {
       if (_children eq null) {
-        _children = Platform.newWeakSet[FiberContext[_, _]]()
+        _children = Platform.newWeakSet[RuntimeFiber[_, _]]()
       }
       _children
     }
 
     final def unsafeGetCurrentExecutor(): Executor =
-      unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)       
+      unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)
 
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
@@ -540,6 +540,8 @@ package zio2 {
      */
     final def unsafeGetFiberRef[A](fiberRef: FiberRef[A]): A =
       fiberRefs.getOrDefault(fiberRef)
+
+    final def unsafeGetFiberRefs(): FiberRefs = fiberRefs
 
     /**
      * Retrieves the interruptibility status of the fiber state.
@@ -583,7 +585,7 @@ package zio2 {
     /**
      * Removes the child from the children list.
      */
-    final def unsafeRemoveChild(child: FiberContext[_, _]): Unit =
+    final def unsafeRemoveChild(child: RuntimeFiber[_, _]): Unit =
       if (_children ne null) {
         _children.remove(child)
         ()
@@ -669,6 +671,28 @@ package zio2 {
       trace: ZTraceElement
     ): ZIO[R1, E2, B] =
       ZIO.OnSuccessAndFailure(trace, self, onSuccess, onError)
+
+    /*
+    final case class Stateful[R, E, A](
+      trace: ZTraceElement,
+      onState: (FiberState[E, A], Boolean, ZTraceElement) => ZIO[R, E, A]
+    )
+     */
+    final def fork[E1 >: E, A1 >: A](implicit trace: ZTraceElement): ZIO[R, Nothing, RuntimeFiber[E1, A1]] =
+      ZIO.Stateful[R, Nothing, RuntimeFiber[E1, A1]](
+        trace,
+        (fiberState, interruptible, lastTrace) => {
+          val childId         = FiberId.unsafeMake(trace)
+          val parentFiberRefs = fiberState.unsafeGetFiberRefs
+          val childFiberRefs  = parentFiberRefs.forkAs(childId)
+
+          val childFiber = RuntimeFiber[E1, A1](childId, childFiberRefs)
+
+          fiberState.unsafeAddChild(childFiber)
+
+          ZIO.succeed(childFiber)
+        }
+      )
 
     final def interruptible(implicit trace: ZTraceElement): ZIO[R, E, A] =
       ZIO.ChangeInterruptionWithin.Interruptible(trace, self)
@@ -921,7 +945,7 @@ package zio2 {
       maxDepth: Int = 1000,
       fiberRefs0: FiberRefs = FiberRefs.empty
     )(implicit trace0: ZTraceElement): Exit[E, A] = {
-      val fiber = RuntimeFiber[E, A](trace0, fiberRefs0)
+      val fiber = RuntimeFiber[E, A](FiberId.unsafeMake(trace0), fiberRefs0)
 
       fiber.unsafeAddObserver(onDone)
 

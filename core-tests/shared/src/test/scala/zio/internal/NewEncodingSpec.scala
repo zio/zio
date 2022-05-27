@@ -275,7 +275,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
           test("simple interruption of never") {
             val never = Effect.async[Any, Nothing, Int](_ => ())
 
-            val fiber = RuntimeFiber(ZTraceElement.empty, FiberRefs.empty)
+            val fiber = RuntimeFiber(FiberId.unsafeMake(ZTraceElement.empty), FiberRefs.empty)
 
             for {
               fiberId  <- ZIO.fiberId
