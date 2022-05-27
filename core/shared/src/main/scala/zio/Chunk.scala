@@ -16,14 +16,12 @@
 
 package zio
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
-import scala.reflect.{ClassTag, classTag}
 import scala.math.log
+import scala.reflect.{ClassTag, classTag}
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -1043,12 +1041,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns the empty chunk.
-   */
-  val empty: Chunk[Nothing] =
-    Empty
-
-  /**
    * Returns a chunk from a number of values.
    */
   override def apply[A](as: A*): Chunk[A] =
@@ -1770,7 +1762,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     protected def elementAt(n: Int): T
 
-    protected def newBitChunk(chunk: Chunk[T], min: Int, max: Int): Chunk[Boolean]
+    protected def newBitChunk(chunk: Chunk[T], min: Int, max: Int): BitChunk[T]
 
     override def drop(n: Int): Chunk[Boolean] = {
       val index  = (minBitIndex + n) min maxBitIndex
@@ -1823,8 +1815,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     def hasNextAt(index: Int): Boolean =
       index < length
-    override private[zio] def reverseArrayIterator[A1 >: Boolean]: Iterator[Array[A1]] =
-      arrayIterator
+
+    def nextAt(index: Int): Boolean =
+      self(index)
+
+    def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
+      if (offset <= 0 && length >= self.length) self
+      else if (offset >= self.length || length <= 0) ChunkIterator.empty
+      else newBitChunk(chunk, self.minBitIndex + offset, self.minBitIndex + offset + length min self.maxBitIndex)
+
   }
 
   object BitChunk {
@@ -1848,7 +1847,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override protected def elementAt(n: Int): Byte = bytes(n)
 
-    override protected def newBitChunk(bytes: Chunk[Byte], min: Int, max: Int): Chunk[Boolean] =
+    override protected def newBitChunk(bytes: Chunk[Byte], min: Int, max: Int): BitChunk[Byte] =
       BitChunkByte(bytes, min, max)
 
     override protected def foreachElement[A](f: Boolean => A, byte: Byte): Unit = {
@@ -1863,13 +1862,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ()
     }
 
-    def nextAt(index: Int): Boolean =
-      self(index)
-
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
-      if (offset <= 0 && length >= self.length) self
-      else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else BitChunk(bytes, self.minBitIndex + offset, self.minBitIndex + offset + length min self.maxBitIndex)
   }
 
   private[zio] final case class BitChunkInt(
@@ -1889,7 +1881,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override def apply(n: Int): Boolean =
       (elementAt(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
 
-    override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): Chunk[Boolean] =
+    override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): BitChunk[Int] =
       BitChunkInt(chunk, endianness, min, max)
 
     override protected def foreachElement[A](f: Boolean => A, int: Int): Unit = {
@@ -1943,7 +1935,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def apply(n: Int): Boolean =
       (elementAt(n >> bitsLog2) & (1L << (bits - 1 - (n & bits - 1)))) != 0
 
-    override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): Chunk[Boolean] =
+    override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): BitChunk[Long] =
       BitChunkLong(longs, endianness, min, max)
 
     override protected def foreachElement[A](f: Boolean => A, long: Long): Unit = {
