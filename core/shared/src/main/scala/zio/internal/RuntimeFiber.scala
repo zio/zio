@@ -538,8 +538,7 @@ package zio2 {
       _children
     }
 
-    final def unsafeGetCurrentExecutor(): Executor =
-      unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)
+    final def unsafeGetCurrentExecutor(): Executor = unsafeGetFiberRef(FiberRef.currentExecutor)
 
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
@@ -858,9 +857,8 @@ package zio2 {
       }
     }
 
-    final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
-    final case class Async[R, E, A](trace: Trace, registerCallback: (ZIO[R, E, A] => Unit) => Unit)
-        extends ZIO[R, E, A]
+    final case class Sync[A](trace: Trace, eval: () => A)                                           extends ZIO[Any, Nothing, A]
+    final case class Async[R, E, A](trace: Trace, registerCallback: (ZIO[R, E, A] => Unit) => Unit) extends ZIO[R, E, A]
     sealed trait OnSuccessOrFailure[R, E1, E2, A, B]
         extends ZIO[R, E2, B]
         with EvaluationStep.Continuation[R, E1, E2, A, B] {

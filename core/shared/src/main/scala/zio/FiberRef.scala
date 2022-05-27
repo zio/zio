@@ -397,7 +397,7 @@ object FiberRef {
 
   private[zio] val suppressedCause: FiberRef[Cause[Nothing]] =
     FiberRef.unsafeMake(Cause.empty, identity(_), (parent, _) => parent)
-    
+
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     FiberRef.unsafeMake(Runtime.defaultBlockingExecutor)
 

@@ -381,7 +381,7 @@ trait Runtime[+R] { self =>
     lazy val context: FiberContext[E, A] = new FiberContext[E, A](
       fiberId,
       StackBool(InterruptStatus.Interruptible.toBoolean),
-      new java.util.concurrent.atomic.AtomicReference(fiberRefs.update(fiberId)(runtimeFiberRefs).fiberRefLocals),
+      new java.util.concurrent.atomic.AtomicReference(fiberRefs.updatedAsAll(fiberId)(runtimeFiberRefs).fiberRefLocals),
       children
     )
 

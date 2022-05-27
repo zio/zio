@@ -149,8 +149,8 @@ final class FiberRefs private (
 
     FiberRefs(fiberRefLocals + (fiberRef -> newStack))
   }
-  
-  private[zio] def updatedAs(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
+
+  private[zio] def updatedAsAll(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
     FiberRefs(
       fiberRefs.foldLeft(fiberRefLocals) { case (fiberRefLocals, (fiberRef, newValue)) =>
         fiberRefLocals.get(fiberRef) match {
@@ -164,6 +164,7 @@ final class FiberRefs private (
 }
 
 object FiberRefs {
+
   /**
    * The empty collection of `FiberRef` values.
    */

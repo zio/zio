@@ -581,7 +581,7 @@ object Fiber extends FiberPlatformSpecific {
     executor: Executor,
     isLocked: Boolean
   )
-  
+
   final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: StackTrace) extends Product with Serializable {
     self =>
 
