@@ -327,9 +327,19 @@ object ChunkSpec extends ZIOBaseSpec {
     testM("drop chunk") {
       check(largeChunks(intGen), intGen)((chunk, n) => assert(chunk.drop(n).toList)(equalTo(chunk.toList.drop(n))))
     },
+    testM("dropRight chunk") {
+      check(largeChunks(intGen), intGen)((chunk, n) =>
+        assert(chunk.dropRight(n).toList)(equalTo(chunk.toList.dropRight(n)))
+      )
+    },
     testM("take chunk") {
       check(chunkWithIndex(Gen.unit)) { case (c, n) =>
         assert(c.take(n).toList)(equalTo(c.toList.take(n)))
+      }
+    },
+    testM("takeRight chunk") {
+      check(chunkWithIndex(Gen.unit)) { case (c, n) =>
+        assert(c.takeRight(n).toList)(equalTo(c.toList.takeRight(n)))
       }
     },
     testM("dropWhile chunk") {

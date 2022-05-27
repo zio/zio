@@ -407,8 +407,7 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           (b, c) <- (fedB ++ fedC).build.useNow.map(v => (v.get[B], v.get[C]))
         } yield {
-          assert(b.value)(equalTo(1)) &&
-          assert(c.value)(equalTo(1))
+          assert(b.value)(equalTo(c.value))
         }
       }
     )

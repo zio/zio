@@ -1,12 +1,13 @@
 package zio.test.magnolia
 
+import zio.Chunk
 import zio.random.Random
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.magnolia.DeriveGen._
 import zio.test.{Sized, _}
 
-import java.time.{Instant, LocalDate, LocalDateTime}
+import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
 
 object DeriveGenSpec extends DefaultRunnableSpec {
@@ -69,6 +70,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("int")(assertDeriveGen[Int]),
       test("iterable")(assertDeriveGen[Iterable[Int]]),
       test("list")(assertDeriveGen[List[Int]]),
+      test("chunk")(assertDeriveGen[Chunk[Int]]),
       test("long")(assertDeriveGen[Long]),
       test("map")(assertDeriveGen[Map[Int, Int]]),
       test("option")(assertDeriveGen[Option[Int]]),
@@ -92,6 +94,7 @@ object DeriveGenSpec extends DefaultRunnableSpec {
       test("instant")(assertDeriveGen[Instant]),
       test("localDateTime")(assertDeriveGen[LocalDateTime]),
       test("localDate")(assertDeriveGen[LocalDate]),
+      test("localTime")(assertDeriveGen[LocalTime]),
       test("bigDecimal")(assertDeriveGen[BigDecimal])
     ),
     suite("shrinking")(

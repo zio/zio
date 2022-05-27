@@ -1242,7 +1242,7 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case None =>
                 IO.succeedNow(s1)
             },
-            (ch: Chunk[O]) => ch.foldM(s1)(f).flatMap(loop)
+            (ch: Chunk[O]) => ch.foldWhileM(s1)(cont)(f).flatMap(loop)
           )
 
       ZManaged.fromEffect(loop(s))
@@ -3764,8 +3764,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       for {
         doneRef <- Ref.make(false).toManaged_
         pull = doneRef.modify { done =>
-                 if (done || c.isEmpty) Pull.end -> true
-                 else ZIO.succeedNow(c)          -> true
+                 if (done) {
+                   Pull.end -> true
+                 } else {
+                   val c0 = c
+                   if (c0.isEmpty) {
+                     Pull.end -> true
+                   } else {
+                     ZIO.succeedNow(c0) -> true
+                   }
+                 }
                }.flatten
       } yield pull
     }

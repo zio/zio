@@ -1452,6 +1452,12 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        testM("foldWhile") {
+          val stream = ZStream(1, 1, 1, 1, 1)
+          for {
+            sum <- stream.foldWhile(0)(_ < 3)(_ + _)
+          } yield assertTrue(sum == 3)
+        },
         suite("foreach")(
           testM("foreach") {
             for {
