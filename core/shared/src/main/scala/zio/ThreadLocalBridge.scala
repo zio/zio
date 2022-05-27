@@ -41,7 +41,7 @@ object ThreadLocalBridge {
 
   private class FiberRefTrackingSupervisor extends Supervisor[Unit] {
 
-    private val trackedRefs: AtomicReference[Set[(FiberRef[_], Any => Unit)]] = new AtomicReference(Set.empty)
+    private val trackedRefs: Ref.Atomic[Set[(FiberRef[_], Any => Unit)]] = Ref.Atomic(new AtomicReference(Set.empty))
 
     override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
@@ -55,10 +55,10 @@ object ThreadLocalBridge {
     ): Unit = ()
 
     def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
-      trackedRefs.getAndUpdate(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
+      trackedRefs.unsafeUpdate(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
 
     def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
-      trackedRefs.getAndUpdate(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
+      trackedRefs.unsafeUpdate(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
 
     override def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
       foreachTrackedRef { (fiberRef, link) =>
@@ -72,7 +72,7 @@ object ThreadLocalBridge {
       }
 
     private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit): Unit =
-      trackedRefs.get.foreach { case (fiberRef, link) =>
+      trackedRefs.unsafeGet.foreach { case (fiberRef, link) =>
         f(fiberRef, link)
       }
   }
