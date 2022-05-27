@@ -290,6 +290,24 @@ trait FiberRef[A] extends Serializable { self =>
 object FiberRef {
   import Differ._
 
+  /**
+   * Wraps another `FiberRef` and delegates all operations to it. Extend this if
+   * you need a `FiberRef` with some specific behavior overridden.
+   */
+  abstract class Proxy[A](val delegate: FiberRef[A]) extends FiberRef[A] {
+    override def initial: A = delegate.initial
+
+    override type Patch = delegate.Patch
+
+    override def diff(oldValue: Value, newValue: Value): Patch = delegate.diff(oldValue, newValue)
+
+    override def combine(first: Patch, second: Patch): Patch = delegate.combine(first, second)
+
+    override def patch(patch: Patch)(oldValue: Value): Value = delegate.patch(patch)(oldValue)
+
+    override def fork: Patch = delegate.fork
+  }
+
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
   lazy val currentLogLevel: FiberRef[LogLevel] =
