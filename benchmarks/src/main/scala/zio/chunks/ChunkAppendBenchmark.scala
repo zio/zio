@@ -12,6 +12,7 @@ class ChunkAppendBenchmarks {
 
   val chunk: Chunk[Int]   = Chunk(1)
   val vector: Vector[Int] = Vector(1)
+  val array: Array[Int]   = Array(1)
 
   @Param(Array("10000"))
   var size: Int = _
@@ -33,6 +34,19 @@ class ChunkAppendBenchmarks {
   def vectorAppend(): Vector[Int] = {
     var i       = 0
     var current = vector
+
+    while (i < size) {
+      current = current :+ i
+      i += 1
+    }
+
+    current
+  }
+
+  @Benchmark
+  def arrayAppend(): Array[Int] = {
+    var i       = 0
+    var current = array
 
     while (i < size) {
       current = current :+ i
