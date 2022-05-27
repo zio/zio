@@ -4,28 +4,17 @@ import zio.test._
 
 object SupervisorSpec extends ZIOBaseSpec {
 
-  private val threadLocal = new ThreadLocal[Option[String]] {
-    override def initialValue() = None
-  }
+  private val threadLocalBridge = ThreadLocalBridge.live
 
-  private val initialValue = "initial-value"
-
-  def spec: ZSpec[Environment, Failure] = suite("SupervisorSpec")(
+  def spec = suite("SupervisorSpec")(
     suite("fiberRefTrackingSupervisor")(
-      fiberRefTrackingSupervisorSuite(InstrumentRuntime) ++
-        fiberRefTrackingSupervisorSuite(InstrumentEffect): _*
-    )
-  )
-
-  private def fiberRefTrackingSupervisorSuite[In](
-    runInstrumented: RunInstrumented
-  )(implicit testConstructor: TestConstructor[Nothing, In]): Seq[ZSpec[Environment, Failure]] = {
-    val run = runInstrumented.runIn[Throwable, Assert](initialValue, a => threadLocal.set(Some(a))) _
-    Seq(
-      test(s"[${runInstrumented.show}] track initial value") {
-        run { _ =>
+      test("track initial value") {
+        val tag          = "tiv"
+        val initialValue = s"initial-value-$tag"
+        tracking(initialValue) { (_, threadLocalGet) =>
           for {
-            (a, b) <- threadLocalGet zipPar threadLocalGet
+            ab    <- threadLocalGet zipPar threadLocalGet
+            (a, b) = ab
           } yield {
             assertTrue(
               a.contains(initialValue),
@@ -34,53 +23,44 @@ object SupervisorSpec extends ZIOBaseSpec {
           }
         }
       },
-      test(s"[${runInstrumented.show}] track FiberRef.set / modify") {
-        val newValue1 = "new-value1"
-        val newValue2 = "new-value2"
-        run { fiberRef =>
+      test("track FiberRef.set / modify") {
+        val tag          = "modify"
+        val initialValue = s"initial-value-$tag"
+        val newValue1    = s"new-value1-$tag"
+        val newValue2    = s"new-value2-$tag"
+        tracking(initialValue) { (fiberRef, threadLocalGet) =>
           for {
-            _ <- fiberRef.modify(_ => () -> newValue1)
-            (a, b) <-
+            beforeModify <- threadLocalGet
+            _            <- fiberRef.modify(_ => () -> newValue1)
+            afterModify  <- threadLocalGet
+            ab <-
               (fiberRef.set(newValue2) *> threadLocalGet) zipPar
                 threadLocalGet
+            (a, b) = ab
           } yield {
             assertTrue(
+              beforeModify.contains(initialValue),
+              afterModify.contains(newValue1),
               a.contains(newValue2),
               b.contains(newValue1)
             )
           }
         }
       },
-      test(s"[${runInstrumented.show}] track in FiberRef.locally") {
-        val newValue1 = "new-value1"
-        val newValue2 = "new-value2"
-        run { fiberRef =>
+      test("track in FiberRef.locally") {
+        val tag          = "locally"
+        val initialValue = s"initial-value-$tag"
+        val newValue1    = s"new-value1-$tag"
+        val newValue2    = s"new-value2-$tag"
+        tracking(initialValue) { (fiberRef, threadLocalGet) =>
           for {
             a <- threadLocalGet
-            (b, c) <- fiberRef.locally(newValue1) {
-                        threadLocalGet zipPar
-                          fiberRef.locally(newValue2)(threadLocalGet)
-                      }
-            d <- threadLocalGet
-          } yield assertTrue(
-            a.contains(initialValue),
-            b.contains(newValue1),
-            c.contains(newValue2),
-            d.contains(initialValue)
-          )
-        }
-      },
-      test(s"[${runInstrumented.show}] track in -> FiberRef.locallyManaged") {
-        val newValue1 = "new-value1"
-        val newValue2 = "new-value2"
-        run { fiberRef =>
-          for {
-            a <- threadLocalGet
-            (b, c) <- fiberRef.locallyManaged(newValue1).useDiscard {
-                        threadLocalGet zipPar
-                          fiberRef.locallyManaged(newValue2).useDiscard(threadLocalGet)
-                      }
-            d <- threadLocalGet
+            bc <- fiberRef.locally(newValue1) {
+                    threadLocalGet zipPar
+                      fiberRef.locally(newValue2)(threadLocalGet)
+                  }
+            (b, c) = bc
+            d     <- threadLocalGet
           } yield assertTrue(
             a.contains(initialValue),
             b.contains(newValue1),
@@ -90,38 +70,18 @@ object SupervisorSpec extends ZIOBaseSpec {
         }
       }
     )
-  }
+  ).provideSomeLayer[zio.test.TestEnvironment with zio.Scope](Runtime.enableCurrentFiber)
 
-  private sealed trait RunInstrumented {
-    def runIn[E, A](initialValue: String, link: String => Unit)(f: FiberRef[String] => IO[E, A]): IO[E, A]
-    def show: String
-  }
-
-  private case object InstrumentRuntime extends RunInstrumented {
-    override def runIn[E, A](initialValue: String, link: String => Unit)(f: FiberRef[String] => IO[E, A]): IO[E, A] = {
-      val (aspect, fiberRef) = RuntimeConfigAspect.trackFiberRef(initialValue)(link)
-      val runtime            = Runtime.default.mapRuntimeConfig(_ @@ aspect)
-      ZIO.async[Any, E, A](callback =>
-        runtime.unsafeRunAsyncWith(f(fiberRef))(exit => callback(exit.fold(ZIO.failCause(_), UIO(_))))
-      )
+  def tracking[R, E, A](
+    initialValue: String
+  )(effect: (FiberRef[String], UIO[Option[String]]) => ZIO[R with ThreadLocalBridge, E, A]): ZIO[R with Scope, E, A] = {
+    val threadLocal = new ThreadLocal[Option[String]] {
+      override def initialValue() = None
     }
-
-    override def show: String = "Instrument Runtime"
+    val threadLocalGet = ZIO.succeed(threadLocal.get)
+    ThreadLocalBridge
+      .makeFiberRef[String](initialValue, a => threadLocal.set(Some(a)))
+      .flatMap(effect(_, threadLocalGet))
+      .provideSomeLayer[R with Scope](threadLocalBridge)
   }
-
-  private case object InstrumentEffect extends RunInstrumented {
-    override def runIn[E, A](initialValue: String, link: String => Unit)(f: FiberRef[String] => IO[E, A]): IO[E, A] = {
-      val (aspect, fiberRef) = RuntimeConfigAspect.trackFiberRef(initialValue)(link)
-      (
-        //force suspend and resume
-        ZIO.sleep(1.milli).provideLayer(Clock.live) *>
-          f(fiberRef)
-      ).withRuntimeConfig(Runtime.default.runtimeConfig @@ aspect)
-    }
-
-    override def show: String = "Instrumenting effect"
-  }
-
-  def threadLocalGet =
-    Task(threadLocal.get)
 }
