@@ -19,49 +19,49 @@ object BitChunkByteSpec extends ZIOBaseSpec {
   def spec = suite("BitChunkByteSpec")(
     test("drop") {
       check(genByteChunk, genInt) { (bytes, n) =>
-        val actual   = bytes.asBits.drop(n).toBinaryString
+        val actual   = bytes.asBitsByte.drop(n).toBinaryString
         val expected = bytes.map(toBinaryString).mkString.drop(n)
         assert(actual)(equalTo(expected))
       }
     },
     test("drop and then drop") {
       check(genByteChunk, genInt, genInt) { (bytes, n, m) =>
-        val actual   = bytes.asBits.drop(n).drop(m).toBinaryString
+        val actual   = bytes.asBitsByte.drop(n).drop(m).toBinaryString
         val expected = bytes.map(toBinaryString).mkString.drop(n).drop(m)
         assert(actual)(equalTo(expected))
       }
     },
     test("drop and then take") {
       check(genByteChunk, genInt, genInt) { (bytes, n, m) =>
-        val actual   = bytes.asBits.drop(n).take(m).toBinaryString
+        val actual   = bytes.asBitsByte.drop(n).take(m).toBinaryString
         val expected = bytes.map(toBinaryString).mkString.drop(n).take(m)
         assert(actual)(equalTo(expected))
       }
     },
     test("take") {
       check(genByteChunk, genInt) { (bytes, n) =>
-        val actual   = bytes.asBits.take(n).toBinaryString
+        val actual   = bytes.asBitsByte.take(n).toBinaryString
         val expected = bytes.map(toBinaryString).mkString.take(n)
         assert(actual)(equalTo(expected))
       }
     },
     test("take and then drop") {
       check(genByteChunk, genInt, genInt) { (bytes, n, m) =>
-        val actual   = bytes.asBits.take(n).drop(m).toBinaryString
+        val actual   = bytes.asBitsByte.take(n).drop(m).toBinaryString
         val expected = bytes.map(toBinaryString).mkString.take(n).drop(m)
         assert(actual)(equalTo(expected))
       }
     },
     test("take and then take") {
       check(genByteChunk, genInt, genInt) { (bytes, n, m) =>
-        val actual   = bytes.asBits.take(n).take(m).toBinaryString
+        val actual   = bytes.asBitsByte.take(n).take(m).toBinaryString
         val expected = bytes.map(toBinaryString).mkString.take(n).take(m)
         assert(actual)(equalTo(expected))
       }
     },
     test("toBinaryString") {
       check(genByteChunk) { bytes =>
-        val actual   = bytes.asBits.toBinaryString
+        val actual   = bytes.asBitsByte.toBinaryString
         val expected = bytes.map(toBinaryString).mkString
         assert(actual)(equalTo(expected))
       }

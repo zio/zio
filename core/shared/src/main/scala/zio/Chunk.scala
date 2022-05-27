@@ -106,7 +106,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Converts a chunk of bytes to a chunk of bits.
    */
-  final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
+  final def asBitsByte(implicit ev: A <:< Byte): Chunk[Boolean] =
     Chunk.BitChunkByte(self.map(ev), 0, length << 3)
 
   /**

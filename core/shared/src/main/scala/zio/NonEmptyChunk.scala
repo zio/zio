@@ -76,7 +76,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
    * Converts this `NonEmptyChunk` of bytes to a `NonEmptyChunk` of bits.
    */
   def asBits(implicit ev: A <:< Byte): NonEmptyChunk[Boolean] =
-    nonEmpty(chunk.asBits)
+    nonEmpty(chunk.asBitsByte)
 
   /**
    * Returns whether this `NonEmptyChunk` and the specified `NonEmptyChunk` are
