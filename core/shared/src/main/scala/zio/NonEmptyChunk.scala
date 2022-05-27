@@ -63,13 +63,13 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A]) { self =>
   /**
    * Converts this `NonEmptyChunk` of ints to a `NonEmptyChunk` of bits.
    */
-  def asBitsInt(endianness: Chunk.Endianness)(implicit ev: A <:< Int): NonEmptyChunk[Boolean] =
+  def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): NonEmptyChunk[Boolean] =
     nonEmpty(chunk.asBitsInt(endianness))
 
   /**
    * Converts this `NonEmptyChunk` of longs to a `NonEmptyChunk` of bits.
    */
-  def asBitsLong(endianness: Chunk.Endianness)(implicit ev: A <:< Long): NonEmptyChunk[Boolean] =
+  def asBitsLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Long): NonEmptyChunk[Boolean] =
     nonEmpty(chunk.asBitsLong(endianness))
 
   /**

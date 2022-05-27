@@ -14,12 +14,12 @@ object BitChunkIntSpec extends ZIOBaseSpec {
   val genInt: Gen[Random with Sized, Int] =
     Gen.small(Gen.const(_))
 
-  val genEndianness: Gen[Random with Sized, Chunk.Endianness] =
-    Gen.elements(Chunk.Endianness.BigEndian, Chunk.Endianness.LittleEndian)
+  val genEndianness: Gen[Random with Sized, Chunk.BitChunk.Endianness] =
+    Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
 
-  def toBinaryString(endianness: Chunk.Endianness)(int: Int): String = {
+  def toBinaryString(endianness: Chunk.BitChunk.Endianness)(int: Int): String = {
     val endiannessLong =
-      if (endianness == Chunk.Endianness.BigEndian) int else java.lang.Integer.reverse(int)
+      if (endianness == Chunk.BitChunk.Endianness.BigEndian) int else java.lang.Integer.reverse(int)
     String.format("%32s", endiannessLong.toBinaryString).replace(' ', '0')
   }
 

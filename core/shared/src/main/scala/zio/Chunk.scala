@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
 import scala.reflect.{ClassTag, classTag}
+import scala.math.log
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are designed
@@ -95,20 +96,20 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Converts a chunk of ints to a chunk of bits.
    */
-  final def asBitsInt(endianness: Chunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
+  final def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
     Chunk.BitChunkInt(self.asInstanceOf[Chunk[Int]], endianness, 0, length << 5)
 
   /**
    * Converts a chunk of longs to a chunk of bits.
    */
-  final def asBitsLong(endianness: Chunk.Endianness)(implicit ev: A <:< Long): Chunk[Boolean] =
+  final def asBitsLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Long): Chunk[Boolean] =
     Chunk.BitChunkLong(self.asInstanceOf[Chunk[Long]], endianness, 0, length << 6)
 
   /**
    * Converts a chunk of bytes to a chunk of bits.
    */
   final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
-    Chunk.BitChunk(self.map(ev), 0, length << 3)
+    Chunk.BitChunkByte(self.map(ev), 0, length << 3)
 
   /**
    * Get the element at the specified index.
@@ -1042,6 +1043,12 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
+   * Returns the empty chunk.
+   */
+  val empty: Chunk[Nothing] =
+    Empty
+
+  /**
    * Returns a chunk from a number of values.
    */
   override def apply[A](as: A*): Chunk[A] =
@@ -1274,7 +1281,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: Slice[_]       => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Update[_]      => x.classTag.asInstanceOf[ClassTag[A]]
       case x: VectorChunk[_] => x.classTag.asInstanceOf[ClassTag[A]]
-      case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
+      case _: BitChunkByte   => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
       case _: BitChunkInt    => ClassTag.Int.asInstanceOf[ClassTag[A]]
       case _: BitChunkLong   => ClassTag.Long.asInstanceOf[ClassTag[A]]
     }
@@ -1746,16 +1753,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
-  private[zio] sealed abstract class BitChunkBase[T](
+  private[zio] sealed abstract class BitChunk[T](
     chunk: Chunk[T],
-    val x: Int,
-    val x2: Int
+    val bits: Int
   ) extends Chunk[Boolean]
       with ChunkIterator[Boolean] {
     self =>
 
     protected val minBitIndex: Int
     protected val maxBitIndex: Int
+
+    protected val bitsLog2: Int = (log(bits.toDouble) / log(2d)).toInt
 
     val length: Int =
       maxBitIndex - minBitIndex
@@ -1766,24 +1774,23 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override def drop(n: Int): Chunk[Boolean] = {
       val index  = (minBitIndex + n) min maxBitIndex
-      val toDrop = index >> x
-      val min    = index & x2
+      val toDrop = index >> bitsLog2
+      val min    = index & bits - 1
       val max    = maxBitIndex - index + min
       newBitChunk(chunk.drop(toDrop), min, max)
     }
 
     override def take(n: Int): Chunk[Boolean] = {
       val index  = (minBitIndex + n) min maxBitIndex
-      val toTake = (index + x2) >> x
+      val toTake = (index + bits - 1) >> bitsLog2
       newBitChunk(chunk.take(toTake), minBitIndex, index)
     }
 
     override def foreach[A](f: Boolean => A): Unit = {
-      if (this.isEmpty) return
-      val minLongIndex    = (minBitIndex + x2) >> x
-      val maxLongIndex    = maxBitIndex >> x
-      val minFullBitIndex = (minLongIndex << x) min maxBitIndex
-      val maxFullBitIndex = (maxLongIndex << x) max minFullBitIndex
+      val minLongIndex    = (minBitIndex + bits - 1) >> bitsLog2
+      val maxLongIndex    = maxBitIndex >> bitsLog2
+      val minFullBitIndex = (minLongIndex << bitsLog2) min maxBitIndex
+      val maxFullBitIndex = (maxLongIndex << bitsLog2) max minFullBitIndex
       var i               = minBitIndex
       while (i < minFullBitIndex) {
         f(self.apply(i))
@@ -1791,7 +1798,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
       i = minLongIndex
       while (i < maxLongIndex) {
-        foreachOptimized(f, elementAt(i))
+        foreachElement(f, elementAt(i))
         i += 1
       }
       i = maxFullBitIndex
@@ -1801,7 +1808,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
     }
 
-    protected def foreachOptimized[A](f: Boolean => A, elem: T): Unit
+    protected def foreachElement[A](f: Boolean => A, elem: T): Unit
 
     override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
       var i = n
@@ -1820,22 +1827,31 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       arrayIterator
   }
 
-  private[zio] final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
-      extends BitChunkBase[Byte](bytes, 3, 7) {
+  object BitChunk {
+    sealed trait Endianness
+    object Endianness {
+      case object BigEndian    extends Endianness
+      case object LittleEndian extends Endianness
+    }
+
+  }
+
+  private[zio] final case class BitChunkByte(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends BitChunk[Byte](bytes, 8) {
     self =>
 
     override val length: Int =
       maxBitIndex - minBitIndex
 
     override def apply(n: Int): Boolean =
-      (bytes(n >> x) & (1 << (x2 - (n & x2)))) != 0
+      (bytes(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
 
     override protected def elementAt(n: Int): Byte = bytes(n)
 
     override protected def newBitChunk(bytes: Chunk[Byte], min: Int, max: Int): Chunk[Boolean] =
-      BitChunk(bytes, min, max)
+      BitChunkByte(bytes, min, max)
 
-    override protected def foreachOptimized[A](f: Boolean => A, byte: Byte): Unit = {
+    override protected def foreachElement[A](f: Boolean => A, byte: Byte): Unit = {
       f((byte & 128) != 0)
       f((byte & 64) != 0)
       f((byte & 32) != 0)
@@ -1858,25 +1874,25 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   private[zio] final case class BitChunkInt(
     ints: Chunk[Int],
-    endianness: Endianness,
+    endianness: BitChunk.Endianness,
     minBitIndex: Int,
     maxBitIndex: Int
-  ) extends BitChunkBase[Int](ints, 5, 31) {
+  ) extends BitChunk[Int](ints, 32) {
     self =>
 
     override val length: Int =
       maxBitIndex - minBitIndex
 
     override protected def elementAt(n: Int): Int =
-      if (endianness == Chunk.Endianness.BigEndian) ints(n) else Integer.reverse(ints(n))
+      if (endianness == BitChunk.Endianness.BigEndian) ints(n) else Integer.reverse(ints(n))
 
     override def apply(n: Int): Boolean =
-      (elementAt(n >> x) & (1 << (x2 - (n & x2)))) != 0
+      (elementAt(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
 
     override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): Chunk[Boolean] =
       BitChunkInt(chunk, endianness, min, max)
 
-    override protected def foreachOptimized[A](f: Boolean => A, int: Int): Unit = {
+    override protected def foreachElement[A](f: Boolean => A, int: Int): Unit = {
       f((int & 0x80000000) != 0)
       f((int & 0x40000000) != 0)
       f((int & 0x20000000) != 0)
@@ -1915,22 +1931,22 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   private[zio] final case class BitChunkLong(
     longs: Chunk[Long],
-    endianness: Endianness,
+    endianness: BitChunk.Endianness,
     minBitIndex: Int,
     maxBitIndex: Int
-  ) extends BitChunkBase[Long](longs, 6, 63) {
+  ) extends BitChunk[Long](longs, 64) {
     self =>
 
     override protected def elementAt(n: Int): Long =
-      if (endianness == Chunk.Endianness.BigEndian) longs(n) else java.lang.Long.reverse(longs(n))
+      if (endianness == BitChunk.Endianness.BigEndian) longs(n) else java.lang.Long.reverse(longs(n))
 
     def apply(n: Int): Boolean =
-      (elementAt(n >> x) & (1L << (x2 - (n & x2)))) != 0
+      (elementAt(n >> bitsLog2) & (1L << (bits - 1 - (n & bits - 1)))) != 0
 
     override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): Chunk[Boolean] =
       BitChunkLong(longs, endianness, min, max)
 
-    override protected def foreachOptimized[A](f: Boolean => A, long: Long): Unit = {
+    override protected def foreachElement[A](f: Boolean => A, long: Long): Unit = {
       f((long & 0x8000000000000000L) != 0)
       f((long & 0x4000000000000000L) != 0)
       f((long & 0x2000000000000000L) != 0)

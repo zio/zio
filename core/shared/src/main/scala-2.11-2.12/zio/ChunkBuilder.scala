@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.Chunk.BitChunk
+import zio.Chunk.BitChunkByte
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.collection.mutable.{ArrayBuilder, Builder}
@@ -138,7 +138,7 @@ object ChunkBuilder {
     }
     def result(): Chunk[SBoolean] = {
       val bytes: Chunk[SByte] = Chunk.fromArray(arrayBuilder.result() :+ lastByte)
-      BitChunk(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
+      BitChunkByte(bytes, 0, 8 * (bytes.length - 1) + maxBitIndex)
     }
     override def ++=(as: TraversableOnce[SBoolean]): this.type = {
       as.foreach(+= _)
