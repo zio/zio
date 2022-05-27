@@ -9,7 +9,7 @@ package zio2 {
 
   import java.util.{Set => JavaSet}
   import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
-import zio.RuntimeFlag
+  import zio.RuntimeFlag
 
   sealed trait Fiber[+E, +A]
   object Fiber {
@@ -779,7 +779,7 @@ import zio.RuntimeFlag
 
       val runtimeFlags = fiberState.unsafeGetFiberRef(FiberRef.currentRuntimeFlags)
       val enableRoots  = runtimeFlags.contains(RuntimeFlag.EnableCurrentFiber)
-      
+
       parentScope.unsafeAdd(enableRoots, childFiber)
 
       val currentExecutor = fiberState.unsafeGetCurrentExecutor()
