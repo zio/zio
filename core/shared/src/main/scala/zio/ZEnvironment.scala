@@ -64,7 +64,8 @@ final class ZEnvironment[+R] private (
     val tag = taggedTagType(tagged)
     val set = taggedGetServices(tag)
 
-    val missingServices = set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)))
+    val missingServices =
+      set.filterNot(tag => map.keys.exists(taggedIsSubtype(_, tag)) || cache.keys.exists(taggedIsSubtype(_, tag)))
     if (missingServices.nonEmpty) {
       throw new Error(
         s"Defect in zio.ZEnvironment: ${missingServices} statically known to be contained within the environment are missing"
@@ -98,14 +99,18 @@ final class ZEnvironment[+R] private (
    * service collisions, which may not be reflected in statically known types,
    * the right hand side will be preferred.
    */
-  def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
+  def unionAll[R1](that: ZEnvironment[R1]): ZEnvironment[R with R1] = {
+    val (self0, that0) = if (self.index + that.index < self.index) (self.clean, that.clean) else (self, that)
     new ZEnvironment(
-      self.map ++ that.map.map { case (tag, (service, index)) => (tag, (service, self.index + index)) },
-      self.index + that.index
+      self0.map ++ that0.map.map { case (tag, (service, index)) => (tag, (service, self0.index + index)) },
+      self0.index + that0.index
     )
+  }
 
-  private def unsafeAdd[A](tag: LightTypeTag, a: A): ZEnvironment[R with A] =
-    new ZEnvironment(self.map + (tag -> (a -> index)), index + 1)
+  private def unsafeAdd[A](tag: LightTypeTag, a: A): ZEnvironment[R with A] = {
+    val self0 = if (index == Int.MaxValue) self.clean else self
+    new ZEnvironment(self0.map + (tag -> (a -> self0.index)), self0.index + 1)
+  }
 
   def unsafeGet[A](tag: LightTypeTag): A =
     self.cache.get(tag) match {
@@ -153,6 +158,14 @@ final class ZEnvironment[+R] private (
     map.foldLeft[Map[K, V]](Map.empty) { case (acc, (key, value)) =>
       if (f(key)) acc + (key -> value) else acc
     }
+
+  private def clean: ZEnvironment[R] = {
+    val (map, index) = self.map.toList.sortBy(_._2._2).foldLeft[(Map[LightTypeTag, (Any, Int)], Int)]((Map.empty, 0)) {
+      case ((map, index), (tag, (service, _))) =>
+        map + (tag -> (service -> index)) -> (index + 1)
+    }
+    new ZEnvironment(map, index)
+  }
 }
 
 object ZEnvironment {
@@ -215,8 +228,8 @@ object ZEnvironment {
   /**
    * The empty environment containing no services.
    */
-  lazy val empty: ZEnvironment[Any] =
-    new ZEnvironment[Any](Map.empty, 0, Map(taggedTagType(TaggedAny) -> (())))
+  val empty: ZEnvironment[Any] =
+    new ZEnvironment[Any](Map.empty, 0, Map((taggedTagType(TaggedAny), ())))
 
   /**
    * A `Patch[In, Out]` describes an update that transforms a `ZEnvironment[In]`

@@ -11,23 +11,25 @@ import java.security.MessageDigest
 
 object ZSinkPlatformSpecificSpec extends ZIOBaseSpec {
 
-  override def spec: ZSpec[Any, Throwable] = suite("ZSink JVM")(
+  override def spec: Spec[Any, Throwable] = suite("ZSink JVM")(
     suite("fromFile")(
       test("writes to an existing file") {
         val data = (0 to 100).mkString
 
-        ZIO
-          .attempt(Files.createTempFile("stream", "fromFile"))
-          .acquireReleaseWith(path => ZIO.attempt(Files.delete(path)).orDie) { path =>
-            for {
-              bytes  <- ZIO.attempt(data.getBytes(UTF_8))
-              length <- ZStream.fromIterable(bytes).run(ZSink.fromPath(path))
-              str    <- ZIO.attempt(new String(Files.readAllBytes(path)))
-            } yield {
-              assertTrue(data == str) &&
-              assertTrue(bytes.length.toLong == length)
-            }
+        ZIO.acquireReleaseWith {
+          ZIO.attempt(Files.createTempFile("stream", "fromFile"))
+        } { path =>
+          ZIO.attempt(Files.delete(path)).orDie
+        } { path =>
+          for {
+            bytes  <- ZIO.attempt(data.getBytes(UTF_8))
+            length <- ZStream.fromIterable(bytes).run(ZSink.fromPath(path))
+            str    <- ZIO.attempt(new String(Files.readAllBytes(path)))
+          } yield {
+            assertTrue(data == str) &&
+            assertTrue(bytes.length.toLong == length)
           }
+        }
       }
     ),
     suite("fromOutputStream")(

@@ -39,7 +39,7 @@ class QueueSequentialBenchmark {
   def zioQueue(): Int = {
 
     def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
-      if (max < 1) IO.unit
+      if (max < 1) ZIO.unit
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {
@@ -54,7 +54,7 @@ class QueueSequentialBenchmark {
   def zioTQueue(): Int = {
 
     def repeat(task: UIO[Unit], max: Int): UIO[Unit] =
-      if (max < 1) IO.unit
+      if (max < 1) ZIO.unit
       else task.flatMap(_ => repeat(task, max - 1))
 
     val io = for {

@@ -8,7 +8,7 @@ import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, Upstream
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
-class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
+private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   initialChannel: () => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
   @volatile private var providedEnv: ZEnvironment[Any],
   executeCloseLastSubstream: URIO[Env, Any] => URIO[Env, Any]
@@ -16,7 +16,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   import ChannelExecutor._
 
   private[this] def restorePipe(exit: Exit[Any, Any], prev: ErasedExecutor[Env])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Env, Nothing, Any] = {
     val currInput = input
     input = prev
@@ -26,7 +26,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private[this] final def popAllFinalizers(
     exit: Exit[Any, Any]
-  )(implicit trace: ZTraceElement): URIO[Env, Any] = {
+  )(implicit trace: Trace): URIO[Env, Any] = {
 
     @tailrec
     def unwind(
@@ -67,7 +67,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private[this] final def clearInProgressFinalizer(): Unit =
     inProgressFinalizer = null
 
-  def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): ZIO[Env, Nothing, Any] = {
+  def close(ex: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Nothing, Any] = {
     def ifNotNull[R](zio: URIO[R, Any]): URIO[R, Any] =
       if (zio ne null) zio else ZIO.unit
 
@@ -107,7 +107,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   def cancelWith(exit: Exit[OutErr, OutDone]): Unit =
     cancelled = exit
 
-  final def run()(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
+  final def run()(implicit trace: Trace): ChannelState[Env, Any] = {
     var result: ChannelState[Env, Any] = null
 
     while (result eq null) {
@@ -168,7 +168,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                           val effect = restorePipe(exit, inputExecutor)
 
                           if (effect ne null) effect
-                          else UIO.unit
+                          else ZIO.unit
                         }
                     })
                   }
@@ -186,7 +186,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
                 val effect = restorePipe(exit, previousInput)
 
                 if (effect ne null) effect
-                else UIO.unit
+                else ZIO.unit
               }
 
               currentChannel = right().asInstanceOf[Channel[Env]]
@@ -320,7 +320,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private[this] var closeLastSubstream: URIO[Env, Any] = _
 
-  private[this] def doneSucceed(z: Any)(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+  private[this] def doneSucceed(z: Any)(implicit trace: Trace): ChannelState[Env, Any] =
     doneStack match {
       case Nil =>
         done = Exit.succeed(z)
@@ -355,7 +355,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         }
     }
 
-  private[this] def doneHalt(cause: Cause[Any])(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+  private[this] def doneHalt(cause: Cause[Any])(implicit trace: Trace): ChannelState[Env, Any] =
     doneStack match {
       case Nil =>
         done = Exit.failCause(cause)
@@ -396,7 +396,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private def runBracketOut(
     bracketOut: ZChannel.BracketOut[Env, Any, Any]
-  )(implicit trace: ZTraceElement): ChannelState.Effect[Env, Any] =
+  )(implicit trace: Trace): ChannelState.Effect[Env, Any] =
     ChannelState.Effect {
       ZIO.uninterruptibleMask { restore =>
         restore(provide(bracketOut.acquire())).foldCauseZIO(
@@ -412,7 +412,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private def provide[Env, OutErr, OutDone](
     zio: ZIO[Env, OutErr, OutDone]
-  )(implicit trace: ZTraceElement): ZIO[Env, OutErr, OutDone] =
+  )(implicit trace: Trace): ZIO[Env, OutErr, OutDone] =
     if (providedEnv eq null)
       zio
     else
@@ -427,7 +427,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     doneStack = ZChannel.Fold.Finalizer(f) :: doneStack
 
   private[this] def runFinalizers(finalizers: List[Finalizer[Env]], ex: Exit[Any, Any])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): URIO[Env, Any] =
     if (finalizers.isEmpty) null
     else
@@ -436,7 +436,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
         .map(results => Exit.collectAll(results) getOrElse Exit.unit)
         .flatMap(ZIO.done(_))
 
-  private[this] def runSubexecutor()(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+  private[this] def runSubexecutor()(implicit trace: Trace): ChannelState[Env, Any] =
     activeSubexecutor match {
       case subexec @ Subexecutor.PullFromUpstream(_, _, _, _, _, _, _, _) =>
         pullFromUpstream(subexec.asInstanceOf[Subexecutor.PullFromUpstream[Env]])
@@ -466,7 +466,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   private def finishSubexecutorWithCloseEffect(
     subexecDone: Exit[Any, Any],
     closeFns: (Exit[Any, Any]) => URIO[Env, Any]*
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
+  )(implicit trace: Trace): ChannelState[Env, Any] = {
     addFinalizer { _ =>
       ZIO.foreachDiscard(closeFns) { closeFn =>
         ZIO.succeed(closeFn(subexecDone)).flatMap { closeEffect =>
@@ -484,11 +484,11 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     state
   }
 
-  def finishWithExit(exit: Exit[Any, Any])(implicit trace: ZTraceElement): ZIO[Env, Any, Any] = {
+  def finishWithExit(exit: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Any, Any] = {
     val state = exit.fold(doneHalt, doneSucceed)
     activeSubexecutor = null
 
-    if (state eq null) UIO.unit
+    if (state eq null) ZIO.unit
     else state.effect
   }
 
@@ -511,7 +511,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private final def performPullFromUpstream(
     self: Subexecutor.PullFromUpstream[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+  )(implicit trace: Trace): ChannelState[Env, Any] =
     ChannelState.Read(
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
@@ -616,7 +616,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private final def pullFromUpstream(
     self: Subexecutor.PullFromUpstream[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+  )(implicit trace: Trace): ChannelState[Env, Any] =
     self.activeChildExecutors.dequeueOption match {
       case Some((null, rest)) =>
         performPullFromUpstream(self.copy(activeChildExecutors = rest))
@@ -634,7 +634,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
 
   private def drainChildExecutors(
     self: Subexecutor.DrainChildExecutors[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] =
+  )(implicit trace: Trace): ChannelState[Env, Any] =
     self.activeChildExecutors.dequeueOption match {
       case Some((null, rest)) =>
         val (emitSeparator, remainingExecutors) =
@@ -678,7 +678,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     parentSubexecutor: Subexecutor[Env],
     onEmitted: Any => ChildExecutorDecision,
     self: Subexecutor.PullFromChild[Env]
-  )(implicit trace: ZTraceElement): ChannelState[Env, Any] = {
+  )(implicit trace: Trace): ChannelState[Env, Any] = {
     def handleSubexecFailure(cause: Cause[Any]): ChannelState[Env, Any] = {
       val closeEffects: Seq[Exit[Any, Any] => URIO[Env, Any]] =
         Seq(parentSubexecutor.close, childExecutor.close)
@@ -769,7 +769,7 @@ class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
   }
 }
 
-object ChannelExecutor {
+private[zio] object ChannelExecutor {
   type Channel[R]            = ZChannel[R, Any, Any, Any, Any, Any, Any]
   type ErasedExecutor[Env]   = ChannelExecutor[Env, Any, Any, Any, Any, Any, Any]
   type ErasedContinuation[R] = ZChannel.Fold.Continuation[R, Any, Any, Any, Any, Any, Any, Any, Any]
@@ -779,10 +779,10 @@ object ChannelExecutor {
     def effect: ZIO[R, E, Any] =
       self match {
         case ChannelState.Effect(zio) => zio
-        case _                        => UIO.unit
+        case _                        => ZIO.unit
       }
 
-    def effectOrNullIgnored(implicit trace: ZTraceElement): ZIO[R, Nothing, Unit] =
+    def effectOrNullIgnored(implicit trace: Trace): ZIO[R, Nothing, Unit] =
       self match {
         case ChannelState.Effect(zio) => zio.ignore.unit
         case _                        => null
@@ -802,7 +802,7 @@ object ChannelExecutor {
   }
 
   def maybeCloseBoth[Env](l: ZIO[Env, Nothing, Any], r: ZIO[Env, Nothing, Any])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): URIO[Env, Exit[Nothing, Any]] =
     if ((l eq null) && (r eq null)) null
     else if ((l ne null) && (r ne null)) l.exit.zipWith(r.exit)(_ *> _)
@@ -810,7 +810,7 @@ object ChannelExecutor {
     else r.exit
 
   sealed abstract class Subexecutor[R] {
-    def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any]
+    def close(ex: Exit[Any, Any])(implicit trace: Trace): URIO[R, Any]
 
     def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R]
   }
@@ -830,7 +830,7 @@ object ChannelExecutor {
       onPull: UpstreamPullRequest[Any] => UpstreamPullStrategy[Any],
       onEmit: Any => ChildExecutorDecision
     ) extends Subexecutor[R] { self =>
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any] = {
+      def close(ex: Exit[Any, Any])(implicit trace: Trace): URIO[R, Any] = {
         val fin1 = upstreamExecutor.close(ex)
         val fins =
           activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).enqueue(fin1)
@@ -858,7 +858,7 @@ object ChannelExecutor {
       parentSubexecutor: Subexecutor[R],
       onEmit: Any => ChildExecutorDecision
     ) extends Subexecutor[R] {
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any] = {
+      def close(ex: Exit[Any, Any])(implicit trace: Trace): URIO[R, Any] = {
         val fin1 = childExecutor.close(ex)
         val fin2 = parentSubexecutor.close(ex)
 
@@ -885,7 +885,7 @@ object ChannelExecutor {
       combineWithChildResult: (Any, Any) => Any,
       onPull: UpstreamPullRequest[Any] => UpstreamPullStrategy[Any]
     ) extends Subexecutor[R] {
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Exit[Any, Any]] = {
+      def close(ex: Exit[Any, Any])(implicit trace: Trace): URIO[R, Exit[Any, Any]] = {
         val fin1 = upstreamExecutor.close(ex)
         val fins =
           activeChildExecutors.map(child => if (child != null) child.childExecutor.close(ex) else null).enqueue(fin1)
@@ -903,7 +903,7 @@ object ChannelExecutor {
     }
 
     final case class Emit[R](value: Any, next: Subexecutor[R]) extends Subexecutor[R] {
-      def close(ex: Exit[Any, Any])(implicit trace: ZTraceElement): URIO[R, Any] =
+      def close(ex: Exit[Any, Any])(implicit trace: Trace): URIO[R, Any] =
         next.close(ex)
 
       override def enqueuePullFromChild(child: Subexecutor.PullFromChild[R]): Subexecutor[R] =
@@ -917,7 +917,7 @@ object ChannelExecutor {
   private[stream] def readUpstream[R, E, A](
     r: ChannelExecutor.ChannelState.Read[R, E],
     continue: () => ZIO[R, E, A]
-  )(implicit trace: ZTraceElement): ZIO[R, E, A] = {
+  )(implicit trace: Trace): ZIO[R, E, A] = {
     val readStack = scala.collection.mutable.Stack
       .apply[ChannelState.Read[Any, Any]](r.asInstanceOf[ChannelState.Read[Any, Any]])
 
@@ -969,17 +969,17 @@ private[zio] trait AsyncInputConsumer[+Err, +Elem, +Done] {
     onError: Cause[Err] => A,
     onElement: Elem => A,
     onDone: Done => A
-  )(implicit trace: ZTraceElement): UIO[A]
+  )(implicit trace: Trace): UIO[A]
 }
 
 /**
  * Producer-side view of [[SingleProducerAsyncInput]] for variance purposes.
  */
 private[zio] trait AsyncInputProducer[-Err, -Elem, -Done] {
-  def emit(el: Elem)(implicit trace: ZTraceElement): UIO[Any]
-  def done(a: Done)(implicit trace: ZTraceElement): UIO[Any]
-  def error(cause: Cause[Err])(implicit trace: ZTraceElement): UIO[Any]
-  def awaitRead(implicit trace: ZTraceElement): UIO[Any]
+  def emit(el: Elem)(implicit trace: Trace): UIO[Any]
+  def done(a: Done)(implicit trace: Trace): UIO[Any]
+  def error(cause: Cause[Err])(implicit trace: Trace): UIO[Any]
+  def awaitRead(implicit trace: Trace): UIO[Any]
 }
 
 /**
@@ -1004,7 +1004,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
     with AsyncInputProducer[Err, Elem, Done] {
   import SingleProducerAsyncInput.State
 
-  def emit(el: Elem)(implicit trace: ZTraceElement): UIO[Any] =
+  def emit(el: Elem)(implicit trace: Trace): UIO[Any] =
     Promise.make[Nothing, Unit].flatMap { p =>
       ref.modify {
         case s @ State.Emit(notifyConsumers) =>
@@ -1020,7 +1020,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
       }.flatten
     }
 
-  def done(a: Done)(implicit trace: ZTraceElement): UIO[Any] =
+  def done(a: Done)(implicit trace: Trace): UIO[Any] =
     ref.modify {
       case State.Emit(notifyConsumers)     => (ZIO.foreachDiscard(notifyConsumers)(_.succeed(Left(a))), State.Done(a))
       case s @ State.Error(_)              => (ZIO.interrupt, s)
@@ -1028,7 +1028,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
       case s @ State.Empty(notifyProducer) => (notifyProducer.await, s)
     }.flatten
 
-  def error(cause: Cause[Err])(implicit trace: ZTraceElement): UIO[Any] =
+  def error(cause: Cause[Err])(implicit trace: Trace): UIO[Any] =
     ref.modify {
       case State.Emit(notifyConsumers)     => (ZIO.foreachDiscard(notifyConsumers)(_.failCause(cause)), State.Error(cause))
       case s @ State.Error(_)              => (ZIO.interrupt, s)
@@ -1040,25 +1040,25 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
     onError: Cause[Err] => A,
     onElement: Elem => A,
     onDone: Done => A
-  )(implicit trace: ZTraceElement): UIO[A] =
+  )(implicit trace: Trace): UIO[A] =
     Promise.make[Err, Either[Done, Elem]].flatMap { p =>
       ref.modify {
         case State.Emit(notifyConsumers) =>
           (p.await.foldCause(onError, _.fold(onDone, onElement)), State.Emit(notifyConsumers.enqueue(p)))
-        case s @ State.Error(a) => (UIO.succeed(onError(a)), s)
-        case s @ State.Done(a)  => (UIO.succeed(onDone(a)), s)
+        case s @ State.Error(a) => (ZIO.succeed(onError(a)), s)
+        case s @ State.Done(a)  => (ZIO.succeed(onDone(a)), s)
         case s @ State.Empty(notifyProducer) =>
           (notifyProducer.succeed(()) *> p.await.foldCause(onError, _.fold(onDone, onElement)), State.Emit(Queue(p)))
       }.flatten
     }
 
-  def take[A](implicit trace: ZTraceElement): UIO[Exit[Either[Err, Done], Elem]] =
+  def take[A](implicit trace: Trace): UIO[Exit[Either[Err, Done], Elem]] =
     takeWith(c => Exit.failCause(c.map(Left(_))), Exit.succeed(_), d => Exit.fail(Right(d)))
 
-  def close(implicit trace: ZTraceElement): UIO[Any] =
+  def close(implicit trace: Trace): UIO[Any] =
     ZIO.fiberId.flatMap(id => error(Cause.interrupt(id)))
 
-  def awaitRead(implicit trace: ZTraceElement): UIO[Any] =
+  def awaitRead(implicit trace: Trace): UIO[Any] =
     ref.modify {
       case s @ State.Empty(notifyProducer) => (notifyProducer.await, s)
       case s                               => (ZIO.unit, s)
@@ -1066,7 +1066,7 @@ private[zio] class SingleProducerAsyncInput[Err, Elem, Done](
 }
 
 private[zio] object SingleProducerAsyncInput {
-  def make[Err, Elem, Done](implicit trace: ZTraceElement): UIO[SingleProducerAsyncInput[Err, Elem, Done]] =
+  def make[Err, Elem, Done](implicit trace: Trace): UIO[SingleProducerAsyncInput[Err, Elem, Done]] =
     Promise
       .make[Nothing, Unit]
       .flatMap(p => Ref.make[State[Err, Elem, Done]](State.Empty(p)))

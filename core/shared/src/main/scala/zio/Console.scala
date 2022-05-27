@@ -24,55 +24,54 @@ import scala.io.StdIn
 import scala.{Console => SConsole}
 
 trait Console extends Serializable {
-  def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]
+  def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit]
 
-  def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]
+  def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit]
 
-  def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]
+  def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit]
 
-  def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit]
+  def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit]
 
-  def readLine(implicit trace: ZTraceElement): IO[IOException, String]
+  def readLine(implicit trace: Trace): IO[IOException, String]
+
+  def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
+    print(prompt) *> readLine
 
   private[zio] def unsafePrint(line: Any): Unit =
-    Runtime.default.unsafeRun(print(line)(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(print(line)(Trace.empty))(Trace.empty)
 
   private[zio] def unsafePrintError(line: Any): Unit =
-    Runtime.default.unsafeRun(printError(line)(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(printError(line)(Trace.empty))(Trace.empty)
 
   private[zio] def unsafePrintLine(line: Any): Unit =
-    Runtime.default.unsafeRun(printLine(line)(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(printLine(line)(Trace.empty))(Trace.empty)
 
   private[zio] def unsafePrintLineError(line: Any): Unit =
-    Runtime.default.unsafeRun(printLineError(line)(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(printLineError(line)(Trace.empty))(Trace.empty)
 
   private[zio] def unsafeReadLine(): String =
-    Runtime.default.unsafeRun(readLine(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(readLine(Trace.empty))(Trace.empty)
 }
 
 object Console extends Serializable {
 
-  val any: ZLayer[Console, Nothing, Console] =
-    ZLayer.service[Console](Tag[Console], Tracer.newTrace)
-
-  val live: Layer[Nothing, Console] =
-    ZLayer.succeed[Console](ConsoleLive)(Tag[Console], Tracer.newTrace)
+  val tag: Tag[Console] = Tag[Console]
 
   object ConsoleLive extends Console {
 
-    def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.attemptBlockingIO(unsafePrint(line))
 
-    def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.attemptBlockingIO(unsafePrintError(line))
 
-    def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.attemptBlockingIO(unsafePrintLine(line))
 
-    def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+    def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.attemptBlockingIO(unsafePrintLineError(line))
 
-    def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
+    def readLine(implicit trace: Trace): IO[IOException, String] =
       ZIO.attemptBlockingInterrupt(unsafeReadLine()).refineToOrDie[IOException]
 
     override private[zio] def unsafePrint(line: Any): Unit =
@@ -104,26 +103,26 @@ object Console extends Serializable {
   /**
    * Prints text to the console.
    */
-  def print(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+  def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
     ZIO.consoleWith(_.print(line))
 
   /**
    * Prints text to the standard error console.
    */
-  def printError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+  def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
     ZIO.consoleWith(_.printError(line))
 
   /**
    * Prints a line of text to the console, including a newline character.
    */
-  def printLine(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+  def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
     ZIO.consoleWith(_.printLine(line))
 
   /**
    * Prints a line of text to the standard error console, including a newline
    * character.
    */
-  def printLineError(line: => Any)(implicit trace: ZTraceElement): IO[IOException, Unit] =
+  def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
     ZIO.consoleWith(_.printLineError(line))
 
   /**
@@ -131,6 +130,14 @@ object Console extends Serializable {
    * [[java.io.EOFException]] when the underlying [[java.io.Reader]] returns
    * null.
    */
-  def readLine(implicit trace: ZTraceElement): IO[IOException, String] =
+  def readLine(implicit trace: Trace): IO[IOException, String] =
     ZIO.consoleWith(_.readLine)
+
+  /**
+   * Prints the given prompt and then reads a line of input from the console.
+   * Fails with an [[java.io.EOFException]] when the underlying
+   * [[java.io.Reader]] returns null.
+   */
+  def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
+    ZIO.consoleWith(_.readLine(prompt))
 }

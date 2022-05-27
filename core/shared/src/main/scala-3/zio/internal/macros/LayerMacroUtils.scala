@@ -18,7 +18,6 @@ private [zio] object LayerMacroUtils {
     layers: Seq[Expr[ZLayer[_, E, _]]],
     provideMethod: ProvideMethod
   ): Expr[ZLayer[R0, E, R]] = {
-
     import ctx.reflect._
 
     val targetTypes    = getRequirements[R]
@@ -31,9 +30,8 @@ private [zio] object LayerMacroUtils {
         case _                           => None
       }).unlift
 
-
     val builder = LayerBuilder[TypeRepr, LayerExpr[E]](
-      target = targetTypes,
+      target0 = targetTypes,
       remainder = remainderTypes,
       providedLayers0 = layers.toList,
       layerToDebug = layerToDebug,
@@ -42,14 +40,14 @@ private [zio] object LayerMacroUtils {
       foldTree = buildFinalTree,
       method = provideMethod,
       exprToNode = getNode,
-      typeToNode = tpe => Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ZLayer.service[t]} }),
+      typeToNode = tpe => Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ZLayer.environment[t] } }),
       showExpr = expr => scala.util.Try(expr.asTerm.pos.sourceCode).toOption.flatten.getOrElse(expr.show),
       showType = _.show,
       reportWarn = report.warning(_),
       reportError = report.errorAndAbort(_)
     )
 
-    builder.build.asExprOf[ZLayer[R0, E, R]]
+    builder.build.asInstanceOf[Expr[ZLayer[R0, E, R]]]
   }
 
   def buildFinalTree[E: Type](tree: LayerTree[LayerExpr[E]])(using ctx: Quotes): LayerExpr[E] = {

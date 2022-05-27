@@ -10,7 +10,7 @@ object SpecSpec extends ZIOBaseSpec {
   val specLayer: ZLayer[Any, Nothing, Unit] =
     ZLayer.succeed(())
 
-  def spec: Spec[TestEnvironment, TestFailure[Nothing], TestSuccess] = suite("SpecSpec")(
+  def spec: Spec[TestEnvironment, TestFailure[Nothing]] = suite("SpecSpec")(
     suite("provideCustomLayer")(
       test("provides the part of the environment that is not part of the `TestEnvironment`") {
         for {
@@ -36,14 +36,14 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           _ <- execute(spec)
         } yield assertCompletes
-      } @@ TestAspect.ignore, // TODO Restore during follow-up ComposedSpec work for #6483
+      },
       test("does not acquire the environment if the suite is ignored") {
         val spec = suite("suite")(
           test("test1") {
-            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
+            assertZIO(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           },
           test("test2") {
-            assertM(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
+            assertZIO(ZIO.service[Ref[Boolean]].flatMap(_.get))(isTrue)
           }
         )
         for {
@@ -62,13 +62,13 @@ object SpecSpec extends ZIOBaseSpec {
             assert(1)(Assertion.equalTo(1))
           },
           test("test3") {
-            assertM(ZIO.service[Int])(Assertion.equalTo(42))
+            assertZIO(ZIO.service[Int])(Assertion.equalTo(42))
           }
         ).provideLayerShared(ZLayer.succeed(43))
         for {
           summary <- execute(spec)
         } yield assertTrue(summary.success == 1) && assertTrue(summary.fail == 2)
-      } @@ TestAspect.ignore // TODO Restore during follow-up ComposedSpec work for #6483
+      }
     ),
     suite("provideSomeLayerShared")(
       test("leaves the remainder of the environment") {
@@ -97,7 +97,7 @@ object SpecSpec extends ZIOBaseSpec {
           _      <- execute(spec)
           result <- ref.get
         } yield assert(result)(hasSize(isGreaterThan(1)))
-      } @@ TestAspect.ignore, // TODO Restore during follow-up ComposedSpec work for #6483
+      },
       test("does not cause the remainder to be shared") {
         val spec = suite("suite")(
           test("test1") {
@@ -113,7 +113,7 @@ object SpecSpec extends ZIOBaseSpec {
             } yield assert(output)(equalTo(Vector("Hello, World!\n")))
           }
         ).provideSomeLayerShared[TestEnvironment](specLayer) @@ silent
-        assertM(succeeded(spec))(isTrue)
+        assertZIO(succeeded(spec))(isTrue)
       },
       test("releases resources as soon as possible") {
         for {
@@ -125,18 +125,18 @@ object SpecSpec extends ZIOBaseSpec {
           spec = suite("spec")(
                    suite("suite1")(
                      test("test1") {
-                       assertM(update)(equalTo(1))
+                       assertZIO(update)(equalTo(1))
                      },
                      test("test2") {
-                       assertM(update)(equalTo(2))
+                       assertZIO(update)(equalTo(2))
                      }
                    ).provideCustomLayerShared(specLayer),
                    suite("suite2")(
                      test("test1") {
-                       assertM(update)(equalTo(1))
+                       assertZIO(update)(equalTo(1))
                      },
                      test("test2") {
-                       assertM(update)(equalTo(2))
+                       assertZIO(update)(equalTo(2))
                      }
                    ).provideCustomLayerShared(specLayer)
                  ) @@ sequential
@@ -144,7 +144,7 @@ object SpecSpec extends ZIOBaseSpec {
           log       <- ref.get.map(_.reverse)
         } yield assert(succeeded)(isTrue) &&
           assert(log)(equalTo(List("Acquiring", "Releasing", "Acquiring", "Releasing")))
-      } @@ TestAspect.ignore, // TODO Restore during follow-up ComposedSpec work for #6483
+      },
       test("correctly handles nested suites") {
         val spec =
           suite("a")(
@@ -160,7 +160,7 @@ object SpecSpec extends ZIOBaseSpec {
               )
             )
           ).provideCustomLayerShared(ZLayer.scoped[Any](ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
-        assertM(succeeded(spec))(isTrue)
+        assertZIO(succeeded(spec))(isTrue)
       }
     ),
     suite("iterable constructor") {

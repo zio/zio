@@ -9,7 +9,7 @@ trait OldLady {
 object OldLady {
   val contentsOfStomach: ZIO[OldLady, Nothing, List[String]] = ZIO.serviceWithZIO(_.contentsOfStomach)
 
-  val live: URLayer[Spider with Bear with Console, OldLady] =
+  val live: URLayer[Spider with Bear, OldLady] =
     ZLayer {
       for {
         spiderGuts <- Spider.contentsOfStomach
@@ -47,9 +47,9 @@ trait Fly {}
 
 object Fly {
 
-  val live: URLayer[Console, Fly] = {
+  val live: URLayer[Any, Fly] = {
     println("FLY")
 
-    Console.printLine("Bzzzzzzzzzz...").orDie.as(new Fly {}).toLayer
+    ZLayer(Console.printLine("Bzzzzzzzzzz...").orDie.as(new Fly {}))
   }
 }

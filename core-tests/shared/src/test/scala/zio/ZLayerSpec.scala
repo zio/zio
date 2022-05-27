@@ -49,29 +49,29 @@ object ZLayerSpec extends ZIOBaseSpec {
   def spec =
     suite("ZLayerSpec")(
       test("Size of >>> (1)") {
-        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction[Int, String](_.get.toString)
+        val layer = ZLayer.succeed(1) >>> ZLayer.fromFunction((n: Int) => n.toString)
 
         testSize(layer, 1)
       },
       test("Size of >>> (2)") {
         val layer = ZLayer.succeed(1) >>>
-          (ZLayer.fromFunction[Int, String](_.get.toString) ++
-            ZLayer.fromFunction[Int, Boolean](_.get % 2 == 0))
+          (ZLayer.fromFunction((n: Int) => n.toString) ++
+            ZLayer.fromFunction((n: Int) => n % 2 == 0))
 
         testSize(layer, 2)
       },
       test("Size of Test layers") {
         for {
           r1 <- testSize(Annotations.live, 1, "Annotations.live")
-          r2 <- testSize(ZEnv.live >>> Live.default >>> TestConsole.debug, 1, "TestConsole.default")
-          r3 <- testSize(ZEnv.live >>> Live.default, 1, "Live.default")
-          r4 <- testSize(ZEnv.live >>> TestRandom.deterministic, 1, "TestRandom.live")
+          r2 <- testSize(liveEnvironment >>> Live.default >>> TestConsole.debug, 1, "TestConsole.default")
+          r3 <- testSize(liveEnvironment >>> Live.default, 1, "Live.default")
+          r4 <- testSize(liveEnvironment >>> TestRandom.deterministic, 1, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
           r6 <- testSize(TestSystem.default, 1, "TestSystem.default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
       test("Size of >>> (9)") {
-        val layer = ZEnv.live >>>
+        val layer = liveEnvironment >>>
           (Annotations.live ++ (Live.default >>> TestConsole.debug) ++
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
             ++ TestSystem.default)
@@ -251,9 +251,9 @@ object ZLayerSpec extends ZIOBaseSpec {
         case class A(name: String, value: Int)
         case class B(name: String)
         val l1: Layer[Nothing, A]          = ZLayer.succeed(A("name", 1))
-        val l2: ZLayer[String, Nothing, B] = ZLayer.fromFunction(env => B(env.get))
+        val l2: ZLayer[String, Nothing, B] = ZLayer.fromFunction(string => B(string))
         val live: Layer[Nothing, B]        = l1.map(a => ZEnvironment(a.get[A].name)) >>> l2
-        assertM(ZIO.service[B].provide(live))(equalTo(B("name")))
+        assertZIO(ZIO.service[B].provide(live))(equalTo(B("name")))
       },
       test("memoization") {
         val expected = Vector(acquire1, release1)
@@ -285,14 +285,14 @@ object ZLayerSpec extends ZIOBaseSpec {
       } @@ nonFlaky,
       test("passthrough") {
         val layer: ZLayer[Int, Nothing, String] =
-          ZLayer.fromFunction[Int, String](_.get.toString)
+          ZLayer.fromFunction((n: Int) => n.toString)
         val live: ZLayer[Any, Nothing, Int with String] =
           ZLayer.succeed(1) >>> layer.passthrough
         val zio = for {
           i <- ZIO.service[Int]
           s <- ZIO.service[String]
         } yield (i, s)
-        assertM(zio.provide(live))(equalTo((1, "1")))
+        assertZIO(zio.provide(live))(equalTo((1, "1")))
       },
       test("fresh with ++") {
         val expected = Vector(acquire1, acquire1, release1, release1)
@@ -366,13 +366,13 @@ object ZLayerSpec extends ZIOBaseSpec {
         val layer3 = ZLayer.succeed("baz")
         val layer4 = ZLayer.scoped(ZIO.acquireRelease(sleep)(_ => sleep))
         val env    = layer1 ++ ((layer2 ++ layer3) >+> layer4)
-        assertM(ZIO.unit.provideLayer(env).exit)(fails(equalTo("foo")))
+        assertZIO(ZIO.unit.provideLayer(env).exit)(fails(equalTo("foo")))
       } @@ withLiveClock,
       test("project") {
         final case class Person(name: String, age: Int)
         val personLayer = ZLayer.succeed(Person("User", 42))
         val ageLayer    = personLayer.project(_.age)
-        assertM(ZIO.service[Int].provide(ageLayer))(equalTo(42))
+        assertZIO(ZIO.service[Int].provide(ageLayer))(equalTo(42))
       },
       test("tap") {
         for {
@@ -407,7 +407,7 @@ object ZLayerSpec extends ZIOBaseSpec {
               boolean <- ZIO.service[Boolean]
             } yield FooService(ref, string, boolean)
           }
-        val provideRefInt = Ref.make(10).toLayer
+        val provideRefInt = ZLayer(Ref.make(10))
 
         val needsStringAndBoolean = provideRefInt >>> fooBuilder
 
@@ -434,7 +434,7 @@ object ZLayerSpec extends ZIOBaseSpec {
               boolean <- ZIO.service[Boolean]
             } yield FooService(ref, string, boolean)
           }
-        val provideRefInt = Ref.make(10).toLayer
+        val provideRefInt = ZLayer(Ref.make(10))
 
         val needsStringAndBoolean = provideRefInt >+> fooBuilder
 
@@ -467,13 +467,13 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("caching values in dependencies") {
         case class Config(value: Int)
         case class A(value: Int)
-        val aLayer = ZLayer.fromFunction[Config, A](env => A(env.get.value))
+        val aLayer = ZLayer.fromFunction((config: Config) => A(config.value))
 
         case class B(value: Int)
-        val bLayer = ZLayer.fromFunction[A, B](env => B(env.get.value))
+        val bLayer = ZLayer.fromFunction((a: A) => B(a.value))
 
         case class C(value: Int)
-        val cLayer = ZLayer.fromFunction[A, C](env => C(env.get.value))
+        val cLayer = ZLayer.fromFunction((a: A) => C(a.value))
 
         val fedB = (ZLayer.succeed(Config(1)) >>> aLayer) >>> bLayer
         val fedC = (ZLayer.succeed(Config(2)) >>> aLayer) >>> cLayer
@@ -495,6 +495,35 @@ object ZLayerSpec extends ZIOBaseSpec {
           release <- ref.get
         } yield assertTrue(acquire == Vector("Acquiring Module 1")) &&
           assertTrue(release == Vector("Acquiring Module 1", "Releasing Module 1"))
-      }
+      },
+      test("succeed is lazy") {
+        import java.util.concurrent.atomic.AtomicInteger
+        final case class Counter(ref: AtomicInteger) {
+          def getAndIncrement: UIO[Int] = ZIO.succeed(ref.getAndIncrement())
+        }
+        val layer = ZLayer.succeed(Counter(new AtomicInteger(0)))
+        def getAndIncrement: ZIO[Counter, Nothing, Int] =
+          ZIO.serviceWithZIO(_.getAndIncrement)
+        for {
+          x <- getAndIncrement.provide(layer)
+          y <- getAndIncrement.provide(layer)
+        } yield assertTrue(x == 0 && y == 0)
+      },
+      test("fromFunction") {
+        final case class Person(name: String, age: Int)
+        val layer: ZLayer[String with Int, Nothing, Person] = ZLayer.fromFunction(Person(_, _))
+        for {
+          person <- (ZLayer.succeed("Jane Doe") ++ ZLayer.succeed(42) >>> layer).build
+        } yield assertTrue(person == ZEnvironment(Person("Jane Doe", 42)))
+      },
+      test("preserves failures") {
+        val layer1   = liveEnvironment >>> TestEnvironment.live
+        val layer2   = ZLayer.fromZIO(ZIO.fail("fail"))
+        val layer3   = liveEnvironment >>> TestEnvironment.live
+        val combined = layer1 ++ layer2 ++ layer3
+        for {
+          exit <- ZIO.scoped(combined.build).exit
+        } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+      } @@ nonFlaky
     )
 }

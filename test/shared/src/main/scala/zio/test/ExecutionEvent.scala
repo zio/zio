@@ -29,6 +29,11 @@ object ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
   }
 
+  final case class TopLevelFlush(id: SuiteId) extends ExecutionEvent {
+    val labels: List[String]     = List.empty
+    val ancestors: List[SuiteId] = List.empty
+  }
+
   final case class RuntimeFailure[+E](
     id: SuiteId,
     labelsReversed: List[String],

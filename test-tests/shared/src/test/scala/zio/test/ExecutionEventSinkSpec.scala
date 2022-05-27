@@ -7,7 +7,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
     test("process single test") {
       val event = ExecutionEvent.Test(
         List("add", "ConcurrentSetSpec"),
-        Right(TestSuccess.Succeeded(BoolAlgebra.Value(()))),
+        Right(TestSuccess.Succeeded()),
         TestAnnotationMap.empty,
         List.empty,
         0,
@@ -35,7 +35,7 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
     test("process with ancestor") {
       val event = ExecutionEvent.Test(
         List("add", "ConcurrentSetSpec"),
-        Right(TestSuccess.Succeeded(BoolAlgebra.Value(()))),
+        Right(TestSuccess.Succeeded()),
         TestAnnotationMap.empty,
         List(SuiteId(1)),
         0L,
@@ -46,11 +46,6 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.success == 1)
     }
-  ).provide(
-    TestLogger.fromConsole,
-    ExecutionEventSink.live,
-    TestOutput.live,
-    ExecutionEventPrinter.live
-  )
+  ).provide(sinkLayer(zio.Console.ConsoleLive))
 
 }

@@ -63,7 +63,7 @@ object StackSpec extends ZIOBaseSpec {
     } @@ nonFlaky,
     test("stack safety") {
       val stack = Stack[String]()
-      val n     = 1000000
+      val n     = 100000
       var i     = 0
       while (i <= n) {
         stack.push("1")

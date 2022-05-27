@@ -29,8 +29,8 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
   /**
    * Transforms `Take[E, A]` to `ZIO[R, E, B]`.
    */
-  def done[R](implicit trace: ZTraceElement): ZIO[R, Option[E], Chunk[A]] =
-    IO.done(exit)
+  def done[R](implicit trace: Trace): ZIO[R, Option[E], Chunk[A]] =
+    ZIO.done(exit)
 
   /**
    * Folds over the failure cause, success value and end-of-stream marker to
@@ -49,7 +49,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     end: => ZIO[R, E1, Z],
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
-  )(implicit trace: ZTraceElement): ZIO[R, E1, Z] =
+  )(implicit trace: Trace): ZIO[R, E1, Z] =
     exit.foldZIO(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
@@ -79,7 +79,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
   /**
    * Returns an effect that effectfully "peeks" at the success of this take.
    */
-  def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any])(implicit trace: ZTraceElement): ZIO[R, E1, Unit] =
+  def tap[R, E1](f: Chunk[A] => ZIO[R, E1, Any])(implicit trace: Trace): ZIO[R, E1, Unit] =
     exit.foreach(f).unit
 }
 
@@ -114,7 +114,7 @@ object Take {
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`. Creates a singleton chunk.
    */
-  def fromZIO[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
+  def fromZIO[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): URIO[R, Take[E, A]] =
     zio.foldCause(failCause, single)
 
   /**
@@ -122,7 +122,7 @@ object Take {
    * the `Take[E, A]`. Error from stream when pulling is converted to
    * `Take.failCause`, end of stream to `Take.end`.
    */
-  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A])(implicit trace: ZTraceElement): URIO[R, Take[E, A]] =
+  def fromPull[R, E, A](pull: ZStream.Pull[R, E, A])(implicit trace: Trace): URIO[R, Take[E, A]] =
     pull.foldCause(Cause.flipCauseOption(_).fold[Take[E, Nothing]](end)(failCause), chunk)
 
   /**

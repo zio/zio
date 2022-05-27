@@ -8,16 +8,16 @@ object ZIOSpecSpec extends ZIOSpecDefault {
     scala.concurrent.ExecutionContext.global
 
   val expected =
-    Executor.fromExecutionContext(RuntimeConfig.defaultYieldOpCount)(global)
+    Executor.fromExecutionContext(Runtime.defaultYieldOpCount)(global)
 
-  override def hook =
-    RuntimeConfigAspect.setBlockingExecutor(expected)
+  override val bootstrap =
+    testEnvironment ++ Runtime.setBlockingExecutor(expected)
 
   def spec = suite("ZIOAppSpec")(
-    test("RuntimeConfig can be modified using hook") {
+    test("Runtime can be modified using bootstrap") {
       for {
         actual <- ZIO.blockingExecutor
       } yield assertTrue(actual == expected)
     }
-  ) @@ TestAspect.ignore // TODO Investigate this for next PR
+  )
 }

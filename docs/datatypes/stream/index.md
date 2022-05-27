@@ -41,8 +41,8 @@ Assume, we would like to take a list of numbers and grab all the prime numbers a
 ```scala mdoc:silent
 import zio.ZIOAspect._
 
-def isPrime(number: Int): Task[Boolean] = Task.succeed(???)
-def moreHardWork(i: Int): Task[Boolean] = Task.succeed(???)
+def isPrime(number: Int): Task[Boolean] = ZIO.succeed(???)
+def moreHardWork(i: Int): Task[Boolean] = ZIO.succeed(???)
 
 val numbers = 1 to 1000
 
@@ -63,7 +63,7 @@ There are two problems with this example:
 With ZIO stream we can change this program to the following code:
 
 ```scala mdoc:silent:nest
-def prime(number: Int): Task[(Boolean, Int)] = Task.succeed(???)
+def prime(number: Int): Task[(Boolean, Int)] = ZIO.succeed(???)
 
 ZStream.fromIterable(numbers)
   .mapZIOParUnordered(20)(prime(_))
@@ -76,9 +76,9 @@ We converted the list of numbers using `ZStream.fromIterable` into a `ZStream`, 
 One might ask, "Okay, I can get the pipelining by using fibers and queues. So why should I use ZIO streams?". It is extremely tempting to write up the pipeline look like this. We can create a bunch of queues and fibers, then we have fibers that copy information between the queues and perform the processing concurrently. It ends up something like this:
 
 ```scala mdoc:silent:nest
-def writeToInput(q: Queue[Int]): Task[Unit]                            = Task.succeed(???)
-def processBetweenQueues(from: Queue[Int], to: Queue[Int]): Task[Unit] = Task.succeed(???)
-def printElements(q: Queue[Int]): Task[Unit]                           = Task.succeed(???)
+def writeToInput(q: Queue[Int]): Task[Unit]                            = ZIO.succeed(???)
+def processBetweenQueues(from: Queue[Int], to: Queue[Int]): Task[Unit] = ZIO.succeed(???)
+def printElements(q: Queue[Int]): Task[Unit]                           = ZIO.succeed(???)
 
 for {
   input  <- Queue.bounded[Int](16)
@@ -98,9 +98,9 @@ There are some problems with this solution. As fibers are low-level concurrency 
 Although fibers are very efficient and more performant than threads. They are advanced concurrency tools. So it is better to avoid using them to do manual pipelining. Instead, we can use ZIO streams:
 
 ```scala mdoc:silent:nest
-def generateElement: Task[Int]    = Task.succeed(???)
-def process(i: Int): Task[Int]    = Task.succeed(???)
-def printElem(i: Int): Task[Unit] = Task.succeed(???)
+def generateElement: Task[Int]    = ZIO.succeed(???)
+def process(i: Int): Task[Int]    = ZIO.succeed(???)
+def printElem(i: Int): Task[Unit] = ZIO.succeed(???)
 
 ZStream
   .repeatZIO(generateElement)
@@ -184,7 +184,7 @@ for (line <- FileUtils.readFileToString(new File("file.txt")).split('\n'))
 The only problem here is that if we run this code with a file that is very large which is bigger than our memory, that is not going to work. Instead, we can reach the same functionality, by using the stream API:
 
 ```scala mdoc:silent:nest
-ZStream.fromFileString("file.txt")
+ZStream.fromFileName("file.txt")
   .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
   .foreach(printLine(_))
 ```

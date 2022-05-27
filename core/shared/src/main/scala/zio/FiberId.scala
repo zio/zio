@@ -73,18 +73,18 @@ sealed trait FiberId extends Serializable { self =>
 
 object FiberId {
 
-  def apply(id: Int, startTimeSeconds: Int, location: ZTraceElement): FiberId =
+  def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
     Runtime(id, startTimeSeconds, location)
 
   def combineAll(fiberIds: Set[FiberId]): FiberId =
     fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
 
-  private[zio] def unsafeMake(location: ZTraceElement): FiberId.Runtime =
+  private[zio] def unsafeMake(location: Trace): FiberId.Runtime =
     FiberId.Runtime(_fiberCounter.getAndIncrement(), (java.lang.System.currentTimeMillis / 1000).toInt, location)
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
-  case object None                                                                  extends FiberId
-  final case class Runtime(id: Int, startTimeSeconds: Int, location: ZTraceElement) extends FiberId
-  final case class Composite(fiberIds: Set[FiberId.Runtime])                        extends FiberId
+  case object None                                                          extends FiberId
+  final case class Runtime(id: Int, startTimeSeconds: Int, location: Trace) extends FiberId
+  final case class Composite(fiberIds: Set[FiberId.Runtime])                extends FiberId
 }

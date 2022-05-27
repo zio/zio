@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   private[zio] val shuttingDown = new AtomicBoolean(false)
 
-  implicit def tag: EnvironmentTag[Environment]
+  implicit def environmentTag: EnvironmentTag[Environment]
 
   type Environment
 
@@ -36,7 +36,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * A layer that manages the acquisition and release of services necessary for
    * the application to run.
    */
-  def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment]
+  def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment]
 
   /**
    * The main function of the application, which can access the command-line
@@ -51,20 +51,20 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
    */
-  final def <>(that: ZIOApp)(implicit trace: ZTraceElement): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.layer +!+ that.layer, self.hook >>> that.hook)
+  final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp =
+    ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)
 
   /**
    * A helper function to obtain access to the command-line arguments of the
    * application. You may use this helper function inside your `run` function.
    */
-  final def getArgs(implicit trace: ZTraceElement): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
+  final def getArgs(implicit trace: Trace): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIOAppArgs.getArgs
 
   /**
    * A helper function to exit the application with the specified exit code.
    */
-  final def exit(code: ExitCode)(implicit trace: ZTraceElement): UIO[Unit] =
+  final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
       if (!shuttingDown.getAndSet(true)) {
         try Platform.exit(code.code)
@@ -73,34 +73,24 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
     }
 
   /**
-   * A hook into the ZIO runtime configuration used for boostrapping the
-   * application. This hook can be used to install low-level functionality into
-   * the ZIO application, such as logging, profiling, and other similar
-   * foundational pieces of infrastructure.
-   */
-  def hook: RuntimeConfigAspect = RuntimeConfigAspect.identity
-
-  /**
    * Invokes the main app. Designed primarily for testing.
    */
-  final def invoke(args: Chunk[String])(implicit trace: ZTraceElement): ZIO[Any, Any, Any] =
+  final def invoke(args: Chunk[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
     ZIO.suspendSucceed {
       val newLayer =
-        ZLayer.environment[Scope] +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
-          layer +!+ ZLayer.environment[ZIOAppArgs with Scope]
+        Scope.default +!+ ZLayer.succeed(ZIOAppArgs(args)) >>>
+          bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
-      ZIO.scoped {
-        for {
-          _          <- installSignalHandlers
-          newRuntime <- ZIO.runtime[Scope].map(_.mapRuntimeConfig(hook))
-          result     <- newRuntime.run(run.provideLayer(newLayer))
-        } yield result
-      }
+      (for {
+        runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
+        _       <- installSignalHandlers(runtime)
+        result  <- runtime.run(run)
+      } yield result).provideLayer(newLayer)
     }
 
   def runtime: Runtime[Any] = Runtime.default
 
-  protected def installSignalHandlers(implicit trace: ZTraceElement): UIO[Any] =
+  protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
       if (!ZIOApp.installedSignals.getAndSet(true)) {
         val dumpFibers = () => runtime.unsafeRun(Fiber.dumpAll)
@@ -114,6 +104,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
       }
     }.ignore
 }
+
 object ZIOApp {
   private val installedSignals = new java.util.concurrent.atomic.AtomicBoolean(false)
 
@@ -123,14 +114,12 @@ object ZIOApp {
    */
   class Proxy(val app: ZIOApp) extends ZIOApp {
     type Environment = app.Environment
-    override final def hook: RuntimeConfigAspect =
-      app.hook
-    final def layer: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
-      app.layer
+    final def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
+      app.bootstrap
     override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
-    implicit final def tag: EnvironmentTag[Environment] =
-      app.tag
+    implicit final def environmentTag: EnvironmentTag[Environment] =
+      app.environmentTag
   }
 
   /**
@@ -139,21 +128,19 @@ object ZIOApp {
    */
   def apply[R](
     run0: ZIO[R with ZIOAppArgs with Scope, Any, Any],
-    layer0: ZLayer[ZIOAppArgs with Scope, Any, R],
-    hook0: RuntimeConfigAspect
+    bootstrap0: ZLayer[ZIOAppArgs with Scope, Any, R]
   )(implicit tagged: EnvironmentTag[R]): ZIOApp =
     new ZIOApp {
       type Environment = R
-      def tag: EnvironmentTag[Environment] = tagged
-      override def hook                    = hook0
-      def layer                            = layer0
-      def run                              = run0
+      def environmentTag: EnvironmentTag[Environment] = tagged
+      def bootstrap                                   = bootstrap0
+      def run                                         = run0
     }
 
   /**
    * Creates a [[ZIOApp]] from an effect, using the unmodified default runtime's
    * configuration.
    */
-  def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any])(implicit trace: ZTraceElement): ZIOApp =
-    ZIOApp(run0, ZLayer.environment, RuntimeConfigAspect.identity)
+  def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any])(implicit trace: Trace): ZIOApp =
+    ZIOApp(run0, ZLayer.environment)
 }

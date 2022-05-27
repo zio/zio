@@ -16,7 +16,7 @@
 
 package zio.test.magnolia
 
-import magnolia._
+import magnolia1._
 import zio.Chunk
 import zio.test.{Gen, Sized}
 
@@ -80,11 +80,35 @@ object DeriveGen {
   implicit val genLocalDateTime: DeriveGen[LocalDateTime] = instance(Gen.localDateTime)
   implicit val genLocalDate: DeriveGen[LocalDate]         = instance(Gen.localDate)
   implicit val genLocalTime: DeriveGen[LocalTime]         = instance(Gen.localTime)
+
   implicit val genBigDecimal: DeriveGen[BigDecimal] = instance(
     Gen.bigDecimal(
       BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
       BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
     )
+  )
+
+  implicit val genBigInt: DeriveGen[BigInt] = instance(
+    Gen.bigInt(
+      BigInt(Int.MinValue) * BigInt(Int.MaxValue),
+      BigInt(Int.MaxValue) * BigInt(Int.MaxValue)
+    )
+  )
+
+  implicit val genBigIntegerJava: DeriveGen[java.math.BigInteger] = instance(
+    Gen
+      .bigIntegerJava(
+        BigInt(Int.MinValue) * BigInt(Int.MaxValue),
+        BigInt(Int.MaxValue) * BigInt(Int.MaxValue)
+      )
+  )
+
+  implicit val genJavaBigDecimalGen: DeriveGen[java.math.BigDecimal] = instance(
+    Gen
+      .bigDecimalJava(
+        BigDecimal(Double.MinValue) * BigDecimal(Double.MaxValue),
+        BigDecimal(Double.MaxValue) * BigDecimal(Double.MaxValue)
+      )
   )
 
   implicit def genEither[A, B](implicit ev1: DeriveGen[A], ev2: DeriveGen[B]): DeriveGen[Either[A, B]] =
@@ -215,10 +239,10 @@ object DeriveGen {
 
   type Typeclass[T] = DeriveGen[T]
 
-  def combine[T](caseClass: CaseClass[Typeclass, T]): Typeclass[T] =
+  def join[T](caseClass: CaseClass[Typeclass, T]): Typeclass[T] =
     instance(Gen.suspend(Gen.collectAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
 
-  def dispatch[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
+  def split[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
     instance(Gen.suspend(Gen.oneOf(sealedTrait.subtypes.map(_.typeclass.derive): _*)))
 
   implicit def gen[T]: Typeclass[T] = macro Magnolia.gen[T]

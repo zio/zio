@@ -57,12 +57,6 @@ Using the `ZIO.succeed` method, we can create an effect that succeeds with the s
 val s1 = ZIO.succeed(42)
 ```
 
-We can also use methods in the companion objects of the `ZIO` type aliases:
-
-```scala mdoc:silent
-val s2: Task[Int] = Task.succeed(42)
-```
-
 ### Failure Values
 
 | Function | Input Type | Output Type      |
@@ -80,10 +74,8 @@ For the `ZIO` data type, there is no restriction on the error type. We may use s
 Many applications will model failures with classes that extend `Throwable` or `Exception`:
 
 ```scala mdoc:silent
-val f2 = Task.fail(new Exception("Uh oh!"))
+val f2 = ZIO.fail(new Exception("Uh oh!"))
 ```
-
-Note that unlike the other effect companion objects, the `UIO` companion object does not have `UIO.fail`, because `UIO` values cannot fail.
 
 ### From Values
 ZIO contains several constructors which help us to convert various data types into `ZIO` effects.
@@ -306,7 +298,7 @@ import java.net.ServerSocket
 import zio.UIO
 
 def accept(l: ServerSocket) =
-  ZIO.attemptBlockingCancelable(l.accept())(UIO.succeed(l.close()))
+  ZIO.attemptBlockingCancelable(l.accept())(ZIO.succeed(l.close()))
 ```
 
 If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
@@ -315,7 +307,7 @@ If a side-effect has already been converted into a ZIO effect, then instead of `
 import scala.io.{ Codec, Source }
 
 def download(url: String) =
-  Task.attempt {
+  ZIO.attempt {
     Source.fromURL(url)(Codec.UTF8).mkString
   }
 
@@ -349,10 +341,10 @@ object legacy {
 }
 
 val login: IO[AuthError, User] =
-  IO.async[Any, AuthError, User] { callback =>
+  ZIO.async[Any, AuthError, User] { callback =>
     legacy.login(
-      user => callback(IO.succeed(user)),
-      err  => callback(IO.fail(err))
+      user => callback(ZIO.succeed(user)),
+      err  => callback(ZIO.fail(err))
     )
   }
 ```
@@ -361,18 +353,431 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 
 ### Creating Suspended Effects
 
-| Function                 | Input Type                                 | Output Type    |
-|--------------------------|--------------------------------------------|----------------|
-| `suspend`                | `RIO[R, A]`                                | `RIO[R, A]`    |
-| `suspendSucceed`         | `ZIO[R, E, A]`                             | `ZIO[R, E, A]` |
-| `suspendSucceedWith`     | `(RuntimeConfig, FiberId) => ZIO[R, E, A]` | `ZIO[R, E, A]` |
-| `suspendWith`            | `(RuntimeConfig, FiberId) => RIO[R, A]`    | `RIO[R, A]`    |
+| Function                 | Input Type                                        | Output Type    |
+|--------------------------|---------------------------------------------------|----------------|
+| `suspend`                | `RIO[R, A]`                                       | `RIO[R, A]`    |
+| `suspendSucceed`         | `ZIO[R, E, A]`                                    | `ZIO[R, E, A]` |
 
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
 ```scala mdoc:silent
 val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
+```
+
+## Control Flows
+
+Although we have access to built-in scala control flow structures, ZIO has several control flow combinators. In this section, we are going to introduce different ways of controlling flows in ZIO applications.
+
+### If Expressions and Operators
+
+When working with ZIO values, we can also work with built-in scala if-then-else expressions:
+
+````scala mdoc:compile-only
+import zio._
+
+def validateWeightOption(weight: Double): ZIO[Any, Nothing, Option[Double]] =
+  if (weight >= 0)
+    ZIO.some(weight)
+  else
+    ZIO.none
+````
+
+Also, we can encode invalid inputs using the error channel:
+
+```scala mdoc:compile-only
+import zio._
+
+def validateWeightOrFail(weight: Double): ZIO[Any, String, Double] =
+  if (weight >= 0)
+    ZIO.succeed(weight)
+  else
+    ZIO.fail(s"negative input: $weight")
+```
+
+Even if the input has side effects, we can use `ZIO#flatMap` to access the raw value and write the if-then-else expression:
+
+```scala mdoc:compile-only
+import zio._
+
+def validateWeightOrFailZIO[R](weight: ZIO[R, Nothing, Double]): ZIO[R, String, Double] =
+  weight.flatMap { w =>
+    if (w >= 0)
+      ZIO.succeed(w)
+    else
+      ZIO.fail(s"negative input: $w")
+  }
+```
+
+We can also use ZIO's combinators that are the moral equivalent to these expressions:
+
+1. **`ZIO.when`/`ZIO#when`**— Instead of `if (p) expression` we can use the `ZIO.when` or `ZIO#when` operator:
+
+```scala mdoc:compile-only
+import zio._
+
+def validateWeightOption(weight: Double): ZIO[Any, Nothing, Option[Double]] =
+  ZIO.when(weight > 0)(ZIO.succeed(weight))
+```
+
+If the predicate is effectful, we can use `ZIO.whenZIO` or `ZIO#whenZIO` operators.
+
+For example, the following function creates a random option of int value:
+
+```scala mdoc:compile-only
+import zio._
+
+def randomIntOption: ZIO[Any, Nothing, Option[Int]] =
+  Random.nextInt.whenZIO(Random.nextBoolean)
+```
+
+Another nice variant of the `when` operator is `ZIO.whenCase` and also the `ZIO.whenCaseZIO`. Using these operators, we can run an effect when our provided effectful `PartialFunction` matches the given raw or effectful input. The important note regarding this operator is that it is safe, so it will do nothing if the value does not match.
+
+Let's try to write a game, which asks users to choose which game to play:
+
+```scala mdoc:compile-only
+def minesweeper(level: String)     = ZIO.attempt(???)
+def ticTacToe                      = ZIO.attempt(???)
+def snake(rows: Int, columns: Int) = ZIO.attempt(???)
+
+def myApp = 
+  ZIO.whenCaseZIO {
+    (Console.print(
+      "Please choose one game (minesweeper, snake, tictactoe)? "
+    ) *> Console.readLine).orDie
+  } {
+    case "minesweeper" =>
+      Console.print(
+        "Please enter the level of the game (easy/hard/medium)?"
+      ) *> Console.readLine.flatMap(minesweeper)
+    case "snake" =>
+      Console.printLine(
+        "Please enter the size of the game: "
+      ) *> Console.readLine.mapAttempt(_.toInt).flatMap(n => snake(n, n))
+    case "tictactoe" => ticTacToe
+  }
+```
+
+2. **`ZIO.unless`/`ZIO#unless`**— These operators are like `when` operators, but they are moral equivalent for the `if (!p) expression` construct.
+
+3. **`ZIO#ifZIO`**— This operator takes an _effectful predicate_, if that predicate is evaluated to true, it will run the `onTrue` effect, otherwise it will run the `onFalse` effect.
+
+Let's try to write a simple virtual flip function:
+
+```scala mdoc:compile-only
+import zio._
+
+def flipTheCoin: ZIO[Any, IOException, Unit] =
+  ZIO.ifZIO(Random.nextBoolean)(
+    onTrue = Console.printLine("Head"),
+    onFalse = Console.printLine("Tail")
+  )
+```
+
+### Loops
+
+In imperative scala code base, sometime we may use `while(condition) { statement }` or `do { statement } while (condition)` structs to perform loops:
+
+```scala mdoc:compile-only
+object MainApp extends scala.App {
+  def printNumbers(from: Int, to: Int): Unit = {
+    var i = from
+    while (i <= to) {
+      println(s"$i")
+      i = i + 1
+    }
+  }
+  
+  printNumbers(1, 3)
+}
+// 1
+// 2
+// 3
+```
+
+But in functional scala, we tend to not use mutable variable. So to have a loop, we would like to use recursions. Let's rewrite the previous example, using recursion:
+
+```scala mdoc:compile-only
+import scala.annotation.tailrec
+
+object MainApp extends scala.App {
+  @tailrec
+  def printNumbers(from: Int, to: Int): Unit = {
+    if (from <= to) {
+      println(s"$from")
+      printNumbers(from + 1, to)
+    } else ()
+  }
+  
+  printNumbers(1, 3)
+}
+// 1
+// 2
+// 3
+```
+
+In this example, we wrote a recursive function that prints numbers from 1 to 3. While the last effort doesn't use a mutable variable, it's not a pure solution. We have a `println` statement inside our solution, calling this function is not pure so the whole solution is not pure. We know that we can model effectful functions using the ZIO effect system. So let's try rewrite that using ZIO:
+
+```scala
+import zio._
+import java.io.IOException
+
+object MainApp extends ZIOAppDefault {
+  def printNumbers(from: Int, to: Int): ZIO[Any, IOException, Unit] = {
+    if (from <= to)
+      Console.printLine(s"$from") *>
+        printNumbers(from + 1, to)
+    else ZIO.unit
+  }
+
+  def run = printNumbers(1, 5)
+}
+```
+
+ZIO provides some loop combinators that help us avoid the need to write explicit recursions. This means that we can do almost anything we want to do without using explicit recursions. Let's rewrite the last solution using `ZIO.loopDiscard`:
+
+```scala
+import zio._
+
+import java.io.IOException
+
+object MainApp extends ZIOAppDefault {
+  def printNumbers(from: Int, to: Int): ZIO[Any, IOException, Unit] = {
+    ZIO.loopDiscard(from)(_ <= to, _ + 1)(i => Console.printLine(i))
+  }
+
+  def run = printNumbers(1, 3)
+}
+```
+
+After this very short introduction to writing loops in functional scala, now let us go deep into ZIO specific combinators for writing loops:
+
+1. **`ZIO.loop`/`ZIO.loopDiscard`**— It takes an initial state, then repeatedly change the state based on the given `inc` function, until the given `cont` function is evaluated to true:
+
+```scala
+object ZIO {
+  def loop[R, E, A, S](
+    initial: => S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, A]): ZIO[R, E, List[A]]
+  
+  def loopDiscard[R, E, S](
+    initial: => S
+  )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any]): ZIO[R, E, Unit]
+```
+
+The `ZIO#loop` collects all intermediate states in a list and returns it finally, while the `loopDiscard` discards all results.
+
+We can think of `ZIO#loop` as a moral equivalent of the following while loop:
+
+```scala
+var s  = initial
+var as = List.empty[A]
+
+while (cont(s)) {
+  as = body(s) :: as
+  s  = inc(s)
+}
+
+as.reverse
+```
+
+Let's try some examples:
+
+```scala mdoc:compile-only
+import zio._
+
+val r1: ZIO[Any, Nothing, List[Int]] =
+  ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n)).debug
+// List(1, 2, 3, 4, 5)
+
+val r2: ZIO[Any, Nothing, List[Int]] =
+  ZIO.loop(1)(_ <= 5, _ + 1)(n => ZIO.succeed(n * 2)).debug
+// List(2, 4, 6, 8, 10)
+
+val r3: ZIO[Any, IOException, List[Unit]] =
+  ZIO.loop(1)(_ <= 5, _ + 1) { index =>
+    Console.printLine(s"Currently at index $index")
+  }.debug
+// Currently at index 1
+// Currently at index 2
+// Currently at index 3
+// Currently at index 4
+// Currently at index 5
+// List((), (), (), (), ())
+
+val r4: ZIO[Any, IOException, Unit] =
+  ZIO.loopDiscard(1)(_ <= 5, _ + 1) { index =>
+    Console.printLine(s"Currently at index $index")
+  }.debug
+// Currently at index 1
+// Currently at index 2
+// Currently at index 3
+// Currently at index 4
+// Currently at index 5
+// ()
+
+val r5: ZIO[Any, IOException, List[String]] =
+  Console.printLine("Please enter three names: ") *>
+    ZIO.loop(1)(_ <= 3, _ + 1) { n =>
+      Console.print(s"$n. ") *> Console.readLine
+    }.debug
+// Please enter three names: 
+// 1. John
+// 2. Jane
+// 3. Joe
+// List(John, Jane, Joe)
+```
+
+2. **`ZIO.iterate`**— To iterate with the given effectful operation we can use this combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
+
+```scala
+object ZIO {
+  def iterate[R, E, S](
+    initial: => S
+  )(cont: S => Boolean)(body: S => ZIO[R, E, S]): ZIO[R, E, S]
+}
+```
+
+This operator is a moral equivalent of the following while loop:
+
+```scala
+var s = initial
+while (cont(s)) {
+  s = body(s)
+}
+s
+```
+
+Let's try some examples:
+
+```scala mdoc:compile-only
+import zio._
+
+val r1 = ZIO.iterate(1)(_ <= 5)(s => ZIO.succeed(s + 1)).debug
+// 6
+
+val r2 = ZIO.iterate(1)(_ <= 5)(s => ZIO.succeed(s * 2).debug).debug("result")
+// 2
+// 4
+// 8
+// result: 8
+```
+
+Here's another example. Assume we want to take many names from the user using the terminal. We don't know how many names the user is going to enter. We can ask the user to write "exit" when all inputs are finished. To write such an application, we can use recursion like below:
+
+```scala mdoc:compile-only
+import zio._
+
+def getNames: ZIO[Any, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *> {
+      def loop(
+          names: List[String]
+      ): ZIO[Any, IOException, List[String]] = {
+        Console.print(s"${names.length + 1}. ") *> Console.readLine
+          .flatMap {
+            case "exit" => ZIO.succeed(names)
+            case name   => loop(names.appended(name))
+          }
+      }
+      loop(List.empty[String])
+    }
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
+```
+
+Instead of manually writing recursions, we can rely on well-tested ZIO combinators. So let's rewrite this application using the `ZIO.iterate` operator:
+
+```scala mdoc:compile-only
+def getNames: ZIO[Any, IOException, List[String]] =
+  Console.print("Please enter all names") *>
+    Console.printLine(" (enter \"exit\" to indicate end of the list):") *>
+    ZIO.iterate((List.empty[String], true))(_._2) { case (names, _) =>
+      Console.print(s"${names.length + 1}. ") *> 
+        Console.readLine.map {
+          case "exit" => (names, false)
+          case name   => (names.appended(name), true)
+        }
+    }
+    .map(_._1)
+    .debug
+// Please enter all names (enter "exit" to indicate end of the list):
+// 1. John
+// 2. Jane
+// 3. Joe
+// 4. exit
+// List(John, Jane, Joe)
+```
+
+Note that, in several cases, we can avoid these low-level operators and instead use the high-level ones. For example, let's try to rewrite the `r5` with `ZIO.foreach`:
+
+```scala mdoc:compile-only
+import zio._
+
+Console.printLine("Please enter three names:") *>
+  ZIO.foreach(1 to 3) { index =>
+    Console.print(s"$index. ") *> Console.readLine
+  }.debug
+// Please enter three names:
+// 1. John
+// 2. Jane
+// 3. Joe
+// Vector(John, Jane, Joe)
+```
+
+### try/catch/finally
+
+When working with resources, just like the scala's `try`/`catch`/`finally` construct, in ZIO we have a similar operator called `acquireRelease` and also `ensuring`. We discussed them in more detail in the [resource management section](#resource-management). But, for now, we want to focus on their control flow behaviors.
+
+Let's learn about the `ZIO.acquireReleaseWith` operator. This operator takes three effects:
+1. **`acquire`** an effect that describes the resource acquisition
+2. **`release`** an effect that describes the release of the resource
+3. **`use`** an effect that describes resource usage
+
+```scala mdoc:compile-only
+ZIO.acquireReleaseWith(acquire = ???)(release = ???)(use = ???)
+```
+
+This operator guarantees us that if the _resource acquisition (acquire)_  the _release_ effect will be executed whether the _use_ effect succeeded or not:
+
+```scala mdoc:compile-only
+import zio._
+
+def wordCount(fileName: String): ZIO[Any, Throwable, Int] = {
+  def openFile(name: => String): ZIO[Any, IOException, Source] =
+    ZIO.attemptBlockingIO(Source.fromFile(name))
+
+  def closeFile(source: => Source): ZIO[Any, Nothing, Unit] =
+    ZIO.succeedBlocking(source.close())
+
+  def wordCount(source: => Source): ZIO[Any, Throwable, Int] =
+    ZIO.attemptBlocking(source.getLines().length)
+
+  ZIO.acquireReleaseWith(openFile(fileName))(closeFile(_))(wordCount(_))
+}
+```
+
+Let's try a simple `acquireRelease` workflow to see how its control flow works:
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  def run =
+    ZIO.acquireReleaseWith {
+      ZIO.succeed("resource").tap(r => ZIO.debug(s"$r acquired"))
+    } { i =>
+      ZIO.debug(s"$i released")
+    } { i =>
+      ZIO.debug(s"start using $i")
+    }
+}
+// Output:
+// resource acquired
+// start using resource
+// resource released
 ```
 
 ## Blocking Operations
@@ -508,7 +913,7 @@ val myApp =
     fiber   <- ZIO.attemptBlockingCancelable(
       effect = service.start()
     )(
-      cancel = UIO.succeed(service.close())
+      cancel = ZIO.succeed(service.close())
     ).fork
     _       <- fiber.interrupt.schedule(
       Schedule.delayed(
@@ -523,7 +928,7 @@ Here is another example of the cancelation of a blocking operation. When we `acc
 ```scala mdoc:silent:nest
 import java.net.{Socket, ServerSocket}
 def accept(ss: ServerSocket): Task[Socket] =
-  ZIO.attemptBlockingCancelable(ss.accept())(UIO.succeed(ss.close()))
+  ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
 ```
 
 ## Mapping
@@ -534,7 +939,7 @@ We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a 
 ```scala mdoc:silent
 import zio.{ UIO, IO }
 
-val mappedValue: UIO[Int] = IO.succeed(21).map(_ * 2)
+val mappedValue: UIO[Int] = ZIO.succeed(21).map(_ * 2)
 ```
 
 ### mapError
@@ -542,7 +947,7 @@ We can transform an `IO[E, A]` into an `IO[E2, A]` by calling the `mapError` met
 
 ```scala mdoc:silent
 val mappedError: IO[Exception, String] = 
-  IO.fail("No no!").mapError(msg => new Exception(msg))
+  ZIO.fail("No no!").mapError(msg => new Exception(msg))
 ```
 
 > _**Note:**_
@@ -565,8 +970,8 @@ val task: RIO[Any, Int] = ZIO.succeed("hello").mapAttempt(_.toInt)
 We can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
 ```scala mdoc:silent
-val chainedActionsValue: UIO[List[Int]] = IO.succeed(List(1, 2, 3)).flatMap { list =>
-  IO.succeed(list.map(_ + 1))
+val chainedActionsValue: UIO[List[Int]] = ZIO.succeed(List(1, 2, 3)).flatMap { list =>
+  ZIO.succeed(list.map(_ + 1))
 }
 ```
 
@@ -644,7 +1049,7 @@ ZIO lets us race multiple effects in parallel, returning the first successful re
 
 ```scala mdoc:silent
 for {
-  winner <- IO.succeed("Hello").race(IO.succeed("Goodbye"))
+  winner <- ZIO.succeed("Hello").race(ZIO.succeed("Goodbye"))
 } yield winner
 ```
 
@@ -655,7 +1060,7 @@ If we want the first success or failure, rather than the first success, then we 
 ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala mdoc:silent
-IO.succeed("Hello").timeout(10.seconds)
+ZIO.succeed("Hello").timeout(10.seconds)
 ```
 
 If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
@@ -673,7 +1078,7 @@ We can surface failures with `ZIO#either`, which takes a `ZIO[R, E, A]` and prod
 
 ```scala mdoc:silent:nest
 val zeither: UIO[Either[String, Int]] = 
-  IO.fail("Uh oh!").either
+  ZIO.fail("Uh oh!").either
 ```
 
 We can submerge failures with `ZIO.absolve`, which is the opposite of `either` and turns a `ZIO[R, Nothing, Either[E, A]]` into a `ZIO[R, E, A]`:
@@ -788,13 +1193,13 @@ In the following example, `foldZIO` is used to handle both failure and success o
 sealed trait Content
 case class NoContent(t: Throwable) extends Content
 case class OkContent(s: String) extends Content
-def readUrls(file: String): Task[List[String]] = IO.succeed("Hello" :: Nil)
-def fetchContent(urls: List[String]): UIO[Content] = IO.succeed(OkContent("Roger"))
+def readUrls(file: String): Task[List[String]] = ZIO.succeed("Hello" :: Nil)
+def fetchContent(urls: List[String]): UIO[Content] = ZIO.succeed(OkContent("Roger"))
 ```
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
-    error   => IO.succeed(NoContent(error)), 
+    error   => ZIO.succeed(NoContent(error)), 
     success => fetchContent(success)
   )
 ```
@@ -851,10 +1256,10 @@ Like `try` / `finally`, the `ensuring` operation guarantees that if an effect be
 
 ```scala mdoc
 val finalizer = 
-  UIO.succeed(println("Finalizing!"))
+  ZIO.succeed(println("Finalizing!"))
 
 val finalized: IO[String, Unit] = 
-  IO.fail("Failed!").ensuring(finalizer)
+  ZIO.fail("Failed!").ensuring(finalizer)
 ```
 
 The finalizer is not allowed to fail, which means that it must handle any errors internally.
@@ -869,9 +1274,9 @@ Here is another example of ensuring that our clean-up action is called before ou
 import zio.Task
 var i: Int = 0
 val action: Task[String] =
-  Task.succeed(i += 1) *>
-    Task.fail(new Throwable("Boom!"))
-val cleanupAction: UIO[Unit] = UIO.succeed(i -= 1)
+  ZIO.succeed(i += 1) *>
+    ZIO.fail(new Throwable("Boom!"))
+val cleanupAction: UIO[Unit] = ZIO.succeed(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
@@ -929,14 +1334,14 @@ import zio.{ UIO, IO }
 ```scala mdoc:invisible
 import java.io.{ File, IOException }
 
-def openFile(s: String): IO[IOException, File] = IO.attempt(???).refineToOrDie[IOException]
-def closeFile(f: File): UIO[Unit] = IO.succeed(???)
-def decodeData(f: File): IO[IOException, Unit] = IO.unit
-def groupData(u: Unit): IO[IOException, Unit] = IO.unit
+def openFile(s: String): IO[IOException, File] = ZIO.attempt(???).refineToOrDie[IOException]
+def closeFile(f: File): UIO[Unit] = ZIO.succeed(???)
+def decodeData(f: File): IO[IOException, Unit] = ZIO.unit
+def groupData(u: Unit): IO[IOException, Unit] = ZIO.unit
 ```
 
 ```scala mdoc:silent
-val groupedFileData: IO[IOException, Unit] = openFile("data.json").acquireReleaseWith(closeFile(_)) { file =>
+val groupedFileData: IO[IOException, Unit] = ZIO.acquireReleaseWith(openFile("data.json"))(closeFile(_)) { file =>
   for {
     data    <- decodeData(file)
     grouped <- groupData(data)
@@ -962,7 +1367,7 @@ object Main extends ZIOAppDefault {
     ZIO.succeed(is.close())
 
   def convertBytes(is: FileInputStream, len: Long) =
-    Task.attempt {
+    ZIO.attempt {
       val buffer = new Array[Byte](len.toInt)
       is.read(buffer)
       println(new String(buffer, StandardCharsets.UTF_8))
@@ -972,7 +1377,7 @@ object Main extends ZIOAppDefault {
   val myAcquireRelease: Task[Unit] = for {
     file   <- ZIO.attempt(new File("/tmp/hello"))
     len    = file.length
-    string <- ZIO.attempt(new FileInputStream(file)).acquireReleaseWith(closeStream)(convertBytes(_, len))
+    string <- ZIO.acquireReleaseWith(ZIO.attempt(new FileInputStream(file)))(closeStream)(convertBytes(_, len))
   } yield string
 }
 ```
@@ -999,8 +1404,8 @@ But in the ZIO version, all the errors will still be reported. So even though we
 Let's write a ZIO version:
 
 ```scala mdoc:silent
-IO.fail("e1")
-  .ensuring(IO.succeed(throw new Exception("e2")))
+ZIO.fail("e1")
+  .ensuring(ZIO.succeed(throw new Exception("e2")))
   .catchAll {
     case "e1" => Console.printLine("e1")
     case "e2" => Console.printLine("e2")

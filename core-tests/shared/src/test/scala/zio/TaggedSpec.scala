@@ -6,7 +6,7 @@ import zio.test._
 
 object TaggedSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Annotations, TestFailure[Any], TestSuccess] = suite("TaggedSpec")(
+  def spec: Spec[Annotations, TestFailure[Any]] = suite("TaggedSpec")(
     test("tags can be derived for polymorphic services") {
       val result = typeCheck {
         """
@@ -18,7 +18,7 @@ object TaggedSpec extends ZIOBaseSpec {
             }
             """
       }
-      assertM(result)(isRight(isUnit))
+      assertZIO(result)(isRight(isUnit))
     } @@ exceptScala3
   )
 }

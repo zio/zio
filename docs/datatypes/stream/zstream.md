@@ -400,7 +400,7 @@ val inputs: ZStream[Any, IOException, String] = ZStream.unfoldZIO(()) { _ =>
 }   
 ```
 
-`ZStream.unfoldChunk`, and `ZStream.unfoldChunkM` are other variants of `unfold` operations but for `Chunk` data type.
+`ZStream.unfoldChunk`, and `ZStream.unfoldChunkZIO` are other variants of `unfold` operations but for `Chunk` data type.
 
 #### Pagination
 
@@ -412,7 +412,7 @@ val stream = ZStream.paginate(0) { s =>
 }
 ```
 
-Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateM`, `ZStream.paginateChunk` and `ZStream.paginateChunkM`.
+Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateZIO`, `ZStream.paginateChunk` and `ZStream.paginateChunkZIO`.
 
 #### Unfolding vs. Pagination
 
@@ -635,7 +635,7 @@ val lines: ZStream[Any, Throwable, String] =
   ZStream
     .acquireReleaseWith(
       ZIO.attempt(Source.fromFile("file.txt")) <* printLine("The file was opened.")
-    )(x => URIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
+    )(x => ZIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
     .flatMap { is =>
       ZStream.fromIterator(is.getLines())
     }
@@ -725,7 +725,7 @@ val s4 = s3.takeRight(3)
 ```scala mdoc:silent
 import zio.stream._
 
-val intStream: UStream[Int] = Stream.fromIterable(0 to 100)
+val intStream: UStream[Int] = ZStream.fromIterable(0 to 100)
 val stringStream: UStream[String] = intStream.map(_.toString)
 ```
 
@@ -736,8 +736,8 @@ If our transformation is effectful, we can use `ZStream#mapZIO` instead.
 Let's write a simple page downloader, which download URLs concurrently:
 
 ```scala mdoc:silent:nest
-def fetchUrl(url: URL): Task[String] = Task.succeed(???)
-def getUrls: Task[List[URL]] = Task.succeed(???)
+def fetchUrl(url: URL): Task[String] = ZIO.succeed(???)
+def getUrls: Task[List[URL]] = ZIO.succeed(???)
 
 val pages = ZStream.fromIterableZIO(getUrls).mapZIOPar(8)(fetchUrl)  
 ```
@@ -755,7 +755,7 @@ val stream = chunked.mapChunks(x => x.tail)
 // Output:    2, 3,    5,    7, 8, 9
 ```
 
-If our transformation is effectful we can use `mapChunkM` combinator.
+If our transformation is effectful we can use `mapChunksZIO` combinator.
 
 **mapAccum** — It is similar to a `map`, but it **transforms elements statefully**. `mapAccum` allows us to _map_ and _accumulate_ in the same operation.
 
@@ -787,9 +787,9 @@ val numbers: UStream[Int] =
 // Output: 1, 2, 3, 4, 5, 6
 ```
 
-The effectful version of `mapConcat` is `mapConcatM`. 
+The effectful version of `mapConcat` is `mapConcatZIO`. 
 
-`ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkM`.
+`ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkZIO`.
 
 **as** — The `ZStream#as` method maps the success values of this stream to the specified constant value.
 
@@ -1068,7 +1068,7 @@ In the example below, left stream consists of even numbers only:
 
 ```scala mdoc:silent:nest
 val partitionResult: ZIO[Scope, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, Nothing, Int])] =
-  Stream
+  ZStream
     .fromIterable(0 to 100)
     .partition(_ % 2 == 0, buffer = 50)
 ```
@@ -1126,7 +1126,7 @@ import zio.stream._
   )
 
   val groupByKeyResult: ZStream[Any, Nothing, (Int, Int)] =
-    Stream
+    ZStream
       .fromIterable(examResults)
       .groupByKey(exam => exam.score / 10 * 10) {
         case (k, s) => ZStream.fromZIO(s.runCollect.map(l => k -> l.size))
@@ -1203,7 +1203,7 @@ To partition the stream results with the specified chunk size, we can use the `g
 
 ```scala mdoc:silent:nest
 val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
-  Stream.fromIterable(0 to 8).grouped(3)
+  ZStream.fromIterable(0 to 8).grouped(3)
 
 // Input:  0, 1, 2, 3, 4, 5, 6, 7, 8
 // Output: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7, 8)
@@ -1218,7 +1218,7 @@ import zio.Duration._
 import zio.stream._
 
 val groupedWithinResult: ZStream[Any, Nothing, Chunk[Int]] =
-  Stream.fromIterable(0 to 10)
+  ZStream.fromIterable(0 to 10)
     .repeat(Schedule.spaced(1.seconds))
     .groupedWithin(30, 10.seconds)
 ```
@@ -1632,7 +1632,7 @@ abstract class ZStream[-R, +E, +O] {
   final def aggregateAsyncWithin[R1 <: R, E1 >: E, E2, A1 >: A, B](
     sink: ZSink[R1, E1, A1, E2, A1, B],
     schedule: Schedule[R1, Option[B], Any]
-  )(implicit trace: ZTraceElement): ZStream[R1, E2, B] = ???
+  )(implicit trace: Trace): ZStream[R1, E2, B] = ???
 }
 ```
 
@@ -1672,7 +1672,7 @@ To schedule the output of a stream we use `ZStream#schedule` combinator.
 Let's space between each emission of the given stream:
 
 ```scala mdoc:silent:nest
-val stream = Stream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
+val stream = ZStream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
 ```
 
 ## Consuming a Stream
@@ -1682,7 +1682,7 @@ import zio._
 import zio.Console._
 import zio.stream._
 
-val result: Task[Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
+val result: Task[Unit] = ZStream.fromIterable(0 to 100).foreach(printLine(_))
 ```
 
 ### Using a Sink
@@ -1690,7 +1690,7 @@ val result: Task[Unit] = Stream.fromIterable(0 to 100).foreach(printLine(_))
 To consume a stream using `ZSink` we can pass `ZSink` to the `ZStream#run` function:
 
 ```scala mdoc:silent
-val sum: UIO[Int] = ZStream(1,2,3).run(Sink.sum)
+val sum: UIO[Int] = ZStream(1,2,3).run(ZSink.sum)
 ```
 
 ### Using fold

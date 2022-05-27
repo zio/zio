@@ -653,7 +653,7 @@ We can find more examples in the `examples` and `test-tests` subproject:
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
 [doc-contextual-types]: ../../contextual/index.md
-[doc-macros]: ../../../howto/howto-macros.md
+[doc-macros]: ../../../guides/howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala
@@ -895,7 +895,7 @@ test("an expectation based on input arguments") {
 }
 ```
 
-### `valueM`
+### `valueZIO`
 
 Expecting a value based on the input arguments and also the result of an effectful operation:
 
@@ -908,7 +908,7 @@ test("effectful expectation") {
   val sut     = UserService.recentUsers(3)
   val mockEnv = MockUserService.RecentUsers(
     Assertion.isPositive,
-    Expectation.valueM(n =>
+    Expectation.valueZIO(n =>
       ZIO.foreach(1 to n) { n =>
         Random
           .nextUUID
@@ -977,7 +977,7 @@ test("failure expectation") {
 }
 ```
 
-There are also `failureF` and `failureM` variants like what we described for `value` expectation.
+There are also `failureF` and `failureZIO` variants like what we described for `value` expectation.
 
 ### `never`
 

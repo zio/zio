@@ -1,19 +1,21 @@
 package zio.test
 
+import zio.internal.macros.StringUtils.StringOps
+
 object PrettyPrintSpec extends ZIOBaseSpec {
 
   def spec = suite("PrettyPrint")(
     test("String") {
-      assertTrue(PrettyPrint("A String") == "\"A String\"")
+      assertTrue(PrettyPrint("A String").unstyled == "\"A String\"")
     },
     test("List") {
-      assertTrue(PrettyPrint(List(1, 2, 3)) == "List(1, 2, 3)")
+      assertTrue(PrettyPrint(List(1, 2, 3)).unstyled == "List(1, 2, 3)")
     },
     test("List of String") {
-      assertTrue(PrettyPrint(List("1", "2", "3")) == "List(\"1\", \"2\", \"3\")")
+      assertTrue(PrettyPrint(List("1", "2", "3")).unstyled == "List(\"1\", \"2\", \"3\")")
     },
     test("Array of String") {
-      assertTrue(PrettyPrint(Array("1", "2", "3")) == "Array(\"1\", \"2\", \"3\")")
+      assertTrue(PrettyPrint(Array("1", "2", "3")).unstyled == "Array(\"1\", \"2\", \"3\")")
     },
     test("Map") {
       val expected = """
@@ -29,7 +31,7 @@ Map(
       assertTrue(
         PrettyPrint(
           Map("name" -> "Biff", "age" -> 123, "inventory" -> Map("food" -> "Cake", "candy" -> "Chocolate"))
-        ) == expected
+        ).unstyled == expected
       )
     },
     test("Case Class") {
@@ -41,9 +43,7 @@ Person(
 )
 """.trim
       assertTrue(
-        PrettyPrint(
-          Person("Glenda", 123)
-        ) == expected
+        PrettyPrint(Person("Glenda", 123)).unstyled == expected
       )
     } @@ TestAspect.exceptScala211 @@ TestAspect.exceptScala212
   )

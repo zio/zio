@@ -52,7 +52,7 @@ final case class LogLevel(ordinal: Int, label: String, syslog: Int)
     self.ordinal > that.ordinal
 
   def apply[R >: Nothing <: Any, E >: Nothing <: Any, A >: Nothing <: Any](zio: ZIO[R, E, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R, E, A] =
     FiberRef.currentLogLevel.locally(self)(zio)
 }

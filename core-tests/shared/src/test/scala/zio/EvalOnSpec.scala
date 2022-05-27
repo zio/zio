@@ -9,7 +9,7 @@ object EvalOnSpec extends ZIOBaseSpec {
       for {
         promise <- Promise.make[Nothing, Int]
         fiber   <- ZIO.succeed(12).forever.fork
-        _       <- fiber.evalOn(promise.succeed(42), UIO.unit)
+        _       <- fiber.evalOn(promise.succeed(42), ZIO.unit)
         v       <- promise.await <* fiber.interrupt
       } yield assertTrue(v == 42)
     } @@ nonFlaky +
@@ -30,7 +30,7 @@ object EvalOnSpec extends ZIOBaseSpec {
         for {
           promise <- Promise.make[Nothing, FiberId]
           fiber   <- ZIO.succeed(12).forever.fork
-          _       <- fiber.evalOn(ZIO.fiberId.intoPromise(promise), UIO.never)
+          _       <- fiber.evalOn(ZIO.fiberId.intoPromise(promise), ZIO.never)
           v       <- promise.await <* fiber.interrupt
         } yield assertTrue((fiber.id: FiberId) == v)
       } @@ nonFlaky +
@@ -39,7 +39,7 @@ object EvalOnSpec extends ZIOBaseSpec {
           ref   <- Ref.make(0)
           fiber <- ZIO.succeed(12).fork
           _     <- fiber.await
-          _     <- fiber.evalOnZIO(UIO.unit, ref.set(42))
+          _     <- fiber.evalOnZIO(ZIO.unit, ref.set(42))
           v     <- ref.get
         } yield assertTrue(v == 42)
       } @@ nonFlaky

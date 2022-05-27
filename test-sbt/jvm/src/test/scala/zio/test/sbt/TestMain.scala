@@ -2,5 +2,5 @@ package zio.test.sbt
 
 object TestMain {
   def main(args: Array[String]): Unit =
-    TestingSupport.run(ZTestFrameworkSpec.tests: _*)
+    TestingSupport.run(ZTestFrameworkSbtSpec.tests: _*)
 }

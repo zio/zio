@@ -32,31 +32,31 @@ abstract class Hub[A] extends Enqueue[A] {
    * Publishes a message to the hub, returning whether the message was published
    * to the hub.
    */
-  def publish(a: A)(implicit trace: ZTraceElement): UIO[Boolean]
+  def publish(a: A)(implicit trace: Trace): UIO[Boolean]
 
   /**
-   * Publishes all of the specified messages to the hub, returning whether they
-   * were published to the hub.
+   * Publishes all of the specified messages to the hub, returning any messages
+   * that were not published to the hub.
    */
-  def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean]
+  def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
 
   /**
    * Subscribes to receive messages from the hub. The resulting subscription can
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]]
+  def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]]
 
-  override final def isEmpty(implicit trace: ZTraceElement): UIO[Boolean] =
+  override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == 0)
 
-  override final def isFull(implicit trace: ZTraceElement): UIO[Boolean] =
+  override final def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == capacity)
 
-  final def offer(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
+  final def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
     publish(a)
 
-  final def offerAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
+  final def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
     publishAll(as)
 }
 
@@ -69,7 +69,7 @@ object Hub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def bounded[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.BackPressure()))
 
   /**
@@ -78,7 +78,7 @@ object Hub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def dropping[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Dropping()))
 
   /**
@@ -87,19 +87,19 @@ object Hub {
    *
    * For best performance use capacities that are powers of two.
    */
-  def sliding[A](requestedCapacity: => Int)(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.bounded[A](requestedCapacity)).flatMap(makeHub(_, Strategy.Sliding()))
 
   /**
    * Creates an unbounded hub.
    */
-  def unbounded[A](implicit trace: ZTraceElement): UIO[Hub[A]] =
+  def unbounded[A](implicit trace: Trace): UIO[Hub[A]] =
     ZIO.succeed(internal.Hub.unbounded[A]).flatMap(makeHub(_, Strategy.Dropping()))
 
   /**
    * Creates a hub with the specified strategy.
    */
-  private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A])(implicit trace: ZTraceElement): UIO[Hub[A]] =
+  private def makeHub[A](hub: internal.Hub[A], strategy: Strategy[A])(implicit trace: Trace): UIO[Hub[A]] =
     Scope.make.flatMap { scope =>
       Promise.make[Nothing, Unit].map { promise =>
         unsafeMakeHub(
@@ -125,13 +125,13 @@ object Hub {
     strategy: Strategy[A]
   ): Hub[A] =
     new Hub[A] {
-      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         shutdownHook.await
       val capacity: Int =
         hub.capacity
-      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
+      def isShutdown(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeed(shutdownFlag.get)
-      def publish(a: A)(implicit trace: ZTraceElement): UIO[Boolean] =
+      def publish(a: A)(implicit trace: Trace): UIO[Boolean] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else if (hub.publish(a)) {
@@ -141,18 +141,21 @@ object Hub {
             strategy.handleSurplus(hub, subscribers, Chunk(a), shutdownFlag)
           }
         }
-      def publishAll(as: Iterable[A])(implicit trace: ZTraceElement): UIO[Boolean] =
+      def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val surplus = unsafePublishAll(hub, as)
             strategy.unsafeCompleteSubscribers(hub, subscribers)
-            if (surplus.isEmpty) ZIO.succeedNow(true)
-            else strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag)
+            if (surplus.isEmpty) ZIO.succeedNow(Chunk.empty)
+            else
+              strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag).map { published =>
+                if (published) Chunk.empty else surplus
+              }
           }
         }
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+      def shutdown(implicit trace: Trace): UIO[Unit] =
+        ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
@@ -160,12 +163,12 @@ object Hub {
             }
             .unit
         }.uninterruptible
-      def size(implicit trace: ZTraceElement): UIO[Int] =
+      def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else ZIO.succeedNow(hub.size())
         }
-      def subscribe(implicit trace: ZTraceElement): ZIO[Scope, Nothing, Dequeue[A]] =
+      def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]] =
         ZIO.acquireRelease {
           makeSubscription(hub, subscribers, strategy).tap { dequeue =>
             scope.addFinalizer(dequeue.shutdown)
@@ -182,7 +185,7 @@ object Hub {
     hub: internal.Hub[A],
     subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     strategy: Strategy[A]
-  )(implicit trace: ZTraceElement): UIO[Dequeue[A]] =
+  )(implicit trace: Trace): UIO[Dequeue[A]] =
     Promise.make[Nothing, Unit].map { promise =>
       unsafeMakeSubscription(
         hub,
@@ -208,18 +211,18 @@ object Hub {
     strategy: Strategy[A]
   ): Dequeue[A] =
     new Dequeue[A] { self =>
-      def awaitShutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         shutdownHook.await
       val capacity: Int =
         hub.capacity
-      def isShutdown(implicit trace: ZTraceElement): UIO[Boolean] =
+      def isShutdown(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeed(shutdownFlag.get)
-      def offer(a: Nothing)(implicit trace: ZTraceElement): UIO[Boolean] =
+      def offer(a: Nothing)(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeedNow(false)
-      def offerAll(as: Iterable[Nothing])(implicit trace: ZTraceElement): UIO[Boolean] =
-        ZIO.succeedNow(false)
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+      def offerAll[A1 <: Nothing](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
+        ZIO.succeedNow(Chunk.fromIterable(as))
+      def shutdown(implicit trace: Trace): UIO[Unit] =
+        ZIO.fiberIdWith { fiberId =>
           shutdownFlag.set(true)
           ZIO
             .whenZIO(shutdownHook.succeed(())) {
@@ -229,13 +232,13 @@ object Hub {
             }
             .unit
         }.uninterruptible
-      def size(implicit trace: ZTraceElement): UIO[Int] =
+      def size(implicit trace: Trace): UIO[Int] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else ZIO.succeedNow(subscription.size())
         }
-      def take(implicit trace: ZTraceElement): UIO[A] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+      def take(implicit trace: Trace): UIO[A] =
+        ZIO.fiberIdWith { fiberId =>
           if (shutdownFlag.get) ZIO.interrupt
           else {
             val empty   = null.asInstanceOf[A]
@@ -255,7 +258,7 @@ object Hub {
             }
           }
         }
-      def takeAll(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
+      def takeAll(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
@@ -264,7 +267,7 @@ object Hub {
             ZIO.succeedNow(as)
           }
         }
-      def takeUpTo(max: Int)(implicit trace: ZTraceElement): ZIO[Any, Nothing, Chunk[A]] =
+      def takeUpTo(max: Int)(implicit trace: Trace): ZIO[Any, Nothing, Chunk[A]] =
         ZIO.suspendSucceed {
           if (shutdownFlag.get) ZIO.interrupt
           else {
@@ -290,12 +293,12 @@ object Hub {
       subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
       as: Iterable[A],
       isShutdown: AtomicBoolean
-    )(implicit trace: ZTraceElement): UIO[Boolean]
+    )(implicit trace: Trace): UIO[Boolean]
 
     /**
      * Describes any finalization logic associated with this strategy.
      */
-    def shutdown(implicit trace: ZTraceElement): UIO[Unit]
+    def shutdown(implicit trace: Trace): UIO[Unit]
 
     /**
      * Describes how subscribers should signal to publishers waiting for space
@@ -373,8 +376,8 @@ object Hub {
         subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutDown: AtomicBoolean
-      )(implicit trace: ZTraceElement): UIO[Boolean] =
-        ZIO.suspendSucceedWith { (_, fiberId) =>
+      )(implicit trace: Trace): UIO[Boolean] =
+        ZIO.fiberIdWith { fiberId =>
           val promise = Promise.unsafeMake[Nothing, Boolean](fiberId)
           ZIO.suspendSucceed {
             unsafeOffer(as, promise)
@@ -384,7 +387,7 @@ object Hub {
           }.onInterrupt(ZIO.succeed(unsafeRemove(promise)))
         }
 
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      def shutdown(implicit trace: Trace): UIO[Unit] =
         for {
           fiberId    <- ZIO.fiberId
           publishers <- ZIO.succeed(unsafePollAll(publishers))
@@ -449,10 +452,10 @@ object Hub {
         subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
-      )(implicit trace: ZTraceElement): UIO[Boolean] =
+      )(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeedNow(false)
 
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
 
       def unsafeOnHubEmptySpace(
@@ -476,7 +479,7 @@ object Hub {
         subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
-      )(implicit trace: ZTraceElement): UIO[Boolean] = {
+      )(implicit trace: Trace): UIO[Boolean] = {
         def unsafeSlidingPublish(as: Iterable[A]): Unit =
           if (as.nonEmpty && hub.capacity > 0) {
             val iterator = as.iterator
@@ -500,7 +503,7 @@ object Hub {
         }
       }
 
-      def shutdown(implicit trace: ZTraceElement): UIO[Unit] =
+      def shutdown(implicit trace: Trace): UIO[Unit] =
         ZIO.unit
 
       def unsafeOnHubEmptySpace(
@@ -544,7 +547,7 @@ object Hub {
   /**
    * Unsafely publishes the specified values to a hub.
    */
-  private def unsafePublishAll[A](hub: internal.Hub[A], as: Iterable[A]): Chunk[A] =
+  private def unsafePublishAll[A, B <: A](hub: internal.Hub[A], as: Iterable[B]): Chunk[B] =
     hub.publishAll(as)
 
   /**

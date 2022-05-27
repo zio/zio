@@ -26,9 +26,9 @@ class BubbleSortBenchmark {
 
     unsafeRun(
       for {
-        array <- IO.succeed[Array[Int]](createTestArray)
+        array <- ZIO.succeed[Array[Int]](createTestArray)
         _     <- bubbleSort[Int](_ <= _)(array)
-        _     <- IO.succeed[Unit](assertSorted(array))
+        _     <- ZIO.succeed[Unit](assertSorted(array))
       } yield ()
     )
   }

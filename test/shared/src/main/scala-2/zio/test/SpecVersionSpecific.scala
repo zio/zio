@@ -1,15 +1,17 @@
 package zio.test
 
-import zio.ZLayer
+import zio.{EnvironmentTag, Tag, Trace, ZLayer}
 import zio.internal.macros.LayerMacros
 
-private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
+private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
+
+  type ZSpec[-R, +E, +T] = Spec[R, E]
 
   /**
    * Automatically assembles a layer for the spec, translating it up a level.
    */
-  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    macro LayerMacros.provideImpl[Spec, R, E1, T]
+  def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZSpec[Any, E1, TestSuccess] =
+    macro LayerMacros.provideImpl[ZSpec, R, E1, TestSuccess]
 
   /**
    * Automatically constructs the part of the environment that is not part of
@@ -29,8 +31,8 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *   spec.provideCustom(userRepoLayer, databaseLayer)
    * }}}
    */
-  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    macro LayerMacros.provideCustomImpl[Spec, TestEnvironment, R, E1, T]
+  def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZSpec[TestEnvironment, E1, TestSuccess] =
+    macro LayerMacros.provideCustomImpl[ZSpec, TestEnvironment, R, E1, TestSuccess]
 
   /**
    * Splits the environment into two parts, providing each test with one part
@@ -43,15 +45,15 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * val spec2: ZSpec[Random, Nothing] = spec.provideSome[Random](clockLayer)
    * }}}
    */
-  def provideSome[R0]: provideSomePartiallyApplied[R0, R, E, T] =
-    new provideSomePartiallyApplied[R0, R, E, T](self)
+  def provideSome[R0]: ProvideSomePartiallyApplied[R0, R, E] =
+    new ProvideSomePartiallyApplied[R0, R, E](self)
 
   /**
    * Automatically assembles a layer for the spec, sharing services between all
    * tests.
    */
-  def provideShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[Any, E1, T] =
-    macro SpecLayerMacros.provideSharedImpl[R, E1, T]
+  def provideShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
+    macro SpecLayerMacros.provideSharedImpl[R, E1]
 
   /**
    * Automatically constructs the part of the environment that is not part of
@@ -72,8 +74,8 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    *   spec.provideCustomShared(userRepoLayer, databaseLayer)
    * }}}
    */
-  def provideCustomShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1, T] =
-    macro SpecLayerMacros.provideCustomSharedImpl[R, E1, T]
+  def provideCustomShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1] =
+    macro SpecLayerMacros.provideCustomSharedImpl[R, E1]
 
   /**
    * Splits the environment into two parts, providing all tests with a shared
@@ -87,28 +89,27 @@ private[test] trait SpecVersionSpecific[-R, +E, +T] { self: Spec[R, E, T] =>
    * val spec2 = spec.provideSomeShared[Random](intLayer)
    * }}}
    */
-  final def provideSomeShared[R0]: provideSomeSharedPartiallyApplied[R0, R, E, T] =
-    new provideSomeSharedPartiallyApplied[R0, R, E, T](self)
+  final def provideSomeShared[R0]: ProvideSomeSharedPartiallyApplied[R0, R, E] =
+    new ProvideSomeSharedPartiallyApplied[R0, R, E](self)
 }
 
-private final class provideSomePartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
+final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+
+  type ZSpec[-R, +E, +T] = Spec[R, E]
 
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]
-  ): Spec[R0, E1, T] =
+  ): Spec[R0, E1] =
     self.provideLayer(layer)
 
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
-    macro LayerMacros.provideSomeImpl[Spec, R0, R, E1, T]
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZSpec[R0, E1, TestSuccess] =
+    macro LayerMacros.provideSomeImpl[ZSpec, R0, R, E1, TestSuccess]
 }
 
-private final class provideSomeSharedPartiallyApplied[R0, -R, +E, +T](val self: Spec[R, E, T]) extends AnyVal {
+final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+  def provideSomeLayerShared: Spec.ProvideSomeLayerShared[R0, R, E] =
+    new Spec.ProvideSomeLayerShared[R0, R, E](self)
 
-  def provideLayerShared[E1 >: E](
-    layer: ZLayer[R0, E1, R]
-  ): Spec[R0, E1, T] =
-    self.provideLayerShared(layer)
-
-  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1, T] =
-    macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1, T]
+  def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
+    macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]
 }

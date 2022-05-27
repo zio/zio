@@ -27,20 +27,12 @@ object ExecutionEventSink {
       override def process(
         event: ExecutionEvent
       ): ZIO[Any, Nothing, Unit] =
-        event match {
-          case testEvent: ExecutionEvent.Test[_] =>
-            summary.update(
-              _.add(testEvent)
-            ) *>
-              testOutput.print(
-                testEvent
-              )
-
-          case otherEvents =>
-            testOutput.print(
-              otherEvents
-            )
-        }
+        summary.update(
+          _.add(event)
+        ) *>
+          testOutput.print(
+            event
+          )
 
       override def getSummary: UIO[Summary] = summary.get
 

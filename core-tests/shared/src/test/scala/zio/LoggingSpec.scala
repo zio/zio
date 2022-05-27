@@ -1,11 +1,10 @@
 package zio
 
-import zio.ZIOAspect.disableLogging
 import zio.test._
 
 object LoggingSpec extends ZIOBaseSpec {
 
-  def spec: ZSpec[Any, Any] =
+  def spec: Spec[Any, Any] =
     suite("LoggingSpec")(
       test("simple log message") {
         for {
@@ -53,12 +52,6 @@ object LoggingSpec extends ZIOBaseSpec {
           _      <- ZIO.debug(output(0).call(ZLogger.default))
         } yield assertTrue(true)
       },
-      test("none") {
-        for {
-          _      <- ZIO.log("It's alive!") @@ disableLogging
-          output <- ZTestLogger.logOutput
-        } yield assertTrue(output.length == 0)
-      },
       test("log annotations") {
         val key   = "key"
         val value = "value"
@@ -67,6 +60,17 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- ZTestLogger.logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).annotations(key) == value)
+      },
+      test("context capture") {
+        val value = "value"
+        ZIO.scoped(
+          for {
+            ref    <- FiberRef.make(value)
+            _      <- ZIO.log("It's alive!")
+            output <- ZTestLogger.logOutput
+          } yield assertTrue(output.length == 1) &&
+            assertTrue(output(0).context.get(ref).contains(value))
+        )
       }
     )
 }

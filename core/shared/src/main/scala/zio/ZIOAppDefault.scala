@@ -40,9 +40,9 @@ trait ZIOAppDefault extends ZIOApp {
 
   type Environment = Any
 
-  val layer: ZLayer[ZIOAppArgs with Scope, Any, Any] = ZLayer.empty
+  val bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Any] = ZLayer.empty
 
-  val tag: EnvironmentTag[Any] = EnvironmentTag[Any]
+  val environmentTag: EnvironmentTag[Any] = EnvironmentTag[Any]
 
 }
 
@@ -53,12 +53,10 @@ object ZIOAppDefault {
    * of the program, as well as a hook into the ZIO runtime configuration.
    */
   def apply(
-    run0: ZIO[ZIOAppArgs, Any, Any],
-    hook0: RuntimeConfigAspect
+    run0: ZIO[ZIOAppArgs, Any, Any]
   ): ZIOAppDefault =
     new ZIOAppDefault {
-      override def hook = hook0
-      def run           = run0
+      def run = run0
     }
 
   /**
@@ -66,5 +64,5 @@ object ZIOAppDefault {
    * runtime's configuration.
    */
   def fromZIO(run0: ZIO[ZIOAppArgs, Any, Any]): ZIOAppDefault =
-    ZIOAppDefault(run0, RuntimeConfigAspect.identity)
+    ZIOAppDefault(run0)
 }

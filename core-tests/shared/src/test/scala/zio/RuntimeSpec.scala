@@ -20,18 +20,18 @@ object RuntimeSpec extends ZIOBaseSpec {
 
   def buz =
     for {
-      _ <- UIO.async[Any, Nothing, Int](k => k(ZIO.succeed(42)))
+      _ <- ZIO.async[Any, Nothing, Int](k => k(ZIO.succeed(42)))
       a <- bar
     } yield a
 
   def traceOf(exit: Exit[Any, Any]): Chunk[String] =
-    exit.fold[ZTrace](_.trace, _ => ZTrace.none).stackTrace.map(_.toString)
+    exit.fold[StackTrace](_.trace, _ => StackTrace.none).stackTrace.map(_.toString)
 
   def fastPath[E, A](zio: ZIO[Any, E, A]): Exit[E, A] =
     r.unsafeRunSyncFast(zio)
 
   def slowPath[E, A](zio: ZIO[Any, E, A]): Task[Exit[E, A]] =
-    Task.attemptBlocking(r.defaultUnsafeRunSync(zio))
+    ZIO.attemptBlocking(r.defaultUnsafeRunSync(zio))
 
   def spec = suite("RuntimeSpec") {
     suite("primitives") {

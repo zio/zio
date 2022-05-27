@@ -17,8 +17,8 @@ case object Analyzed extends Analysis
 
 val data: String = "tut"
 
-def analyzeData[A](data: A): UIO[Analysis] = IO.succeed(Analyzed)
-def validateData[A](data: A): UIO[Boolean] = IO.succeed(true)
+def analyzeData[A](data: A): UIO[Analysis] = ZIO.succeed(Analyzed)
+def validateData[A](data: A): UIO[Boolean] = ZIO.succeed(true)
 ```
 
 ```scala mdoc:silent
@@ -29,7 +29,7 @@ val analyzed =
     // Do other stuff
     valid    <- fiber2.join
     _        <- if (!valid) fiber1.interrupt
-                else IO.unit
+                else ZIO.unit
     analyzed <- fiber1.join
   } yield analyzed
 ```
@@ -58,7 +58,7 @@ for {
 
 The `ZIO#forkDaemon` forks the effect into a new fiber **attached to the global scope**. Because the new fiber is attached to the global scope, when the fiber executing the returned effect terminates, the forked fiber will continue running.
 
-In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `inner` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
+In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `outer` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
 
 ```scala mdoc:silent:nest
 val inner = printLine("Inner job is running.")
@@ -74,7 +74,7 @@ val outer = (
   } yield ()
 ).onInterrupt(printLine("Outer job interrupted.").orDie)
 
-val myApp = for {
+val mainApp = for {
   fiber <- outer.fork
   _     <- fiber.interrupt.delay(3.seconds)
   _     <- ZIO.never
@@ -108,8 +108,8 @@ To execute actions in parallel, the `zipPar` method can be used:
 
 ```scala mdoc:invisible
 case class Matrix()
-def computeInverse(m: Matrix): UIO[Matrix] = IO.succeed(m)
-def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = IO.succeed(m1)
+def computeInverse(m: Matrix): UIO[Matrix] = ZIO.succeed(m)
+def applyMatrices(m1: Matrix, m2: Matrix, m3: Matrix): UIO[Matrix] = ZIO.succeed(m1)
 ```
 
 ```scala mdoc:silent
@@ -140,7 +140,7 @@ On the JVM, fibers will use threads, but will not consume *unlimited* threads. I
 ```scala mdoc:silent
 def fib(n: Int): UIO[Int] =
   if (n <= 1) {
-    IO.succeed(1)
+    ZIO.succeed(1)
   } else {
     for {
       fiber1 <- fib(n - 2).fork
@@ -157,7 +157,7 @@ The `ZIO` error model is simple, consistent, permits both typed errors and termi
 A `ZIO[R, E, A]` value may only raise errors of type `E`. These errors are recoverable by using the `either` method.  The resulting effect cannot fail, because the failure case has been exposed as part of the `Either` success case.  
 
 ```scala mdoc:silent
-val error: Task[String] = IO.fail(new RuntimeException("Some Error"))
+val error: Task[String] = ZIO.fail(new RuntimeException("Some Error"))
 val errorEither: ZIO[Any, Nothing, Either[Throwable, String]] = error.either
 ```
 

@@ -64,32 +64,6 @@ object BuildHelper {
       buildInfoPackage := packageName
     )
 
-  val dottySettings = Seq(
-    crossScalaVersions += Scala3,
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3)
-        Seq("-noindent")
-      else
-        Seq()
-    },
-    Compile / doc / sources := {
-      val old = (Compile / doc / sources).value
-      if (scalaVersion.value == Scala3) {
-        Nil
-      } else {
-        old
-      }
-    },
-    Test / parallelExecution := {
-      val old = (Test / parallelExecution).value
-      if (scalaVersion.value == Scala3) {
-        false
-      } else {
-        old
-      }
-    }
-  )
-
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
   val replSettings = makeReplSettings {
     """|import zio._
@@ -131,7 +105,8 @@ object BuildHelper {
       case Some((3, _)) =>
         Seq(
           "-language:implicitConversions",
-          "-Xignore-scala2-macros"
+          "-Xignore-scala2-macros",
+          "-noindent"
         )
       case Some((2, 13)) =>
         Seq(
@@ -218,6 +193,12 @@ object BuildHelper {
     crossScalaVersions       := Seq(Scala211, Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
     scalacOptions ++= stdOptions ++ extraOptions(scalaVersion.value, optimize = !isSnapshot.value),
+    scalacOptions --= {
+      if (scalaVersion.value == Scala3)
+        List("-Xfatal-warnings")
+      else
+        List()
+    },
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3)
         Seq(
@@ -229,12 +210,18 @@ object BuildHelper {
           compilerPlugin("com.github.ghik" % "silencer-plugin" % SilencerVersion cross CrossVersion.full)
         )
     },
-    Test / parallelExecution := true,
+    Test / parallelExecution := { scalaVersion.value != Scala3 },
     incOptions ~= (_.withLogRecompileOnMacro(false)),
     // autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
     Compile / fork := true,
-    Test / fork    := false
+    Test / fork    := false,
+    // For compatibility with Java 9+ module system;
+    // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
+    Compile / packageBin / packageOptions +=
+      Package.ManifestAttributes(
+        "Automatic-Module-Name" -> s"${organization.value}.$prjName".replaceAll("-", ".")
+      )
   )
 
   def macroExpansionSettings = Seq(

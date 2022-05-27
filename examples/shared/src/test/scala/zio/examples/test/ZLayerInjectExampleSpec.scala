@@ -12,19 +12,19 @@
 //      Console.printLine(s"There was an old who lady swallowed:\n- ${contents.mkString("\n- ")}").orDie
 //    }
 //
-//  def spec: ZSpec[Environment, Failure] =
+//  def spec: Spec[Environment, Failure] =
 //    suite("AutoLayerExampleSpec")(
 //      test("inject") {
-//        assertM(exampleZio)(anything)
+//        assertZIO(exampleZio)(anything)
 //      }.provide(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
 //      test("provideCustom") {
-//        assertM(exampleZio)(anything)
+//        assertZIO(exampleZio)(anything)
 //      }.provideCustom(OldLady.live, Spider.live, Fly.live, Bear.live),
 //      test("injectShared") {
-//        assertM(exampleZio)(anything)
+//        assertZIO(exampleZio)(anything)
 //      }.provideShared(Console.live, OldLady.live, Spider.live, Fly.live, Bear.live),
 //      test("provideCustomShared") {
-//        assertM(exampleZio)(anything)
+//        assertZIO(exampleZio)(anything)
 //      }.provideCustomShared(OldLady.live, Spider.live, Fly.live, Bear.live)
 //    )
 //}

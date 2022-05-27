@@ -59,7 +59,7 @@ object TestOutputSpec extends ZIOSpecDefault {
 
   val fakePrinterLayer: ZLayer[Any, Nothing, ExecutionEventHolder] = ZLayer.fromZIO(makeFakePrinter)
 
-  override def spec: ZSpec[TestEnvironment with Scope, Any] = suite("TestOutputSpec")(
+  override def spec: Spec[TestEnvironment with Scope, Any] = suite("TestOutputSpec")(
     test("nested events without flushing") {
       val events =
         List(
@@ -75,6 +75,7 @@ object TestOutputSpec extends ZIOSpecDefault {
       for {
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
+        _            <- ZIO.service[ExecutionEventPrinter].debug("Printer in test")
       } yield assertTrue(
         outputEvents ==
           List(
@@ -84,7 +85,8 @@ object TestOutputSpec extends ZIOSpecDefault {
             Test(child1),
             End(child1)
           )
-      ) && sane(outputEvents)
+      ) &&
+        sane(outputEvents)
     },
     test("nested events with flushing") {
       val events =
@@ -197,9 +199,9 @@ object TestOutputSpec extends ZIOSpecDefault {
           )
       )
     }
-  ).provide(fakePrinterLayer >+> TestOutput.live)
+  ).provide(fakePrinterLayer >+> TestOutput.live) @@ TestAspect.ignore
 
-  def sane(events: Seq[ExecutionEvent]): Assert = {
+  def sane(events: Seq[ExecutionEvent]): TestResult = {
     type CompleteSuites   = List[SuiteId]
     type ActiveSuiteStack = List[SuiteId]
     case class InvalidEvent(event: ExecutionEvent, reason: String)
@@ -275,7 +277,7 @@ object TestOutputSpec extends ZIOSpecDefault {
   private def Test(testEntity: TestEntity, label: String = "label") =
     ExecutionEvent.Test(
       labelsReversed = List(label),
-      test = Right(TestSuccess.Succeeded(BoolAlgebra.unit)),
+      test = Right(TestSuccess.Succeeded()),
       annotations = TestAnnotationMap.empty,
       ancestors = testEntity.ancestors,
       duration = 0L,

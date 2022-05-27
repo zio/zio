@@ -16,11 +16,14 @@
 
 package zio.test
 
+import zio.Clock.ClockLive
 import zio._
 import zio.internal.Platform
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.TestRenderer
+
+import java.util.concurrent.TimeUnit
 
 /**
  * A `TestRunner[R, E]` encapsulates all the logic necessary to run specs that
@@ -29,53 +32,51 @@ import zio.test.render.TestRenderer
  */
 final case class TestRunner[R, E](
   executor: TestExecutor[R, E],
-  runtimeConfig: RuntimeConfig = RuntimeConfig.makeDefault(),
-  reporter: TestReporter[E] =
-    DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(ZTraceElement.empty),
+  reporter: TestReporter[E] = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)(Trace.empty),
   bootstrap: Layer[Nothing, TestLogger with ExecutionEventSink] = {
-    implicit val emptyTracer = ZTraceElement.empty
+    implicit val emptyTracer = Trace.empty
     val printerLayer =
-      Console.live.to(TestLogger.fromConsole)
+      TestLogger.fromConsole(Console.ConsoleLive)
 
-    val sinkLayer = ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
-
-    Clock.live ++ (printerLayer >+> sinkLayer) ++ Random.live
+    printerLayer >+> sinkLayer(Console.ConsoleLive)
   }
 ) { self =>
 
-  lazy val runtime: Runtime[Any] = Runtime(ZEnvironment.empty, runtimeConfig)
+  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.
    */
   def run(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): UIO[
     Summary
   ] =
-    executor.run(spec, ExecutionStrategy.ParallelN(4)).timed.flatMap { case (duration, summary) =>
-      // TODO Why is duration 0 here? Resolve for #6482
-      ZIO.succeed(summary)
-    }
+    for {
+      start    <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
+      summary  <- executor.run(spec, ExecutionStrategy.ParallelN(4))
+      finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
+      duration  = Duration.fromMillis(finished - start)
+    } yield summary.copy(duration = duration)
 
   /**
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRun(
-    spec: ZSpec[R, E]
-  )(implicit trace: ZTraceElement): Unit =
+    spec: Spec[R, E]
+  )(implicit trace: Trace): Unit =
     runtime.unsafeRun(run(spec).provideLayer(bootstrap))
 
   /**
    * An unsafe, asynchronous run of the specified spec.
    */
   def unsafeRunAsync(
-    spec: ZSpec[R, E]
+    spec: Spec[R, E]
   )(
     k: => Unit
-  )(implicit trace: ZTraceElement): Unit =
+  )(implicit trace: Trace): Unit =
     runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
       case Exit.Success(v) => k
       case Exit.Failure(c) => throw FiberFailure(c)
@@ -85,8 +86,8 @@ final case class TestRunner[R, E](
    * An unsafe, synchronous run of the specified spec.
    */
   def unsafeRunSync(
-    spec: ZSpec[R, E]
-  )(implicit trace: ZTraceElement): Exit[Nothing, Unit] =
+    spec: Spec[R, E]
+  )(implicit trace: Trace): Exit[Nothing, Unit] =
     runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
 
   /**
@@ -95,14 +96,8 @@ final case class TestRunner[R, E](
   def withReporter[E1 >: E](reporter: TestReporter[E1]): TestRunner[R, E] =
     copy(reporter = reporter)
 
-  /**
-   * Creates a copy of this runner replacing the runtime configuration.
-   */
-  def withRuntimeConfig(f: RuntimeConfig => RuntimeConfig): TestRunner[R, E] =
-    copy(runtimeConfig = f(runtimeConfig))
-
   private[test] def buildRuntime(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[Scope, Nothing, Runtime[TestLogger]] =
-    bootstrap.toRuntime(runtimeConfig)
+    bootstrap.toRuntime
 }

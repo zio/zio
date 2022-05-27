@@ -1,13 +1,13 @@
 package zio.test.magnolia
 
 import zio.test._
-import zio.test.magnolia.diff._
+import DeriveDiff.gen
 
 import java.time.Instant
 
 object DeriveDiffSpec extends ZIOSpecDefault {
   final case class Pet(name: String, hasBone: Boolean, favoriteFoods: List[String], birthday: Instant)
-  final case class Person(name: String, nickname: Option[String], age: Int, pet: Pet)
+  final case class Person(name: String, nickname: Option[String], age: Int, pet: Pet, person: Option[Person] = None)
 
   sealed trait Color
 
@@ -17,7 +17,7 @@ object DeriveDiffSpec extends ZIOSpecDefault {
     final case class Green(isCool: Boolean)                                 extends Color
   }
 
-  def spec: Spec[Any, TestFailure[Any], TestSuccess] = suite("DeriveDiffSpec")(
+  def spec: Spec[Any, TestFailure[Any]] = suite("DeriveDiffSpec")(
     suite("derivation")(
       test("case classes can be derived") {
         val l1 = List("Alpha", "This is a wonderful \"way\" to dance and party", "Potato")
@@ -35,6 +35,7 @@ object DeriveDiffSpec extends ZIOSpecDefault {
           300,
           Pet("The Beautiful Destroyer", false, l2, Instant.now)
         )
+
         assertTrue(p1 == p2)
       } @@ TestAspect.failing,
       test("sealed traits can be derived") {

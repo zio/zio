@@ -3,13 +3,12 @@ package zio.autowire
 import zio._
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion.{equalTo, isLeft}
-import zio.test.AssertionM.Render.param
 import zio.test._
 
 object AutoWireSpec extends ZIOBaseSpec {
 
   def containsStringWithoutAnsi(element: String): Assertion[String] =
-    Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
+    Assertion.assertion("containsStringWithoutAnsi")(_.unstyled.contains(element))
 
   def spec =
     suite("AutoWireSpec")(
@@ -34,7 +33,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           },
           test("automatically memoizes non-val layers") {
             def sideEffectingLayer(ref: Ref[Int]): ZLayer[Any, Nothing, String] =
-              ref.update(_ + 1).as("Howdy").toLayer
+              ZLayer(ref.update(_ + 1).as("Howdy"))
 
             val layerA: URLayer[String, Int]     = ZLayer.succeed(1)
             val layerB: URLayer[String, Boolean] = ZLayer.succeed(true)
@@ -49,7 +48,7 @@ object AutoWireSpec extends ZIOBaseSpec {
           test("reports duplicate layers") {
             val checked =
               typeCheck("ZIO.service[Int].provide(ZLayer.succeed(12), ZLayer.succeed(13))")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("Ambiguous layers!") &&
                   containsStringWithoutAnsi("ZLayer.succeed(12)") &&
@@ -62,14 +61,14 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                                      = program
 
             val checked = typeCheck("program.provide(ZLayer.succeed(3))")
-            assertM(checked)(isLeft(containsStringWithoutAnsi("String")))
+            assertZIO(checked)(isLeft(containsStringWithoutAnsi("String")))
           } @@ TestAspect.exceptScala3,
           test("reports multiple missing top-level layers") {
             val program: URIO[String with Int, String] = ZIO.succeed("test")
             val _                                      = program
 
             val checked = typeCheck("program.provide()")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
             )
           } @@ TestAspect.exceptScala3,
@@ -79,7 +78,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                               = program
 
             val checked = typeCheck("program.provide(OldLady.live)")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("zio.autowire.AutoWireSpec.TestLayer.Fly") &&
                   containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
@@ -92,7 +91,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                               = program
 
             val checked = typeCheck("program.provide(OldLady.live, Fly.live)")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("zio.autowire.AutoWireSpec.TestLayer.Spider") &&
                   containsStringWithoutAnsi("Required by TestLayer.Fly.live")
@@ -105,7 +104,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _                               = program
 
             val checked = typeCheck("program.provide(OldLady.live, Fly.manEatingFly)")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("TestLayer.Fly.manEatingFly") &&
                   containsStringWithoutAnsi("OldLady.live") &&
@@ -121,14 +120,16 @@ object AutoWireSpec extends ZIOBaseSpec {
             val doubleLayer = ZLayer.succeed(100.1)
             val stringLayer: ULayer[String] =
               ZLayer.succeed("this string is 28 chars long")
-            val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
-              str.length + double.toInt
-            }.toLayer
+            val intLayer = ZLayer {
+              (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
+                str.length + double.toInt
+              }
+            }
 
             val layer =
               ZLayer.make[Int](intLayer, stringLayer, doubleLayer)
             val provided = ZIO.service[Int].provideLayer(layer)
-            assertM(provided)(equalTo(128))
+            assertZIO(provided)(equalTo(128))
           },
           test("correctly decomposes nested, aliased intersection types") {
             type StringAlias           = String
@@ -138,7 +139,7 @@ object AutoWireSpec extends ZIOBaseSpec {
             val _ = ZIO.environment[FinalAlias]
 
             val checked = typeCheck("ZLayer.make[FinalAlias]()")
-            assertM(checked)(
+            assertZIO(checked)(
               isLeft(
                 containsStringWithoutAnsi("Int") &&
                   containsStringWithoutAnsi("String") &&
@@ -151,9 +152,11 @@ object AutoWireSpec extends ZIOBaseSpec {
         suite("`ZLayer.makeSome`")(
           test("automatically constructs a layer, leaving off some remainder") {
             val stringLayer = ZLayer.succeed("this string is 28 chars long")
-            val intLayer = (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
-              str.length + double.toInt
-            }.toLayer
+            val intLayer = ZLayer {
+              (ZIO.service[String] <*> ZIO.service[Double]).map { case (str, double) =>
+                str.length + double.toInt
+              }
+            }
             val program = ZIO.service[Int]
 
             val layer =
@@ -162,7 +165,7 @@ object AutoWireSpec extends ZIOBaseSpec {
               program.provideLayer(
                 ZLayer.succeed(true) ++ ZLayer.succeed(100.1) >>> layer
               )
-            assertM(provided)(equalTo(128))
+            assertZIO(provided)(equalTo(128))
           }
         )
       )

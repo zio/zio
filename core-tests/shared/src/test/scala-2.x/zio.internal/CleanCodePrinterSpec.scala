@@ -6,14 +6,14 @@ import zio.internal.CleanCodePrinterSpec.A.B.C
 import zio.internal.macros.MacroUnitTestUtils.showTree
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.Assertion._
-import zio.test.AssertionM.Render.param
+import .Render.param
 import zio.test._
 
 object CleanCodePrinterSpec extends ZIOBaseSpec {
   def containsStringWithoutAnsi(element: String): Assertion[String] =
     Assertion.assertion("containsStringWithoutAnsi")(param(element))(_.removingAnsiCodes.contains(element))
 
-  def spec: ZSpec[Environment, Failure] =
+  def spec: Spec[Environment, Failure] =
     suite("AutoLayerSpec")(
       suite(".showTree") {
         test("prints trees for expressions") {

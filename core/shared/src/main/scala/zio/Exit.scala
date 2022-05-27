@@ -118,7 +118,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * the failed `Cause[E1]`
    */
   final def foldZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R, E1, B] =
     self match {
       case Failure(cause) => failed(cause)
@@ -129,7 +129,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    * Applies the function `f` to the successful result of the `Exit` and returns
    * the result in a new `Exit`.
    */
-  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, Nothing, Exit[E1, B]] =
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, Nothing, Exit[E1, B]] =
     fold(c => ZIO.succeedNow(failCause(c)), a => f(a).exit)
 
   /**
@@ -218,7 +218,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
   /**
    * Converts the `Exit` to a `ZIO` effect.
    */
-  final def toZIO(implicit trace: ZTraceElement): IO[E, A] =
+  final def toZIO(implicit trace: Trace): IO[E, A] =
     self match {
       case Exit.Failure(cause) => ZIO.failCause(cause)
       case Exit.Success(value) => ZIO.succeedNow(value)

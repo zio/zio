@@ -68,8 +68,8 @@ protected[zio] abstract class MutableConcurrentQueue[A] {
   /**
    * A non-blocking enqueue of multiple elements.
    */
-  def offerAll(as: Iterable[A]): Chunk[A] = {
-    val builder  = ChunkBuilder.make[A]()
+  def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
+    val builder  = ChunkBuilder.make[A1]()
     val iterator = as.iterator
     var loop     = true
     while (loop && iterator.hasNext) {

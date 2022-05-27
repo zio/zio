@@ -1,6 +1,6 @@
 package zio.test
 
-import zio.{IO, ZEnv, ZIO, ZLayer, ZTraceElement}
+import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -27,7 +27,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * are re-exported in the ZIO Test package object for easy availability.
  */
 trait Live {
-  def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
+  def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 }
 
 object Live {
@@ -38,22 +38,23 @@ object Live {
    * the `Live` service but could be useful if you are mixing in interfaces to
    * create your own environment type.
    */
-  val default: ZLayer[ZEnv, Nothing, Live] = {
+  val default: ZLayer[Clock with Console with System with Random, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
-    ZIO
-      .environmentWith[ZEnv] { zenv =>
-        new Live {
-          def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
-            ZEnv.services.locallyWith(_.unionAll(zenv))(zio)
+    ZLayer {
+      ZIO
+        .environmentWith[Clock with Console with System with Random] { zenv =>
+          new Live {
+            def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+              DefaultServices.currentServices.locallyWith(_.unionAll(zenv))(zio)
+          }
         }
-      }
-      .toLayer
+    }
   }
 
   /**
    * Provides a workflow with the "live" default ZIO services.
    */
-  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R with Live, E, A] =
+  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Live, E, A] =
     ZIO.serviceWithZIO[Live](_.provide(zio))
 
   /**
@@ -62,6 +63,6 @@ object Live {
    */
   def withLive[R <: Live, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: ZTraceElement): ZIO[R, E1, B] =
-    ZEnv.services.getWith(services => live(f(ZEnv.services.locally(services)(zio))))
+  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, E1, B] =
+    DefaultServices.currentServices.getWith(services => live(f(DefaultServices.currentServices.locally(services)(zio))))
 }

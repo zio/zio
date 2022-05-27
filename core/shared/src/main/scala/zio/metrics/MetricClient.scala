@@ -38,18 +38,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 private[zio] object MetricClient {
 
   /**
-   * Unsafely installs the specified metric listener.
-   */
-  final def unsafeInstallListener(listener: MetricListener): Unit =
-    metricRegistry.installListener(listener)
-
-  /**
-   * Unsafely removes the specified metric listener.
-   */
-  final def unsafeRemoveListener(listener: MetricListener): Unit =
-    metricRegistry.removeListener(listener)
-
-  /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
   final def unsafeSnapshot(): Set[MetricPair.Untyped] =

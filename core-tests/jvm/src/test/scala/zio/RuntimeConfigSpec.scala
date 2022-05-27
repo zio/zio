@@ -3,17 +3,17 @@ package zio
 import zio.test.Assertion._
 import zio.test._
 
-object RuntimeConfigSpec extends ZIOBaseSpec {
+object RuntimeSpecJVM extends ZIOBaseSpec {
 
-  def spec = suite("RuntimeConfigSpec")(
-    suite("RuntimeConfigLive fatal:")(
-      test("RuntimeConfig.fatal should identify a nonFatal exception") {
+  def spec = suite("RuntimeSpecJVM")(
+    suite("Runtime.default isFatal:")(
+      test("Runtime.isFatal should identify a nonFatal exception") {
         val nonFatal = new Exception
-        assert(RuntimeConfig.default.fatal(nonFatal))(isFalse)
+        assert(Runtime.default.isFatal(nonFatal))(isFalse)
       },
-      test("RuntimeConfig.fatal should identify a fatal exception") {
+      test("Runtime.isFatal should identify a fatal exception") {
         val fatal = new OutOfMemoryError
-        assert(RuntimeConfig.default.fatal(fatal))(isTrue)
+        assert(Runtime.default.isFatal(fatal))(isTrue)
       }
     )
   )

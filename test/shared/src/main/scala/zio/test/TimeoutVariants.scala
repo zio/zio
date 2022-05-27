@@ -29,9 +29,9 @@ trait TimeoutVariants {
   ): TestAspectAtLeastR[Live] =
     new TestAspect[Nothing, Live, Nothing, Any] {
       def some[R <: Live, E](
-        spec: ZSpec[R, E]
-      )(implicit trace: ZTraceElement): ZSpec[R, E] = {
-        def loop(labels: List[String], spec: ZSpec[R, E]): ZSpec[R with Live, E] =
+        spec: Spec[R, E]
+      )(implicit trace: Trace): Spec[R, E] = {
+        def loop(labels: List[String], spec: Spec[R, E]): Spec[R with Live, E] =
           spec.caseValue match {
             case Spec.ExecCase(exec, spec)     => Spec.exec(exec, loop(labels, spec))
             case Spec.LabeledCase(label, spec) => Spec.labeled(label, loop(label :: labels, spec))

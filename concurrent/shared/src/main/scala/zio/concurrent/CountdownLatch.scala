@@ -37,9 +37,9 @@ final class CountdownLatch private (_count: Ref[Int], _waiters: Promise[Nothing,
    * count reaches zero
    */
   val countDown: UIO[Unit] = _count.modify {
-    case 0 => IO.unit              -> 0
+    case 0 => ZIO.unit             -> 0
     case 1 => _waiters.succeed(()) -> 0
-    case n => IO.unit              -> (n - 1)
+    case n => ZIO.unit             -> (n - 1)
   }.flatten.unit
 
   /** Returns the current count */
@@ -50,7 +50,7 @@ object CountdownLatch {
   def make(n: Int): IO[Option[Nothing], CountdownLatch] =
     if (n <= 0)
       // People calling this with a negative value deserve this
-      UIO.none.flip
+      ZIO.none.flip
     else
       Ref.make(n).zipWith(Promise.make[Nothing, Unit])(new CountdownLatch(_, _))
 }

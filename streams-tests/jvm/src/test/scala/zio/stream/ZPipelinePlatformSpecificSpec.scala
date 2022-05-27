@@ -17,7 +17,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
         test("JDK inflates what was deflated")(
           check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case (input, n, bufferSize) =>
-              assertM(for {
+              assertZIO(for {
                 deflated <-
                   ZStream
                     .fromIterable(input)
@@ -33,7 +33,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
         test("inflate what JDK deflated")(
           check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case (chunk, n, bufferSize) =>
-              assertM(for {
+              assertZIO(for {
                 out <-
                   ZStream
                     .fromIterable(jdkDeflate(chunk.toArray, new Deflater()))
@@ -48,7 +48,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
         test("gunzip what JDK gzipped, nowrap")(
           check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case (chunk, n, bufferSize) =>
-              assertM(for {
+              assertZIO(for {
                 out <- ZStream
                          .fromIterable(jdkGzip(chunk.toArray))
                          .rechunk(n)
@@ -62,7 +62,7 @@ object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
         test("JDK gunzips what was gzipped")(
           check(Gen.listOfBounded(0, `1K`)(Gen.byte).zip(Gen.int(1, `1K`)).zip(Gen.int(1, `1K`))) {
             case (input, n, bufferSize) =>
-              assertM(for {
+              assertZIO(for {
                 gzipped <- ZStream
                              .fromIterable(input)
                              .rechunk(n)

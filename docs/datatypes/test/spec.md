@@ -121,7 +121,7 @@ case class EmbeddedKafka() extends Kafka {
     ZIO.succeed(Chunk.empty)
 
   override def produce(topic: String, key: String, value: String): Task[Unit] =
-    Task.unit
+    ZIO.unit
 }
 
 object EmbeddedKafka {
@@ -230,5 +230,55 @@ object MySpec extends ZIOSpecDefault {
       @@ eventually        // @@ eventually retries a test indefinitely until it succeeds
       @@ timeout(20.nanos) // it's a good idea to compose `eventually` with `timeout`, or the test may never end
   ) @@ timeout(60.seconds) // apply a timeout to the whole suite
+}
+```
+
+## Smart Specs
+
+The `suite` method creates a spec from a collection of specs. So what we can do is to provide it with a collection of specs:
+
+```scala mdoc:compile-only
+import zio.test._
+
+object ExampleSpec extends ZIOSpecDefault {
+
+  def spec =
+    suite("some suite")(
+      test("test 1") {
+        val stuff = 1
+        assertTrue(stuff == 1)
+      },
+      test("test 2") {
+        val stuff = Some(1)
+        assertTrue(stuff == Some(1))
+      }
+    )
+
+}
+```
+
+But what if we wanted to have a suite of tests that work on a common value, e.g. the same `stuff`? ZIO provides the `suiteAll` method that helps us to share the same `stuff` between all tests:
+
+```scala mdoc:compile-only
+import zio.test._
+
+object ExampleSpec extends ZIOSpecDefault {
+
+  def spec =
+    suiteAll("some suite") {
+
+      val stuff = "hello"
+
+      test("test 1") {
+        assertTrue(stuff.startsWith("h"))
+      }
+
+      val stuff2 = 5
+
+      test("test 2") {
+        assertTrue(stuff.length == stuff2)
+      }
+    }
+
 }
 ```

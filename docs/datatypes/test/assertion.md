@@ -23,14 +23,14 @@ The syntax of assertion in the above code, is `assert(expression)(assertion)`. T
 
 We have two methods for writing test assertions:
 
-1. **`assert`** and **`assertM`**
+1. **`assert`** and **`assertZIO`**
 2. **`assertTrue`**
 
 The first one is the old way of asserting ordinary values and also ZIO effects. The second method, which is called _smart assertion_, has a unified logic for testing both ordinary values and ZIO effects. **We encourage developers to use the smart assertion method, which is much simpler.**
 
 ### Classic Old-fashioned Assertions
 
-The `assert` and its effectful counterpart `assertM` are the old way of asserting ordinary values and ZIO effects.
+The `assert` and its effectful counterpart `assertZIO` are the old way of asserting ordinary values and ZIO effects.
 
 1. In order to test ordinary values, we should use `assert`, like the example below:
 
@@ -43,7 +43,7 @@ test("sum") {
 }
 ```
 
-2. If we are testing an effect, we should use the `assertM` function:
+2. If we are testing an effect, we should use the `assertZIO` function:
 
 ```scala mdoc:compile-only
 import zio._
@@ -55,7 +55,7 @@ test("updating ref") {
     _ <- r.update(_ + 1)
     v <- r.get
   } yield v
-  assertM(value)(Assertion.equalTo(1))
+  assertZIO(value)(Assertion.equalTo(1))
 }
 ```
 
@@ -430,22 +430,20 @@ In order to understand the `Assertion` data type, let's first look at the `test`
 def test[In](label: String)(assertion: => In)(implicit testConstructor: TestConstructor[Nothing, In]): testConstructor.Out
 ```
 
-Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `ZSpec[R, E]` data type:
+Its signature is a bit complicated and uses _path dependent types_, but it doesn't matter. We can think of a `test` as a function from `TestResult` (or its effectful versions such as `ZIO[R, E, TestResult]` or `ZSTM[R, E, TestResult]`) to the `Spec[R, E]` data type:
 
 ```scala
-def test(label: String)(assertion: => TestResult): ZSpec[Any, Nothing]
-def test(label: String)(assertion: => ZIO[R, E, TestResult]): ZSpec[R, E]
+def test(label: String)(assertion: => TestResult): Spec[Any, Nothing]
+def test(label: String)(assertion: => ZIO[R, E, TestResult]): Spec[R, E]
 ```
 
-Therefore, the function `test` needs a `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertM`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
+Therefore, the function `test` needs a `TestResult`. The most common way to produce a `TestResult` is to resort to `assert` or its effectful counterpart `assertZIO`. The former one is for creating ordinary `TestResult` values and the latter one is for producing effectful `TestResult` values. Both of them accept a value of type `A` (effectful version wrapped in a `ZIO`) and an `Assertion[A]`.
 
 ### The `assert` Function
 
 Let's look at the `assert` function:
 
 ```scala
-type TestResult = BoolAlgebra[AssertionResult]
-
 def assert[A](expr: => A)(assertion: Assertion[A]): TestResult
 ``` 
 
@@ -453,28 +451,7 @@ It takes an expression of type `A` and an `Assertion[A]` and returns the `TestRe
 
 ### The `Assertion` data type
 
-We can think of an `Assertion[A]` as a function of type `A` to the `AssertResult`:
-
-```scala
-type AssertResult  = BoolAlgebra[AssertionValue]
-
-class Assertion[A] {
-  def apply(a: => A): AssertResult
-}
-```
-
-So we can apply any expression of type `A` to any assertion of type `A`:
-
-```scala mdoc
-import zio.test._
-
-val isTrue: Assertion[Boolean] = Assertion.isTrue
-
-val r1: AssertResult = isTrue(false)
-val r2: AssertResult = isTrue(true)
-```
-
-In case of failure, the `AssertResult` contains all details about the cause of failure. It's useful when an assertion failed, and the ZIO Test Runner can produce a proper report about the test failure.
+We can think of an `Assertion[A]` as a function of type `A => Boolean`.
 
 As a proposition, assertions compose using logical conjunction and disjunction and can be negated:
 
@@ -483,19 +460,17 @@ import zio.test._
 
 val greaterThanZero: Assertion[Int] = Assertion.isPositive
 val lessThanFive   : Assertion[Int] = Assertion.isLessThan(5)
-val equalTo10      : Assertion[Int] = Assertion.equalTo[Int, Int](10)
+val equalTo10      : Assertion[Int] = Assertion.equalTo(10)
 
 val assertion: Assertion[Int] = greaterThanZero && lessThanFive || equalTo10.negate
 ```
 
-After composing them, we can render the result and also run it on any expression:
+After composing them, we can run it on any expression:
 
 ```scala mdoc
 import zio._
 
-assertion.render
-
-val result: AssertResult = assertion.run(10)
+val result: TestResult = assertion.run(10)
 ```
 
 ```scala mdoc:invisible:reset

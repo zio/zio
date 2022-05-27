@@ -167,13 +167,13 @@ final class ConcurrentSet[A] private (private val underlying: ConcurrentHashMap.
     ZIO.succeed(underlying.size())
 
   /**
-   * Create a concurrent set from a set.
+   * Convert the ConcurrentSet to Set.
    */
   def toSet: UIO[Set[A]] =
     ZIO.succeed(underlying.asScala.toSet: @silent("JavaConverters"))
 
   /**
-   * Create a concurrent set from a collection.
+   * Transform all elements of the ConcurrentSet using the given function.
    */
   @silent("JavaConverters")
   def transform(f: A => A): UIO[Unit] =

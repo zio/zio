@@ -367,7 +367,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         testConsole <- testConsole
         testRandom  <- testRandom
         testSystem  <- testSystem
-        fiberRef    <- FiberRef.makeEnvironment(ZEnv.Services.live)
+        fiberRef    <- FiberRef.makeEnvironment(DefaultServices.live)
         _           <- fiberRef.update(_.add(testClock))
         left        <- fiberRef.update(_.add(testConsole)).fork
         right       <- fiberRef.update(_.add(testRandom)).fork
@@ -385,8 +385,15 @@ object FiberRefSpec extends ZIOBaseSpec {
         _ <- ZIO.unit.timeout(1.second) <& TestClock.adjust(1.second)
         _ <- testClock
       } yield assertCompletes
-    } @@ TestAspect.nonFlaky
-  ) @@ TestAspect.runtimeConfig(RuntimeConfigAspect.enableCurrentFiber)
+    } @@ TestAspect.nonFlaky,
+    test("runtime") {
+      for {
+        expected <- ZIO.clock
+        runtime  <- ZIO.runtime[Any]
+        actual   <- ZIO.succeedBlocking(runtime.unsafeRun(ZIO.clock))
+      } yield assertTrue(actual == expected)
+    }
+  ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
 }
 
 object FiberRefSpecUtil {

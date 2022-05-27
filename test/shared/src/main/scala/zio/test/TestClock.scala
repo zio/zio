@@ -19,8 +19,8 @@ package zio.test
 import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.io.IOException
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 import scala.collection.immutable.SortedSet
@@ -85,13 +85,13 @@ import scala.collection.immutable.SortedSet
  * exactly one more value is placed in the queue.
  */
 trait TestClock extends Clock with Restorable {
-  def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
-  def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
-  def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit]
-  def setTime(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit]
-  def setTimeZone(zone: ZoneId)(implicit trace: ZTraceElement): UIO[Unit]
-  def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]]
-  def timeZone(implicit trace: ZTraceElement): UIO[ZoneId]
+  def adjust(duration: Duration)(implicit trace: Trace): UIO[Unit]
+  def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+  def setDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): UIO[Unit]
+  def setTime(duration: Duration)(implicit trace: Trace): UIO[Unit]
+  def setTimeZone(zone: ZoneId)(implicit trace: Trace): UIO[Unit]
+  def sleeps(implicit trace: Trace): UIO[List[Duration]]
+  def timeZone(implicit trace: Trace): UIO[ZoneId]
 }
 
 object TestClock extends Serializable {
@@ -111,7 +111,7 @@ object TestClock extends Serializable {
      * that were scheduled to occur on or before the new time will be run in
      * order.
      */
-    def adjust(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    def adjust(duration: Duration)(implicit trace: Trace): UIO[Unit] =
       warningDone *> run(_ + duration)
 
     /**
@@ -119,37 +119,40 @@ object TestClock extends Serializable {
      * that were scheduled to occur on or before the new time will be run in
      * order.
      */
-    def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       zio <& adjust(duration)
 
     /**
      * Returns the current clock time as an `OffsetDateTime`.
      */
-    def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
+    def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
       ZIO.succeed(unsafeCurrentDateTime())
 
     /**
      * Returns the current clock time in the specified time unit.
      */
-    def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
+    def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(unsafeCurrentTime(unit))
+
+    def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
       ZIO.succeed(unsafeCurrentTime(unit))
 
     /**
      * Returns the current clock time in nanoseconds.
      */
-    def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
+    def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeNanoTime())
 
     /**
      * Returns the current clock time as an `Instant`.
      */
-    def instant(implicit trace: ZTraceElement): UIO[Instant] =
+    def instant(implicit trace: Trace): UIO[Instant] =
       ZIO.succeed(unsafeInstant())
 
     /**
      * Constructs a `java.time.Clock` backed by the `Clock` service.
      */
-    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+    def javaClock(implicit trace: Trace): UIO[java.time.Clock] = {
 
       final case class JavaClock(clockState: Ref.Atomic[TestClock.Data], zoneId: ZoneId) extends java.time.Clock {
         def getZone(): ZoneId =
@@ -166,14 +169,14 @@ object TestClock extends Serializable {
     /**
      * Returns the current clock time as a `LocalDateTime`.
      */
-    def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
+    def localDateTime(implicit trace: Trace): UIO[LocalDateTime] =
       ZIO.succeed(unsafeLocalDateTime())
 
     /**
      * Saves the `TestClock`'s current state in an effect which, when run, will
      * restore the `TestClock` state to the saved state
      */
-    def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
         clockData <- clockState.get
       } yield clockState.set(clockData)
@@ -183,7 +186,7 @@ object TestClock extends Serializable {
      * effects that were scheduled to occur on or before the new time will be
      * run in order.
      */
-    def setDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit] =
+    def setDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): UIO[Unit] =
       setTime(fromDateTime(dateTime))
 
     /**
@@ -191,7 +194,7 @@ object TestClock extends Serializable {
      * since the epoch. Any effects that were scheduled to occur on or before
      * the new time will immediately be run in order.
      */
-    def setTime(duration: Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    def setTime(duration: Duration)(implicit trace: Trace): UIO[Unit] =
       warningDone *> run(_ => duration)
 
     /**
@@ -199,7 +202,7 @@ object TestClock extends Serializable {
      * nanoseconds since the epoch will not be adjusted and no scheduled effects
      * will be run as a result of this method.
      */
-    def setTimeZone(zone: ZoneId)(implicit trace: ZTraceElement): UIO[Unit] =
+    def setTimeZone(zone: ZoneId)(implicit trace: Trace): UIO[Unit] =
       clockState.update(_.copy(timeZone = zone))
 
     /**
@@ -207,7 +210,7 @@ object TestClock extends Serializable {
      * greater than the specified duration. Once the clock time is adjusted to
      * on or after the duration, the fiber will automatically be resumed.
      */
-    def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
       for {
         promise <- Promise.make[Nothing, Unit]
         shouldAwait <- clockState.modify { data =>
@@ -224,17 +227,20 @@ object TestClock extends Serializable {
      * Returns a list of the times at which all queued effects are scheduled to
      * resume.
      */
-    def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]] =
+    def sleeps(implicit trace: Trace): UIO[List[Duration]] =
       clockState.get.map(_.sleeps.map(_._1))
 
     /**
      * Returns the time zone.
      */
-    def timeZone(implicit trace: ZTraceElement): UIO[ZoneId] =
+    def timeZone(implicit trace: Trace): UIO[ZoneId] =
       clockState.get.map(_.timeZone)
 
     override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
       unit.convert(clockState.unsafeGet.duration.toMillis, TimeUnit.MILLISECONDS)
+
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+      unit.between(Instant.EPOCH, clockState.unsafeGet.duration.addTo(Instant.EPOCH))
 
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime = {
       val data = clockState.unsafeGet
@@ -256,7 +262,7 @@ object TestClock extends Serializable {
      * Cancels the warning message that is displayed if a test is advancing the
      * `TestClock` but a fiber is not suspending.
      */
-    private[TestClock] def suspendedWarningDone(implicit trace: ZTraceElement): UIO[Unit] =
+    private[TestClock] def suspendedWarningDone(implicit trace: Trace): UIO[Unit] =
       suspendedWarningState.updateSomeZIO[Any, Nothing] { case SuspendedWarningData.Pending(fiber) =>
         fiber.interrupt.as(SuspendedWarningData.start)
       }
@@ -265,7 +271,7 @@ object TestClock extends Serializable {
      * Cancels the warning message that is displayed if a test is using time but
      * is not advancing the `TestClock`.
      */
-    private[TestClock] def warningDone(implicit trace: ZTraceElement): UIO[Unit] =
+    private[TestClock] def warningDone(implicit trace: Trace): UIO[Unit] =
       warningState.updateSomeZIO[Any, Nothing] {
         case WarningData.Start          => ZIO.succeedNow(WarningData.done)
         case WarningData.Pending(fiber) => fiber.interrupt.as(WarningData.done)
@@ -274,7 +280,7 @@ object TestClock extends Serializable {
     /**
      * Polls until all descendants of this fiber are done or suspended.
      */
-    private def awaitSuspended(implicit trace: ZTraceElement): UIO[Unit] =
+    private def awaitSuspended(implicit trace: Trace): UIO[Unit] =
       suspendedWarningStart *>
         suspended
           .zipWith(live.provide(ZIO.sleep(10.milliseconds)) *> suspended)(_ == _)
@@ -285,7 +291,7 @@ object TestClock extends Serializable {
     /**
      * Delays for a short period of time.
      */
-    private def delay(implicit trace: ZTraceElement): UIO[Unit] =
+    private def delay(implicit trace: Trace): UIO[Unit] =
       live.provide(ZIO.sleep(5.milliseconds))
 
     /**
@@ -295,7 +301,7 @@ object TestClock extends Serializable {
      * synchronize on the status of multiple fibers at the same time this
      * snapshot may not be fully consistent.
      */
-    private def freeze(implicit trace: ZTraceElement): IO[Unit, Map[FiberId, Fiber.Status]] =
+    private def freeze(implicit trace: Trace): IO[Unit, Map[FiberId, Fiber.Status]] =
       supervisedFibers.flatMap { fibers =>
         ZIO.foldLeft(fibers)(Map.empty[FiberId, Fiber.Status]) { (map, fiber) =>
           fiber.status.flatMap {
@@ -309,7 +315,7 @@ object TestClock extends Serializable {
     /**
      * Returns a set of all fibers in this test.
      */
-    def supervisedFibers(implicit trace: ZTraceElement): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
+    def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
       ZIO.descriptorWith { descriptor =>
         annotations.get(TestAnnotation.fibers).flatMap {
           case Left(_) => ZIO.succeedNow(SortedSet.empty[Fiber.Runtime[Any, Any]])
@@ -324,14 +330,14 @@ object TestClock extends Serializable {
     /**
      * Constructs a `Duration` from an `OffsetDateTime`.
      */
-    private def fromDateTime(dateTime: OffsetDateTime)(implicit trace: ZTraceElement): Duration =
+    private def fromDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): Duration =
       Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
 
     /**
      * Runs all effects scheduled to occur on or before the specified duration,
      * which may depend on the current time, in order.
      */
-    private def run(f: Duration => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    private def run(f: Duration => Duration)(implicit trace: Trace): UIO[Unit] =
       awaitSuspended *>
         clockState.modify { data =>
           val end = f(data.duration)
@@ -341,7 +347,7 @@ object TestClock extends Serializable {
             case _ => (None, Data(end, data.sleeps, data.timeZone))
           }
         }.flatMap {
-          case None => UIO.unit
+          case None => ZIO.unit
           case Some((end, promise)) =>
             promise.succeed(()) *>
               ZIO.yieldNow *>
@@ -351,7 +357,7 @@ object TestClock extends Serializable {
     /**
      * Returns whether all descendants of this fiber are done or suspended.
      */
-    private def suspended(implicit trace: ZTraceElement): IO[Unit, Map[FiberId, Fiber.Status]] =
+    private def suspended(implicit trace: Trace): IO[Unit, Map[FiberId, Fiber.Status]] =
       freeze.zip(delay *> freeze).flatMap { case (first, last) =>
         if (first == last) ZIO.succeedNow(first)
         else ZIO.fail(())
@@ -379,7 +385,7 @@ object TestClock extends Serializable {
      * Forks a fiber that will display a warning message if a test is advancing
      * the `TestClock` but a fiber is not suspending.
      */
-    private def suspendedWarningStart(implicit trace: ZTraceElement): UIO[Unit] =
+    private def suspendedWarningStart(implicit trace: Trace): UIO[Unit] =
       suspendedWarningState.updateSomeZIO { case SuspendedWarningData.Start =>
         for {
           fiber <- live.provide {
@@ -395,7 +401,7 @@ object TestClock extends Serializable {
      * Forks a fiber that will display a warning message if a test is using time
      * but is not advancing the `TestClock`.
      */
-    private def warningStart(implicit trace: ZTraceElement): UIO[Unit] =
+    private def warningStart(implicit trace: Trace): UIO[Unit] =
       warningState.updateSomeZIO { case WarningData.Start =>
         for {
           fiber <- live.provide(ZIO.logWarning(warning).delay(5.seconds)).interruptible.fork
@@ -411,7 +417,7 @@ object TestClock extends Serializable {
   def live(
     data: Data
   )(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZLayer[Annotations with Live, Nothing, TestClock] =
     ZLayer.scoped {
       for {
@@ -421,7 +427,7 @@ object TestClock extends Serializable {
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)
-        _                     <- ZEnv.services.locallyScopedWith(_.add(test))
+        _                     <- ZIO.withClockScoped(test)
         _                     <- ZIO.addFinalizer(test.warningDone *> test.suspendedWarningDone)
       } yield test
     }
@@ -437,11 +443,11 @@ object TestClock extends Serializable {
    * by the specified duration, running any actions scheduled for on or before
    * the new time in order.
    */
-  def adjust(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+  def adjust(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     testClockWith(_.adjust(duration))
 
   def adjustWith[R, E, A](duration: => Duration)(zio: ZIO[R, E, A])(implicit
-    trace: ZTraceElement
+    trace: Trace
   ): ZIO[R, E, A] =
     testClockWith(_.adjustWith(duration)(zio))
 
@@ -450,7 +456,7 @@ object TestClock extends Serializable {
    * state in an effect which, when run, will restore the `TestClock` to the
    * saved state.
    */
-  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+  def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testClockWith(_.save)
 
   /**
@@ -458,7 +464,7 @@ object TestClock extends Serializable {
    * to the specified `OffsetDateTime`, running any actions scheduled for on or
    * before the new time in order.
    */
-  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: ZTraceElement): UIO[Unit] =
+  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: Trace): UIO[Unit] =
     testClockWith(_.setDateTime(dateTime))
 
   /**
@@ -466,7 +472,7 @@ object TestClock extends Serializable {
    * to the specified time in terms of duration since the epoch, running any
    * actions scheduled for on or before the new time in order.
    */
-  def setTime(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+  def setTime(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     testClockWith(_.setTime(duration))
 
   /**
@@ -475,21 +481,21 @@ object TestClock extends Serializable {
    * the epoch will not be altered and no scheduled actions will be run as a
    * result of this effect.
    */
-  def setTimeZone(zone: => ZoneId)(implicit trace: ZTraceElement): UIO[Unit] =
+  def setTimeZone(zone: => ZoneId)(implicit trace: Trace): UIO[Unit] =
     testClockWith(_.setTimeZone(zone))
 
   /**
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
-  def sleeps(implicit trace: ZTraceElement): UIO[List[Duration]] =
+  def sleeps(implicit trace: Trace): UIO[List[Duration]] =
     testClockWith(_.sleeps)
 
   /**
    * Accesses a `TestClock` instance in the environment and returns the current
    * time zone.
    */
-  def timeZone(implicit trace: ZTraceElement): UIO[ZoneId] =
+  def timeZone(implicit trace: Trace): UIO[ZoneId] =
     testClockWith(_.timeZone)
 
   /**

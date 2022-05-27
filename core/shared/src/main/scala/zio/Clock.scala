@@ -20,87 +20,78 @@ import zio.internal.stacktracer.Tracer
 import zio.Scheduler
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Schedule.Decision._
-
 import java.lang.{System => JSystem}
+import java.time.temporal.ChronoUnit
 import java.time.{Instant, LocalDateTime, OffsetDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 trait Clock extends Serializable { self =>
 
-  def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long]
+  def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long]
 
-  def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime]
+  def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long]
 
-  def instant(implicit trace: ZTraceElement): UIO[java.time.Instant]
+  def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime]
 
-  def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock]
+  def instant(implicit trace: Trace): UIO[java.time.Instant]
 
-  def localDateTime(implicit trace: ZTraceElement): UIO[java.time.LocalDateTime]
+  def javaClock(implicit trace: Trace): UIO[java.time.Clock]
 
-  def nanoTime(implicit trace: ZTraceElement): UIO[Long]
+  def localDateTime(implicit trace: Trace): UIO[java.time.LocalDateTime]
 
-  def scheduler(implicit trace: ZTraceElement): UIO[Scheduler]
+  def nanoTime(implicit trace: Trace): UIO[Long]
 
-  def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit]
+  def scheduler(implicit trace: Trace): UIO[Scheduler]
+
+  def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit]
 
   private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
-    Runtime.default.unsafeRun(currentTime(unit)(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(currentTime(unit)(Trace.empty))(Trace.empty)
+
+  private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+    Runtime.default.unsafeRun(currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty)
 
   private[zio] def unsafeCurrentDateTime(): OffsetDateTime =
-    Runtime.default.unsafeRun(currentDateTime(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(currentDateTime(Trace.empty))(Trace.empty)
 
   private[zio] def unsafeInstant(): Instant =
-    Runtime.default.unsafeRun(instant(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(instant(Trace.empty))(Trace.empty)
 
   private[zio] def unsafeLocalDateTime(): LocalDateTime =
-    Runtime.default.unsafeRun(localDateTime(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(localDateTime(Trace.empty))(Trace.empty)
 
   private[zio] def unsafeNanoTime(): Long =
-    Runtime.default.unsafeRun(nanoTime(ZTraceElement.empty))(ZTraceElement.empty)
+    Runtime.default.unsafeRun(nanoTime(Trace.empty))(Trace.empty)
 }
 
 object Clock extends ClockPlatformSpecific with Serializable {
 
-  val any: ZLayer[Clock, Nothing, Clock] =
-    ZLayer.service[Clock](Tag[Clock], Tracer.newTrace)
-
-  /**
-   * Constructs a `Clock` service from a `java.time.Clock`.
-   */
-  val javaClock: ZLayer[java.time.Clock, Nothing, Clock] = {
-    implicit val trace = Tracer.newTrace
-    ZLayer[java.time.Clock, Nothing, Clock] {
-      for {
-        clock <- ZIO.service[java.time.Clock]
-      } yield ClockJava(clock)
-    }
-  }
-
-  val live: Layer[Nothing, Clock] =
-    ZLayer.succeed[Clock](ClockLive)(Tag[Clock], Tracer.newTrace)
+  val tag: Tag[Clock] = Tag[Clock]
 
   /**
    * An implementation of the `Clock` service backed by a `java.time.Clock`.
    */
   final case class ClockJava(clock: java.time.Clock) extends Clock {
-    def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
+    def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
       ZIO.succeed(unsafeCurrentDateTime())
-    def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
+    def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeCurrentTime(unit))
-    def instant(implicit trace: ZTraceElement): UIO[Instant] =
+    def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
+      ZIO.succeed(unsafeCurrentTime(unit))
+    def instant(implicit trace: Trace): UIO[Instant] =
       ZIO.succeed(unsafeInstant())
-    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] =
+    def javaClock(implicit trace: Trace): UIO[java.time.Clock] =
       ZIO.succeed(clock)
-    def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
+    def localDateTime(implicit trace: Trace): UIO[LocalDateTime] =
       ZIO.succeed(unsafeLocalDateTime())
-    def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
+    def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeNanoTime())
-    def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+    def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
       ZIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
-        Left(UIO.succeed(canceler()))
+        val canceler = globalScheduler.unsafeSchedule(() => cb(ZIO.unit), duration)
+        Left(ZIO.succeed(canceler()))
       }
-    def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
+    def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
     override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long = {
       val instant = unsafeInstant()
@@ -112,6 +103,8 @@ object Clock extends ClockPlatformSpecific with Serializable {
         case _ => unit.convert(instant.toEpochMilli, TimeUnit.MILLISECONDS)
       }
     }
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
+      unit.between(Instant.EPOCH, unsafeInstant())
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime =
       OffsetDateTime.now(clock)
     override private[zio] def unsafeInstant(): Instant =
@@ -123,31 +116,34 @@ object Clock extends ClockPlatformSpecific with Serializable {
   }
 
   object ClockLive extends Clock {
-    def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
+    def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeCurrentTime(unit))
 
-    def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
+    def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
+      ZIO.succeed(unsafeCurrentTime(unit))
+
+    def nanoTime(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafeNanoTime())
 
-    def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
-      UIO.asyncInterrupt { cb =>
-        val canceler = globalScheduler.unsafeSchedule(() => cb(UIO.unit), duration)
-        Left(UIO.succeed(canceler()))
+    def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.unsafeSchedule(() => cb(ZIO.unit), duration)
+        Left(ZIO.succeed(canceler()))
       }
 
-    def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
+    def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
       ZIO.succeed(unsafeCurrentDateTime())
 
-    override def instant(implicit trace: ZTraceElement): UIO[Instant] =
+    override def instant(implicit trace: Trace): UIO[Instant] =
       ZIO.succeed(unsafeInstant())
 
-    override def localDateTime(implicit trace: ZTraceElement): UIO[LocalDateTime] =
+    override def localDateTime(implicit trace: Trace): UIO[LocalDateTime] =
       ZIO.succeed(unsafeLocalDateTime())
 
-    def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
+    def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
 
-    def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] = {
+    def javaClock(implicit trace: Trace): UIO[java.time.Clock] = {
 
       final case class JavaClock(zoneId: ZoneId) extends java.time.Clock {
         def getZone(): ZoneId =
@@ -175,6 +171,9 @@ object Clock extends ClockPlatformSpecific with Serializable {
       }
     }
 
+    override private[zio] def unsafeCurrentTime(unit: ChronoUnit) =
+      unit.between(Instant.EPOCH, unsafeInstant())
+
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime =
       OffsetDateTime.now()
 
@@ -191,43 +190,46 @@ object Clock extends ClockPlatformSpecific with Serializable {
   /**
    * Returns the current time, relative to the Unix epoch.
    */
-  def currentTime(unit: => TimeUnit)(implicit trace: ZTraceElement): UIO[Long] =
+  def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
+    ZIO.clockWith(_.currentTime(unit))
+
+  def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
     ZIO.clockWith(_.currentTime(unit))
 
   /**
    * Get the current time, represented in the current timezone.
    */
-  def currentDateTime(implicit trace: ZTraceElement): UIO[OffsetDateTime] =
+  def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
     ZIO.clockWith(_.currentDateTime)
 
-  def instant(implicit trace: ZTraceElement): UIO[java.time.Instant] =
+  def instant(implicit trace: Trace): UIO[java.time.Instant] =
     ZIO.clockWith(_.instant)
 
   /**
    * Constructs a `java.time.Clock` backed by the `Clock` service.
    */
-  def javaClock(implicit trace: ZTraceElement): UIO[java.time.Clock] =
+  def javaClock(implicit trace: Trace): UIO[java.time.Clock] =
     ZIO.clockWith(_.javaClock)
 
-  def localDateTime(implicit trace: ZTraceElement): UIO[java.time.LocalDateTime] =
+  def localDateTime(implicit trace: Trace): UIO[java.time.LocalDateTime] =
     ZIO.clockWith(_.localDateTime)
 
   /**
    * Returns the system nano time, which is not relative to any date.
    */
-  def nanoTime(implicit trace: ZTraceElement): UIO[Long] =
+  def nanoTime(implicit trace: Trace): UIO[Long] =
     ZIO.clockWith(_.nanoTime)
 
   /**
    * Returns the scheduler used for scheduling effects.
    */
-  def scheduler(implicit trace: ZTraceElement): UIO[Scheduler] =
+  def scheduler(implicit trace: Trace): UIO[Scheduler] =
     ZIO.clockWith(_.scheduler)
 
   /**
    * Sleeps for the specified duration. This is always asynchronous.
    */
-  def sleep(duration: => Duration)(implicit trace: ZTraceElement): UIO[Unit] =
+  def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
     ZIO.clockWith(_.sleep(duration))
 
 }

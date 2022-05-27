@@ -12,7 +12,7 @@ object ReentrantLockSpec extends ZIOSpecDefault {
         ZIO.scoped {
           for {
             lock  <- ReentrantLock.make()
-            count <- lock.withLock.flatMap(UIO.succeed(_))
+            count <- lock.withLock.flatMap(ZIO.succeed(_))
           } yield assert(count)(equalTo(1))
         }
       },
@@ -21,7 +21,7 @@ object ReentrantLockSpec extends ZIOSpecDefault {
           for {
             lock <- ReentrantLock.make()
             count <-
-              lock.withLock.flatMap(_ => lock.withLock.flatMap(UIO.succeed(_)))
+              lock.withLock.flatMap(_ => lock.withLock.flatMap(ZIO.succeed(_)))
           } yield assert(count)(equalTo(2))
         }
       },

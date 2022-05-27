@@ -58,18 +58,15 @@ import zio.Executor
 import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 object CustomizedRuntimeZIOApp extends ZIOAppDefault {
-  override val runtime = Runtime.default.mapRuntimeConfig(
-    _.copy(
-      executor =
-        Executor.fromThreadPoolExecutor(_ => 1024)(
-          new ThreadPoolExecutor(
-            5,
-            10,
-            5000,
-            TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue[Runnable]()
-          )
-        )
+  override val bootstrap = Runtime.setExecutor(
+    Executor.fromThreadPoolExecutor(_ => 1024)(
+      new ThreadPoolExecutor(
+        5,
+        10,
+        5000,
+        TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue[Runnable]()
+      )
     )
   )
 
@@ -81,9 +78,9 @@ A detailed explanation of the ZIO runtime system can be found on the [runtime](r
 
 ## Installing Low-level Functionalities
 
-We can hook into the ZIO runtime configuration to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, and other similar foundational pieces of infrastructure.
+We can hook into the ZIO runtime to install low-level functionalities into the ZIO application, such as _logging_, _profiling_, and other similar foundational pieces of infrastructure.
 
-A detailed explanation of the `RuntimeConfigAspect` can be found on the [runtime](runtime.md#runtimeconfig-aspect) page.
+A detailed explanation can be found on the [runtime](runtime.md) page.
 
 ## Composing ZIO Applications
 
@@ -91,7 +88,7 @@ To compose ZIO applications, we can use `<>` operator:
 
 ```scala mdoc:invisible
 import zio._
-val asyncProfiler, slf4j, loggly, newRelic = RuntimeConfigAspect.identity
+val asyncProfiler, slf4j, loggly, newRelic = ZLayer.empty
 ```
 
 ```scala mdoc:compile-only
@@ -102,8 +99,8 @@ object MyApp1 extends ZIOAppDefault {
 }
 
 object MyApp2 extends ZIOAppDefault {
-  override def hook: RuntimeConfigAspect =
-    asyncProfiler >>> slf4j >>> loggly >>> newRelic
+  override val bootstrap: ZLayer[Any, Any, Any] =
+    asyncProfiler ++ slf4j ++ loggly ++ newRelic
 
   def run = ZIO.succeed(???)
 }
@@ -111,4 +108,4 @@ object MyApp2 extends ZIOAppDefault {
 object Main extends ZIOApp.Proxy(MyApp1 <> MyApp2)
 ```
 
-The `<>` operator combines the layers of the two applications, composes their hooks, and then runs the two applications in parallel.
+The `<>` operator combines the layers of the two applications and then runs the two applications in parallel.

@@ -16,6 +16,7 @@
 
 package zio.test.internal.myers
 
+import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ConsoleUtils
 import zio.{Chunk, ChunkBuilder}
@@ -64,17 +65,31 @@ final case class DiffResult[A](actions: Chunk[Action[A]]) {
     case _              => false
   }
 
+  def renderLine: String =
+    actions.map {
+      case Action.Delete(s) => s"-${Console.UNDERLINED}$s".red
+      case Action.Insert(s) => s"+${Console.UNDERLINED}$s".green
+      case Action.Keep(s)   => s"$s".faint
+    }
+      .mkString("")
+
   override def toString: String =
     actions.map {
-      case Action.Delete(s) => ConsoleUtils.red(s"-$s")
-      case Action.Insert(s) => ConsoleUtils.green(s"+$s")
-      case Action.Keep(s)   => ConsoleUtils.dim(s" $s")
+      case Action.Delete(s) => s"-$s".red
+      case Action.Insert(s) => s"+$s".green
+      case Action.Keep(s)   => Console.RESET + s" $s".faint
     }
       .mkString("\n")
 }
 
 object MyersDiff {
-  def diffSingleLine(original: String, modified: String): DiffResult[String] =
+  def diffWords(original: String, modified: String): DiffResult[String] =
+    diff(
+      Chunk.fromIterable(original.split("\\b")),
+      Chunk.fromIterable(modified.split("\\b"))
+    )
+
+  def diffChars(original: String, modified: String): DiffResult[String] =
     diff(
       Chunk.fromIterable(original.toList.map(_.toString)),
       Chunk.fromIterable(modified.toList.map(_.toString))

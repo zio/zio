@@ -121,12 +121,11 @@ trait LoggingService {
 }
 
 val schedulingLayer: ZLayer[LoggingService, Nothing, SchedulingService] =
-  ZLayer.fromFunction { env =>
+  ZLayer.fromFunction { (loggingService: LoggingService) =>
     new SchedulingService {
       def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean] =
         (ZIO.sleep(10.seconds) *> promise.succeed(1))
-          .tap(b => ZIO.service[LoggingService].flatMap(_.log(b.toString)))
-          .provideEnvironment(env)
+          .tap(b => loggingService.log(b.toString))
     }
 }
 
@@ -140,7 +139,7 @@ test("One can control time for failing effects too") {
   val testCase =
     for {
       promise <- Promise.make[Unit, Int]
-      result <- ZIO.service[SchedulingService].flatMap(_.schedule(promise)).exit.fork
+      result <- ZIO.serviceWithZIO[SchedulingService](_.schedule(promise)).exit.fork
       _ <- TestClock.adjust(10.seconds)
       readRef <- promise.await
       result <- result.join
@@ -164,8 +163,8 @@ import zio.stream._
 import zio.test.Assertion.equalTo
 
 test("zipWithLatest") {
-  val s1 = Stream.iterate(0)(_ + 1).fixed(100.milliseconds)
-  val s2 = Stream.iterate(0)(_ + 1).fixed(70.milliseconds)
+  val s1 = ZStream.iterate(0)(_ + 1).fixed(100.milliseconds)
+  val s2 = ZStream.iterate(0)(_ + 1).fixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {

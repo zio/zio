@@ -39,7 +39,7 @@ class RegionBenchmark {
   def zioEnsuring(): Unit = {
     def nest(n: Int, uio: UIO[Unit]): UIO[Unit] =
       if (n <= 1) uio
-      else ZIO.suspendSucceed(nest(n - 1, uio)).ensuring(IO.unit)
+      else ZIO.suspendSucceed(nest(n - 1, uio)).ensuring(ZIO.unit)
 
     val _ = unsafeRun(nest(nesting, ZIO.unit))
   }
@@ -48,7 +48,7 @@ class RegionBenchmark {
   def zioBracket(): Unit = {
     def nest(n: Int, uio: UIO[Unit]): UIO[Unit] =
       if (n <= 1) uio
-      else ZIO.unit.acquireReleaseWith(_ => ZIO.unit)(_ => nest(n - 1, uio))
+      else ZIO.acquireReleaseWith(ZIO.unit)(_ => ZIO.unit)(_ => nest(n - 1, uio))
 
     val _ = unsafeRun(nest(nesting, ZIO.unit))
   }

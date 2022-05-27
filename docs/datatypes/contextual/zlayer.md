@@ -47,18 +47,13 @@ Let's see how we can create a layer:
 
 ## Creation
 
-There are many ways to create a ZLayer. Here's an incomplete list:
-- `ZLayer.succeed` to create a layer from an existing service
-- `ZLayer.succeedEnvironment` to create a layer from a value that's one or more services
-- `ZLayer.fromFunction` to create a layer from a function from the requirement to the service
-- `ZLayer.fromZIO` to lift a `ZIO` effect to a layer requiring the effect environment
-- `ZLayer.fromAcquireRelease` for a layer based on resource acquisition/release. The idea is the same as `Scope`.
-- `ZLayer.identity` to express the requirement for a dependency
-- `ZIO#toLayer` to construct a layer from an effect
+There are four main ways to create a ZLayer:
+1. `ZLayer.succeed` for creating layers from simple values.
+2. `ZLayer.scoped` for creating layers with _for comprehension_ style from resourceful effects.
+3. `ZLayer.apply`/`ZLayer.fromZIO` for creating layers with _for comprehension_ style from effectual but not resourceful effects.
+4. `ZLayer.fromFunction` for creating layers that are neither effectual nor resourceful.
 
-Where it makes sense, these methods have also variants to build a service effectfully (suffixed by `ZIO`) or to create a combination of services (suffixed by `Environment`).
-
-Let's review some of the `ZLayer`'s most useful constructors:
+Now let's look at each of these methods.
 
 ### From a Simple Value or an Existing Service
 
@@ -102,11 +97,11 @@ object Logging {
 }
 ```
 
-### From Scoped Resources
+### From Resourceful Effects (Scoped Resources)
 
 Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
-1. The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.apply` constructor:
+The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.apply` constructor:
 
 ```scala mdoc:silent:nest
 import zio._
@@ -120,19 +115,6 @@ val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
   }
 ```
 
-2. We can create a `ZLayer` directly from `acquire` and `release` actions of a scoped resource:
-
-```scala mdoc:compile-only
-import zio._
-import java.io.{Closeable, FileInputStream}
-
-def acquire: Task[FileInputStream] = ZIO.attempt(new FileInputStream("file.txt"))
-def release(resource: Closeable): UIO[Unit] = ZIO.succeed(resource.close())
-
-val inputStreamLayer: ZLayer[Scope, Throwable, FileInputStream] =
-  ZLayer.fromAcquireRelease(acquire)(release)
-```
-
 Let's see a real-world example of creating a layer from scoped resources. Assume we have the following `UserRepository` service:
 
 ```scala mdoc:silent
@@ -144,8 +126,8 @@ trait DBConfig
 trait Transactor
 trait User
 
-def dbConfig: Task[DBConfig] = Task.attempt(???)
-def initializeDb(config: DBConfig): Task[Unit] = Task.attempt(???)
+def dbConfig: Task[DBConfig] = ZIO.attempt(???)
+def initializeDb(config: DBConfig): Task[Unit] = ZIO.attempt(???)
 def makeTransactor(config: DBConfig): ZIO[Scope, Throwable, Transactor] = ZIO.attempt(???)
 
 trait UserRepository {
@@ -179,16 +161,9 @@ val usersLayer : ZLayer[Any, Throwable, UserRepository] =
 
 ```
 
-### From ZIO Effects
+### From Non-resourceful Effects
 
-We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromEffect` constructor, or calling `ZIO#toLayer` method:
-
-```scala mdoc:compile-only
-import zio._
-
-val layer1: ZLayer[Any, Nothing, String] = ZLayer.fromZIO(ZIO.succeed("Hello, World!"))
-val layer2: ZLayer[Any, Nothing, String] = ZIO.succeed("Hello, World!").toLayer
-```
+We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromZIO`/`ZLayer.apply` constructor.
 
 For example, assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
 
@@ -197,85 +172,104 @@ import zio._
 
 case class AppConfig(poolSize: Int)
   
-def loadConfig : Task[AppConfig]      = Task.attempt(???)
-val configLayer: TaskLayer[AppConfig] = ZLayer.fromZIO(loadConfig)
+def loadConfig : Task[AppConfig] = 
+  ZIO.attempt(???)
+
+object AppConfig {
+  val layer: TaskLayer[AppConfig] = 
+    ZLayer(loadConfig)  // or ZLayer.fromZIO(loadConfig)
+} 
 ```
 
-### From Functions
-
-A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer`.
-
-Let's say we have defined the following `Logging` service:
-
-```scala mdoc:silent
-import zio._
-
-trait Logging {
-  def log(line: String): UIO[Unit]
-}
-```
-
-Assume we have the following function which creates a live layer for `Logging` service:
-
-```scala mdoc:silent
-import zio._
-
-def loggingLive(console: Console, clock: Clock): Logging =
-  new Logging {
-    override def log(line: String): UIO[Unit] =
-      for {
-        time <- clock.currentDateTime
-        _    <- console.printLine(s"$time — $line").orDie
-      } yield ()
-  }
-```
-
-We can convert the `loggingLive` function to the `ZLayer` using `toLayer` extension method on functions:
+This is the for-comprehension way of creating a ZIO service using `ZLayer.apply`:
 
 ```scala mdoc:compile-only
-val layer: ZLayer[Any, Nothing, Logging] =
-  ZLayer {
-    for {
-      console <- ZIO.console
-      clock   <- ZIO.clock
-    } yield LoggingLive(console, clock)
-  }
-```
-
-This is the same method we use in Service Pattern:
-
-```scala mdoc:silent
 import zio._
 
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] =
-    for {
-      time <- clock.currentDateTime
-      _    <- console.printLine(s"$time — $line").orDie
-    } yield ()
-}
+trait A
+trait B
+trait C
+case class CLive(a: A, b: B) extends C
 
-object LoggingLive {
-  val layer: ZLayer[Any, Nothing, Logging] =
+object CLive {
+  val layer: ZLayer[A & B, Nothing, C] =
     ZLayer {
       for {
-        console <- ZIO.console
-        clock   <- ZIO.clock
-      } yield LoggingLive(console, clock)
+        a <- ZIO.service[A]
+        b <- ZIO.service[B]
+      } yield CLive(a, b)
     }
 }
 ```
 
-Other than the `toLayer` extension method, we can create a layer using `ZLayer.fromFunction` directly:
+### From Functions
 
-```scala mdoc:silent
-val layer: ZLayer[Any, Nothing, Logging] =
-  ZLayer {
-    for {
-      console <- ZIO.console
-      clock   <- ZIO.clock
-    } yield LoggingLive(console, clock)
+A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer` using the `ZLayer.fromFunction` constructor.
+
+In the following example, the `CLive` implementation requires two `A` and `B` services, and we can easily convert that case class to a `ZLayer`:
+
+```scala mdoc:compile-only
+import zio._
+
+trait A
+trait B
+trait C
+case class CLive(a: A, b: B) extends C
+
+object CLive {
+  val layer: ZLayer[A & B, Nothing, C] = 
+    ZLayer.fromFunction(CLive.apply _)
+}
+```
+
+Below is a complete working example:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  final case class DatabaseConfig()
+
+  object DatabaseConfig {
+    val live = ZLayer.succeed(DatabaseConfig())
   }
+
+  final case class Database(databaseConfig: DatabaseConfig)
+
+  object Database {
+    val live: ZLayer[DatabaseConfig, Nothing, Database] =
+      ZLayer.fromFunction(Database.apply _)
+  }
+
+  final case class Analytics()
+
+  object Analytics {
+    val live: ULayer[Analytics] = ZLayer.succeed(Analytics())
+  }
+
+  final case class Users(database: Database, analytics: Analytics)
+
+  object Users {
+    val live = ZLayer.fromFunction(Users.apply _)
+  }
+
+  final case class App(users: Users, analytics: Analytics) {
+    def execute: UIO[Unit] =
+      ZIO.debug(s"This app is made from ${users} and ${analytics}")
+  }
+
+  object App {
+    val live = ZLayer.fromFunction(App.apply _)
+  }
+
+  def run =
+    ZIO
+      .serviceWithZIO[App](_.execute)
+      // Cannot use `provide` due to this dotty bug: https://github.com/lampepfl/dotty/issues/12498
+      .provideLayer(
+        (((DatabaseConfig.live >>> Database.live) ++ Analytics.live >>> Users.live) ++ Analytics.live) >>> App.live
+      )
+}
 ```
 
 ```scala mdoc:invisible:reset
@@ -505,9 +499,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZIO.succeed(AppConfig(5))
-      .debug("Application config initialized")
-      .toLayer ++ Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers.update[AppConfig](c =>
@@ -552,9 +544,7 @@ object MainApp extends ZIOAppDefault {
 
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
-    ZIO.succeed(AppConfig(5))
-      .debug("Application config initialized")
-      .toLayer ++ Console.live
+    ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
   val updatedConfig: ZLayer[Any, Nothing, AppConfig] =
     appLayers ++ ZLayer.succeed(AppConfig(8))
@@ -644,15 +634,12 @@ val myApp: ZIO[Cake, IOException, Unit] = for {
 } yield ()
 ```
 
-The type of `myApp` indicates we should provide `Console` and `Cake` to this ZIO application to run it. Let's give it those and see what happens:
+The type of `myApp` indicates we should provide `Cake` to this ZIO application to run it. Let's give it that and see what happens:
 
 ```scala mdoc:fail:silent
 object MainApp extends ZIOAppDefault {
   def run =
-    myApp.provide(
-      Cake.live,
-      Console.live
-    )
+    myApp.provide(Cake.live)
 }
 
 // error:
@@ -691,7 +678,6 @@ object MainApp extends ZIOAppDefault {
   def run =
     myApp.provide(
       Cake.live,
-      Console.live,
       Chocolate.live,
       Flour.live
     )
@@ -903,7 +889,7 @@ We can `provide` implementation of `Logging` service into the `app` effect:
 ```scala mdoc:silent:nest
 val loggingImpl = new Logging {
   override def log(line: String): UIO[Unit] =
-    UIO.succeed(println(line))
+    ZIO.succeed(println(line))
 }
 
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
@@ -953,52 +939,6 @@ val mainEffectSome: ZIO[Any, Nothing, Unit] =
 > **Note:**
 >
 > When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
-
-#### Using `ZIO#provideCustom` Method
-
-`ZEnv` is a convenient type alias that provides several built-in ZIO services that are useful in most applications. Sometimes we have written a program that contains ZIO built-in services and some other services that are not part of `ZEnv`.
-
-As `ZEnv` provides us the implementation of built-in services, we just need to provide layers for those services that are not part of the `ZEnv`. The `ZIO#provideCustom` method helps us to do so. It returns an effect that only depends on `ZEnv`.
-
-Let's write an effect that has some built-in services and also has a `Logging` service:
-
-```scala mdoc:invisible:reset
-import zio._
-import zio.Console._
-import zio.Clock._
-```
-
-```scala mdoc:silent
-trait Logging {
-  def log(str: String): UIO[Unit]
-}
-
-object Logging {
-  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
-}
-
-object LoggingLive {
-  val layer: ULayer[Logging] = ZLayer.succeed {
-    new Logging {
-      override def log(str: String): UIO[Unit] = ???
-    }
-  }
-}
-
-val myApp: ZIO[Logging, Nothing, Unit] = for {
-  _       <- Logging.log("Application Started!")
-  current <- Clock.currentDateTime
-  _       <- Console.printLine(s"Current Data Time: $current").orDie
-} yield ()
-```
-
-This program uses two ZIO built-in services, `Console` and `Clock`. We don't need to provide `Console` and `Clock` manually, to reduce some boilerplate, we use `ZEnv` to satisfy some common base requirements.
-
-By using `ZIO#provideCustom` we only provide the `Logging` layer, and it returns a `ZIO` effect which only requires `ZEnv`:
-
-```scala mdoc:silent
-val mainEffect: ZIO[ZEnv, Nothing, Unit] = myApp.provide(LoggingLive.layer)
-```
 
 ## Environment Scope
 
@@ -1096,7 +1036,7 @@ case class BLive(a: A) extends B
 case class CLive(a: A) extends C
 
 val a: ZLayer[Any, Nothing, A] =
-  ZIO.succeed(new A {}).debug("initialized").toLayer
+  ZLayer(ZIO.succeed(new A {}).debug("initialized"))
 
 val b: ZLayer[A, Nothing, B] =
   ZLayer {
@@ -1226,9 +1166,13 @@ object Database {
 }
 
 val database: ZLayer[Any, Throwable, Database] =
-  ZLayer.fromAcquireRelease(
-    Database.connect.debug("connecting to the database")
-  )(_.close)
+  ZLayer.scoped {
+    ZIO.acquireRelease {
+      Database.connect.debug("connecting to the database")
+    } { database =>
+      database.close
+    }
+  }
 
 val scopedDatabase: ZIO[Scope, Throwable, ZEnvironment[Database]] =
   database.build
@@ -1505,9 +1449,7 @@ class InmemeoryCache() extends Cache {
 
 object InmemoryCache {
   val layer: ZLayer[Any, Throwable, Cache] =
-    ZIO.attempt(new InmemeoryCache)
-      .debug("initialized")
-      .toLayer
+    ZLayer(ZIO.attempt(new InmemeoryCache).debug("initialized"))
 }
 
 class PersistentCache() extends Cache {
@@ -1520,9 +1462,7 @@ class PersistentCache() extends Cache {
 
 object PersistentCache {
   val layer: ZLayer[Any, Throwable, Cache] =
-    ZIO.attempt(new PersistentCache)
-      .debug("initialized")
-      .toLayer
+    ZLayer(ZIO.attempt(new PersistentCache).debug("initialized"))
 }
 
 case class Document(title: String, author: String, body: String)

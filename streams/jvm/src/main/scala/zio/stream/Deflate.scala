@@ -2,21 +2,21 @@ package zio.stream
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.compression.{CompressionLevel, CompressionStrategy, FlushMode}
-import zio.{Chunk, ZIO, ZTraceElement}
+import zio.{Chunk, ZIO, Trace}
 
 import java.util.zip.Deflater
 import java.{util => ju}
 import scala.annotation.tailrec
 
-object Deflate {
+private object Deflate {
   def makeDeflater[Err, Done](
     bufferSize: Int = 64 * 1024,
     noWrap: Boolean = false,
     level: CompressionLevel = CompressionLevel.DefaultCompression,
     strategy: CompressionStrategy = CompressionStrategy.DefaultStrategy,
     flushMode: FlushMode = FlushMode.NoFlush
-  )(implicit trace: ZTraceElement): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-    ZChannel.scoped {
+  )(implicit trace: Trace): ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+    ZChannel.unwrapScoped {
       ZIO
         .acquireRelease(ZIO.succeed {
           val deflater = new Deflater(level.jValue, noWrap)
@@ -25,28 +25,29 @@ object Deflate {
         }) { case (deflater, _) =>
           ZIO.succeed(deflater.end())
         }
-    } {
-      case (deflater, buffer) => {
+        .map {
+          case (deflater, buffer) => {
 
-        lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
-          ZChannel.readWithCause(
-            chunk =>
-              ZChannel.succeed {
-                deflater.setInput(chunk.toArray)
-                pullOutput(deflater, buffer, flushMode)
-              }.flatMap(chunk => ZChannel.write(chunk) *> loop),
-            ZChannel.failCause(_),
-            done =>
-              ZChannel.succeed {
-                deflater.finish()
-                val out = pullOutput(deflater, buffer, flushMode)
-                deflater.reset()
-                out
-              }.flatMap(chunk => ZChannel.write(chunk).as(done))
-          )
+            lazy val loop: ZChannel[Any, Err, Chunk[Byte], Done, Err, Chunk[Byte], Done] =
+              ZChannel.readWithCause(
+                chunk =>
+                  ZChannel.succeed {
+                    deflater.setInput(chunk.toArray)
+                    pullOutput(deflater, buffer, flushMode)
+                  }.flatMap(chunk => ZChannel.write(chunk) *> loop),
+                ZChannel.failCause(_),
+                done =>
+                  ZChannel.succeed {
+                    deflater.finish()
+                    val out = pullOutput(deflater, buffer, flushMode)
+                    deflater.reset()
+                    out
+                  }.flatMap(chunk => ZChannel.write(chunk).as(done))
+              )
 
-        loop
-      }
+            loop
+          }
+        }
     }
 
   private def pullOutput(deflater: Deflater, buffer: Array[Byte], flushMode: FlushMode): Chunk[Byte] = {

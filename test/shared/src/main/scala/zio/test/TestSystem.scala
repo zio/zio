@@ -16,10 +16,9 @@
 
 package zio.test
 
-import zio.{IO, Layer, Ref, System, UIO, URIO, ZEnv, ZIO, ZLayer, ZTraceElement}
+import zio.{IO, Layer, Ref, System, UIO, URIO, ZIO, ZLayer, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.ZTrace
 
 /**
  * `TestSystem` supports deterministic testing of effects involving system
@@ -39,11 +38,11 @@ import zio.ZTrace
  * }}}
  */
 trait TestSystem extends System with Restorable {
-  def putEnv(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit]
-  def putProperty(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit]
-  def setLineSeparator(lineSep: String)(implicit trace: ZTraceElement): UIO[Unit]
-  def clearEnv(variable: String)(implicit trace: ZTraceElement): UIO[Unit]
-  def clearProperty(prop: String)(implicit trace: ZTraceElement): UIO[Unit]
+  def putEnv(name: String, value: String)(implicit trace: Trace): UIO[Unit]
+  def putProperty(name: String, value: String)(implicit trace: Trace): UIO[Unit]
+  def setLineSeparator(lineSep: String)(implicit trace: Trace): UIO[Unit]
+  def clearEnv(variable: String)(implicit trace: Trace): UIO[Unit]
+  def clearProperty(prop: String)(implicit trace: Trace): UIO[Unit]
 }
 
 object TestSystem extends Serializable {
@@ -53,14 +52,14 @@ object TestSystem extends Serializable {
     /**
      * Returns the specified environment variable if it exists.
      */
-    def env(variable: => String)(implicit trace: ZTraceElement): IO[SecurityException, Option[String]] =
+    def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]] =
       ZIO.succeed(unsafeEnv(variable))
 
     /**
      * Returns the specified environment variable if it exists or else the
      * specified fallback value.
      */
-    def envOrElse(variable: => String, alt: => String)(implicit trace: ZTraceElement): IO[SecurityException, String] =
+    def envOrElse(variable: => String, alt: => String)(implicit trace: Trace): IO[SecurityException, String] =
       ZIO.succeed(unsafeEnvOrElse(variable, alt))
 
     /**
@@ -68,33 +67,33 @@ object TestSystem extends Serializable {
      * specified optional fallback value.
      */
     def envOrOption(variable: => String, alt: => Option[String])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): IO[SecurityException, Option[String]] =
       ZIO.succeed(unsafeEnvOrOption(variable, alt))
 
-    def envs(implicit trace: ZTraceElement): ZIO[Any, SecurityException, Map[String, String]] =
+    def envs(implicit trace: Trace): ZIO[Any, SecurityException, Map[String, String]] =
       ZIO.succeed(unsafeEnvs())
 
     /**
      * Returns the system line separator.
      */
-    def lineSeparator(implicit trace: ZTraceElement): UIO[String] =
+    def lineSeparator(implicit trace: Trace): UIO[String] =
       ZIO.succeed(unsafeLineSeparator())
 
-    def properties(implicit trace: ZTraceElement): ZIO[Any, Throwable, Map[String, String]] =
+    def properties(implicit trace: Trace): ZIO[Any, Throwable, Map[String, String]] =
       ZIO.succeed(unsafeProperties())
 
     /**
      * Returns the specified system property if it exists.
      */
-    def property(prop: => String)(implicit trace: ZTraceElement): IO[Throwable, Option[String]] =
+    def property(prop: => String)(implicit trace: Trace): IO[Throwable, Option[String]] =
       ZIO.succeed(unsafeProperty(prop))
 
     /**
      * Returns the specified system property if it exists or else the specified
      * fallback value.
      */
-    def propertyOrElse(prop: => String, alt: => String)(implicit trace: ZTraceElement): IO[Throwable, String] =
+    def propertyOrElse(prop: => String, alt: => String)(implicit trace: Trace): IO[Throwable, String] =
       ZIO.succeed(unsafePropertyOrElse(prop, alt))
 
     /**
@@ -102,7 +101,7 @@ object TestSystem extends Serializable {
      * optional fallback value.
      */
     def propertyOrOption(prop: => String, alt: => Option[String])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): IO[Throwable, Option[String]] =
       ZIO.succeed(unsafePropertyOrOption(prop, alt))
 
@@ -110,40 +109,40 @@ object TestSystem extends Serializable {
      * Adds the specified name and value to the mapping of environment variables
      * maintained by this `TestSystem`.
      */
-    def putEnv(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit] =
+    def putEnv(name: String, value: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(data => data.copy(envs = data.envs.updated(name, value)))
 
     /**
      * Adds the specified name and value to the mapping of system properties
      * maintained by this `TestSystem`.
      */
-    def putProperty(name: String, value: String)(implicit trace: ZTraceElement): UIO[Unit] =
+    def putProperty(name: String, value: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties.updated(name, value)))
 
     /**
      * Sets the system line separator maintained by this `TestSystem` to the
      * specified value.
      */
-    def setLineSeparator(lineSep: String)(implicit trace: ZTraceElement): UIO[Unit] =
+    def setLineSeparator(lineSep: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(_.copy(lineSeparator = lineSep))
 
     /**
      * Clears the mapping of environment variables.
      */
-    def clearEnv(variable: String)(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearEnv(variable: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(data => data.copy(envs = data.envs - variable))
 
     /**
      * Clears the mapping of system properties.
      */
-    def clearProperty(prop: String)(implicit trace: ZTraceElement): UIO[Unit] =
+    def clearProperty(prop: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties - prop))
 
     /**
      * Saves the `TestSystem``'s current state in an effect which, when run,
      * will restore the `TestSystem` state to the saved state.
      */
-    def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+    def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
         systemData <- systemState.get
       } yield systemState.set(systemData)
@@ -189,12 +188,12 @@ object TestSystem extends Serializable {
    * `Console`, such as with `ZIO#provide`.
    */
   def live(data: Data): Layer[Nothing, TestSystem] = {
-    implicit val trace: ZTraceElement = Tracer.newTrace
+    implicit val trace: Trace = Tracer.newTrace
     ZLayer.scoped {
       for {
         ref <- ZIO.succeed(Ref.unsafeMake(data))
         test = Test(ref)
-        _   <- ZEnv.services.locallyScopedWith(_.add(test))
+        _   <- ZIO.withSystemScoped(test)
       } yield test
     }
   }
@@ -209,14 +208,14 @@ object TestSystem extends Serializable {
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of environment variables.
    */
-  def putEnv(name: => String, value: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+  def putEnv(name: => String, value: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.putEnv(name, value))
 
   /**
    * Accesses a `TestSystem` instance in the environment and adds the specified
    * name and value to the mapping of system properties.
    */
-  def putProperty(name: => String, value: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+  def putProperty(name: => String, value: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.putProperty(name, value))
 
   /**
@@ -224,28 +223,28 @@ object TestSystem extends Serializable {
    * state in an effect which, when run, will restore the `TestSystem` to the
    * saved state
    */
-  def save(implicit trace: ZTraceElement): UIO[UIO[Unit]] =
+  def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testSystemWith(_.save)
 
   /**
    * Accesses a `TestSystem` instance in the environment and sets the line
    * separator to the specified value.
    */
-  def setLineSeparator(lineSep: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+  def setLineSeparator(lineSep: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.setLineSeparator(lineSep))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of environment variables.
    */
-  def clearEnv(variable: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearEnv(variable: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.clearEnv(variable))
 
   /**
    * Accesses a `TestSystem` instance in the environment and clears the mapping
    * of system properties.
    */
-  def clearProperty(prop: => String)(implicit trace: ZTraceElement): UIO[Unit] =
+  def clearProperty(prop: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.clearProperty(prop))
 
   /**
