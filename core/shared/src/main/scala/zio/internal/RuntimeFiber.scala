@@ -53,7 +53,7 @@ package zio2 {
       ZIO.succeed {
         val cause = Cause.interrupt(fiberId).traced(ZTrace(fiberId, Chunk(trace)))
 
-        unsafeAddSuppressedCause(cause)
+        unsafeAddInterruptedCause(cause)
 
         val selfInterrupt = ZIO.InterruptSignal(cause, trace)
 
@@ -134,7 +134,7 @@ package zio2 {
         case zioError: ZIOError =>
           val cause = zioError.cause.asInstanceOf[Cause[E]]
 
-          val exit = Exit.failCause(cause ++ unsafeGetSuppressedCause())
+          val exit = Exit.failCause(cause ++ unsafeGetInterruptedCause())
 
           val remainingWork = self.unsafeAttemptDone(exit)
 
@@ -220,7 +220,7 @@ package zio2 {
                       interruptible = k.interruptible
 
                       // TODO: Interruption
-                      if (interruptible && unsafeIsInterrupted()) cur = Refail(unsafeGetSuppressedCause())
+                      if (interruptible && unsafeIsInterrupted()) cur = Refail(unsafeGetInterruptedCause())
 
                     case k: UpdateTrace => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                   }
@@ -240,7 +240,7 @@ package zio2 {
 
             case effect: ChangeInterruptionWithin[_, _, _] =>
               if (effect.newInterruptible && unsafeIsInterrupted()) { // TODO: Interruption
-                cur = Refail(unsafeGetSuppressedCause())
+                cur = Refail(unsafeGetInterruptedCause())
               } else {
                 val oldInterruptible = interruptible
 
@@ -253,7 +253,7 @@ package zio2 {
                     interruptible = oldInterruptible
 
                     // TODO: Interruption
-                    if (interruptible && unsafeIsInterrupted()) Refail(unsafeGetSuppressedCause())
+                    if (interruptible && unsafeIsInterrupted()) Refail(unsafeGetInterruptedCause())
                     else ZIO.succeed(value)
                   } catch {
                     case reifyStack: ReifyStack => reifyStack.changeInterruptibility(oldInterruptible)
@@ -298,7 +298,7 @@ package zio2 {
 
                     // TODO: Interruption
                     if (interruptible && unsafeIsInterrupted())
-                      cur = Refail(cause.stripFailures ++ unsafeGetSuppressedCause())
+                      cur = Refail(cause.stripFailures ++ unsafeGetInterruptedCause())
 
                   case k: UpdateTrace => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
                 }
@@ -373,7 +373,7 @@ package zio2 {
      * Adds an interruptor to the set of interruptors that are interrupting this
      * fiber.
      */
-    final def unsafeAddSuppressedCause(cause: Cause[Nothing]): Unit = {
+    final def unsafeAddInterruptedCause(cause: Cause[Nothing]): Unit = {
       val oldSC = unsafeGetFiberRef(FiberRef.suppressedCause)
 
       unsafeSetFiberRef(FiberRef.suppressedCause, oldSC ++ cause)
@@ -546,7 +546,7 @@ package zio2 {
      */
     final def unsafeGetInterruptible(): Boolean = statusState.getInterruptible()
 
-    final def unsafeGetSuppressedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.suppressedCause)
+    final def unsafeGetInterruptedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.suppressedCause)
 
     /**
      * Determines if the fiber state contains messages to process by the fiber
