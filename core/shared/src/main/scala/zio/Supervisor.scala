@@ -29,18 +29,18 @@ import scala.collection.immutable.SortedSet
 abstract class Supervisor[+A] { self =>
 
   /**
-   * Maps this supervisor to another one, which has the same effect, but whose
-   * value has been transformed by the specified function.
-   */
-  def map[B](f: A => B): Supervisor[B] =
-    new Supervisor.ProxySupervisor(trace => value(trace).map(f)(trace), self)
-
-  /**
    * Returns an effect that succeeds with the value produced by this supervisor.
    * This value may change over time, reflecting what the supervisor produces as
    * it supervises fibers.
    */
   def value(implicit trace: Trace): UIO[A]
+
+  /**
+   * Maps this supervisor to another one, which has the same effect, but whose
+   * value has been transformed by the specified function.
+   */
+  def map[B](f: A => B): Supervisor[B] =
+    new Supervisor.ProxySupervisor(trace => value(trace).map(f)(trace), self)
 
   /**
    * Returns a new supervisor that performs the function of this supervisor, and
@@ -83,20 +83,20 @@ abstract class Supervisor[+A] { self =>
       }
     }
 
-  private[zio] def unsafeOnStart[R, E, A](
+  def unsafeOnStart[R, E, A](
     environment: ZEnvironment[R],
     effect: ZIO[R, E, A],
     parent: Option[Fiber.Runtime[Any, Any]],
     fiber: Fiber.Runtime[E, A]
   ): Unit
 
-  private[zio] def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit
+  def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit
 
-  private[zio] def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit = ()
+  def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit = ()
 
-  private[zio] def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
+  def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
 
-  private[zio] def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
+  def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
 }
 object Supervisor {
   import zio.internal._
@@ -207,13 +207,13 @@ object Supervisor {
     def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit =
       underlying.unsafeOnEnd(value, fiber)
 
-    override private[zio] def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit =
+    override def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit =
       underlying.unsafeOnEffect(fiber, effect)
 
-    override private[zio] def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit =
+    override def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit =
       underlying.unsafeOnSuspend(fiber)
 
-    override private[zio] def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit =
+    override def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit =
       underlying.unsafeOnResume(fiber)
   }
 }

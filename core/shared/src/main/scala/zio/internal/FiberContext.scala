@@ -515,7 +515,7 @@ private[zio] final class FiberContext[E, A](
             } else {
               unsafeSetInterrupting(true)
 
-              ZIO.die(t)(Tracer.newTrace)
+              ZIO.die(t)(Trace.empty)
             }
         }
       }
@@ -525,11 +525,11 @@ private[zio] final class FiberContext[E, A](
       val flags       = unsafeGetRuntimeFlags()
       val supervisors = unsafeGetSupervisors()
 
-      // FIXME: Race condition on fiber resumption
-      if (flags(EnableCurrentFiber)) Fiber._currentFiber.remove()
       supervisors.foreach { supervisor =>
         supervisor.unsafeOnSuspend(self)
       }
+      // FIXME: Race condition on fiber resumption
+      if (flags(EnableCurrentFiber)) Fiber._currentFiber.remove()
     }
 
   override def toString(): String =
