@@ -10,7 +10,7 @@ trait ThreadLocalBridge {
 }
 
 object ThreadLocalBridge {
-  private implicit val trace = Trace.empty
+  private implicit val trace: Trace = Trace.empty
 
   def makeFiberRef[A](initialValue: A, link: A => Unit): ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[A]] =
     ZIO.serviceWithZIO[ThreadLocalBridge](_.makeFiberRef(initialValue, link))
