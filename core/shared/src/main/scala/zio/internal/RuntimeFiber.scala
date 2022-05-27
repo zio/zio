@@ -10,12 +10,18 @@ package zio2 {
   import java.util.{Set => JavaSet}
   import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
+  sealed trait Fiber[+E, +A]
+  object Fiber {
+    sealed trait Runtime[+E, +A] extends Fiber[E, A]
+  }
+
   object RuntimeFiber {
     def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs): RuntimeFiber[E, A] =
       new RuntimeFiber(fiberId, fiberRefs)
   }
   class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs)
-      extends FiberState[E, A](fiberId, fiberRefs) { self =>
+      extends FiberState[E, A](fiberId, fiberRefs)
+      with Fiber.Runtime[E, A] { self =>
     type Erased = ZIO[Any, Any, Any]
 
     import ZIO._
@@ -74,7 +80,7 @@ package zio2 {
         if (self.unsafeIsDone()) Some(self.unsafeExitValue()) else None
       }
 
-    def status(implicit trace: ZTraceElement): UIO[Fiber.Status] = ZIO.succeed(self.unsafeStatus())
+    def status(implicit trace: ZTraceElement): UIO[zio.Fiber.Status] = ZIO.succeed(self.unsafeStatus())
 
     def trace(implicit trace: ZTraceElement): UIO[ZTrace] =
       evalOnZIO(ZIO.trace, ZIO.succeed(ZTrace(fiberId, Chunk.empty)))
@@ -412,6 +418,9 @@ package zio2 {
     final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit =
       observers = observer :: observers
 
+    final def unsafeAddObserverMaybe(k: Exit[E, A] => Unit): Exit[E, A] =
+      unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k)), unsafeExitValue())
+
     /**
      * Attempts to place the state of the fiber in interruption, but only if the
      * fiber is currently asynchronously suspended (hence, "async
@@ -615,7 +624,7 @@ package zio2 {
     /**
      * Retrieves a snapshot of the status of the fibers.
      */
-    final def unsafeStatus(): Fiber.Status = {
+    final def unsafeStatus(): zio.Fiber.Status = {
       import FiberStatusIndicator.Status
 
       val indicator = statusState.getIndicator()
@@ -623,15 +632,15 @@ package zio2 {
       val status       = FiberStatusIndicator.getStatus(indicator)
       val interrupting = FiberStatusIndicator.getInterrupting(indicator)
 
-      if (status == Status.Done) Fiber.Status.Done
-      else if (status == Status.Running) Fiber.Status.Running(interrupting)
+      if (status == Status.Done) zio.Fiber.Status.Done
+      else if (status == Status.Running) zio.Fiber.Status.Running(interrupting)
       else {
         val interruptible = FiberStatusIndicator.getInterruptible(indicator)
         val asyncs        = FiberStatusIndicator.getAsyncs(indicator)
         val blockingOn    = if (suspension eq null) FiberId.None else suspension.blockingOn
         val asyncTrace    = if (suspension eq null) ZTraceElement.empty else suspension.location
 
-        Fiber.Status.Suspended(interrupting, interruptible, asyncs.toLong, blockingOn, asyncTrace)
+        zio.Fiber.Status.Suspended(interrupting, interruptible, asyncs.toLong, blockingOn, asyncTrace)
       }
     }
   }
@@ -684,27 +693,7 @@ package zio2 {
     final def fork[E1 >: E, A1 >: A](implicit trace: ZTraceElement): ZIO[R, Nothing, RuntimeFiber[E1, A1]] =
       ZIO.Stateful[R, Nothing, RuntimeFiber[E1, A1]](
         trace,
-        (fiberState, interruptible, lastTrace) => {
-          val childId         = FiberId.unsafeMake(trace)
-          val parentFiberRefs = fiberState.unsafeGetFiberRefs
-          val childFiberRefs  = parentFiberRefs.forkAs(childId)
-
-          val childFiber = RuntimeFiber[E1, A1](childId, childFiberRefs)
-
-          // FIXME: Call the supervisor who can observe the fork of the child fiber
-          val parentScope = fiberState.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(fiberState.scope)
-
-          // FIXME: Pass `enableFiberRoots` here:
-          parentScope.unsafeAdd(true, childFiber)
-
-          val currentExecutor = fiberState.unsafeGetCurrentExecutor()
-          
-          currentExecutor.unsafeSubmitOrThrow { () => 
-            childFiber.outerRunLoop(self.asInstanceOf[Erased], Chunk.empty, 1000)
-          }
-
-          ZIO.succeed(childFiber)
-        }
+        (fiberState, interruptible, _) => ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, interruptible))
       )
 
     final def interruptible(implicit trace: ZTraceElement): ZIO[R, E, A] =
@@ -716,6 +705,53 @@ package zio2 {
     final def mapError[E2](f: E => E2)(implicit trace: ZTraceElement): ZIO[R, E2, A] =
       self.catchAll(e => ZIO.fail(f(e)))
 
+    // FIXME: Change from RuntimeFiber => Fiber.Runtime
+    final def raceWith[R1 <: R, ER, E2, B, C](right0: ZIO[R1, ER, B])(
+      leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
+      rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
+    )(implicit trace: ZTraceElement): ZIO[R1, E2, C] = ZIO.Stateful[R1, E2, C](
+      trace,
+      { (fiberState, interruptible, _) =>
+        import java.util.concurrent.atomic.AtomicBoolean
+
+        @inline def complete[E0, E1, A, B](
+          winner: Fiber.Runtime[E0, A],
+          loser: Fiber.Runtime[E1, B],
+          cont: (Fiber.Runtime[E0, A], Fiber.Runtime[E1, B]) => ZIO[R1, E2, C],
+          ab: AtomicBoolean,
+          cb: ZIO[R1, E2, C] => Any
+        ): Any =
+          if (ab.compareAndSet(true, false)) {
+            cb(cont(winner, loser))
+          }
+
+        val raceIndicator = new AtomicBoolean(true)
+
+        val left: RuntimeFiber[E, A]   = ZIO.unsafeFork(trace, self, fiberState, interruptible)
+        val right: RuntimeFiber[ER, B] = ZIO.unsafeFork(trace, right0, fiberState, interruptible)
+
+        ZIO
+          .async[R1, E2, C](
+            { cb =>
+              val leftRegister = left.unsafeAddObserverMaybe { _ =>
+                complete(left, right, leftWins, raceIndicator, cb)
+              }
+
+              if (leftRegister ne null)
+                complete(left, right, leftWins, raceIndicator, cb)
+              else {
+                val rightRegister = right.unsafeAddObserverMaybe { _ =>
+                  complete(right, left, rightWins, raceIndicator, cb)
+                }
+
+                if (rightRegister ne null)
+                  complete(right, left, rightWins, raceIndicator, cb)
+              }
+            } //FIXME, FiberId.combineAll(Set(left.fiberId, right.fiberId))
+          )
+      }
+    )
+
     def trace: ZTraceElement
 
     final def uninterruptible(implicit trace: ZTraceElement): ZIO[R, E, A] =
@@ -724,6 +760,35 @@ package zio2 {
     final def unit(implicit trace: ZTraceElement): ZIO[R, E, Unit] = self.as(())
   }
   object ZIO {
+    private def unsafeFork[R, E1, E2, A, B](
+      trace: ZTraceElement,
+      effect: ZIO[R, E1, A],
+      fiberState: FiberState[E2, B],
+      interruptible: Boolean
+    ) = {
+      val childId         = FiberId.unsafeMake(trace)
+      val parentFiberRefs = fiberState.unsafeGetFiberRefs
+      val childFiberRefs  = parentFiberRefs.forkAs(childId)
+
+      val childFiber = RuntimeFiber[E1, A](childId, childFiberRefs)
+
+      // Child inherits interruptibility status of parent fiber:
+      childFiber.unsafeSetInterruptible(interruptible)
+
+      // FIXME: Call the supervisor who can observe the fork of the child fiber
+      val parentScope = fiberState.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(fiberState.scope)
+
+      // FIXME: Pass `enableFiberRoots` here:
+      parentScope.unsafeAdd(true, childFiber)
+
+      val currentExecutor = fiberState.unsafeGetCurrentExecutor()
+
+      currentExecutor.unsafeSubmitOrThrow { () =>
+        childFiber.outerRunLoop(effect.asInstanceOf[Erased], Chunk.empty, 1000)
+      }
+
+      childFiber
+    }
     implicit class EffectThrowableSyntax[A](self: ZIO[Any, Throwable, A]) {
       def unsafeRun(maxDepth: Int = 1000): A = ZIO.eval(self, maxDepth)
 

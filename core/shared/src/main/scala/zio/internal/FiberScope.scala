@@ -99,6 +99,6 @@ private[zio] object FiberScope {
   }
 
   // FIXME: Turn type of `fiber` to `RuntimeFiber`
-  private[zio] def unsafeMake(fiber: { def fiberId : FiberId }): FiberScope =
+  private[zio] def unsafeMake(fiber: { def fiberId: FiberId }): FiberScope =
     new Local(fiber.fiberId, new WeakReference(fiber))
 }
