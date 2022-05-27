@@ -705,7 +705,6 @@ package zio2 {
     final def mapError[E2](f: E => E2)(implicit trace: ZTraceElement): ZIO[R, E2, A] =
       self.catchAll(e => ZIO.fail(f(e)))
 
-    // FIXME: Change from RuntimeFiber => Fiber.Runtime
     final def raceWith[R1 <: R, ER, E2, B, C](right0: ZIO[R1, ER, B])(
       leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
       rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
