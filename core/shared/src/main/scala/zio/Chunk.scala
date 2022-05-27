@@ -1034,12 +1034,6 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
-  sealed trait Endianness
-  object Endianness {
-    case object BigEndian    extends Endianness
-    case object LittleEndian extends Endianness
-  }
-
   /**
    * Returns a chunk from a number of values.
    */
