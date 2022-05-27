@@ -86,10 +86,10 @@ object BitChunkSpec extends ZIOBaseSpec {
               r.bytes.map(toBinaryString).mkString.slice(r.minBitIndex, r.maxBitIndex)
             )
             .map {
-              case '0' -> '0' => '0'
-              case '0' -> '1' => '0'
-              case '1' -> '0' => '0'
-              case '1' -> '1' => '1'
+              case ('0', '0') => '0'
+              case ('0', '1') => '0'
+              case ('1', '0') => '0'
+              case ('1', '1') => '1'
               case _          => ""
             }
             .mkString
@@ -110,10 +110,10 @@ object BitChunkSpec extends ZIOBaseSpec {
               r.bytes.map(toBinaryString).mkString.slice(r.minBitIndex, r.maxBitIndex)
             )
             .map {
-              case '0' -> '0' => '0'
-              case '0' -> '1' => '1'
-              case '1' -> '0' => '1'
-              case '1' -> '1' => '1'
+              case ('0', '0') => '0'
+              case ('0', '1') => '1'
+              case ('1', '0') => '1'
+              case ('1', '1') => '1'
               case _          => ""
             }
             .mkString
@@ -134,10 +134,10 @@ object BitChunkSpec extends ZIOBaseSpec {
               r.bytes.map(toBinaryString).mkString.slice(r.minBitIndex, r.maxBitIndex)
             )
             .map {
-              case '0' -> '0' => '0'
-              case '0' -> '1' => '1'
-              case '1' -> '0' => '1'
-              case '1' -> '1' => '0'
+              case ('0', '0') => '0'
+              case ('0', '1') => '1'
+              case ('1', '0') => '1'
+              case ('1', '1') => '0'
               case _          => ""
             }
             .mkString
