@@ -527,7 +527,8 @@ package zio2 {
     }
 
     final def unsafeGetCurrentExecutor(): Executor =
-      unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)
+      Executor.fromExecutionContext(1024)(scala.concurrent.ExecutionContext.global)
+    // unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)
 
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
@@ -689,6 +690,8 @@ package zio2 {
   object ZIO {
     implicit class EffectThrowableSyntax[A](self: ZIO[Any, Throwable, A]) {
       def unsafeRun(maxDepth: Int = 1000): A = ZIO.eval(self, maxDepth)
+
+      def unsafeRunToFuture(maxDepth: Int = 1000): scala.concurrent.Future[A] = ZIO.evalToFuture(self, maxDepth)
     }
     sealed trait EvaluationStep { self =>
       def trace: ZTraceElement

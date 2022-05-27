@@ -1,6 +1,7 @@
 package zio.internal
 
 import zio.test._
+// import zio.test.TestAspect.ignore
 import zio.internal.zio2.RuntimeFiber
 
 object NewEncodingSpec extends zio.ZIOBaseSpec {
@@ -27,7 +28,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
   def runFibTest(num: Int, maxDepth: Int = 1000) =
     test(s"fib(${num})") {
       for {
-        actual   <- ZIO.succeed(newFib(num).unsafeRun(maxDepth))
+        actual   <- ZIO.fromFuture(_ => newFib(num).unsafeRunToFuture(maxDepth))
         expected <- oldFib(num)
       } yield assertTrue(actual == expected)
     }
@@ -41,7 +42,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
   def runSumTest(num: Int, maxDepth: Int = 1000) =
     test(s"sum(${num})") {
       for {
-        actual   <- ZIO.succeed(newSum(num).unsafeRun(maxDepth))
+        actual   <- ZIO.fromFuture(_ => newSum(num).unsafeRunToFuture(maxDepth))
         expected <- oldSum(num)
       } yield assertTrue(actual == expected)
     }
@@ -72,7 +73,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
   def runFailAfterTest(num: Int, maxDepth: Int = 1000) =
     test(s"failAfter(${num})") {
       for {
-        actual   <- ZIO.succeed(newFailAfter(num).unsafeRun(maxDepth))
+        actual   <- ZIO.fromFuture(_ => newFailAfter(num).unsafeRunToFuture(maxDepth))
         expected <- oldFailAfter(num)
       } yield assertTrue(actual == expected)
     }
@@ -112,7 +113,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
   def runTerminalFailTest(num: Int, maxDepth: Int = 1000) =
     test(s"terminalFail(${num})") {
       for {
-        actual   <- ZIO.succeed(newTerminalFail(num).unsafeRun(maxDepth))
+        actual   <- ZIO.fromFuture(_ => newTerminalFail(num).unsafeRunToFuture(maxDepth))
         expected <- oldTerminalFail(num)
       } yield assertTrue(actual == expected)
     }
@@ -120,7 +121,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
   def runAsyncAfterTest(num: Int, maxDepth: Int = 1000) =
     test(s"asyncAfter(${num})") {
       for {
-        actual   <- ZIO.succeed(newAsyncAfter(num).unsafeRun(maxDepth))
+        actual   <- ZIO.fromFuture(_ => newAsyncAfter(num).unsafeRunToFuture(maxDepth))
         expected <- oldAsyncAfter(num)
       } yield assertTrue(actual == expected)
     }
@@ -178,7 +179,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
       suite("stack traces") {
         test("2nd-level trace") {
           for {
-            t <- ZIO.succeed(stackTraceTest1.unsafeRun())
+            t <- ZIO.fromFuture(_ => stackTraceTest1.unsafeRunToFuture())
           } yield assertTrue(t.size == 3) &&
             assertTrue(t.stackTrace(0).toString().contains("secondLevelCallStack")) &&
             assertTrue(t.stackTrace(1).toString().contains("firstLevelCallStack")) &&
@@ -186,7 +187,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
         } +
           test("2nd-level auto-trace through fail") {
             for {
-              exit <- ZIO.succeed(stackTraceTest2.exit.unsafeRun())
+              exit <- ZIO.fromFuture(_ => stackTraceTest2.exit.unsafeRunToFuture())
               t     = exit.causeOption.get.trace
             } yield assertTrue(t.size == 4) &&
               assertTrue(t.stackTrace(0).toString().contains("secondLevelCallStackFail")) &&
@@ -258,13 +259,15 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
         suite("defects") {
           test("death in succeed") {
             for {
-              result <- ZIO.succeed(Effect.succeed(throw TestException).exit.unsafeRun())
+              result <- ZIO.fromFuture(_ => Effect.succeed(throw TestException).exit.unsafeRunToFuture())
             } yield assertTrue(result.causeOption.get.defects(0) == TestException)
           } +
             test("death in succeed after async") {
               for {
                 result <-
-                  ZIO.succeed((Effect.unit *> Effect.yieldNow *> Effect.succeed(throw TestException)).exit.unsafeRun())
+                  ZIO.fromFuture(_ =>
+                    (Effect.unit *> Effect.yieldNow *> Effect.succeed(throw TestException)).exit.unsafeRunToFuture()
+                  )
               } yield assertTrue(result.causeOption.get.defects(0) == TestException)
             }
         } +
@@ -278,7 +281,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               fiberId  <- ZIO.fiberId
               executor <- ZIO.blockingExecutor
               _        <- ZIO.succeed(executor.unsafeSubmitOrThrow { () => fiber.outerRunLoop(never, Chunk.empty, 1000); () })
-              exit     <- ZIO.succeed(fiber.interruptAs(fiberId).unsafeRun())
+              exit     <- ZIO.fromFuture(_ => fiber.interruptAs(fiberId).unsafeRunToFuture())
             } yield assertTrue(exit.isInterrupted)
           }
         } +
@@ -289,7 +292,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
             val finalize = Effect.succeed { finalized = true }
 
             for {
-              _ <- ZIO.succeed(Effect.succeed(()).ensuring(finalize).exit.unsafeRun())
+              _ <- ZIO.fromFuture(_ => Effect.succeed(()).ensuring(finalize).exit.unsafeRunToFuture())
             } yield assertTrue(finalized == true)
           } +
             test("ensuring - success after async") {
@@ -298,9 +301,10 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(
-                       (Effect.unit *> Effect.yieldNow *> Effect.succeed(())).ensuring(finalize).exit.unsafeRun()
-                     )
+                _ <-
+                  ZIO.fromFuture(_ =>
+                    (Effect.unit *> Effect.yieldNow *> Effect.succeed(())).ensuring(finalize).exit.unsafeRunToFuture()
+                  )
               } yield assertTrue(finalized == true)
             } +
             test("ensuring - failure") {
@@ -309,7 +313,7 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(Effect.fail(()).ensuring(finalize).exit.unsafeRun())
+                _ <- ZIO.fromFuture(_ => Effect.fail(()).ensuring(finalize).exit.unsafeRunToFuture())
               } yield assertTrue(finalized == true)
             } +
             test("ensuring - failure after async") {
@@ -318,8 +322,8 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(
-                       (Effect.unit *> Effect.yieldNow *> Effect.fail(())).ensuring(finalize).exit.unsafeRun()
+                _ <- ZIO.fromFuture(_ =>
+                       (Effect.unit *> Effect.yieldNow *> Effect.fail(())).ensuring(finalize).exit.unsafeRunToFuture()
                      )
               } yield assertTrue(finalized == true)
             } +
@@ -330,13 +334,13 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize2 = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(
+                _ <- ZIO.fromFuture(_ =>
                        Effect
                          .fail(())
                          .ensuring(finalize1)
                          .ensuring(finalize2)
                          .exit
-                         .unsafeRun()
+                         .unsafeRunToFuture()
                      )
               } yield assertTrue(finalized == true)
             } +
@@ -346,7 +350,9 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+                _ <- ZIO.fromFuture(_ =>
+                       Effect.succeed(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRunToFuture()
+                     )
               } yield assertTrue(finalized == true)
             } +
             test("foldCauseZIO finalization - failure") {
@@ -355,7 +361,9 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(Effect.fail(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRun())
+                _ <- ZIO.fromFuture(_ =>
+                       Effect.fail(()).foldCauseZIO(_ => finalize, _ => finalize).exit.unsafeRunToFuture()
+                     )
               } yield assertTrue(finalized == true)
             } +
             test("foldCauseZIO nested finalization - double failure") {
@@ -365,13 +373,13 @@ object NewEncodingSpec extends zio.ZIOBaseSpec {
               val finalize2 = Effect.succeed { finalized = true }
 
               for {
-                _ <- ZIO.succeed(
+                _ <- ZIO.fromFuture(_ =>
                        Effect
                          .fail(())
                          .foldCauseZIO(_ => finalize1, _ => finalize1)
                          .foldCauseZIO(_ => finalize2, _ => finalize2)
                          .exit
-                         .unsafeRun()
+                         .unsafeRunToFuture()
                      )
               } yield assertTrue(finalized == true)
             }
