@@ -43,7 +43,9 @@ final class FiberRefs private (
   def forkAs(childId: FiberId.Runtime): FiberRefs = {
     val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
       fiberRefLocals.transform { case (fiberRef, stack) =>
-        ::(childId -> fiberRef.patch(fiberRef.fork)(stack.head._2.asInstanceOf[fiberRef.Value]), stack)
+        val oldValue = stack.head._2.asInstanceOf[fiberRef.Value]
+        val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
+        if (oldValue == newValue) stack else ::(childId -> newValue, stack)
       }
 
     FiberRefs(childFiberRefLocals)
@@ -138,8 +140,15 @@ final class FiberRefs private (
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
     }
 
-  def updatedAs[A](fiberId: FiberId.Runtime)(fiberRef: FiberRef[A], value: A): FiberRefs = 
-    updatedAs(fiberId)(Map(fiberRef -> value))
+  def updatedAs[A](fiberId: FiberId.Runtime)(fiberRef: FiberRef[A], value: A): FiberRefs = {
+    val oldStack = fiberRefLocals.get(fiberRef).getOrElse(List.empty)
+    val newStack =
+      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
+      else if (oldStack.head._1 == fiberId) ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+      else ::((fiberId, value), oldStack)
+
+    FiberRefs(fiberRefLocals + (fiberRef -> newStack))
+  }
   
   private[zio] def updatedAs(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
     FiberRefs(

@@ -1,7 +1,7 @@
 package zio.internal
 
 package zio2 {
-  import zio.{Cause, Chunk, ChunkBuilder, Executor, Exit, Fiber, FiberRef, FiberRefs, FiberId, ZTrace, ZTraceElement}
+  import zio.{Cause, Chunk, ChunkBuilder, Executor, Exit, Fiber, FiberRef, FiberRefs, FiberId, StackTrace, Trace}
 
   import scala.concurrent._
   import scala.annotation.tailrec
@@ -28,7 +28,7 @@ package zio2 {
     import EvaluationStep._
     import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
 
-    def await(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
+    def await(implicit trace: Trace): UIO[Exit[E, A]] =
       ZIO.async[Any, Nothing, Exit[E, A]] { cb =>
         val exit = self.unsafeEvalOn[Exit[E, A]](
           ZIO.succeed(self.unsafeAddObserver(exit => cb(ZIO.succeed(exit)))),
@@ -38,11 +38,11 @@ package zio2 {
         if (exit ne null) cb(ZIO.succeed(exit))
       }
 
-    def children(implicit trace: ZTraceElement): UIO[Chunk[RuntimeFiber[_, _]]] =
+    def children(implicit trace: Trace): UIO[Chunk[RuntimeFiber[_, _]]] =
       evalOnZIO(ZIO.succeed(Chunk.fromJavaIterable(unsafeGetChildren())), ZIO.succeed(Chunk.empty))
 
     def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZIO[R, E2, A2] = ???
     //   for {
     //     r <- ZIO.environment[R]
@@ -53,11 +53,11 @@ package zio2 {
 
     def id: FiberId.Runtime = fiberId
 
-    def inheritRefs(implicit trace: ZTraceElement): UIO[Unit] = ??? // fiberRefs.setAll
+    def inheritRefs(implicit trace: Trace): UIO[Unit] = ??? // fiberRefs.setAll
 
-    def interruptAsFork(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Unit] =
+    def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
       ZIO.succeed {
-        val cause = Cause.interrupt(fiberId).traced(ZTrace(fiberId, Chunk(trace)))
+        val cause = Cause.interrupt(fiberId).traced(StackTrace(fiberId, Chunk(trace)))
 
         unsafeAddInterruptedCause(cause)
 
@@ -70,27 +70,27 @@ package zio2 {
         ()
       }
 
-    def interruptAs(fiberId: FiberId)(implicit trace: ZTraceElement): UIO[Exit[E, A]] =
+    def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
       interruptAsFork(fiberId) *> await
 
-    final def location: ZTraceElement = fiberId.location
+    final def location: Trace = fiberId.location
 
-    final def poll(implicit trace: ZTraceElement): UIO[Option[Exit[E, A]]] =
+    final def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]] =
       ZIO.succeed {
         if (self.unsafeIsDone()) Some(self.unsafeExitValue()) else None
       }
 
-    def status(implicit trace: ZTraceElement): UIO[zio.Fiber.Status] = ZIO.succeed(self.unsafeStatus())
+    def status(implicit trace: Trace): UIO[zio.Fiber.Status] = ZIO.succeed(self.unsafeStatus())
 
-    def trace(implicit trace: ZTraceElement): UIO[ZTrace] =
-      evalOnZIO(ZIO.trace, ZIO.succeed(ZTrace(fiberId, Chunk.empty)))
+    def trace(implicit trace: Trace): UIO[StackTrace] =
+      evalOnZIO(ZIO.trace, ZIO.succeed(StackTrace(fiberId, Chunk.empty)))
 
-    private def assertNonNull(a: Any, message: String, location: ZTraceElement): Unit =
+    private def assertNonNull(a: Any, message: String, location: Trace): Unit =
       if (a == null) {
         throw new NullPointerException(message + ": " + location.toString)
       }
 
-    private def assertNonNullContinuation(a: Any, location: ZTraceElement): Unit =
+    private def assertNonNullContinuation(a: Any, location: Trace): Unit =
       assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
 
     def asyncResume(
@@ -154,7 +154,7 @@ package zio2 {
 
           stack.foreach(k => builder += k.trace)
 
-          val trace = ZTrace(self.fiberId, builder.result())
+          val trace = StackTrace(self.fiberId, builder.result())
 
           outerRunLoop(ZIO.succeed(trace), stack, maxDepth)
       }
@@ -169,7 +169,7 @@ package zio2 {
       var done          = null.asInstanceOf[AnyRef]
       var stackIndex    = 0
       var interruptible = interruptible0
-      var lastTrace     = null.asInstanceOf[ZTraceElement] // TODO: Rip out???
+      var lastTrace     = null.asInstanceOf[Trace] // TODO: Rip out???
 
       if (remainingDepth <= 0) {
         // Save local variables to heap:
@@ -184,7 +184,7 @@ package zio2 {
 
       while (done eq null) {
         val nextTrace = cur.trace
-        if (nextTrace ne ZTraceElement.empty) lastTrace = nextTrace
+        if (nextTrace ne Trace.empty) lastTrace = nextTrace
 
         try {
           cur match {
@@ -228,7 +228,7 @@ package zio2 {
                       // TODO: Interruption
                       if (interruptible && unsafeIsInterrupted()) cur = Refail(unsafeGetInterruptedCause())
 
-                    case k: UpdateTrace => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                    case k: UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
                   }
                 }
 
@@ -306,7 +306,7 @@ package zio2 {
                     if (interruptible && unsafeIsInterrupted())
                       cur = Refail(cause.stripFailures ++ unsafeGetInterruptedCause())
 
-                  case k: UpdateTrace => if (k.trace ne ZTraceElement.empty) lastTrace = k.trace
+                  case k: UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
                 }
               }
 
@@ -336,7 +336,7 @@ package zio2 {
     }
   }
 
-  final case class FiberSuspension(blockingOn: FiberId, location: ZTraceElement)
+  final case class FiberSuspension(blockingOn: FiberId, location: Trace)
 
   import java.util.{HashMap => JavaMap, Set => JavaSet}
 
@@ -358,7 +358,7 @@ package zio2 {
 
     @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
-    final def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: ZTraceElement): UIO[Unit] =
+    final def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: Trace): UIO[Unit] =
       ZIO.suspendSucceed {
         if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
       }
@@ -398,7 +398,7 @@ package zio2 {
         val oldMessages = mailbox.get
 
         val newMessages =
-          if (oldMessages eq ZIO.unit) message else (oldMessages *> message)(ZTraceElement.empty)
+          if (oldMessages eq ZIO.unit) message else (oldMessages *> message)(Trace.empty)
 
         if (!mailbox.compareAndSet(oldMessages, newMessages)) runLoop(message)
         else ()
@@ -516,7 +516,7 @@ package zio2 {
     final def unsafeEnterSuspend(): Int =
       statusState.enterSuspend()
 
-    final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A)(implicit trace: ZTraceElement): A =
+    final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A)(implicit trace: Trace): A =
       if (unsafeAddMessage(effect)) null.asInstanceOf[A] else orElse
 
     /**
@@ -638,7 +638,7 @@ package zio2 {
         val interruptible = FiberStatusIndicator.getInterruptible(indicator)
         val asyncs        = FiberStatusIndicator.getAsyncs(indicator)
         val blockingOn    = if (suspension eq null) FiberId.None else suspension.blockingOn
-        val asyncTrace    = if (suspension eq null) ZTraceElement.empty else suspension.location
+        val asyncTrace    = if (suspension eq null) Trace.empty else suspension.location
 
         zio.Fiber.Status.Suspended(interrupting, interruptible, asyncs.toLong, blockingOn, asyncTrace)
       }
@@ -646,69 +646,69 @@ package zio2 {
   }
 
   sealed trait ZIO[-R, +E, +A] { self =>
-    final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: ZTraceElement): ZIO[R1, E1, B] =
+    final def *>[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
       self.flatMap(_ => that)
 
-    final def <*[R1 <: R, E1 >: E](that: => ZIO[R1, E1, Any])(implicit trace: ZTraceElement): ZIO[R1, E1, A] =
+    final def <*[R1 <: R, E1 >: E](that: => ZIO[R1, E1, Any])(implicit trace: Trace): ZIO[R1, E1, A] =
       self.flatMap(a => that.map(_ => a))
 
-    final def as[B](b: => B)(implicit trace: ZTraceElement): ZIO[R, E, B] = self.map(_ => b)
+    final def as[B](b: => B)(implicit trace: Trace): ZIO[R, E, B] = self.map(_ => b)
 
     final def catchAll[R1 <: R, E2, A1 >: A](
       t: E => ZIO[R1, E2, A1]
-    )(implicit trace: ZTraceElement): ZIO[R1, E2, A1] =
+    )(implicit trace: Trace): ZIO[R1, E2, A1] =
       self.catchAllCause { cause =>
         cause.failureOrCause.fold(t, ZIO.refailCause(_))
       }
 
     final def catchAllCause[R1 <: R, E2, A1 >: A](t: Cause[E] => ZIO[R1, E2, A1])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZIO[R1, E2, A1] =
       ZIO.OnFailure(trace, self, t)
 
-    final def ensuring(finalizer: ZIO[Any, Nothing, Any])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    final def ensuring(finalizer: ZIO[Any, Nothing, Any])(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.uninterruptibleMask { restore =>
         restore(self).foldCauseZIO(cause => finalizer *> ZIO.refailCause(cause), a => finalizer.map(_ => a))
       }
 
-    final def exit(implicit trace: ZTraceElement): ZIO[R, Nothing, Exit[E, A]] =
+    final def exit(implicit trace: Trace): ZIO[R, Nothing, Exit[E, A]] =
       self.map(Exit.succeed(_)).catchAllCause(cause => ZIO.succeed(Exit.failCause(cause)))
 
     final def flatMap[R1 <: R, E1 >: E, B](f: A => ZIO[R1, E1, B])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZIO[R1, E1, B] =
       ZIO.OnSuccess(trace, self, f)
 
     final def foldCauseZIO[R1 <: R, E2, B](onError: Cause[E] => ZIO[R1, E2, B], onSuccess: A => ZIO[R1, E2, B])(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZIO[R1, E2, B] =
       ZIO.OnSuccessAndFailure(trace, self, onSuccess, onError)
 
     /*
     final case class Stateful[R, E, A](
-      trace: ZTraceElement,
-      onState: (FiberState[E, A], Boolean, ZTraceElement) => ZIO[R, E, A]
+      trace: Trace,
+      onState: (FiberState[E, A], Boolean, Trace) => ZIO[R, E, A]
     )
      */
-    final def fork[E1 >: E, A1 >: A](implicit trace: ZTraceElement): ZIO[R, Nothing, RuntimeFiber[E1, A1]] =
+    final def fork[E1 >: E, A1 >: A](implicit trace: Trace): ZIO[R, Nothing, RuntimeFiber[E1, A1]] =
       ZIO.Stateful[R, Nothing, RuntimeFiber[E1, A1]](
         trace,
         (fiberState, interruptible, _) => ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, interruptible))
       )
 
-    final def interruptible(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    final def interruptible(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.ChangeInterruptionWithin.Interruptible(trace, self)
 
-    final def map[B](f: A => B)(implicit trace: ZTraceElement): ZIO[R, E, B] =
+    final def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
       self.flatMap(a => ZIO.succeed(f(a)))
 
-    final def mapError[E2](f: E => E2)(implicit trace: ZTraceElement): ZIO[R, E2, A] =
+    final def mapError[E2](f: E => E2)(implicit trace: Trace): ZIO[R, E2, A] =
       self.catchAll(e => ZIO.fail(f(e)))
 
     final def raceWith[R1 <: R, ER, E2, B, C](right0: ZIO[R1, ER, B])(
       leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
       rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
-    )(implicit trace: ZTraceElement): ZIO[R1, E2, C] = ZIO.Stateful[R1, E2, C](
+    )(implicit trace: Trace): ZIO[R1, E2, C] = ZIO.Stateful[R1, E2, C](
       trace,
       { (fiberState, interruptible, _) =>
         import java.util.concurrent.atomic.AtomicBoolean
@@ -751,16 +751,16 @@ package zio2 {
       }
     )
 
-    def trace: ZTraceElement
+    def trace: Trace
 
-    final def uninterruptible(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    final def uninterruptible(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.ChangeInterruptionWithin.Uninterruptible(trace, self)
 
-    final def unit(implicit trace: ZTraceElement): ZIO[R, E, Unit] = self.as(())
+    final def unit(implicit trace: Trace): ZIO[R, E, Unit] = self.as(())
   }
   object ZIO {
     private def unsafeFork[R, E1, E2, A, B](
-      trace: ZTraceElement,
+      trace: Trace,
       effect: ZIO[R, E1, A],
       fiberState: FiberState[E2, B],
       interruptible: Boolean
@@ -794,11 +794,11 @@ package zio2 {
       def unsafeRunToFuture(maxDepth: Int = 1000): scala.concurrent.Future[A] = ZIO.evalToFuture(self, maxDepth)
     }
     sealed trait EvaluationStep { self =>
-      def trace: ZTraceElement
+      def trace: Trace
     }
     object EvaluationStep {
       sealed trait ChangeInterruptibility extends EvaluationStep {
-        final def trace = ZTraceElement.empty
+        final def trace = Trace.empty
 
         def interruptible: Boolean
       }
@@ -816,9 +816,9 @@ package zio2 {
           def interruptible: Boolean = false
         }
       }
-      final case class UpdateTrace(trace: ZTraceElement) extends EvaluationStep
+      final case class UpdateTrace(trace: Trace) extends EvaluationStep
       sealed trait Continuation[R, E1, E2, A, B] extends EvaluationStep { self =>
-        def trace: ZTraceElement
+        def trace: Trace
 
         def onSuccess(a: A): ZIO[R, E2, B]
 
@@ -831,7 +831,7 @@ package zio2 {
 
         def ensuring[R, E, A](
           finalizer: ZIO[R, Nothing, Any]
-        )(implicit trace0: ZTraceElement): Continuation[R, E, E, A, A] =
+        )(implicit trace0: Trace): Continuation[R, E, E, A, A] =
           new Continuation[R, E, E, A, A] {
             def trace                  = trace0
             def onSuccess(a: A)        = finalizer.flatMap(_ => ZIO.succeed(a))
@@ -840,7 +840,7 @@ package zio2 {
 
         def fromSuccess[R, E, A, B](
           f: A => ZIO[R, E, B]
-        )(implicit trace0: ZTraceElement): Continuation[R, E, E, A, B] =
+        )(implicit trace0: Trace): Continuation[R, E, E, A, B] =
           new Continuation[R, E, E, A, B] {
             def trace                  = trace0
             def onSuccess(a: A)        = f(a)
@@ -849,7 +849,7 @@ package zio2 {
 
         def fromFailure[R, E1, E2, A](
           f: Cause[E1] => ZIO[R, E2, A]
-        )(implicit trace0: ZTraceElement): Continuation[R, E1, E2, A, A] =
+        )(implicit trace0: Trace): Continuation[R, E1, E2, A, A] =
           new Continuation[R, E1, E2, A, A] {
             def trace                   = trace0
             def onSuccess(a: A)         = ZIO.succeed(a)
@@ -858,8 +858,8 @@ package zio2 {
       }
     }
 
-    final case class Sync[A](trace: ZTraceElement, eval: () => A) extends ZIO[Any, Nothing, A]
-    final case class Async[R, E, A](trace: ZTraceElement, registerCallback: (ZIO[R, E, A] => Unit) => Unit)
+    final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
+    final case class Async[R, E, A](trace: Trace, registerCallback: (ZIO[R, E, A] => Unit) => Unit)
         extends ZIO[R, E, A]
     sealed trait OnSuccessOrFailure[R, E1, E2, A, B]
         extends ZIO[R, E2, B]
@@ -871,7 +871,7 @@ package zio2 {
         self.asInstanceOf[OnSuccessOrFailure[Any, Any, Any, Any, Any]]
     }
     final case class OnSuccessAndFailure[R, E1, E2, A, B](
-      trace: ZTraceElement,
+      trace: Trace,
       first: ZIO[R, E1, A],
       successK: A => ZIO[R, E2, B],
       failureK: Cause[E1] => ZIO[R, E2, B]
@@ -880,14 +880,14 @@ package zio2 {
 
       def onSuccess(a: A): ZIO[R, E2, B] = successK(a.asInstanceOf[A])
     }
-    final case class OnSuccess[R, A, E, B](trace: ZTraceElement, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
+    final case class OnSuccess[R, A, E, B](trace: Trace, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
         extends OnSuccessOrFailure[R, E, E, A, B] {
       def onFailure(c: Cause[E]): ZIO[R, E, B] = ZIO.refailCause(c)
 
       def onSuccess(a: A): ZIO[R, E, B] = successK(a.asInstanceOf[A])
     }
     final case class OnFailure[R, E1, E2, A](
-      trace: ZTraceElement,
+      trace: Trace,
       first: ZIO[R, E1, A],
       failureK: Cause[E1] => ZIO[R, E2, A]
     ) extends OnSuccessOrFailure[R, E1, E2, A, A] {
@@ -901,34 +901,34 @@ package zio2 {
       def scope(oldInterruptible: Boolean): ZIO[R, E, A]
     }
     object ChangeInterruptionWithin {
-      final case class Interruptible[R, E, A](trace: ZTraceElement, effect: ZIO[R, E, A])
+      final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
           extends ChangeInterruptionWithin[R, E, A] {
         def newInterruptible: Boolean = true
 
         def scope(oldInterruptible: Boolean): ZIO[R, E, A] = effect
       }
-      final case class Uninterruptible[R, E, A](trace: ZTraceElement, effect: ZIO[R, E, A])
+      final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
           extends ChangeInterruptionWithin[R, E, A] {
         def newInterruptible: Boolean = false
 
         def scope(oldInterruptible: Boolean): ZIO[R, E, A] = effect
       }
-      final case class Dynamic[R, E, A](trace: ZTraceElement, newInterruptible: Boolean, f: Boolean => ZIO[R, E, A])
+      final case class Dynamic[R, E, A](trace: Trace, newInterruptible: Boolean, f: Boolean => ZIO[R, E, A])
           extends ChangeInterruptionWithin[R, E, A] {
         def scope(oldInterruptible: Boolean): ZIO[R, E, A] = f(oldInterruptible)
       }
     }
-    final case class GenerateStackTrace(trace: ZTraceElement) extends ZIO[Any, Nothing, ZTrace]
+    final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
     final case class Stateful[R, E, A](
-      trace: ZTraceElement,
-      onState: (FiberState[E, A], Boolean, ZTraceElement) => ZIO[R, E, A]
+      trace: Trace,
+      onState: (FiberState[E, A], Boolean, Trace) => ZIO[R, E, A]
     ) extends ZIO[R, E, A] { self =>
       def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
     }
     final case class Refail[E](cause: Cause[E]) extends ZIO[Any, E, Nothing] {
-      def trace: ZTraceElement = ZTraceElement.empty
+      def trace: Trace = Trace.empty
     }
-    final case class InterruptSignal(cause: Cause[Nothing], trace: ZTraceElement) extends ZIO[Any, Nothing, Unit]
+    final case class InterruptSignal(cause: Cause[Nothing], trace: Trace) extends ZIO[Any, Nothing, Unit]
 
     sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
       def addContinuation(continuation: EvaluationStep.Continuation[_, _, _, _, _]): Nothing =
@@ -956,7 +956,7 @@ package zio2 {
     }
 
     def async[R, E, A](registerCallback: (ZIO[R, E, A] => Unit) => Unit)(implicit
-      trace: ZTraceElement
+      trace: Trace
     ): ZIO[R, E, A] =
       Async(trace, registerCallback)
 
@@ -966,27 +966,27 @@ package zio2 {
         case Exit.Failure(c) => ZIO.failCause(c)
       }
 
-    def fail[E](e: => E)(implicit trace: ZTraceElement): ZIO[Any, E, Nothing] = failCause(Cause.fail(e))
+    def fail[E](e: => E)(implicit trace: Trace): ZIO[Any, E, Nothing] = failCause(Cause.fail(e))
 
-    def failCause[E](c: => Cause[E])(implicit trace0: ZTraceElement): ZIO[Any, E, Nothing] =
+    def failCause[E](c: => Cause[E])(implicit trace0: Trace): ZIO[Any, E, Nothing] =
       ZIO.trace(trace0).flatMap(trace => refailCause(c.traced(trace)))
 
-    def refailCause[E](cause: Cause[E])(implicit trace: ZTraceElement): ZIO[Any, E, Nothing] = Refail(cause)
+    def refailCause[E](cause: Cause[E])(implicit trace: Trace): ZIO[Any, E, Nothing] = Refail(cause)
 
-    def succeed[A](a: => A)(implicit trace: ZTraceElement): ZIO[Any, Nothing, A] = Sync(trace, () => a)
+    def succeed[A](a: => A)(implicit trace: Trace): ZIO[Any, Nothing, A] = Sync(trace, () => a)
 
-    def suspendSucceed[R, E, A](effect: => ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    def suspendSucceed[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.succeed(effect).flatMap(fastIdentity[ZIO[R, E, A]])
 
     private val identityFn: Any => Any  = identity
     private def fastIdentity[A]: A => A = identityFn.asInstanceOf[A => A]
 
-    def trace(implicit trace: ZTraceElement): ZIO[Any, Nothing, ZTrace] =
+    def trace(implicit trace: Trace): ZIO[Any, Nothing, StackTrace] =
       GenerateStackTrace(trace)
 
     def uninterruptibleMask[R, E, A](
       f: InterruptibilityRestorer => ZIO[R, E, A]
-    )(implicit trace: ZTraceElement): ZIO[R, E, A] =
+    )(implicit trace: Trace): ZIO[R, E, A] =
       ZIO.ChangeInterruptionWithin.Dynamic(
         trace,
         false,
@@ -995,23 +995,23 @@ package zio2 {
           else f(InterruptibilityRestorer.MakeUninterruptible)
       )
 
-    val unit: ZIO[Any, Nothing, Unit] = ZIO.succeed(())(ZTraceElement.empty)
+    val unit: ZIO[Any, Nothing, Unit] = ZIO.succeed(())(Trace.empty)
 
-    def yieldNow(implicit trace: ZTraceElement): ZIO[Any, Nothing, Unit] =
+    def yieldNow(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
       async[Any, Nothing, Unit](k => k(ZIO.unit))
 
     final case class ZIOError(cause: Cause[Any]) extends Exception with NoStackTrace
 
     sealed trait InterruptibilityRestorer {
-      def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A]
+      def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
     }
     object InterruptibilityRestorer {
       case object MakeInterruptible extends InterruptibilityRestorer {
-        def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.ChangeInterruptionWithin.Interruptible(trace, effect)
       }
       case object MakeUninterruptible extends InterruptibilityRestorer {
-        def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
           ZIO.ChangeInterruptionWithin.Uninterruptible(trace, effect)
       }
     }
@@ -1021,7 +1021,7 @@ package zio2 {
       onDone: Exit[E, A] => Unit,
       maxDepth: Int = 1000,
       fiberRefs0: FiberRefs = FiberRefs.empty
-    )(implicit trace0: ZTraceElement): Exit[E, A] = {
+    )(implicit trace0: Trace): Exit[E, A] = {
       val fiber = RuntimeFiber[E, A](FiberId.unsafeMake(trace0), fiberRefs0)
 
       fiber.unsafeAddObserver(onDone)

@@ -3874,7 +3874,7 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ nonFlaky
     ),
     suite("toFuture")(
-      test("should fail with ZTrace attached") {
+      test("should fail with StackTrace attached") {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either
