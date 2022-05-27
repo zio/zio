@@ -26,7 +26,6 @@ class ChunkMapBenchmarks {
     list = array.toList
   }
 
-  
   @Benchmark
   def mapChunk(): Chunk[Int] = chunk.map(_ * 2)
 

@@ -14,8 +14,8 @@ class ChunkPrependBenchmarks {
 
   val chunk: Chunk[Int]   = Chunk(1)
   val vector: Vector[Int] = Vector(1)
-  val array: Array[Int] = Array(1)
-  val list: List[Int] = List(1)
+  val array: Array[Int]   = Array(1)
+  val list: List[Int]     = List(1)
 
   @Param(Array("10000"))
   var size: Int = _
