@@ -9,6 +9,7 @@ package zio2 {
 
   import java.util.{Set => JavaSet}
   import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import zio.RuntimeFlag
 
   sealed trait Fiber[+E, +A]
   object Fiber {
@@ -776,8 +777,10 @@ package zio2 {
       // FIXME: Call the supervisor who can observe the fork of the child fiber
       val parentScope = fiberState.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(fiberState.scope)
 
-      // FIXME: Pass `enableFiberRoots` here:
-      parentScope.unsafeAdd(true, childFiber)
+      val runtimeFlags = fiberState.unsafeGetFiberRef(FiberRef.currentRuntimeFlags)
+      val enableRoots  = runtimeFlags.contains(RuntimeFlag.EnableCurrentFiber)
+      
+      parentScope.unsafeAdd(enableRoots, childFiber)
 
       val currentExecutor = fiberState.unsafeGetCurrentExecutor()
 
