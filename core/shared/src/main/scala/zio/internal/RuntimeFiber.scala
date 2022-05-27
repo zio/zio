@@ -357,6 +357,9 @@ package zio2 {
         if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
       }
 
+    // FIXME: Remove cast
+    final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[Any, Any]])
+
     /**
      * Adds a weakly-held reference to the specified fiber inside the children
      * set.
@@ -688,7 +691,17 @@ package zio2 {
 
           val childFiber = RuntimeFiber[E1, A1](childId, childFiberRefs)
 
-          fiberState.unsafeAddChild(childFiber)
+          // FIXME: Call the supervisor who can observe the fork of the child fiber
+          val parentScope = fiberState.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(fiberState.scope)
+
+          // FIXME: Pass `enableFiberRoots` here:
+          parentScope.unsafeAdd(true, childFiber)
+
+          val currentExecutor = fiberState.unsafeGetCurrentExecutor()
+          
+          currentExecutor.unsafeSubmitOrThrow { () => 
+            childFiber.outerRunLoop(self.asInstanceOf[Erased], Chunk.empty, 1000)
+          }
 
           ZIO.succeed(childFiber)
         }

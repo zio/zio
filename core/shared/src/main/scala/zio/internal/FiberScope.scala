@@ -34,6 +34,14 @@ private[zio] sealed trait FiberScope {
   private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
     trace: ZTraceElement
   ): Boolean
+
+  /**
+   * Adds the specified child fiber to the scope, returning `true` if the scope
+   * is still open, and `false` if it has been closed already.
+   */
+  private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: zio2.RuntimeFiber[_, _])(implicit
+    trace: ZTraceElement
+  ): Boolean
 }
 
 private[zio] object FiberScope {
@@ -57,18 +65,40 @@ private[zio] object FiberScope {
 
       true
     }
+
+    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: zio2.RuntimeFiber[_, _])(implicit
+      trace: ZTraceElement
+    ): Boolean = {
+      if (enableFiberRoots) {
+        // FIXME: Add the child to the roots when the types are fixed!!!
+        // val childRef = Fiber._roots.add(child)
+        // child.unsafeOnDone(_ => childRef.clear())
+      }
+
+      true
+    }
   }
 
-  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends FiberScope {
+  private final class Local(val fiberId: FiberId, parentRef: WeakReference[AnyRef]) extends FiberScope {
     private[zio] def unsafeAdd(runtimeConfig: RuntimeConfig, child: FiberContext[_, _])(implicit
       trace: ZTraceElement
     ): Boolean = {
       val parent = parentRef.get()
 
-      (parent ne null) && parent.unsafeAddChild(child)
+      (parent ne null) && parent.asInstanceOf[FiberContext[_, _]].unsafeAddChild(child)
+    }
+
+    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: zio2.RuntimeFiber[_, _])(implicit
+      trace: ZTraceElement
+    ): Boolean = {
+      val parent = parentRef.get()
+
+      // FIXME: Only return true if the parent is not yet finished
+      (parent ne null) && { parent.asInstanceOf[zio2.RuntimeFiber[_, _]].unsafeAddChild(child); true }
     }
   }
 
-  private[zio] def unsafeMake(fiber: FiberContext[_, _]): FiberScope =
+  // FIXME: Turn type of `fiber` to `RuntimeFiber`
+  private[zio] def unsafeMake(fiber: { def fiberId : FiberId }): FiberScope =
     new Local(fiber.fiberId, new WeakReference(fiber))
 }
