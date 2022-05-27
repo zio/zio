@@ -515,7 +515,7 @@ private[zio] final class FiberContext[E, A](
             } else {
               unsafeSetInterrupting(true)
 
-              ZIO.die(t)(Tracer.newTrace)
+              ZIO.die(t)(Trace.empty)
             }
         }
       }
