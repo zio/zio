@@ -2,9 +2,7 @@ package zio
 
 import zio.test._
 
-object SupervisorSpec extends ZIOBaseSpec {
-
-  private val threadLocalBridge = ThreadLocalBridge.live
+object ThreadLocalBridgeSpec extends ZIOBaseSpec {
 
   def spec = suite("SupervisorSpec")(
     suite("fiberRefTrackingSupervisor")(
@@ -70,11 +68,11 @@ object SupervisorSpec extends ZIOBaseSpec {
         }
       }
     )
-  ).provideSomeLayer[zio.test.TestEnvironment with zio.Scope](Runtime.enableCurrentFiber)
+  ).provideSomeLayer[zio.test.TestEnvironment with zio.Scope](ThreadLocalBridge.live)
 
   def tracking[R, E, A](
     initialValue: String
-  )(effect: (FiberRef[String], UIO[Option[String]]) => ZIO[R with ThreadLocalBridge, E, A]): ZIO[R with Scope, E, A] = {
+  )(effect: (FiberRef[String], UIO[Option[String]]) => ZIO[R with ThreadLocalBridge, E, A]) = {
     val threadLocal = new ThreadLocal[Option[String]] {
       override def initialValue() = None
     }
@@ -82,6 +80,5 @@ object SupervisorSpec extends ZIOBaseSpec {
     ThreadLocalBridge
       .makeFiberRef[String](initialValue, a => threadLocal.set(Some(a)))
       .flatMap(effect(_, threadLocalGet))
-      .provideSomeLayer[R with Scope](threadLocalBridge)
   }
 }
