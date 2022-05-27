@@ -527,8 +527,7 @@ package zio2 {
     }
 
     final def unsafeGetCurrentExecutor(): Executor =
-      Executor.fromExecutionContext(1024)(scala.concurrent.ExecutionContext.global)
-    // unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)
+      unsafeGetFiberRef(FiberRef.currentExecutor).getOrElse(zio.Runtime.default.runtimeConfig.executor)       
 
     /**
      * Retrieves the state of the fiber ref, or else the specified value.
