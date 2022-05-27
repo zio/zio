@@ -45,9 +45,9 @@ object ThreadLocalBridge {
 
     override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
-    override private[zio] def unsafeOnEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1]): Unit = ()
+    override def unsafeOnEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1]): Unit = ()
 
-    override private[zio] def unsafeOnStart[R, E, A1](
+    override def unsafeOnStart[R, E, A1](
       environment: ZEnvironment[R],
       effect: ZIO[R, E, A1],
       parent: Option[Fiber.Runtime[Any, Any]],
@@ -60,12 +60,12 @@ object ThreadLocalBridge {
     def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
       trackedRefs.getAndUpdate(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
 
-    override private[zio] def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
+    override def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
       foreachTrackedRef { (fiberRef, link) =>
         link(fiberRef.initial)
       }
 
-    override private[zio] def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
+    override def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
       foreachTrackedRef { (fiberRef, link) =>
         val value = fiber.asInstanceOf[FiberContext[E, A1]].unsafeGetRef(fiberRef)
         link(value)
