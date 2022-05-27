@@ -66,6 +66,31 @@ object ThreadLocalBridgeSpec extends ZIOBaseSpec {
             d.contains(initialValue)
           )
         }
+      },
+      test("reset to initial value at FiberRef Scope boundary") {
+        val tag            = "scope"
+        val initialValue   = s"initial-value-$tag"
+        val newValue1      = s"new-value1-$tag"
+        val threadLocal    = aThreadLocal()
+        val threadLocalGet = ZIO.succeed(threadLocal.get)
+        for {
+          pair <- ZIO.scoped {
+                    for {
+                      fiberRef  <- ThreadLocalBridge.makeFiberRef(initialValue)(a => threadLocal.set(Some(a)))
+                      beforeSet <- threadLocalGet
+                      _         <- fiberRef.set(newValue1)
+                      afterSet  <- threadLocalGet
+                    } yield (beforeSet, afterSet)
+                  }
+          (beforeSet, afterSet) = pair
+          outOfScope           <- threadLocalGet
+        } yield {
+          assertTrue(
+            beforeSet.contains(initialValue),
+            afterSet.contains(newValue1),
+            outOfScope.contains(initialValue)
+          )
+        }
       }
     )
   ).provideSomeLayer[zio.test.TestEnvironment with zio.Scope](ThreadLocalBridge.live)
@@ -73,12 +98,15 @@ object ThreadLocalBridgeSpec extends ZIOBaseSpec {
   def tracking[R, E, A](
     initialValue: String
   )(effect: (FiberRef[String], UIO[Option[String]]) => ZIO[R with ThreadLocalBridge, E, A]) = {
-    val threadLocal = new ThreadLocal[Option[String]] {
-      override def initialValue() = None
-    }
+    val threadLocal    = aThreadLocal()
     val threadLocalGet = ZIO.succeed(threadLocal.get)
     ThreadLocalBridge
-      .makeFiberRef[String](initialValue, a => threadLocal.set(Some(a)))
+      .makeFiberRef[String](initialValue)(a => threadLocal.set(Some(a)))
       .flatMap(effect(_, threadLocalGet))
   }
+
+  private def aThreadLocal() =
+    new ThreadLocal[Option[String]] {
+      override def initialValue() = None
+    }
 }
