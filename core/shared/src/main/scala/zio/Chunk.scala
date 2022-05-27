@@ -1267,9 +1267,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: Slice[_]       => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Update[_]      => x.classTag.asInstanceOf[ClassTag[A]]
       case x: VectorChunk[_] => x.classTag.asInstanceOf[ClassTag[A]]
-      case _: BitChunkByte   => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
-      case _: BitChunkInt    => ClassTag.Int.asInstanceOf[ClassTag[A]]
-      case _: BitChunkLong   => ClassTag.Long.asInstanceOf[ClassTag[A]]
+      case _: BitChunk[_]    => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
   /**
