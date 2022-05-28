@@ -1102,19 +1102,25 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     val arr = Array.ofDim[Byte](
       if (remBits == 0) fullBytes else fullBytes + 1
     )
-    var i = 0
+    var i    = 0
+    var mask = 128
     while (i < fullBytes) {
       var byte = 0
+      mask = 128
       (0 until 8).foreach { k =>
-        byte = (byte << 1) | (if (op(left(i * 8 + k), right(i * 8 + k))) 1 else 0)
+        byte = byte | (if (op(left(i * 8 + k), right(i * 8 + k))) mask else 0)
+        mask >>= 1
       }
       arr(i) = byte.toByte
       i += 1
     }
     if (remBits != 0) {
-      var byte = 0
+      val offset = fullBytes * 8
+      var byte   = 0
+      mask = 128
       (0 until remBits).foreach { k =>
-        byte = (byte << 1) | (if (op(left(i * 8 + k), right(i * 8 + k))) 1 else 0)
+        byte = byte | (if (op(left(offset + k), right(offset + k))) mask else 0)
+        mask >>= 1
       }
       arr(fullBytes) = byte.toByte
     }
