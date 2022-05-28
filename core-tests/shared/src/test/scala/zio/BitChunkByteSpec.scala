@@ -144,6 +144,25 @@ object BitChunkByteSpec extends ZIOBaseSpec {
 
         assert(actual)(equalTo(expected))
       }
+    },
+    test("not") {
+      check(genBitChunk) { bits =>
+        val not    = bits.negate
+        val actual = not.toBinaryString.take(not.length)
+        val expected =
+          bits.bytes
+            .map(toBinaryString)
+            .mkString
+            .slice(bits.minBitIndex, bits.maxBitIndex)
+            .map {
+              case '0' => '1'
+              case '1' => '0'
+              case _   => ""
+            }
+            .mkString
+
+        assert(actual)(equalTo(expected))
+      }
     }
   )
 }

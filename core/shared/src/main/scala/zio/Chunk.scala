@@ -1910,6 +1910,35 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def xor(that: BitChunkByte): BitChunkByte =
       bitwise(that, (l, r) => (l ^ r).asInstanceOf[Byte], _ ^ _)
 
+    def negate: BitChunkByte = {
+      val bits      = self.length
+      val bytes     = bits >> 3
+      val leftovers = bits - bytes * 8
+
+      val arr = Array.ofDim[Byte](
+        if (leftovers == 0) bytes else bytes + 1
+      )
+
+      (0 until bytes).foreach { n =>
+        arr(n) = (~self.nthByte(n)).asInstanceOf[Byte]
+      }
+
+      if (leftovers != 0) {
+        val offset     = bytes * 8 + self.minBitIndex
+        var last: Byte = null.asInstanceOf[Byte]
+        var mask       = 128
+        var i          = 0
+        while (i < leftovers) {
+          if (!self.apply(offset + i))
+            last = (last | mask).asInstanceOf[Byte]
+          i += 1
+          mask >>= 1
+        }
+        arr(bytes) = last
+      }
+
+      BitChunkByte(Chunk.fromArray(arr), 0, bits)
+    }
   }
 
   private[zio] final case class BitChunkInt(
