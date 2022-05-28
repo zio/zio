@@ -209,6 +209,13 @@ In this tutorial, we will use the HOCON files. [HOCON](https://github.com/lightb
 
 ### Adding ZIO Config Dependencies
 
+We should add the following dependencies to our `build.sb` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-config"          % "3.0.0-RC8"
+libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "3.0.0-RC8"
+libraryDependencies += "dev.zio" %% "zio-config-magnolia" % "3.0.0-RC8"
+```
 
 ### Defining the HOCON Configuration File
 
