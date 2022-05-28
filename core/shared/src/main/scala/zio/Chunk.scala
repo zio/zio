@@ -91,6 +91,39 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
 
+  def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
+    Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ & _)
+
+  def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
+    Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ | _)
+
+  def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
+    Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ ^ _)
+
+  def negate(implicit ev: A <:< Boolean): Chunk.BitChunk = {
+    val bits      = self.length
+    val fullBytes = bits >> 3
+    val remBytes  = bits & 7
+    val arr       = Array.ofDim[Byte](fullBytes + (if (remBytes == 0) 0 else 1))
+    var i         = 0
+    while (i < fullBytes) {
+      var byte = 0
+      (0 until 8).foreach { k =>
+        byte = (byte << 1) | (if (!ev(self(i * 8 + k))) 1 else 0)
+      }
+      arr(i) = byte.asInstanceOf[Byte]
+      i += 1
+    }
+    if (remBytes != 0) {
+      var byte = 0
+      (0 until remBytes).foreach { k =>
+        byte = (byte << 1) | (if (!ev(self(fullBytes * 8 + k))) 1 else 0)
+      }
+      arr(fullBytes) = byte.asInstanceOf[Byte]
+    }
+    Chunk.BitChunk(Chunk.fromArray(arr), 0, bits)
+  }
+
   /**
    * Converts a chunk of ints to a chunk of bits.
    */
@@ -1039,6 +1072,39 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
+
+  /*
+   * Performs bitwise operations on boolean chunks returning a Chunk.BitChunk
+   */
+  private def bitwise(
+    left: Chunk[Boolean],
+    right: Chunk[Boolean],
+    op: (Boolean, Boolean) => Boolean
+  ): Chunk.BitChunk = {
+    val bits      = left.length min right.length
+    val fullBytes = bits >> 3
+    val remBits   = bits & 7
+    val arr = Array.ofDim[Byte](
+      if (remBits == 0) fullBytes else fullBytes + 1
+    )
+    var i = 0
+    while (i < fullBytes) {
+      var byte = 0
+      (0 until 8).foreach { k =>
+        byte = (byte << 1) | (if (op(left(i * 8 + k), right(i * 8 + k))) 1 else 0)
+      }
+      arr(i) = byte.toByte
+      i += 1
+    }
+    if (remBits != 0) {
+      var byte = 0
+      (0 until remBits).foreach { k =>
+        byte = (byte << 1) | (if (op(left(i * 8 + k), right(i * 8 + k))) 1 else 0)
+      }
+      arr(fullBytes) = byte.toByte
+    }
+    Chunk.BitChunk(Chunk.fromArray(arr), 0, bits)
+  }
 
   /**
    * Returns the empty chunk.

@@ -20,6 +20,9 @@ object BitChunkByteSpec extends ZIOBaseSpec {
       j     <- Gen.int(0, chunk.length * 8)
     } yield Chunk.BitChunkByte(chunk, i min j, i max j)
 
+  val genBoolChunk: Gen[Sized, Chunk[Boolean]] =
+    Gen.listOf(Gen.boolean).map(Chunk.fromIterable(_))
+
   def toBinaryString(byte: Byte): String =
     String.format("%8s", (byte.toInt & 0xff).toBinaryString).replace(' ', '0')
 
@@ -75,7 +78,7 @@ object BitChunkByteSpec extends ZIOBaseSpec {
     },
     test("and") {
       check(genBitChunk, genBitChunk) { (l, r) =>
-        val anded  = l and r
+        val anded  = l & r
         val actual = anded.toBinaryString.take(anded.length)
         val expected =
           l.bytes
@@ -123,7 +126,7 @@ object BitChunkByteSpec extends ZIOBaseSpec {
     },
     test("xor") {
       check(genBitChunk, genBitChunk) { (l, r) =>
-        val xored  = l xor r
+        val xored  = l ^ r
         val actual = xored.toBinaryString.take(xored.length)
         val expected =
           l.bytes
@@ -161,6 +164,48 @@ object BitChunkByteSpec extends ZIOBaseSpec {
             }
             .mkString
 
+        assert(actual)(equalTo(expected))
+      }
+    },
+    test("boolean and") {
+      check(genBoolChunk, genBoolChunk) { (l, r) =>
+        val anded  = l & r
+        val actual = anded.toBinaryString.take(anded.length)
+        val expected = l
+          .zipWith(r)(_ & _)
+          .map {
+            case true  => '1'
+            case false => '0'
+          }
+          .mkString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    test("boolean or") {
+      check(genBoolChunk, genBoolChunk) { (l, r) =>
+        val ored   = l | r
+        val actual = ored.toBinaryString.take(ored.length)
+        val expected = l
+          .zipWith(r)(_ | _)
+          .map {
+            case true  => '1'
+            case false => '0'
+          }
+          .mkString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    test("boolean xor") {
+      check(genBoolChunk, genBoolChunk) { (l, r) =>
+        val xored  = l ^ r
+        val actual = xored.toBinaryString.take(xored.length)
+        val expected = l
+          .zipWith(r)(_ ^ _)
+          .map {
+            case true  => '1'
+            case false => '0'
+          }
+          .mkString
         assert(actual)(equalTo(expected))
       }
     }
