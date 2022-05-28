@@ -97,46 +97,49 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Returns the bitwise AND of this chunk and the specified chunk.
    */
-  def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
+  def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ & _)
 
   /**
    * Returns the bitwise OR of this chunk and the specified chunk.
    */
-  def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
+  def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ | _)
 
   /**
    * Returns the bitwise XOR of this chunk and the specified chunk.
    */
-  def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
+  def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ ^ _)
 
   /**
    * Returns the bitwise NOT of this chunk.
    */
-  def negate(implicit ev: A <:< Boolean): Chunk.BitChunk = {
+  def negate(implicit ev: A <:< Boolean): Chunk.BitChunkByte = {
     val bits      = self.length
     val fullBytes = bits >> 3
     val remBytes  = bits & 7
     val arr       = Array.ofDim[Byte](fullBytes + (if (remBytes == 0) 0 else 1))
     var i         = 0
+    var mask      = 128
     while (i < fullBytes) {
       var byte = 0
+      mask = 128
       (0 until 8).foreach { k =>
-        byte = (byte << 1) | (if (!ev(self(i * 8 + k))) 1 else 0)
+        byte = byte | (if (!ev(self(i * 8 + k))) mask else 0)
       }
       arr(i) = byte.asInstanceOf[Byte]
       i += 1
     }
     if (remBytes != 0) {
       var byte = 0
+      mask = 128
       (0 until remBytes).foreach { k =>
-        byte = (byte << 1) | (if (!ev(self(fullBytes * 8 + k))) 1 else 0)
+        byte = byte | (if (!ev(self(fullBytes * 8 + k))) mask else 0)
       }
       arr(fullBytes) = byte.asInstanceOf[Byte]
     }
-    Chunk.BitChunk(Chunk.fromArray(arr), 0, bits)
+    Chunk.BitChunkByte(Chunk.fromArray(arr), 0, bits)
   }
 
   /**
@@ -1095,7 +1098,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     left: Chunk[Boolean],
     right: Chunk[Boolean],
     op: (Boolean, Boolean) => Boolean
-  ): Chunk.BitChunk = {
+  ): Chunk.BitChunkByte = {
     val bits      = left.length min right.length
     val fullBytes = bits >> 3
     val remBits   = bits & 7
@@ -1124,7 +1127,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
       arr(fullBytes) = byte.toByte
     }
-    Chunk.BitChunk(Chunk.fromArray(arr), 0, bits)
+    Chunk.BitChunkByte(Chunk.fromArray(arr), 0, bits)
   }
 
   /**
