@@ -479,6 +479,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     resumed
   }
 
+  // FIXME:
+  final def unsafeDescriptor(): Fiber.Descriptor = ???
+
   /**
    * Drains the mailbox of all messages. If the mailbox is empty, this will
    * return `ZIO.unit`.
@@ -591,7 +594,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     FiberStatusIndicator.getStatus(indicator) == FiberStatusIndicator.Status.Suspended
   }
 
-  def unsafeLog(
+  final def unsafeLog(
     message: () => String,
     cause: Cause[Any],
     overrideLogLevel: Option[LogLevel],

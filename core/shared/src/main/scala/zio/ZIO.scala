@@ -2655,7 +2655,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       try {
         ZIO.succeedNow(effect)
       } catch {
-        case t: Throwable if !fiberState.unsafeIsFatal(t) => throw new ZioError(Exit.fail(t), trace)
+        // FIXME: Attach stack trace:
+        case t: Throwable if !fiberState.unsafeIsFatal(t) => throw new ZIOError(Cause.fail(t))
       }
     }
 
@@ -2699,7 +2700,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified callback.
    */
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.CheckInterrupt(f, trace)
+    ZIO.unsafeStateful[R, E, A] { (_, interruptible, _) => 
+      f(InterruptStatus.fromBoolean(interruptible))
+    }
 
   /**
    * Retrieves the `Clock` service for this workflow.
@@ -2940,7 +2943,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * its identity.
    */
   def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.Descriptor(f, trace)
+    ZIO.unsafeStateful[R, E, A] { (fiberState, _, _) => 
+      f(fiberState.unsafeDescriptor())
+    }
 
   /**
    * Returns an effect that dies with the specified `Throwable`. This method can
@@ -3018,13 +3023,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * equivalent of `throw` for pure code.
    */
   def fail[E](error: => E)(implicit trace: Trace): IO[E, Nothing] =
-    failCause(Cause.fail(e))
+    failCause(Cause.fail(error))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  def failCause[E](cause: => Cause[E])(implicit trace: Trace): IO[E, Nothing] =
-    ZIO.trace(trace0).flatMap(trace => refailCause(c.traced(trace)))
+  def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
+    ZIO.trace(trace0).flatMap(trace => refailCause(cause.traced(trace)))
 
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this
@@ -3530,7 +3535,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effect.
    */
   def getFiberRefs(implicit trace: Trace): UIO[FiberRefs] =
-    new ZIO.FiberRefModifyAll((_, fiberRefs) => (fiberRefs, fiberRefs), trace)
+    ZIO.unsafeStateful[Any, Nothing, FiberRefs] { (fiberState, _, _) => 
+      ZIO.succeedNow(fiberState.unsafeGetFiberRefs())
+    }
 
   /**
    * Lifts an Option into a ZIO, if the option is not defined it fails with
@@ -3730,19 +3737,27 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the current log level.
    */
   def log(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, None, trace)
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, Cause.empty, None, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the current log level.
    */
   def logCause(cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => "An error occurred", cause, None, trace)
+    logCause("An error occurred", cause)
 
   /**
    * Logs the specified message and cause at the current log level.
    */
   def logCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, None, trace)
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, None, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Annotates each log in this effect with the specified log annotation.
@@ -3772,13 +3787,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the debug log level.
    */
   def logDebug(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someDebug, trace)
+    logDebugCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the debug log level.
    */
-  def logDebugCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someDebug, trace)
+  def logDebugCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, someDebug, trace)
+    }
 
   /**
    * Logs the specified cause at the debug log level..
@@ -3790,13 +3807,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the error log level.
    */
   def logError(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someError, trace)
+    logErrorCause(message, Cause.empty)
 
   /**
    * Logs the specified cause as an error.
    */
-  def logErrorCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someError, trace)
+  def logErrorCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, someError, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause as an error.
@@ -3808,13 +3829,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the fatal log level.
    */
   def logFatal(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someFatal, trace)
+    logFatalCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the fatal log level.
    */
-  def logFatalCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someFatal, trace)
+  def logFatalCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, someFatal, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the fatal log level.
@@ -3826,13 +3851,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someInfo, trace)
+    logInfoCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the informational log level.
    */
-  def logInfoCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someInfo, trace)
+  def logInfoCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, someInfo, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the informational log level..
@@ -3863,13 +3892,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the trace log level.
    */
   def logTrace(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someTrace, trace)
+    logTraceCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the trace log level.
    */
-  def logTraceCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someTrace, trace)
+  def logTraceCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, someTrace, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the trace log level..
@@ -3881,13 +3914,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the warning log level.
    */
   def logWarning(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someWarning, trace)
+    logWarningCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the warning log level.
    */
-  def logWarningCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someWarning, trace)
+  def logWarningCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) => 
+      fiberState.unsafeLog(() => message, cause, someWarning, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the warning log level..
@@ -4240,7 +4277,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * as [[ZIO!.onExecutor]] and [[ZIO!.onExecutionContext]].
    */
   def shift(executor: => Executor)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed(new ZIO.Shift(executor, trace))
+    FiberRef.overrideExecutor.set(Some(executor)).unit
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -4406,7 +4443,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def updateFiberRefs(f: (FiberId.Runtime, FiberRefs) => FiberRefs)(implicit trace: Trace): UIO[Unit] =
     ZIO.unsafeStateful[Any, Nothing, Unit] { (state, _, _) => 
-      state.unsafeSetFiberRefs(f(state.fiberId, state.unsafeGetFiberRefs()))
+      state.unsafeSetFiberRefs(f(state.id, state.unsafeGetFiberRefs()))
+
+      ZIO.unit
     }
 
   /**
@@ -4674,7 +4713,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     async[Any, Nothing, Unit](k => k(ZIO.unit))
 
   private[zio] def unsafeStateful[R, E, A](
-    onState: (FiberState[E, A], Boolean, Trace) => ZIO[R, E, A]
+    onState: (internal.FiberState[E, A], Boolean, Trace) => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] = 
     Stateful(trace, onState)
 
@@ -5383,7 +5422,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
 
   private[zio] final case class Sync[A](trace: Trace, eval: () => A)                                           extends ZIO[Any, Nothing, A]
-  private[zio] final case class Async[R, E, A](trace: Trace, registerCallback: (ZIO[R, E, A] => Unit) => Unit) extends ZIO[R, E, A]
+  private[zio] final case class Async[R, E, A](trace: Trace, registerCallback: (ZIO[R, E, A] => Unit) => Any) extends ZIO[R, E, A]
   private[zio] sealed trait OnSuccessOrFailure[R, E1, E2, A, B]
       extends ZIO[R, E2, B]
       with EvaluationStep.Continuation[R, E1, E2, A, B] {
