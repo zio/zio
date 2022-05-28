@@ -316,6 +316,10 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 }
 
 object RuntimeFiber {
+  import java.util.concurrent.atomic.AtomicBoolean
+
   def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs): RuntimeFiber[E, A] =
     new RuntimeFiber(fiberId, fiberRefs)
+
+  private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
 }
