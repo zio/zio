@@ -127,6 +127,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       mask = 128
       (0 until 8).foreach { k =>
         byte = byte | (if (!ev(self(i * 8 + k))) mask else 0)
+        mask >>= 1
       }
       arr(i) = byte.asInstanceOf[Byte]
       i += 1
@@ -136,6 +137,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       mask = 128
       (0 until remBytes).foreach { k =>
         byte = byte | (if (!ev(self(fullBytes * 8 + k))) mask else 0)
+        mask >>= 1
       }
       arr(fullBytes) = byte.asInstanceOf[Byte]
     }
