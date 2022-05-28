@@ -175,6 +175,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     resumed
   }
 
+  final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
+    fiberRefs = fiberRefs.remove(ref)
+
   // FIXME:
   final def unsafeDescriptor(): Fiber.Descriptor = ???
 

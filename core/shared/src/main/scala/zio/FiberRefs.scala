@@ -135,6 +135,9 @@ final class FiberRefs private (
     FiberRefs(fiberRefLocals)
   }
 
+  def remove(fiberRef: FiberRef[_]): FiberRefs =
+    FiberRefs(fiberRefLocals - fiberRef)
+
   def setAll(implicit trace: Trace): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))

@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberContext, FiberScope, Platform, StackBool, StackTraceBuilder}
+import zio.internal.{FiberScope, Platform, RuntimeFiber, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -122,163 +122,6 @@ trait Runtime[+R] { self =>
     result.get()
   }
 
-  private[zio] def unsafeRunSyncFast[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] =
-    try {
-      Exit.Success(unsafeRunFast(zio, 50))
-    } catch {
-      case failure: ZIO.ZioError[_, _] => failure.exit.asInstanceOf[Exit[E, A]]
-    }
-
-  private[zio] def unsafeRunFast[E, A](zio: ZIO[R, E, A], maxStack: Int)(implicit
-    trace0: Trace
-  ): A = {
-    import ZIO.TracedCont
-    import Runtime.{Lazy, UnsafeSuccess}
-
-    type Erased  = ZIO[Any, Any, Any]
-    type ErasedK = TracedCont[Any, Any, Any, Any]
-
-    val nullK = null.asInstanceOf[ErasedK]
-
-    def loop(zio: ZIO[R, _, _], stack: Int, stackTraceBuilder: Lazy[StackTraceBuilder]): UnsafeSuccess =
-      if (stack >= maxStack) {
-        defaultUnsafeRunSync(zio) match {
-          case Exit.Success(success) => success.asInstanceOf[UnsafeSuccess]
-          case Exit.Failure(cause)   => throw new ZIO.ZioError(Exit.failCause(cause), zio.trace)
-        }
-      } else {
-        var curZio         = zio.asInstanceOf[Erased]
-        var x1, x2, x3, x4 = nullK
-        var success        = null.asInstanceOf[UnsafeSuccess]
-
-        while (success eq null) {
-          try {
-            curZio.tag match {
-              case ZIO.Tags.FlatMap =>
-                val zio = curZio.asInstanceOf[ZIO.FlatMap[R, E, Any, A]]
-
-                val k = zio.asInstanceOf[ErasedK]
-
-                if (x4 eq null) {
-                  x4 = x3; x3 = x2; x2 = x1; x1 = k
-
-                  curZio = zio.zio.asInstanceOf[Erased]
-                } else {
-                  // Our "register"-based stack can't handle it, try consuming more JVM stack:
-                  curZio = k(loop(zio.zio, stack + 1, stackTraceBuilder))
-                }
-
-              case ZIO.Tags.SucceedNow =>
-                val zio = curZio.asInstanceOf[ZIO.SucceedNow[Any]]
-
-                if (x1 ne null) {
-                  val k = x1
-                  x1 = x2; x2 = x3; x3 = x4; x4 = nullK
-                  curZio = k(zio.value)
-                } else {
-                  success = zio.value.asInstanceOf[UnsafeSuccess]
-                }
-
-              case ZIO.Tags.Fail =>
-                val zio = curZio.asInstanceOf[ZIO.Fail[E]]
-
-                throw new ZIO.ZioError(Exit.failCause(zio.cause), zio.trace)
-
-              case ZIO.Tags.Succeed =>
-                val zio = curZio.asInstanceOf[ZIO.Succeed[Any]]
-
-                if (x1 ne null) {
-                  val k = x1
-                  x1 = x2; x2 = x3; x3 = x4; x4 = nullK
-                  curZio = k(zio.effect())
-                } else {
-                  success = zio.effect().asInstanceOf[UnsafeSuccess]
-                }
-
-              case _ =>
-                val zio = curZio
-
-                // Give up, the mini-interpreter can't handle it:
-                defaultUnsafeRunSync(zio) match {
-                  case Exit.Success(value) =>
-                    if (x1 ne null) {
-                      val k = x1
-                      x1 = x2; x2 = x3; x3 = x4; x4 = nullK
-                      curZio = k(value)
-                    } else {
-                      success = value.asInstanceOf[UnsafeSuccess]
-                    }
-
-                  case Exit.Failure(cause) => throw new ZIO.ZioError(Exit.failCause(cause), zio.trace)
-                }
-            }
-          } catch {
-            case failure: ZIO.ZioError[_, _] =>
-              val builder = stackTraceBuilder.value
-
-              builder += failure.trace
-              if (x1 ne null) {
-                builder += x1.trace
-                if (x2 ne null) {
-                  builder += x2.trace
-                  if (x3 ne null) {
-                    builder += x3.trace
-                    if (x4 ne null) {
-                      builder += x4.trace
-                    }
-                  }
-                }
-              }
-
-              throw failure
-
-            case t: Throwable =>
-              val builder = stackTraceBuilder.value
-
-              builder += zio.trace
-
-              if (x1 ne null) {
-                builder += x1.trace
-                if (x2 ne null) {
-                  builder += x2.trace
-                  if (x3 ne null) {
-                    builder += x3.trace
-                    if (x4 ne null) {
-                      builder += x4.trace
-                    }
-                  }
-                }
-              }
-
-              if (!isFatal(t)) throw new ZIO.ZioError(Exit.die(t), trace0)
-              else fiberRefs.getOrDefault(FiberRef.currentReportFatal)(t)
-          }
-        }
-
-        success
-      }
-
-    val stackTraceBuilder = Lazy.stackTraceBuilder()
-
-    try {
-      loop(zio, 0, stackTraceBuilder).asInstanceOf[A]
-    } catch {
-      case failure: ZIO.ZioError[_, _] =>
-        failure.exit match {
-          case Exit.Success(value) =>
-            throw new ZIO.ZioError(Exit.succeed(value), trace0)
-
-          case Exit.Failure(cause) =>
-            val fiberId = cause.trace.fiberId.getOrElse(FiberId.unsafeMake(trace0))
-
-            val trace = StackTrace(fiberId, stackTraceBuilder.value.result())
-
-            throw new ZIO.ZioError(Exit.failCause(cause.traced(trace)), trace0)
-        }
-
-    }
-  }
-
   /**
    * Executes the effect asynchronously, eventually passing the exit value to
    * the specified callback.
@@ -358,53 +201,34 @@ trait Runtime[+R] { self =>
 
   private final def unsafeRunWithRefs[E, A](
     zio: ZIO[R, E, A],
-    fiberRefs: FiberRefs
+    fiberRefs0: FiberRefs
   )(
     k: (Exit[E, A], FiberRefs) => Any
   )(implicit trace: Trace): FiberId => ((Exit[E, A], FiberRefs) => Any) => Unit = {
-    val fiberId = FiberId.unsafeMake(trace)
+    import internal.RuntimeFiber
 
-    val children = Platform.newWeakSet[FiberContext[_, _]]()
-
-    val runtimeFiberRefs: Map[FiberRef[_], Any] =
-      Map(
-        FiberRef.currentBlockingExecutor -> fiberRefs.getOrDefault(FiberRef.currentBlockingExecutor),
-        FiberRef.currentEnvironment      -> environment,
-        FiberRef.currentExecutor         -> fiberRefs.getOrDefault(FiberRef.currentExecutor),
-        FiberRef.currentFatal            -> fiberRefs.getOrDefault(FiberRef.currentFatal),
-        FiberRef.currentLoggers          -> fiberRefs.getOrDefault(FiberRef.currentLoggers),
-        FiberRef.currentReportFatal      -> fiberRefs.getOrDefault(FiberRef.currentReportFatal),
-        FiberRef.currentRuntimeFlags     -> fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags),
-        FiberRef.currentSupervisors      -> fiberRefs.getOrDefault(FiberRef.currentSupervisors)
-      )
-
-    lazy val context: FiberContext[E, A] = new FiberContext[E, A](
-      fiberId,
-      StackBool(InterruptStatus.Interruptible.toBoolean),
-      new java.util.concurrent.atomic.AtomicReference(fiberRefs.updatedAsAll(fiberId)(runtimeFiberRefs).fiberRefLocals),
-      children
-    )
+    val fiberId   = FiberId.unsafeMake(trace)
+    val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
+    val fiber     = RuntimeFiber(fiberId, fiberRefs)
 
     FiberScope.global.unsafeAdd(
       fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)(RuntimeFlag.EnableFiberRoots),
-      context
+      fiber
     )
 
     fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach { supervisor =>
-      supervisor.unsafeOnStart(environment, zio, None, context)
+      supervisor.unsafeOnStart(environment, zio, None, fiber)
 
-      context.unsafeOnDone((exit, _) => supervisor.unsafeOnEnd(exit.flatten, context))
+      fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
     }
 
-    context.nextEffect = zio
-    context.run()
-    context.unsafeOnDone { (exit, fiberRefs) =>
-      k(exit.flatten, fiberRefs)
+    fiber.unsafeAddObserver { exit =>
+      k(exit, fiber.unsafeGetFiberRefs())
     }
 
     fiberId =>
       k =>
-        unsafeRunWithRefs(context.interruptAs(fiberId), fiberRefs)(
+        unsafeRunWithRefs(fiber.interruptAs(fiberId), fiberRefs)(
           (exit: Exit[Nothing, Exit[E, A]], fiberRefs: FiberRefs) => k(exit.flatten, fiberRefs)
         )
   }

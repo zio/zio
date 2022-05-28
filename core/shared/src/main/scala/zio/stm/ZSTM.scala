@@ -849,27 +849,27 @@ object ZSTM {
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.environmentWithZIO[R] { r =>
-      ZIO.executorWith { executor =>
-        ZIO.fiberIdWith { fiberId =>
-          tryCommitSync(executor, fiberId, stm, r) match {
-            case TryCommit.Done(exit) => throw new ZIO.ZioError(exit, trace)
-            case TryCommit.Suspend(journal) =>
-              val txnId = makeTxnId()
-              val state = new AtomicReference[State[E, A]](State.Running)
-              val async = ZIO.async(tryCommitAsync(journal, executor, fiberId, stm, txnId, state, r))
+    ZIO.unsafeStateful[R, E, A] { (fiberState, _, _) =>
+      val r        = fiberState.unsafeGetFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
+      val fiberId  = fiberState.id
+      val executor = fiberState.unsafeGetCurrentExecutor()
 
-              ZIO.uninterruptibleMask { restore =>
-                restore(async).catchAllCause { cause =>
-                  state.compareAndSet(State.Running, State.Interrupted)
-                  state.get match {
-                    case State.Done(exit) => ZIO.done(exit)
-                    case _                => ZIO.failCause(cause)
-                  }
-                }
+      tryCommitSync(executor, fiberId, stm, r) match {
+        case TryCommit.Done(exit) => ZIO.done(exit)(trace)
+        case TryCommit.Suspend(journal) =>
+          val txnId = makeTxnId()
+          val state = new AtomicReference[State[E, A]](State.Running)
+          val async = ZIO.async(tryCommitAsync(journal, executor, fiberId, stm, txnId, state, r))
+
+          ZIO.uninterruptibleMask { restore =>
+            restore(async).catchAllCause { cause =>
+              state.compareAndSet(State.Running, State.Interrupted)
+              state.get match {
+                case State.Done(exit) => ZIO.done(exit)
+                case _                => ZIO.failCause(cause)
               }
+            }
           }
-        }
       }
     }
 

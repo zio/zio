@@ -873,9 +873,9 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] val _currentFiber: ThreadLocal[internal.FiberContext[_, _]] =
-    new ThreadLocal[internal.FiberContext[_, _]]()
+  private[zio] val _currentFiber: ThreadLocal[internal.RuntimeFiber[_, _]] =
+    new ThreadLocal[internal.RuntimeFiber[_, _]]()
 
-  private[zio] val _roots: WeakConcurrentBag[internal.FiberContext[_, _]] =
+  private[zio] val _roots: WeakConcurrentBag[internal.RuntimeFiber[_, _]] =
     WeakConcurrentBag(10000)
 }

@@ -101,21 +101,33 @@ trait FiberRef[A] extends Serializable { self =>
   def fork: Patch
 
   def delete(implicit trace: Trace): UIO[Unit] =
-    new ZIO.FiberRefDelete(self, trace)
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) =>
+      fiberState.unsafeDeleteFiberRef(self)
+
+      ZIO.unit
+    }
 
   /**
    * Reads the value associated with the current fiber. Returns initial value if
    * no value was `set` or inherited from parent.
    */
   def get(implicit trace: Trace): UIO[A] =
-    modify(v => (v, v))
+    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _, _) =>
+      ZIO.succeedNow(fiberState.unsafeGetFiberRef(self))
+    }
 
   /**
    * Atomically sets the value associated with the current fiber and returns the
    * old value.
    */
   def getAndSet(a: A)(implicit trace: Trace): UIO[A] =
-    modify(v => (v, a))
+    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _, _) =>
+      val oldValue = fiberState.unsafeGetFiberRef(self)
+
+      fiberState.unsafeSetFiberRef(self, a)
+
+      ZIO.succeedNow(oldValue)
+    }
 
   /**
    * Atomically modifies the `FiberRef` with the specified function and returns
@@ -143,7 +155,9 @@ trait FiberRef[A] extends Serializable { self =>
    * specified effect.
    */
   def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
-    new ZIO.FiberRefWith(self, f, trace)
+    ZIO.unsafeStateful[R, E, B] { (fiberState, _, _) =>
+      f(fiberState.unsafeGetFiberRef(self))
+    }
 
   /**
    * Returns a `ZIO` that runs with `value` bound to the current fiber.
@@ -151,7 +165,13 @@ trait FiberRef[A] extends Serializable { self =>
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
   def locally[R, E, B](value: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
-    new ZIO.FiberRefLocally(value, self, zio, trace)
+    ZIO.unsafeStateful[R, E, B] { (fiberState, _, _) =>
+      val oldValue = fiberState.unsafeGetFiberRef(self)
+
+      fiberState.unsafeSetFiberRef(self, value)
+
+      zio.ensuring(ZIO.succeed(fiberState.unsafeSetFiberRef(self, oldValue)))
+    }
 
   /**
    * Returns a `ZIO` that runs with `f` applied to the current fiber.
@@ -183,7 +203,13 @@ trait FiberRef[A] extends Serializable { self =>
    * version of `update`.
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
-    new ZIO.FiberRefModify(this, f, trace)
+    ZIO.unsafeStateful[Any, Nothing, B] { (fiberState, _, _) =>
+      val (b, a) = f(fiberState.unsafeGetFiberRef(self))
+
+      fiberState.unsafeSetFiberRef(self, a)
+
+      ZIO.succeed(b)
+    }
 
   /**
    * Atomically modifies the `FiberRef` with the specified partial function,
@@ -203,7 +229,11 @@ trait FiberRef[A] extends Serializable { self =>
    * Sets the value associated with the current fiber.
    */
   def set(value: A)(implicit trace: Trace): UIO[Unit] =
-    modify(_ => ((), value))
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) =>
+      fiberState.unsafeSetFiberRef(self, value)
+
+      ZIO.unit
+    }
 
   /**
    * Atomically modifies the `FiberRef` with the specified function.
@@ -260,26 +290,26 @@ trait FiberRef[A] extends Serializable { self =>
     ZIO.succeed {
       new ThreadLocal[A] {
         override def get(): A = {
-          val fiberContext = Fiber._currentFiber.get()
+          val fiber = Fiber._currentFiber.get()
 
-          if (fiberContext eq null) super.get()
-          else Option(fiberContext.unsafeGetRef(self)).getOrElse(super.get())
+          if (fiber eq null) super.get()
+          else fiber.unsafeGetFiberRefOrElse(self, super.get())
         }
 
         override def set(a: A): Unit = {
-          val fiberContext = Fiber._currentFiber.get()
-          val fiberRef     = self.asInstanceOf[FiberRef[Any]]
+          val fiber    = Fiber._currentFiber.get()
+          val fiberRef = self.asInstanceOf[FiberRef[Any]]
 
-          if (fiberContext eq null) super.set(a)
-          else fiberContext.unsafeSetRef(fiberRef, a)
+          if (fiber eq null) super.set(a)
+          else fiber.unsafeSetFiberRef(fiberRef, a)
         }
 
         override def remove(): Unit = {
-          val fiberContext = Fiber._currentFiber.get()
-          val fiberRef     = self
+          val fiber    = Fiber._currentFiber.get()
+          val fiberRef = self
 
-          if (fiberContext eq null) super.remove()
-          else fiberContext.unsafeDeleteRef(fiberRef)
+          if (fiber eq null) super.remove()
+          else fiber.unsafeDeleteFiberRef(fiberRef)
         }
 
         override def initialValue(): A = initial
