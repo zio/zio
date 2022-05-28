@@ -432,7 +432,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.
    */
   final def daemonChildren(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(new ZIO.OverrideForkScope(self, Some(FiberScope.global), trace))
+    FiberRef.forkScopeOverride.locally(Some(FiberScope.global))(self)
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
@@ -541,12 +541,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * an [[zio.Exit]] for the completion value of the fiber.
    */
   final def exit(implicit trace: Trace): URIO[R, Exit[E, A]] =
-    new ZIO.Fold[R, E, Nothing, A, Exit[E, A]](
-      self,
-      cause => ZIO.succeedNow(Exit.failCause(cause)),
-      success => ZIO.succeedNow(Exit.succeed(success)),
-      trace
-    )
+    self.foldCause(Exit.failCause(_), Exit.succeed(_))
 
   /**
    * Maps this effect to the default exit codes.
@@ -763,7 +758,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.unsafeStateful[R, Nothing, RuntimeFiber[E1, A1]](
+    ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]](
       (fiberState, interruptible, _) => ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, interruptible))
     )
 
@@ -782,7 +777,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * returned effect terminates, the forked fiber will continue running.
    */
   final def forkDaemon(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    new ZIO.Fork(self, Some(FiberScope.global), trace)
+    self.fork.daemonChildren
 
   /**
    * Forks the fiber in a [[Scope]], interrupting it when the scope is closed.
