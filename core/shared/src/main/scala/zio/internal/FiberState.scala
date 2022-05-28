@@ -20,6 +20,7 @@ import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
+import java.util.{Set => JavaSet}
 import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -101,7 +102,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     observers = observer :: observers
 
   final def unsafeAddObserverMaybe(k: Exit[E, A] => Unit): Exit[E, A] =
-    unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k)), unsafeExitValue())
+    unsafeEvalOn(ZIO.succeedNow(unsafeAddObserver(k)), unsafeExitValue())
 
   /**
    * Attempts to place the state of the fiber in interruption, but only if the
@@ -200,7 +201,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeEnterSuspend(): Int =
     statusState.enterSuspend()
 
-  final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A)(implicit trace: Trace): A =
+  final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A): A =
     if (unsafeAddMessage(effect)) null.asInstanceOf[A] else orElse
 
   /**
