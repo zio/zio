@@ -1,6 +1,6 @@
 ---
 id: configurable-zio-application
-title: "Tutorial: How to make a ZIO application configurable?"
+title: "Tutorial: How to Make a ZIO Application Configurable?"
 sidebar_label: "Making a ZIO application configurable"
 ---
 
