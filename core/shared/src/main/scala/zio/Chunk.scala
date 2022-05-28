@@ -88,18 +88,33 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
         }
     }
 
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
 
+  /**
+   * Returns the bitwise AND of this chunk and the specified chunk.
+   */
   def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ & _)
 
+  /**
+   * Returns the bitwise OR of this chunk and the specified chunk.
+   */
   def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ | _)
 
+  /**
+   * Returns the bitwise XOR of this chunk and the specified chunk.
+   */
   def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunk =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ ^ _)
 
+  /**
+   * Returns the bitwise NOT of this chunk.
+   */
   def negate(implicit ev: A <:< Boolean): Chunk.BitChunk = {
     val bits      = self.length
     val fullBytes = bits >> 3
