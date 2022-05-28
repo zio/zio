@@ -163,7 +163,7 @@ final class FiberRefs private (
     )
 
   // FIXME: Never under any circumstances use this slow method:
-  private[zio] def unsafeGefMap(): Map[FiberRef[_], Any] = 
+  private[zio] def unsafeGefMap(): Map[FiberRef[_], Any] =
     fiberRefLocals.transform { case (_, stack) => stack.head._2 }
 }
 

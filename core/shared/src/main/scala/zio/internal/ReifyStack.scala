@@ -1,7 +1,7 @@
-package zio.internal 
+package zio.internal
 
 import zio.{ChunkBuilder, ZIO}
-import zio.ZIO.EvaluationStep 
+import zio.ZIO.EvaluationStep
 
 import scala.util.control.NoStackTrace
 
@@ -21,7 +21,7 @@ sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
 }
 object ReifyStack {
   final case class AsyncJump(
-    registerCallback: (ZIO[Any, Any, Any] => Unit) => Unit,
+    registerCallback: (ZIO[Any, Any, Any] => Unit) => Any,
     stack: ChunkBuilder[EvaluationStep]
   ) extends ReifyStack
 
