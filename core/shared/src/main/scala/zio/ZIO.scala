@@ -1355,8 +1355,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
             winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
           case exit: Exit.Failure[E1] =>
             rightDone(exit, loser)
-        },
-      trace
+        }
     )
 
   private final def raceWithImpl[R1 <: R, ER, E2, B, C](right0: ZIO[R1, ER, B])(
@@ -1380,8 +1379,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
         val raceIndicator = new AtomicBoolean(true)
 
-        val left: RuntimeFiber[E, A]   = ZIO.unsafeFork(trace, self, fiberState, interruptible)
-        val right: RuntimeFiber[ER, B] = ZIO.unsafeFork(trace, right0, fiberState, interruptible)
+        val left: internal.RuntimeFiber[E, A]   = ZIO.unsafeFork(trace, self, fiberState, interruptible)
+        val right: internal.RuntimeFiber[ER, B] = ZIO.unsafeFork(trace, right0, fiberState, interruptible)
 
         ZIO
           .async[R1, E2, C](
@@ -1888,7 +1887,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * forked in the effect are reported to the specified supervisor.
    */
   final def supervised(supervisor: => Supervisor[Any])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(new ZIO.Supervise(self, supervisor, trace))
+    FiberRef.currentSupervisors.locallyWith(_ + supervisor)(self)
 
   /**
    * An integer that identifies the term in the `ZIO` sum type to which this
@@ -2375,12 +2374,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
         ZIO.fiberIdWith { fiberId =>
-          new ZIO.RaceWith(
-            graft(restore(self)),
-            graft(restore(that)),
+          graft(restore(self)).raceWithImpl(
+            graft(restore(that)))(
             coordinate(fiberId, f, true),
-            coordinate(fiberId, g, false),
-            trace
+            coordinate(fiberId, g, false)
           )
         }
       }
@@ -2391,16 +2388,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     that: => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit trace: Trace): ZIO[R1, E2, B] =
-    new ZIO.Fold[R1, E, E2, A, B](
-      self,
+    self.foldCauseZIO(
       { cause =>
         cause.keepDefects match {
           case None    => that
           case Some(c) => ZIO.failCause(c)
         }
       },
-      success,
-      trace
+      success
     )
 
   private[zio] def trace: Trace
@@ -2411,14 +2406,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private def unsafeFork[R, E1, E2, A, B](
     trace: Trace,
     effect: ZIO[R, E1, A],
-    fiberState: FiberState[E2, B],
+    fiberState: internal.FiberState[E2, B],
     interruptible: Boolean
-  ) = {
+  ): internal.RuntimeFiber[E1, A] = {
     val childId         = FiberId.unsafeMake(trace)
     val parentFiberRefs = fiberState.unsafeGetFiberRefs
     val childFiberRefs  = parentFiberRefs.forkAs(childId)
 
-    val childFiber = RuntimeFiber[E1, A](childId, childFiberRefs)
+    val childFiber = internal.RuntimeFiber[E1, A](childId, childFiberRefs)
 
     // Child inherits interruptibility status of parent fiber:
     childFiber.unsafeSetInterruptible(interruptible)
@@ -2429,12 +2424,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val runtimeFlags = fiberState.unsafeGetFiberRef(FiberRef.currentRuntimeFlags)
     val enableRoots  = runtimeFlags.contains(RuntimeFlag.EnableCurrentFiber)
 
-    parentScope.unsafeAdd(enableRoots, childFiber)
+    parentScope.unsafeAdd(enableRoots, childFiber)(trace)
 
     val currentExecutor = fiberState.unsafeGetCurrentExecutor()
 
     currentExecutor.unsafeSubmitOrThrow { () =>
-      childFiber.outerRunLoop(effect.asInstanceOf[Erased], Chunk.empty, 1000)
+      childFiber.outerRunLoop(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, 1000)
     }
 
     childFiber
@@ -5461,15 +5456,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+
+    def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   }
   object InterruptibilityRestorer {
     case object MakeInterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.ChangeInterruptionWithin.Interruptible(trace, effect)
+
+      def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = apply(effect.disconnect)
     }
     case object MakeUninterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.ChangeInterruptionWithin.Uninterruptible(trace, effect)
+
+      def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = apply(effect)
     }
   }
 
