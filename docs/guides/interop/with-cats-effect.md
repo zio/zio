@@ -1,6 +1,7 @@
 ---
 id: with-cats-effect
 title: "How to Interop with Cats Effect?"
+sidebar_label: "Cats Effect"
 ---
 
 ```scala mdoc:invisible
@@ -561,7 +562,7 @@ Let's try doing that in each of which:
 
 #### Customized Transactor (CE2)
 
-ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations like JDBC operations, and the other one for non-blocking operations like performing awaiting connections to the database. So we shouldn't run blocking JDBC operations on the main thread pool. 
+ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations, and the other one for non-blocking operations. So we shouldn't run blocking JDBC operations or perform awaiting connections to the database on the main thread pool.
 
 So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor. In this example we are using `0.13.4` version of doobie which supports CE2:
 
@@ -582,7 +583,7 @@ def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
               "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",               // connect URL
               "sa",                                               // username
               "",                                                 // password
-              rt.runtimeConfig.executor.asExecutionContext,       // await connection here
+              be.asExecutionContext,                              // await connection here
               Blocker.liftExecutionContext(be.asExecutionContext) // execute JDBC operations here
             )
             .toManagedZIO

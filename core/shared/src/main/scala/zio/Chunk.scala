@@ -190,7 +190,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     else
       self match {
         case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + n, l - n)
-        case _                    => Chunk.Slice(self, n, len - n)
+        case Chunk.Concat(l, r) =>
+          if (n > l.length) r.drop(n - l.length)
+          else Chunk.Concat(l.drop(n), r)
+        case _ => Chunk.Slice(self, n, len - n)
       }
   }
 
@@ -205,7 +208,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     else
       self match {
         case Chunk.Slice(c, o, l) => Chunk.Slice(c, o, l - n)
-        case _                    => Chunk.Slice(self, 0, len - n)
+        case Chunk.Concat(l, r) =>
+          if (n > r.length) l.dropRight(n - r.length)
+          else Chunk.Concat(l, r.dropRight(n))
+        case _ => Chunk.Slice(self, 0, len - n)
       }
   }
 
@@ -727,7 +733,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     else
       self match {
         case Chunk.Slice(c, o, _) => Chunk.Slice(c, o, n)
-        case _                    => Chunk.Slice(self, 0, n)
+        case Chunk.Concat(l, r) =>
+          if (n > l.length) Chunk.Concat(l, r.take(n - l.length))
+          else l.take(n)
+        case _ => Chunk.Slice(self, 0, n)
       }
 
   /**
@@ -739,7 +748,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     else
       self match {
         case Chunk.Slice(c, o, l) => Chunk.Slice(c, o + l - n, n)
-        case _                    => Chunk.Slice(self, length - n, n)
+        case Chunk.Concat(l, r) =>
+          if (n > r.length) Chunk.Concat(l.takeRight(n - r.length), r)
+          else r.takeRight(n)
+        case _ => Chunk.Slice(self, length - n, n)
       }
 
   /**
@@ -1762,6 +1774,62 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         i += 1
       }
     }
+
+    private def nthByte(n: Int): Byte = {
+      val offset    = minBitIndex & 7
+      val startByte = (minBitIndex >> 3)
+      if (offset == 0) {
+        bytes(n + startByte)
+      } else {
+        val leftover = minBitIndex + (n + 1) * 8 - maxBitIndex
+        if (leftover <= 0) {
+          val index  = n + startByte
+          val first  = ((255 >> offset) & bytes(index)) << offset
+          val second = (255 << (8 - offset) & 255 & bytes(index + 1)) >> (8 - offset)
+          (first | second).asInstanceOf[Byte]
+        } else {
+          throw new ArrayIndexOutOfBoundsException(s"There are only $leftover bits left.")
+        }
+      }
+    }
+
+    private def bitwise(that: BitChunk, f: (Byte, Byte) => Byte, g: (Boolean, Boolean) => Boolean): BitChunk = {
+      val bits      = self.length min that.length
+      val bytes     = bits >> 3
+      val leftovers = bits - bytes * 8
+      val arr = Array.ofDim[Byte](
+        if (leftovers == 0) bytes else bytes + 1
+      )
+
+      (0 until bytes).foreach { n =>
+        arr(n) = f(self.nthByte(n), that.nthByte(n))
+      }
+
+      if (leftovers != 0) {
+        val offset     = bytes * 8
+        var last: Byte = null.asInstanceOf[Byte]
+        var mask       = 128
+        var i          = 0
+        while (i < leftovers) {
+          if (g(self.apply(offset + self.minBitIndex + i), that.apply(offset + that.minBitIndex + i)))
+            last = (last | mask).asInstanceOf[Byte]
+          i += 1
+          mask >>= 1
+        }
+        arr(bytes) = last
+      }
+
+      BitChunk(Chunk.fromArray(arr), 0, bits)
+    }
+
+    def and(that: BitChunk): BitChunk =
+      bitwise(that, (l, r) => (l & r).asInstanceOf[Byte], _ && _)
+
+    def or(that: BitChunk): BitChunk =
+      bitwise(that, (l, r) => (l | r).asInstanceOf[Byte], _ || _)
+
+    def xor(that: BitChunk): BitChunk =
+      bitwise(that, (l, r) => (l ^ r).asInstanceOf[Byte], _ ^ _)
 
     override def take(n: Int): BitChunk = {
       val index  = (minBitIndex + n) min maxBitIndex

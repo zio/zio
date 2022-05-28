@@ -1,6 +1,7 @@
 ---
 id: with-monix
 title: "How to Interop with Monix?"
+sidebar_label: "Monix"
 ---
 
 Checkout [`interop-monix`](https://github.com/zio/interop-monix) module for inter-operation support.

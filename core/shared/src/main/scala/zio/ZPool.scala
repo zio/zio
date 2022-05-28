@@ -174,7 +174,7 @@ object ZPool {
                     attempted.result match {
                       case Exit.Success(item) =>
                         invalidated.get.flatMap { set =>
-                          if (set.contains(item)) release(attempted) *> acquire
+                          if (set.contains(item)) finalizeInvalid(attempted) *> acquire
                           else ZIO.succeedNow(attempted)
                         }
                       case _ =>
@@ -191,20 +191,32 @@ object ZPool {
         }
 
       def release(attempted: Attempted[E, A]): UIO[Any] =
-        if (attempted.isFailure)
-          state.modify { case State(size, free) =>
-            if (size <= range.start)
-              allocate -> State(size, free + 1)
-            else
-              ZIO.unit -> State(size - 1, free)
-          }.flatten
-        else
-          state.update(state => state.copy(free = state.free + 1)) *>
-            items.offer(attempted) *>
-            track(attempted.result) *>
-            getAndShutdown.whenZIO(isShuttingDown.get)
+        attempted.result match {
+          case Exit.Success(item) =>
+            invalidated.get.flatMap { set =>
+              if (set.contains(item)) finalizeInvalid(attempted)
+              else
+                state.update(state => state.copy(free = state.free + 1)) *>
+                  items.offer(attempted) *>
+                  track(attempted.result) *>
+                  getAndShutdown.whenZIO(isShuttingDown.get)
+            }
 
-      ZIO.acquireRelease(acquire)(release(_)).flatMap(_.toZIO).disconnect
+          case Exit.Failure(_) =>
+            state.modify { case State(size, free) =>
+              if (size <= range.start)
+                allocate -> State(size, free + 1)
+              else
+                ZIO.unit -> State(size - 1, free)
+            }.flatten
+        }
+
+      for {
+        releaseAndAttempted <- ZIO.acquireRelease(acquire)(release(_)).withEarlyRelease
+        (release, attempted) = releaseAndAttempted
+        _                   <- release.when(attempted.isFailure)
+        item                <- attempted.toZIO.disconnect
+      } yield item
     }
 
     /**
@@ -234,6 +246,16 @@ object ZPool {
 
     def invalidate(item: A)(implicit trace: zio.Trace): UIO[Unit] =
       invalidated.update(_ + item)
+
+    private def finalizeInvalid(attempted: Attempted[E, A])(implicit trace: zio.Trace): UIO[Any] =
+      attempted.forEach(a => invalidated.update(_ - a)) *>
+        attempted.finalizer *>
+        state.modify { case State(size, free) =>
+          if (size <= range.start)
+            allocate -> State(size, free + 1)
+          else
+            ZIO.unit -> State(size - 1, free)
+        }.flatten
 
     /**
      * Shrinks the pool down, but never to less than the minimum size.

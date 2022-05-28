@@ -86,6 +86,19 @@ object ScopeSpec extends ZIOBaseSpec {
           actions.indexOf(Action.release(4)) < actions.indexOf(Action.release(3))
         }
       }
+    },
+    test("withEarlyRelease") {
+      for {
+        ref     <- Ref.make[Chunk[Action]](Chunk.empty)
+        left     = resource(1)(ref)
+        right    = resource(2)(ref).withEarlyRelease
+        _       <- left *> right.flatMap { case (release, _) => release }
+        actions <- ref.get
+      } yield assertTrue {
+        actions(0) == Action.acquire(1) &&
+        actions(1) == Action.acquire(2) &&
+        actions(2) == Action.release(2)
+      }
     }
   )
 

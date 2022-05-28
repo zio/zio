@@ -5,37 +5,129 @@ title: "ConcurrentMap"
 
 A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.
 
-## Operations
+## Motivation
 
-### Creation
+The `HashMap` in the Scala standard library is not thread-safe. This means that if multiple fibers are accessing the same key, and trying to modify the value, this can lead to inconsistent results.
 
-| Method                                                                | Definition                                                                              |
-|-----------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-|`empty[K, V]: UIO[ConcurrentMap[K, V]]`                                | Makes an empty `ConcurrentMap`                                                          |
-|`fromIterable[K, V](pairs: Iterable[(K, V)]): UIO[ConcurrentMap[K, V]]`| Makes a new `ConcurrentMap` initialized with the provided collection of key-value pairs |
-|`make[K, V](pairs: (K, V)*): UIO[ConcurrentMap[K, V]]`                 | Makes a new `ConcurrentMap` initialized with the provided key-value pairs               |
+For example, assume we have a `HashMap` with a key `foo` and a value of `0`. Let's see what happens if we perform the `inc` workflow 100 times concurrently:
 
-### Use
+```scala mdoc:compile-only
+import zio._
+
+import scala.collection.mutable
+
+object MainApp extends ZIOAppDefault {
+
+  def inc(ref: Ref[mutable.HashMap[String, Int]], key: String) =
+    for {
+      _ <- ref.get
+      _ <- ref.update { map =>
+        map.updateWith(key)(_.map(_ + 1))
+        map
+      }
+    } yield ()
+
+  def run =
+    for {
+      ref <- Ref.make(mutable.HashMap(("foo", 0)))
+      _ <- ZIO.foreachParDiscard(1 to 100)(_ => inc(ref, "foo"))
+      _ <- ref.get.map(_.get("foo")).debug("The final value of foo is")
+    } yield ()
+
+}
+// Different outputs on different executions:
+// The final value of foo is Some(72)
+// The final value of foo is Some(84)
+// The final value of foo is Some(78)
+// ...
+```
+
+Since the `HashMap` is not thread-safe, every time we run this program, we might get different results, which is not desirable.
+
+So we need a concurrent data structure that can be used safely in concurrent environments, which the `ConcurrentMap` does for us:
+
+```scala mdoc:compile-only
+import zio._
+import zio.concurrent.ConcurrentMap
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      map <- ConcurrentMap.make(("foo", 0), ("bar", 1), ("baz", 2))
+      _ <- ZIO.foreachParDiscard(1 to 100)(_ =>
+        map.computeIfPresent("foo", (_, v) => v + 1)
+      )
+      _ <- map.get("foo").debug("The final value of foo is")
+    } yield ()
+}
+// Output:
+// The final value of foo is Some(100)
+```
+
+## Creation
+
+To make an empty `ConcurrentMap` we use `ConcurrentMap.empty`:
+
+```scala mdoc:compile-only
+import zio.concurrent.ConcurrentMap
+
+val empty = ConcurrentMap.empty[String, Int]
+```
+
+And to make a `ConcurrentMap` with some initial values we use `ConcurrentMap.make` or `ConcurrentMap.fromIterable`:
+
+```scala mdoc:compile-only
+import zio.concurrent.ConcurrentMap
+
+val map1 = ConcurrentMap.make(("foo", 0), ("bar", 1), ("baz", 2))
+val map2 = ConcurrentMap.fromIterable(List(("foo", 0), ("bar", 1), ("baz", 2)))
+```
+
+## Update Operations
+
+Basic operations are provided to manipulate the values in the `ConcurrentMap`:
+
+### Putting values
+
+| Method                                          | Definition                                                                                                 |
+|-------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `put(key: K, value: V): UIO[Option[V]]`         | Adds a new key-value pair and optionally returns previously bound value.                                   |
+| `putAll(keyValues: (K, V)*): UIO[Unit]`         | Adds all new key-value pairs.                                                                              |                                                                              |
+| `putIfAbsent(key: K, value: V): UIO[Option[V]]` | Adds a new key-value pair, unless the key is already bound to some other value.                            |                            
+
+### Removing values
+
+| Method                                      | Definition                                                                                                 |
+|---------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `remove(key: K): UIO[Option[V]]`            | Removes the entry for the given key, optionally returning value associated with it.                        |                        
+| `remove(key: K, value: V): UIO[Boolean]`    | Removes the entry for the given key if it is mapped to a given value.                                      |                                      
+| `removeIf(p: (K, V) => Boolean): UIO[Unit]` | Removes all elements which do not satisfy the given predicate.                                             |
+| `retainIf(p: (K, V) => Boolean): UIO[Unit]` | Removes all elements which do not satisfy the given predicate.                                             |
+
+### Replacing values
+
+| Method                                                    | Definition                                                                                                 |
+|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `replace(key: K, value: V): UIO[Option[V]]`               | Replaces the entry for the given key only if it is mapped to some value.                                   |                                   
+| `replace(key: K, oldValue: V, newValue: V): UIO[Boolean]` | Replaces the entry for the given key only if it was previously mapped to a given value.                    |
+
+### Remapping Values
+
+| Method                                                         | Definition                                                                                                 |
+|----------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| `compute(key: K, remap: (K, V) => V): UIO[Option[V]]`          | Attempts to compute a mapping for the given key and its current mapped value.                              |
+| `def computeIfAbsent(key: K, map: K => V): UIO[V]`             | Computes a value of a non-existing key.                                                                    |
+| `computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]]` | Attempts to compute a new mapping of an existing key.                                                      |
+
+## Retrieval Operations
 
 | Method                                                            | Definition                                                                                                 |
 |-------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
-| `collectFirst[B](pf: PartialFunction[(K, V), B]): UIO[Option[B]]` | Finds the first element of a map for which the partial function is defined and applies the function to it. | 
-| `compute(key: K, remap: (K, V) => V): UIO[Option[V]]`             | Attempts to compute a mapping for the given key and its current mapped value.                              |
-| `def computeIfAbsent(key: K, map: K => V): UIO[V]`                | Computes a value of a non-existing key.                                                                    |
-| `computeIfPresent(key: K, remap: (K, V) => V): UIO[Option[V]]`    | Attempts to compute a new mapping of an existing key.                                                      |
+| `get(key: K): UIO[Option[V]]`                                     | Retrieves the value associated with the given key.                                                         |
 | `exists(p: (K, V) => Boolean): UIO[Boolean]`                      | Tests whether a given predicate holds true for at least one element in a map.                              |
+| `collectFirst[B](pf: PartialFunction[(K, V), B]): UIO[Option[B]]` | Finds the first element of a map for which the partial function is defined and applies the function to it. | 
 | `fold[S](zero: S)(f: (S, (K, V)) => S): UIO[S]`                   | Folds the elements of a map using the given binary operator.                                               |
 | `forall(p: (K, V) => Boolean): UIO[Boolean]`                      | Tests whether a predicate is satisfied by all elements of a map.                                           |
-| `get(key: K): UIO[Option[V]]`                                     | Retrieves the value associated with the given key.                                                         |
-| `put(key: K, value: V): UIO[Option[V]]`                           | Adds a new key-value pair and optionally returns previously bound value.                                   |
-| `putAll(keyValues: (K, V)*): UIO[Unit]`                           | Adds all new key-value pairs.                                                                              |                                                                              |
-| `putIfAbsent(key: K, value: V): UIO[Option[V]]`                   | Adds a new key-value pair, unless the key is already bound to some other value.                            |                            
-| `remove(key: K): UIO[Option[V]]`                                  | Removes the entry for the given key, optionally returning value associated with it.                        |                        
-| `remove(key: K, value: V): UIO[Boolean]`                          | Removes the entry for the given key if it is mapped to a given value.                                      |                                      
-| `removeIf(p: (K, V) => Boolean): UIO[Unit]`                       | Removes all elements which do not satisfy the given predicate.                                             |                                             
-| `retainIf(p: (K, V) => Boolean): UIO[Unit]`                       | Removes all elements which do not satisfy the given predicate.                                             |                                             
-| `replace(key: K, value: V): UIO[Option[V]]`                       | Replaces the entry for the given key only if it is mapped to some value.                                   |                                   
-| `replace(key: K, oldValue: V, newValue: V): UIO[Boolean]`         | Replaces the entry for the given key only if it was previously mapped to a given value.                    |                    
 | `toChunk: UIO[Chunk[(K, V)]]`                                     | Collects all entries into a chunk.                                                                         |                                                                         
 | `toList: UIO[List[(K, V)]]`                                       | Collects all entries into a list.                                                                          |                                                                          
 

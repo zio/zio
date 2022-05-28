@@ -122,6 +122,32 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
     f: Err => Err2
   )(implicit trace: Trace): ZPipeline[Env, Err2, In, Out] =
     new ZPipeline(self.channel.mapError(f))
+
+  /**
+   * A more powerful version of [[mapError]] which also surfaces the [[Cause]]
+   * of the channel failure
+   */
+  final def mapErrorCause[Err2](
+    f: Cause[Err] => Cause[Err2]
+  )(implicit trace: Trace): ZPipeline[Env, Err2, In, Out] =
+    new ZPipeline(self.channel.mapErrorCause(f))
+
+  /**
+   * Translates pipeline failure into death of the fiber, making all failures
+   * unchecked and not a part of the type of the effect.
+   */
+  def orDie(implicit
+    ev: Err <:< Throwable,
+    trace: Trace
+  ): ZPipeline[Env, Nothing, In, Out] =
+    orDieWith(ev)
+
+  /**
+   * Keeps none of the errors, and terminates the fiber with them, using the
+   * specified function to convert the `E` into a `Throwable`.
+   */
+  def orDieWith(f: Err => Throwable)(implicit trace: Trace): ZPipeline[Env, Nothing, In, Out] =
+    new ZPipeline(self.channel.orDieWith(f))
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {

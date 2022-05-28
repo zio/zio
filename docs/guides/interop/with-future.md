@@ -1,6 +1,7 @@
 ---
 id: with-future
 title: "How to Interop with Future?"
+sidebar_label: "Scala's Future"
 ---
 
 ## Scala Future

@@ -203,6 +203,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               handoff.take.map {
                 case Emit(chunk) => ZChannel.fromZIO(consumed.set(true)) *> ZChannel.write(chunk) *> handoffConsumer
                 case Halt(cause) => ZChannel.failCause(cause)
+                case End(ScheduleEnd) =>
+                  ZChannel.unwrap {
+                    consumed.get.map { p =>
+                      if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd))
+                      else ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd)) *> handoffConsumer
+                    }
+                  }
                 case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason))
               }
           }
@@ -4421,7 +4428,6 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     repeatZIOChunkOption {
       queue
         .takeBetween(1, maxChunkSize)
-        .map(Chunk.fromIterable)
         .catchAllCause(c =>
           queue.isShutdown.flatMap { down =>
             if (down && c.isInterrupted) Pull.end

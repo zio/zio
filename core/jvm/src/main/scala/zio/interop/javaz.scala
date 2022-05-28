@@ -67,20 +67,24 @@ private[zio] object javaz {
     } catch catchFromGet(isFatal)
 
   def fromCompletionStage[A](thunk: => CompletionStage[A])(implicit trace: Trace): Task[A] =
-    ZIO.attempt(thunk).flatMap { cs =>
-      ZIO.isFatalWith { isFatal =>
-        val cf = cs.toCompletableFuture
-        if (cf.isDone) {
-          unwrapDone(isFatal)(cf)
-        } else {
-          ZIO.asyncInterrupt { cb =>
-            val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
-              val io = Option(t).fold[Task[A]](ZIO.succeed(v)) { t =>
-                catchFromGet(isFatal).lift(t).getOrElse(ZIO.die(t))
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.attempt(thunk).flatMap { cs =>
+        ZIO.isFatalWith { isFatal =>
+          val cf = cs.toCompletableFuture
+          if (cf.isDone) {
+            unwrapDone(isFatal)(cf)
+          } else {
+            restore {
+              ZIO.asyncInterrupt[Any, Throwable, A] { cb =>
+                val _ = cs.handle[Unit] { (v: A, t: Throwable) =>
+                  val io = Option(t).fold[Task[A]](ZIO.succeed(v)) { t =>
+                    catchFromGet(isFatal).lift(t).getOrElse(ZIO.die(t))
+                  }
+                  cb(io)
+                }
+                Left(ZIO.succeed(cf.cancel(false)))
               }
-              cb(io)
-            }
-            Left(ZIO.succeed(cf.cancel(false)))
+            }.onInterrupt(ZIO.succeed(cf.cancel(false)))
           }
         }
       }
@@ -91,14 +95,16 @@ private[zio] object javaz {
    * `fromCompletionStage`
    */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
-    ZIO.attempt(thunk).flatMap { future =>
-      ZIO.isFatalWith { isFatal =>
-        if (future.isDone) {
-          unwrapDone(isFatal)(future)
-        } else {
-          ZIO
-            .blocking(ZIO.suspend(unwrapDone(isFatal)(future)))
-            .onInterrupt(ZIO.succeed(future.cancel(false)))
+    ZIO.uninterruptibleMask { restore =>
+      ZIO.attempt(thunk).flatMap { future =>
+        ZIO.isFatalWith { isFatal =>
+          if (future.isDone) {
+            unwrapDone(isFatal)(future)
+          } else {
+            restore {
+              ZIO.blocking(ZIO.suspend(unwrapDone(isFatal)(future)))
+            }.onInterrupt(ZIO.succeed(future.cancel(false)))
+          }
         }
       }
     }

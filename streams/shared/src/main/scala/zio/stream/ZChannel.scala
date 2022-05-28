@@ -1472,6 +1472,8 @@ object ZChannel {
     unwrapScoped[Env] {
       ZIO.withChildren { getChildren =>
         for {
+          input         <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
+          queueReader    = ZChannel.fromInput(input)
           n             <- ZIO.succeed(n)
           bufferSize    <- ZIO.succeed(bufferSize)
           mergeStrategy <- ZIO.succeed(mergeStrategy)
@@ -1523,9 +1525,10 @@ object ZChannel {
                          case MergeStrategy.BackPressure =>
                            for {
                              latch <- Promise.make[Nothing, Unit]
-                             raceIOs = ZIO.scoped[Env](
-                                         channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await))
-                                       )
+                             raceIOs =
+                               ZIO.scoped[Env](
+                                 (queueReader >>> channel).toPull.flatMap(evaluatePull(_).race(errorSignal.await))
+                               )
                              _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
                              _       <- latch.await
                              errored <- errorSignal.isDone
@@ -1539,7 +1542,9 @@ object ZChannel {
                              _        <- cancelers.offer(canceler)
                              raceIOs =
                                ZIO.scoped[Env](
-                                 channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await).race(canceler.await))
+                                 (queueReader >>> channel).toPull.flatMap(
+                                   evaluatePull(_).race(errorSignal.await).race(canceler.await)
+                                 )
                                )
                              _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
                              _       <- latch.await
@@ -1550,8 +1555,8 @@ object ZChannel {
                  )
                  .repeatWhileEquals(true)
                  .forkScoped
-        } yield queue
-      }.map { queue =>
+        } yield (queue, input)
+      }.map { case (queue, input) =>
         lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
           unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
             queue.take.flatten.foldCause(
@@ -1563,7 +1568,7 @@ object ZChannel {
             )
           }
 
-        consumer
+        consumer.embedInput(input)
       }
     }
 

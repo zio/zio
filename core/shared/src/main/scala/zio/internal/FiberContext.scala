@@ -93,12 +93,12 @@ private[zio] final class FiberContext[E, A](
   final def id: FiberId.Runtime = fiberId
 
   final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.suspendSucceed {
-    val childFiberRefs = FiberRefs(fiberRefLocals.get)
+    val childFiberRefLocals = fiberRefLocals.get
 
-    if (childFiberRefs.fiberRefLocals.isEmpty) ZIO.unit
+    if (childFiberRefLocals.isEmpty) ZIO.unit
     else
       ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
-        parentFiberRefs.join(parentFiberId)(childFiberRefs)
+        parentFiberRefs.join(parentFiberId)(FiberRefs(childFiberRefLocals))
       }
   }
 
@@ -515,7 +515,7 @@ private[zio] final class FiberContext[E, A](
             } else {
               unsafeSetInterrupting(true)
 
-              ZIO.die(t)(Tracer.newTrace)
+              ZIO.die(t)(Trace.empty)
             }
         }
       }
@@ -525,11 +525,11 @@ private[zio] final class FiberContext[E, A](
       val flags       = unsafeGetRuntimeFlags()
       val supervisors = unsafeGetSupervisors()
 
-      // FIXME: Race condition on fiber resumption
-      if (flags(EnableCurrentFiber)) Fiber._currentFiber.remove()
       supervisors.foreach { supervisor =>
         supervisor.unsafeOnSuspend(self)
       }
+      // FIXME: Race condition on fiber resumption
+      if (flags(EnableCurrentFiber)) Fiber._currentFiber.remove()
     }
 
   override def toString(): String =

@@ -13,6 +13,13 @@ object BitChunkSpec extends ZIOBaseSpec {
   val genInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_))
 
+  val genBitChunk: Gen[Sized, Chunk.BitChunk] =
+    for {
+      chunk <- genByteChunk
+      i     <- Gen.int(0, chunk.length * 8)
+      j     <- Gen.int(0, chunk.length * 8)
+    } yield Chunk.BitChunk(chunk, i min j, i max j)
+
   def toBinaryString(byte: Byte): String =
     String.format("%8s", (byte.toInt & 0xff).toBinaryString).replace(' ', '0')
 
@@ -63,6 +70,78 @@ object BitChunkSpec extends ZIOBaseSpec {
       check(genByteChunk) { bytes =>
         val actual   = bytes.asBits.toBinaryString
         val expected = bytes.map(toBinaryString).mkString
+        assert(actual)(equalTo(expected))
+      }
+    },
+    test("and") {
+      check(genBitChunk, genBitChunk) { (l, r) =>
+        val anded  = l and r
+        val actual = anded.toBinaryString.take(anded.length)
+        val expected =
+          l.bytes
+            .map(toBinaryString)
+            .mkString
+            .slice(l.minBitIndex, l.maxBitIndex)
+            .zip(
+              r.bytes.map(toBinaryString).mkString.slice(r.minBitIndex, r.maxBitIndex)
+            )
+            .map {
+              case ('0', '0') => '0'
+              case ('0', '1') => '0'
+              case ('1', '0') => '0'
+              case ('1', '1') => '1'
+              case _          => ""
+            }
+            .mkString
+
+        assert(actual)(equalTo(expected))
+      }
+    },
+    test("or") {
+      check(genBitChunk, genBitChunk) { (l, r) =>
+        val ored   = l or r
+        val actual = ored.toBinaryString.take(ored.length)
+        val expected =
+          l.bytes
+            .map(toBinaryString)
+            .mkString
+            .slice(l.minBitIndex, l.maxBitIndex)
+            .zip(
+              r.bytes.map(toBinaryString).mkString.slice(r.minBitIndex, r.maxBitIndex)
+            )
+            .map {
+              case ('0', '0') => '0'
+              case ('0', '1') => '1'
+              case ('1', '0') => '1'
+              case ('1', '1') => '1'
+              case _          => ""
+            }
+            .mkString
+
+        assert(actual)(equalTo(expected))
+      }
+    },
+    test("xor") {
+      check(genBitChunk, genBitChunk) { (l, r) =>
+        val xored  = l xor r
+        val actual = xored.toBinaryString.take(xored.length)
+        val expected =
+          l.bytes
+            .map(toBinaryString)
+            .mkString
+            .slice(l.minBitIndex, l.maxBitIndex)
+            .zip(
+              r.bytes.map(toBinaryString).mkString.slice(r.minBitIndex, r.maxBitIndex)
+            )
+            .map {
+              case ('0', '0') => '0'
+              case ('0', '1') => '1'
+              case ('1', '0') => '1'
+              case ('1', '1') => '0'
+              case _          => ""
+            }
+            .mkString
+
         assert(actual)(equalTo(expected))
       }
     }

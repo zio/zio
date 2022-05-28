@@ -169,12 +169,10 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val coreJVM = core.jvm
-  .settings(dottySettings)
   .settings(replSettings)
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val coreJS = core.js
-  .settings(dottySettings)
   .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
   .settings(
     scalacOptions ++= {
@@ -211,12 +209,10 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val coreTestsJVM = coreTests.jvm
-  .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
 
 lazy val coreTestsJS = coreTests.js
-  .settings(dottySettings)
   .settings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -246,11 +242,9 @@ lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val managedJVM = managed.jvm
-  .settings(dottySettings)
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val managedJS = managed.js
-  .settings(dottySettings)
 
 lazy val managedNative = managed.native
   .settings(nativeSettings)
@@ -271,12 +265,10 @@ lazy val managedTests = crossProject(JSPlatform, JVMPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val managedTestsJVM = managedTests.jvm
-  .settings(dottySettings)
   .configure(_.enablePlugins(JCStressPlugin))
   .settings(replSettings)
 
 lazy val managedTestsJS = managedTests.js
-  .settings(dottySettings)
   .settings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -322,8 +314,8 @@ lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
 
-lazy val internalMacrosJVM    = internalMacros.jvm.settings(dottySettings)
-lazy val internalMacrosJS     = internalMacros.js.settings(dottySettings)
+lazy val internalMacrosJVM    = internalMacros.jvm
+lazy val internalMacrosJS     = internalMacros.js
 lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -345,12 +337,10 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val streamsJVM = streams.jvm
-  .settings(dottySettings)
   // No bincompat on streams yet
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val streamsJS = streams.js
-  .settings(dottySettings)
 
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
@@ -372,10 +362,8 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val streamsTestsJVM = streamsTests.jvm
   .dependsOn(coreTestsJVM % "test->compile")
-  .settings(dottySettings)
 
 lazy val streamsTestsJS = streamsTests.js
-  .settings(dottySettings)
   .settings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -395,7 +383,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .settings(
     libraryDependencies ++= Seq(
-      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.1")
+      ("org.portable-scala" %%% "portable-scala-reflect" % "1.1.2")
         .cross(CrossVersion.for3Use2_13)
     )
   )
@@ -409,20 +397,23 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val testJVM = test.jvm
-  .settings(dottySettings)
   // No bincompat on zio-test yet
   .settings(mimaSettings(failOnProblem = false))
 lazy val testJS = test.js
-  .settings(dottySettings)
   .settings(
     libraryDependencies ++= List(
-      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M1",
-      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M1"
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
     )
   )
 lazy val testNative = test.native
   .settings(nativeSettings)
-  .settings(libraryDependencies += "org.ekrich" %%% "sjavatime" % "1.1.5")
+  .settings(
+    libraryDependencies ++= List(
+      "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
+      "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
+    )
+  )
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .in(file("test-tests"))
@@ -436,10 +427,9 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testTestsJVM = testTests.jvm.settings(dottySettings)
+lazy val testTestsJVM = testTests.jvm
 
 lazy val testTestsJS = testTests.js
-  .settings(dottySettings)
   .settings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
@@ -448,7 +438,10 @@ lazy val testTestsJS = testTests.js
         // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
         List("-P:scalajs:nowarnGlobalExecutionContext")
       }
-    }
+    },
+    libraryDependencies ++= List(
+      ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
+    )
   )
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
@@ -480,9 +473,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   )
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
-  .settings(dottySettings)
-lazy val testMagnoliaJS = testMagnolia.js
-  .settings(dottySettings)
+lazy val testMagnoliaJS  = testMagnolia.js
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
@@ -500,9 +491,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-  .settings(dottySettings)
-lazy val testMagnoliaTestsJS = testMagnoliaTests.js
-  .settings(dottySettings)
+lazy val testMagnoliaTestsJS  = testMagnoliaTests.js
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
@@ -519,9 +508,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   )
 
 lazy val testRefinedJVM = testRefined.jvm
-  .settings(dottySettings)
-lazy val testRefinedJS = testRefined.js
-  .settings(dottySettings)
+lazy val testRefinedJS  = testRefined.js
 
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-scalacheck"))
@@ -531,12 +518,12 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++= Seq(
-      ("org.scalacheck" %%% "scalacheck" % "1.15.4")
+      ("org.scalacheck" %%% "scalacheck" % "1.16.0")
     )
   )
 
-lazy val testScalaCheckJVM    = testScalaCheck.jvm.settings(dottySettings)
-lazy val testScalaCheckJS     = testScalaCheck.js.settings(dottySettings)
+lazy val testScalaCheckJVM    = testScalaCheck.jvm
+lazy val testScalaCheckJS     = testScalaCheck.js
 lazy val testScalaCheckNative = testScalaCheck.native.settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -548,9 +535,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val stacktracerJS = stacktracer.js
-  .settings(dottySettings)
 lazy val stacktracerJVM = stacktracer.jvm
-  .settings(dottySettings)
   .settings(replSettings)
 
 lazy val stacktracerNative = stacktracer.native
@@ -575,10 +560,8 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(test)
 
 lazy val testRunnerJVM = testRunner.jvm
-  .settings(dottySettings)
   .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
 lazy val testRunnerJS = testRunner.js
-  .settings(dottySettings)
   .settings(
     libraryDependencies ++= Seq(
       ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
@@ -595,7 +578,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
   .dependsOn(test)
 
-lazy val testJunitRunnerJVM = testJunitRunner.jvm.settings(dottySettings)
+lazy val testJunitRunnerJVM = testJunitRunner.jvm
 
 lazy val testJunitRunnerTests = crossProject(JVMPlatform)
   .in(file("test-junit-tests"))
@@ -616,21 +599,20 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
     crossScalaVersions --= List(Scala211),
     libraryDependencies ++= Seq(
       "junit"                   % "junit"     % "4.13.2" % Test,
-      "org.scala-lang.modules" %% "scala-xml" % "2.0.1"  % Test,
+      "org.scala-lang.modules" %% "scala-xml" % "2.1.0"  % Test,
       // required to run embedded maven in the tests
-      "org.apache.maven"       % "maven-embedder"         % "3.8.3"  % Test,
-      "org.apache.maven"       % "maven-compat"           % "3.8.3"  % Test,
-      "org.apache.maven.wagon" % "wagon-http"             % "3.4.3"  % Test,
+      "org.apache.maven"       % "maven-embedder"         % "3.8.5"  % Test,
+      "org.apache.maven"       % "maven-compat"           % "3.8.5"  % Test,
+      "org.apache.maven.wagon" % "wagon-http"             % "3.5.1"  % Test,
       "org.eclipse.aether"     % "aether-connector-basic" % "1.1.0"  % Test,
       "org.eclipse.aether"     % "aether-transport-wagon" % "1.1.0"  % Test,
-      "org.slf4j"              % "slf4j-simple"           % "1.7.32" % Test
+      "org.slf4j"              % "slf4j-simple"           % "1.7.36" % Test
     )
   )
   .dependsOn(test)
   .dependsOn(testRunner)
 
 lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
-  .settings(dottySettings)
   // publish locally so embedded maven runs against locally compiled zio
   .settings(
     Test / Keys.test :=
@@ -654,11 +636,9 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
 
 lazy val concurrentJVM = concurrent.jvm
-  .settings(dottySettings)
   .settings(mimaSettings(failOnProblem = false))
 
 lazy val concurrentJS = concurrent.js
-  .settings(dottySettings)
 
 lazy val concurrentNative = concurrent.native
   .settings(nativeSettings)
@@ -678,10 +658,8 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(macros, testRunner)
 
 lazy val examplesJS = examples.js
-  .settings(dottySettings)
 
 lazy val examplesJVM = examples.jvm
-  .settings(dottySettings)
   .dependsOn(testJunitRunnerJVM)
 
 lazy val benchmarks = project.module
@@ -708,7 +686,7 @@ lazy val benchmarks = project.module
         "org.scala-lang"             % "scala-reflect"   % scalaVersion.value,
         "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
         "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
-        "org.scalacheck"            %% "scalacheck"      % "1.15.4",
+        "org.scalacheck"            %% "scalacheck"      % "1.16.0",
         "qa.hedgehog"               %% "hedgehog-core"   % "0.7.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0"
       ),
@@ -729,7 +707,7 @@ lazy val benchmarks = project.module
   )
 
 lazy val jsdocs = project
-  .settings(libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "1.0.0")
+  .settings(libraryDependencies += ("org.scala-js" %%% "scalajs-dom" % "1.0.0").cross(CrossVersion.for3Use2_13))
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.6"

@@ -77,6 +77,18 @@ module.exports = {
         },
         {
             type: "category",
+            label: "Synchronization",
+            items: [
+                "datatypes/sync/index",
+                "datatypes/sync/reentrantlock",
+                "datatypes/sync/countdownlatch",
+                "datatypes/sync/cyclicbarrier",
+                "datatypes/sync/concurrentmap",
+                "datatypes/sync/concurrentset",
+            ]
+        },
+        {
+            type: "category",
             label: "Concurrency Primitives",
             items: [
                 "datatypes/concurrency/index",
@@ -197,27 +209,34 @@ module.exports = {
       "datatypes/misc/zstate",
     ]
   },
-  "guides-sidebar": {
-    "Overview": ["guides/index"],
-    "Guides": [
-      "guides/handle-errors",
-    ],
-    "Interop": [
-      "guides/interop/with-cats-effect",
-      "guides/interop/with-future",
-      "guides/interop/with-java",
-      "guides/interop/with-javascript",
-      "guides/interop/with-monix",
-      "guides/interop/with-scalaz-7x",
-      "guides/interop/with-reactive-streams",
-      "guides/interop/with-twitter",
-      "guides/interop/with-guava"
-    ],
-    "Migrate": [
-      "guides/migrate/from-monix",
-      "guides/migrate/zio-2.x-migration-guide"
-    ]
-  },
+  "guides-sidebar": [
+    "guides/index",
+    {
+      "Quickstart Guides": [
+        "guides/quickstarts/hello-world",
+        "guides/quickstarts/restful-webservice",  
+      ],
+      "Tutorial Guides": [
+        "guides/handle-errors"
+      ],
+      "Integration Guides": [
+        "guides/interop/with-cats-effect",
+        "guides/interop/with-future",
+        "guides/interop/with-java",
+        "guides/interop/with-javascript",
+        "guides/interop/with-monix",
+        "guides/interop/with-scalaz-7x",
+        "guides/interop/with-reactive-streams",
+        "guides/interop/with-twitter",
+        "guides/interop/with-guava"
+      ],
+      "Migration Guides": [
+        "guides/migrate/zio-2.x-migration-guide",
+        "guides/migrate/from-cats-effect",
+        "guides/migrate/from-monix",
+      ]
+    }
+  ],
   "resources-sidebar": {
     "Overview": [
       "resources/index"
