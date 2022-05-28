@@ -1994,10 +1994,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def and(that: BitChunkByte): BitChunkByte =
       bitwise(that, (l, r) => (l & r).asInstanceOf[Byte], _ && _)
 
+    def &(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l & r).asInstanceOf[Byte], _ && _)
+
     def or(that: BitChunkByte): BitChunkByte =
       bitwise(that, (l, r) => (l | r).asInstanceOf[Byte], _ || _)
 
+    def |(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l | r).asInstanceOf[Byte], _ || _)
+
     def xor(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l ^ r).asInstanceOf[Byte], _ ^ _)
+
+    def ^(that: BitChunkByte): BitChunkByte =
       bitwise(that, (l, r) => (l ^ r).asInstanceOf[Byte], _ ^ _)
 
     def negate: BitChunkByte = {

@@ -102,7 +102,7 @@ object BitChunkByteSpec extends ZIOBaseSpec {
     },
     test("or") {
       check(genBitChunk, genBitChunk) { (l, r) =>
-        val ored   = l or r
+        val ored   = l | r
         val actual = ored.toBinaryString.take(ored.length)
         val expected =
           l.bytes
