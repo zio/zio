@@ -5,7 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
 
-  trait ThreadLocalBridge {
+trait ThreadLocalBridge {
   def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
 }
 
