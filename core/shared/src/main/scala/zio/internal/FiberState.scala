@@ -209,6 +209,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    */
   final def unsafeExitValue(): Exit[E, A] = _exitValue
 
+  final def unsafeForeachSupervisor(f: Supervisor[Any] => Unit): Unit =
+    fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach(f)
+
   /**
    * Retrieves the current number of async suspensions of the fiber, which can
    * be used to uniquely identify each suspeension.

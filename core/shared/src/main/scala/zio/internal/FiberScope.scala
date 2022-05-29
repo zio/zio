@@ -50,9 +50,9 @@ private[zio] object FiberScope {
       trace: Trace
     ): Boolean = {
       if (enableFiberRoots) {
-        // FIXME: Add the child to the roots when the types are fixed!!!
-        // val childRef = Fiber._roots.add(child)
-        // child.unsafeOnDone(_ => childRef.clear())
+        val childRef = Fiber._roots.add(child)
+
+        child.unsafeAddObserver(_ => childRef.clear())
       }
 
       true
@@ -66,12 +66,20 @@ private[zio] object FiberScope {
     ): Boolean = {
       val parent = parentRef.get()
 
-      // FIXME: Only return true if the parent is not yet finished
-      (parent ne null) && { parent.asInstanceOf[RuntimeFiber[_, _]].unsafeAddChild(child); true }
+      (parent ne null) && {
+
+        val result =
+          parent.unsafeEvalOn(
+            ZIO.succeed(parent.unsafeAddChild(child)),
+            "test"
+          )
+
+        if (result == null) true
+        else false
+      }
     }
   }
 
-  // FIXME: Turn type of `fiber` to `RuntimeFiber`
   private[zio] def unsafeMake(fiber: RuntimeFiber[_, _]): FiberScope =
     new Local(fiber.id, new WeakReference(fiber))
 }

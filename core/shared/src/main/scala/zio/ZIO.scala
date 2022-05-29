@@ -2408,7 +2408,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     // Child inherits interruptibility status of parent fiber:
     childFiber.unsafeSetInterruptible(interruptible)
 
-    // FIXME: Call the supervisor who can observe the fork of the child fiber
+    childFiber.unsafeForeachSupervisor { supervisor =>
+      // Call the supervisor who can observe the fork of the child fiber
+      val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
+
+      supervisor.unsafeOnStart(
+        childEnvironment,
+        effect.asInstanceOf[ZIO[Any, Any, Any]],
+        Some(fiberState.asInstanceOf[internal.RuntimeFiber[Any, Any]]),
+        childFiber
+      )
+    }
+
     val parentScope = fiberState.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(fiberState.scope)
 
     val runtimeFlags = fiberState.unsafeGetFiberRef(FiberRef.currentRuntimeFlags)
@@ -2658,7 +2669,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       try {
         ZIO.succeedNow(effect)
       } catch {
-        // FIXME: Attach stack trace:
+        // FIXME: Attach stack trace to this cause:
         case t: Throwable if !fiberState.unsafeIsFatal(t) => throw new ZIOError(Cause.fail(t))
       }
     }

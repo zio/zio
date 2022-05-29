@@ -216,7 +216,7 @@ trait Runtime[+R] { self =>
       fiber
     )
 
-    fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach { supervisor =>
+    fiber.unsafeForeachSupervisor { supervisor =>
       supervisor.unsafeOnStart(environment, zio, None, fiber)
 
       fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
