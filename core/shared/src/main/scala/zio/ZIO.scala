@@ -2962,7 +2962,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         Fiber.Descriptor(
           fiberState.id,
           fiberState.unsafeGetStatus(),
-          fiberState.unsafeGetFiberRef(FiberRef.suppressedCause).interruptors,
+          fiberState.unsafeGetFiberRef(FiberRef.interruptedCause).interruptors,
           InterruptStatus.fromBoolean(fiberState.unsafeGetInterruptible()),
           fiberState.unsafeGetCurrentExecutor(),
           fiberState.unsafeGetFiberRef(FiberRef.overrideExecutor).isDefined

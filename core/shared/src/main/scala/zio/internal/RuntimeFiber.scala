@@ -32,7 +32,7 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 
   def id: FiberId.Runtime = fiberId
 
-  def inheritRefs(implicit trace: Trace): UIO[Unit] = ??? // fiberRefs.setAll
+  def inheritRefs(implicit trace: Trace): UIO[Unit] = fiberRefs.setAll
 
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
@@ -151,7 +151,7 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
     var done          = null.asInstanceOf[AnyRef]
     var stackIndex    = 0
     var interruptible = interruptible0
-    var lastTrace     = null.asInstanceOf[Trace] // TODO: Rip out???
+    var lastTrace     = null.asInstanceOf[Trace] // TODO: Rip out
 
     if (remainingDepth <= 0) {
       // Save local variables to heap:

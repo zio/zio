@@ -65,9 +65,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    * fiber.
    */
   final def unsafeAddInterruptedCause(cause: Cause[Nothing]): Unit = {
-    val oldSC = unsafeGetFiberRef(FiberRef.suppressedCause)
+    val oldSC = unsafeGetFiberRef(FiberRef.interruptedCause)
 
-    unsafeSetFiberRef(FiberRef.suppressedCause, oldSC ++ cause)
+    unsafeSetFiberRef(FiberRef.interruptedCause, oldSC ++ cause)
   }
 
   /**
@@ -249,7 +249,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    */
   final def unsafeGetInterruptible(): Boolean = statusState.getInterruptible()
 
-  final def unsafeGetInterruptedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.suppressedCause)
+  final def unsafeGetInterruptedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.interruptedCause)
 
   final def unsafeGetLoggers(): Set[ZLogger[String, Any]] =
     unsafeGetFiberRef(FiberRef.currentLoggers)
@@ -281,7 +281,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeIsFatal(t: Throwable): Boolean =
     unsafeGetFiberRef(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
 
-  final def unsafeIsInterrupted(): Boolean = !unsafeGetFiberRef(FiberRef.suppressedCause).isEmpty
+  final def unsafeIsInterrupted(): Boolean = !unsafeGetFiberRef(FiberRef.interruptedCause).isEmpty
 
   final def unsafeIsRunning(): Boolean = {
     val indicator = statusState.getIndicator()

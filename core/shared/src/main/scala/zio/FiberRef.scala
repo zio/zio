@@ -120,11 +120,11 @@ trait FiberRef[A] extends Serializable { self =>
    * Atomically sets the value associated with the current fiber and returns the
    * old value.
    */
-  def getAndSet(a: A)(implicit trace: Trace): UIO[A] =
+  def getAndSet(newValue: A)(implicit trace: Trace): UIO[A] =
     ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _, _) =>
       val oldValue = fiberState.unsafeGetFiberRef(self)
 
-      fiberState.unsafeSetFiberRef(self, a)
+      fiberState.unsafeSetFiberRef(self, newValue)
 
       ZIO.succeedNow(oldValue)
     }
@@ -164,11 +164,11 @@ trait FiberRef[A] extends Serializable { self =>
    *
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
-  def locally[R, E, B](value: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
+  def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     ZIO.unsafeStateful[R, E, B] { (fiberState, _, _) =>
       val oldValue = fiberState.unsafeGetFiberRef(self)
 
-      fiberState.unsafeSetFiberRef(self, value)
+      fiberState.unsafeSetFiberRef(self, newValue)
 
       zio.ensuring(ZIO.succeed(fiberState.unsafeSetFiberRef(self, oldValue)))
     }
@@ -208,7 +208,7 @@ trait FiberRef[A] extends Serializable { self =>
 
       fiberState.unsafeSetFiberRef(self, a)
 
-      ZIO.succeed(b)
+      ZIO.succeedNow(b)
     }
 
   /**
@@ -425,7 +425,7 @@ object FiberRef {
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
     FiberRef.unsafeMakeEnvironment(ZEnvironment.empty)
 
-  private[zio] val suppressedCause: FiberRef[Cause[Nothing]] =
+  private[zio] val interruptedCause: FiberRef[Cause[Nothing]] =
     FiberRef.unsafeMake(Cause.empty, identity(_), (parent, _) => parent)
 
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
