@@ -9,8 +9,8 @@ object RefSpec extends ZIOBaseSpec {
     suite("Atomic")(
       test("race") {
         for {
-            _ <- ZIO.debug("*****")
-            _ <- ZIO.unit.race(ZIO.unit)
+          _ <- ZIO.debug("*****")
+          _ <- ZIO.unit.race(ZIO.unit)
         } yield assertCompletes
       } @@ TestAspect.nonFlaky,
       test("get") {
