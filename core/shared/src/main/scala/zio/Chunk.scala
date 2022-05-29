@@ -16,6 +16,8 @@
 
 package zio
 
+import zio.Chunk.BitChunk
+
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
@@ -161,6 +163,13 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    */
   final def asBitsByte(implicit ev: A <:< Byte): Chunk[Boolean] =
     Chunk.BitChunkByte(self.map(ev), 0, length << 3)
+
+  def toPackedByte(implicit ev: A <:< Boolean): Chunk[Byte] =
+    Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, BitChunk.Endianness.BigEndian)
+  def toPackedInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Int] =
+    Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
+  def toPackedLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Long] =
+    Chunk.ChunkPackedBoolean[Long](self.asInstanceOf[Chunk[Boolean]], 64, endianness)
 
   /**
    * Get the element at the specified index.
@@ -1829,6 +1838,55 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  private[zio] trait BitOps[T] {
+    def zero: T
+    def one: T
+    def reverse(a: T): T
+    def <<(x: T, n: Int): T
+    def >>(x: T, n: Int): T
+    def |(x: T, y: T): T
+    def &(x: T, y: T): T
+    def ^(x: T, y: T): T
+    def unary_~(x: T): T
+  }
+
+  private[zio] object BitOps {
+    def apply[T](implicit ops: BitOps[T]): BitOps[T] = ops
+    implicit val ByteOps: BitOps[Byte] = new BitOps[Byte] {
+      def zero: Byte                = 0
+      def one: Byte                 = 1
+      def reverse(a: Byte): Byte    = throw new UnsupportedOperationException
+      def <<(x: Byte, n: Int): Byte = (x << n).toByte
+      def >>(x: Byte, n: Int): Byte = (x >> n).toByte
+      def |(x: Byte, y: Byte): Byte = (x | y).toByte
+      def &(x: Byte, y: Byte): Byte = (x & y).toByte
+      def ^(x: Byte, y: Byte): Byte = (x ^ y).toByte
+      def unary_~(x: Byte): Byte    = (~x).toByte
+    }
+    implicit val IntOps: BitOps[Int] = new BitOps[Int] {
+      def zero: Int               = 0
+      def one: Int                = 1
+      def reverse(a: Int): Int    = Integer.reverse(a)
+      def <<(x: Int, n: Int): Int = x << n
+      def >>(x: Int, n: Int): Int = x >> n
+      def |(x: Int, y: Int): Int  = x | y
+      def &(x: Int, y: Int): Int  = x & y
+      def ^(x: Int, y: Int): Int  = x ^ y
+      def unary_~(x: Int): Int    = ~x
+    }
+    implicit val LongOps: BitOps[Long] = new BitOps[Long] {
+      def zero: Long                = 0L
+      def one: Long                 = 1L
+      def reverse(a: Long): Long    = java.lang.Long.reverse(a)
+      def <<(x: Long, n: Int): Long = x << n
+      def >>(x: Long, n: Int): Long = x >> n
+      def |(x: Long, y: Long): Long = x | y
+      def &(x: Long, y: Long): Long = x & y
+      def ^(x: Long, y: Long): Long = x ^ y
+      def unary_~(x: Long): Long    = ~x
+    }
+  }
+
   private[zio] sealed abstract class BitChunk[T](
     chunk: Chunk[T],
     val bits: Int
@@ -1948,7 +2006,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     private def nthByte(n: Int): Byte = {
       val offset    = minBitIndex & 7
-      val startByte = (minBitIndex >> 3)
+      val startByte = minBitIndex >> 3
       if (offset == 0) {
         bytes(n + startByte)
       } else {
@@ -2185,6 +2243,53 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
   }
+
+  private[zio] final case class ChunkPackedBoolean[T](
+    unpacked: Chunk[Boolean],
+    bits: Int,
+    endianness: Chunk.BitChunk.Endianness
+  )(implicit val ops: BitOps[T])
+      extends Chunk[T]
+      with ChunkIterator[T] {
+    self =>
+
+    import ops._
+
+    override val length: Int       = unpacked.length / bits + (if (unpacked.length % bits == 0) 0 else 1)
+    private def bitOr0(index: Int) = if (index < unpacked.length && unpacked(index)) one else zero
+    override def apply(n: Int): T =
+      if (n < 0 || n >= length)
+        throw new IndexOutOfBoundsException(s"Packed boolean chunk index $n out of bounds [0, $length)")
+      else {
+        val offset     = n * bits
+        val bitsToRead = if ((n + 1) * bits > unpacked.length) unpacked.length % bits else bits
+        var elem       = zero
+        var i          = bitsToRead - 1
+        while (i >= 0) {
+          val shiftBy = bitsToRead - 1 - i
+          val index   = offset + i
+          val shifted = <<(bitOr0(index), shiftBy)
+          elem = |(elem, shifted)
+          i -= 1
+        }
+
+        if (endianness == BitChunk.Endianness.BigEndian) elem else ops.reverse(elem)
+      }
+
+    override def chunkIterator: ChunkIterator[T] =
+      self
+
+    def hasNextAt(index: Int): Boolean =
+      index < length
+
+    def nextAt(index: Int): T =
+      self(index)
+
+    def sliceIterator(offset: Int, length: Int): ChunkIterator[T] =
+      if (offset < 0 && offset >= this.length) self
+      else ChunkPackedBoolean(unpacked.slice(offset * bits, length * bits), bits, endianness)
+  }
+
   private case object Empty extends Chunk[Nothing] { self =>
 
     def chunkIterator: ChunkIterator[Nothing] =
