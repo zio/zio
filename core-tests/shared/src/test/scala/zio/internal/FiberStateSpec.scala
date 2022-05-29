@@ -5,9 +5,8 @@ import zio.test._
 import zio.ZIOBaseSpec
 
 object FiberStateSpec extends ZIOBaseSpec {
-  import zio2.{FiberState => FiberState2}
-  def newState(): FiberState2[String, Int] =
-    FiberState2(FiberId.unsafeMake(Trace.empty), FiberRefs.empty)
+  def newState(): FiberState[String, Int] =
+    RuntimeFiber(FiberId.unsafeMake(Trace.empty), FiberRefs.empty)
 
   def spec =
     suite("FiberStateSpec") {
@@ -71,7 +70,7 @@ object FiberStateSpec extends ZIOBaseSpec {
               test("adds a message when fiber is not suspended") {
                 val s = newState()
 
-                val msg = zio2.ZIO.succeed(42)
+                val msg = ZIO.succeed(42)
 
                 val result = s.unsafeAsyncInterruptOrAddMessage(msg)
 
@@ -80,7 +79,7 @@ object FiberStateSpec extends ZIOBaseSpec {
                 test("interrupts a message when fiber is interruptibly suspended") {
                   val s = newState()
 
-                  val msg = zio2.ZIO.succeed(42)
+                  val msg = ZIO.succeed(42)
 
                   s.unsafeEnterSuspend()
 
@@ -91,7 +90,7 @@ object FiberStateSpec extends ZIOBaseSpec {
                 test("adds a message when fiber is uninterruptibly suspended") {
                   val s = newState()
 
-                  val msg = zio2.ZIO.succeed(42)
+                  val msg = ZIO.succeed(42)
 
                   s.unsafeSetInterruptible(false)
                   s.unsafeEnterSuspend()
@@ -113,7 +112,7 @@ object FiberStateSpec extends ZIOBaseSpec {
             test("does not succeed if message is waiting in initial case") {
               val s = newState()
 
-              s.unsafeAddMessage(zio2.ZIO.unit)
+              s.unsafeAddMessage(ZIO.unit)
 
               val attempted = s.unsafeAttemptDone(Exit.succeed(42))
 
