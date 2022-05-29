@@ -101,7 +101,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     observers = observer :: observers
 
   final def unsafeAddObserverMaybe(k: Exit[E, A] => Unit): Exit[E, A] =
-    unsafeEvalOn(ZIO.succeedNow(unsafeAddObserver(k)), unsafeExitValue())
+    unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k))(Trace.empty), unsafeExitValue())
 
   /**
    * Attempts to place the state of the fiber in interruption, but only if the
