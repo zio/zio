@@ -2430,7 +2430,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val currentExecutor = fiberState.unsafeGetCurrentExecutor()
 
     currentExecutor.unsafeSubmitOrThrow { () =>
-      childFiber.outerRunLoop(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, 1000)
+      childFiber.start(effect)
     }
 
     childFiber

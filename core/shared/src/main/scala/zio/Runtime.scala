@@ -226,6 +226,8 @@ trait Runtime[+R] { self =>
       k(exit, fiber.unsafeGetFiberRefs())
     }
 
+    fiber.start(zio)
+
     fiberId =>
       k =>
         unsafeRunWithRefs(fiber.interruptAs(fiberId), fiberRefs)(
