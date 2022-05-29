@@ -46,8 +46,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
       if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
     }
 
-  // FIXME: Remove cast
-  final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[Any, Any]])
+  final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[_, _]])
 
   /**
    * Adds a weakly-held reference to the specified fiber inside the children
@@ -178,9 +177,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
     fiberRefs = fiberRefs.remove(ref)
 
-  // FIXME:
-  final def unsafeDescriptor(): Fiber.Descriptor = ???
-
   /**
    * Drains the mailbox of all messages. If the mailbox is empty, this will
    * return `ZIO.unit`.
@@ -239,6 +235,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    */
   final def unsafeGetFiberRef[A](fiberRef: FiberRef[A]): A =
     fiberRefs.getOrDefault(fiberRef)
+
+  final def unsafeGetFiberRefOption[A](fiberRef: FiberRef[A]): Option[A] =
+    fiberRefs.get(fiberRef)
 
   final def unsafeGetFiberRefs(): FiberRefs = fiberRefs
 
@@ -346,7 +345,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   /**
    * Retrieves a snapshot of the status of the fibers.
    */
-  final def unsafeStatus(): zio.Fiber.Status = {
+  final def unsafeGetStatus(): zio.Fiber.Status = {
     import FiberStatusIndicator.Status
 
     val indicator = statusState.getIndicator()

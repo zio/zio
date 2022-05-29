@@ -59,7 +59,7 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
       if (self.unsafeIsDone()) Some(self.unsafeExitValue()) else None
     }
 
-  def status(implicit trace: Trace): UIO[zio.Fiber.Status] = ZIO.succeed(self.unsafeStatus())
+  def status(implicit trace: Trace): UIO[zio.Fiber.Status] = ZIO.succeed(self.unsafeGetStatus())
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
     evalOnZIO(ZIO.trace, ZIO.succeed(StackTrace(fiberId, Chunk.empty)))
@@ -321,5 +321,6 @@ object RuntimeFiber {
   def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs): RuntimeFiber[E, A] =
     new RuntimeFiber(fiberId, fiberRefs)
 
+  // FIXME: Make this work
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
 }

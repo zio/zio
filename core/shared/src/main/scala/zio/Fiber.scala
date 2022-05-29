@@ -532,48 +532,19 @@ object Fiber extends FiberPlatformSpecific {
     abstract class Internal[+E, +A] extends Synthetic[E, A]
   }
 
-  sealed abstract class Descriptor {
-    def id: FiberId
-    def status: Status
-    def interrupters: Set[FiberId]
-    def interruptStatus: InterruptStatus
-    def executor: Executor
-    def isLocked: Boolean
-  }
-
-  object Descriptor {
-
-    /**
-     * A record containing information about a [[Fiber]].
-     *
-     * @param id
-     *   The fiber's unique identifier
-     * @param interrupters
-     *   The set of fibers attempting to interrupt the fiber or its ancestors.
-     * @param executor
-     *   The [[Executor]] executing this fiber
-     * @param children
-     *   The fiber's forked children.
-     */
-    def apply(
-      id0: FiberId,
-      status0: Status,
-      interrupters0: Set[FiberId],
-      interruptStatus0: InterruptStatus,
-      executor0: Executor,
-      locked0: Boolean
-    ): Descriptor =
-      new Descriptor {
-        def id: FiberId                      = id0
-        def status: Status                   = status0
-        def interrupters: Set[FiberId]       = interrupters0
-        def interruptStatus: InterruptStatus = interruptStatus0
-        def executor: Executor               = executor0
-        def isLocked: Boolean                = locked0
-      }
-  }
-
-  final case class Descriptor2(
+  /**
+   * A record containing information about a [[Fiber]].
+   *
+   * @param id
+   *   The fiber's unique identifier
+   * @param interrupters
+   *   The set of fibers attempting to interrupt the fiber or its ancestors.
+   * @param executor
+   *   The [[Executor]] executing this fiber
+   * @param children
+   *   The fiber's forked children.
+   */
+  final case class Descriptor(
     id: FiberId,
     status: Status,
     interrupters: Set[FiberId],

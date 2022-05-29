@@ -2946,8 +2946,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * its identity.
    */
   def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.unsafeStateful[R, E, A] { (fiberState, _, _) =>
-      f(fiberState.unsafeDescriptor())
+    ZIO.unsafeStateful[R, E, A] { (fiberState, interruptible, _) =>
+      val descriptor =
+        Fiber.Descriptor(
+          fiberState.id,
+          fiberState.unsafeGetStatus(),
+          fiberState.unsafeGetFiberRef(FiberRef.suppressedCause).interruptors,
+          InterruptStatus.fromBoolean(fiberState.unsafeGetInterruptible()),
+          fiberState.unsafeGetCurrentExecutor(),
+          fiberState.unsafeGetFiberRef(FiberRef.overrideExecutor).isDefined
+        )
+
+      f(descriptor)
     }
 
   /**
