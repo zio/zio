@@ -32,7 +32,10 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 
   def id: FiberId.Runtime = fiberId
 
-  def inheritRefs(implicit trace: Trace): UIO[Unit] = fiberRefs.setAll
+  def inheritRefs(implicit trace: Trace): UIO[Unit] = {
+    val fiberRefs = self.asInstanceOf[FiberState[Any, Any]].unsafeGetFiberRefs()
+    fiberRefs.setAll
+  }
 
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
