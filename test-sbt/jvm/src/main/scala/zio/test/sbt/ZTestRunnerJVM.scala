@@ -50,12 +50,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     if (allSummaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else {
-      renderedSummary +
-        allSummaries
-          .map(ConsoleRenderer.renderSummary)
-          .filter(_.nonEmpty)
-          .flatMap(summary => colored(summary) :: "\n" :: Nil)
-          .mkString("", "", "Done")
+      colored(renderedSummary)
     }
   }
 
