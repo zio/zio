@@ -59,9 +59,6 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
       ()
     }
 
-  def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
-    interruptAsFork(fiberId) *> await
-
   final def location: Trace = fiberId.location
 
   final def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]] =

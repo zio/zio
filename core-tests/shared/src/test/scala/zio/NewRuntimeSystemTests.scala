@@ -17,6 +17,9 @@ object NewRuntimeSystemTests {
       case e: AssertionError =>
         println("FAILED")
         e.printStackTrace()
+      case t: Throwable =>
+        println("CATASTROPHIC")
+        t.printStackTrace()
     }
   }
 
@@ -44,8 +47,13 @@ object NewRuntimeSystemTests {
     }
   }
 
-  def main(args: Array[String]): Unit = {
-    helloWorld()
-    fib()
-  }
+  def race() =
+    test("race") {
+      ZIO.unit.race(ZIO.unit)
+    }
+
+  def main(args: Array[String]): Unit =
+    // helloWorld()
+    // fib()
+    race()
 }

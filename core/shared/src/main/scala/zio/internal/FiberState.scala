@@ -116,7 +116,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    * non-suspended fiber.
    *
    * @return
-   *   True if the interruption was successful, or false otherwise.
+   *   True if the async interruption was successful, or false otherwise.
    */
   final def unsafeAsyncInterruptOrAddMessage(message: UIO[Any]): Boolean =
     if (statusState.beginAddMessage()) {
