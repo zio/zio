@@ -101,7 +101,7 @@ object TestExecutor {
                     ) =>
                   (for {
                     result  <- ZIO.withClock(ClockLive)(test.timed.either)
-                    duration = result.map(_._1.toMillis).getOrElse(1L)
+                    duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent
                         .Test(
