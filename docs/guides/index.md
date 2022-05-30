@@ -18,24 +18,24 @@ The following guides have been written to help you get started with ZIO with min
 
 ## Tutorial Guides
 
-1. How to Make a ZIO Application Configurable?
-2. How to Setup the IntelliJ IDEA to Use ZIO?
-3. How to Setup the VsCode to Use ZIO?
-4. Building a RESTful Web Service
-5. Building a Web Service Client
-6. How to Encode and Decode JSON Data
-7. Building a gRPC Service with its Client
-8. How to Build a Chat Client and Server using ZIO Streams?
-9. How to Deploy a ZIO Application Using Docker?
-10. How to Enable Logging in a ZIO Application?
-11. How to Create a Custom Logger for a ZIO Application?
-12. How to Monitor a ZIO Application Using Built-in Metrics
-13. How to Monitor a ZIO Application by Implementing Custom Metrics
-14. How to Integrate ZIO With a Legacy JVM Application?
-15. How to Consume/Produce Data From/To a Kafka Topic?
-16. How to Consume/Produce Data From/To a RabbitMQ Queue?
-17. How to Enable Tracing in ZIO and How to Use it?
-18. [How to Use ZIO Macros?](howto-macros.md)
+1. [How to Make a ZIO Application Configurable?](tutorials/make-a-zio-application-configurable.md)
+2. [How to Encode and Decode JSON Data](tutorials/encode-and-decode-json-data.md)
+3. How to Setup the IntelliJ IDEA to Use ZIO?
+4. How to Setup the VsCode to Use ZIO?
+5. Building a RESTful Web Service
+6. Building a Web Service Client
+8. Building a gRPC Service with its Client
+9. How to Build a Chat Client and Server using ZIO Streams?
+10. How to Deploy a ZIO Application Using Docker?
+11. How to Enable Logging in a ZIO Application?
+12. How to Create a Custom Logger for a ZIO Application?
+13. How to Monitor a ZIO Application Using Built-in Metrics
+14. How to Monitor a ZIO Application by Implementing Custom Metrics
+15. How to Integrate ZIO With a Legacy JVM Application?
+16. How to Consume/Produce Data From/To a Kafka Topic?
+17. How to Consume/Produce Data From/To a RabbitMQ Queue?
+18. How to Enable Tracing in ZIO and How to Use it?
+19. [How to Use ZIO Macros?](howto-macros.md)
 
 ## Integration Guides
 
