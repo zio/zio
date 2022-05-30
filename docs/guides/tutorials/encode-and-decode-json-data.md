@@ -12,6 +12,12 @@ In this article, we will cover how to encode and decode JSON data.
 
 All examples written in this tutorial are accessible through the `enocde-and-decode-json-data` branch of the [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world) repository.
 
+To run all tests, execute the following command:
+
+```bash
+$ sbt Test/runMain dev.zio.quickstart.JsonSpec
+```
+
 ## What is ZIO JSON?
 
 ZIO JSON is a library that provides facilities for writing efficient JSON encoders and decoders. In this article, we will use this library to work with JSON data. To learn more about that, please refer to the [ZIO JSON](https://zio.github.io/zio-json/) documentation.
@@ -131,7 +137,7 @@ By using macro utilities, we can derive the instances of `JsonEncoder` and `Json
 import zio.test._
 import zio.json._
 
-test("writing decoder and encoder using macro") {
+test("automatic derivation for case classes") {
   case class Person(name: String, age: Int)
   object Person {
     implicit val decoder: JsonDecoder[Person] = DeriveJsonDecoder.gen[Person]
@@ -255,3 +261,8 @@ test("mapping encoders (contramap)") {
 }
 ```
 
+## Conclusion
+
+In this section we have covered the basics of JSON encoding and decoding. We have also seen how to create custom codecs for complex types. 
+
+The complete working example of this tutorial is available on the `encode-decode-json` branch of our [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world/tree/encode-decode-json) quickstart on GitHub.
