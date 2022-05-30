@@ -26,12 +26,13 @@ trait IntelliJRenderer extends TestRenderer {
                 Status.Started,
                 offset = depth,
                 annotations = Nil,
-                lines = Nil
+                lines = Nil,
+                duration = None
               )
             )
         }
 
-      case Test(labelsReversed, results, annotations, _, _, _) =>
+      case Test(labelsReversed, results, annotations, _, duration, _) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
@@ -52,7 +53,8 @@ trait IntelliJRenderer extends TestRenderer {
             initialDepth,
             List(annotations),
             streamingOutput,
-            summaryOutput
+            summaryOutput,
+            Some(duration)
           )
         )
       case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
@@ -75,7 +77,8 @@ trait IntelliJRenderer extends TestRenderer {
                 Status.Passed,
                 offset = depth,
                 List(TestAnnotationMap.empty),
-                lines = List(fr(nonEmptyList.last).toLine)
+                lines = List(fr(nonEmptyList.last).toLine),
+                duration = None
               )
             )
         }
@@ -86,13 +89,13 @@ trait IntelliJRenderer extends TestRenderer {
   override protected def renderOutput(results: Seq[ExecutionResult])(implicit trace: Trace): Seq[String] =
     results.foldLeft(List.empty[String]) { (acc, result) =>
       result match {
-        case r @ ExecutionResult(ResultType.Suite, _, Status.Started, _, _, _, _) => acc :+ onSuiteStarted(r)
-        case r @ ExecutionResult(ResultType.Suite, _, _, _, _, _, _)              => acc :+ onSuiteFinished(r)
-        case r @ ExecutionResult(ResultType.Test, _, Status.Passed, _, _, _, _) =>
-          acc :+ onTestStarted(r) :+ onTestFinished(r, None)
-        case r @ ExecutionResult(ResultType.Test, _, Status.Failed, _, _, _, _) =>
+        case r @ ExecutionResult(ResultType.Suite, _, Status.Started, _, _, _, _, _) => acc :+ onSuiteStarted(r)
+        case r @ ExecutionResult(ResultType.Suite, _, _, _, _, _, _, _)              => acc :+ onSuiteFinished(r)
+        case r @ ExecutionResult(ResultType.Test, _, Status.Passed, _, _, _, _, duration) =>
+          acc :+ onTestStarted(r) :+ onTestFinished(r, duration)
+        case r @ ExecutionResult(ResultType.Test, _, Status.Failed, _, _, _, _, _) =>
           acc :+ onTestStarted(r) :+ onTestFailed(r)
-        case r @ ExecutionResult(ResultType.Test, _, Status.Ignored, _, _, _, _) => acc :+ onTestIgnored(r)
+        case r @ ExecutionResult(ResultType.Test, _, Status.Ignored, _, _, _, _, _) => acc :+ onTestIgnored(r)
       }
     }
 
@@ -107,8 +110,8 @@ trait IntelliJRenderer extends TestRenderer {
       s"testStarted name='${escape(result.label)}' locationHint='${escape(location(result))}' captureStandardOutput='true'"
     )
 
-  private def onTestFinished(result: ExecutionResult, timing: Option[String]) =
-    tc(s"testFinished name='${escape(result.label)}' duration='${timing.getOrElse("")}'")
+  private def onTestFinished(result: ExecutionResult, duration: Option[Long]) =
+    tc(s"testFinished name='${escape(result.label)}' duration='${duration.map(_.toString).getOrElse("")}'")
 
   private def onTestIgnored(result: ExecutionResult) =
     tc(s"testIgnored name='${escape(result.label)}'")

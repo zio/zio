@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.Clock.ClockLive
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.ConsoleRenderer
 import zio._
@@ -99,15 +100,16 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) =>
                   (for {
-                    result <- test.either
+                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
+                    duration = result.map(_._1.toMillis).getOrElse(1L)
                     event =
                       ExecutionEvent
                         .Test(
                           labels,
-                          result,
-                          staticAnnotations ++ extractAnnotations(result),
+                          result.map(_._2),
+                          staticAnnotations ++ extractAnnotations(result.map(_._2)),
                           ancestors,
-                          1L,
+                          duration,
                           sectionId
                         )
                     _ <- summary.update(_.add(event)) *> sink.process(event) *> eventHandlerZ.handle(event)
