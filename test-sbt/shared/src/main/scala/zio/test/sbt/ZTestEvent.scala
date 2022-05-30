@@ -1,9 +1,9 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.test.render.LogLine.Message
-import zio.test.render.{ConsoleRenderer, ExecutionResult}
-import zio.test.{DefaultTestReporter, ExecutionEvent, TestAnnotation, TestSuccess}
+import zio.test.render.ConsoleRenderer
+import zio.test.render.LogLine.{Line, Message}
+import zio.test.{ExecutionEvent, TestAnnotation, TestSuccess}
 
 final case class ZTestEvent(
   fullyQualifiedName: String,
@@ -24,7 +24,7 @@ object ZTestEvent {
         // Includes ansii colors
         val failureMsg =
           ConsoleRenderer
-            .renderToStringLines(Message(DefaultTestReporter.render(test, true).head.summaryLines))
+            .renderToStringLines(Message(ConsoleRenderer.render(test, true).map(Line.fromString(_))))
             .mkString("\n")
         Some(new Exception(failureMsg))
       case _ => None

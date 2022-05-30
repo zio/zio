@@ -11,7 +11,7 @@ This is the simplest quickstart for a ZIO application. You can download and run 
 First, open the console and clone the project using `git` (or you can simply download the project) and then change the directory:
 
 ```scala
-git clone git@github.com:khajavi/zio-quickstart-hello-world.git 
+git clone git@github.com:zio/zio-quickstart-hello-world.git 
 cd zio-quickstart-hello-world
 ```
 

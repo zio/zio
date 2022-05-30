@@ -20,6 +20,7 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.Spec.LabeledCase
 
 import scala.language.implicitConversions
@@ -175,20 +176,6 @@ package object test extends CompileVariants {
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   /**
-   * A `TestReporter[E]` is capable of reporting test results with error type
-   * `E`.
-   */
-  type TestReporter[-E] = (Duration, ExecutionEvent) => URIO[TestLogger, Unit]
-
-  object TestReporter {
-
-    /**
-     * TestReporter that does nothing
-     */
-    val silent: TestReporter[Any] = (_, _) => ZIO.unit
-  }
-
-  /**
    * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and
    * may fail with an `E`.
    */
@@ -218,7 +205,7 @@ package object test extends CompileVariants {
               fiber <- ZIO
                          .logWarning(warning)
                          .delay(10.seconds)
-                         .provideEnvironment(ZEnvironment(Clock.ClockLive))
+                         .withClock(Clock.ClockLive)
                          .interruptible
                          .forkDaemon
               _ <- (child.interrupt *> fiber.interrupt).forkDaemon
@@ -534,27 +521,25 @@ package object test extends CompileVariants {
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
-  def sinkLayer(console: Console): ZLayer[Any, Nothing, ExecutionEventSink] =
-    sinkLayerWithConsole(console)(Trace.empty)
-
-  def sinkLayerWithConsole(console: Console)(implicit
+  private[test] def sinkLayer(console: Console, eventRenderer: ReporterEventRenderer)(implicit
     trace: Trace
   ): ZLayer[Any, Nothing, ExecutionEventSink] =
-    TestLogger.fromConsole(
-      console
-    ) >>> ExecutionEventPrinter.live >>> TestOutput.live >>> ExecutionEventSink.live
+    TestLogger.fromConsole(console) >>>
+      ExecutionEventPrinter.live(eventRenderer) >>>
+      TestOutput.live >>>
+      ExecutionEventSink.live
 
   /**
    * A `Runner` that provides a default testable environment.
    */
-  val defaultTestRunner: TestRunner[TestEnvironment, Any] = {
+  lazy val defaultTestRunner: TestRunner[TestEnvironment, Any] = {
     implicit val trace = Trace.empty
     TestRunner(
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer(Console.ConsoleLive),
-        _ => ZIO.unit // There is no EventHandler available here, so we can't do much.
+        sinkLayer(Console.ConsoleLive, ConsoleEventRenderer),
+        ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
     )
   }

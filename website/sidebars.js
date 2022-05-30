@@ -214,10 +214,12 @@ module.exports = {
     {
       "Quickstart Guides": [
         "guides/quickstarts/hello-world",
-        "guides/quickstarts/restful-webservice",  
+        "guides/quickstarts/restful-webservice", 
+        "guides/quickstarts/graphql-webservice",
       ],
       "Tutorial Guides": [
-        "guides/handle-errors"
+        "guides/tutorials/configurable-zio-application",
+        "guides/handle-errors",
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",

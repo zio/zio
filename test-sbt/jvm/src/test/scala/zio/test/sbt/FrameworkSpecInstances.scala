@@ -1,18 +1,7 @@
 package zio.test.sbt
 
 import zio.{UIO, ZIO, ZLayer, durationInt}
-import zio.test.{
-  Annotations,
-  Assertion,
-  ExecutionEvent,
-  Spec,
-  TestAspect,
-  TestFailure,
-  ZIOSpecDefault,
-  ZTestEventHandler,
-  assertCompletes,
-  assertTrue
-}
+import zio.test._
 
 import java.net.BindException
 import java.util.concurrent.atomic.AtomicInteger
@@ -20,7 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger
 object FrameworkSpecInstances {
 
   val dummyHandler: ZTestEventHandler = new ZTestEventHandler {
-    override def handle(event: ExecutionEvent.Test[_]): UIO[Unit] = ZIO.unit
+    override def handle(event: ExecutionEvent): UIO[Unit] = ZIO.unit
   }
 
   val counter = new AtomicInteger(0)

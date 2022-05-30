@@ -21,10 +21,10 @@ import org.junit.runner.notification.{Failure, RunNotifier}
 import org.junit.runner.{Description, RunWith, Runner}
 import zio.ZIO.succeed
 import zio._
-import zio.test.DefaultTestReporter.rendered
 import zio.test.TestFailure.{Assertion, Runtime}
 import zio.test.TestSuccess.{Ignored, Succeeded}
 import zio.test._
+import zio.test.render.ConsoleRenderer
 import zio.test.render.ExecutionResult.ResultType.Test
 import zio.test.render.ExecutionResult.Status.Failed
 import zio.test.render.LogLine.Message
@@ -96,11 +96,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
-        .runSpecInfallible(
-          instrumented,
-          TestArgs.empty,
-          Console.ConsoleLive
-        )
+        .runSpecInfallible(instrumented, TestArgs.empty, Console.ConsoleLive)
         .provide(
           Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
           ZIOAppArgs.empty
@@ -114,7 +110,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
     label: String,
     cause: Cause[E]
   ): UIO[Unit] = {
-    val rendered = renderToString(DefaultTestReporter.renderCause(cause, 0))
+    val rendered = renderToString(ConsoleRenderer.renderCause(cause, 0))
     notifier.fireTestFailure(label, path, rendered, cause.dieOption.orNull)
   }
 
@@ -130,13 +126,15 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
   private def renderFailureDetails(label: String, result: TestResult): Message =
     Message(
-      rendered(
-        Test,
-        label,
-        Failed,
-        0,
-        DefaultTestReporter.renderAssertionResult(result.result, 0).lines: _*
-      ).streamingLines
+      ConsoleRenderer
+        .rendered(
+          Test,
+          label,
+          Failed,
+          0,
+          ConsoleRenderer.renderAssertionResult(result.result, 0).lines: _*
+        )
+        .streamingLines
     )
 
   private def testDescription(label: String, path: Vector[String]): Description = {
