@@ -1,12 +1,26 @@
 package zio.test
 
-import zio.Chunk
-import zio.test.render.ConsoleRenderer
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Chunk, Trace}
+import zio.test.render.{ConsoleRenderer, IntelliJRenderer}
 
+trait ReporterEventRenderer {
+  def render(event: ExecutionEvent)(implicit trace: Trace): Chunk[String]
+}
 object ReporterEventRenderer {
-  def render(executionEvent: ExecutionEvent): Chunk[String] =
-    Chunk.fromIterable(
-      ConsoleRenderer
-        .render(DefaultTestReporter.render(executionEvent, true), TestAnnotationRenderer.timed)
-    )
+  object ConsoleEventRenderer extends ReporterEventRenderer {
+    override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] =
+      Chunk.fromIterable(
+        ConsoleRenderer
+          .render(executionEvent, includeCause = true)
+      )
+  }
+
+  object IntelliJEventRenderer extends ReporterEventRenderer {
+    override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] =
+      Chunk.fromIterable(
+        IntelliJRenderer
+          .render(executionEvent, includeCause = false)
+      )
+  }
 }

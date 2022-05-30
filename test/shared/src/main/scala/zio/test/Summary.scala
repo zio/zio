@@ -18,7 +18,6 @@ package zio.test
 
 import zio.{Duration, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Summary.{Failure, Success}
 
 final case class Summary(
   success: Int,
@@ -52,6 +51,8 @@ final case class Summary(
 }
 
 object Summary {
+  val empty = Summary(0, 0, 0, "")
+
   sealed trait Status
   object Success extends Status
   object Failure extends Status

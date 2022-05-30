@@ -28,7 +28,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         output ==
           Vector(
             s"${green("+")} simple suite\n",
-            s"    ${green("+")} spec 1 suite 1 test 1\n"
+            s"  ${green("+")} spec 1 suite 1 test 1\n"
           )
       )
     ),
@@ -42,15 +42,15 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
           output ==
             Vector(
               s"${green("+")} spec A\n",
-              s"    ${green("+")} successful test\n",
-              s"    ${yellow("-")} ${yellow("failing test")}\n"
+              s"  ${green("+")} successful test\n",
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n"
             )
         ) || assertTrue(
           output ==
             Vector(
               s"${green("+")} spec A\n",
-              s"    ${yellow("-")} ${yellow("failing test")}\n",
-              s"    ${green("+")} successful test\n"
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n",
+              s"  ${green("+")} successful test\n"
             )
         )
       )
@@ -65,15 +65,15 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
           output ==
             Vector(
               s"${green("+")} spec A\n",
-              s"    ${green("+")} successful test\n",
-              s"    ${yellow("-")} ${yellow("failing test")}\n"
+              s"  ${green("+")} successful test\n",
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n"
             )
         ) || assertTrue(
           output ==
             Vector(
               s"${green("+")} spec A\n",
-              s"    ${yellow("-")} ${yellow("failing test")}\n",
-              s"    ${green("+")} successful test\n"
+              s"  ${yellow("-")} ${yellow("failing test")} - ignored: 1\n",
+              s"  ${green("+")} successful test\n"
             )
         )
       )
@@ -128,7 +128,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         expected =
           List(
             s"${green("+")} some suite\n",
-            s"    ${green("+")} passing test\n"
+            s"  ${green("+")} passing test\n"
           )
 
       } yield assertTrue(output.equals(expected))
