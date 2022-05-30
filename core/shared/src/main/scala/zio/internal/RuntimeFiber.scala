@@ -105,6 +105,7 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
     maxDepth: Int
   ): Exit[E, A] =
     try {
+      // FIXME: Do not allow interruption while executing the messages
       val mailbox = self.unsafeDrainMailbox()
       val effect  = if (mailbox eq ZIO.unit) effect0 else mailbox *> effect0
 

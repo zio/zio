@@ -27,8 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 final case class FiberSuspension(blockingOn: FiberId, location: Trace)
 
 abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs) extends Fiber.Runtime.Internal[E, A] {
-  // import FiberStatusIndicator.Status
-
   private val mailbox          = new AtomicReference[UIO[Any]](ZIO.unit)
   private[zio] val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
 
@@ -380,39 +378,3 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     }
   }
 }
-
-/*
-
-def evalAsync[R, E, A](
-    effect: ZIO[R, E, A],
-    onDone: Exit[E, A] => Unit,
-    maxDepth: Int = 1000,
-    fiberRefs0: FiberRefs = FiberRefs.empty
-  )(implicit trace0: Trace): Exit[E, A] = {
-    val fiber = RuntimeFiber[E, A](FiberId.unsafeMake(trace0), fiberRefs0)
-
-    fiber.unsafeAddObserver(onDone)
-
-    fiber.outerRunLoop(effect.asInstanceOf[Erased], Chunk.empty, maxDepth)
-  }
-
-  def evalToFuture[A](effect: ZIO[Any, Throwable, A], maxDepth: Int = 1000): scala.concurrent.Future[A] = {
-    val promise = Promise[A]()
-
-    evalAsync[Any, Throwable, A](effect, exit => promise.complete(exit.toTry), maxDepth) match {
-      case null => promise.future
-
-      case exit => Future.fromTry(exit.toTry)
-    }
-  }
-
-  def eval[A](effect: ZIO[Any, Throwable, A], maxDepth: Int = 1000): A = {
-    import java.util.concurrent._
-    import scala.concurrent.duration._
-
-    val future = evalToFuture(effect, maxDepth)
-
-    Await.result(future, Duration(1, TimeUnit.HOURS))
-  }
-
- */
