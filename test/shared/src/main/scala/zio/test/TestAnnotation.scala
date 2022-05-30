@@ -85,7 +85,7 @@ object TestAnnotation {
     TestAnnotation("trace", List.empty, _ ++ _)
 
   val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
-    TestAnnotation("fibers", Left(0), compose(_, _))
+    TestAnnotation("fibers", Left(0), compose)
 
   def compose[A](left: Either[Int, Chunk[A]], right: Either[Int, Chunk[A]]): Either[Int, Chunk[A]] =
     (left, right) match {

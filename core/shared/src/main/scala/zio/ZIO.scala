@@ -2238,6 +2238,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.whenZIO(p)(self)
 
   /**
+   * Executes this workflow with the specified implementation of the clock
+   * service.
+   */
+  final def withClock[B <: Clock](clock: => B)(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+    ZIO.withClock(clock)(self)
+
+  /**
+   * Executes this workflow with the specified implementation of the console
+   * service.
+   */
+  final def withConsole[B <: Console](console: => B)(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+    ZIO.withConsole(console)(self)
+
+  /**
    * Returns a new scoped workflow that returns the result of this workflow as
    * well as a finalizer that can be run to close the scope of this workflow.
    */
@@ -2282,6 +2296,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   def withParallelismUnbounded(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.withParallelismUnbounded(self)
+
+  /**
+   * Executes this workflow with the specified implementation of the random
+   * service.
+   */
+  final def withRandom[B <: Random](random: => B)(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+    ZIO.withRandom(random)(self)
+
+  /**
+   * Executes this workflow with the specified implementation of the system
+   * service.
+   */
+  final def withSystem[B <: System](system: => B)(implicit tag: Tag[B], trace: Trace): ZIO[R, E, A] =
+    ZIO.withSystem(system)(self)
 
   /**
    * A named alias for `<*>`.

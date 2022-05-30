@@ -428,6 +428,24 @@ object ZChannelSpec extends ZIOBaseSpec {
           }
         }
       ),
+      suite("ZChannel#mergeAll")(
+        test("simple merge all") {
+          val conduit =
+            ZChannel.writeAll(1, 2, 3) >>>
+              ZChannel.mergeAll(
+                ZChannel.writeAll(
+                  ZChannel.read[Int].flatMap(ZChannel.write),
+                  ZChannel.read[Int].map(_ * 2).flatMap(ZChannel.write),
+                  ZChannel.read[Int].map(_ * 3).flatMap(ZChannel.write)
+                ),
+                16
+              )
+
+          conduit.runCollect.map { case (chunk, _) =>
+            assert(chunk.toSet)(equalTo(Set(1, 4, 9)))
+          }
+        }
+      ),
       suite("ZChannel#interruptWhen")(
         suite("interruptWhen(Promise)")(
           test("interrupts the current element") {

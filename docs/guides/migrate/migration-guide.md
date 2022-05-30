@@ -163,7 +163,7 @@ trait Logging
 val userRepo: ZLayer[Logging with Random with Database, Throwable, UserRepo] = ???
 ```
 
-Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` backed into ZIO. Let's see how this changes the way we can provide a service to the environment.
+Also in ZIO 2.x instead of the `Has` data type, a type-level map called `ZEnvironment` has been built into ZIO. Let's see how this changes the way we can provide a service to the environment.
 
 Using the following code snippet, we demonstrate how we used to access and provide instances of `Config` service to the application environment using ZIO 1.x:
 

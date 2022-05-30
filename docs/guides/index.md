@@ -18,15 +18,15 @@ The following guides have been written to help you get started with ZIO with min
 
 ## Tutorial Guides
 
-1. How to Setup the IntelliJ IDEA to Use ZIO?
-2. How to Setup the VsCode to Use ZIO?
-3. Building a RESTful Web Service
-4. Building a Web Service Client
-5. How to Encode and Decode JSON Data
-6. Building a gRPC Service with its Client
-7. How to Build a Chat Client and Server using ZIO Streams?
-8. How to Deploy a ZIO Application Using Docker?
-9. How to Make a ZIO Application Configurable?
+1. How to Make a ZIO Application Configurable?
+2. How to Setup the IntelliJ IDEA to Use ZIO?
+3. How to Setup the VsCode to Use ZIO?
+4. Building a RESTful Web Service
+5. Building a Web Service Client
+6. How to Encode and Decode JSON Data
+7. Building a gRPC Service with its Client
+8. How to Build a Chat Client and Server using ZIO Streams?
+9. How to Deploy a ZIO Application Using Docker?
 10. How to Enable Logging in a ZIO Application?
 11. How to Create a Custom Logger for a ZIO Application?
 12. How to Monitor a ZIO Application Using Built-in Metrics
