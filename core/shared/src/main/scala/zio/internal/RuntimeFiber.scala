@@ -53,11 +53,13 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
       val selfInterrupt = ZIO.InterruptSignal(cause, trace)
 
       if (unsafeAsyncInterruptOrAddMessage(selfInterrupt)) {
-        asyncResume(selfInterrupt, Chunk.empty, 1000)
+        asyncResume(selfInterrupt, Chunk.empty)
       }
 
       ()
     }
+  // type Interruptor = Cause[Nothing] => Unit
+  // case class Async[R, E, A](registerCallback: (ZIO[R, E, A] => Unit) => Unit)
 
   final def location: Trace = fiberId.location
 
@@ -73,24 +75,18 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 
   private def assertNonNull(a: Any, message: String, location: Trace): Unit =
     if (a == null) {
-      throw new NullPointerException(message + ": " + location.toString)
+      throw new NullPointerException(s"${message}: ${location.toString}")
     }
 
   private def assertNonNullContinuation(a: Any, location: Trace): Unit =
     assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
 
-  def asyncResume(
-    effect: ZIO[Any, Any, Any],
-    stack: Chunk[EvaluationStep],
-    maxDepth: Int
-  ): Unit =
-    unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
-      outerRunLoop(effect, stack, maxDepth)
-      ()
-    }
+    // unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
+    //   outerRunLoop(effect, stack)
+    // }
 
-  def start[R1, E1, A1](effect: ZIO[R1, E1, A1]): Exit[E, A] =
-    outerRunLoop(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, 1000)
+  def start[R1, E1, A1](effect: ZIO[R1, E1, A1]): Unit =
+    outerRunLoop(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty)
 
   def startBackground[R1, E1, A1](effect: ZIO[R1, E1, A1]): Unit = {
     val currentExecutor = self.unsafeGetCurrentExecutor()
@@ -98,63 +94,80 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
     currentExecutor.unsafeSubmitOrThrow(() => start(effect))
   }
 
-  @tailrec
   final def outerRunLoop(
     effect0: ZIO[Any, Any, Any],
-    stack: Chunk[EvaluationStep],
-    maxDepth: Int
-  ): Exit[E, A] =
-    try {
-      // FIXME: Do not allow interruption while executing the messages
-      val mailbox = self.unsafeDrainMailbox()
-      val effect  = if (mailbox eq ZIO.unit) effect0 else mailbox *> effect0
+    stack0: Chunk[EvaluationStep]
+  ): Unit = {
+    var currentEffect = effect0 
+    var currentStack  = stack0
 
-      val interruptible = self.unsafeGetInterruptible()
+    while (currentEffect ne null) {
+      try {
+        val interruptible = self.unsafeGetInterruptible()
 
-      val exit: Exit[Nothing, A] = Exit.succeed(runLoop(effect, maxDepth, stack, interruptible).asInstanceOf[A])
+        runLoop(currentEffect, 1000, currentStack, interruptible)
 
-      val remainingWork = self.unsafeAttemptDone(exit)
+        currentEffect = null 
+        currentStack  = Chunk.empty 
+      } catch {
+        case end @ ZIO.End(exit) => 
+          val remainingWork = self.unsafeAttemptDone(exit.asInstanceOf[Exit[E, A]])
+          val effect        = remainingWork.foldCauseZIO(_ => end, _ => end)
 
-      if (remainingWork ne null) throw Trampoline(remainingWork *> ZIO.done(exit), ChunkBuilder.make())
+          currentEffect = effect
+          currentStack  = Chunk.empty
 
-      exit
-    } catch {
-      case trampoline: Trampoline =>
-        outerRunLoop(trampoline.effect, trampoline.stack.result(), maxDepth)
+        case trampoline: Trampoline =>
+          currentEffect = trampoline.effect
+          currentStack  = trampoline.stack.result()
 
-      case asyncJump: AsyncJump =>
-        unsafeEnterSuspend()
+        case asyncJump: AsyncJump =>
+          val stack = asyncJump.stack.result()
+          val alreadyCalled = new AtomicBoolean(false)
+          
+          lazy val callback = (effect: ZIO[Any, Any, Any]) => {
+            if (alreadyCalled.compareAndSet(false, true)) {
+              // FIXME: Push this to runloop
+              unsafeRemoveInterruptor(callback)
 
-        asyncJump.registerCallback { value =>
-          unsafeAttemptResume()
+              outerRunLoop(effect, stack)
+            }
+          }
 
-          // FIXME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          asyncResume(value, asyncJump.stack.result(), maxDepth)
-        }
+          unsafeAddInterruptor(callback)
 
-        null
+          // FIXME: registerCallback throws
+          asyncJump.registerCallback(callback)
 
-      case zioError: ZIOError =>
-        val cause = zioError.cause.asInstanceOf[Cause[E]]
+          currentEffect = null 
+          currentStack  = Chunk.empty 
 
-        val exit = Exit.failCause(cause ++ unsafeGetInterruptedCause())
+        case traceGen: GenerateTrace =>
+          val stack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
 
-        val remainingWork = self.unsafeAttemptDone(exit)
+          val builder = StackTraceBuilder.unsafeMake()
 
-        if (remainingWork ne null) outerRunLoop(remainingWork, Chunk.empty, maxDepth)
-        else exit
+          stack.foreach(k => builder += k.trace)
 
-      case traceGen: GenerateTrace =>
-        val stack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
+          val trace  = StackTrace(self.fiberId, builder.result())
 
-        val builder = StackTraceBuilder.unsafeMake()
+          currentEffect = ZIO.succeed(trace)(Trace.empty)
+          currentStack  = stack
 
-        stack.foreach(k => builder += k.trace)
+        case zioError: ZIOError =>
+          // No error should escape to this level.
+          self.unsafeLog(() => s"An unhandled error was encountered while executing ${id.threadName}", zioError.cause, ZIO.someError, Trace.empty)
 
-        val trace = StackTrace(self.fiberId, builder.result())
+          currentEffect = null 
+          currentStack = Chunk.empty 
+      }
 
-        outerRunLoop(ZIO.succeed(trace), stack, maxDepth)
+      if (currentEffect == null) {
+        currentEffect = self.unsafeSuspendOrDrainMailbox()
+        currentStack  = Chunk.empty
+      }
     }
+  }
 
   def runLoop(
     effect: ZIO[Any, Any, Any],
@@ -311,6 +324,8 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 
           case InterruptSignal(cause, trace) =>
             cur = if (interruptible) Refail(cause) else ZIO.unit
+
+          case end @ End(_) => throw end
         }
       } catch {
         case zioError: ZIOError =>
@@ -322,7 +337,7 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
           throw reifyStack
 
         case interruptedException: InterruptedException =>
-          cur = Refail(Cause.interrupt(FiberId.None))
+          cur = Refail(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
 
         case throwable: Throwable => // TODO: If non-fatal
           cur = Refail(Cause.die(throwable))

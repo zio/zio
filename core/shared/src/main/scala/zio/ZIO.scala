@@ -5553,6 +5553,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def trace: Trace = Trace.empty
   }
   private[zio] final case class InterruptSignal(cause: Cause[Nothing], trace: Trace) extends ZIO[Any, Nothing, Unit]
+  private[zio] final case class End[E, A](exit: Exit[E, A]) extends Exception with NoStackTrace with ZIO[Any, Nothing, Nothing] {
+    def trace: Trace = Trace.empty
+  }
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]

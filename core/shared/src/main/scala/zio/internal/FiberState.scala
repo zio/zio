@@ -68,6 +68,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     unsafeSetFiberRef(FiberRef.interruptedCause, oldSC ++ cause)
   }
 
+  final def unsafeAddInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit = 
+    ???
+
   /**
    * Adds a message to the mailbox and returns true if the state is not done.
    * Otherwise, returns false to indicate the fiber cannot accept messages.
@@ -322,6 +325,10 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
       _children.remove(child)
       ()
     }
+
+  final def unsafeRemoveInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit = {
+    ???
+  }
 
   /**
    * Removes the specified observer from the list of observers.
