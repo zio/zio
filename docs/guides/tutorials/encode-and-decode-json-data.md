@@ -123,61 +123,6 @@ object Person {
 
 Writing encoders and decoders from scratch is a complicated task and is not recommended for regular usage. So we don't deep into it furthermore.
 
-### Mapping Existing Codecs to Complex Types
-
-If we have `JsonDecoder[A]` we can map its **output** to `JsonDecoder[B]` by providing a function `A => B` as an argument to `map` operation:
-
-```scala
-trait JsonDecoder[A] {
-  def map[B](f: A => B): JsonDecoder[B]
-} 
-```
-
-Example:
-
-```scala mdoc:compile-only
-import zio.test._
-import zio.json._
-
-test("mapping decoders") {
-  case class Person(name: String, age: Int)
-  object Person {
-    implicit val decoder = JsonDecoder[(String, Int)].map { case (name, age) => Person(name, age) }
-  }
-
-  val person = "[\"John\",42]".fromJson[Person]
-
-  assertTrue(person == Right(Person("John", 42)))
-}
-```
-
-If we have `JsonEncoder[A]` we can map its **input** by providing a function  of typ `B => A` to `contramap` operator to create a new `JsonEncoder[B]`:
-
-```scala
-trait JsonEncoder[A] {
-  def contramap[B](f: B => A): JsonEncoder[B]
-}
-```
-
-Example:
-
-```scala mdoc:compile-only
-import zio.test._
-import zio.json._
-
-test("mapping encoders (contramap)") {
-  case class Person(name: String, age: Int)
-  object Person {
-    implicit val encoder: JsonEncoder[Person] =
-      JsonEncoder[(String, Int)].contramap((p: Person) => (p.name, p.age))
-  }
-
-  val json = Person("John", 42).toJson
-
-  assertTrue(json == "[\"John\",42]")
-}
-```
-
 ### Automatic Derivation of Codecs (macros)
 
 By using macro utilities, we can derive the instances of `JsonEncoder` and `JsonDecoder` for a case class using `DeriveJsonDecoder.gen[A]` and `DeriveJsonEncoder.gen[A]` macros:
@@ -254,3 +199,59 @@ test("roundtrip custom adt") {
   assertTrue(roundTrip == Right(fruits))
 }
 ```
+
+### Mapping Existing Codecs to Complex Types
+
+If we have `JsonDecoder[A]` we can map its **output** to `JsonDecoder[B]` by providing a function `A => B` as an argument to `map` operation:
+
+```scala
+trait JsonDecoder[A] {
+  def map[B](f: A => B): JsonDecoder[B]
+} 
+```
+
+Example:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.json._
+
+test("mapping decoders") {
+  case class Person(name: String, age: Int)
+  object Person {
+    implicit val decoder = JsonDecoder[(String, Int)].map { case (name, age) => Person(name, age) }
+  }
+
+  val person = "[\"John\",42]".fromJson[Person]
+
+  assertTrue(person == Right(Person("John", 42)))
+}
+```
+
+If we have `JsonEncoder[A]` we can map its **input** by providing a function  of typ `B => A` to `contramap` operator to create a new `JsonEncoder[B]`:
+
+```scala
+trait JsonEncoder[A] {
+  def contramap[B](f: B => A): JsonEncoder[B]
+}
+```
+
+Example:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.json._
+
+test("mapping encoders (contramap)") {
+  case class Person(name: String, age: Int)
+  object Person {
+    implicit val encoder: JsonEncoder[Person] =
+      JsonEncoder[(String, Int)].contramap((p: Person) => (p.name, p.age))
+  }
+
+  val json = Person("John", 42).toJson
+
+  assertTrue(json == "[\"John\",42]")
+}
+```
+
