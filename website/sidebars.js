@@ -219,7 +219,8 @@ module.exports = {
       ],
       "Tutorial Guides": [
         "guides/tutorials/configurable-zio-application",
-        "guides/handle-errors",
+        "guides/tutorials/encode-and-decode-json-data",
+        "guides/handle-errors"
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
