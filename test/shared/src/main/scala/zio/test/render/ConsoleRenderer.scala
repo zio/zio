@@ -16,17 +16,78 @@
 
 package zio.test.render
 
-import zio.Cause
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
-import zio.test.{ConsoleUtils, Summary, TestAnnotation, TestAnnotationMap, TestAnnotationRenderer}
+import zio.test._
+import zio.{Cause, Trace}
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
 
-  override def render(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
+  override def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit
+    trace: Trace
+  ): Seq[ExecutionResult] =
+    event match {
+      case SectionStart(labelsReversed, _, _) =>
+        val depth = labelsReversed.length - 1
+        labelsReversed.reverse match {
+          case Nil => Seq.empty
+          case nonEmptyList =>
+            Seq(
+              ExecutionResult.withoutSummarySpecificOutput(
+                ResultType.Suite,
+                label = nonEmptyList.last,
+                // We no longer know if the suite has passed here, because the output is streamed
+                Status.Passed,
+                offset = depth,
+                List(TestAnnotationMap.empty), // TODO Examine all results to get this
+                lines = List(fr(nonEmptyList.last).toLine)
+              )
+            )
+        }
+
+      case Test(labelsReversed, results, annotations, _, _, _) =>
+        val labels       = labelsReversed.reverse
+        val initialDepth = labels.length - 1
+        val (streamingOutput, summaryOutput) =
+          testCaseOutput(labels, results, includeCause)
+
+        Seq(
+          ExecutionResult(
+            ResultType.Test,
+            labels.headOption.getOrElse(""),
+            results match {
+              case Left(_) => Status.Failed
+              case Right(value: TestSuccess) =>
+                value match {
+                  case TestSuccess.Succeeded(_) => Status.Passed
+                  case TestSuccess.Ignored(_)   => Status.Ignored
+                }
+            },
+            initialDepth,
+            List(annotations),
+            streamingOutput,
+            summaryOutput
+          )
+        )
+      case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
+        val depth = event.labels.length
+        failure match {
+          case TestFailure.Assertion(result, _) =>
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
+          case TestFailure.Runtime(cause, _) =>
+            Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
+        }
+      case SectionEnd(_, _, _) =>
+        Nil
+      case TopLevelFlush(_) =>
+        Nil
+    }
+
+  override protected def renderOutput(results: Seq[ExecutionResult])(implicit trace: Trace): Seq[String] =
     results.map { result =>
       val message = Message(result.streamingLines).intersperse(Line.fromString("\n"))
 
@@ -39,7 +100,7 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
-      val renderedAnnotations = renderAnnotations(result.annotations, testAnnotationRenderer)
+      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 
@@ -111,10 +172,9 @@ trait ConsoleRenderer extends TestRenderer {
     " " * (n * tabSize) + s
 
   import zio.duration2DurationOps
-  def render(summary: Summary): String =
+  def renderSummary(summary: Summary): String =
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
-       |Executed in ${summary.duration.render}
-       |""".stripMargin
+       |Executed in ${summary.duration.render}""".stripMargin
 
   def render(cause: Cause[_], labels: List[String]): Option[String] =
     cause match {

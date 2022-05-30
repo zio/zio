@@ -3,18 +3,16 @@ package zio.test
 import zio.internal.macros.StringUtils.StringOps
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect._
-import zio.test.render.ExecutionResult
-import zio.test.render.ExecutionResult.ResultType.Test
-import zio.test.render.ExecutionResult.Status.Failed
+import zio.test.render.ConsoleRenderer
 import zio.{StackTrace, Trace, ZIO}
 
-object DefaultTestReporterSpec extends ZIOBaseSpec {
+object ConsoleTestOutputSpec extends ZIOBaseSpec {
 
   def containsUnstyled(string: String, substring: String)(implicit trace: Trace): TestResult =
     assertTrue(string.unstyled.contains(substring.unstyled))
 
   def spec =
-    suite("DefaultTestReporterSpec")(
+    suite("ConsoleTestOutputSpec")(
       suite("reports")(
         test("a successful test") {
           runLog(test1).map(res => assertTrue(test1Expected == res))
@@ -61,7 +59,7 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
           val expectedExceptionMessage = "boom"
           for {
             result <- ZIO.succeed(
-                        DefaultTestReporter.render(
+                        ConsoleRenderer.render(
                           ExecutionEvent.RuntimeFailure(
                             SuiteId(1),
                             labelsReversed = List(expectedLabel),
@@ -74,17 +72,13 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
                         )
                       )
             res <- extractSingleExecutionResult(result)
-          } yield assertTrue(res.resultType == Test) && assertTrue(res.status == Failed) && assertTrue(
-            res.label == expectedLabel
-          ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel)))) && assertTrue(
-            res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedExceptionMessage)))
-          )
+          } yield assertTrue(res.contains(expectedLabel), res.contains(expectedExceptionMessage))
         },
         test("ExecutionEvent.RuntimeFailure  Assertion does not swallow error") {
           val expectedLabel = "RuntimeFailure assertion label"
           for {
             result <- ZIO.succeed(
-                        DefaultTestReporter.render(
+                        ConsoleRenderer.render(
                           ExecutionEvent.RuntimeFailure(
                             SuiteId(1),
                             labelsReversed = List(expectedLabel),
@@ -95,14 +89,12 @@ object DefaultTestReporterSpec extends ZIOBaseSpec {
                         )
                       )
             res <- extractSingleExecutionResult(result)
-          } yield assertTrue(res.resultType == Test) && assertTrue(res.status == Failed) && assertTrue(
-            res.label == expectedLabel
-          ) && assertTrue(res.streamingLines.exists(_.fragments.exists(_.text.contains(expectedLabel))))
+          } yield assertTrue(res.contains(expectedLabel))
         }
       )
     ) @@ silent
 
-  private def extractSingleExecutionResult(results: Seq[ExecutionResult]): ZIO[Any, String, ExecutionResult] =
+  private def extractSingleExecutionResult(results: Seq[String]): ZIO[Any, String, String] =
     results match {
       case res :: others =>
         if (others.isEmpty)

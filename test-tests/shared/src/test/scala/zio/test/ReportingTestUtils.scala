@@ -1,8 +1,8 @@
 package zio.test
 
-import zio.test.Assertion.{equalTo, isGreaterThan, isLessThan, isRight, isSome, not}
-import zio.test.render.TestRenderer
-import zio.{Cause, Console, Scope, ZIO, ZIOAppArgs, ZLayer, Trace}
+import zio.test.Assertion._
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
+import zio.{Cause, Scope, Trace, ULayer, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.{Console => SConsole}
 
@@ -48,30 +48,29 @@ object ReportingTestUtils {
   )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       console <- ZIO.console
-      _       <- TestTestRunner(testEnvironment, console).run(spec)
+      _       <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(spec)
       output  <- TestConsole.output
     } yield output.mkString
 
   def runSummary(spec: Spec[TestEnvironment, String]): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
-      summary <-
-        TestTestRunner(testEnvironment, console)
-          .run(spec)
+      summary <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(spec)
     } yield summary.summary
 
-  private[this] def TestTestRunner(testEnvironment: ZLayer[Scope, Nothing, TestEnvironment], console: Console)(implicit
+  private[test] def TestTestRunner(
+    testEnvironment: ZLayer[Scope, Nothing, TestEnvironment],
+    sinkLayer: ULayer[ExecutionEventSink]
+  )(implicit
     trace: Trace
-  ) =
-    TestRunner[TestEnvironment, String](
-      executor = TestExecutor.default[TestEnvironment, String](
-        Scope.default >>> testEnvironment,
-        (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
-        sinkLayerWithConsole(console),
-        _ => ZIO.unit // Might be useful for additional testing
-      ),
-      reporter = DefaultTestReporter(TestRenderer.default, TestAnnotationRenderer.default)
+  ) = TestRunner[TestEnvironment, String](
+    executor = TestExecutor.default[TestEnvironment, String](
+      Scope.default >>> testEnvironment,
+      (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
+      sinkLayer,
+      ZTestEventHandler.silent
     )
+  )
 
   def test1(implicit trace: Trace): Spec[Any, Nothing] = test("Addition works fine")(assert(1 + 1)(equalTo(2)))
   val test1Expected: String                            = expectedSuccess("Addition works fine")
