@@ -301,11 +301,9 @@ private[zio] final class FiberContext[E, A](
         } else null
 
       Fiber._currentFiber.set(this)
-      if (platform.superviseOperations) {
-        val currentSupervisor = supervisors.peek()
-        if ((currentSupervisor ne null) && (currentSupervisor ne Supervisor.none))
-          currentSupervisor.unsafeOnResume(self)
-      }
+      val currentSupervisor = supervisors.peek()
+      if ((currentSupervisor ne null) && (currentSupervisor ne Supervisor.none))
+        currentSupervisor.unsafeOnResume(self)
 
       while (curZio ne null) {
         try {
