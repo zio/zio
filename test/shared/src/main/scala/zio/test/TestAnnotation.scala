@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.internal.stacktracer.SourceLocation
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
@@ -81,7 +82,7 @@ object TestAnnotation {
    * An annotation for capturing the trace information, including source
    * location (i.e. file name and line number) of the calling test.
    */
-  private[zio] val trace: TestAnnotation[List[Trace]] =
+  private[zio] val trace: TestAnnotation[List[SourceLocation]] =
     TestAnnotation("trace", List.empty, _ ++ _)
 
   val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =

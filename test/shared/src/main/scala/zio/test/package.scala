@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.stacktracer.Tracer
+import zio.internal.stacktracer.{SourceLocation, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 import zio.stream.{ZChannel, ZSink, ZStream}
@@ -571,6 +571,7 @@ package object test extends CompileVariants {
    */
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
+    sourceLocation: SourceLocation,
     trace: Trace
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     Spec.labeled(
@@ -594,6 +595,7 @@ package object test extends CompileVariants {
    */
   def test[In](label: String)(assertion: => In)(implicit
     testConstructor: TestConstructor[Nothing, In],
+    sourceLocation: SourceLocation,
     trace: Trace
   ): testConstructor.Out =
     testConstructor(label)(assertion)

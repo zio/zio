@@ -8,6 +8,17 @@ import zio.stacktracer.DisableAutoTrace
 @silent
 object Macros {
 
+  def sourceLocation(c: blackbox.Context): c.Tree = {
+    import c.universe._
+    val pos = c.macroApplication.pos
+    q"""
+      new zio.internal.stacktracer.SourceLocation(
+        path = ${pos.source.file.path},
+        line = ${pos.line}
+      )
+    """
+  }
+
   def traceInfo(c: blackbox.Context): String = {
 
     val location = {
