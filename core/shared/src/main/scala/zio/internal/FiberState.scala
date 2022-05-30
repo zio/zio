@@ -97,8 +97,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   /**
    * Adds an observer to the list of observers.
    */
-  final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit =
+  final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit = {
     observers = observer :: observers
+  }
 
   final def unsafeAddObserverMaybe(k: Exit[E, A] => Unit): Exit[E, A] =
     unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k))(Trace.empty), unsafeExitValue())
@@ -144,18 +145,29 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    *   messages, otherwise.
    */
   final def unsafeAttemptDone(e: Exit[E, A]): UIO[Any] = {
+    println(s"\nfiber ${fiberId.threadName} attempting done with ${e}")
+
     _exitValue = e
 
     if (statusState.attemptDone()) {
+      println(s"\nfiber ${fiberId.threadName} done, notifying ${observers.size} observers")
       val iterator = observers.iterator
 
       while (iterator.hasNext) {
         val observer = iterator.next()
 
-        observer(e)
+        try observer(e)
+        catch {
+          case t: Throwable => println(s"Error notifying observer: ${t}"); throw t
+        }
       }
+      observers = Nil 
+      println(s"fiber ${fiberId.threadName} done notifying observers with ${e}")
       null.asInstanceOf[UIO[Any]]
-    } else unsafeDrainMailbox()
+    } else {
+      println(s"fiber ${fiberId.threadName} not done yet, have work to do")
+      unsafeDrainMailbox()
+    }
   }
 
   /**

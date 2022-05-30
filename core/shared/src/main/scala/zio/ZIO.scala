@@ -1358,7 +1358,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
         }
     )
 
-  private final def raceWithImpl[R1 <: R, ER, E2, B, C](right0: ZIO[R1, ER, B])(
+  private final def raceWithImpl[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
     rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, C] =
@@ -1378,28 +1378,26 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val left: internal.RuntimeFiber[E, A]   = ZIO.unsafeFork(trace, self, fiberState, interruptible)
-      val right: internal.RuntimeFiber[ER, B] = ZIO.unsafeFork(trace, right0, fiberState, interruptible)
+      val leftFiber: internal.RuntimeFiber[E, A]   = ZIO.unsafeForkUnstarted(trace, self, fiberState, interruptible)
+      val rightFiber: internal.RuntimeFiber[ER, B] = ZIO.unsafeForkUnstarted(trace, right, fiberState, interruptible)
 
-      ZIO
+      val raced = ZIO
         .async[R1, E2, C](
           { cb =>
-            val leftRegister = left.unsafeAddObserverMaybe { _ =>
-              complete(left, right, leftWins, raceIndicator, cb)
+            leftFiber.unsafeAddObserver { _ =>
+              complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
             }
 
-            if (leftRegister ne null)
-              complete(left, right, leftWins, raceIndicator, cb)
-            else {
-              val rightRegister = right.unsafeAddObserverMaybe { _ =>
-                complete(right, left, rightWins, raceIndicator, cb)
-              }
-
-              if (rightRegister ne null)
-                complete(right, left, rightWins, raceIndicator, cb)
+            rightFiber.unsafeAddObserver { _ =>
+              complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }
           } //FIXME, FiberId.combineAll(Set(left.fiberId, right.fiberId))
         )
+
+      leftFiber.startBackground(self)
+      rightFiber.startBackground(right)
+
+      raced
     }
 
   /**
@@ -2399,11 +2397,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     fiberState: internal.FiberState[E2, B],
     interruptible: Boolean
   ): internal.RuntimeFiber[E1, A] = {
+    val childFiber = ZIO.unsafeForkUnstarted(trace, effect, fiberState, interruptible)
+
+    childFiber.startBackground(effect)
+
+    childFiber
+  }
+
+  private def unsafeForkUnstarted[R, E1, E2, A, B](
+    trace: Trace,
+    effect: ZIO[R, E1, A],
+    fiberState: internal.FiberState[E2, B],
+    interruptible: Boolean
+  ): internal.RuntimeFiber[E1, A] = {
     val childId         = FiberId.unsafeMake(trace)
     val parentFiberRefs = fiberState.unsafeGetFiberRefs
     val childFiberRefs  = parentFiberRefs.forkAs(childId)
 
     val childFiber = internal.RuntimeFiber[E1, A](childId, childFiberRefs)
+
+    println(s"Started fiber ${childId.threadName} (forked from ${fiberState.id.threadName} - ${trace}) from ZIO.unsafeFork")
 
     // Child inherits interruptibility status of parent fiber:
     childFiber.unsafeSetInterruptible(interruptible)
@@ -2426,12 +2439,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     val enableRoots  = runtimeFlags.contains(RuntimeFlag.EnableCurrentFiber)
 
     parentScope.unsafeAdd(enableRoots, childFiber)(trace)
-
-    val currentExecutor = fiberState.unsafeGetCurrentExecutor()
-
-    currentExecutor.unsafeSubmitOrThrow { () =>
-      childFiber.start(effect)
-    }
 
     childFiber
   }

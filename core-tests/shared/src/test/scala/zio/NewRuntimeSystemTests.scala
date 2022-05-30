@@ -8,6 +8,7 @@ object NewRuntimeSystemTests {
   }
 
   def test(name: String)(task: Task[Any]): Unit = {
+    println("*****************************************")
     print(s"$name...")
     try {
       task.run()
@@ -22,6 +23,9 @@ object NewRuntimeSystemTests {
         t.printStackTrace()
     }
   }
+
+  def testN(n: Int)(name: String)(task: Task[Any]): Unit =
+    (1 to n).foreach(_ => test(name)(task))
 
   def helloWorld() =
     test("Hello World") {
@@ -48,12 +52,13 @@ object NewRuntimeSystemTests {
   }
 
   def race() =
-    test("race") {
+    testN(100)("race") {
       ZIO.unit.race(ZIO.unit)
     }
 
-  def main(args: Array[String]): Unit =
+  def main(args: Array[String]): Unit = {
     // helloWorld()
     // fib()
     race()
+  }
 }

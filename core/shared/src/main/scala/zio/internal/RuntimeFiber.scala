@@ -92,6 +92,12 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
   def start[R1, E1, A1](effect: ZIO[R1, E1, A1]): Exit[E, A] =
     outerRunLoop(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, 1000)
 
+  def startBackground[R1, E1, A1](effect: ZIO[R1, E1, A1]): Unit = {
+    val currentExecutor = self.unsafeGetCurrentExecutor()
+
+    currentExecutor.unsafeSubmitOrThrow(() => start(effect))
+  }
+
   @tailrec
   final def outerRunLoop(
     effect0: ZIO[Any, Any, Any],

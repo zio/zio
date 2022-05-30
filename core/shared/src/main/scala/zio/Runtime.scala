@@ -216,13 +216,17 @@ trait Runtime[+R] { self =>
       fiber
     )
 
-    fiber.unsafeForeachSupervisor { supervisor =>
-      supervisor.unsafeOnStart(environment, zio, None, fiber)
+    println(s"Started fiber ${fiberId.threadName} from Runtime.unsafeRun - ${trace}")
 
-      fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
+    fiber.unsafeForeachSupervisor { supervisor =>
+      if (supervisor != Supervisor.none) {
+        supervisor.unsafeOnStart(environment, zio, None, fiber)
+
+        fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
+      }
     }
 
-    fiber.unsafeAddObserver { exit =>
+    fiber.unsafeAddObserver { exit =>      
       k(exit, fiber.unsafeGetFiberRefs())
     }
 
