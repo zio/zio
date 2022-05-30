@@ -18,11 +18,10 @@ ZIO JSON is a library that provides facilities for writing efficient JSON encode
 
 ## Adding Dependencies
 
-We require to add the `zio-json` for the core functionality and the `zio-json-macros` for the automatic derivation of decoders and encoders:
+To use ZIO JSON, we need to add the following dependency to our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-json"        % "0.3.0-RC8"
-libraryDependencies += "dev.zio" %% "zio-json-macros" % "0.3.0-RC8"
+libraryDependencies += "dev.zio" %% "zio-json" % "0.3.0-RC8"
 ```
 
 ## JsonEncoder and JsonDecoder
@@ -87,14 +86,13 @@ test("decode from optional value") {
   val json = "null"
   val decoded = JsonDecoder[Option[Int]].decodeJson(json)
   assertTrue(decoded == Right(None))
-}
-
+} +
 test("decode from array of ints") {
   val json    = "[1, 2, 3]"
   val decoded = json.fromJson[Array[Int]]
 
   assert(decoded)(isRight(equalTo(Array(1, 2, 3))))
-},
+}
 ```
 
 ## How to Define Custom Decoder/Encoder?
@@ -107,6 +105,9 @@ For example, if we have a type `Person` we can create instances of `JsonEncoder`
 
 ```scala mdoc:compile-only
 import zio.json._
+import zio.json.internal.{Write, RetractReader}
+
+case class Person(name: String, age: Int)
 
 object Person {
   implicit val encoder: JsonEncoder[Person] =
@@ -198,13 +199,10 @@ test("writing decoder and encoder using macro") {
 }
 ```
 
-Note that to use these macros, we need to include the `zio-json-macros` dependency in our `build.sbt` file.
-
-Assume we have a data type `Fruit` that is written as follows:
+Let's try a more complex example. Assume we have a data type `Fruit` that is written as follows:
 
 ```scala mdoc:silent
-sealed trait Fruit
-
+sealed trait Fruit extends Product with Serializable
 case class Banana(curvature: Double) extends Fruit
 case class Apple (poison: Boolean)   extends Fruit
 ```
