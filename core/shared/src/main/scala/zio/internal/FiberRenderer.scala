@@ -38,7 +38,7 @@ private[zio] object FiberRenderer {
       (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
       (s"${millis}ms")
     val waitMsg = dump.status match {
-      case Suspended(_, _, _, blockingOn, _) =>
+      case Suspended(_, _, blockingOn, _) =>
         if (blockingOn ne FiberId.None) "waiting on " + s"#${blockingOn.ids.mkString(", ")}" else ""
       case _ => ""
     }
@@ -55,11 +55,10 @@ private[zio] object FiberRenderer {
     status match {
       case Done       => "Done"
       case Running(b) => "Running(" + (if (b) "interrupting" else "") + ")"
-      case Suspended(_, interruptible, epoch, _, asyncTrace) =>
+      case Suspended(_, interruptible, _, asyncTrace) =>
         val in = if (interruptible) "interruptible" else "uninterruptible"
-        val ep = s"$epoch asyncs"
         val as = asyncTrace.toString
-        s"Suspended($in, $ep, $as)"
+        s"Suspended($in, $as)"
     }
 
 }

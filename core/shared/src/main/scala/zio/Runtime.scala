@@ -226,7 +226,7 @@ trait Runtime[+R] { self =>
       }
     }
 
-    fiber.unsafeAddObserver { exit =>      
+    fiber.unsafeAddObserver { exit =>
       k(exit, fiber.unsafeGetFiberRefs())
     }
 

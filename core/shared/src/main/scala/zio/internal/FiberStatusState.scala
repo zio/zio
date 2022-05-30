@@ -53,18 +53,16 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
   }
 
   @tailrec
-  final def attemptResume(asyncs: Int): Boolean = {
+  final def attemptResume(): Unit = {
     val oldFlags  = getIndicator()
-    val oldAsyncs = FiberStatusIndicator.getAsyncs(oldFlags)
     val oldStatus = FiberStatusIndicator.getStatus(oldFlags)
 
-    if (asyncs != oldAsyncs || oldStatus != FiberStatusIndicator.Status.Suspended) false
-    else {
-      val newFlags = FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Running)
+    assert(FiberStatusIndicator.getStatus(oldFlags) == FiberStatusIndicator.Status.Running)
 
-      if (!ref.compareAndSet(oldFlags, newFlags)) attemptResume(asyncs)
-      else true
-    }
+    val newFlags = FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Running)
+
+    if (!ref.compareAndSet(oldFlags, newFlags)) attemptResume()
+    else ()
   }
 
   @tailrec
@@ -96,8 +94,6 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
     else ()
   }
 
-  final def getAsyncs(): Int = FiberStatusIndicator.getAsyncs(getIndicator())
-
   final def getIndicator(): FiberStatusIndicator = ref.get.asInstanceOf[FiberStatusIndicator]
 
   final def getInterruptible(): Boolean = FiberStatusIndicator.getInterruptible(getIndicator())
@@ -118,16 +114,15 @@ final class FiberStatusState(val ref: AtomicInteger) extends AnyVal {
   }
 
   @tailrec
-  final def enterSuspend(): Int = {
-    val oldFlags  = getIndicator()
-    val oldAsyncs = FiberStatusIndicator.getAsyncs(oldFlags)
-    val newAsyncs = oldAsyncs + 1
+  final def enterSuspend(): Unit = {
+    val oldFlags = getIndicator()
     val newFlags =
-      FiberStatusIndicator
-        .withAsyncs(FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Suspended), newAsyncs)
+      FiberStatusIndicator.withStatus(oldFlags, FiberStatusIndicator.Status.Suspended)
+
+    assert(FiberStatusIndicator.getStatus(oldFlags) == FiberStatusIndicator.Status.Running)
 
     if (!ref.compareAndSet(oldFlags, newFlags)) enterSuspend()
-    else newAsyncs
+    else ()
   }
 
   final def getStatus(): FiberStatusIndicator.Status = FiberStatusIndicator.getStatus(getIndicator())

@@ -56,9 +56,8 @@ object NewRuntimeSystemTests {
       ZIO.unit.race(ZIO.unit)
     }
 
-  def main(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit =
     // helloWorld()
     // fib()
     race()
-  }
 }

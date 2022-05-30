@@ -20,14 +20,13 @@ object FiberStatusIndicator {
     status: Status,
     messages: Boolean,
     interrupting: Boolean,
-    interruptible: Boolean,
-    asyncs: Int
+    interruptible: Boolean
   ): FiberStatusIndicator =
-    (status + (asyncs << AsyncsShift) + ((if (interrupting) 1 else 0) << InterruptingShift)
+    (status + ((if (interrupting) 1 else 0) << InterruptingShift)
       + ((if (interruptible) 1 else 0) << InterruptibleShift)
       + ((if (messages) 1 else 0) << MessagesShift)).asInstanceOf[FiberStatusIndicator]
 
-  def initial: FiberStatusIndicator = FiberStatusIndicator(Status.Running, false, false, true, 0)
+  val initial: FiberStatusIndicator = FiberStatusIndicator(Status.Running, false, false, true)
 
   type Status <: Int
   object Status {
@@ -61,14 +60,7 @@ object FiberStatusIndicator {
   final val PendingMessagesMask  = 0xff << PendingMessagesShift
   final val PendingMessagesMaskN = ~PendingMessagesMask
 
-  final val AsyncsShift = PendingMessagesShift + PendingMessagesSize
-  final val AsyncsSize  = 32 - (StatusSize + MessagesSize + InterruptingSize + InterruptibleSize + PendingMessagesSize)
-  final val AsyncsMask  = 0x7ffff << AsyncsShift
-  final val AsyncsMaskN = ~AsyncsMask
-
   def getStatus(flags: FiberStatusIndicator): Status = ((flags & StatusMask) >> StatusShift).asInstanceOf[Status]
-
-  def getAsyncs(flags: FiberStatusIndicator): Int = (flags & AsyncsMask) >> AsyncsShift
 
   def getInterruptible(flags: FiberStatusIndicator): Boolean = (flags & InterruptibleMask) != 0
 
@@ -78,9 +70,6 @@ object FiberStatusIndicator {
 
   def getPendingMessages(flags: FiberStatusIndicator): Int =
     (flags & PendingMessagesMask) >> PendingMessagesShift
-
-  def withAsyncs(flags: FiberStatusIndicator, asyncs: Int): FiberStatusIndicator =
-    ((asyncs << AsyncsShift) | (flags & AsyncsMaskN)).asInstanceOf[FiberStatusIndicator]
 
   def withInterruptible(flags: FiberStatusIndicator, interruptible: Boolean): FiberStatusIndicator =
     (((if (interruptible) 1 else 0) << InterruptibleShift) | (flags & InterruptibleMaskN))

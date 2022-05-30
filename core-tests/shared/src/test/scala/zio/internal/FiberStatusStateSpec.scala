@@ -15,7 +15,6 @@ object FiberStatusStateSpec extends ZIOBaseSpec {
 
         assertTrue(state.getStatus() == Status.Running) &&
         assertTrue(state.clearMessages() == false) &&
-        assertTrue(state.getAsyncs() == 0) &&
         assertTrue(state.getInterruptible() == true) &&
         assertTrue(state.getInterrupting() == false)
       } +
@@ -50,55 +49,42 @@ object FiberStatusStateSpec extends ZIOBaseSpec {
           state.setInterrupting(true)
           assertTrue(state.getInterrupting() == true)
         } +
-        test("enterSuspend(false)") {
+        test("enterSuspend uninterruptible") {
           val state = make()
 
           state.setInterruptible(false)
-          val result = state.enterSuspend()
+          state.enterSuspend()
 
-          assertTrue(result == 1) &&
-          assertTrue(state.getAsyncs() == 1) &&
           assertTrue(state.getInterruptible() == false)
         } +
-        test("enterSuspend(true)") {
+        test("enterSuspend interruptible") {
           val state = make()
 
           state.setInterruptible(true)
-          val result = state.enterSuspend()
+          state.enterSuspend()
 
-          assertTrue(result == 1) &&
-          assertTrue(state.getAsyncs() == 1) &&
           assertTrue(state.getInterruptible() == true)
         } +
         test("attemptResume - success") {
           val state = make()
 
           state.setInterruptible(true)
-          val result = state.enterSuspend()
+          state.enterSuspend()
+          state.attemptResume()
 
-          assertTrue(state.attemptResume(result) == true) &&
           assertTrue(state.getStatus() == Status.Running)
-        } +
-        test("attemptResume - failure due to wrong async") {
-          val state = make()
-
-          state.setInterruptible(true)
-          val result = state.enterSuspend()
-
-          assertTrue(state.attemptResume(result + 1) == false) &&
-          assertTrue(state.getStatus() == Status.Suspended)
         } +
         test("attemptResume - failure due to already resumed") {
           val state = make()
 
           state.setInterruptible(true)
-          val result = state.enterSuspend()
+          state.enterSuspend()
 
           state.ref.set(
             FiberStatusIndicator.withStatus(state.ref.get().asInstanceOf[FiberStatusIndicator], Status.Running)
           )
 
-          assertTrue(state.attemptResume(result) == false)
+          assertTrue(scala.util.Try(state.attemptResume()).isFailure == true)
         } +
         test("attemptAsyncInterrupt - success") {
           val state = make()

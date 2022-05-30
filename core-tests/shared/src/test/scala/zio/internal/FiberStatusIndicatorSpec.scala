@@ -10,7 +10,6 @@ object FiberStatusIndicatorSpec extends ZIOBaseSpec {
     suite("FiberStatusIndicatorSpec") {
       test("initial state") {
         assertTrue(getStatus(initial) == Status.Running) &&
-        assertTrue(getAsyncs(initial) == 0) &&
         assertTrue(getMessages(initial) == false) &&
         assertTrue(getInterrupting(initial) == false) &&
         assertTrue(getInterruptible(initial) == true) &&
@@ -42,13 +41,6 @@ object FiberStatusIndicatorSpec extends ZIOBaseSpec {
           val isTrue = withInterruptible(initial, true)
 
           assertTrue(getInterruptible(withInterruptible(isTrue, false)) == false)
-        } +
-        test("increment asyncs") {
-          val newIndicator =
-            (1 to 100).foldLeft(initial) { case (indicator, _) =>
-              withAsyncs(indicator, getAsyncs(indicator) + 1)
-            }
-          assertTrue(getAsyncs(newIndicator) == 100)
         } +
         test("change messages to true") {
           assertTrue(getMessages(withMessages(initial, true)) == true)

@@ -502,12 +502,13 @@ object Fiber extends FiberPlatformSpecific {
     def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
       trace: Trace
     ): ZIO[R, E2, A2] =
-      for {
-        r <- ZIO.environment[R]
-        p <- Promise.make[E2, A2]
-        _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
-        a <- p.await
-      } yield a
+      ZIO.environmentWithZIO[R](r =>
+        for {
+          p <- Promise.make[E2, A2]
+          _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
+          a <- p.await
+        } yield a
+      )
 
     /**
      * The identity of the fiber.
@@ -600,7 +601,6 @@ object Fiber extends FiberPlatformSpecific {
     final case class Suspended(
       interrupting: Boolean,
       interruptible: Boolean,
-      asyncs: Long,
       blockingOn: FiberId,
       asyncTrace: Trace
     ) extends Status {

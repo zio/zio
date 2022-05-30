@@ -123,12 +123,13 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
         outerRunLoop(trampoline.effect, trampoline.stack.result(), maxDepth)
 
       case asyncJump: AsyncJump =>
-        val epoch = unsafeEnterSuspend()
+        unsafeEnterSuspend()
 
         asyncJump.registerCallback { value =>
-          if (unsafeAttemptResume(epoch)) {
-            asyncResume(value, asyncJump.stack.result(), maxDepth)
-          }
+          unsafeAttemptResume()
+
+          // FIXME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          asyncResume(value, asyncJump.stack.result(), maxDepth)
         }
 
         null

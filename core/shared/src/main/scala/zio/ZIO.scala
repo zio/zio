@@ -2444,7 +2444,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     val childFiber = internal.RuntimeFiber[E1, A](childId, childFiberRefs)
 
-    println(s"Started fiber ${childId.threadName} (forked from ${fiberState.id.threadName} - ${trace}) from ZIO.unsafeFork")
+    println(
+      s"Started fiber ${childId.threadName} (forked from ${fiberState.id.threadName} - ${trace}) from ZIO.unsafeFork"
+    )
 
     // Child inherits interruptibility status of parent fiber:
     childFiber.unsafeSetInterruptible(interruptible)

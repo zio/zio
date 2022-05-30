@@ -95,9 +95,8 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   /**
    * Adds an observer to the list of observers.
    */
-  final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit = {
+  final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit =
     observers = observer :: observers
-  }
 
   final def unsafeAddObserverMaybe(k: Exit[E, A] => Unit): Exit[E, A] =
     unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k))(Trace.empty), unsafeExitValue())
@@ -159,7 +158,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
           case t: Throwable => println(s"Error notifying observer: ${t}"); throw t
         }
       }
-      observers = Nil 
+      observers = Nil
       println(s"fiber ${fiberId.threadName} done notifying observers with ${e}")
       null.asInstanceOf[UIO[Any]]
     } else {
@@ -169,19 +168,15 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   }
 
   /**
-   * Attempts to place the state of the fiber into running, from a previous
-   * suspended state, identified by the async count.
-   *
-   * Returns `true` if the state was successfully transitioned, or `false` if it
-   * cannot be transitioned, because the fiber state was already resumed or even
-   * completed.
+   * Places the state of the fiber into running, from a previous suspended
+   * state.
    */
-  final def unsafeAttemptResume(asyncs: Int): Boolean = {
-    val resumed = statusState.attemptResume(asyncs)
+  final def unsafeAttemptResume(): Unit = {
+    statusState.attemptResume()
 
-    if (resumed) suspension = null
+    suspension = null // FIXME
 
-    resumed
+    ()
   }
 
   final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
@@ -207,7 +202,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   /**
    * Changes the state to be suspended.
    */
-  final def unsafeEnterSuspend(): Int =
+  final def unsafeEnterSuspend(): Unit =
     statusState.enterSuspend()
 
   final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A): A =
@@ -221,12 +216,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
 
   final def unsafeForeachSupervisor(f: Supervisor[Any] => Unit): Unit =
     fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach(f)
-
-  /**
-   * Retrieves the current number of async suspensions of the fiber, which can
-   * be used to uniquely identify each suspeension.
-   */
-  final def unsafeGetAsyncs(): Int = statusState.getAsyncs()
 
   final def unsafeGetChildren(): JavaSet[RuntimeFiber[_, _]] = {
     if (_children eq null) {
@@ -370,11 +359,10 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     else if (status == Status.Running) zio.Fiber.Status.Running(interrupting)
     else {
       val interruptible = FiberStatusIndicator.getInterruptible(indicator)
-      val asyncs        = FiberStatusIndicator.getAsyncs(indicator)
       val blockingOn    = if (suspension eq null) FiberId.None else suspension.blockingOn
       val asyncTrace    = if (suspension eq null) Trace.empty else suspension.location
 
-      zio.Fiber.Status.Suspended(interrupting, interruptible, asyncs.toLong, blockingOn, asyncTrace)
+      zio.Fiber.Status.Suspended(interrupting, interruptible, blockingOn, asyncTrace)
     }
   }
 }
