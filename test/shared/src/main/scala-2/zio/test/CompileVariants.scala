@@ -16,7 +16,8 @@
 
 package zio.test
 
-import zio.{UIO, ZIO, Trace}
+import zio.internal.stacktracer.SourceLocation
+import zio.{Trace, UIO, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait CompileVariants {
@@ -46,6 +47,7 @@ trait CompileVariants {
    * Checks the assertion holds for the given effectfully-computed value.
    */
   def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
+    sourceLocation: SourceLocation,
     trace: Trace
   ): ZIO[R, E, TestResult] =
     Assertion.smartAssertZIO(effect)(assertion)
@@ -60,11 +62,11 @@ object CompileVariants {
 
   def newAssertProxy[A](value: => A, codeString: String, assertionString: String)(
     assertion: Assertion[A]
-  )(implicit trace: Trace): TestResult =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     zio.test.assertImpl(value, Some(codeString), Some(assertionString))(assertion)
 
   def assertZIOProxy[R, E, A](effect: ZIO[R, E, A])(
     assertion: Assertion[A]
-  )(implicit trace: Trace): ZIO[R, E, TestResult] =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[R, E, TestResult] =
     zio.test.assertZIOImpl(effect)(assertion)
 }

@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.equalTo
 import zio.test.ReporterEventRenderer.IntelliJEventRenderer
 import zio.test.ReportingTestUtils._
@@ -40,17 +41,17 @@ object IntellijRendererSpec extends ZIOBaseSpec {
       }
     ) @@ TestAspect.scala2Only
 
-  def test1Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test1Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFinished("Addition works fine")
   )
 
-  def test2Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test2Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Subtraction works fine"),
     testFinished("Subtraction works fine")
   )
 
-  def test3Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test3Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Value falls within range"),
     testFailed(
       "Value falls within range",
@@ -65,32 +66,32 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def suite1Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite1Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite1")
   ) ++ test1Expected ++ test2Expected ++
     Vector(
       suiteFinished("Suite1")
     )
 
-  def suite2Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite2Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite2")
   ) ++ test1Expected ++ test2Expected ++ test3Expected ++
     Vector(
       suiteFinished("Suite2")
     )
 
-  def suite3Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite3Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite3")
   ) ++ suite1Expected ++ suite2Expected ++ test3Expected ++ Vector(
     suiteFinished("Suite3")
   )
 
-  def suite4Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite4Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite4")
   ) ++ suite1Expected ++ Vector(suiteStarted("Empty"), suiteFinished("Empty")) ++
     test3Expected ++ Vector(suiteFinished("Suite4"))
 
-  def test5Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFailed(
       "Addition works fine",
@@ -104,7 +105,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def test6Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test6Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Multiple nested failures"),
     testFailed(
       "Multiple nested failures",
@@ -120,7 +121,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def test7Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test7Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("labeled failures"),
     testFailed(
       "labeled failures",
@@ -136,7 +137,7 @@ object IntellijRendererSpec extends ZIOBaseSpec {
     )
   )
 
-  def test8Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test8Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Not combinator"),
     testFailed(
       "Not combinator",
@@ -158,14 +159,8 @@ object IntelliJRenderUtils {
   def suiteFinished(name: String): String =
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
-  def testStarted(name: String)(implicit trace: Trace): String = {
-    val location = Option(trace).collect { case Trace(_, file, line) =>
-      (file, line)
-    }
-
-    val loc = location.fold("") { case (file, line) => s"file://$file:$line" }
-    s"##teamcity[testStarted name='$name' locationHint='$loc' captureStandardOutput='true']" + "\n"
-  }
+  def testStarted(name: String)(implicit sourceLocation: SourceLocation): String =
+    s"##teamcity[testStarted name='$name' locationHint='file://${sourceLocation.path}:${sourceLocation.line}' captureStandardOutput='true']" + "\n"
 
   def testFinished(name: String): String =
     s"##teamcity[testFinished name='$name' duration='']" + "\n"
@@ -173,7 +168,7 @@ object IntelliJRenderUtils {
   def testFailed(name: String, error: Vector[String]): String =
     s"##teamcity[testFailed name='$name' message='Assertion failed:' details='${escape(error.mkString)}']" + "\n"
 
-  def containsUnstyled(string: String, substring: String)(implicit trace: Trace): TestResult =
+  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult =
     assertTrue(unstyled(string).contains(unstyled(substring)))
 
   def unstyled(str: String): String =
@@ -183,7 +178,7 @@ object IntelliJRenderUtils {
 
   def runLog(
     spec: Spec[TestEnvironment, String]
-  )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       console <- ZIO.console
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, IntelliJEventRenderer))

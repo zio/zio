@@ -1,8 +1,9 @@
 package zio.test
 
 import zio.internal.ansi.AnsiStringOps
+import zio.internal.stacktracer.SourceLocation
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Cause, Exit, ZIO, Trace}
+import zio.{Cause, Exit, Trace, ZIO}
 import zio.test.{ErrorMessage => M, _}
 import zio.test.internal.SmartAssertions
 
@@ -25,7 +26,7 @@ final case class Assertion[-A](arrow: TestArrow[A, Boolean]) { self =>
   def negate: Assertion[A] =
     Assertion(!arrow)
 
-  def test(value: A)(implicit trace: Trace): Boolean =
+  def test(value: A)(implicit trace: Trace, sourceLocation: SourceLocation): Boolean =
     TestArrow.run(arrow.withLocation, Right(value)).isSuccess
 
   // TODO: IMPLEMENT LABELING
@@ -51,7 +52,7 @@ object Assertion extends AssertionVariants {
     assertionString: Option[String] = None
   )(
     assertion: Assertion[A]
-  )(implicit trace: Trace): TestResult = {
+  )(implicit trace: Trace, sourceLocation: SourceLocation): TestResult = {
     lazy val value0 = expr
     val completeString =
       codeString.flatMap(code =>

@@ -1,14 +1,15 @@
 package zio.test
 
 import zio.internal.macros.StringUtils.StringOps
+import zio.internal.stacktracer.SourceLocation
 import zio.test.ReportingTestUtils._
 import zio.test.TestAspect._
 import zio.test.render.ConsoleRenderer
-import zio.{StackTrace, Trace, ZIO}
+import zio.{StackTrace, ZIO}
 
 object ConsoleTestOutputSpec extends ZIOBaseSpec {
 
-  def containsUnstyled(string: String, substring: String)(implicit trace: Trace): TestResult =
+  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult =
     assertTrue(string.unstyled.contains(substring.unstyled))
 
   def spec =

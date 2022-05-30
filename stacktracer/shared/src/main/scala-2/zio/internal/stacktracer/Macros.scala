@@ -12,7 +12,7 @@ object Macros {
     import c.universe._
     val pos = c.macroApplication.pos
     q"""
-      new zio.internal.stacktracer.SourceLocation(
+      _root_.zio.internal.stacktracer.SourceLocation(
         path = ${pos.source.file.path},
         line = ${pos.line}
       )
