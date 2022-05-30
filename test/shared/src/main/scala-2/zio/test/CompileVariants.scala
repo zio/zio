@@ -17,8 +17,8 @@
 package zio.test
 
 import zio.internal.stacktracer.SourceLocation
-import zio.{Trace, UIO, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Trace, UIO, ZIO}
 
 trait CompileVariants {
 
@@ -47,8 +47,8 @@ trait CompileVariants {
    * Checks the assertion holds for the given effectfully-computed value.
    */
   def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A])(implicit
-    sourceLocation: SourceLocation,
-    trace: Trace
+    trace: Trace,
+    sourceLocation: SourceLocation
   ): ZIO[R, E, TestResult] =
     Assertion.smartAssertZIO(effect)(assertion)
 
