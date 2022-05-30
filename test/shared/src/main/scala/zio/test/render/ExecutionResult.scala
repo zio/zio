@@ -29,7 +29,8 @@ case class ExecutionResult(
   offset: Int,
   annotations: List[TestAnnotationMap],
   streamingLines: List[Line],
-  summaryLines: List[Line]
+  summaryLines: List[Line],
+  duration: Option[Long]
 ) {
   self =>
 
@@ -71,7 +72,8 @@ object ExecutionResult {
     status: Status,
     offset: Int,
     annotations: List[TestAnnotationMap],
-    lines: List[Line]
+    lines: List[Line],
+    duration: Option[Long]
   ): ExecutionResult =
     ExecutionResult(
       resultType,
@@ -80,7 +82,8 @@ object ExecutionResult {
       offset,
       annotations,
       lines,
-      lines // Re-uses lines when we don't have summary-specific output
+      lines, // Re-uses lines when we don't have summary-specific output,
+      duration
     )
 
   sealed abstract class Status

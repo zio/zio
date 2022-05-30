@@ -1,10 +1,9 @@
 package zio.test
 
 import zio.test.Assertion.equalTo
-import zio.test.ReporterEventRenderer.IntelliJEventRenderer
 import zio.test.ReportingTestUtils._
 import zio.test.render.IntelliJRenderer
-import zio.{ExecutionStrategy, Scope, Trace, ZIO}
+import zio.{Chunk, ExecutionStrategy, Scope, Trace, ZIO}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -168,7 +167,7 @@ object IntelliJRenderUtils {
   }
 
   def testFinished(name: String): String =
-    s"##teamcity[testFinished name='$name' duration='']" + "\n"
+    s"##teamcity[testFinished name='$name' duration='0']" + "\n"
 
   def testFailed(name: String, error: Vector[String]): String =
     s"##teamcity[testFailed name='$name' message='Assertion failed:' details='${escape(error.mkString)}']" + "\n"
@@ -181,12 +180,25 @@ object IntelliJRenderUtils {
       .replaceAll("\u001B\\|\\[\\d+m", "")
       .replaceAll("\\|n", "\n")
 
+  object TestRenderer extends ReporterEventRenderer {
+    override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] = {
+      val event = executionEvent match {
+        case t @ ExecutionEvent.Test(_, _, _, _, _, _) => t.copy(duration = 0L)
+        case other                                     => other
+      }
+      Chunk.fromIterable(
+        IntelliJRenderer
+          .render(event, includeCause = false)
+      )
+    }
+  }
+
   def runLog(
     spec: Spec[TestEnvironment, String]
   )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
       console <- ZIO.console
-      _ <- TestTestRunner(testEnvironment, sinkLayer(console, IntelliJEventRenderer))
+      _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
              .run(spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
     } yield output.mkString

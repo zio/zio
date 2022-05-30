@@ -44,7 +44,8 @@ trait ConsoleRenderer extends TestRenderer {
                 Status.Passed,
                 offset = depth,
                 List(TestAnnotationMap.empty), // TODO Examine all results to get this
-                lines = List(fr(nonEmptyList.last).toLine)
+                lines = List(fr(nonEmptyList.last).toLine),
+                duration = None
               )
             )
         }
@@ -70,7 +71,8 @@ trait ConsoleRenderer extends TestRenderer {
             initialDepth,
             List(annotations),
             streamingOutput,
-            summaryOutput
+            summaryOutput,
+            duration = None
           )
         )
       case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
@@ -174,7 +176,8 @@ trait ConsoleRenderer extends TestRenderer {
   import zio.duration2DurationOps
   def renderSummary(summary: Summary): String =
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
-       |Executed in ${summary.duration.render}""".stripMargin
+       |Executed in ${summary.duration.render}
+       |""".stripMargin
 
   def render(cause: Cause[_], labels: List[String]): Option[String] =
     cause match {

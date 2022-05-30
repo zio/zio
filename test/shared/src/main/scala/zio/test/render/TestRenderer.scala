@@ -227,7 +227,7 @@ trait TestRenderer {
     offset: Int,
     lines: Line*
   ): ExecutionResult =
-    ExecutionResult(caseType, label, result, offset, Nil, lines.toList, lines.toList)
+    ExecutionResult(caseType, label, result, offset, Nil, lines.toList, lines.toList, None)
 
   def renderedWithSummary(
     caseType: ResultType,
@@ -237,5 +237,5 @@ trait TestRenderer {
     lines: List[Line],
     summaryLines: List[Line]
   ): ExecutionResult =
-    ExecutionResult(caseType, label, result, offset, Nil, lines, summaryLines)
+    ExecutionResult(caseType, label, result, offset, Nil, lines, summaryLines, None)
 }

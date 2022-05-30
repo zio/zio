@@ -7,7 +7,7 @@ object ExecutionEvent {
     test: Either[TestFailure[E], TestSuccess],
     annotations: TestAnnotationMap,
     ancestors: List[SuiteId],
-    duration: Long = 0L,
+    duration: Long,
     id: SuiteId
   ) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
