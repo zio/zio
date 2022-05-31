@@ -489,28 +489,6 @@ object Fiber extends FiberPlatformSpecific {
       } yield Fiber.Dump(self.id, status, trace)
 
     /**
-     * Evaluates the specified effect on the fiber. If this is not possible,
-     * because the fiber has already ended life, then the specified alternate
-     * effect will be executed instead.
-     */
-    def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: Trace): UIO[Unit]
-
-    /**
-     * A fully-featured, but much slower version of `evalOn`, which is useful
-     * when environment and error are required.
-     */
-    def evalOnZIO[R, E2, A2](effect: ZIO[R, E2, A2], orElse: ZIO[R, E2, A2])(implicit
-      trace: Trace
-    ): ZIO[R, E2, A2] =
-      ZIO.environmentWithZIO[R](r =>
-        for {
-          p <- Promise.make[E2, A2]
-          _ <- evalOn(effect.provideEnvironment(r).intoPromise(p), orElse.provideEnvironment(r).intoPromise(p))
-          a <- p.await
-        } yield a
-      )
-
-    /**
      * The identity of the fiber.
      */
     override def id: FiberId.Runtime

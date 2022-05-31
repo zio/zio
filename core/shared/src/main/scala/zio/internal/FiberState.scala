@@ -26,30 +26,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 final case class FiberSuspension(blockingOn: FiberId, location: Trace)
 
-trait FiberMessage {
-  private[zio] def effect: ZIO[Any, Any, Any]
-  private[zio] def stack: Chunk[ZIO.EvaluationStep]
-  private[zio] def interruptible: Boolean
-}
+sealed trait FiberMessage
 object FiberMessage {
-  def apply[R, E, A](effect0: ZIO[R, E, A], stack0: Chunk[ZIO.EvaluationStep], interruptible0: Boolean): FiberMessage =
-    new FiberMessage {
-      val effect: ZIO[Any, Any, Any] = effect0.asInstanceOf[ZIO[Any, Any, Any]]
-      val stack: Chunk[ZIO.EvaluationStep] = stack0
-      val interruptible: Boolean = interruptible0
-    }
-
-  def fromEffect[R, E, A](effect0: ZIO[R, E, A]): FiberMessage =
-    new FiberMessage {
-      val effect: ZIO[Any, Any, Any] = effect0.asInstanceOf[ZIO[Any, Any, Any]]
-      val stack: Chunk[ZIO.EvaluationStep] = Chunk.empty
-    }
-
-  def fromContinuation[R, E, A](effect0: ZIO[R, E, A], stack0: Chunk[ZIO.EvaluationStep]): FiberMessage =
-    new FiberMessage {
-      val effect: ZIO[Any, Any, Any] = effect0.asInstanceOf[ZIO[Any, Any, Any]]
-      val stack: Chunk[ZIO.EvaluationStep] = stack0
-    }
+  final case class InterruptSignal(cause: Cause[Nothing]) extends FiberMessage
+  final case class GenStackTrace(onTrace: StackTrace => Unit) extends FiberMessage
+  final case class Stateful(onFiber: RuntimeFiber[Any, Any] => Unit) extends FiberMessage
+  final case class Resume(zio: ZIO[Any, Any, Any], stack: Chunk[ZIO.EvaluationStep]) extends FiberMessage
 }
 
 abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs) extends Fiber.Runtime.Internal[E, A] {
@@ -60,13 +42,12 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   private var fiberRefs  = fiberRefs0
   private var observers  = Nil: List[Exit[E, A] => Unit]
   private var suspension = null.asInstanceOf[FiberSuspension]
+  private[zio] var asyncStack = Chunk.empty[ZIO.EvaluationStep]
 
   protected val fiberId = fiberId0
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
-  final def evalOn(effect: UIO[Any])(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed(queue.add(FiberMessage.fromEffect(effect)))
 
   final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[_, _]])
 
@@ -100,9 +81,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    */
   final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit =
     observers = observer :: observers
-
-  final def unsafeAddObserverMaybe(k: Exit[E, A] => Unit): Exit[E, A] =
-    unsafeEvalOn(ZIO.succeed(unsafeAddObserver(k))(Trace.empty), unsafeExitValue())
 
   /**
    * Attempts to place the state of the fiber in interruption, but only if the
@@ -170,8 +148,8 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeEnterSuspend(): Unit =
     statusState.enterSuspend()
 
-  final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A): A =
-    if (queue.add(FiberMessage.fromEffect(effect))) null.asInstanceOf[A] else orElse
+  final def unsafeEvalOn[A](f: RuntimeFiber[Any, Any] => Unit): Unit =
+    queue.add(FiberMessage.Stateful(f)) // TODO: Resume
 
   /**
    * Retrieves the exit value of the fiber state, which will be `null` if not
