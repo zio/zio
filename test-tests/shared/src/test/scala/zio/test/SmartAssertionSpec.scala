@@ -71,6 +71,18 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val myString = "something"
       assertTrue(myString.contains("aoseunoth") && myString == "coool")
     } @@ failing,
+    test("or succeeds if lhs side succeeds") {
+      val myOption = Option.empty[Int]
+      assertTrue(myOption.isEmpty || myOption.get == 1)
+    },
+    test("or succeeds if rhs side succeeds") {
+      val myOption = Option.empty[Int]
+      assertTrue(myOption.get == 1 || myOption.isEmpty)
+    },
+    test("or fails if both sides fail") {
+      val myOption = Option.empty[Int]
+      assertTrue(myOption.get == 1 || myOption.get == 2)
+    } @@ failing,
     suite("referencing literals")(
       test("List") {
         val list = List(10, 23, 8, 8)

@@ -197,7 +197,12 @@ object Trace {
   }
 
   private[test] case class Or(left: Trace[Boolean], right: Trace[Boolean]) extends Trace[Boolean] {
-    override def result: Result[Boolean] = left.result.zipWith(right.result)(_ || _)
+    override def result: Result[Boolean] =
+      (left.result, right.result) match {
+        case (Result.Succeed(true), _) => Result.succeed(true)
+        case (_, Result.Succeed(true)) => Result.succeed(true)
+        case (a, b) => a.zipWith(b)(_ || _)
+      }
   }
 
   private[test] case class Not(trace: Trace[Boolean]) extends Trace[Boolean] {
