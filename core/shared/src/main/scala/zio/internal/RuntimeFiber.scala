@@ -9,13 +9,18 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
 
 import zio._
 
-class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends FiberState[E, A](fiberId, fiberRefs) with Runnable {
+class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs)
+    extends FiberState[E, A](fiberId, fiberRefs)
+    with Runnable {
   self =>
   type Erased = ZIO[Any, Any, Any]
 
   import ZIO._
   import EvaluationStep._
   import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
+
+  private val queue      = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private var asyncStack = Chunk.empty[ZIO.EvaluationStep]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
     ZIO.async[Any, Nothing, Exit[E, A]] { cb =>
@@ -54,8 +59,6 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
         interruptor(interrupt)
       }
     }
-  // type Interruptor = Cause[Nothing] => Unit
-  // case class Async[R, E, A](registerCallback: (ZIO[R, E, A] => Unit) => Unit)
 
   final def location: Trace = fiberId.location
 
@@ -64,24 +67,26 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
       if (self.unsafeIsDone()) Some(self.unsafeExitValue()) else None
     }
 
+  final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[_, _]])
+
   def status(implicit trace: Trace): UIO[zio.Fiber.Status] = ZIO.succeed(self.unsafeGetStatus())
 
-  def trace(implicit trace: Trace): UIO[StackTrace] = 
+  def trace(implicit trace: Trace): UIO[StackTrace] =
     ZIO.suspendSucceed {
       val promise = zio.Promise.unsafeMake[Nothing, StackTrace](fiberId)
 
       tell(FiberMessage.GenStackTrace(trace => promise.unsafeDone(ZIO.succeedNow(trace))))
 
-      promise.await 
+      promise.await
     }
 
-  def ask[A](f: RuntimeFiber[Any, Any] => A)(implicit trace: Trace): UIO[A] = 
+  def ask[A](f: RuntimeFiber[Any, Any] => A)(implicit trace: Trace): UIO[A] =
     ZIO.suspendSucceed {
       val promise = zio.Promise.unsafeMake[Nothing, A](fiberId)
 
       tell(FiberMessage.Stateful(fiber => promise.unsafeDone(ZIO.succeedNow(f(fiber)))))
 
-      promise.await 
+      promise.await
     }
 
   private def assertNonNull(a: Any, message: String, location: Trace): Unit =
@@ -92,78 +97,83 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
   private def assertNonNullContinuation(a: Any, location: Trace): Unit =
     assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
 
-    // unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
-    //   outerRunLoop(effect, stack)
-    // }
+  // unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
+  //   outerRunLoop(effect, stack)
+  // }
 
-  final def tell(message: FiberMessage): Unit = ???
+  final def tell(message: FiberMessage): Unit =
+    queue.add(message) // FIXME: Start
 
-  final def start[R](effect: ZIO[R, E, A]): Unit = {
-    queue.add(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
+  final def unsafeEvalOn[A](f: RuntimeFiber[Any, Any] => Unit): Unit =
+    tell(FiberMessage.Stateful(f)) // TODO: Resume
+
+  final def start[R](effect: ZIO[R, E, A], interruptible: Boolean): Unit = {
+    queue.add(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, interruptible))
 
     runHere()
   }
 
-  final def startBackground[R](effect: ZIO[R, E, A]): Unit = {
-    queue.add(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
+  final def startBackground[R](effect: ZIO[R, E, A], interruptible: Boolean): Unit = {
+    tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, interruptible))
 
     run()
   }
 
-  final def evaluateMessage(fiberMessage: FiberMessage): Unit = 
+  final def evaluateMessage(fiberMessage: FiberMessage): Unit =
     fiberMessage match {
-      case FiberMessage.InterruptSignal(cause)  => self.unsafeAddInterruptedCause(cause)
-      case FiberMessage.GenStackTrace(onTrace)  => onTrace(StackTrace(self.id, self.asyncStack.map(_.trace)))
-      case FiberMessage.Stateful(onFiber)       => onFiber(self.asInstanceOf[RuntimeFiber[Any, Any]])
-      case FiberMessage.Resume(effect, stack)   => evaluateEffect(effect, stack)
+      case FiberMessage.InterruptSignal(cause)               => self.unsafeAddInterruptedCause(cause)
+      case FiberMessage.GenStackTrace(onTrace)               => onTrace(StackTrace(self.id, self.asyncStack.map(_.trace)))
+      case FiberMessage.Stateful(onFiber)                    => onFiber(self.asInstanceOf[RuntimeFiber[Any, Any]])
+      case FiberMessage.Resume(effect, stack, interruptible) => evaluateEffect(effect, stack, interruptible)
     }
 
   final def evaluateEffect(
     effect0: ZIO[Any, Any, Any],
-    stack0: Chunk[EvaluationStep]
+    stack0: Chunk[EvaluationStep],
+    interruptible0: Boolean
   ): Unit = {
-    var effect = effect0
-    var stack  = stack0 
+    var effect        = effect0
+    var stack         = stack0
+    var interruptible = interruptible0
 
     while (effect ne null) {
       try {
-        runLoop(effect, 1000, stack, self.unsafeGetInterruptible())
+        runLoop(effect, 1000, stack, interruptible)
 
-        effect = null 
-        stack  = Chunk.empty 
+        effect = null
       } catch {
-        case end @ ZIO.End(exit) => 
+        case end @ ZIO.End(exit) =>
           self.unsafeAttemptDone(exit.asInstanceOf[Exit[E, A]])
 
-          effect = null 
-          stack  = Chunk.empty 
+          effect = null
 
-        case trampoline: Trampoline => 
-          effect = trampoline.effect 
-          stack  = trampoline.stack.result()
+        case trampoline: Trampoline =>
+          effect = trampoline.effect
+          stack = trampoline.stack.result()
+          interruptible = trampoline.interruptible
 
         case asyncJump: AsyncJump =>
           val nextStack     = asyncJump.stack.result()
           val alreadyCalled = new AtomicBoolean(false)
+          val interruptible = asyncJump.interruptible
 
           self.asyncStack = nextStack
-          
+
           lazy val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
             if (alreadyCalled.compareAndSet(false, true)) {
               val removeInterruptor = ZIO.succeed(unsafeRemoveInterruptor(callback))
 
-              tell(FiberMessage.Resume(removeInterruptor *> effect, nextStack))
+              tell(FiberMessage.Resume(removeInterruptor *> effect, nextStack, interruptible))
             }
           }
 
           // FIXME: Make sure it's safe to do this here!!!
-          unsafeAddInterruptor(callback)
+          if (interruptible) unsafeAddInterruptor(callback)
 
           // FIXME: registerCallback throws
           asyncJump.registerCallback(callback)
 
-          effect = null 
-          stack  = Chunk.empty 
+          effect = null
 
         case traceGen: GenerateTrace =>
           val nextStack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
@@ -175,35 +185,39 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
           val trace = StackTrace(self.fiberId, builder.result())
 
           effect = ZIO.succeed(trace)(Trace.empty)
-          stack  = nextStack
+          stack = nextStack
+          interruptible = traceGen.interruptible
 
         case zioError: ZIOError =>
           // No error should escape to this level.
-          self.unsafeLog(() => s"An unhandled error was encountered while executing ${id.threadName}", zioError.cause, ZIO.someError, Trace.empty)
+          self.unsafeLog(
+            () => s"An unhandled error was encountered while executing ${id.threadName}",
+            zioError.cause,
+            ZIO.someError,
+            Trace.empty
+          )
 
-          effect = null 
-          stack  = Chunk.empty 
+          effect = null
       }
     }
   }
 
   /**
-   * On the current thread, executes all messages in the fiber's inbox.
-   * This method may return before all work is done, in the event the 
-   * fiber executes an asynchronous operation.
+   * On the current thread, executes all messages in the fiber's inbox. This
+   * method may return before all work is done, in the event the fiber executes
+   * an asynchronous operation.
    */
-  final def runHere(): Unit = {
+  final def runHere(): Unit =
     while (!queue.isEmpty()) {
       val head = queue.poll()
 
       evaluateMessage(head)
     }
-  }
 
   /**
    * Schedules the execution of all messages in the fiber's inbox on the correct
-   * thread pool. This method will return immediately after the scheduling 
-   * operation is completed, but potentially before such messages have been 
+   * thread pool. This method will return immediately after the scheduling
+   * operation is completed, but potentially before such messages have been
    * executed.
    */
   final def run(): Unit = {
@@ -225,14 +239,11 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
     var lastTrace     = null.asInstanceOf[Trace] // TODO: Rip out
 
     if (remainingDepth <= 0) {
-      // Save local variables to heap:
-      self.unsafeSetInterruptible(interruptible)
-
       val builder = ChunkBuilder.make[EvaluationStep]()
 
       builder ++= stack
 
-      throw Trampoline(effect, builder)
+      throw Trampoline(effect, builder, interruptible)
     }
 
     while (done eq null) {
@@ -241,19 +252,19 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 
       while (!queue.isEmpty()) {
         queue.poll() match {
-          case FiberMessage.InterruptSignal(cause) => 
+          case FiberMessage.InterruptSignal(cause) =>
             self.unsafeAddInterruptedCause(cause)
 
             cur = if (interruptible) Refail(cause) else cur
 
-          case FiberMessage.GenStackTrace(onTrace) => 
-            val oldCur = cur 
+          case FiberMessage.GenStackTrace(onTrace) =>
+            val oldCur = cur
 
             cur = ZIO.trace(Trace.empty).map(onTrace(_)) *> oldCur
 
           case FiberMessage.Stateful(onFiber) => onFiber(self.asInstanceOf[RuntimeFiber[Any, Any]])
 
-          case FiberMessage.Resume(effect, stack) => 
+          case FiberMessage.Resume(_, _, _) =>
             throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
         }
       }
@@ -311,10 +322,7 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
             }
 
           case effect: Async[_, _, _] =>
-            // Save local variables to heap:
-            self.unsafeSetInterruptible(interruptible)
-
-            throw AsyncJump(effect.registerCallback, ChunkBuilder.make())
+            throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), interruptible)
 
           case effect: ChangeInterruptionWithin[_, _, _] =>
             if (effect.newInterruptible && unsafeIsInterrupted()) { // TODO: Interruption
@@ -343,13 +351,10 @@ class RuntimeFiber[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs) extends
 
             builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
 
-            // Save local variables to heap:
-            self.unsafeSetInterruptible(interruptible)
-
-            throw GenerateTrace(builder)
+            throw GenerateTrace(builder, interruptible)
 
           case stateful: Stateful[_, _, _] =>
-            cur = stateful.erase.onState(self.asInstanceOf[FiberState[Any, Any]], interruptible, lastTrace)
+            cur = stateful.erase.onState(self.asInstanceOf[RuntimeFiber[Any, Any]], interruptible, lastTrace)
 
           case refail: Refail[_] =>
             var cause = refail.cause.asInstanceOf[Cause[Any]]

@@ -33,7 +33,7 @@ private[zio] sealed trait FiberScope {
    */
   private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: RuntimeFiber[_, _])(implicit
     trace: Trace
-  ): Boolean
+  ): Unit
 }
 
 private[zio] object FiberScope {
@@ -48,34 +48,23 @@ private[zio] object FiberScope {
 
     private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: RuntimeFiber[_, _])(implicit
       trace: Trace
-    ): Boolean = {
+    ): Unit =
       if (enableFiberRoots) {
         val childRef = Fiber._roots.add(child)
 
         child.unsafeAddObserver(_ => childRef.clear())
       }
-
-      true
-    }
   }
 
   private final class Local(val fiberId: FiberId, parentRef: WeakReference[RuntimeFiber[_, _]]) extends FiberScope {
 
     private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: RuntimeFiber[_, _])(implicit
       trace: Trace
-    ): Boolean = {
+    ): Unit = {
       val parent = parentRef.get()
 
-      (parent ne null) && {
-
-        val result =
-          parent.unsafeEvalOn(
-            ZIO.succeed(parent.unsafeAddChild(child)),
-            "test"
-          )
-
-        if (result == null) true
-        else false
+      if (parent ne null) {
+        parent.tell(FiberMessage.Stateful(_.unsafeAddChild(child)))
       }
     }
   }

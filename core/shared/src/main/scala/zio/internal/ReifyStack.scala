@@ -12,6 +12,8 @@ sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
   def changeInterruptibility(interruptible: Boolean): Nothing =
     self.addAndThrow(EvaluationStep.ChangeInterruptibility(interruptible))
 
+  def interruptible: Boolean
+
   def stack: ChunkBuilder[EvaluationStep]
 
   private final def addAndThrow(k: EvaluationStep): Nothing = {
@@ -22,11 +24,12 @@ sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
 object ReifyStack {
   final case class AsyncJump(
     registerCallback: (ZIO[Any, Any, Any] => Unit) => Any,
-    stack: ChunkBuilder[EvaluationStep]
+    stack: ChunkBuilder[EvaluationStep],
+    interruptible: Boolean
   ) extends ReifyStack
 
-  final case class Trampoline(effect: ZIO[Any, Any, Any], stack: ChunkBuilder[EvaluationStep]) 
-    extends ReifyStack
+  final case class Trampoline(effect: ZIO[Any, Any, Any], stack: ChunkBuilder[EvaluationStep], interruptible: Boolean)
+      extends ReifyStack
 
-  final case class GenerateTrace(stack: ChunkBuilder[EvaluationStep]) extends ReifyStack
+  final case class GenerateTrace(stack: ChunkBuilder[EvaluationStep], interruptible: Boolean) extends ReifyStack
 }

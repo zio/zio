@@ -209,7 +209,7 @@ trait Runtime[+R] { self =>
 
     val fiberId   = FiberId.unsafeMake(trace)
     val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-    val fiber     = RuntimeFiber(fiberId, fiberRefs)
+    val fiber     = RuntimeFiber[E, A](fiberId, fiberRefs)
 
     FiberScope.global.unsafeAdd(
       fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)(RuntimeFlag.EnableFiberRoots),
@@ -230,7 +230,7 @@ trait Runtime[+R] { self =>
       k(exit, fiber.unsafeGetFiberRefs())
     }
 
-    fiber.start(zio)
+    fiber.start[R](zio, true)
 
     fiberId =>
       k =>

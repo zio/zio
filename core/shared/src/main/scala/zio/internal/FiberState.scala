@@ -26,30 +26,18 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 final case class FiberSuspension(blockingOn: FiberId, location: Trace)
 
-sealed trait FiberMessage
-object FiberMessage {
-  final case class InterruptSignal(cause: Cause[Nothing]) extends FiberMessage
-  final case class GenStackTrace(onTrace: StackTrace => Unit) extends FiberMessage
-  final case class Stateful(onFiber: RuntimeFiber[Any, Any] => Unit) extends FiberMessage
-  final case class Resume(zio: ZIO[Any, Any, Any], stack: Chunk[ZIO.EvaluationStep]) extends FiberMessage
-}
-
 abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs) extends Fiber.Runtime.Internal[E, A] {
-  private[zio] val queue       = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+
   private[zio] val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
 
   private var _children  = null.asInstanceOf[JavaSet[RuntimeFiber[_, _]]]
   private var fiberRefs  = fiberRefs0
   private var observers  = Nil: List[Exit[E, A] => Unit]
   private var suspension = null.asInstanceOf[FiberSuspension]
-  private[zio] var asyncStack = Chunk.empty[ZIO.EvaluationStep]
 
   protected val fiberId = fiberId0
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
-
-
-  final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[_, _]])
 
   /**
    * Adds a weakly-held reference to the specified fiber inside the children
@@ -73,8 +61,8 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     unsafeSetFiberRef(FiberRef.interruptedCause, oldSC ++ cause)
   }
 
-  final def unsafeAddInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit = 
-    ???    
+  final def unsafeAddInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit =
+    ???
 
   /**
    * Adds an observer to the list of observers.
@@ -141,15 +129,11 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
     fiberRefs = fiberRefs.remove(ref)
 
-
   /**
    * Changes the state to be suspended.
    */
   final def unsafeEnterSuspend(): Unit =
     statusState.enterSuspend()
-
-  final def unsafeEvalOn[A](f: RuntimeFiber[Any, Any] => Unit): Unit =
-    queue.add(FiberMessage.Stateful(f)) // TODO: Resume
 
   /**
    * Retrieves the exit value of the fiber state, which will be `null` if not
@@ -186,14 +170,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
 
   final def unsafeGetFiberRefs(): FiberRefs = fiberRefs
 
-  /**
-   * Retrieves the interruptibility status of the fiber state.
-   */
-  final def unsafeGetInterruptible(): Boolean = statusState.getInterruptible()
-
   final def unsafeGetInterruptedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.interruptedCause)
 
-  final def unsafeGetInterruptors(): Set[ZIO[Any, Nothing, Nothing] => Unit] = 
+  final def unsafeGetInterruptors(): Set[ZIO[Any, Nothing, Nothing] => Unit] =
     unsafeGetFiberRef(FiberRef.interruptors)
 
   final def unsafeGetLoggers(): Set[ZLogger[String, Any]] =
@@ -269,9 +248,8 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
       ()
     }
 
-  final def unsafeRemoveInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit = {
+  final def unsafeRemoveInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit =
     ???
-  }
 
   /**
    * Removes the specified observer from the list of observers.
@@ -287,12 +265,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
 
   final def unsafeSetFiberRefs(fiberRefs: FiberRefs): Unit =
     this.fiberRefs = fiberRefs
-
-  /**
-   * Sets the interruptibility status of the fiber to the specified value.
-   */
-  final def unsafeSetInterruptible(interruptible: Boolean): Unit =
-    statusState.setInterruptible(interruptible)
 
   /**
    * Retrieves a snapshot of the status of the fibers.
