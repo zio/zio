@@ -467,7 +467,7 @@ object FiberRef {
   private[zio] val currentSupervisors: FiberRef.WithPatch[Set[Supervisor[Any]], SetPatch[Supervisor[Any]]] =
     FiberRef.unsafeMakeSet(Runtime.defaultSupervisors)
 
-  private[zio] val interruptors: FiberRef[Set[ZIO[Any, Nothing, Nothing] => Unit]] = 
+  private[zio] val interruptors: FiberRef[Set[ZIO[Any, Nothing, Nothing] => Unit]] =
     FiberRef.unsafeMake(Set.empty, identity(_), (parent, _) => parent)
 
   private def makeWith[Value, Patch](
