@@ -26,8 +26,34 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 final case class FiberSuspension(blockingOn: FiberId, location: Trace)
 
+trait FiberMessage {
+  private[zio] def effect: ZIO[Any, Any, Any]
+  private[zio] def stack: Chunk[ZIO.EvaluationStep]
+  private[zio] def interruptible: Boolean
+}
+object FiberMessage {
+  def apply[R, E, A](effect0: ZIO[R, E, A], stack0: Chunk[ZIO.EvaluationStep], interruptible0: Boolean): FiberMessage =
+    new FiberMessage {
+      val effect: ZIO[Any, Any, Any] = effect0.asInstanceOf[ZIO[Any, Any, Any]]
+      val stack: Chunk[ZIO.EvaluationStep] = stack0
+      val interruptible: Boolean = interruptible0
+    }
+
+  def fromEffect[R, E, A](effect0: ZIO[R, E, A]): FiberMessage =
+    new FiberMessage {
+      val effect: ZIO[Any, Any, Any] = effect0.asInstanceOf[ZIO[Any, Any, Any]]
+      val stack: Chunk[ZIO.EvaluationStep] = Chunk.empty
+    }
+
+  def fromContinuation[R, E, A](effect0: ZIO[R, E, A], stack0: Chunk[ZIO.EvaluationStep]): FiberMessage =
+    new FiberMessage {
+      val effect: ZIO[Any, Any, Any] = effect0.asInstanceOf[ZIO[Any, Any, Any]]
+      val stack: Chunk[ZIO.EvaluationStep] = stack0
+    }
+}
+
 abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs) extends Fiber.Runtime.Internal[E, A] {
-  private val mailbox          = new AtomicReference[UIO[Any]](ZIO.unit)
+  private[zio] val queue       = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
   private[zio] val statusState = new FiberStatusState(new AtomicInteger(FiberStatusIndicator.initial))
 
   private var _children  = null.asInstanceOf[JavaSet[RuntimeFiber[_, _]]]
@@ -39,10 +65,8 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
-  final def evalOn(effect: UIO[Any], orElse: UIO[Any])(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed {
-      if (unsafeAddMessage(effect)) ZIO.unit else orElse.unit
-    }
+  final def evalOn(effect: UIO[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.succeed(queue.add(FiberMessage.fromEffect(effect)))
 
   final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[RuntimeFiber[_, _]])
 
@@ -69,31 +93,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   }
 
   final def unsafeAddInterruptor(interruptor: ZIO[Any, Nothing, Nothing] => Unit): Unit = 
-    ???
-
-  /**
-   * Adds a message to the mailbox and returns true if the state is not done.
-   * Otherwise, returns false to indicate the fiber cannot accept messages.
-   */
-  final def unsafeAddMessage(effect: UIO[Any]): Boolean = {
-    @tailrec
-    def runLoop(message: UIO[Any]): Unit = {
-      val oldMessages = mailbox.get
-
-      val newMessages =
-        if (oldMessages eq ZIO.unit) message else (oldMessages *> message)(Trace.empty)
-
-      if (!mailbox.compareAndSet(oldMessages, newMessages)) runLoop(message)
-      else ()
-    }
-
-    if (statusState.beginAddMessage()) {
-      try {
-        runLoop(effect)
-        true
-      } finally statusState.endAddMessage()
-    } else false
-  }
+    ???    
 
   /**
    * Adds an observer to the list of observers.
@@ -112,27 +112,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     statusState.attemptAsyncInterrupt()
 
   /**
-   * Attempts to place the state of the fiber in interruption, if the fiber is
-   * currently suspended, but otherwise, adds the message to the mailbox of the
-   * non-suspended fiber.
-   *
-   * @return
-   *   True if the async interruption was successful, or false otherwise.
-   */
-  final def unsafeAsyncInterruptOrAddMessage(message: UIO[Any]): Boolean =
-    if (statusState.beginAddMessage()) {
-      try {
-        if (statusState.attemptAsyncInterrupt()) true
-        else {
-          unsafeAddMessage(message)
-          false
-        }
-      } finally {
-        statusState.endAddMessage()
-      }
-    } else false
-
-  /**
    * Attempts to set the state of the fiber to done. This may fail if there are
    * pending messages in the mailbox, in which case those messages will be
    * returned. If the method succeeds, it will notify any listeners, who are
@@ -144,7 +123,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
    *   `null` if the state of the fiber was set to done, or the pending
    *   messages, otherwise.
    */
-  final def unsafeAttemptDone(e: Exit[E, A]): UIO[Any] = {
+  final def unsafeAttemptDone(e: Exit[E, A]): Unit = {
     println(s"\nfiber ${fiberId.threadName} attempting done with ${e}")
 
     _exitValue = e
@@ -166,7 +145,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
       null.asInstanceOf[UIO[Any]]
     } else {
       println(s"fiber ${fiberId.threadName} not done yet, have work to do")
-      unsafeDrainMailbox()
     }
   }
 
@@ -185,22 +163,6 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
     fiberRefs = fiberRefs.remove(ref)
 
-  /**
-   * Drains the mailbox of all messages. If the mailbox is empty, this will
-   * return `ZIO.unit`.
-   */
-  final def unsafeDrainMailbox(): UIO[Any] = {
-    @tailrec
-    def clearMailbox(): UIO[Any] = {
-      val oldMailbox = mailbox.get
-
-      if (!mailbox.compareAndSet(oldMailbox, ZIO.unit)) clearMailbox()
-      else oldMailbox
-    }
-
-    if (statusState.clearMessages()) clearMailbox()
-    else ZIO.unit
-  }
 
   /**
    * Changes the state to be suspended.
@@ -209,7 +171,7 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
     statusState.enterSuspend()
 
   final def unsafeEvalOn[A](effect: UIO[Any], orElse: => A): A =
-    if (unsafeAddMessage(effect)) null.asInstanceOf[A] else orElse
+    if (queue.add(FiberMessage.fromEffect(effect))) null.asInstanceOf[A] else orElse
 
   /**
    * Retrieves the exit value of the fiber state, which will be `null` if not
@@ -252,6 +214,9 @@ abstract class FiberState[E, A](fiberId0: FiberId.Runtime, fiberRefs0: FiberRefs
   final def unsafeGetInterruptible(): Boolean = statusState.getInterruptible()
 
   final def unsafeGetInterruptedCause(): Cause[Nothing] = unsafeGetFiberRef(FiberRef.interruptedCause)
+
+  final def unsafeGetInterruptors(): Set[ZIO[Any, Nothing, Nothing] => Unit] = 
+    unsafeGetFiberRef(FiberRef.interruptors)
 
   final def unsafeGetLoggers(): Set[ZLogger[String, Any]] =
     unsafeGetFiberRef(FiberRef.currentLoggers)
