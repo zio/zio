@@ -4,6 +4,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
 import zio.Trace
+import zio.internal.stacktracer.SourceLocation
 
 import scala.util.control.NonFatal
 
@@ -99,12 +100,8 @@ sealed trait TestArrow[-A, +B] { self =>
   def withCompleteCode(completeCode: String): TestArrow[A, B] =
     meta(completeCode = Some(completeCode))
 
-  def withLocation(implicit trace: Trace): TestArrow[A, B] =
-    trace match {
-      case Trace(_, file, line) =>
-        meta(location = Some(s"$file:$line"))
-      case _ => self
-    }
+  def withLocation(implicit sourceLocation: SourceLocation): TestArrow[A, B] =
+    meta(location = Some(s"${sourceLocation.path}:${sourceLocation.line}"))
 
   def withParentSpan(span: (Int, Int)): TestArrow[A, B] =
     meta(parentSpan = Some(Span(span._1, span._2)))

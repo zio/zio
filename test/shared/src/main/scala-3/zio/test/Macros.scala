@@ -17,17 +17,18 @@
 package zio.test
 
 import zio._
+import zio.internal.stacktracer.SourceLocation
 import zio.test.internal.SmartAssertions
 
 import scala.quoted._
 import scala.reflect.ClassTag
 
 object SmartAssertMacros {
-  def smartAssertSingle(expr: Expr[Boolean], trace: Expr[Trace])(using Quotes): Expr[TestResult] =
-    SmartAssertMacros.smartAssertSingle_impl(expr, trace)
+  def smartAssertSingle(expr: Expr[Boolean], sourceLocation: Expr[SourceLocation])(using Quotes): Expr[TestResult] =
+    SmartAssertMacros.smartAssertSingle_impl(expr, sourceLocation)
 
-  def smartAssert(exprs: Expr[Seq[Boolean]], trace: Expr[Trace])(using Quotes): Expr[TestResult] =
-    SmartAssertMacros.smartAssert_impl(exprs, trace)
+  def smartAssert(exprs: Expr[Seq[Boolean]], sourceLocation: Expr[SourceLocation])(using Quotes): Expr[TestResult] =
+    SmartAssertMacros.smartAssert_impl(exprs, sourceLocation)
 
 
   extension (using Quotes)(typeRepr: quotes.reflect.TypeRepr) {
@@ -197,7 +198,7 @@ object SmartAssertMacros {
     }
   }
 
-  def smartAssertSingle_impl(using Quotes)(value: Expr[Boolean], trace: Expr[Trace]): Expr[TestResult] = {
+  def smartAssertSingle_impl(using Quotes)(value: Expr[Boolean], sourceLocation: Expr[SourceLocation]): Expr[TestResult] = {
     import quotes.reflect._
     val code = Macros.showExpr(value)
 
@@ -207,16 +208,16 @@ object SmartAssertMacros {
     val ast = transform(value)
 
     val arrow = ast.asExprOf[TestArrow[Any, Boolean]]
-    '{TestResult($arrow.withCode(${Expr(code)}).withLocation($trace))}
+    '{TestResult($arrow.withCode(${Expr(code)}).withLocation($sourceLocation))}
   }
 
-  def smartAssert_impl(using Quotes)(values: Expr[Seq[Boolean]], trace: Expr[Trace]): Expr[TestResult] = {
+  def smartAssert_impl(using Quotes)(values: Expr[Seq[Boolean]], sourceLocation: Expr[SourceLocation]): Expr[TestResult] = {
     import quotes.reflect._
 
     values match {
         case Varargs(head +: tail) =>
-          tail.foldLeft(smartAssertSingle_impl(head, trace)) { (acc, expr) =>
-            '{$acc && ${smartAssertSingle_impl(expr, trace)}}
+          tail.foldLeft(smartAssertSingle_impl(head, sourceLocation)) { (acc, expr) =>
+            '{$acc && ${smartAssertSingle_impl(expr, sourceLocation)}}
         }
 
         case other =>
@@ -241,11 +242,11 @@ object Macros {
     '{_root_.zio.test.CompileVariants.assertZIOProxy($effect, $code, $assertionCode)($assertion)}
   }
 
-  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]], trace: Expr[Trace])(using Quotes, Type[A]): Expr[TestResult] = {
+  def assert_impl[A](value: Expr[A])(assertion: Expr[Assertion[A]], trace: Expr[Trace], sourceLocation: Expr[SourceLocation])(using Quotes, Type[A]): Expr[TestResult] = {
     import quotes.reflect._
     val code = showExpr(value)
     val assertionCode = showExpr(assertion)
-    '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(assertionCode)})($assertion)($trace)}
+    '{_root_.zio.test.CompileVariants.assertProxy($value, ${Expr(code)}, ${Expr(assertionCode)})($assertion)($trace, $sourceLocation)}
   }
 
   def showExpr[A](expr: Expr[A])(using Quotes): String = {

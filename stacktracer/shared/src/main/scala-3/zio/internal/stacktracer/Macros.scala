@@ -9,6 +9,14 @@ import scala.quoted._
 @silent
 object Macros {
 
+  def sourceLocation(using ctx: Quotes): Expr[SourceLocation] = {
+    import quotes.reflect._
+    val pos  = Position.ofMacroExpansion
+    val path = pos.sourceFile.path
+    val line = pos.startLine + 1
+    '{SourceLocation(${Expr(path)}, ${Expr(line)})}
+  }
+
   def traceInfo(using ctx: Quotes): String = {
     import quotes.reflect._
 
