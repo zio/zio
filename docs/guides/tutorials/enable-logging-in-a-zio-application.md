@@ -127,3 +127,51 @@ ZIO.logSpan("span1") {
   } yield ()
 }
 ```
+
+## Annotating Logs
+
+The default log message is a string, containing a series of key-value pairs. It contains the following information:
+- `timestamp`: the time when the log is created
+- `level`: the log level
+- `thread`: the thread name (fiber name)
+- `message`: the log message
+- `location`: the location of the source code where the log is created (filename)
+- `line`: the line number of the source code where the log is created
+
+Other than these key-value pairs, we can also annotate the log message with other customized information using the `ZIO.logAnnotate` function. This is especially useful when we are writing multiple services and we want to correlate logs between them using the `CorrelationId`.
+
+For example, when we are handling an HTTP request, we can annotate the log message with the user's id:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  // We use random delay to simulate interleaving of operations in real world
+  def randomDelay = Random.nextIntBounded(1000).flatMap(t => ZIO.sleep(t.millis))
+
+  def run =
+    ZIO.foreachParDiscard(Chunk("UserA", "UserB", "UserC")) { user =>
+      ZIO.logAnnotate("user-id", user) {
+        for {
+          _ <- randomDelay
+          _ <- ZIO.log("fetching user from database")
+          _ <- randomDelay
+          _ <- ZIO.log("downloading user's profile picture")
+        } yield ()
+      }
+    }
+}
+```
+
+The output will look as follows:
+
+```scala
+timestamp=2022-06-01T16:31:00.058151Z level=INFO thread=#zio-fiber-9 message="fetching user from database" location=zio.examples.MainApp.run file=MainApp.scala line=14 user-id=UserC
+timestamp=2022-06-01T16:31:00.413569Z level=INFO thread=#zio-fiber-7 message="fetching user from database" location=zio.examples.MainApp.run file=MainApp.scala line=14 user-id=UserA
+timestamp=2022-06-01T16:31:00.525170Z level=INFO thread=#zio-fiber-9 message="downloading user's profile picture" location=zio.examples.MainApp.run file=MainApp.scala line=16 user-id=UserC
+timestamp=2022-06-01T16:31:00.807873Z level=INFO thread=#zio-fiber-8 message="fetching user from database" location=zio.examples.MainApp.run file=MainApp.scala line=14 user-id=UserB
+timestamp=2022-06-01T16:31:00.830572Z level=INFO thread=#zio-fiber-7 message="downloading user's profile picture" location=zio.examples.MainApp.run file=MainApp.scala line=16 user-id=UserA
+timestamp=2022-06-01T16:31:00.839411Z level=INFO thread=#zio-fiber-8 message="downloading user's profile picture" location=zio.examples.MainApp.run file=MainApp.scala line=16 user-id=UserB
+```
+
+As we can see, the `user-id` with its value is annotated to each log message. 
