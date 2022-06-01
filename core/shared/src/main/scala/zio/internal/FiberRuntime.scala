@@ -227,11 +227,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
           stack = nextStack
           interruptible = traceGen.interruptible
 
-        case zioError: ZIOError =>
+        case t: Throwable => // FIXME: Non-fatal
           // No error should escape to this level.
           self.unsafeLog(
             () => s"An unhandled error was encountered while executing ${id.threadName}",
-            zioError.cause,
+            Cause.die(t),
             ZIO.someError,
             Trace.empty
           )
