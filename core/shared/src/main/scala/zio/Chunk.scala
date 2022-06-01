@@ -16,8 +16,6 @@
 
 package zio
 
-import zio.Chunk.BitChunk
-
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
@@ -165,7 +163,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     Chunk.BitChunkByte(self.map(ev), 0, length << 3)
 
   def toPackedByte(implicit ev: A <:< Boolean): Chunk[Byte] =
-    Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, BitChunk.Endianness.BigEndian)
+    Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, Chunk.BitChunk.Endianness.BigEndian)
   def toPackedInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Int] =
     Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
   def toPackedLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Long] =
@@ -2004,6 +2002,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ()
     }
 
+    override def toPackedByte(implicit ev: Boolean <:< Boolean): Chunk[Byte] =
+      if (minBitIndex == maxBitIndex) Chunk.empty
+      else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Byte](self, bits, BitChunk.Endianness.BigEndian)
+      else if ((maxBitIndex & bits - 1) != 0) {
+        val minByteIndex = minBitIndex >> bitsLog2
+        val maxByteIndex = maxBitIndex >> bitsLog2
+        val maxByte      = bytes(maxByteIndex)
+        val maxByteValue = (maxByte & 0xff) >> bits - (maxBitIndex & bits - 1)
+        bytes.slice(minByteIndex, maxByteIndex) :+ maxByteValue.toByte
+      } else bytes
+
     private def nthByte(n: Int): Byte = {
       val offset    = minBitIndex & 7
       val startByte = minBitIndex >> 3
@@ -2269,7 +2278,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
           val shiftBy = bitsToRead - 1 - i
           val index   = offset + i
           val shifted = <<(bitOr0(index), shiftBy)
-          elem = |(elem, shifted)
+          elem = ops.|(elem, shifted)
           i -= 1
         }
 

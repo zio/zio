@@ -5,16 +5,21 @@ import zio.test._
 
 object ChunkPackedBooleanSpec extends ZIOBaseSpec {
 
+  val genEndianness: Gen[Sized, Chunk.BitChunk.Endianness] =
+    Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
+
   val genBoolChunk: Gen[Sized, Chunk[Boolean]] =
     for {
-      bytes <- Gen.listOf(Gen.boolean)
-    } yield Chunk.fromIterable(bytes)
+      endianness   <- genEndianness
+      booleanChunk <- Gen.listOf(Gen.boolean).map(Chunk.fromIterable)
+      byteChunk    <- Gen.listOf(Gen.byte).map(Chunk.fromIterable).map(x => x.asBitsByte)
+      intChunk     <- Gen.listOf(Gen.int).map(Chunk.fromIterable).map(x => x.asBitsInt(endianness))
+      longChunk    <- Gen.listOf(Gen.long).map(Chunk.fromIterable).map(x => x.asBitsLong(endianness))
+      oneOf        <- Gen.elements(booleanChunk, byteChunk, intChunk, longChunk)
+    } yield oneOf
 
   val genInt: Gen[Sized, Int] =
     Gen.small(Gen.const(_))
-
-  val genEndianness: Gen[Sized, Chunk.BitChunk.Endianness] =
-    Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
 
   def toBinaryString(bool: Boolean): String =
     if (bool) "1" else "0"
@@ -37,21 +42,24 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
 
   def spec = suite("ChunkPackedBooleanSpec")(
     test("pack byte") {
-      check(genBoolChunk) { bools =>
+      check(genBoolChunk, genInt, genInt) { (bls, drop, take) =>
+        val bools    = bls.drop(drop).take(take)
         val actual   = bools.toPackedByte.map(toBinaryString).mkString
         val expected = toBinaryString(bools, bits = 8, Chunk.BitChunk.Endianness.BigEndian)
         assert(actual)(equalTo(expected))
       }
     },
     test("pack int") {
-      check(genBoolChunk, genEndianness) { (bools, endianness) =>
+      check(genBoolChunk, genEndianness, genInt, genInt) { (bls, endianness, drop, take) =>
+        val bools    = bls.drop(drop).take(take)
         val actual   = bools.toPackedInt(endianness).map(toBinaryString).mkString
         val expected = toBinaryString(bools, bits = 32, endianness)
         assert(actual)(equalTo(expected))
       }
     },
     test("pack long") {
-      check(genBoolChunk, genEndianness) { (bools, endianness) =>
+      check(genBoolChunk, genEndianness, genInt, genInt) { (bls, endianness, drop, take) =>
+        val bools    = bls.drop(drop).take(take)
         val actual   = bools.toPackedLong(endianness).map(toBinaryString).mkString
         val expected = toBinaryString(bools, bits = 64, endianness)
         assert(actual)(equalTo(expected))
