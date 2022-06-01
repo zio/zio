@@ -109,3 +109,21 @@ timestamp=2022-06-01T13:59:40.795677Z level=INFO thread=#zio-fiber-6 message="Pr
 ```
 
 Any logs inside the span region will be logged with the span name and the duration from the start of the span.
+
+## Multiple Spans
+
+We can also create multiple spans and log inside them:
+
+```scala mdoc:compile-only
+import zio._
+
+ZIO.logSpan("span1") {
+  for {
+    _ <- ZIO.log("log inside span1")
+    _ <- ZIO.logSpan("span2") {
+      ZIO.log("log inside span1 and span2")
+    }
+    _ <- ZIO.log("log inside span1")
+  } yield ()
+}
+```
