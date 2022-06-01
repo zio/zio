@@ -208,7 +208,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
             }
           }
 
-          // FIXME: Make sure it's safe to do this here!!!
           if (interruptible) unsafeAddInterruptor(callback)
 
           // FIXME: registerCallback throws
