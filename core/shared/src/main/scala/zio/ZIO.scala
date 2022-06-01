@@ -2335,41 +2335,43 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def zipWithPar[R1 <: R, E1 >: E, B, C](
     that: => ZIO[R1, E1, B]
   )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
-    ZIO.uninterruptibleMask { restore =>
-      val promise = Promise.unsafeMake[Unit, C](FiberId.None)
-      val ref     = new java.util.concurrent.atomic.AtomicReference[Option[Either[A, B]]](None)
-      ZIO.transplant { graft =>
-        graft {
-          restore(self).foldCauseZIO(
-            cause => promise.fail(()) *> ZIO.failCause(cause),
-            a =>
-              ref.getAndSet(Some(Left(a))) match {
-                case Some(Right(b)) => promise.succeed(f(a, b))
-                case _              => ZIO.unit
-              }
-          )
-        }.forkDaemon <*>
+    ZIO.fiberIdWith { fiberId =>
+      ZIO.uninterruptibleMask { restore =>
+        val promise = Promise.unsafeMake[Unit, C](FiberId.None)
+        val ref     = new java.util.concurrent.atomic.AtomicReference[Option[Either[A, B]]](None)
+        ZIO.transplant { graft =>
           graft {
-            restore(that).foldCauseZIO(
+            restore(self).foldCauseZIO(
               cause => promise.fail(()) *> ZIO.failCause(cause),
-              b =>
-                ref.getAndSet(Some(Right(b))) match {
-                  case Some(Left(a)) => promise.succeed(f(a, b))
-                  case _             => ZIO.unit
+              a =>
+                ref.getAndSet(Some(Left(a))) match {
+                  case Some(Right(b)) => promise.succeed(f(a, b))
+                  case _              => ZIO.unit
                 }
             )
-          }.forkDaemon
-      }.flatMap { case (left, right) =>
-        restore(promise.await).foldCauseZIO(
-          cause =>
-            left.interrupt.zipPar(right.interrupt).flatMap { case (left, right) =>
-              left.zip(right) match {
-                case Exit.Failure(cause) => ZIO.failCause(cause)
-                case Exit.Success(_)     => ZIO.failCause(cause.stripFailures)
-              }
-            },
-          c => left.inheritRefs.zip(right.inheritRefs).as(c)
-        )
+          }.forkDaemon <*>
+            graft {
+              restore(that).foldCauseZIO(
+                cause => promise.fail(()) *> ZIO.failCause(cause),
+                b =>
+                  ref.getAndSet(Some(Right(b))) match {
+                    case Some(Left(a)) => promise.succeed(f(a, b))
+                    case _             => ZIO.unit
+                  }
+              )
+            }.forkDaemon
+        }.flatMap { case (left, right) =>
+          restore(promise.await).foldCauseZIO(
+            cause =>
+              left.interruptAs(fiberId).zipPar(right.interruptAs(fiberId)).flatMap { case (left, right) =>
+                left.zipPar(right) match {
+                  case Exit.Failure(cause) => ZIO.failCause(cause)
+                  case Exit.Success(_)     => ZIO.failCause(cause.stripFailures)
+                }
+              },
+            c => left.inheritRefs.zip(right.inheritRefs).as(c)
+          )
+        }
       }
     }
 
