@@ -8,18 +8,17 @@ object NewRuntimeSystemTests {
   }
 
   def test(name: String)(task: Task[Any]): Unit = {
-    println("*****************************************")
-    print(s"$name...")
+    print(s" - $name...")
     try {
       task.run()
 
-      println("OK")
+      println("...OK")
     } catch {
       case e: AssertionError =>
-        println("FAILED")
+        println("...FAILED")
         e.printStackTrace()
       case t: Throwable =>
-        println("CATASTROPHIC")
+        println("...CATASTROPHIC")
         t.printStackTrace()
     }
   }
@@ -56,8 +55,9 @@ object NewRuntimeSystemTests {
       ZIO.unit.race(ZIO.unit)
     }
 
-  def main(args: Array[String]): Unit =
+  def main(args: Array[String]): Unit = {
     helloWorld()
-  // fib()
-  // race()
+    fib()
+    race()
+  }
 }

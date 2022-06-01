@@ -2445,10 +2445,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs)
 
-    println(
-      s"Started fiber ${childId.threadName} (forked from ${parentFiber.id.threadName} - ${trace}) from ZIO.unsafeFork"
-    )
-
     childFiber.unsafeForeachSupervisor { supervisor =>
       // Call the supervisor who can observe the fork of the child fiber
       val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
