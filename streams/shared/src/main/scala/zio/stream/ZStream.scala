@@ -191,29 +191,37 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         ZChannel.readWithCause(
           (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer,
           (cause: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
-          (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
+          (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd))) <* ZChannel.fromZIO(ZIO.debug("upstream end"))
         )
 
-      lazy val handoffConsumer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
-        ZChannel.unwrap(
-          sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
-            if (leftovers.nonEmpty) {
-              consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers) *> handoffConsumer)
-            } else
-              handoff.take.map {
-                case Emit(chunk) => ZChannel.fromZIO(consumed.set(true)) *> ZChannel.write(chunk) *> handoffConsumer
-                case Halt(cause) => ZChannel.failCause(cause)
-                case End(ScheduleEnd) =>
-                  ZChannel.unwrap {
-                    consumed.get.map { p =>
-                      if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd))
-                      else ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd)) *> handoffConsumer
+      def handoffConsumer: ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] = {
+
+        def loop(scheduleEnd: Boolean): ZChannel[Any, Any, Any, Any, E1, Chunk[A1], Unit] =
+          ZChannel.unwrap(
+            sinkLeftovers.getAndSet(Chunk.empty).flatMap { leftovers =>
+              if (leftovers.nonEmpty) {
+                if (scheduleEnd) consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers))
+                else consumed.set(true) *> ZIO.succeed(ZChannel.write(leftovers) *> loop(false))
+              } else
+                handoff.take.map {
+                  case Emit(chunk) =>
+                    if (scheduleEnd) ZChannel.fromZIO(consumed.set(true)) *> ZChannel.write(chunk)
+                    else ZChannel.fromZIO(consumed.set(true)) *> ZChannel.write(chunk) *> loop(false)
+                  case Halt(cause) => ZChannel.failCause(cause)
+                  case End(ScheduleEnd) =>
+                    ZChannel.unwrap {
+                      consumed.get.map { p =>
+                        if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd))
+                        else ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd)) *> loop(true)
+                      }
                     }
-                  }
-                case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason))
-              }
-          }
-        )
+                  case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason))
+                }
+            }
+          )
+
+        loop(false)
+      }
 
       def timeout(lastB: Option[B]): ZIO[R1, None.type, C] =
         scheduleDriver.next(lastB)
