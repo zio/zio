@@ -3871,7 +3871,19 @@ object ZIOSpec extends ZIOBaseSpec {
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- left.zipPar(right1.zipPar(right2)).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky
+      } @@ nonFlaky,
+      test("is interruptible") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          left      = promise1.succeed(()) *> ZIO.never
+          right     = promise2.succeed(()) *> ZIO.never
+          fiber    <- left.zipPar(right).fork
+          _        <- promise1.await
+          _        <- promise2.await
+          _        <- fiber.interrupt
+        } yield assertCompletes
+      }
     ),
     suite("toFuture")(
       test("should fail with ZTrace attached") {

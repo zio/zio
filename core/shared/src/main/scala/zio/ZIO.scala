@@ -2334,43 +2334,44 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def zipWithPar[R1 <: R, E1 >: E, B, C](
     that: => ZIO[R1, E1, B]
-  )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] = {
-    def coordinate[A, B](
-      fiberId: FiberId,
-      f: (A, B) => C,
-      leftWinner: Boolean
-    )(winner: Fiber[E1, A], loser: Fiber[E1, B])(implicit trace: Trace): ZIO[R1, E1, C] =
-      winner.await.flatMap {
-        case Exit.Success(a) =>
-          loser.await.flatMap {
-            case Exit.Success(b)     => winner.inheritRefs *> loser.inheritRefs *> ZIO.succeed(f(a, b))
-            case Exit.Failure(cause) => ZIO.failCause(cause)
-          }
-        case Exit.Failure(cause) =>
-          loser.interruptAs(fiberId).flatMap {
-            case Exit.Success(_) => ZIO.failCause(cause)
-            case Exit.Failure(loserCause) =>
-              if (leftWinner) ZIO.failCause(cause && loserCause)
-              else ZIO.failCause(loserCause && cause)
-          }
-      }
-
-    val g = (b: B, a: A) => f(a, b)
-
+  )(f: (A, B) => C)(implicit trace: Trace): ZIO[R1, E1, C] =
     ZIO.uninterruptibleMask { restore =>
+      val promise = Promise.unsafeMake[Unit, C](FiberId.None)
+      val ref     = new java.util.concurrent.atomic.AtomicReference[Option[Either[A, B]]](None)
       ZIO.transplant { graft =>
-        ZIO.fiberIdWith { fiberId =>
-          new ZIO.RaceWith(
-            graft(restore(self)),
-            graft(restore(that)),
-            coordinate(fiberId, f, true),
-            coordinate(fiberId, g, false),
-            trace
+        graft {
+          restore(self).foldCauseZIO(
+            cause => promise.fail(()) *> ZIO.failCause(cause),
+            a =>
+              ref.getAndSet(Some(Left(a))) match {
+                case Some(Right(b)) => promise.succeed(f(a, b))
+                case _              => ZIO.unit
+              }
           )
-        }
+        }.forkDaemon <*>
+          graft {
+            restore(that).foldCauseZIO(
+              cause => promise.fail(()) *> ZIO.failCause(cause),
+              b =>
+                ref.getAndSet(Some(Right(b))) match {
+                  case Some(Left(a)) => promise.succeed(f(a, b))
+                  case _             => ZIO.unit
+                }
+            )
+          }.forkDaemon
+      }.flatMap { case (left, right) =>
+        restore(promise.await).foldCauseZIO(
+          cause =>
+            left.interrupt.zipPar(right.interrupt).flatMap { case (left, right) =>
+              left.zip(right) match {
+                case Exit.Failure(cause) => ZIO.failCause(cause)
+                case Exit.Success(_)     => ZIO.failCause(cause.stripFailures)
+              }
+            },
+          c => left.inheritRefs.zip(right.inheritRefs).as(c)
+        )
       }
     }
-  }
 
   private[this] final def tryOrElse[R1 <: R, E2, B](
     that: => ZIO[R1, E2, B],
