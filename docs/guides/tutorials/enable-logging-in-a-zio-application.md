@@ -28,7 +28,6 @@ timestamp=2022-06-01T09:43:08.848398Z level=INFO thread=#zio-fiber-6 message="Ap
 
 Based on the log level, we can use any of the following ZIO functions:
 
-
 | LogLevel |        Value | Log Message    | Log with Cause
 |----------|--------------|----------------|---------------------|
 | All      | Int.MinValue |                |                     |
@@ -66,3 +65,47 @@ timestamp=2022-06-01T10:16:26.638771Z level=ERROR thread=#zio-fiber-6 message="E
 timestamp=2022-06-01T10:16:26.640827Z level=WARN thread=#zio-fiber-6 message="Warning" location=zio.examples.MainApp.run file=MainApp.scala line=8
 timestamp=2022-06-01T10:16:26.642260Z level=INFO thread=#zio-fiber-6 message="Info" location=zio.examples.MainApp.run file=MainApp.scala line=9
 ```
+
+## Logging Spans
+
+ZIO supports logging spans. A span is a logical unit of work that is composed of a start and end time. The start time is when the span is created and the end time is when the span is completed. The span is useful for measuring the time it takes to execute a piece of code. To create a new span, we can use the `ZIO.logSpan` function as follows:
+
+```scala
+import zio._
+
+ZIO.logSpan("span name") {
+  // do some work
+  // log inside the span
+  // do some more work
+  // another log inside the span
+}
+```
+
+For example, assume we have a function that takes the `username` and returns the profile picture of the user. We can wrap the whole function in a new span called "get-profile-picture" and log inside the span:
+
+```scala mdoc:compile-only
+import zio._
+
+case class User(id: String, name: String, profileImage: String)
+
+def getProfilePicture(username: String) =
+  ZIO.logSpan("get-profile-picture") {
+    for {
+      _    <- ZIO.log(s"Getting information of $username from the UserService")
+      user <- ZIO.succeed(User("1", "john", "john.png"))
+      _    <- ZIO.log(s"Downloading profile image ${user.profileImage}")
+      img  <- ZIO.succeed(Array[Byte](1, 2, 3))
+      _    <- ZIO.log("Profile image downloaded")
+    } yield img
+  }
+```
+
+If we run this code with `getProfilePicture("john")`, the output will look like the following:
+
+```scala
+timestamp=2022-06-01T13:59:40.779263Z level=INFO thread=#zio-fiber-6 message="Getting information of john from the UserService" get-profile-picture=6ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=11
+timestamp=2022-06-01T13:59:40.793804Z level=INFO thread=#zio-fiber-6 message="Downloading profile image john.png" get-profile-picture=20ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=13
+timestamp=2022-06-01T13:59:40.795677Z level=INFO thread=#zio-fiber-6 message="Profile image downloaded" get-profile-picture=22ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=15
+```
+
+Any logs inside the span region will be logged with the span name and the duration from the start of the span.
