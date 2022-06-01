@@ -227,6 +227,17 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     catchAll(e => ZLayer.fail(f(e)))
 
   /**
+   * Returns a layer with its full cause of failure mapped using the specified
+   * function. This can be used to transform errors while preserving the
+   * original structure of `Cause`.
+   *
+   * @see
+   *   [[catchAllCause]]
+   */
+  final def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZLayer[RIn, E2, ROut] =
+    self.foldCauseLayer(c => ZLayer.failCause(h(c)), a => ZLayer.succeedEnvironment(a))
+
+  /**
    * Returns a scoped effect that, if evaluated, will return the lazily computed
    * result of this layer.
    */
