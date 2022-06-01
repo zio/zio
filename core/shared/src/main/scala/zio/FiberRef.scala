@@ -101,7 +101,7 @@ trait FiberRef[A] extends Serializable { self =>
   def fork: Patch
 
   def delete(implicit trace: Trace): UIO[Unit] =
-    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _) =>
       fiberState.unsafeDeleteFiberRef(self)
 
       ZIO.unit
@@ -112,7 +112,7 @@ trait FiberRef[A] extends Serializable { self =>
    * no value was `set` or inherited from parent.
    */
   def get(implicit trace: Trace): UIO[A] =
-    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _) =>
       ZIO.succeedNow(fiberState.unsafeGetFiberRef(self))
     }
 
@@ -121,7 +121,7 @@ trait FiberRef[A] extends Serializable { self =>
    * old value.
    */
   def getAndSet(newValue: A)(implicit trace: Trace): UIO[A] =
-    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _) =>
       val oldValue = fiberState.unsafeGetFiberRef(self)
 
       fiberState.unsafeSetFiberRef(self, newValue)
@@ -155,7 +155,7 @@ trait FiberRef[A] extends Serializable { self =>
    * specified effect.
    */
   def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.unsafeStateful[R, E, B] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[R, E, B] { (fiberState, _) =>
       f(fiberState.unsafeGetFiberRef(self))
     }
 
@@ -165,7 +165,7 @@ trait FiberRef[A] extends Serializable { self =>
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
   def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.unsafeStateful[R, E, B] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[R, E, B] { (fiberState, _) =>
       val oldValue = fiberState.unsafeGetFiberRef(self)
 
       fiberState.unsafeSetFiberRef(self, newValue)
@@ -203,7 +203,7 @@ trait FiberRef[A] extends Serializable { self =>
    * version of `update`.
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
-    ZIO.unsafeStateful[Any, Nothing, B] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[Any, Nothing, B] { (fiberState, _) =>
       val (b, a) = f(fiberState.unsafeGetFiberRef(self))
 
       fiberState.unsafeSetFiberRef(self, a)
@@ -229,7 +229,7 @@ trait FiberRef[A] extends Serializable { self =>
    * Sets the value associated with the current fiber.
    */
   def set(value: A)(implicit trace: Trace): UIO[Unit] =
-    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _) =>
       fiberState.unsafeSetFiberRef(self, value)
 
       ZIO.unit

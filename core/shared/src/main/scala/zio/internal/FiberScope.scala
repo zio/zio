@@ -31,7 +31,7 @@ private[zio] sealed trait FiberScope {
    * Adds the specified child fiber to the scope, returning `true` if the scope
    * is still open, and `false` if it has been closed already.
    */
-  private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: RuntimeFiber[_, _])(implicit
+  private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: FiberRuntime[_, _])(implicit
     trace: Trace
   ): Unit
 }
@@ -46,7 +46,7 @@ private[zio] object FiberScope {
   object global extends FiberScope {
     def fiberId: FiberId = FiberId.None
 
-    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: RuntimeFiber[_, _])(implicit
+    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: FiberRuntime[_, _])(implicit
       trace: Trace
     ): Unit =
       if (enableFiberRoots) {
@@ -56,19 +56,19 @@ private[zio] object FiberScope {
       }
   }
 
-  private final class Local(val fiberId: FiberId, parentRef: WeakReference[RuntimeFiber[_, _]]) extends FiberScope {
+  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberRuntime[_, _]]) extends FiberScope {
 
-    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: RuntimeFiber[_, _])(implicit
+    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: FiberRuntime[_, _])(implicit
       trace: Trace
     ): Unit = {
       val parent = parentRef.get()
 
       if (parent ne null) {
-        parent.tell(FiberMessage.Stateful(_.unsafeAddChild(child)))
+        parent.tell(FiberMessage.Stateful((fiber, _) => fiber.unsafeAddChild(child)))
       }
     }
   }
 
-  private[zio] def unsafeMake(fiber: RuntimeFiber[_, _]): FiberScope =
+  private[zio] def unsafeMake(fiber: FiberRuntime[_, _]): FiberScope =
     new Local(fiber.id, new WeakReference(fiber))
 }

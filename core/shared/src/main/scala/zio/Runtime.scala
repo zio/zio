@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberScope, Platform, RuntimeFiber, StackBool, StackTraceBuilder}
+import zio.internal.{FiberScope, Platform, FiberRuntime, StackBool, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -205,18 +205,16 @@ trait Runtime[+R] { self =>
   )(
     k: (Exit[E, A], FiberRefs) => Any
   )(implicit trace: Trace): FiberId => ((Exit[E, A], FiberRefs) => Any) => Unit = {
-    import internal.RuntimeFiber
+    import internal.FiberRuntime
 
     val fiberId   = FiberId.unsafeMake(trace)
     val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-    val fiber     = RuntimeFiber[E, A](fiberId, fiberRefs)
+    val fiber     = FiberRuntime[E, A](fiberId, fiberRefs)
 
     FiberScope.global.unsafeAdd(
       fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)(RuntimeFlag.EnableFiberRoots),
       fiber
     )
-
-    println(s"Started fiber ${fiberId.threadName} from Runtime.unsafeRun - ${trace}")
 
     fiber.unsafeForeachSupervisor { supervisor =>
       if (supervisor != Supervisor.none) {

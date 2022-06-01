@@ -849,7 +849,7 @@ object ZSTM {
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.unsafeStateful[R, E, A] { (fiberState, _, _) =>
+    ZIO.unsafeStateful[R, E, A] { (fiberState, _) =>
       val r        = fiberState.unsafeGetFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId  = fiberState.id
       val executor = fiberState.unsafeGetCurrentExecutor()

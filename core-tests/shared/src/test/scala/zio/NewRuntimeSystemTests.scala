@@ -57,7 +57,7 @@ object NewRuntimeSystemTests {
     }
 
   def main(args: Array[String]): Unit =
-    // helloWorld()
-    // fib()
-    race()
+    helloWorld()
+  // fib()
+  // race()
 }

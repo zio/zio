@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.{ChunkBuilder, ZIO}
+import zio.{ChunkBuilder, FiberId, Trace, ZIO}
 import zio.ZIO.EvaluationStep
 
 import scala.util.control.NoStackTrace
@@ -25,7 +25,9 @@ object ReifyStack {
   final case class AsyncJump(
     registerCallback: (ZIO[Any, Any, Any] => Unit) => Any,
     stack: ChunkBuilder[EvaluationStep],
-    interruptible: Boolean
+    interruptible: Boolean,
+    trace: Trace,
+    blockingOn: FiberId
   ) extends ReifyStack
 
   final case class Trampoline(effect: ZIO[Any, Any, Any], stack: ChunkBuilder[EvaluationStep], interruptible: Boolean)

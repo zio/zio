@@ -2,7 +2,7 @@
 
 // import zio.test._
 // // import zio.test.TestAspect.ignore
-// import zio.internal.zio2.RuntimeFiber
+// import zio.internal.zio2.FiberRuntime
 
 // object NewEncodingSpec extends zio.ZIOBaseSpec {
 //   import zio.{Promise => _, _}
@@ -275,7 +275,7 @@
 //           test("simple interruption of never") {
 //             val never = Effect.async[Any, Nothing, Int](_ => ())
 
-//             val fiber = RuntimeFiber(FiberId.unsafeMake(Trace.empty), FiberRefs.empty)
+//             val fiber = FiberRuntime(FiberId.unsafeMake(Trace.empty), FiberRefs.empty)
 
 //             for {
 //               fiberId  <- ZIO.fiberId

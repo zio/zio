@@ -536,12 +536,13 @@ object Fiber extends FiberPlatformSpecific {
    */
   final case class Descriptor(
     id: FiberId,
-    status: Status,
+    status: Status.Active,
     interrupters: Set[FiberId],
-    interruptStatus: InterruptStatus,
     executor: Executor,
     isLocked: Boolean
-  )
+  ) {
+    def interruptStatus: InterruptStatus = InterruptStatus.fromBoolean(status.interruptible)
+  }
 
   final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: StackTrace) extends Product with Serializable {
     self =>
@@ -560,32 +561,30 @@ object Fiber extends FiberPlatformSpecific {
       FiberRenderer.prettyPrint(self)
   }
 
-  sealed trait Status {
-    def isInterrupting: Boolean
+  sealed trait Status { self =>
+    def isDone: Boolean = self match { case Status.Done => true; case _ => false }
 
-    def withInterrupting(newInterrupting: Boolean): Status
+    def isRunning: Boolean = self match { case _: Status.Running => true; case _ => false }
+
+    def isSuspended: Boolean = self match { case _: Status.Suspended => true; case _ => false }
   }
   object Status {
+    sealed trait Active extends Status {
+      def interruptible: Boolean
+
+      def trace: Trace
+    }
+
     case object Done extends Status {
-      def isInterrupting: Boolean = false
-
-      def withInterrupting(newInterrupting: Boolean): Status = this
+      def trace: Trace = Trace.empty
     }
-    final case class Running(interrupting: Boolean) extends Status {
-      def isInterrupting: Boolean = interrupting
-
-      def withInterrupting(newInterrupting: Boolean): Status = copy(interrupting = newInterrupting)
-    }
+    final case class Running(interruptible: Boolean, trace: Trace) extends Active
     final case class Suspended(
-      interrupting: Boolean,
+      stack: Chunk[ZIO.EvaluationStep],
       interruptible: Boolean,
-      blockingOn: FiberId,
-      asyncTrace: Trace
-    ) extends Status {
-      def isInterrupting: Boolean = interrupting
-
-      def withInterrupting(newInterrupting: Boolean): Status = copy(interrupting = newInterrupting)
-    }
+      trace: Trace,
+      blockingOn: FiberId
+    ) extends Active
   }
 
   /**
@@ -831,9 +830,9 @@ object Fiber extends FiberPlatformSpecific {
   def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
-  private[zio] val _currentFiber: ThreadLocal[internal.RuntimeFiber[_, _]] =
-    new ThreadLocal[internal.RuntimeFiber[_, _]]()
+  private[zio] val _currentFiber: ThreadLocal[internal.FiberRuntime[_, _]] =
+    new ThreadLocal[internal.FiberRuntime[_, _]]()
 
-  private[zio] val _roots: WeakConcurrentBag[internal.RuntimeFiber[_, _]] =
+  private[zio] val _roots: WeakConcurrentBag[internal.FiberRuntime[_, _]] =
     WeakConcurrentBag(10000)
 }

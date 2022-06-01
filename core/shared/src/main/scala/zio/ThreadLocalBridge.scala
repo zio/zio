@@ -1,6 +1,6 @@
 package zio
 
-import zio.internal.RuntimeFiber
+import zio.internal.FiberRuntime
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
@@ -67,7 +67,7 @@ object ThreadLocalBridge {
 
     override def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
       foreachTrackedRef { (fiberRef, link) =>
-        val value = fiber.asInstanceOf[RuntimeFiber[E, A1]].unsafeGetFiberRef(fiberRef)
+        val value = fiber.asInstanceOf[FiberRuntime[E, A1]].unsafeGetFiberRef(fiberRef)
         link(value)
       }
 
