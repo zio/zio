@@ -16,7 +16,7 @@ ZIO has a default logger that prints any log messages that are equal, or above t
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  def run = ZIO.logInfo("Application started")
+  def run = ZIO.log("Application started")
 }
 ```
 
@@ -26,7 +26,34 @@ This will print the following message to the console:
 timestamp=2022-06-01T09:43:08.848398Z level=INFO thread=#zio-fiber-6 message="Application started" location=zio.examples.MainApp.run file=MainApp.scala line=4
 ```
 
-Based on the log level, we can use any of the following ZIO functions:
+If we want to include the `Cause` in the log message, we can use the `ZIO.logCause` which takes the message and also the cause:
+
+```scala modc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def run =
+    ZIO
+      .dieMessage("Boom!")
+      .foldCauseZIO(
+        cause => ZIO.logErrorCause("application stopped working due to an unexpected error", cause),
+        _ => ZIO.unit
+      )
+}
+```
+
+Here is the output which includes the cause:
+
+```scala
+timestamp=2022-06-02T05:18:04.131876Z level=ERROR thread=#zio-fiber-6 message="application stopped working due to an unexpected error" cause="Exception in thread "zio-fiber-6" java.lang.RuntimeException: Boom!
+at zio.examples.MainApp.run(MainApp.scala:9)
+at zio.examples.MainApp.run(MainApp.scala:10)" location=zio.examples.MainApp.run file=MainApp.scala line=11
+```
+
+## Log Levels Supported by ZIO
+
+To distinguish importance of log messages from each other, ZIO supports the following log levels. The default log level is `Info`, so when we use the `ZIO.log` or `ZIO.logCause` methods, the log message will be logged at the `Info` level. For other log levels, we can use any of the `ZIO.log*` or `ZIO.log*Cause` methods:
 
 | LogLevel |        Value | Log Message    | Log with Cause
 |----------|--------------|----------------|---------------------|
@@ -39,7 +66,7 @@ Based on the log level, we can use any of the following ZIO functions:
 | Trace    |            0 | ZIO.logTrace   | ZIO.logTraceCause   |
 | None     | Int.MaxValue |                |                     |
 
-If we run the following code, only the `Info`, `Warning`, and `Error` and the `Fatal` log messages will be printed:
+As we said earlier, the default logger prints log messages equal or above the `Info` level. So, if we run the following code, only the `Info`, `Warning`, and `Error` and the `Fatal` log messages will be printed:
 
 ```scala mdoc:compile-only
 import zio._
@@ -64,6 +91,23 @@ timestamp=2022-06-01T10:16:26.623633Z level=FATAL thread=#zio-fiber-6 message="F
 timestamp=2022-06-01T10:16:26.638771Z level=ERROR thread=#zio-fiber-6 message="Error" location=zio.examples.MainApp.run file=MainApp.scala line=7
 timestamp=2022-06-01T10:16:26.640827Z level=WARN thread=#zio-fiber-6 message="Warning" location=zio.examples.MainApp.run file=MainApp.scala line=8
 timestamp=2022-06-01T10:16:26.642260Z level=INFO thread=#zio-fiber-6 message="Info" location=zio.examples.MainApp.run file=MainApp.scala line=9
+```
+
+## Overriding Log Levels
+
+As we mentioned, the default log level for ZIO.log and ZIO.logCause is `Info`. We can use these two methods to log various part of our workflow, and then finally we can wrap the whole workflow with our desired log level:
+
+```scala
+import zio._
+
+ZIO.logLevel(LogLevel.Debug) {
+  for {
+    _ <- ZIO.log("Workflow Started.")
+    _ <- ZIO.log("Running task 1.")
+    _ <- ZIO.log("Running task 2.")
+    _ <- ZIO.log("Workflow Completed.")
+  } yield ()
+}
 ```
 
 ## Logging Spans
@@ -135,6 +179,7 @@ The default log message is a string, containing a series of key-value pairs. It 
 - `level`: the log level
 - `thread`: the thread name (fiber name)
 - `message`: the log message
+- `cause`: the cause of the log
 - `location`: the location of the source code where the log is created (filename)
 - `line`: the line number of the source code where the log is created
 
