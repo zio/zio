@@ -1383,7 +1383,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       val leftFiber: internal.FiberRuntime[E, A]   = ZIO.unsafeForkUnstarted(trace, self, fiberState)
       val rightFiber: internal.FiberRuntime[ER, B] = ZIO.unsafeForkUnstarted(trace, right, fiberState)
 
-      val raced = ZIO
+      ZIO
         .async[R1, E2, C](
           { cb =>
             leftFiber.unsafeAddObserver { _ =>
@@ -1393,13 +1393,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
             rightFiber.unsafeAddObserver { _ =>
               complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }
+
+            leftFiber.startBackground(self, interruptible)
+            rightFiber.startBackground(right, interruptible)
           } //FIXME, FiberId.combineAll(Set(left.fiberId, right.fiberId))
         )
-
-      leftFiber.startBackground(self, interruptible)
-      rightFiber.startBackground(right, interruptible)
-
-      raced
     }
 
   /**
