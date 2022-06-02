@@ -846,16 +846,32 @@ object ZSTM {
     z.flatMap(fromEither(_))
 
   /**
+   * Treats the specified `acquire` transaction as the acquisition of a
+   * resource. The `acquire` transaction will be executed interruptibly. If it
+   * is a success and is committed the specified `release` workflow will be
+   * executed uninterruptibly as soon as the `use` workflow completes execution.
+   */
+  def acquireReleaseWith[R, E, A](acquire: ZSTM[R, E, A]): ZSTM.Acquire[R, E, A] =
+    new ZSTM.Acquire[R, E, A](() => acquire)
+
+  /**
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    unsafeAtomically(stm)(_ => (), () => ())
+
+  private def unsafeAtomically[R, E, A](
+    stm: ZSTM[R, E, A]
+  )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.unsafeStateful[R, E, A] { (fiberState, _) =>
       val r        = fiberState.unsafeGetFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId  = fiberState.id
       val executor = fiberState.unsafeGetCurrentExecutor()
 
       tryCommitSync(executor, fiberId, stm, r) match {
-        case TryCommit.Done(exit) => ZIO.done(exit)(trace)
+        case TryCommit.Done(exit) =>
+          onDone(exit)
+          ZIO.done(exit)(trace)
         case TryCommit.Suspend(journal) =>
           val txnId = makeTxnId()
           val state = new AtomicReference[State[E, A]](State.Running)
@@ -865,8 +881,12 @@ object ZSTM {
             restore(async).catchAllCause { cause =>
               state.compareAndSet(State.Running, State.Interrupted)
               state.get match {
-                case State.Done(exit) => ZIO.done(exit)
-                case _                => ZIO.failCause(cause)
+                case State.Done(exit) =>
+                  onDone(exit)
+                  ZIO.done(exit)
+                case _ =>
+                  onInterrupt()
+                  ZIO.failCause(cause)
               }
             }
           }
@@ -1398,6 +1418,40 @@ object ZSTM {
    */
   def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
     new ZSTM.WhenSTM(b)
+
+  final class Acquire[-R, +E, +A](private val acquire: () => ZSTM[R, E, A]) extends AnyVal {
+    def apply[R1](release: A => URIO[R1, Any]): Release[R with R1, E, A] =
+      new Release[R with R1, E, A](acquire, release)
+  }
+  final class Release[-R, +E, +A](acquire: () => ZSTM[R, E, A], release: A => URIO[R, Any]) {
+    def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
+      ZIO.uninterruptibleMask { restore =>
+        var state: State[E, A] = State.Running
+
+        restore(unsafeAtomically(acquire())(exit => state = State.Done(exit), () => state = State.Interrupted))
+          .foldCauseZIO(
+            cause => {
+              state match {
+                case State.Done(Exit.Success(a)) =>
+                  release(a).foldCauseZIO(
+                    cause2 => ZIO.failCause(cause ++ cause2),
+                    _ => ZIO.failCause(cause)
+                  )
+                case _ => ZIO.failCause(cause)
+              }
+            },
+            a =>
+              restore(use(a)).foldCauseZIO(
+                cause =>
+                  release(a).foldCauseZIO(
+                    cause2 => ZIO.failCause(cause ++ cause2),
+                    _ => ZIO.failCause(cause)
+                  ),
+                b => release(a) *> ZIO.succeed(b)
+              )
+          )
+      }
+  }
 
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A): ZSTM[R, Nothing, A] =

@@ -114,14 +114,14 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * failure, or interruption.
    */
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.uninterruptibleMask(restore => restore(acquireN(n).commit) *> restore(zio).ensuring(releaseN(n).commit))
+    ZSTM.acquireReleaseWith(acquireN(n))(_ => releaseN(n).commit)(_ => zio)
 
   /**
    * Returns a scoped effect that describes acquiring the specified number of
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZIO.acquireReleaseInterruptible(acquireN(n).commit)(releaseN(n).commit)
+    ZSTM.acquireReleaseWith(acquireN(n))(_ => Scope.addFinalizer(releaseN(n).commit))(_ => ZIO.unit)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
