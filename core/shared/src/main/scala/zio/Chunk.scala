@@ -2121,7 +2121,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       maxBitIndex - minBitIndex
 
     override protected def elementAt(n: Int): Int =
-      if (endianness == BitChunk.Endianness.BigEndian) ints(n) else Integer.reverse(ints(n))
+      respectEndian(endianness, ints(n))
 
     override def apply(n: Int): Boolean =
       (elementAt(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
@@ -2164,6 +2164,26 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       f((int & 0x1) != 0)
       ()
     }
+
+    override def toPackedInt(endianness: BitChunk.Endianness)(implicit ev: Boolean <:< Boolean): Chunk[Int] =
+      if (minBitIndex == maxBitIndex) Chunk.empty
+      else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Int](self, bits, endianness)
+      else if ((maxBitIndex & bits - 1) != 0) {
+        val minIntIndex = minBitIndex >> bitsLog2
+        val maxIntIndex = maxBitIndex >> bitsLog2
+        val maxInt      = elementAt(maxIntIndex)
+        val maxIntValue = maxInt >>> bits - (maxBitIndex & bits - 1)
+        val fullInts    = ints.slice(minIntIndex, maxIntIndex)
+
+        if (self.endianness == endianness) fullInts :+ respectEndian(endianness, maxIntValue)
+        else fullInts.map(Integer.reverse) :+ respectEndian(endianness, maxIntValue)
+
+      } else if (self.endianness == endianness) ints
+      else ints.map(Integer.reverse)
+
+    private def respectEndian(endianness: BitChunk.Endianness, bigEndianValue: Int) =
+      if (endianness == BitChunk.Endianness.BigEndian) bigEndianValue
+      else Integer.reverse(bigEndianValue)
   }
 
   private[zio] final case class BitChunkLong(
