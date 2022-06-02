@@ -54,14 +54,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
   final def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
       val cause = Cause.interrupt(fiberId).traced(StackTrace(fiberId, Chunk(trace)))
-
-      unsafeAddInterruptedCause(cause)
-
-      val interrupt = ZIO.refailCause(cause)
-
-      unsafeGetInterruptors().foreach { interruptor =>
-        interruptor(interrupt)
-      }
+      tell(FiberMessage.InterruptSignal(cause))
     }
 
   final def location: Trace = fiberId.location
@@ -150,7 +143,14 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
     assert(running.get == true)
 
     fiberMessage match {
-      case FiberMessage.InterruptSignal(cause) => self.unsafeAddInterruptedCause(cause)
+      case FiberMessage.InterruptSignal(cause) =>
+        self.unsafeAddInterruptedCause(cause)
+
+        val interrupt = ZIO.refailCause(cause)
+
+        unsafeGetInterruptors().foreach { interruptor =>
+          interruptor(interrupt)
+        }
       case FiberMessage.GenStackTrace(onTrace) => onTrace(StackTrace(self.id, self.inactiveStatus.stack.map(_.trace)))
       case FiberMessage.Stateful(onFiber) =>
         onFiber(
