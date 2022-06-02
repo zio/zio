@@ -2453,6 +2453,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         Some(parentFiber.asInstanceOf[internal.FiberRuntime[Any, Any]]),
         childFiber
       )
+
+      childFiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, childFiber))
     }
 
     val parentScope = parentFiber.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
