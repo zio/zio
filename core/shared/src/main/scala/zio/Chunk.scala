@@ -2271,6 +2271,26 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ()
     }
 
+    override def toPackedLong(endianness: BitChunk.Endianness)(implicit ev: Boolean <:< Boolean): Chunk[Long] =
+      if (minBitIndex == maxBitIndex) Chunk.empty
+      else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Long](self, bits, endianness)
+      else if ((maxBitIndex & bits - 1) != 0) {
+        val minLongIndex = minBitIndex >> bitsLog2
+        val maxLongIndex = maxBitIndex >> bitsLog2
+        val maxLong      = elementAt(maxLongIndex)
+        val maxLongValue = maxLong >>> bits - (maxBitIndex & bits - 1)
+        val fullLongs    = longs.slice(minLongIndex, maxLongIndex)
+
+        if (self.endianness == endianness) fullLongs :+ respectEndian(endianness, maxLongValue)
+        else fullLongs.map(java.lang.Long.reverse) :+ respectEndian(endianness, maxLongValue)
+
+      } else if (self.endianness == endianness) longs
+      else longs.map(java.lang.Long.reverse)
+
+    private def respectEndian(endianness: BitChunk.Endianness, bigEndianValue: Long) =
+      if (endianness == BitChunk.Endianness.BigEndian) bigEndianValue
+      else java.lang.Long.reverse(bigEndianValue)
+
   }
 
   private[zio] final case class ChunkPackedBoolean[T](
