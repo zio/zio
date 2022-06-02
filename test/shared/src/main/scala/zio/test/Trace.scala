@@ -201,7 +201,7 @@ object Trace {
       (left.result, right.result) match {
         case (Result.Succeed(true), _) => Result.succeed(true)
         case (_, Result.Succeed(true)) => Result.succeed(true)
-        case (a, b) => a.zipWith(b)(_ || _)
+        case (a, b)                    => a.zipWith(b)(_ || _)
       }
   }
 
