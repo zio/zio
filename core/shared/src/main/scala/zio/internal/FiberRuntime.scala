@@ -301,7 +301,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
       throw Trampoline(effect, builder, interruptible)
     }
 
-    while (done eq null) {
+    while (cur ne null) {
       val nextTrace = cur.trace
       if (nextTrace ne Trace.empty) lastTrace = nextTrace
 
