@@ -241,6 +241,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
     }
   }
 
+  def enableCurrentFiber(): Boolean =
+    unsafeGetFiberRef(FiberRef.currentRuntimeFlags).contains(RuntimeFlag.EnableCurrentFiber)
+
   /**
    * On the current thread, executes all messages in the fiber's inbox. This
    * method may return before all work is done, in the event the fiber executes
@@ -250,6 +253,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
   final def drainQueueHere(): Unit = {
     assert(running.get == true)
 
+    if (enableCurrentFiber()) Fiber._currentFiber.set(self)
+
     try {
       while (!queue.isEmpty()) {
         val head = queue.poll()
@@ -258,6 +263,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
       }
     } finally {
       running.set(false)
+
+      if (enableCurrentFiber()) Fiber._currentFiber.set(null)
     }
 
     if (!queue.isEmpty()) {

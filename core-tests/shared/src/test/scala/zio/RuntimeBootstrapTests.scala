@@ -1,6 +1,6 @@
 package zio
 
-object NewRuntimeSystemTests {
+object RuntimeBootstrapTests {
   implicit class RunSyntax[A](
     task: Task[A]
   ) {
