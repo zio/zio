@@ -281,7 +281,7 @@ Http.collectZIO[Request] {
 }
 ```
 
-### Log Spans
+### Logging Spans
 
 To measure the time taken to process the request at different points of the code, we can wrap the above code with `ZIO.logSpan`:
 
@@ -338,3 +338,55 @@ In the above logs, we can see that the `register-user` span is created and the t
 register-user=16ms
 register-user=174ms
 ```
+
+### Annotating Logs with Correlation Ids
+
+To add a Correlation ID to the logs, we should first extract the `X-Correlation-ID` header from the request and use it as the Correlation ID.
+
+As this is a common pattern along with all other endpoints, we created a new ZIO Aspect called `LogAspect.logAnnotateCorrelationId` which can be applied to any ZIO workflow:
+
+```scala
+import zio._
+import zhttp.http.Request
+
+object LogAspect {
+  def logAnnotateCorrelationId(
+      req: Request
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      override def apply[R, E, A](
+          zio: ZIO[R, E, A]
+      )(implicit trace: ZTraceElement): ZIO[R, E, A] =
+        correlationId(req).flatMap(id => ZIO.logAnnotate("correlation-id", id)(zio))
+
+      def correlationId(req: Request): UIO[String] =
+        ZIO
+          .succeed(req.header("X-Correlation-ID").map(_._2.toString))
+          .flatMap(id => Random.nextUUID.map(uuid => id.getOrElse(uuid.toString)))
+    }
+}
+```
+
+Now, we can apply this aspect to any ZIO workflow:
+
+```scala
+workflow @@ LogAspect.logAnnotateCorrelationId(req)
+```
+
+By applying this aspect to a ZIO workflow, all logs inside that workflow will be annotated with the `correlation-id` annotation:
+
+Let's run the web service and post a request to the `/users` endpoint and create a new user and see the logs:
+
+```bash
+$ curl -i -H "X-Correlation-ID: f798d2f2-abf2-46ff-b3f4-ae1888256706" \
+      http://localhost:8080/users -d '{"name": "John", "age": 42}'
+```
+
+Here are the logs:
+
+```bash
+timestamp=2022-06-03T10:13:18.334468Z level=INFO thread=#zio-fiber-32 message="POST /users -d {"name": "John", "age": 42}" register-user=1ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22 correlation-id=f798d2f2-abf2-46ff-b3f4-ae1888256706
+timestamp=2022-06-03T10:13:18.335034Z level=INFO thread=#zio-fiber-32 message="User registered: ec02143a-8030-4c70-a110-a497617c5c72" register-user=2ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35 correlation-id=f798d2f2-abf2-46ff-b3f4-ae1888256706
+```
+
+We can see that both log lines have the same `correlation-id` annotation.
