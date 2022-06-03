@@ -390,3 +390,9 @@ timestamp=2022-06-03T10:13:18.335034Z level=INFO thread=#zio-fiber-32 message="U
 ```
 
 We can see that both log lines have the same `correlation-id` annotation.
+
+## Conclusion
+
+In this tutorial, we learned how to enable logging in a ZIO application and how to use the built-in logging facilities of ZIO without requiring any additional dependencies.
+
+The complete working example of this tutorial is available on the `logging` branch of our [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-restful-webservice/tree/logging) quickstart on GitHub.
