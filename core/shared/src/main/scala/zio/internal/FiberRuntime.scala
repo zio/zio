@@ -498,7 +498,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs) extend
     observers = observer :: observers
 
   final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
-    fiberRefs = fiberRefs.remove(ref)
+    fiberRefs = fiberRefs.delete(ref)
 
   /**
    * Retrieves the exit value of the fiber state, which will be `null` if not

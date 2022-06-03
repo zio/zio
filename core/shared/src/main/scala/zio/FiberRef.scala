@@ -293,7 +293,7 @@ trait FiberRef[A] extends Serializable { self =>
           val fiber = Fiber._currentFiber.get()
 
           if (fiber eq null) super.get()
-          else fiber.unsafeGetFiberRefOrElse(self, super.get())
+          else fiber.unsafeGetFiberRef(self)
         }
 
         override def set(a: A): Unit = {

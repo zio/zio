@@ -30,6 +30,12 @@ final class FiberRefs private (
 ) { self =>
 
   /**
+   * Returns a new fiber refs with the specified ref deleted from it.
+   */
+  def delete(fiberRef: FiberRef[_]): FiberRefs =
+    FiberRefs(fiberRefLocals - fiberRef)
+
+  /**
    * Returns a set of each `FiberRef` in this collection.
    */
   def fiberRefs: Set[FiberRef[_]] =
@@ -134,9 +140,6 @@ final class FiberRefs private (
 
     FiberRefs(fiberRefLocals)
   }
-
-  def remove(fiberRef: FiberRef[_]): FiberRefs =
-    FiberRefs(fiberRefLocals - fiberRef)
 
   def setAll(implicit trace: Trace): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
