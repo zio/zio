@@ -249,7 +249,7 @@ In this section, we are going to log all the HTTP requests coming to the `UserAp
 
 We demonstrate this for the "POST /users" endpoint. This process is the same for all the other endpoints.
 
-```scala mdoc
+```scala
 import zio._
 import zio.json._
 import zhttp.http._
