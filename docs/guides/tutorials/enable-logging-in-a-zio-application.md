@@ -86,7 +86,7 @@ object MainApp extends ZIOAppDefault {
 
 The output will look like the following:
 
-```
+```scala
 timestamp=2022-06-01T10:16:26.623633Z level=FATAL thread=#zio-fiber-6 message="Fatal" location=zio.examples.MainApp.run file=MainApp.scala line=6
 timestamp=2022-06-01T10:16:26.638771Z level=ERROR thread=#zio-fiber-6 message="Error" location=zio.examples.MainApp.run file=MainApp.scala line=7
 timestamp=2022-06-01T10:16:26.640827Z level=WARN thread=#zio-fiber-6 message="Warning" location=zio.examples.MainApp.run file=MainApp.scala line=8
@@ -146,7 +146,7 @@ def getProfilePicture(username: String) =
 
 If we run this code with `getProfilePicture("john")`, the output will look like the following:
 
-```
+```scala
 timestamp=2022-06-01T13:59:40.779263Z level=INFO thread=#zio-fiber-6 message="Getting information of john from the UserService" get-profile-picture=6ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=11
 timestamp=2022-06-01T13:59:40.793804Z level=INFO thread=#zio-fiber-6 message="Downloading profile image john.png" get-profile-picture=20ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=13
 timestamp=2022-06-01T13:59:40.795677Z level=INFO thread=#zio-fiber-6 message="Profile image downloaded" get-profile-picture=22ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=15
@@ -327,7 +327,7 @@ $ curl -i http://localhost:8080/users -d '{"name": "John", "age": 42}'
 
 And the logs:
 
-```bash
+```scala
 timestamp=2022-06-03T09:42:15.590135Z level=INFO thread=#zio-fiber-16 message="POST /users -d {"name": "John", "age": 42}" register-user=16ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22 
 timestamp=2022-06-03T09:42:15.748359Z level=INFO thread=#zio-fiber-16 message="User registered: 24c4ed63-ecc2-41fb-ac0e-5cbf22f187f6" register-user=174ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35
 ```
@@ -384,7 +384,7 @@ $ curl -i -H "X-Correlation-ID: f798d2f2-abf2-46ff-b3f4-ae1888256706" \
 
 Here are the logs:
 
-```bash
+```scala
 timestamp=2022-06-03T10:13:18.334468Z level=INFO thread=#zio-fiber-32 message="POST /users -d {"name": "John", "age": 42}" register-user=1ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22 correlation-id=f798d2f2-abf2-46ff-b3f4-ae1888256706
 timestamp=2022-06-03T10:13:18.335034Z level=INFO thread=#zio-fiber-32 message="User registered: ec02143a-8030-4c70-a110-a497617c5c72" register-user=2ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35 correlation-id=f798d2f2-abf2-46ff-b3f4-ae1888256706
 ```
