@@ -146,7 +146,7 @@ def getProfilePicture(username: String) =
 
 If we run this code with `getProfilePicture("john")`, the output will look like the following:
 
-```scala
+```
 timestamp=2022-06-01T13:59:40.779263Z level=INFO thread=#zio-fiber-6 message="Getting information of john from the UserService" get-profile-picture=6ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=11
 timestamp=2022-06-01T13:59:40.793804Z level=INFO thread=#zio-fiber-6 message="Downloading profile image john.png" get-profile-picture=20ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=13
 timestamp=2022-06-01T13:59:40.795677Z level=INFO thread=#zio-fiber-6 message="Profile image downloaded" get-profile-picture=22ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=15
