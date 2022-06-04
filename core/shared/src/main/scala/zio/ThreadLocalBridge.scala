@@ -36,7 +36,7 @@ object ThreadLocalBridge {
           }
       }
     }
-    supervisorLayer ++ bridgeLayer ++ Runtime.enableStepSupervision
+    supervisorLayer ++ bridgeLayer ++ Runtime.enableOpSupervision
   }
 
   private class FiberRefTrackingSupervisor extends Supervisor[Unit] {

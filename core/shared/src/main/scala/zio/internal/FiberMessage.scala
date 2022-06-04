@@ -13,6 +13,5 @@ object FiberMessage {
   final case class InterruptSignal(cause: Cause[Nothing])                            extends FiberMessage
   final case class GenStackTrace(onTrace: StackTrace => Unit)                        extends FiberMessage
   final case class Stateful(onFiber: (FiberRuntime[Any, Any], Fiber.Status) => Unit) extends FiberMessage
-  final case class Resume(zio: ZIO[Any, Any, Any], stack: Chunk[ZIO.EvaluationStep], runtimeFlags: RuntimeFlags)
-      extends FiberMessage
+  final case class Resume(zio: ZIO[Any, Any, Any], stack: Chunk[ZIO.EvaluationStep]) extends FiberMessage
 }

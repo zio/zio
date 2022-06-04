@@ -96,10 +96,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   private def assertNonNullContinuation(a: Any, location: Trace): Unit =
     assertNonNull(a, "The return value of a success or failure handler must be non-null", location)
 
-  // unsafeGetCurrentExecutor().unsafeSubmitOrThrow { () =>
-  //   outerRunLoop(effect, stack)
-  // }
-
   /**
    * Adds a message to be processed by the fiber on the correct thread pool.
    */
@@ -124,8 +120,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * thread. This can be called to "kick off" execution of a fiber after it has
    * been created, in hopes that the effect can be executed synchronously.
    */
-  final def start[R](effect: ZIO[R, E, A], runtimeFlags: RuntimeFlags): Unit =
-    tellHere(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, runtimeFlags))
+  final def start[R](effect: ZIO[R, E, A]): Unit =
+    tellHere(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
 
   /**
    * Begins execution of the effect associated with this fiber on in the
@@ -133,8 +129,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * off" execution of a fiber after it has been created, in hopes that the
    * effect can be executed synchronously.
    */
-  final def startBackground[R](effect: ZIO[R, E, A], runtimeFlags: RuntimeFlags): Unit =
-    tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty, runtimeFlags))
+  final def startBackground[R](effect: ZIO[R, E, A]): Unit =
+    tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
 
   /**
    * Evaluates a single message on the current thread, while the fiber is
@@ -158,9 +154,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           self.asInstanceOf[FiberRuntime[Any, Any]],
           if (_exitValue ne null) Fiber.Status.Done else inactiveStatus
         )
-      case FiberMessage.Resume(effect, stack, runtimeFlags) =>
+      case FiberMessage.Resume(effect, stack) =>
         unsafeRemoveInterruptors()
-        evaluateEffect(effect, stack, runtimeFlags)
+        evaluateEffect(effect, stack)
     }
   }
 
@@ -169,19 +165,17 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    */
   final def evaluateEffect(
     effect0: ZIO[Any, Any, Any],
-    stack0: Chunk[EvaluationStep],
-    runtimeFlags0: RuntimeFlags
+    stack0: Chunk[EvaluationStep]
   ): Unit = {
     assert(running.get == true)
 
-    var effect       = effect0
-    var stack        = stack0
-    var runtimeFlags = runtimeFlags0
+    var effect = effect0
+    var stack  = stack0
 
     while (effect ne null) {
       try {
         val exit =
-          try Exit.succeed(runLoop(effect, 1000, stack, runtimeFlags).asInstanceOf[A])
+          try Exit.succeed(runLoop(effect, 0, stack, runtimeFlags).asInstanceOf[A])
           catch {
             case zioError: ZIOError => Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
           }
@@ -193,19 +187,17 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         case trampoline: Trampoline =>
           effect = trampoline.effect
           stack = trampoline.stack.result()
-          runtimeFlags = trampoline.runtimeFlags
 
         case asyncJump: AsyncJump =>
           val nextStack     = asyncJump.stack.result()
           val alreadyCalled = new AtomicBoolean(false)
-          val runtimeFlags  = asyncJump.runtimeFlags
 
           // Store the stack inside the heap so it can be leveraged for dumps during inactiveStatus:
           self.inactiveStatus = Fiber.Status.Suspended(nextStack, runtimeFlags, asyncJump.trace, asyncJump.blockingOn)
 
           lazy val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
             if (alreadyCalled.compareAndSet(false, true)) {
-              tell(FiberMessage.Resume(effect, nextStack, runtimeFlags))
+              tell(FiberMessage.Resume(effect, nextStack))
             }
           }
 
@@ -226,7 +218,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
           effect = ZIO.succeed(trace)(Trace.empty)
           stack = nextStack
-          runtimeFlags = traceGen.runtimeFlags
 
         case t: Throwable => // FIXME: Non-fatal
           // No error should escape to this level.
@@ -286,7 +277,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   def runLoop(
     effect: ZIO[Any, Any, Any],
-    remainingDepth: Int,
+    currentDepth: Int,
     stack: Chunk[ZIO.EvaluationStep],
     runtimeFlags0: RuntimeFlags
   ): AnyRef = {
@@ -298,12 +289,15 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     var runtimeFlags = runtimeFlags0
     var lastTrace    = null.asInstanceOf[Trace] // TODO: Rip out
 
-    if (remainingDepth <= 0) {
+    if (currentDepth >= 1000) {
       val builder = ChunkBuilder.make[EvaluationStep]()
 
       builder ++= stack
 
-      throw Trampoline(effect, builder, runtimeFlags)
+      // Save runtime flags to heap:
+      self.runtimeFlags = runtimeFlags
+
+      throw Trampoline(effect, builder)
     }
 
     while (cur ne null) {
@@ -325,7 +319,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case FiberMessage.Stateful(onFiber) =>
             onFiber(self.asInstanceOf[FiberRuntime[Any, Any]], Fiber.Status.Running(runtimeFlags, lastTrace))
 
-          case FiberMessage.Resume(_, _, _) =>
+          case FiberMessage.Resume(_, _) =>
             throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
         }
       }
@@ -336,7 +330,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             val effect = effect0.erase
 
             try {
-              cur = effect.onSuccess(runLoop(effect.first, remainingDepth - 1, Chunk.empty, runtimeFlags))
+              cur = effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
             } catch {
               case zioError1: ZIOError =>
                 cur =
@@ -384,14 +378,15 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             }
 
           case effect: Async[_, _, _] =>
-            throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), runtimeFlags, lastTrace, effect.blockingOn)
+            // Save runtime flags to heap:
+            self.runtimeFlags = runtimeFlags
+
+            throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn)
 
           case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
             val oldRuntimeFlags = runtimeFlags
 
             val revertFlags = effect.update.inverse
-
-            runtimeFlags = effect.update.patch(oldRuntimeFlags)
 
             val isNowInterruptible = effect.update.enabled(RuntimeFlag.Interruption)
 
@@ -400,25 +395,27 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             } else {
               cur =
                 try {
-                  val value = runLoop(effect.scope(oldRuntimeFlags), remainingDepth - 1, Chunk.empty, runtimeFlags)
+                  val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
 
                   runtimeFlags = oldRuntimeFlags
 
-                  // TODO: Interruption
                   if (runtimeFlags.enabled(RuntimeFlag.Interruption) && unsafeIsInterrupted())
                     Refail(unsafeGetInterruptedCause())
                   else ZIO.succeed(value)
                 } catch {
-                  case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(revertFlags)
+                  case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(effect.update.inverse)
                 }
             }
 
           case generateStackTrace: GenerateStackTrace =>
+            // Save runtime flags to heap:
+            self.runtimeFlags = runtimeFlags
+
             val builder = ChunkBuilder.make[EvaluationStep]()
 
             builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
 
-            throw GenerateTrace(builder, runtimeFlags)
+            throw GenerateTrace(builder)
 
           case stateful: Stateful[_, _, _] =>
             cur = stateful.erase.onState(
@@ -457,15 +454,23 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               }
             }
 
-            if (cur eq null) throw ZIOError(cause)
+            if (cur eq null) {
+              // Save runtime flags to heap:
+              self.runtimeFlags = runtimeFlags
+
+              throw ZIOError(cause)
+            }
 
           case InterruptSignal(cause, trace) =>
             cur = if (runtimeFlags.enabled(RuntimeFlag.Interruption)) Refail(cause) else ZIO.unit
 
           case updateRuntimeFlags: UpdateRuntimeFlags =>
-            val newRuntimeFlags = updateRuntimeFlags.update.patch(runtimeFlags)
+            runtimeFlags = updateRuntimeFlags.update.patch(runtimeFlags)
 
-            throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep](), newRuntimeFlags)
+            // Save runtime flags to heap:
+            self.runtimeFlags = runtimeFlags
+
+            if (currentDepth > 0) throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep]())
         }
       } catch {
         case zioError: ZIOError =>
@@ -479,8 +484,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         case interruptedException: InterruptedException =>
           cur = Refail(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
 
-        case throwable: Throwable => // TODO: If non-fatal
-          cur = Refail(Cause.die(throwable))
+        case throwable: Throwable =>
+          cur = if (unsafeIsFatal(throwable)) {
+            FiberRuntime.catastrophicFailure.set(true)
+            throwable.printStackTrace()
+            throw throwable
+          } else Refail(Cause.die(throwable))
       }
     }
 

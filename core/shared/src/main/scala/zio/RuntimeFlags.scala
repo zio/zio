@@ -1,6 +1,8 @@
 package zio
 
 final case class RuntimeFlags(packed: Int) extends AnyVal {
+  def currentFiber: Boolean = enabled(RuntimeFlag.CurrentFiber)
+
   def diff(newValue: RuntimeFlags): RuntimeFlags.Patch =
     RuntimeFlags.Patch(packed ^ newValue.packed, newValue.packed)
 
@@ -12,6 +14,16 @@ final case class RuntimeFlags(packed: Int) extends AnyVal {
   def enable(flag: RuntimeFlag): RuntimeFlags = RuntimeFlags(packed | flag.mask)
 
   def enabled(flag: RuntimeFlag): Boolean = (packed & flag.mask) != 0
+
+  def fiberRoots: Boolean = enabled(RuntimeFlag.FiberRoots)
+
+  def interruption: Boolean = enabled(RuntimeFlag.Interruption)
+
+  def opLog: Boolean = enabled(RuntimeFlag.OpLog)
+
+  def opSupervision: Boolean = enabled(RuntimeFlag.OpSupervision)
+
+  def runtimeMetrics: Boolean = enabled(RuntimeFlag.RuntimeMetrics)
 }
 object RuntimeFlags {
   final case class Patch(packed: Long) extends AnyVal {

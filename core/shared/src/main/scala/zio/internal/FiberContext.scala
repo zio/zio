@@ -124,7 +124,7 @@
 
 //       val flags = unsafeGetRuntimeFlags()
 
-//       val enableStepLog = flags(RuntimeFlag.OpLog)
+//       val enableOpLog = flags(RuntimeFlag.OpLog)
 
 //       nextEffect = null
 
@@ -167,7 +167,7 @@
 //                 unsafeRunLater(curZio)
 //                 curZio = null
 //               } else {
-//                 if (enableStepLog) {
+//                 if (enableOpLog) {
 //                   val trace = curZio.trace
 
 //                   unsafeLog(ZLogger.stringTag, curZio.unsafeLog)(trace)

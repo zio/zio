@@ -1394,9 +1394,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
               complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }
 
-            leftFiber.startBackground(self, runtimeFlags)
-            rightFiber.startBackground(right, runtimeFlags)
-          } //FIXME, FiberId.combineAll(Set(left.fiberId, right.fiberId))
+            leftFiber.startBackground(self)
+            rightFiber.startBackground(right)
+          },
+          FiberId.combineAll(Set(leftFiber.id, rightFiber.id))
         )
     }
 
@@ -2434,7 +2435,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ): internal.FiberRuntime[E1, A] = {
     val childFiber = ZIO.unsafeForkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
 
-    childFiber.startBackground(effect, parentRuntimeFlags)
+    childFiber.startBackground(effect)
 
     childFiber
   }

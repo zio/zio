@@ -48,26 +48,14 @@ trait Runtime[+R] { self =>
   def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
     map(_ => r1)
 
-  def blockingExecutor: Executor =
-    fiberRefs.getOrDefault(FiberRef.currentBlockingExecutor)
-
-  def executor: Executor =
-    fiberRefs.getOrDefault(FiberRef.currentExecutor)
-
   def isFatal(t: Throwable): Boolean =
     fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
-
-  def loggers: Set[ZLogger[String, Any]] =
-    fiberRefs.getOrDefault(FiberRef.currentLoggers)
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
   def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
     Runtime(f(environment), fiberRefs)
-
-  final def reportFatal(t: Throwable): Nothing =
-    fiberRefs.getOrDefault(FiberRef.currentReportFatal)(t)
 
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.
@@ -225,7 +213,7 @@ trait Runtime[+R] { self =>
       k(exit, fiber.unsafeGetFiberRefs())
     }
 
-    fiber.start[R](zio, RuntimeFlags.default)
+    fiber.start[R](zio)
 
     fiberId =>
       k =>
@@ -249,10 +237,15 @@ object Runtime extends RuntimePlatformSpecific {
   /**
    * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
    */
-  def apply[R](r: ZEnvironment[R], fiberRefs0: FiberRefs): Runtime[R] =
+  def apply[R](
+    r: ZEnvironment[R],
+    fiberRefs0: FiberRefs,
+    runtimeFlags0: RuntimeFlags = RuntimeFlags.default
+  ): Runtime[R] =
     new Runtime[R] {
-      val environment        = r
-      override val fiberRefs = fiberRefs0
+      val environment           = r
+      override val fiberRefs    = fiberRefs0
+      override val runtimeFlags = runtimeFlags0
     }
 
   /**
@@ -273,7 +266,7 @@ object Runtime extends RuntimePlatformSpecific {
       ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.FiberRoots))
     }
 
-  def enableStepLog(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+  def enableOpLog(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
       ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.OpLog))
     }
@@ -292,7 +285,7 @@ object Runtime extends RuntimePlatformSpecific {
   def setReportFatal(reportFatal: Throwable => Nothing)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentReportFatal.locallyScoped(reportFatal))
 
-  def enableStepSupervision(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+  def enableOpSupervision(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
       ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.OpSupervision))
     }
@@ -375,16 +368,5 @@ object Runtime extends RuntimePlatformSpecific {
         def shutdown()         = shutdown0()
         override val fiberRefs = fiberRefs0
       }
-  }
-
-  private[zio] type UnsafeSuccess <: AnyRef
-  private[zio] class Lazy[A](thunk: () => A) {
-    lazy val value = thunk()
-  }
-  private[zio] object Lazy {
-    def apply[A](a: => A): Lazy[A] = new Lazy(() => a)
-
-    def stackTraceBuilder[A](): Lazy[StackTraceBuilder] =
-      new Lazy(() => StackTraceBuilder.unsafeMake())
   }
 }
