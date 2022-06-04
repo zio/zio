@@ -1,5 +1,27 @@
+/*
+ * Copyright 2021-2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package zio
 
+/**
+ * Maintains a set of runtime flags. Runtime flags affect the operation of the
+ * ZIO runtime system. They are exposed to application-level code because they
+ * affect the behavior and performance of application code.
+ *
+ * For more information on individual flags, see [[zio.RuntimeFlag]].
+ */
 final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
   def currentFiber: Boolean = enabled(RuntimeFlag.CurrentFiber)
 
@@ -74,16 +96,26 @@ object RuntimeFlags {
   def apply(flags: RuntimeFlag*): RuntimeFlags =
     RuntimeFlags(flags.foldLeft(0)(_ | _.mask))
 
+  /**
+   * The default set of runtime flags, recommended for most applications.
+   */
   val default: RuntimeFlags =
     RuntimeFlags(RuntimeFlag.FiberRoots, RuntimeFlag.Interruption)
 
+  /**
+   * Creates a patch that disables the specified runtime flag.
+   */
   def disable(flag: RuntimeFlag): RuntimeFlags.Patch =
     RuntimeFlags.Patch(flag.mask, 0)
 
+  /**
+   * Creates a patch that enables the specified runtime flag.
+   */
   def enable(flag: RuntimeFlag): RuntimeFlags.Patch =
     RuntimeFlags.Patch(flag.mask, flag.mask)
 
-  def fromPacked(packed: Int): RuntimeFlags = RuntimeFlags(packed)
-
+  /**
+   * No runtime flags.
+   */
   val none: RuntimeFlags = RuntimeFlags(0)
 }
