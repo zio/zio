@@ -163,7 +163,7 @@ class SmartAssertMacros(ctx: Quotes)  {
         val span = rhs.span
         lhs.tpe.widen.asType match {
           case '[l] => 
-            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${rhs.asExprOf[l]}).span($span)}.asExprOf[TestArrow[Any, A]]
+            '{${transform(lhs.asExprOf[l])} >>> SmartAssertions.equalTo(${transform(rhs.asExprOf[l])}).span($span)}.asExprOf[TestArrow[Any, A]]
         }
 
 

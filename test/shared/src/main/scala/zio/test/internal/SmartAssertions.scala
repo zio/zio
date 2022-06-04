@@ -211,9 +211,9 @@ object SmartAssertions {
         }
       }
 
-  def equalTo[A](that: A)(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
-    TestArrow
-      .make[A, Boolean] { a =>
+  def equalTo[A](that: TestArrow[Any, A])(implicit diff: OptionalImplicit[Diff[A]]): TestArrow[A, Boolean] =
+    TestArrow.suspend[A, Boolean] { a =>
+      that >>> TestArrow.make[A, Boolean] { that =>
         val result = (a, that) match {
           case (a: Array[_], that: Array[_]) => a.sameElements[Any](that)
           case _                             => a == that
@@ -230,6 +230,7 @@ object SmartAssertions {
           }
         }
       }
+    }
 
   def asCauseDie[E]: TestArrow[Cause[E], Throwable] =
     TestArrow

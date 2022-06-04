@@ -42,6 +42,9 @@ class SmartAssertMacros(val c: blackbox.Context) {
       name: String,
       tpes: List[Type],
       args: Option[List[c.Tree]],
+      headAssertion: Option[
+        c.Tree
+      ], // TODO: remove. This is just a terrible hack atm, to make a minimal equalTo example
       span: (Int, Int)
     ) extends AST
     case class Function(lhs: c.Tree, rhs: AST, lhsTpe: Type, span: (Int, Int)) extends AST
@@ -65,43 +68,43 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
   def parseAsAssertion(ast: AST)(start: c.Tree)(implicit positionContext: PositionContext): c.Tree =
     ast match {
-      case AST.Method(lhs, _, _, "some", _, _, span) =>
+      case AST.Method(lhs, _, _, "some", _, _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.isSome.span($span)"
 
-      case AST.Method(lhs, _, _, "right", _, _, span) =>
+      case AST.Method(lhs, _, _, "right", _, _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asRight.span($span)"
 
-      case AST.Method(lhs, _, _, "left", _, _, span) =>
+      case AST.Method(lhs, _, _, "left", _, _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asLeft.span($span)"
 
-      case AST.Method(lhs, _, _, "anything", _, _, span) =>
+      case AST.Method(lhs, _, _, "anything", _, _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.anything.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "subtype", List(tpe), _, span) =>
+      case AST.Method(lhs, lhsTpe, _, "subtype", List(tpe), _, _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.as[${lhsTpe.typeArgs.head}, $tpe].span($span)"
 
-      case AST.Method(lhs, _, _, "custom", List(_), Some(List(customAssertion)), span) =>
+      case AST.Method(lhs, _, _, "custom", List(_), Some(List(customAssertion)), _, span) =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.custom($customAssertion).span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
+      case AST.Method(lhs, lhsTpe, _, "die", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitDie.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitFailure.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "success", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
+      case AST.Method(lhs, lhsTpe, _, "success", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitSuccess.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
+      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Exit[_, _]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asExitInterrupted.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "die", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
+      case AST.Method(lhs, lhsTpe, _, "die", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseDie.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "failure", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
+      case AST.Method(lhs, lhsTpe, _, "failure", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseFailure.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
+      case AST.Method(lhs, lhsTpe, _, "interrupted", _, _, _, span) if lhsTpe <:< weakTypeOf[TestLens[Cause[_]]] =>
         q"${parseAsAssertion(lhs)(start)} >>> $SA.asCauseInterrupted.span($span)"
 
       case _ =>
@@ -120,18 +123,18 @@ class SmartAssertMacros(val c: blackbox.Context) {
         q"${astToAssertion(lhs)}.withParentSpan($ls) || ${astToAssertion(rhs)}.withParentSpan($rs)"
 
       // Matches `zio.test.SmartAssertionOps.as`
-      case AST.Method(lhs, _, _, "is", _, Some(List(arg)), _) if arg.tpe.typeArgs.head <:< weakTypeOf[TestLens[_]] =>
+      case AST.Method(lhs, _, _, "is", _, Some(List(arg)), _, _) if arg.tpe.typeArgs.head <:< weakTypeOf[TestLens[_]] =>
         val assertion = astToAssertion(lhs)
         parseExpr(arg) match {
           case AST.Function(_, rhs, _, _) => parseAsAssertion(rhs)(assertion)
           case _                          => throw new Error("This is not possible.")
         }
 
-      case AST.Method(lhs, lhsTpe, _, "forall", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "forall", _, Some(args), _, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
         q"${astToAssertion(lhs)} >>> $SA.forallIterable($assertion).span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, "exists", _, Some(args), span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+      case AST.Method(lhs, lhsTpe, _, "exists", _, Some(args), _, span) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
         val assertion = astToAssertion(parseExpr(args.head))
         q"${astToAssertion(lhs)} >>> $SA.existsIterable($assertion).span($span)"
 
@@ -139,7 +142,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
         val tree = AssertAST.toTree(ast)
         q"${astToAssertion(lhs)} >>> $tree.span($span)"
 
-      case AST.Method(lhs, lhsTpe, _, name, tpes, args, span) =>
+      case AST.Method(lhs, lhsTpe, _, name, tpes, args, _, span) =>
         val select =
           args match {
             case Some(args) =>
@@ -187,6 +190,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
           name.toString,
           tpes,
           args,
+          args.flatMap(_.headOption.map(t => astToAssertion(parseExpr(t)))),
           (pos.getEnd(lhs), end)
         )
 
@@ -318,23 +322,23 @@ $Assert($ast.withCode($codeString).withLocation)
       all.reduce(_ orElse _).unapply(method)
 
     val asInstanceOf: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "asInstanceOf", List(tpe), _, _, _) =>
         AssertAST("as", List(lhsTpe, tpe))
       }
 
     val isInstanceOf: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "isInstanceOf", List(tpe), _, _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "isInstanceOf", List(tpe), _, _, _) =>
         AssertAST("is", List(lhsTpe, tpe))
       }
 
     val equalTo: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, Some(args), _) =>
-        AssertAST("equalTo", List(lhsTpe), args)
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$eq$eq", _, _, Some(headAssertion), _) =>
+        AssertAST("equalTo", List(lhsTpe), List(headAssertion))
       }
 
     val get: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "get", _, _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isSome")
       }
 
@@ -343,12 +347,13 @@ $Assert($ast.withCode($codeString).withLocation)
         def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
           method match {
             case AST.Method(
-                  AST.Method(lhs, lhsTpe, _, "$percent", _, Some(List(q"2")), span0),
+                  AST.Method(lhs, lhsTpe, _, "$percent", _, Some(List(q"2")), _, span0),
                   _,
                   _,
                   "$eq$eq",
                   _,
                   Some(List(q"0")),
+                  _,
                   span
                 ) =>
               Some((lhs, AssertAST("isEven", List(lhsTpe)), span0._1 -> span._2))
@@ -361,12 +366,13 @@ $Assert($ast.withCode($codeString).withLocation)
         def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
           method match {
             case AST.Method(
-                  AST.Method(lhs, lhsTpe, _, "$percent", _, Some(List(q"2")), span0),
+                  AST.Method(lhs, lhsTpe, _, "$percent", _, Some(List(q"2")), _, span0),
                   _,
                   _,
                   "$eq$eq",
                   _,
                   Some(List(q"1")),
+                  _,
                   span
                 ) =>
               Some((lhs, AssertAST("isOdd", List(lhsTpe)), span0._1 -> span._2))
@@ -375,96 +381,96 @@ $Assert($ast.withCode($codeString).withLocation)
       }
 
     val greaterThan: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater", _, Some(args), _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater", _, Some(args), _, _) =>
         AssertAST("greaterThan", List(lhsTpe), args)
       }
 
     val greaterThanOrEqualTo: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater$eq", _, Some(args), _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$greater$eq", _, Some(args), _, _) =>
         AssertAST("greaterThanOrEqualTo", List(lhsTpe), args)
       }
 
     val lessThan: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less", _, Some(args), _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less", _, Some(args), _, _) =>
         AssertAST("lessThan", List(lhsTpe), args)
       }
 
     val lessThanOrEqualTo: ASTConverter =
-      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less$eq", _, Some(args), _) =>
+      ASTConverter.make { case AST.Method(_, lhsTpe, _, "$less$eq", _, Some(args), _, _) =>
         AssertAST("lessThanOrEqualTo", List(lhsTpe), args)
       }
 
     val head: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "head", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+        case AST.Method(_, lhsTpe, _, "head", _, _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("head")
       }
 
     val hasAt: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
+        case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("hasAt", args = args)
       }
 
     val hasKey: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _) if lhsTpe <:< weakTypeOf[Map[_, _]] =>
+        case AST.Method(_, lhsTpe, _, "apply", _, Some(args), _, _) if lhsTpe <:< weakTypeOf[Map[_, _]] =>
           AssertAST("hasKey", args = args)
       }
 
     val isEmptyIterable: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+        case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("isEmptyIterable")
       }
 
     val isNonEmptyIterable: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "nonEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
+        case AST.Method(_, lhsTpe, _, "nonEmpty", _, _, _, _) if lhsTpe <:< weakTypeOf[Iterable[_]] =>
           AssertAST("isNonEmptyIterable")
       }
 
     val isEmptyOption: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "isEmpty", _, _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isEmptyOption")
       }
 
     val isDefinedOption: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "isDefined", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "isDefined", _, _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isDefinedOption")
       }
 
     val containsSeq: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
+        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _, _) if lhsTpe <:< weakTypeOf[Seq[_]] =>
           AssertAST("containsSeq", args = args)
       }
 
     val containsOption: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("containsOption", args = args, tpes = List(lhsTpe.dealias.typeArgs.head))
       }
 
     val containsString: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _) if lhsTpe <:< weakTypeOf[String] =>
+        case AST.Method(_, lhsTpe, _, "contains", _, Some(args), _, _) if lhsTpe <:< weakTypeOf[String] =>
           AssertAST("containsString", args = args)
       }
 
     // Option
     val asSome: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "get", _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
+        case AST.Method(_, lhsTpe, _, "get", _, _, _, _) if lhsTpe <:< weakTypeOf[Option[_]] =>
           AssertAST("isSome")
       }
 
     // Either
     val asRight: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "$asRight", _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
+        case AST.Method(_, lhsTpe, _, "$asRight", _, _, _, _) if lhsTpe <:< weakTypeOf[Either[_, _]] =>
           AssertAST("asRight")
       }
 
@@ -474,7 +480,7 @@ $Assert($ast.withCode($codeString).withLocation)
       new ASTConverter {
         def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
           method match {
-            case AST.Method(AST.Method(lhs, lhsTpe, _, "right", _, _, lhsSpan), _, _, "get", _, _, span)
+            case AST.Method(AST.Method(lhs, lhsTpe, _, "right", _, _, _, lhsSpan), _, _, "get", _, _, _, span)
                 if lhsTpe <:< eitherType =>
               Some((lhs, AssertAST("asRight"), lhsSpan._1 -> span._2))
             case _ => None
@@ -483,7 +489,7 @@ $Assert($ast.withCode($codeString).withLocation)
 
     val asLeft: ASTConverter =
       ASTConverter.make {
-        case AST.Method(_, lhsTpe, _, "$asLeft", _, _, _) if lhsTpe <:< eitherType =>
+        case AST.Method(_, lhsTpe, _, "$asLeft", _, _, _, _) if lhsTpe <:< eitherType =>
           AssertAST("asLeft")
       }
 
@@ -491,7 +497,7 @@ $Assert($ast.withCode($codeString).withLocation)
       new ASTConverter {
         override def unapply(method: AST.Method): Option[(AST, AssertAST, (Int, Int))] =
           method match {
-            case AST.Method(AST.Method(lhs, lhsTpe, _, "left", _, _, lhsSpan), _, _, "get", _, _, span)
+            case AST.Method(AST.Method(lhs, lhsTpe, _, "left", _, _, _, lhsSpan), _, _, "get", _, _, _, span)
                 if lhsTpe <:< eitherType =>
               Some((lhs, AssertAST("asLeft"), lhsSpan._1 -> span._2))
             case _ => None
