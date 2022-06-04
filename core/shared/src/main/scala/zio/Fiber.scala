@@ -281,8 +281,7 @@ sealed abstract class Fiber[+E, +A] { self =>
         }
 
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = self.children
-
-      final def id: FiberId = self.id <> that.id
+      final def id: FiberId                                                      = self.id <> that.id
 
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         self.interruptAsFork(id) *> that.interruptAsFork(id)
@@ -488,10 +487,14 @@ object Fiber extends FiberPlatformSpecific {
         trace  <- self.trace
       } yield Fiber.Dump(self.id, status, trace)
 
+    def fiberRefs(implicit trace: Trace): UIO[FiberRefs]
+
     /**
      * The identity of the fiber.
      */
     override def id: FiberId.Runtime
+
+    def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags]
 
     /**
      * The status of the fiber.
@@ -535,7 +538,7 @@ object Fiber extends FiberPlatformSpecific {
    *   The fiber's forked children.
    */
   final case class Descriptor(
-    id: FiberId,
+    id: FiberId.Runtime,
     status: Status.Active,
     interrupters: Set[FiberId],
     executor: Executor,
@@ -611,6 +614,7 @@ object Fiber extends FiberPlatformSpecific {
         ZIO.foreachPar(fibers)(_.await.flatMap(ZIO.done(_))).exit
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
         ZIO.foreachPar(Chunk.fromIterable(fibers))(_.children).map(_.flatten)
+
       final def id: FiberId = fibers.foldLeft(FiberId.None: FiberId)(_ <> _.id)
 
       def inheritRefs(implicit trace: Trace): UIO[Unit] =

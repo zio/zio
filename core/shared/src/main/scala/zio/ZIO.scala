@@ -3100,14 +3100,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns the `FiberId` of the fiber executing the effect that calls this
    * method.
    */
-  def fiberId(implicit trace: Trace): UIO[FiberId] =
+  def fiberId(implicit trace: Trace): UIO[FiberId.Runtime] =
     fiberIdWith(fiberId => ZIO.succeedNow(fiberId))
 
   /**
    * Constructs an effect based on the `FiberId` of the fiber executing the
    * effect that calls this method.
    */
-  def fiberIdWith[R, E, A](f: FiberId => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def fiberIdWith[R, E, A](f: FiberId.Runtime => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith(descriptor => f(descriptor.id))
 
   /**
@@ -5556,7 +5556,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final case class Refail[E](cause: Cause[E]) extends ZIO[Any, E, Nothing] {
     def trace: Trace = Trace.empty
   }
-  private[zio] final case class InterruptSignal(cause: Cause[Nothing], trace: Trace) extends ZIO[Any, Nothing, Unit]
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]

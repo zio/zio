@@ -2,7 +2,7 @@ package zio
 
 import zio.FiberRefSpecUtil._
 import zio.test.Assertion._
-import zio.test.TestAspect.flaky
+import zio.test.TestAspect._
 import zio.test._
 
 object FiberRefSpec extends ZIOBaseSpec {
@@ -292,7 +292,6 @@ object FiberRefSpec extends ZIOBaseSpec {
       },
       test("an unsafe handle is initialized and updated properly") {
         for {
-          _        <- ZIO.runtimeFlags.debug("runtimeFlags: ")
           fiberRef <- FiberRef.make(initial)
           handle   <- fiberRef.unsafeAsThreadLocal
           value1   <- ZIO.succeed(handle.get())
