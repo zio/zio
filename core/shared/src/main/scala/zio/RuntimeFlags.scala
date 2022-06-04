@@ -23,6 +23,16 @@ package zio
  * For more information on individual flags, see [[zio.RuntimeFlag]].
  */
 final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
+  def +(flag: RuntimeFlag): RuntimeFlags = self ++ RuntimeFlags(flag)
+
+  def -(flag: RuntimeFlag): RuntimeFlags = self -- RuntimeFlags(flag)
+
+  def ++(that: RuntimeFlags): RuntimeFlags =
+    RuntimeFlags(self.packed | that.packed)
+
+  def --(that: RuntimeFlags): RuntimeFlags =
+    RuntimeFlags(self.packed & ~that.packed)
+
   def currentFiber: Boolean = enabled(RuntimeFlag.CurrentFiber)
 
   def diff(newValue: RuntimeFlags): RuntimeFlags.Patch =
@@ -55,26 +65,28 @@ final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
     toSet.mkString("RuntimeFlags(", ", ", ")")
 }
 object RuntimeFlags {
-  final case class Patch(packed: Long) extends AnyVal {
-    def apply(flag: RuntimeFlags): RuntimeFlags =
-      RuntimeFlags(((~active) & flag.packed) | enabled)
-
-    private final def active: Int  = ((packed >> 0) & 0xffffffff).toInt
-    private final def enabled: Int = ((packed >> 32) & 0xffffffff).toInt
-
+  final case class Patch(packed: Long) extends AnyVal { self =>
     def &(that: Patch): Patch =
       Patch(active | that.active, enabled & that.enabled)
 
     def |(that: Patch): Patch =
       Patch(active | that.active, enabled | that.enabled)
 
+    def <>(that: Patch): Patch = self | that
+
+    def apply(flag: RuntimeFlags): RuntimeFlags =
+      RuntimeFlags((flag.packed & (~active | enabled)) | (active & enabled))
+
     def disabled(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0) && ((enabled & flag.mask) == 0)
 
     def enabled(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0) && ((enabled & flag.mask) != 0)
 
+    def equalsPatch(that: Patch): Boolean =
+      (self.active == that.active) && ((self.active & self.enabled) == (that.active & that.enabled))
+
     def inverse: Patch = Patch(active, ~enabled)
 
-    def enabledSet: Set[RuntimeFlag] = apply(RuntimeFlags.none).toSet
+    def enabledSet: Set[RuntimeFlag] = RuntimeFlags(active & enabled).toSet
 
     def disabledSet: Set[RuntimeFlag] = RuntimeFlags(active & ~enabled).toSet
 
@@ -87,10 +99,13 @@ object RuntimeFlags {
 
       s"RuntimeFlags.Patch(enabled = ${enabledS}, disabled = ${disabledS})"
     }
+
+    private def active: Int  = ((packed >> 0) & 0xffffffff).toInt
+    private def enabled: Int = ((packed >> 32) & 0xffffffff).toInt
   }
   object Patch {
     def apply(active: Int, enabled: Int): Patch =
-      Patch((active.toLong << 0) + (enabled.toLong << 32))
+      Patch((active.toLong << 0) + ((enabled & active).toLong << 32))
   }
 
   def apply(flags: RuntimeFlag*): RuntimeFlags =
