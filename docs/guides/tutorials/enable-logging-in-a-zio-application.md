@@ -130,7 +130,7 @@ ZIO.logLevel(LogLevel.Debug) {
 }
 ```
 
-## Logging Endpoints (Real World Example)
+## UserApp: Add Logging
 
 In this section, we are going to log all the HTTP requests coming to the `UserApp`, and then in each step, when we are handling a request we will log the result, whether is successful or not.
 
@@ -230,7 +230,7 @@ ZIO.logSpan("span1") {
 }
 ```
 
-## Logging Spans (Real World Example)
+## UserApp: Logging Spans
 
 To measure the time taken to process the request at different points of the code, we can wrap any workflow with `ZIO.logSpan`. In the `UserApp` example, we wrote a workflow that handles the registration of a new user. We can wrap the workflow in a span and log inside the span:
 
@@ -338,7 +338,7 @@ timestamp=2022-06-01T16:31:00.839411Z level=INFO thread=#zio-fiber-8 message="do
 
 As we can see, the `user-id` with its value is annotated to each log message. 
 
-## Annotating Logs with Correlation Ids
+## UserApp: Logging Correlation Ids
 
 To add a Correlation ID to the logs, we should first extract the `X-Correlation-ID` header from the request and use it as the Correlation ID.
 
