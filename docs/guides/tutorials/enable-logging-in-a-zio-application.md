@@ -8,6 +8,26 @@ sidebar_label: "Enable Logging in a ZIO Application"
 
 ZIO has built-in support for logging. This tutorial will show you how to enable logging for a ZIO application.
 
+## Running the Examples
+
+All the source code associated with this article is located on the `logging` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
+
+In [this quickstart](../quickstarts/restful-webservice.md), we developed a web service containing 4 different HTTP Applications, but we haven't enabled logging for them. In this tutorial, we are going to enable logging for the `UserApp` we have developed in this quickstart.
+
+To run the code, clone the repository and checkout the `logging` branch:
+
+```bash
+$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
+$ cd zio-quickstart-restful-webservice
+$ git checkout logging
+```
+
+And finally, run the application using sbt:
+
+```bash
+$ sbt run
+```
+
 ## Default Logger
 
 ZIO has a default logger that prints any log messages that are equal, or above the `Level.Info` level:
@@ -110,6 +130,44 @@ ZIO.logLevel(LogLevel.Debug) {
 }
 ```
 
+## Logging Endpoints (Real World Example)
+
+In this section, we are going to log all the HTTP requests coming to the `UserApp`, and then in each step, when we are handling a request we will log the result, whether is successful or not.
+
+We demonstrate this for the "POST /users" endpoint. This process is the same for all the other endpoints.
+
+```scala
+import zio._
+import zio.json._
+import zhttp.http._
+
+Http.collectZIO[Request] {
+  // POST /users -d '{"name": "John", "age": 35}'
+  case req@(Method.POST -> !! / "users") => {
+    for {
+      body <- req.bodyAsString
+      _ <- ZIO.logInfo(s"POST /users -d $body")
+      u = body.fromJson[User]
+      r <- u match {
+        case Left(e) =>
+          ZIO.logErrorCause(s"Failed to parse the input", Cause.fail(e))
+            .as(Response.text(e).setStatus(Status.BadRequest))
+        case Right(u) =>
+          UserRepo.register(u)
+            .foldCauseZIO(
+              failure =>
+                ZIO.logErrorCause(s"Failed to register user", Cause.fail(failure))
+                  .as(Response.status(Status.InternalServerError)),
+              success =>
+                ZIO.logInfo(s"User registered: $success")
+                  .as(Response.text(success))
+            )
+      }
+    } yield r
+  } @@ logSpan("register-user") @@ logAnnotateCorrelationId(req)
+}
+```
+
 ## Logging Spans
 
 ZIO supports logging spans. A span is a logical unit of work that is composed of a start and end time. The start time is when the span is created and the end time is when the span is completed. The span is useful for measuring the time it takes to execute a piece of code. To create a new span, we can use the `ZIO.logSpan` function as follows:
@@ -172,6 +230,65 @@ ZIO.logSpan("span1") {
 }
 ```
 
+## Logging Spans (Real World Example)
+
+To measure the time taken to process the request at different points of the code, we can wrap any workflow with `ZIO.logSpan`. In the `UserApp` example, we wrote a workflow that handles the registration of a new user. We can wrap the workflow in a span and log inside the span:
+
+
+```scala
+Http.collectZIO[Request] {
+  // POST /users -d '{"name": "John", "age": 35}'
+  case req@(Method.POST -> !! / "users") => 
+    ZIO.logSpan("register-user") {
+      // registration workflow
+    }
+}
+```
+
+As we need the same for all other endpoints, we introduced a new ZIO Aspect called `LogAspect.logSpan` which can be applied to any ZIO workflow. Let's see how it is implemented and how it works:
+
+```scala
+import zio._
+
+object LogAspect {
+  def logSpan(
+      label: String
+  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      override def apply[R, E, A](zio: ZIO[R, E, A])(
+        implicit trace: ZTraceElement
+      ): ZIO[R, E, A] =
+        ZIO.logSpan(label)(zio)
+    }
+}
+```
+
+To apply this aspect to a ZIO workflow, we can use the `@@` operator:
+
+```scala
+workflow @@ LogAspect.logSpan("register-user")
+```
+
+Now, let's run the web service and post a request to the `/users` endpoint and create a new user and see the logs:
+
+```bash
+$ curl -i http://localhost:8080/users -d '{"name": "John", "age": 42}'
+```
+
+And the logs:
+
+```scala
+timestamp=2022-06-03T09:42:15.590135Z level=INFO thread=#zio-fiber-16 message="POST /users -d {"name": "John", "age": 42}" register-user=16ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22 
+timestamp=2022-06-03T09:42:15.748359Z level=INFO thread=#zio-fiber-16 message="User registered: 24c4ed63-ecc2-41fb-ac0e-5cbf22f187f6" register-user=174ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35
+```
+
+In the above logs, we can see that the `register-user` span is created and the time taken to process the request is logged.
+
+```bash
+register-user=16ms
+register-user=174ms
+```
+
 ## Annotating Logs
 
 The default log message is a string, containing a series of key-value pairs. It contains the following information:
@@ -221,125 +338,7 @@ timestamp=2022-06-01T16:31:00.839411Z level=INFO thread=#zio-fiber-8 message="do
 
 As we can see, the `user-id` with its value is annotated to each log message. 
 
-## ZIO Quickstart: Enable Logging
-
-In [this quickstart](../quickstarts/restful-webservice.md), we developed a web service containing 4 different HTTP Applications. But, we haven't enabled logging for them. In this section, we are going to enable logging for the `UserApp`.
-
-### Running the Example
-
-All the source code associated with this article is located on the `logging` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
-
-To run the code, clone the repository and checkout the `logging` branch:
-
-```bash
-$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
-$ cd zio-quickstart-restful-webservice
-$ git checkout logging
-```
-
-And finally, run the application using sbt:
-
-```bash
-$ sbt run
-```
-
-### Logging Endpoints
-
-In this section, we are going to log all the HTTP requests coming to the `UserApp`, and then in each step, when we are handling a request we will log the result, whether is successful or not.
-
-We demonstrate this for the "POST /users" endpoint. This process is the same for all the other endpoints.
-
-```scala
-import zio._
-import zio.json._
-import zhttp.http._
-
-Http.collectZIO[Request] {
-  // POST /users -d '{"name": "John", "age": 35}'
-  case req@(Method.POST -> !! / "users") => {
-    for {
-      body <- req.bodyAsString
-      _ <- ZIO.logInfo(s"POST /users -d $body")
-      u = body.fromJson[User]
-      r <- u match {
-        case Left(e) =>
-          ZIO.logErrorCause(s"Failed to parse the input", Cause.fail(e))
-            .as(Response.text(e).setStatus(Status.BadRequest))
-        case Right(u) =>
-          UserRepo.register(u)
-            .foldCauseZIO(
-              failure =>
-                ZIO.logErrorCause(s"Failed to register user", Cause.fail(failure))
-                  .as(Response.status(Status.InternalServerError)),
-              success =>
-                ZIO.logInfo(s"User registered: $success")
-                  .as(Response.text(success))
-            )
-      }
-    } yield r
-  } @@ logSpan("register-user") @@ logAnnotateCorrelationId(req)
-}
-```
-
-### Logging Spans
-
-To measure the time taken to process the request at different points of the code, we can wrap the above code with `ZIO.logSpan`:
-
-```scala
-Http.collectZIO[Request] {
-  // POST /users -d '{"name": "John", "age": 35}'
-  case req@(Method.POST -> !! / "users") => 
-    ZIO.logSpan("register-user") {
-      // ...
-    }
-}
-```
-
-As we need the same for all other endpoints, we introduced a new ZIO Aspect called `LogAspect.logSpan` which can be applied to any ZIO workflow. Let's see how it is implemented and how it works:
-
-```scala
-import zio._
-
-object LogAspect {
-  def logSpan(
-      label: String
-  ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
-      override def apply[R, E, A](zio: ZIO[R, E, A])(
-        implicit trace: ZTraceElement
-      ): ZIO[R, E, A] =
-        ZIO.logSpan(label)(zio)
-    }
-}
-```
-
-To apply this aspect to a ZIO workflow, we can use the `@@` operator:
-
-```scala
-workflow @@ LogAspect.logSpan("register-user")
-```
-
-Now, let's run the web service and post a request to the `/users` endpoint and create a new user and see the logs:
-
-```bash
-$ curl -i http://localhost:8080/users -d '{"name": "John", "age": 42}'
-```
-
-And the logs:
-
-```scala
-timestamp=2022-06-03T09:42:15.590135Z level=INFO thread=#zio-fiber-16 message="POST /users -d {"name": "John", "age": 42}" register-user=16ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22 
-timestamp=2022-06-03T09:42:15.748359Z level=INFO thread=#zio-fiber-16 message="User registered: 24c4ed63-ecc2-41fb-ac0e-5cbf22f187f6" register-user=174ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35
-```
-
-In the above logs, we can see that the `register-user` span is created and the time taken to process the request is logged.
-
-```bash
-register-user=16ms
-register-user=174ms
-```
-
-### Annotating Logs with Correlation Ids
+## Annotating Logs with Correlation Ids
 
 To add a Correlation ID to the logs, we should first extract the `X-Correlation-ID` header from the request and use it as the Correlation ID.
 
