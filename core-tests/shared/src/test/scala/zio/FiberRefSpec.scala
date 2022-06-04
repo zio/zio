@@ -292,6 +292,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       },
       test("an unsafe handle is initialized and updated properly") {
         for {
+
           fiberRef <- FiberRef.make(initial)
           handle   <- fiberRef.unsafeAsThreadLocal
           value1   <- ZIO.succeed(handle.get())
@@ -299,7 +300,8 @@ object FiberRefSpec extends ZIOBaseSpec {
           value2   <- ZIO.succeed(handle.get())
           _        <- ZIO.succeed(handle.set(update2))
           value3   <- fiberRef.get
-        } yield assert((value1, value2, value3))(equalTo((initial, update1, update2)))
+          _        <- ZIO.debug("++++++++")
+        } yield assertTrue(value1 == initial && value2 == update1 && value3 == update2)
       },
       test("unsafe handles work properly when initialized in a race") {
         for {

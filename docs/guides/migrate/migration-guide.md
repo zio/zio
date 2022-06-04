@@ -767,8 +767,8 @@ object MainApp extends zio.App {
 In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of-the-box layers for runtime customization, defined in the companion object of the `Runtime` trait. Here are some of them:
 - `Runtime.addLogger` to add a logger
 - `Runtime.setExecutor` to provide a custom `Executor`
-- `Runtime.logRuntime` to log runtime information
-- `Runtime.trackRuntimeMetrics` to track runtime metrics
+- `Runtime.enableStepLog` to log runtime information
+- `Runtime.enableRuntimeMetrics` to track runtime metrics
 - etc.
 
 Let's see how a previous example can be rewritten in ZIO 2.x:

@@ -759,7 +759,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]]((fiberState, status) =>
-      ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, status.interruptible))
+      ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, status.runtimeFlags))
     )
 
   /**
@@ -854,7 +854,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * [[ZIO.uninterruptibleMask]].
    */
   final def interruptible(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.ChangeInterruptionWithin.Interruptible(trace, self)
+    ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, self)
 
   /**
    * Switches the interrupt status for this effect. If `true` is used, then the
@@ -1365,7 +1365,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.unsafeStateful[R1, E2, C] { (fiberState, status) =>
       import java.util.concurrent.atomic.AtomicBoolean
 
-      val interruptible = status.interruptible
+      val runtimeFlags = status.runtimeFlags
 
       @inline def complete[E0, E1, A, B](
         winner: Fiber.Runtime[E0, A],
@@ -1380,8 +1380,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber: internal.FiberRuntime[E, A]   = ZIO.unsafeForkUnstarted(trace, self, fiberState)
-      val rightFiber: internal.FiberRuntime[ER, B] = ZIO.unsafeForkUnstarted(trace, right, fiberState)
+      val leftFiber  = ZIO.unsafeForkUnstarted(trace, self, fiberState, runtimeFlags)
+      val rightFiber = ZIO.unsafeForkUnstarted(trace, right, fiberState, runtimeFlags)
 
       ZIO
         .async[R1, E2, C](
@@ -1394,8 +1394,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
               complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }
 
-            leftFiber.startBackground(self, interruptible)
-            rightFiber.startBackground(right, interruptible)
+            leftFiber.startBackground(self, runtimeFlags)
+            rightFiber.startBackground(right, runtimeFlags)
           } //FIXME, FiberId.combineAll(Set(left.fiberId, right.fiberId))
         )
     }
@@ -2083,7 +2083,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.ChangeInterruptionWithin.Uninterruptible(trace, self)
+    ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, self)
 
   /**
    * Returns the effect resulting from mapping the success of this effect to
@@ -2303,6 +2303,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.withRandom(random)(self)
 
   /**
+   * Returns a new ZIO effect that will update the runtime flags according to
+   * the specified patch within the scope of this ZIO effect.
+   */
+  final def withRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.UpdateRuntimeFlagsWithin.Dynamic(trace, patch, _ => self)
+
+  /**
    * Executes this workflow with the specified implementation of the system
    * service.
    */
@@ -2423,11 +2430,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     trace: Trace,
     effect: ZIO[R, E1, A],
     parentFiber: internal.FiberRuntime[E2, B],
-    interruptible: Boolean
+    parentRuntimeFlags: RuntimeFlags
   ): internal.FiberRuntime[E1, A] = {
-    val childFiber = ZIO.unsafeForkUnstarted(trace, effect, parentFiber)
+    val childFiber = ZIO.unsafeForkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
 
-    childFiber.startBackground(effect, interruptible)
+    childFiber.startBackground(effect, parentRuntimeFlags)
 
     childFiber
   }
@@ -2435,13 +2442,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private def unsafeForkUnstarted[R, E1, E2, A, B](
     trace: Trace,
     effect: ZIO[R, E1, A],
-    parentFiber: internal.FiberRuntime[E2, B]
+    parentFiber: internal.FiberRuntime[E2, B],
+    parentRuntimeFlags: RuntimeFlags
   ): internal.FiberRuntime[E1, A] = {
     val childId         = FiberId.unsafeMake(trace)
     val parentFiberRefs = parentFiber.unsafeGetFiberRefs
     val childFiberRefs  = parentFiberRefs.forkAs(childId)
 
-    val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs)
+    val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
     childFiber.unsafeForeachSupervisor { supervisor =>
       // Call the supervisor who can observe the fork of the child fiber
@@ -2459,10 +2467,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     val parentScope = parentFiber.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
 
-    val runtimeFlags = parentFiber.unsafeGetFiberRef(FiberRef.currentRuntimeFlags)
-    val enableRoots  = runtimeFlags.contains(RuntimeFlag.EnableCurrentFiber)
-
-    parentScope.unsafeAdd(enableRoots, childFiber)(trace)
+    parentScope.unsafeAdd(parentRuntimeFlags, childFiber)(trace)
 
     childFiber
   }
@@ -2746,7 +2751,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.unsafeStateful[R, E, A] { (_, status) =>
-      f(InterruptStatus.fromBoolean(status.interruptible))
+      f(InterruptStatus.fromBoolean(status.runtimeFlags.enabled(RuntimeFlag.Interruption)))
     }
 
   /**
@@ -4455,11 +4460,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def uninterruptibleMask[R, E, A](
     f: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.ChangeInterruptionWithin.Dynamic(
+    ZIO.UpdateRuntimeFlagsWithin.Dynamic(
       trace,
-      false,
-      old =>
-        if (old) f(InterruptibilityRestorer.MakeInterruptible)
+      RuntimeFlags.disable(RuntimeFlag.Interruption),
+      oldFlags =>
+        if (oldFlags.enabled(RuntimeFlag.Interruption)) f(InterruptibilityRestorer.MakeInterruptible)
         else f(InterruptibilityRestorer.MakeUninterruptible)
     )
 
@@ -4503,6 +4508,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
       ZIO.unit
     }
+
+  /**
+   * Updates the runtime flags. This may have a performance impact. For a
+   * higher-performance variant, see `ZIO#withRuntimeFlags`.
+   */
+  def updateRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
+    ZIO.UpdateRuntimeFlags(trace, patch)
 
   /**
    * Updates a state in the environment with the specified function.
@@ -4743,6 +4755,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def withRandomScoped[A <: Random](random: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
     DefaultServices.currentServices.locallyScopedWith(_.add(random))
+
+  def withRuntimeFlagsScoped(update: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    ZIO.uninterruptible {
+      ZIO.updateRuntimeFlags(update) *>
+        ZIO.addFinalizer(ZIO.updateRuntimeFlags(update.inverse)).unit
+    }
 
   /**
    * Executes the specified workflow with the specified implementation of the
@@ -5414,23 +5432,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def trace: Trace
   }
   private[zio] object EvaluationStep {
-    sealed trait ChangeInterruptibility extends EvaluationStep {
+    sealed trait UpdateRuntimeFlags extends EvaluationStep {
       final def trace = Trace.empty
 
-      def interruptible: Boolean
+      def update: RuntimeFlags.Patch
     }
-    object ChangeInterruptibility {
-      def apply(b: Boolean): ChangeInterruptibility = if (b) MakeInterruptible else MakeUninterruptible
+    object UpdateRuntimeFlags {
+      def apply(patch: RuntimeFlags.Patch): UpdateRuntimeFlags =
+        new UpdateRuntimeFlags {
+          override def update: RuntimeFlags.Patch = patch
+        }
 
-      case object MakeInterruptible extends ChangeInterruptibility {
-        def onSuccess(a: Any): ZIO[Any, Any, Any] = ZIO.succeed(a)(Trace.empty)
+      def setInterruptible(b: Boolean): UpdateRuntimeFlags = if (b) MakeInterruptible else MakeUninterruptible
 
-        def interruptible: Boolean = true
+      case object MakeInterruptible extends UpdateRuntimeFlags {
+        val update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
       }
-      case object MakeUninterruptible extends ChangeInterruptibility {
-        def onSuccess(a: Any): ZIO[Any, Any, Any] = ZIO.succeed(a)(Trace.empty)
-
-        def interruptible: Boolean = false
+      case object MakeUninterruptible extends UpdateRuntimeFlags {
+        val update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
       }
     }
     final case class UpdateTrace(trace: Trace) extends EvaluationStep
@@ -5515,27 +5534,29 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     def onSuccess(a: A): ZIO[R, E2, A] = ZIO.succeed(a)(trace)
   }
-  private[zio] sealed trait ChangeInterruptionWithin[R, E, A] extends ZIO[R, E, A] {
-    def newInterruptible: Boolean
+  private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
+      extends ZIO[Any, Nothing, Unit]
+  private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
+    def update: RuntimeFlags.Patch
 
-    def scope(oldInterruptible: Boolean): ZIO[R, E, A]
+    def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
   }
-  private[zio] object ChangeInterruptionWithin {
+  private[zio] object UpdateRuntimeFlagsWithin {
     final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
-        extends ChangeInterruptionWithin[R, E, A] {
-      def newInterruptible: Boolean = true
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
 
-      def scope(oldInterruptible: Boolean): ZIO[R, E, A] = effect
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
     final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
-        extends ChangeInterruptionWithin[R, E, A] {
-      def newInterruptible: Boolean = false
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
 
-      def scope(oldInterruptible: Boolean): ZIO[R, E, A] = effect
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
-    final case class Dynamic[R, E, A](trace: Trace, newInterruptible: Boolean, f: Boolean => ZIO[R, E, A])
-        extends ChangeInterruptionWithin[R, E, A] {
-      def scope(oldInterruptible: Boolean): ZIO[R, E, A] = f(oldInterruptible)
+    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
   }
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
@@ -5558,13 +5579,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   object InterruptibilityRestorer {
     case object MakeInterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.ChangeInterruptionWithin.Interruptible(trace, effect)
+        ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
 
       def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = apply(effect.disconnect)
     }
     case object MakeUninterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.ChangeInterruptionWithin.Uninterruptible(trace, effect)
+        ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect)
 
       def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = apply(effect)
     }

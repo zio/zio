@@ -39,6 +39,9 @@ trait Runtime[+R] { self =>
   def fiberRefs: FiberRefs =
     FiberRefs.empty
 
+  def runtimeFlags: RuntimeFlags =
+    RuntimeFlags.default
+
   /**
    * Constructs a new `Runtime` with the specified new environment.
    */
@@ -50,9 +53,6 @@ trait Runtime[+R] { self =>
 
   def executor: Executor =
     fiberRefs.getOrDefault(FiberRef.currentExecutor)
-
-  def flags: Set[RuntimeFlag] =
-    fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)
 
   def isFatal(t: Throwable): Boolean =
     fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
@@ -209,12 +209,9 @@ trait Runtime[+R] { self =>
 
     val fiberId   = FiberId.unsafeMake(trace)
     val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-    val fiber     = FiberRuntime[E, A](fiberId, fiberRefs)
+    val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
 
-    FiberScope.global.unsafeAdd(
-      fiberRefs.getOrDefault(FiberRef.currentRuntimeFlags)(RuntimeFlag.EnableFiberRoots),
-      fiber
-    )
+    FiberScope.global.unsafeAdd(runtimeFlags, fiber)
 
     fiber.unsafeForeachSupervisor { supervisor =>
       if (supervisor != Supervisor.none) {
@@ -228,7 +225,7 @@ trait Runtime[+R] { self =>
       k(exit, fiber.unsafeGetFiberRefs())
     }
 
-    fiber.start[R](zio, true)
+    fiber.start[R](zio, RuntimeFlags.default)
 
     fiberId =>
       k =>
@@ -266,20 +263,20 @@ object Runtime extends RuntimePlatformSpecific {
   val default: Runtime[Any] =
     Runtime(ZEnvironment.empty, FiberRefs.empty)
 
-  val enableCurrentFiber: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.EnableCurrentFiber))
-  }
+  def enableCurrentFiber(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.CurrentFiber))
+    }
 
-  lazy val enableFiberRoots: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.EnableFiberRoots))
-  }
+  def enableFiberRoots(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.FiberRoots))
+    }
 
-  val logRuntime: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.LogRuntime))
-  }
+  def enableStepLog(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.OpLog))
+    }
 
   val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
@@ -295,10 +292,10 @@ object Runtime extends RuntimePlatformSpecific {
   def setReportFatal(reportFatal: Throwable => Nothing)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentReportFatal.locallyScoped(reportFatal))
 
-  lazy val superviseOperations: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.SuperviseOperations))
-  }
+  def enableStepSupervision(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.OpSupervision))
+    }
 
   /**
    * A layer that adds a supervisor that tracks all forked fibers in a set. Note
@@ -307,10 +304,10 @@ object Runtime extends RuntimePlatformSpecific {
   def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     addSupervisor(Supervisor.unsafeTrack(weak))
 
-  val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
-    implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.TrackRuntimeMetrics))
-  }
+  def enableRuntimeMetrics(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.RuntimeMetrics))
+    }
 
   /**
    * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be

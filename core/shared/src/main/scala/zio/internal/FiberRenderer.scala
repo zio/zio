@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.Fiber.Dump
 import zio.Fiber.Status.{Done, Running, Suspended}
-import zio.{Fiber, FiberId, UIO, ZIO, Trace}
+import zio.{Fiber, FiberId, RuntimeFlag, UIO, ZIO, Trace}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -55,8 +55,8 @@ private[zio] object FiberRenderer {
     status match {
       case Done          => "Done"
       case Running(_, t) => s"Running(${t})"
-      case Suspended(_, interruptible, trace, _) =>
-        val in = if (interruptible) "interruptible" else "uninterruptible"
+      case Suspended(_, runtimeFlags, trace, _) =>
+        val in = if (runtimeFlags.enabled(RuntimeFlag.Interruption)) "interruptible" else "uninterruptible"
         val as = trace.toString
         s"Suspended($in, $as)"
     }

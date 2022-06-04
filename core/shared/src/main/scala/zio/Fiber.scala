@@ -541,7 +541,8 @@ object Fiber extends FiberPlatformSpecific {
     executor: Executor,
     isLocked: Boolean
   ) {
-    def interruptStatus: InterruptStatus = InterruptStatus.fromBoolean(status.interruptible)
+    def interruptStatus: InterruptStatus =
+      InterruptStatus.fromBoolean(status.runtimeFlags.enabled(RuntimeFlag.Interruption))
   }
 
   final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: StackTrace) extends Product with Serializable {
@@ -570,7 +571,7 @@ object Fiber extends FiberPlatformSpecific {
   }
   object Status {
     sealed trait Active extends Status {
-      def interruptible: Boolean
+      def runtimeFlags: RuntimeFlags
 
       def trace: Trace
     }
@@ -578,10 +579,10 @@ object Fiber extends FiberPlatformSpecific {
     case object Done extends Status {
       def trace: Trace = Trace.empty
     }
-    final case class Running(interruptible: Boolean, trace: Trace) extends Active
+    final case class Running(runtimeFlags: RuntimeFlags, trace: Trace) extends Active
     final case class Suspended(
       stack: Chunk[ZIO.EvaluationStep],
-      interruptible: Boolean,
+      runtimeFlags: RuntimeFlags,
       trace: Trace,
       blockingOn: FiberId
     ) extends Active

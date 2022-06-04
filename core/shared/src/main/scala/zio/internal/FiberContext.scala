@@ -124,7 +124,7 @@
 
 //       val flags = unsafeGetRuntimeFlags()
 
-//       val logRuntime = flags(RuntimeFlag.LogRuntime)
+//       val enableStepLog = flags(RuntimeFlag.OpLog)
 
 //       nextEffect = null
 
@@ -141,10 +141,10 @@
 
 //       import RuntimeFlag._
 //       val superviseOps =
-//         flags(SuperviseOperations) &&
+//         flags(OpSupervision) &&
 //           (supervisors.nonEmpty)
 
-//       if (flags(EnableCurrentFiber)) Fiber._currentFiber.set(this)
+//       if (flags(CurrentFiber)) Fiber._currentFiber.set(this)
 //       if (supervisors.nonEmpty) supervisors.foreach(_.unsafeOnResume(self))
 
 //       while (curZio ne null) {
@@ -167,7 +167,7 @@
 //                 unsafeRunLater(curZio)
 //                 curZio = null
 //               } else {
-//                 if (logRuntime) {
+//                 if (enableStepLog) {
 //                   val trace = curZio.trace
 
 //                   unsafeLog(ZLogger.stringTag, curZio.unsafeLog)(trace)
@@ -526,7 +526,7 @@
 //       val supervisors = unsafeGetSupervisors()
 
 //       // FIXME: Race condition on fiber resumption
-//       if (flags(EnableCurrentFiber)) Fiber._currentFiber.remove()
+//       if (flags(CurrentFiber)) Fiber._currentFiber.remove()
 //       supervisors.foreach { supervisor =>
 //         supervisor.unsafeOnSuspend(self)
 //       }
@@ -732,7 +732,7 @@
 //     val flags = unsafeGetRuntimeFlags()
 
 //     val childZio =
-//       if (!parentScope.unsafeAdd(flags(RuntimeFlag.EnableFiberRoots), childContext))
+//       if (!parentScope.unsafeAdd(flags(RuntimeFlag.FiberRoots), childContext))
 //         ZIO.interruptAs(parentScope.fiberId)
 //       else zio
 
@@ -1230,7 +1230,7 @@
 //   @inline
 //   private def trackMetrics: Boolean = {
 //     val flags = unsafeGetRuntimeFlags()
-//     flags(RuntimeFlag.TrackRuntimeMetrics)
+//     flags(RuntimeFlag.RuntimeMetrics)
 //   }
 
 //   @inline

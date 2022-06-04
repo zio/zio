@@ -16,12 +16,43 @@
 
 package zio
 
-sealed trait RuntimeFlag
+sealed trait RuntimeFlag {
+  def index: Int
+
+  def mask: Int
+
+  def notMask: Int
+}
 
 object RuntimeFlag {
-  case object EnableCurrentFiber  extends RuntimeFlag
-  case object LogRuntime          extends RuntimeFlag
-  case object SuperviseOperations extends RuntimeFlag
-  case object TrackRuntimeMetrics extends RuntimeFlag
-  case object EnableFiberRoots    extends RuntimeFlag
+  case object Interruption extends RuntimeFlag {
+    final val index   = 0
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+  case object CurrentFiber extends RuntimeFlag {
+    final val index   = 1
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+  case object OpLog extends RuntimeFlag {
+    final val index   = 2
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+  case object OpSupervision extends RuntimeFlag {
+    final val index   = 3
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+  case object RuntimeMetrics extends RuntimeFlag {
+    final val index   = 4
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+  case object FiberRoots extends RuntimeFlag {
+    final val index   = 5
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
 }
