@@ -474,6 +474,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case updateRuntimeFlags: UpdateRuntimeFlags =>
             runtimeFlags = updateRuntimeFlags.update(runtimeFlags)
 
+            println(s"Updating flags to ${runtimeFlags} using patch ${updateRuntimeFlags.update}")
+
             respondToNewRuntimeFlags(updateRuntimeFlags.update)
 
             // If we are nested inside another recursive call to `runLoop`,

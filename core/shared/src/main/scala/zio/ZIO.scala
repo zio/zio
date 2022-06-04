@@ -4248,6 +4248,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       fiberRefs   <- ZIO.getFiberRefs
     } yield Runtime(environment, fiberRefs)
 
+  def runtimeFlags(implicit trace: Trace): ZIO[Any, Nothing, RuntimeFlags] =
+    ZIO.unsafeStateful[Any, Nothing, RuntimeFlags] { (_, status) =>
+      ZIO.succeedNow(status.runtimeFlags)
+    }
+
   /**
    * Returns the current scope.
    */

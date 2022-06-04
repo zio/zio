@@ -292,7 +292,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       },
       test("an unsafe handle is initialized and updated properly") {
         for {
-
+          _        <- ZIO.runtimeFlags.debug("runtimeFlags: ")
           fiberRef <- FiberRef.make(initial)
           handle   <- fiberRef.unsafeAsThreadLocal
           value1   <- ZIO.succeed(handle.get())
