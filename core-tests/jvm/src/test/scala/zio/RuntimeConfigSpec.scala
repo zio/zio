@@ -1,19 +1,19 @@
 package zio
 
-import zio.test.Assertion._
 import zio.test._
 
 object RuntimeSpecJVM extends ZIOBaseSpec {
+  def isFatal(t: Throwable): Boolean = FiberRef.currentFatal.initial.exists(_.isAssignableFrom(t.getClass))
 
   def spec = suite("RuntimeSpecJVM")(
     suite("Runtime.default isFatal:")(
       test("Runtime.isFatal should identify a nonFatal exception") {
         val nonFatal = new Exception
-        assert(Runtime.default.isFatal(nonFatal))(isFalse)
+        assertTrue(!isFatal(nonFatal))
       },
       test("Runtime.isFatal should identify a fatal exception") {
         val fatal = new OutOfMemoryError
-        assert(Runtime.default.isFatal(fatal))(isTrue)
+        assertTrue(isFatal(fatal))
       }
     )
   )

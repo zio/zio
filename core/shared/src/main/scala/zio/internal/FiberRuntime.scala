@@ -201,7 +201,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             }
           }
 
-          if (runtimeFlags.enabled(RuntimeFlag.Interruption)) unsafeAddInterruptor(callback)
+          if (runtimeFlags.interruption) unsafeAddInterruptor(callback)
 
           // FIXME: registerCallback throws
           asyncJump.registerCallback(callback)
@@ -242,7 +242,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def drainQueueHere(): Unit = {
     assert(running.get == true)
 
-    if (runtimeFlags.enabled(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(self)
+    val resetCurrentFiber =
+      if (runtimeFlags.currentFiber) {
+        Fiber._currentFiber.set(self)
+        true
+      } else false
 
     try {
       while (!queue.isEmpty()) {
@@ -253,7 +257,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     } finally {
       running.set(false)
 
-      if (runtimeFlags.enabled(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
+      if (resetCurrentFiber) Fiber._currentFiber.set(null)
     }
 
     if (!queue.isEmpty()) {
@@ -361,7 +365,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     assertNonNullContinuation(cur, k.trace)
 
                   case k: EvaluationStep.UpdateRuntimeFlags =>
-                    runtimeFlags = k.update.patch(runtimeFlags)
+                    runtimeFlags = k.update(runtimeFlags)
 
                     // TODO: Interruption
                     if (runtimeFlags.enabled(RuntimeFlag.Interruption) && unsafeIsInterrupted())
@@ -388,9 +392,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             val revertFlags = effect.update.inverse
 
-            val isNowInterruptible = effect.update.enabled(RuntimeFlag.Interruption)
+            runtimeFlags = effect.update(oldRuntimeFlags)
 
-            if (isNowInterruptible && unsafeIsInterrupted()) { // TODO: Interruption
+            if (runtimeFlags.interruption && unsafeIsInterrupted()) { // TODO: Interruption
               cur = Refail(unsafeGetInterruptedCause())
             } else {
               cur =
@@ -399,7 +403,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                   runtimeFlags = oldRuntimeFlags
 
-                  if (runtimeFlags.enabled(RuntimeFlag.Interruption) && unsafeIsInterrupted())
+                  if (runtimeFlags.interruption && unsafeIsInterrupted())
                     Refail(unsafeGetInterruptedCause())
                   else ZIO.succeed(value)
                 } catch {
@@ -444,10 +448,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       cause = cause.stripFailures ++ zioError.cause
                   }
                 case k: EvaluationStep.UpdateRuntimeFlags =>
-                  runtimeFlags = k.update.patch(runtimeFlags)
+                  runtimeFlags = k.update(runtimeFlags)
 
                   // TODO: Interruption
-                  if (runtimeFlags.enabled(RuntimeFlag.Interruption) && unsafeIsInterrupted())
+                  if (runtimeFlags.interruption && unsafeIsInterrupted())
                     cur = Refail(cause.stripFailures ++ unsafeGetInterruptedCause())
 
                 case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
@@ -462,10 +466,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             }
 
           case InterruptSignal(cause, trace) =>
-            cur = if (runtimeFlags.enabled(RuntimeFlag.Interruption)) Refail(cause) else ZIO.unit
+            cur = if (runtimeFlags.interruption) Refail(cause) else ZIO.unit
 
           case updateRuntimeFlags: UpdateRuntimeFlags =>
-            runtimeFlags = updateRuntimeFlags.update.patch(runtimeFlags)
+            runtimeFlags = updateRuntimeFlags.update(runtimeFlags)
 
             // Save runtime flags to heap:
             self.runtimeFlags = runtimeFlags

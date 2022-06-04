@@ -480,6 +480,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
+   * Performs a disconnect, but only if the effect is embedded into an
+   * uninterruptible region.
+   */
+  final def disconnectIfUninterruptible(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.checkInterruptible(int => if (int.isInterruptible) self else self.disconnect)
+
+  /**
    * Returns an effect whose failure and success have been lifted into an
    * `Either`.The resulting effect cannot fail, because the failure case has
    * been exposed as part of the `Either` success case.
@@ -1238,9 +1245,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
     ZIO.descriptorWith { descriptor =>
       val parentFiberId = descriptor.id
-      def maybeDisconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        ZIO.uninterruptibleMask(interruptible => interruptible.force(zio))
-      (maybeDisconnect(self) raceWith maybeDisconnect(that))(
+      (self.disconnectIfUninterruptible.raceWith(that.disconnectIfUninterruptible))(
         (exit, right) =>
           exit.foldZIO[Any, E1, A1](
             cause => right.join mapErrorCause (cause && _),
@@ -2752,7 +2757,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.unsafeStateful[R, E, A] { (_, status) =>
-      f(InterruptStatus.fromBoolean(status.runtimeFlags.enabled(RuntimeFlag.Interruption)))
+      f(InterruptStatus.fromBoolean(status.runtimeFlags.interruption))
     }
 
   /**
@@ -3673,9 +3678,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effect is composed into.
    */
   def interruptibleMask[R, E, A](
-    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+    k: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    checkInterruptible(flag => k(ZIO.InterruptStatusRestore(flag)).interruptible)
+    checkInterruptible(flag => k(ZIO.InterruptibilityRestorer(flag)).interruptible)
 
   /**
    * Retrieves the definition of a fatal error.
@@ -4905,30 +4910,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       FiberRef.forkScopeOverride.locally(Some(scope))(zio)
   }
 
-  final class InterruptStatusRestore private (private val flag: zio.InterruptStatus) extends AnyVal {
-    def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      ZIO.suspendSucceed(zio).interruptStatus(flag)
-
-    /**
-     * Returns a new effect that, if the parent region is uninterruptible, can
-     * be interrupted in the background instantaneously. If the parent region is
-     * interruptible, then the effect can be interrupted normally, in the
-     * foreground.
-     */
-    def force[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      ZIO.suspendSucceed {
-        if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
-        else zio.interruptStatus(flag)
-      }
-  }
-  object InterruptStatusRestore {
-    val restoreInterruptible   = new InterruptStatusRestore(zio.InterruptStatus.Interruptible)
-    val restoreUninterruptible = new InterruptStatusRestore(zio.InterruptStatus.Uninterruptible)
-
-    def apply(flag: zio.InterruptStatus): InterruptStatusRestore =
-      if (flag eq zio.InterruptStatus.Interruptible) restoreInterruptible else restoreUninterruptible
-  }
-
   final class IfZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZIO[R1, E1, A], onFalse: => ZIO[R1, E1, A])(implicit
       trace: Trace
@@ -5573,22 +5554,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final case class InterruptSignal(cause: Cause[Nothing], trace: Trace) extends ZIO[Any, Nothing, Unit]
 
   sealed trait InterruptibilityRestorer {
-    def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
-
-    def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+    def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   }
   object InterruptibilityRestorer {
-    case object MakeInterruptible extends InterruptibilityRestorer {
-      def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
+    def apply(status: InterruptStatus): InterruptibilityRestorer =
+      if (status.isInterruptible) MakeInterruptible
+      else MakeUninterruptible
 
-      def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = apply(effect.disconnect)
+    case object MakeInterruptible extends InterruptibilityRestorer {
+      def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
     }
     case object MakeUninterruptible extends InterruptibilityRestorer {
-      def apply[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect)
-
-      def force[R, E, A](effect: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] = apply(effect)
     }
   }
 

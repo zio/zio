@@ -4258,8 +4258,13 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
         object StreamEnd extends Throwable
 
         ZStream
-          .fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO.succeed(ChunkBuilder.make[A](maxChunkSize)))
-          .flatMap { case (it, rt, builder) =>
+          .fromZIO(
+            FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
+              .succeed(ChunkBuilder.make[A](maxChunkSize))
+          )
+          .flatMap { case (fatals, it, rt, builder) =>
+            def isFatal(t: Throwable): Boolean = fatals.exists(_.isAssignableFrom(t.getClass))
+
             ZStream.repeatZIOChunkOption {
               ZIO.attempt {
                 builder.clear()
@@ -4271,7 +4276,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
                     count += 1
                   }
                 } catch {
-                  case e: Throwable if !rt.isFatal(e) =>
+                  case e: Throwable if !isFatal(e) =>
                     throw e
                 }
 
@@ -4294,28 +4299,31 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   ): ZStream[Any, Throwable, A] = {
     object StreamEnd extends Throwable
 
-    ZStream.fromZIO(ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap { case (it, rt) =>
-      ZStream.repeatZIOOption {
-        ZIO.attempt {
-          val hasNext: Boolean =
-            try it.hasNext
-            catch {
-              case e: Throwable if !rt.isFatal(e) =>
-                throw e
-            }
+    ZStream.fromZIO(FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap {
+      case (fatals, it, rt) =>
+        ZStream.repeatZIOOption {
+          ZIO.attempt {
+            def isFatal(t: Throwable): Boolean = fatals.exists(_.isAssignableFrom(t.getClass))
 
-          if (hasNext) {
-            try it.next()
-            catch {
-              case e: Throwable if !rt.isFatal(e) =>
-                throw e
-            }
-          } else throw StreamEnd
-        }.mapError {
-          case StreamEnd => None
-          case e         => Some(e)
+            val hasNext: Boolean =
+              try it.hasNext
+              catch {
+                case e: Throwable if !isFatal(e) =>
+                  throw e
+              }
+
+            if (hasNext) {
+              try it.next()
+              catch {
+                case e: Throwable if !isFatal(e) =>
+                  throw e
+              }
+            } else throw StreamEnd
+          }.mapError {
+            case StreamEnd => None
+            case e         => Some(e)
+          }
         }
-      }
     }
   }
 

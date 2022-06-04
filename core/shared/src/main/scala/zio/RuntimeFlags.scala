@@ -1,6 +1,6 @@
 package zio
 
-final case class RuntimeFlags(packed: Int) extends AnyVal {
+final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
   def currentFiber: Boolean = enabled(RuntimeFlag.CurrentFiber)
 
   def diff(newValue: RuntimeFlags): RuntimeFlags.Patch =
@@ -23,10 +23,20 @@ final case class RuntimeFlags(packed: Int) extends AnyVal {
 
   def opSupervision: Boolean = enabled(RuntimeFlag.OpSupervision)
 
+  def patch(p: RuntimeFlags.Patch): RuntimeFlags = p(self)
+
   def runtimeMetrics: Boolean = enabled(RuntimeFlag.RuntimeMetrics)
+
+  def toSet: Set[RuntimeFlag] = RuntimeFlag.all.filter(enabled)
+
+  override def toString(): String =
+    toSet.mkString("RuntimeFlags(", ", ", ")")
 }
 object RuntimeFlags {
   final case class Patch(packed: Long) extends AnyVal {
+    def apply(flag: RuntimeFlags): RuntimeFlags =
+      RuntimeFlags(((~active) & flag.packed) | enabled)
+
     private final def active: Int  = ((packed >> 0) & 0xffffffff).toInt
     private final def enabled: Int = ((packed >> 32) & 0xffffffff).toInt
 
@@ -42,12 +52,23 @@ object RuntimeFlags {
 
     def inverse: Patch = Patch(active, ~enabled)
 
-    def patch(flag: RuntimeFlags): RuntimeFlags =
-      RuntimeFlags(((~active) & flag.packed) | (enabled & flag.packed))
+    def enabledSet: Set[RuntimeFlag] = apply(RuntimeFlags.none).toSet
+
+    def disabledSet: Set[RuntimeFlag] = RuntimeFlags(active & ~enabled).toSet
+
+    override def toString(): String = {
+      val enabledS =
+        enabledSet.mkString("(", ", ", ")")
+
+      val disabledS =
+        disabledSet.mkString("(", ", ", ")")
+
+      s"RuntimeFlags.Patch(enabled = ${enabledS}, disabled = ${disabledS})"
+    }
   }
   object Patch {
     def apply(active: Int, enabled: Int): Patch =
-      Patch((active << 0) + (enabled << 32))
+      Patch((active.toLong << 0) + (enabled.toLong << 32))
   }
 
   def apply(flags: RuntimeFlag*): RuntimeFlags =

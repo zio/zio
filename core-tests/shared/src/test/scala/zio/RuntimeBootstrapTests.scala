@@ -14,7 +14,7 @@ object RuntimeBootstrapTests {
 
       println("...OK")
     } catch {
-      case e: AssertionError =>
+      case e: java.lang.AssertionError =>
         println("...FAILED")
         e.printStackTrace()
       case t: Throwable =>
@@ -50,14 +50,34 @@ object RuntimeBootstrapTests {
     }
   }
 
+  def runtimeFlags() =
+    test("runtimeFlags") {
+      ZIO.succeed {
+        import RuntimeFlag._
+
+        val flags =
+          RuntimeFlags(Interruption, CurrentFiber)
+
+        assert(flags.enabled(Interruption))
+        assert(flags.enabled(CurrentFiber))
+        assert(flags.disabled(FiberRoots))
+        assert(flags.disabled(OpLog))
+        assert(flags.disabled(OpSupervision))
+        assert(flags.disabled(RuntimeMetrics))
+
+        assert(RuntimeFlags.enable(Interruption)(RuntimeFlags.none).interruption)
+      }
+    }
+
   def race() =
     testN(100)("race") {
       ZIO.unit.race(ZIO.unit)
     }
 
   def main(args: Array[String]): Unit = {
+    runtimeFlags()
     helloWorld()
     fib()
-    race()
+    //race()
   }
 }

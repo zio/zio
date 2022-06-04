@@ -48,9 +48,6 @@ trait Runtime[+R] { self =>
   def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
     map(_ => r1)
 
-  def isFatal(t: Throwable): Boolean =
-    fiberRefs.getOrDefault(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
-
   /**
    * Constructs a new `Runtime` by mapping the environment.
    */
@@ -67,9 +64,6 @@ trait Runtime[+R] { self =>
         Left(ZIO.succeedBlocking(canceler(fiberId)))
       }
     }
-
-  final def supervisors: Set[Supervisor[Any]] =
-    fiberRefs.getOrDefault(FiberRef.currentSupervisors)
 
   /**
    * Executes the effect synchronously, failing with [[zio.FiberFailure]] if

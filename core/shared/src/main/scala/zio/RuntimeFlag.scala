@@ -25,6 +25,9 @@ sealed trait RuntimeFlag {
 }
 
 object RuntimeFlag {
+  lazy val all: Set[RuntimeFlag] =
+    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots)
+
   case object Interruption extends RuntimeFlag {
     final val index   = 0
     final val mask    = 1 << index
