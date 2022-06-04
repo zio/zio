@@ -8,7 +8,7 @@ sidebar_label: "Enable Logging in a ZIO Application"
 
 ZIO has built-in support for logging. This tutorial will show you how to enable logging for a ZIO application.
 
-## Running the Examples
+## Running The Examples
 
 All the source code associated with this article is located on the `logging` branch of this quickstart [repository](http://github.com/zio/zio-quickstart-restful-webservice).
 
