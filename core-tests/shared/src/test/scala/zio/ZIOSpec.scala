@@ -2677,7 +2677,6 @@ object ZIOSpec extends ZIOBaseSpec {
           (latch.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer)
 
         for {
-          _               <- ZIO.runtimeFlags.debug("runtime flags at start of test")
           interruptionRef <- Ref.make(0)
           latch1Start     <- Promise.make[Nothing, Unit]
           latch2Start     <- Promise.make[Nothing, Unit]
