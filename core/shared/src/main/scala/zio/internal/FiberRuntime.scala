@@ -388,12 +388,18 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               cur = effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
             } catch {
               case zioError1: ZIOError =>
-                cur =
-                  try {
-                    effect.onFailure(zioError1.cause)
-                  } catch {
-                    case zioError2: ZIOError => Refail(zioError1.cause.stripFailures ++ zioError2.cause)
-                  }
+                try {
+                  // Execute the effect returned by the failure handler:
+                  val recovered =
+                    runLoop(effect.onFailure(zioError1.cause), currentDepth + 1, Chunk.empty, runtimeFlags)
+
+                  cur = ZIO.succeed(recovered)
+                } catch {
+                  case zioError2: ZIOError =>
+                    cur = Refail(zioError1.cause ++ zioError2.cause)
+
+                  case reifyStack: ReifyStack => reifyStack.prependCause(zioError1.cause)
+                }
 
               case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
             }
@@ -424,6 +430,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       cur = Refail(unsafeGetInterruptedCause())
 
                   case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
+
+                  case k: EvaluationStep.PrependCause => ()
                 }
               }
 
@@ -494,22 +502,30 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               stackIndex += 1
 
               element match {
+                case k: EvaluationStep.PrependCause =>
+                  cause = k.cause ++ cause
+
                 case k: EvaluationStep.Continuation[_, _, _, _, _] =>
                   try {
-                    cur = k.erase.onFailure(cause)
+                    val recovered = runLoop(k.erase.onFailure(cause), currentDepth + 1, Chunk.empty, runtimeFlags)
 
-                    assertNonNullContinuation(cur, k.trace)
+                    cur = ZIO.succeed(recovered)
                   } catch {
                     case zioError: ZIOError =>
-                      cause = cause.stripFailures ++ zioError.cause
+                      cause = cause ++ zioError.cause
+
+                    case reifyStack: ReifyStack =>
+                      reifyStack.prependCause(cause)
                   }
+
                 case k: EvaluationStep.UpdateRuntimeFlags =>
                   runtimeFlags = k.update(runtimeFlags)
 
                   respondToNewRuntimeFlags(k.update)
 
-                  if (runtimeFlags.interruptible && unsafeIsInterrupted())
+                  if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
                     cur = Refail(cause.stripFailures ++ unsafeGetInterruptedCause())
+                  }
 
                 case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
               }

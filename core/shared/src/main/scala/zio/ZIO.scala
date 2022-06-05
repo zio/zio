@@ -5435,6 +5435,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def trace: Trace
   }
   private[zio] object EvaluationStep {
+    final case class PrependCause(cause: Cause[Any]) extends EvaluationStep {
+      def trace: Trace = Trace.empty
+    }
     sealed trait UpdateRuntimeFlags extends EvaluationStep {
       final def trace = Trace.empty
 

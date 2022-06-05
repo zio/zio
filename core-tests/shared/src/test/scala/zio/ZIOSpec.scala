@@ -3058,7 +3058,7 @@ object ZIOSpec extends ZIOBaseSpec {
                    }.fork
           _    <- latch1.await *> fiber.interrupt
           list <- exits.get.map(process)
-        } yield assert(list.length)(equalTo(2)) && assert(list)(forall(isJustInterrupted))
+        } yield assertTrue(list.length == 2 && list.forall(_.causeOption.get.isInterruptedOnly))
       },
       test("interruption of raced") {
         for {
