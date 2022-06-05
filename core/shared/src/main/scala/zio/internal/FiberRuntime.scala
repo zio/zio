@@ -396,7 +396,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   cur = ZIO.succeed(recovered)
                 } catch {
                   case zioError2: ZIOError =>
-                    cur = Refail(zioError1.cause ++ zioError2.cause)
+                    cur = Refail(zioError1.cause.stripFailures ++ zioError2.cause)
 
                   case reifyStack: ReifyStack => reifyStack.prependCause(zioError1.cause)
                 }
@@ -503,7 +503,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
               element match {
                 case k: EvaluationStep.PrependCause =>
-                  cause = k.cause ++ cause
+                  cause = k.cause.stripFailures ++ cause
 
                 case k: EvaluationStep.Continuation[_, _, _, _, _] =>
                   try {
@@ -512,7 +512,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     cur = ZIO.succeed(recovered)
                   } catch {
                     case zioError: ZIOError =>
-                      cause = cause ++ zioError.cause
+                      cause = cause.stripFailures ++ zioError.cause
 
                     case reifyStack: ReifyStack =>
                       reifyStack.prependCause(cause)
