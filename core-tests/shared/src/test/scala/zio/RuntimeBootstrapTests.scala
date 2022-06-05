@@ -94,6 +94,36 @@ object RuntimeBootstrapTests {
       } yield assert(true)
     }
 
+  def autoInterruption() =
+    test("auto interruption with finalization") {
+      for {
+        ref    <- Ref.make(0)
+        latch  <- Promise.make[Nothing, Unit]
+        child   = (latch.succeed(()) *> ZIO.infinity).ensuring(ref.update(_ + 1))
+        parent <- (child.fork *> latch.await).fork
+        _      <- parent.await
+        count  <- ref.get
+      } yield assert(count == 1)
+    }
+
+  def autoInterruption2() =
+    test("auto interruption with finalization 2") {
+      def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =
+        (latch.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer)
+
+      for {
+        interruptionRef <- Ref.make(0)
+        latch1Start     <- Promise.make[Nothing, Unit]
+        latch2Start     <- Promise.make[Nothing, Unit]
+        inc              = interruptionRef.update(_ + 1)
+        left             = plus1(latch1Start, inc)
+        right            = plus1(latch2Start, inc)
+        fiber           <- left.race(right).fork
+        _               <- latch1Start.await *> latch2Start.await *> fiber.interrupt
+        interrupted     <- interruptionRef.get
+      } yield assert(interrupted == 2)
+    }
+
   def main(args: Array[String]): Unit = {
     runtimeFlags()
     helloWorld()
@@ -102,5 +132,7 @@ object RuntimeBootstrapTests {
     asyncInterruption()
     syncInterruption()
     race()
+    autoInterruption()
+    autoInterruption2()
   }
 }

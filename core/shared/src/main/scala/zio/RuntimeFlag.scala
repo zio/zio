@@ -26,7 +26,7 @@ sealed trait RuntimeFlag {
 
 object RuntimeFlag {
   lazy val all: Set[RuntimeFlag] =
-    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots)
+    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots, WindDown)
 
   /**
    * The interruption flag determines whether or not the ZIO runtime system will
@@ -94,6 +94,18 @@ object RuntimeFlag {
    */
   case object FiberRoots extends RuntimeFlag {
     final val index   = 5
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The wind down flag determines whether the ZIO runtime system will execute
+   * effects in wind-down mode. In wind-down mode, even if interruption is
+   * enabled and a fiber has been interrupted, the fiber will continue its
+   * execution uninterrupted.
+   */
+  case object WindDown extends RuntimeFlag {
+    final val index   = 6
     final val mask    = 1 << index
     final val notMask = ~mask
   }

@@ -1370,10 +1370,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
     rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, C] =
-    ZIO.unsafeStateful[R1, E2, C] { (fiberState, status) =>
+    ZIO.unsafeStateful[R1, E2, C] { (parentState, parentStatus) =>
       import java.util.concurrent.atomic.AtomicBoolean
 
-      val runtimeFlags = status.runtimeFlags
+      val parentRuntimeFlags = parentStatus.runtimeFlags
 
       @inline def complete[E0, E1, A, B](
         winner: Fiber.Runtime[E0, A],
@@ -1388,8 +1388,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber  = ZIO.unsafeForkUnstarted(trace, self, fiberState, runtimeFlags)
-      val rightFiber = ZIO.unsafeForkUnstarted(trace, right, fiberState, runtimeFlags)
+      val leftFiber  = ZIO.unsafeForkUnstarted(trace, self, parentState, parentRuntimeFlags)
+      val rightFiber = ZIO.unsafeForkUnstarted(trace, right, parentState, parentRuntimeFlags)
 
       ZIO
         .async[R1, E2, C](
@@ -2467,7 +2467,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       supervisor.unsafeOnStart(
         childEnvironment,
         effect.asInstanceOf[ZIO[Any, Any, Any]],
-        Some(parentFiber.asInstanceOf[internal.FiberRuntime[Any, Any]]),
+        Some(parentFiber),
         childFiber
       )
 

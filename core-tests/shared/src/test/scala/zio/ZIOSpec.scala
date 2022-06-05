@@ -2672,7 +2672,7 @@ object ZIOSpec extends ZIOBaseSpec {
           b     <- ref.get
         } yield assert(b)(isFalse)
       } @@ zioTag(supervision),
-      test("daemon fiber race interruption") {
+      test("auto-interruption in fork of race") {
         def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =
           (latch.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer)
 

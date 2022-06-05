@@ -51,6 +51,12 @@ final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
 
   def interruption: Boolean = enabled(RuntimeFlag.Interruption)
 
+  /**
+   * This method returns true only if the flag `Interruption` is enabled, and
+   * also the flag `WindDown` is disabled.
+   */
+  def interruptible: Boolean = interruption && !windDown
+
   def opLog: Boolean = enabled(RuntimeFlag.OpLog)
 
   def opSupervision: Boolean = enabled(RuntimeFlag.OpSupervision)
@@ -63,6 +69,8 @@ final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
 
   override def toString(): String =
     toSet.mkString("RuntimeFlags(", ", ", ")")
+
+  def windDown: Boolean = enabled(RuntimeFlag.WindDown)
 }
 object RuntimeFlags {
   final case class Patch(packed: Long) extends AnyVal { self =>
@@ -77,12 +85,11 @@ object RuntimeFlags {
     def apply(flag: RuntimeFlags): RuntimeFlags =
       RuntimeFlags((flag.packed & (~active | enabled)) | (active & enabled))
 
+    def without(flag: RuntimeFlag): RuntimeFlags.Patch = RuntimeFlags.Patch(active & flag.notMask, enabled)
+
     def disabled(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0) && ((enabled & flag.mask) == 0)
 
     def enabled(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0) && ((enabled & flag.mask) != 0)
-
-    def equalsPatch(that: Patch): Boolean =
-      (self.active == that.active) && ((self.active & self.enabled) == (that.active & that.enabled))
 
     def inverse: Patch = Patch(active, ~enabled)
 

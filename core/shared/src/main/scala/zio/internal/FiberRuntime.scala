@@ -56,8 +56,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       for {
         childRuntimeFlags <- self.runtimeFlags
-        patch              = parentRuntimeFlags.diff(childRuntimeFlags)
-        _                 <- ZIO.updateRuntimeFlags(patch)
+        patch = parentRuntimeFlags.diff(childRuntimeFlags).without(RuntimeFlag.WindDown) // Do not inherit WindDown!
+        _ <- ZIO.updateRuntimeFlags(patch)
       } yield ()
     }
 
@@ -194,28 +194,25 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     while (effect ne null) {
       try {
-        try {
-          val success = runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A]
-
-          val interruption = unsafeInterruptAllChildren()
-
-          if (interruption == null) {
-            self.unsafeSetDone(Exit.succeed(success))
-
-            effect = null
-          } else {
-            _runtimeFlags = _runtimeFlags.disable(RuntimeFlag.Interruption)
-
-            effect = interruption.as(success)
-            stack = Chunk.empty
+        val exit =
+          try {
+            Exit.succeed(runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A])
+          } catch {
+            case zioError: ZIOError =>
+              Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
           }
-        } catch {
-          case zioError: ZIOError =>
-            val cause = zioError.cause.asInstanceOf[Cause[E]]
 
-            self.unsafeSetDone(Exit.failCause(cause))
+        val interruption = unsafeInterruptAllChildren()
 
-            effect = null
+        if (interruption == null) {
+          self.unsafeSetDone(exit)
+
+          effect = null
+        } else {
+          _runtimeFlags = _runtimeFlags.enable(RuntimeFlag.WindDown)
+
+          effect = interruption *> ZIO.done(exit)
+          stack = Chunk.empty
         }
       } catch {
         case trampoline: Trampoline =>
@@ -235,7 +232,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             }
           }
 
-          if (_runtimeFlags.interruption) unsafeAddInterruptor(callback)
+          if (_runtimeFlags.interruptible) unsafeAddInterruptor(callback)
 
           // FIXME: registerCallback throws
           asyncJump.registerCallback(callback)
@@ -367,7 +364,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case FiberMessage.InterruptSignal(cause) =>
             self.unsafeAddInterruptedCause(cause)
 
-            cur = if (runtimeFlags.interruption) Refail(cause) else cur
+            cur = if (runtimeFlags.interruptible) Refail(cause) else cur
 
           case FiberMessage.GenStackTrace(onTrace) =>
             val oldCur = cur
@@ -423,7 +420,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                     respondToNewRuntimeFlags(k.update)
 
-                    if (runtimeFlags.interruption && unsafeIsInterrupted())
+                    if (runtimeFlags.interruptible && unsafeIsInterrupted())
                       cur = Refail(unsafeGetInterruptedCause())
 
                   case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
@@ -451,7 +448,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             respondToNewRuntimeFlags(updateFlags)
 
-            if (runtimeFlags.interruption && unsafeIsInterrupted()) { // TODO: Interruption
+            if (runtimeFlags.interruptible && unsafeIsInterrupted()) { // TODO: Interruption
               cur = Refail(unsafeGetInterruptedCause())
             } else {
               cur =
@@ -462,7 +459,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                   respondToNewRuntimeFlags(revertFlags)
 
-                  if (runtimeFlags.interruption && unsafeIsInterrupted())
+                  if (runtimeFlags.interruptible && unsafeIsInterrupted())
                     Refail(unsafeGetInterruptedCause())
                   else ZIO.succeed(value)
                 } catch {
@@ -511,7 +508,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                   respondToNewRuntimeFlags(k.update)
 
-                  if (runtimeFlags.interruption && unsafeIsInterrupted())
+                  if (runtimeFlags.interruptible && unsafeIsInterrupted())
                     cur = Refail(cause.stripFailures ++ unsafeGetInterruptedCause())
 
                 case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
