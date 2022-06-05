@@ -74,10 +74,16 @@ object RuntimeBootstrapTests {
       ZIO.unit.race(ZIO.unit)
     }
 
+  def iteration() =
+    test("iteration") {
+      ZIO.iterate(0)(_ < 100)(index => ZIO.succeed(index + 1)).map(value => assert(value == 100))
+    }
+
   def main(args: Array[String]): Unit = {
     runtimeFlags()
     helloWorld()
     fib()
+    iteration()
     //race()
   }
 }

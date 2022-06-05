@@ -62,10 +62,13 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     }
 
   final def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed {
-      val cause = Cause.interrupt(fiberId).traced(StackTrace(fiberId, Chunk(trace)))
-      tell(FiberMessage.InterruptSignal(cause))
-    }
+    ZIO.succeed(unsafeInterruptAsFork(fiberId))
+
+  final def unsafeInterruptAsFork(fiberId: FiberId)(implicit trace: Trace): Unit = {
+    val cause = Cause.interrupt(fiberId).traced(StackTrace(fiberId, Chunk(trace)))
+
+    tell(FiberMessage.InterruptSignal(cause))
+  }
 
   final def location: Trace = fiberId.location
 
@@ -191,15 +194,27 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     while (effect ne null) {
       try {
-        val exit =
-          try Exit.succeed(runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A])
-          catch {
-            case zioError: ZIOError => Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
+        try {
+          val success = runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A]
+
+          val interruption = unsafeInterruptAllChildren()
+
+          if (interruption == null) {
+            self.unsafeSetDone(Exit.succeed(success))
+
+            effect = null
+          } else {
+            effect = interruption.as(success)
+            stack = Chunk.empty
           }
+        } catch {
+          case zioError: ZIOError =>
+            val cause = zioError.cause.asInstanceOf[Cause[E]]
 
-        self.unsafeSetDone(exit)
+            self.unsafeSetDone(Exit.failCause(cause))
 
-        effect = null
+            effect = null
+        }
       } catch {
         case trampoline: Trampoline =>
           effect = trampoline.effect
@@ -292,6 +307,23 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     currentExecutor.unsafeSubmitOrThrow(() => drainQueueHere())
   }
+
+  final def unsafeInterruptAllChildren(): UIO[Any] =
+    if (_children == null || _children.isEmpty) null
+    else {
+      // Initiate asynchronous interruption of all children:
+      val iterator = _children.iterator()
+
+      while (iterator.hasNext()) {
+        iterator.next().tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
+      }
+
+      // Now await all children to finish:
+      ZIO
+        .whileLoop(_children.iterator())(_.hasNext) { iterator =>
+          iterator.next().await
+        }
+    }
 
   def runLoop(
     effect: ZIO[Any, Any, Any],
@@ -504,6 +536,27 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               // We are at the top level, no need to update runtime flags
               // globally:
               cur = ZIO.unit
+            }
+
+          case iterate0: WhileLoop[_, _, _] =>
+            val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
+
+            val state = iterate.create()
+            val check = iterate.check
+
+            try {
+              while (check(state)) {
+                runLoop(iterate.process(state), currentDepth + 1, Chunk.empty, runtimeFlags)
+              }
+
+              cur = ZIO.succeed(state)
+            } catch {
+              case reifyStack: ReifyStack =>
+                val continuation = EvaluationStep.Continuation.fromSuccess((_: Any) => iterate.withCreate(state))
+
+                reifyStack.addContinuation(continuation)
+
+                throw reifyStack
             }
         }
       } catch {

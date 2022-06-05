@@ -480,11 +480,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     )
 
   /**
-   * Performs a disconnect, but only if the effect is embedded into an
-   * uninterruptible region.
+   * Returns an effect whose interruption will be disconnected from the fiber's
+   * own interruption, but only if the surrounding region is uninterruptible.
+   *
+   * Basically, this operator says, "Let's wait for the effect to be
+   * interrupted, unless it can't be interrupted, in which case, let's interrupt
+   * it in the background so we can continue to do useful work."
    */
   final def disconnectIfUninterruptible(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.checkInterruptible(int => if (int.isInterruptible) self else self.disconnect)
+    ZIO.checkInterruptible(int => if (int.isUninterruptible) self.disconnect else self)
 
   /**
    * Returns an effect whose failure and success have been lifted into an
@@ -1243,18 +1247,17 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * executing in the background, without delaying the return of the race.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
-    ZIO.descriptorWith { descriptor =>
-      val parentFiberId = descriptor.id
+    ZIO.fiberIdWith { parentFiberId =>
       (self.disconnectIfUninterruptible.raceWith(that.disconnectIfUninterruptible))(
         (exit, right) =>
           exit.foldZIO[Any, E1, A1](
-            cause => right.join mapErrorCause (cause && _),
-            a => (right interruptAs parentFiberId) as a
+            cause => right.join.mapErrorCause(cause && _),
+            a => right.interruptAs(parentFiberId).as(a)
           ),
         (exit, left) =>
           exit.foldZIO[Any, E1, A1](
-            cause => left.join mapErrorCause (_ && cause),
-            a => (left interruptAs parentFiberId) as a
+            cause => left.join.mapErrorCause(_ && cause),
+            a => left.interruptAs(parentFiberId).as(a)
           )
       )
     }
@@ -3711,13 +3714,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     initial: => S
   )(cont: S => Boolean)(body: S => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.suspendSucceed {
+      val ref = new java.util.concurrent.atomic.AtomicReference[S](initial)
 
-      def loop(initial: S): ZIO[R, E, S] =
-        if (cont(initial)) body(initial).flatMap(loop)
-        else ZIO.succeedNow(initial)
-
-      loop(initial)
+      ZIO
+        .whileLoop(ref)(ref => cont(ref.get)) { ref =>
+          body(ref.get).map { input =>
+            ref.set(input)
+          }
+        }
+        .as(ref.get)
     }
+
+  def whileLoop[R, E, S, T](
+    create: => S
+  )(check: S => Boolean)(process: S => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, S] =
+    ZIO.WhileLoop(trace, () => create, check, process)
 
   /**
    * Returns an effect with the value on the left part.
@@ -4244,10 +4255,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def runtime[R](implicit trace: Trace): URIO[R, Runtime[R]] =
     for {
-      environment <- environment[R]
-      fiberRefs   <- ZIO.getFiberRefs
-    } yield Runtime(environment, fiberRefs)
+      environment  <- ZIO.environment[R]
+      fiberRefs    <- ZIO.getFiberRefs
+      runtimeFlags <- ZIO.runtimeFlags
+    } yield Runtime(environment, fiberRefs, runtimeFlags)
 
+  /**
+   * Retrieves an effect that succeeds with the current runtime flags, which
+   * govern behavior and features of the runtime system.
+   */
   def runtimeFlags(implicit trace: Trace): ZIO[Any, Nothing, RuntimeFlags] =
     ZIO.unsafeStateful[Any, Nothing, RuntimeFlags] { (_, status) =>
       ZIO.succeedNow(status.runtimeFlags)
@@ -5555,6 +5571,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
   private[zio] final case class Refail[E](cause: Cause[E]) extends ZIO[Any, E, Nothing] {
     def trace: Trace = Trace.empty
+  }
+  private[zio] final case class WhileLoop[R, E, S](
+    trace: Trace,
+    create: () => S,
+    check: S => Boolean,
+    process: S => ZIO[R, E, Any]
+  ) extends ZIO[R, E, S] {
+    def withCreate(s: S): WhileLoop[R, E, S] = copy(create = () => s)
   }
 
   sealed trait InterruptibilityRestorer {

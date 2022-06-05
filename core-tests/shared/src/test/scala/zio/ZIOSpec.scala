@@ -2676,18 +2676,19 @@ object ZIOSpec extends ZIOBaseSpec {
         def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =
           (latch.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer)
 
-        (for {
+        for {
+          _               <- ZIO.runtimeFlags.debug("runtime flags at start of test")
           interruptionRef <- Ref.make(0)
           latch1Start     <- Promise.make[Nothing, Unit]
           latch2Start     <- Promise.make[Nothing, Unit]
           inc              = interruptionRef.update(_ + 1)
           left             = plus1(latch1Start, inc)
           right            = plus1(latch2Start, inc)
-          fiber           <- (left race right).fork
+          fiber           <- left.race(right).fork
           _               <- latch1Start.await *> latch2Start.await *> fiber.interrupt
           interrupted     <- interruptionRef.get
-        } yield assert(interrupted)(equalTo(2)))
-      } @@ zioTag(interruption) @@ flaky,
+        } yield assertTrue(interrupted == 2)
+      } /* @@ zioTag(interruption) @@ flaky*/,
       test("race in daemon is executed") {
         for {
           latch1 <- Promise.make[Nothing, Unit]
