@@ -204,6 +204,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             effect = null
           } else {
+            _runtimeFlags = _runtimeFlags.disable(RuntimeFlag.Interruption)
+
             effect = interruption.as(success)
             stack = Chunk.empty
           }
@@ -312,16 +314,22 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     if (_children == null || _children.isEmpty) null
     else {
       // Initiate asynchronous interruption of all children:
-      val iterator = _children.iterator()
+      var iterator = _children.iterator()
 
       while (iterator.hasNext()) {
         iterator.next().tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
       }
 
+      iterator = _children.iterator()
+
+      _children = null
+
       // Now await all children to finish:
       ZIO
-        .whileLoop(_children.iterator())(_.hasNext) { iterator =>
-          iterator.next().await
+        .whileLoop(iterator)(_.hasNext) { iterator =>
+          val next = iterator.next()
+
+          if (next != null) next.await else ZIO.unit
         }
     }
 

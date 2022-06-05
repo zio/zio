@@ -33,22 +33,21 @@ object RuntimeBootstrapTests {
       } yield assert(true)
     }
 
-  def fib() = {
-    def fibAcc(n: Int): Task[Int] =
-      if (n <= 1)
-        ZIO.succeed(n)
-      else
-        for {
-          a <- fibAcc(n - 1)
-          b <- fibAcc(n - 2)
-        } yield a + b
+  def fibAcc(n: Int): Task[Int] =
+    if (n <= 1)
+      ZIO.succeed(n)
+    else
+      for {
+        a <- fibAcc(n - 1)
+        b <- fibAcc(n - 2)
+      } yield a + b
 
+  def fib() =
     test("fib") {
       for {
         result <- fibAcc(10)
       } yield assert(result == 55)
     }
-  }
 
   def runtimeFlags() =
     test("runtimeFlags") {
@@ -79,11 +78,29 @@ object RuntimeBootstrapTests {
       ZIO.iterate(0)(_ < 100)(index => ZIO.succeed(index + 1)).map(value => assert(value == 100))
     }
 
+  def asyncInterruption() =
+    testN(100)("async interruption") {
+      for {
+        fiber <- ZIO.never.forkDaemon
+        _     <- fiber.interrupt
+      } yield assert(true)
+    }
+
+  def syncInterruption() =
+    testN(100)("sync interruption") {
+      for {
+        fiber <- fibAcc(100).forkDaemon
+        _     <- fiber.interrupt
+      } yield assert(true)
+    }
+
   def main(args: Array[String]): Unit = {
     runtimeFlags()
     helloWorld()
     fib()
     iteration()
-    //race()
+    asyncInterruption()
+    syncInterruption()
+    race()
   }
 }
