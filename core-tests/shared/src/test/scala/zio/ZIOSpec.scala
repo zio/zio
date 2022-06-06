@@ -2839,13 +2839,10 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("RTS interruption")(
       test("sync forever is interruptible") {
-        val io =
-          for {
-            f <- ZIO.succeed[Int](1).forever.fork
-            _ <- f.interrupt
-          } yield true
-
-        assertZIO(io)(isTrue)
+        for {
+          f <- ZIO.succeed[Int](1).forever.fork
+          _ <- f.interrupt
+        } yield assertTrue(true)
       },
       test("interrupt of never is interrupted with cause") {
         for {
@@ -2977,21 +2974,20 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res)(equalTo(0))
       },
       test("acquireReleaseWith disconnect release called on interrupt in separate fiber") {
-        val io =
-          for {
-            p1 <- Promise.make[Nothing, Unit]
-            p2 <- Promise.make[Nothing, Unit]
-            fiber <- ZIO
-                       .acquireReleaseWith(ZIO.unit)(_ => p2.succeed(()) *> ZIO.unit)(_ => p1.succeed(()) *> ZIO.never)
-                       .disconnect
-                       .fork
-            _ <- p1.await
-            _ <- fiber.interrupt
-            _ <- p2.await
-          } yield ()
-
-        assertZIO(Live.live(io).timeoutTo(false)(_ => true)(10.seconds))(isTrue)
-      },
+        Live.live(for {
+          useLatch     <- Promise.make[Nothing, Unit]
+          releaseLatch <- Promise.make[Nothing, Unit]
+          fiber <- ZIO
+                     .acquireReleaseWith(ZIO.unit)(_ => releaseLatch.succeed(()) *> ZIO.unit)(_ =>
+                       useLatch.succeed(()) *> ZIO.never
+                     )
+                     .disconnect
+                     .fork
+          _      <- useLatch.await
+          _      <- fiber.interrupt
+          result <- releaseLatch.await.timeoutTo(false)(_ => true)(1.second)
+        } yield assertTrue(result == true))
+      } @@ flaky,
       test("acquireReleaseExitWith disconnect release called on interrupt in separate fiber") {
         for {
           done <- Promise.make[Nothing, Unit]
@@ -3004,9 +3000,9 @@ object ZIOSpec extends ZIOBaseSpec {
             }
 
           _ <- fiber.interrupt
-          r <- Live.live(done.await.timeoutTo(false)(_ => true)(10.seconds))
+          r <- Live.live(done.await.timeoutTo(false)(_ => true)(1.second))
         } yield assert(r)(isTrue)
-      },
+      } @@ flaky,
       test("catchAll + ensuring + interrupt") {
         implicit val canFail = CanFail
         for {
@@ -3188,57 +3184,48 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(exit)(isJustInterrupted) || assert(exit)(Assertion.fails(equalTo("foo")))
       } @@ jvm(nonFlaky),
       test("acquireRelease use inherits interrupt status") {
-        val io =
-          for {
-            ref <- Ref.make(false)
-            fiber1 <-
-              withLatch { (release2, await2) =>
-                withLatch { release1 =>
-                  ZIO
-                    .acquireReleaseWith(release1)(_ => ZIO.unit)(_ => await2 *> Clock.sleep(10.millis) *> ref.set(true))
-                    .uninterruptible
-                    .fork
-                } <* release2
-              }
-            _     <- fiber1.interrupt
-            value <- ref.get
-          } yield value
-
-        assertZIO(Live.live(io))(isTrue)
+        Live.live(for {
+          ref <- Ref.make(false)
+          fiber1 <-
+            withLatch { (release2, await2) =>
+              withLatch { release1 =>
+                ZIO
+                  .acquireReleaseWith(release1)(_ => ZIO.unit)(_ => await2 *> Clock.sleep(10.millis) *> ref.set(true))
+                  .uninterruptible
+                  .fork
+              } <* release2
+            }
+          _     <- fiber1.interrupt
+          value <- ref.get
+        } yield assertTrue(value == true))
       },
       test("acquireRelease use inherits interrupt status 2") {
-        val io =
-          for {
-            latch1 <- Promise.make[Nothing, Unit]
-            latch2 <- Promise.make[Nothing, Unit]
-            ref    <- Ref.make(false)
-            fiber1 <-
-              ZIO
-                .acquireReleaseExitWith(latch1.succeed(()))((_: Boolean, _: Exit[Any, Any]) => ZIO.unit)((_: Boolean) =>
-                  latch2.await *> Clock.sleep(10.millis) *> ref.set(true).unit
-                )
-                .uninterruptible
-                .fork
-            _     <- latch1.await
-            _     <- latch2.succeed(())
-            _     <- fiber1.interrupt
-            value <- ref.get
-          } yield value
-
-        assertZIO(Live.live(io))(isTrue)
+        Live.live(for {
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          ref    <- Ref.make(false)
+          fiber1 <-
+            ZIO
+              .acquireReleaseExitWith(latch1.succeed(()))((_: Boolean, _: Exit[Any, Any]) => ZIO.unit)((_: Boolean) =>
+                latch2.await *> Clock.sleep(10.millis) *> ref.set(true).unit
+              )
+              .uninterruptible
+              .fork
+          _     <- latch1.await
+          _     <- latch2.succeed(())
+          _     <- fiber1.interrupt
+          value <- ref.get
+        } yield assertTrue(value == true))
       },
       test("async can be uninterruptible") {
-        val io =
-          for {
-            ref <- Ref.make(false)
-            fiber <- withLatch { release =>
-                       (release *> Clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
-                     }
-            _     <- fiber.interrupt
-            value <- ref.get
-          } yield value
-
-        assertZIO(Live.live(io))(isTrue)
+        Live.live(for {
+          ref <- Ref.make(false)
+          fiber <- withLatch { release =>
+                     (release *> Clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+                   }
+          _     <- fiber.interrupt
+          value <- ref.get
+        } yield assertTrue(value == true))
       },
       test("closing scope is uninterruptible") {
         for {
@@ -3250,7 +3237,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _       <- promise.await
           _       <- fiber.interrupt
           value   <- ref.get
-        } yield assert(value)(isTrue)
+        } yield assertTrue(value == true)
       } @@ nonFlaky @@ TestAspect.fibers,
       test("effectAsyncInterrupt cancelation") {
         for {

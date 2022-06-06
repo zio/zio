@@ -1,6 +1,8 @@
 package zio
 
 object RuntimeBootstrapTests {
+  import LatchOps._
+
   implicit class RunSyntax[A](
     task: Task[A]
   ) {
@@ -163,6 +165,97 @@ object RuntimeBootstrapTests {
       } yield assert(count <= 1)
     }
 
+  def useInheritance() =
+    test("acquireRelease use inherits interrupt status") {
+      for {
+        ref <- Ref.make(false)
+        fiber1 <-
+          withLatch { (release2, await2) =>
+            withLatch { release1 =>
+              ZIO
+                .acquireReleaseWith(release1)(_ => ZIO.unit)(_ => await2 *> Clock.sleep(10.millis) *> ref.set(true))
+                .uninterruptible
+                .fork
+            } <* release2
+          }
+        _     <- fiber1.interrupt
+        value <- ref.get
+      } yield assert(value == true)
+    }
+
+  def useInheritance2() =
+    test("acquireRelease use inherits interrupt status 2") {
+      for {
+        latch1 <- Promise.make[Nothing, Unit]
+        latch2 <- Promise.make[Nothing, Unit]
+        ref    <- Ref.make(false)
+        fiber1 <-
+          ZIO
+            .acquireReleaseExitWith(latch1.succeed(()))((_: Boolean, _: Exit[Any, Any]) => ZIO.unit)((_: Boolean) =>
+              latch2.await *> Clock.sleep(10.millis) *> ref.set(true).unit
+            )
+            .uninterruptible
+            .fork
+        _     <- latch1.await
+        _     <- latch2.succeed(())
+        _     <- fiber1.interrupt
+        value <- ref.get
+      } yield assert(value == true)
+    }
+
+  def asyncUninterruptible() =
+    test("async can be uninterruptible") {
+      for {
+        ref <- Ref.make(false)
+        fiber <- withLatch { release =>
+                   (release *> Clock.sleep(10.millis) *> ref.set(true).unit).uninterruptible.fork
+                 }
+        _     <- fiber.interrupt
+        value <- ref.get
+      } yield assert(value == true)
+    }
+
+  def uninterruptibleClosingScope() =
+    test("closing scope is uninterruptible") {
+      for {
+        ref     <- Ref.make(false)
+        promise <- Promise.make[Nothing, Unit]
+        child    = promise.succeed(()) *> ZIO.sleep(10.milliseconds) *> ref.set(true)
+        parent   = child.uninterruptible.fork *> promise.await
+        fiber   <- parent.fork
+        _       <- promise.await
+        _       <- fiber.interrupt
+        value   <- ref.get
+      } yield assert(value == true)
+    }
+
+  def syncInterruption2() =
+    test("sync forever is interruptible") {
+      for {
+        f <- ZIO.succeed[Int](1).forever.fork
+        _ <- f.interrupt
+      } yield assert(true)
+    }
+
+  def acquireReleaseDisconnect() =
+    test("acquireReleaseWith disconnect release called on interrupt in separate fiber") {
+      for {
+        useLatch     <- Promise.make[Nothing, Unit]
+        releaseLatch <- Promise.make[Nothing, Unit]
+        fiber <- ZIO
+                   .acquireReleaseWith(ZIO.unit)(_ => releaseLatch.succeed(()) *> ZIO.unit)(_ =>
+                     useLatch.succeed(()) *> ZIO.never
+                   )
+                   .disconnect
+                   .fork
+        _      <- useLatch.await
+        _      <- fiber.interrupt
+        result <- releaseLatch.await.timeoutTo(false)(_ => true)(10.seconds)
+      } yield assert(result == true)
+    }
+
+  def disconnectedInterruption()
+
   def main(args: Array[String]): Unit = {
     runtimeFlags()
     helloWorld()
@@ -175,5 +268,11 @@ object RuntimeBootstrapTests {
     autoInterruption2()
     asyncInterruptionOfNever()
     raceInterruption()
+    useInheritance()
+    useInheritance2()
+    asyncUninterruptible()
+    uninterruptibleClosingScope()
+    syncInterruption2()
+    acquireReleaseDisconnect()
   }
 }
