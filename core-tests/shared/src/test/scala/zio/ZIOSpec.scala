@@ -2565,36 +2565,23 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(result)(isNone) // timeout happens
         }
       } @@ zioTag(interruption) @@ flaky,
-      test("asyncMaybe should not resume fiber twice after synchronous result") {
+      test("test interruption of infinite async in uninterruptible region") {
         for {
-          step            <- Promise.make[Nothing, Unit]
-          unexpectedPlace <- Ref.make(List.empty[Int])
-          runtime         <- ZIO.runtime[Live]
+          finalized <- Ref.make(false)
           fork <- ZIO
-                    .asyncMaybe[Any, Nothing, Unit] { k =>
-                      runtime.unsafeRunAsync {
-                        step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
-                      }
+                    .asyncMaybe[Any, Nothing, Unit] { _ =>
                       Some(ZIO.unit)
                     }
                     .flatMap { _ =>
-                      ZIO.async[Any, Nothing, Unit] { _ =>
-                        runtime.unsafeRunAsync {
-                          step.succeed(())
-                        }
-                      //never complete
-                      }
+                      ZIO.never
                     }
-                    .ensuring(unexpectedPlace.update(2 :: _))
+                    .ensuring(finalized.set(true))
                     .uninterruptible
                     .forkDaemon
-          result     <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
-          unexpected <- unexpectedPlace.get
-        } yield {
-          assert(unexpected)(isEmpty) &&
-          assert(result)(isNone) // timeout happens
-        }
-      } @@ flaky,
+          _      <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
+          result <- finalized.get
+        } yield assertTrue(result == false)
+      },
       test("sleep 0 must return") {
         assertZIO(Live.live(Clock.sleep(1.nanos)))(isUnit)
       },

@@ -437,9 +437,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
             val oldRuntimeFlags = runtimeFlags
             val updateFlags     = effect.update
-            val revertFlags     = updateFlags.inverse
 
             runtimeFlags = updateFlags(oldRuntimeFlags)
+
+            val revertFlags = oldRuntimeFlags.diff(runtimeFlags)
 
             respondToNewRuntimeFlags(updateFlags)
 
@@ -614,7 +615,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def unsafeForeachSupervisor(f: Supervisor[Any] => Unit): Unit =
     _fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach(f)
 
-  final def unsafeGetCurrentExecutor(): Executor = unsafeGetFiberRef(FiberRef.currentExecutor)
+  final def unsafeGetCurrentExecutor(): Executor =
+    unsafeGetFiberRef(FiberRef.overrideExecutor).getOrElse(Runtime.defaultExecutor)
 
   /**
    * Retrieves the state of the fiber ref, or else the specified value.

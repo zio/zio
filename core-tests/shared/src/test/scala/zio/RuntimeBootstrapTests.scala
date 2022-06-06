@@ -124,15 +124,34 @@ object RuntimeBootstrapTests {
       } yield assert(interrupted == 2)
     }
 
-  def main(args: Array[String]): Unit = {
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-  }
+  def asyncInterruptionOfNever() =
+    test("async interruption of never") {
+      for {
+        finalized <- Ref.make(false)
+        fork <- (ZIO
+                  .asyncMaybe[Any, Nothing, Unit] { _ =>
+                    Some(ZIO.unit)
+                  }
+                  .flatMap { _ =>
+                    ZIO.never
+                  }
+                  .ensuring(finalized.set(true)))
+                  .uninterruptible
+                  .forkDaemon
+        _      <- fork.interrupt.timeout(5.seconds)
+        result <- finalized.get
+      } yield assert(result == false)
+    }
+
+  def main(args: Array[String]): Unit =
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    asyncInterruptionOfNever()
 }

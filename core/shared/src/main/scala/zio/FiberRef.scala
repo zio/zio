@@ -444,9 +444,6 @@ object FiberRef {
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     FiberRef.unsafeMake(Runtime.defaultBlockingExecutor)
 
-  private[zio] val currentExecutor: FiberRef[Executor] =
-    FiberRef.unsafeMake(Runtime.defaultExecutor)
-
   private[zio] val currentFatal: FiberRef.WithPatch[Set[Class[_ <: Throwable]], SetPatch[Class[_ <: Throwable]]] =
     FiberRef.unsafeMakeSet(Runtime.defaultFatal)
 
