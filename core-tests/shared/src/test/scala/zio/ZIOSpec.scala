@@ -2840,8 +2840,10 @@ object ZIOSpec extends ZIOBaseSpec {
     suite("RTS interruption")(
       test("sync forever is interruptible") {
         for {
-          f <- ZIO.succeed[Int](1).forever.fork
-          _ <- f.interrupt
+          latch <- Promise.make[Nothing, Unit]
+          f     <- (latch.succeed(()) *> ZIO.succeed[Int](1).forever).fork
+          _     <- latch.await
+          _     <- f.interrupt
         } yield assertTrue(true)
       },
       test("interrupt of never is interrupted with cause") {

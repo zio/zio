@@ -459,9 +459,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     Clock.sleep(duration) *> self
 
   /**
-   * Returns an effect whose interruption will be disconnected from the fiber's
-   * own interruption, being performed in the background without slowing down
-   * the fiber's interruption.
+   * Returns an effect that is always interruptible, but whose interruption will
+   * be performed in the background.
    *
    * This method is useful to create "fast interrupting" effects. For example,
    * if you call this on an acquire release effect, then even if the effect is
@@ -475,21 +474,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       ZIO.fiberIdWith(fiberId =>
         for {
           fiber <- restore(self).forkDaemon
-          a     <- restore(fiber.join).onInterrupt(fiber.interruptAsFork(fiberId))
+          a     <- fiber.join.interruptible.onInterrupt(fiber.interruptAsFork(fiberId))
         } yield a
       )
     )
-
-  /**
-   * Returns an effect whose interruption will be disconnected from the fiber's
-   * own interruption, but only if the surrounding region is uninterruptible.
-   *
-   * Basically, this operator says, "Let's wait for the effect to be
-   * interrupted, unless it can't be interrupted, in which case, let's interrupt
-   * it in the background so we can continue to do useful work."
-   */
-  final def disconnectIfUninterruptible(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.checkInterruptible(int => if (int.isUninterruptible) self.disconnect else self)
 
   /**
    * Returns an effect whose failure and success have been lifted into an
@@ -1252,7 +1240,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
     ZIO.fiberIdWith { parentFiberId =>
-      (self.disconnectIfUninterruptible.raceWith(that.disconnectIfUninterruptible))(
+      (self.disconnect.raceWith(that.disconnect))(
         (exit, right) =>
           exit.foldZIO[Any, E1, A1](
             cause => right.join.mapErrorCause(cause && _),

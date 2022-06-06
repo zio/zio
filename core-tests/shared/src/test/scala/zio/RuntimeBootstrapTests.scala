@@ -232,8 +232,10 @@ object RuntimeBootstrapTests {
   def syncInterruption2() =
     test("sync forever is interruptible") {
       for {
-        f <- ZIO.succeed[Int](1).forever.fork
-        _ <- f.interrupt
+        latch <- Promise.make[Nothing, Unit]
+        f     <- (latch.succeed(()) *> ZIO.succeed[Int](1).forever).fork
+        _     <- latch.await
+        _     <- f.interrupt
       } yield assert(true)
     }
 
@@ -279,6 +281,13 @@ object RuntimeBootstrapTests {
       } yield assert(status == InterruptStatus.Interruptible)
     }
 
+  def uninterruptibleRace() =
+    test("race in uninterruptible region") {
+      for {
+        _ <- ZIO.unit.race(ZIO.infinity).uninterruptible
+      } yield assert(true)
+    }
+
   def main(args: Array[String]): Unit = {
     runtimeFlags()
     helloWorld()
@@ -299,5 +308,6 @@ object RuntimeBootstrapTests {
     acquireReleaseDisconnect()
     disconnectedInterruption()
     interruptibleAfterRace()
+    uninterruptibleRace()
   }
 }

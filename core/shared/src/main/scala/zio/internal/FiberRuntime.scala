@@ -240,7 +240,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           effect = null
 
         case traceGen: GenerateTrace =>
-          val nextStack = traceGen.stack.result() // TODO: Don't build it, just iterate over it!
+          val nextStack = traceGen.stack.result()
           val builder   = StackTraceBuilder.unsafeMake()
 
           nextStack.foreach(k => builder += k.trace)
@@ -449,7 +449,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
               respondToNewRuntimeFlags(updateFlags)
 
-              if (runtimeFlags.interruptible && unsafeIsInterrupted()) { // TODO: Interruption
+              if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
                 cur = Refail(unsafeGetInterruptedCause())
               } else {
                 cur =

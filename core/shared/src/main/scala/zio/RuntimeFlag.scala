@@ -16,6 +16,10 @@
 
 package zio
 
+/**
+ * A [[RuntimeFlag]] is a flag that can be set to enable or disable a particular
+ * feature of the ZIO runtime.
+ */
 sealed trait RuntimeFlag {
   def index: Int
 
