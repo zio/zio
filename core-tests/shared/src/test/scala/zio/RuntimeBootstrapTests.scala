@@ -254,7 +254,22 @@ object RuntimeBootstrapTests {
       } yield assert(result == true)
     }
 
-  def disconnectedInterruption()
+  def disconnectedInterruption() =
+    test("disconnected effect that is then interrupted eventually performs interruption") {
+      for {
+        finalized      <- Ref.make(false)
+        startLatch     <- Promise.make[Nothing, Unit]
+        finalizedLatch <- Promise.make[Nothing, Unit]
+        fiber <- (startLatch.succeed(()) *> ZIO.never)
+                   .ensuring(finalized.set(true) *> Clock.sleep(10.millis) *> finalizedLatch.succeed(()))
+                   .disconnect
+                   .fork
+        _    <- startLatch.await
+        _    <- fiber.interrupt
+        _    <- finalizedLatch.await
+        test <- finalized.get
+      } yield assert(test == true)
+    }
 
   def main(args: Array[String]): Unit = {
     runtimeFlags()
@@ -274,5 +289,6 @@ object RuntimeBootstrapTests {
     uninterruptibleClosingScope()
     syncInterruption2()
     acquireReleaseDisconnect()
+    disconnectedInterruption()
   }
 }

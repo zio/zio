@@ -3160,22 +3160,19 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(res)(isInterrupted)
       },
       test("disconnected effect that is then interrupted eventually performs interruption") {
-        val io =
-          for {
-            r  <- Ref.make(false)
-            p1 <- Promise.make[Nothing, Unit]
-            p3 <- Promise.make[Nothing, Unit]
-            s <- (p1.succeed(()) *> ZIO.never)
-                   .ensuring(r.set(true) *> Clock.sleep(10.millis) *> p3.succeed(()))
-                   .disconnect
-                   .fork
-            _    <- p1.await
-            _    <- s.interrupt
-            _    <- p3.await
-            test <- r.get
-          } yield test
-
-        assertZIO(Live.live(io))(isTrue)
+        Live.live(for {
+          r  <- Ref.make(false)
+          p1 <- Promise.make[Nothing, Unit]
+          p3 <- Promise.make[Nothing, Unit]
+          s <- (p1.succeed(()) *> ZIO.never)
+                 .ensuring(r.set(true) *> Clock.sleep(10.millis) *> p3.succeed(()))
+                 .disconnect
+                 .fork
+          _    <- p1.await
+          _    <- s.interrupt
+          _    <- p3.await
+          test <- r.get
+        } yield assertTrue(test == true))
       },
       test("cause reflects interruption") {
         for {
