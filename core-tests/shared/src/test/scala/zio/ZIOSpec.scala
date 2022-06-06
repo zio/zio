@@ -2538,7 +2538,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _ <- fiber.interruptFork
           a <- release.await
         } yield assert(a)(isUnit)
-      } @@ zioTag(interruption) @@ ignore,
+      } @@ zioTag(interruption),
       test("async should not resume fiber twice after interruption") {
         for {
           step            <- Promise.make[Nothing, Unit]
@@ -2632,7 +2632,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           a     <- release.await
         } yield assert(a)(equalTo(42))
-      } @@ zioTag(interruption) @@ ignore,
+      } @@ zioTag(interruption),
       test("asyncInterrupt runs cancel token on interrupt") {
         for {
           release <- Promise.make[Nothing, Int]
