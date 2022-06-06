@@ -250,7 +250,7 @@ object RuntimeBootstrapTests {
                    .fork
         _      <- useLatch.await
         _      <- fiber.interrupt
-        result <- releaseLatch.await.timeoutTo(false)(_ => true)(10.seconds)
+        result <- releaseLatch.await.timeoutTo(false)(_ => true)(5.seconds)
       } yield assert(result == true)
     }
 
@@ -269,6 +269,14 @@ object RuntimeBootstrapTests {
         _    <- finalizedLatch.await
         test <- finalized.get
       } yield assert(test == true)
+    }
+
+  def interruptibleAfterRace() =
+    test("race") {
+      for {
+        _      <- ZIO.unit.race(ZIO.unit)
+        status <- ZIO.checkInterruptible(status => ZIO.succeed(status))
+      } yield assert(status == InterruptStatus.Interruptible)
     }
 
   def main(args: Array[String]): Unit = {
@@ -290,5 +298,6 @@ object RuntimeBootstrapTests {
     syncInterruption2()
     acquireReleaseDisconnect()
     disconnectedInterruption()
+    interruptibleAfterRace()
   }
 }

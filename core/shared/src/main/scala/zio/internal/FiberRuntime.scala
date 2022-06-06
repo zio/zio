@@ -17,13 +17,13 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   import ZIO._
   import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
 
-  private var _fiberRefs     = fiberRefs0
-  private val queue          = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
-  private var inactiveStatus = null.asInstanceOf[Fiber.Status.Suspended]
-  private var _children      = null.asInstanceOf[JavaSet[FiberRuntime[_, _]]]
-  private var observers      = Nil: List[Exit[E, A] => Unit]
-  private val running        = new AtomicBoolean(false)
-  private var _runtimeFlags  = runtimeFlags0
+  private var _fiberRefs      = fiberRefs0
+  private val queue           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
+  private var suspendedStatus = null.asInstanceOf[Fiber.Status.Suspended]
+  private var _children       = null.asInstanceOf[JavaSet[FiberRuntime[_, _]]]
+  private var observers       = Nil: List[Exit[E, A] => Unit]
+  private val running         = new AtomicBoolean(false)
+  private var _runtimeFlags   = runtimeFlags0
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
@@ -86,7 +86,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[FiberRuntime[_, _]])
 
   final def status(implicit trace: Trace): UIO[zio.Fiber.Status] =
-    ask[zio.Fiber.Status]((_, inactiveStatus) => inactiveStatus)
+    ask[zio.Fiber.Status]((_, suspendedStatus) => suspendedStatus)
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
     ZIO.suspendSucceed {
@@ -102,7 +102,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       val promise = zio.Promise.unsafeMake[Nothing, A](fiberId)
 
       tell(
-        FiberMessage.Stateful((fiber, inactiveStatus) => promise.unsafeDone(ZIO.succeedNow(f(fiber, inactiveStatus))))
+        FiberMessage.Stateful((fiber, suspendedStatus) => promise.unsafeDone(ZIO.succeedNow(f(fiber, suspendedStatus))))
       )
 
       promise.await
@@ -168,11 +168,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         unsafeGetInterruptors().foreach { interruptor =>
           interruptor(interrupt)
         }
-      case FiberMessage.GenStackTrace(onTrace) => onTrace(StackTrace(self.id, self.inactiveStatus.stack.map(_.trace)))
+      case FiberMessage.GenStackTrace(onTrace) => onTrace(StackTrace(self.id, self.suspendedStatus.stack.map(_.trace)))
       case FiberMessage.Stateful(onFiber) =>
         onFiber(
           self.asInstanceOf[FiberRuntime[Any, Any]],
-          if (_exitValue ne null) Fiber.Status.Done else inactiveStatus
+          if (_exitValue ne null) Fiber.Status.Done else suspendedStatus
         )
       case FiberMessage.Resume(effect, stack) =>
         unsafeRemoveInterruptors()
@@ -223,8 +223,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           val nextStack     = asyncJump.stack.result()
           val alreadyCalled = new AtomicBoolean(false)
 
-          // Store the stack inside the heap so it can be leveraged for dumps during inactiveStatus:
-          self.inactiveStatus = Fiber.Status.Suspended(nextStack, _runtimeFlags, asyncJump.trace, asyncJump.blockingOn)
+          // Store the stack & runtime flags inside the heap so we can access this information during suspension:
+          self.suspendedStatus = Fiber.Status.Suspended(nextStack, _runtimeFlags, asyncJump.trace, asyncJump.blockingOn)
 
           lazy val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
             if (alreadyCalled.compareAndSet(false, true)) {
@@ -442,27 +442,31 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             runtimeFlags = updateFlags(oldRuntimeFlags)
 
-            val revertFlags = oldRuntimeFlags.diff(runtimeFlags)
-
-            respondToNewRuntimeFlags(updateFlags)
-
-            if (runtimeFlags.interruptible && unsafeIsInterrupted()) { // TODO: Interruption
-              cur = Refail(unsafeGetInterruptedCause())
+            if (runtimeFlags == oldRuntimeFlags) {
+              cur = effect.scope(oldRuntimeFlags)
             } else {
-              cur =
-                try {
-                  val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
+              val revertFlags = runtimeFlags.diff(oldRuntimeFlags)
 
-                  runtimeFlags = revertFlags(oldRuntimeFlags)
+              respondToNewRuntimeFlags(updateFlags)
 
-                  respondToNewRuntimeFlags(revertFlags)
+              if (runtimeFlags.interruptible && unsafeIsInterrupted()) { // TODO: Interruption
+                cur = Refail(unsafeGetInterruptedCause())
+              } else {
+                cur =
+                  try {
+                    val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
 
-                  if (runtimeFlags.interruptible && unsafeIsInterrupted())
-                    Refail(unsafeGetInterruptedCause())
-                  else ZIO.succeed(value)
-                } catch {
-                  case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(revertFlags)
-                }
+                    runtimeFlags = revertFlags(oldRuntimeFlags)
+
+                    respondToNewRuntimeFlags(revertFlags)
+
+                    if (runtimeFlags.interruptible && unsafeIsInterrupted())
+                      Refail(unsafeGetInterruptedCause())
+                    else ZIO.succeed(value)
+                  } catch {
+                    case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(revertFlags)
+                  }
+              }
             }
 
           case generateStackTrace: GenerateStackTrace =>

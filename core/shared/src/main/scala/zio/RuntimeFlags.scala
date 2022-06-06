@@ -93,6 +93,8 @@ object RuntimeFlags {
 
     def inverse: Patch = Patch(active, ~enabled)
 
+    def isEmpty: Boolean = active == 0L
+
     def enabledSet: Set[RuntimeFlag] = RuntimeFlags(active & enabled).toSet
 
     def disabledSet: Set[RuntimeFlag] = RuntimeFlags(active & ~enabled).toSet
@@ -113,6 +115,8 @@ object RuntimeFlags {
   object Patch {
     def apply(active: Int, enabled: Int): Patch =
       Patch((active.toLong << 0) + ((enabled & active).toLong << 32))
+
+    val empty: Patch = Patch(0, 0)
   }
 
   def apply(flags: RuntimeFlag*): RuntimeFlags =

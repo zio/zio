@@ -472,11 +472,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def disconnect(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore =>
-      for {
-        id    <- ZIO.fiberId
-        fiber <- restore(self).forkDaemon
-        a     <- restore(fiber.join).onInterrupt(fiber.interruptAs(id).forkDaemon)
-      } yield a
+      ZIO.fiberIdWith(fiberId =>
+        for {
+          fiber <- restore(self).forkDaemon
+          a     <- restore(fiber.join).onInterrupt(fiber.interruptAsFork(fiberId))
+        } yield a
+      )
     )
 
   /**
