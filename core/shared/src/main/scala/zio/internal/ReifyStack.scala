@@ -6,9 +6,6 @@ import zio.ZIO.EvaluationStep
 import scala.util.control.NoStackTrace
 
 sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
-  def prependCause(cause: Cause[Any]): Nothing =
-    self.addAndThrow(EvaluationStep.PrependCause(cause))
-
   def addContinuation(continuation: EvaluationStep.Continuation[_, _, _, _, _]): Nothing =
     self.addAndThrow(continuation)
 

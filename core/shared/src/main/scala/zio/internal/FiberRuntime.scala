@@ -384,25 +384,14 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
             val effect = effect0.erase
 
-            try {
-              cur = effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
-            } catch {
-              case zioError1: ZIOError =>
-                try {
-                  // Execute the effect returned by the failure handler:
-                  val recovered =
-                    runLoop(effect.onFailure(zioError1.cause), currentDepth + 1, Chunk.empty, runtimeFlags)
+            cur =
+              try {
+                effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+              } catch {
+                case zioError: ZIOError => effect.onFailure(zioError.cause)
 
-                  cur = ZIO.succeed(recovered)
-                } catch {
-                  case zioError2: ZIOError =>
-                    cur = Refail(zioError1.cause.stripFailures ++ zioError2.cause)
-
-                  case reifyStack: ReifyStack => reifyStack.prependCause(zioError1.cause)
-                }
-
-              case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
-            }
+                case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+              }
 
           case effect: Sync[_] =>
             try {
@@ -430,8 +419,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       cur = Refail(unsafeGetInterruptedCause())
 
                   case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
-
-                  case k: EvaluationStep.PrependCause => ()
                 }
               }
 
@@ -492,7 +479,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             )
 
           case refail: Refail[_] =>
-            var cause = refail.cause.asInstanceOf[Cause[Any]]
+            val cause = refail.cause.asInstanceOf[Cause[Any]]
 
             cur = null
 
@@ -502,21 +489,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               stackIndex += 1
 
               element match {
-                case k: EvaluationStep.PrependCause =>
-                  cause = k.cause.stripFailures ++ cause
-
                 case k: EvaluationStep.Continuation[_, _, _, _, _] =>
-                  try {
-                    val recovered = runLoop(k.erase.onFailure(cause), currentDepth + 1, Chunk.empty, runtimeFlags)
-
-                    cur = ZIO.succeed(recovered)
-                  } catch {
-                    case zioError: ZIOError =>
-                      cause = cause.stripFailures ++ zioError.cause
-
-                    case reifyStack: ReifyStack =>
-                      reifyStack.prependCause(cause)
-                  }
+                  cur = k.erase.onFailure(cause)
 
                 case k: EvaluationStep.UpdateRuntimeFlags =>
                   runtimeFlags = k.update(runtimeFlags)
@@ -524,7 +498,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   respondToNewRuntimeFlags(k.update)
 
                   if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
-                    cur = Refail(cause.stripFailures ++ unsafeGetInterruptedCause())
+                    cur = Refail(cause ++ unsafeGetInterruptedCause())
                   }
 
                 case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace

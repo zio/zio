@@ -516,8 +516,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def ensuring[R1 <: R](finalizer: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).foldCauseZIO(cause => finalizer *> ZIO.refailCause(cause), a => finalizer.map(_ => a))
-    }
+      restore(self).foldCauseZIO(
+        cause1 => finalizer.foldCauseZIO(cause2 => ZIO.refailCause(cause1 ++ cause2), _ => ZIO.refailCause(cause1)),
+        a => finalizer.map(_ => a)
+      )
+    } // FIXME: This has to be interned to avoid this overhead
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
@@ -5435,9 +5438,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     def trace: Trace
   }
   private[zio] object EvaluationStep {
-    final case class PrependCause(cause: Cause[Any]) extends EvaluationStep {
-      def trace: Trace = Trace.empty
-    }
     sealed trait UpdateRuntimeFlags extends EvaluationStep {
       final def trace = Trace.empty
 
