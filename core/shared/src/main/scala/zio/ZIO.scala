@@ -1344,32 +1344,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.map(Left(_)) race that.map(Right(_))
 
   /**
-   * Returns an effect that races this effect with the specified effect, calling
-   * the specified finisher as soon as one result or the other has been
-   * computed.
+   * Forks this effect and the specified effect into their own fibers, and races
+   * them, calling one of two specified callbacks depending on which fiber wins
+   * the race. This method does not interrupt, join, or otherwise do anything
+   * with the fibers. It can be considered a low-level building block for
+   * higher-level operators like `race`.
    */
-  final def raceWith[R1 <: R, E1, E2, B, C](that: => ZIO[R1, E1, B])(
-    leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
-    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
-  )(implicit trace: Trace): ZIO[R1, E2, C] =
-    self.raceWithImpl(that)(
-      (winner, loser) =>
-        winner.await.flatMap {
-          case exit: Exit.Success[_] =>
-            winner.inheritRefs.flatMap(_ => leftDone(exit, loser))
-          case exit: Exit.Failure[_] =>
-            leftDone(exit, loser)
-        },
-      (winner, loser) =>
-        winner.await.flatMap {
-          case exit: Exit.Success[B] =>
-            winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
-          case exit: Exit.Failure[E1] =>
-            rightDone(exit, loser)
-        }
-    )
-
-  private final def raceWithImpl[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
+  private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
     leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
     rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, C] =
@@ -1394,15 +1375,20 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       val leftFiber  = ZIO.unsafeForkUnstarted(trace, self, parentState, parentRuntimeFlags)
       val rightFiber = ZIO.unsafeForkUnstarted(trace, right, parentState, parentRuntimeFlags)
 
+      leftFiber.unsafeSetFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))
+      rightFiber.unsafeSetFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))
+
       ZIO
         .async[R1, E2, C](
           { cb =>
-            leftFiber.unsafeAddObserver { _ =>
-              complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
+            leftFiber.unsafeAddObserver {
+              _ => // TODO: Thread this exit value up, so higher-levels don't need to await on left side
+                complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
             }
 
-            rightFiber.unsafeAddObserver { _ =>
-              complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
+            rightFiber.unsafeAddObserver {
+              _ => // TODO: Thread this exit value up, so higher-levels don't need to await on right side
+                complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }
 
             leftFiber.startBackground(self)
@@ -1411,6 +1397,32 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
           FiberId.combineAll(Set(leftFiber.id, rightFiber.id))
         )
     }
+
+  /**
+   * Returns an effect that races this effect with the specified effect, calling
+   * the specified finisher as soon as one result or the other has been
+   * computed.
+   */
+  final def raceWith[R1 <: R, E1, E2, B, C](that: => ZIO[R1, E1, B])(
+    leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
+    rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
+  )(implicit trace: Trace): ZIO[R1, E2, C] =
+    self.raceFibersWith(that)(
+      (winner, loser) =>
+        winner.await.flatMap {
+          case exit: Exit.Success[_] =>
+            winner.inheritRefs.flatMap(_ => leftDone(exit, loser))
+          case exit: Exit.Failure[_] =>
+            leftDone(exit, loser)
+        },
+      (winner, loser) =>
+        winner.await.flatMap {
+          case exit: Exit.Success[B] =>
+            winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
+          case exit: Exit.Failure[E1] =>
+            rightDone(exit, loser)
+        }
+    )
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -2412,7 +2424,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
         ZIO.fiberIdWith { fiberId =>
-          graft(restore(self)).raceWithImpl(graft(restore(that)))(
+          graft(restore(self)).raceFibersWith(graft(restore(that)))(
             coordinate(fiberId, f, true),
             coordinate(fiberId, g, false)
           )

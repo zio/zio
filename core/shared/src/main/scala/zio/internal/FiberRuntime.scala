@@ -314,7 +314,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       var iterator = _children.iterator()
 
       while (iterator.hasNext()) {
-        iterator.next().tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
+        val next = iterator.next()
+
+        next.tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
       }
 
       iterator = _children.iterator()

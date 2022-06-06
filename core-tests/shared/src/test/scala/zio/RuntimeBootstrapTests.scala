@@ -143,15 +143,37 @@ object RuntimeBootstrapTests {
       } yield assert(result == false)
     }
 
-  def main(args: Array[String]): Unit =
-    // runtimeFlags()
-    // helloWorld()
-    // fib()
-    // iteration()
-    // asyncInterruption()
-    // syncInterruption()
-    // race()
-    // autoInterruption()
-    // autoInterruption2()
+  def raceInterruption() =
+    test("race of two forks does not interrupt winner") {
+      for {
+        interrupted <- Ref.make(0)
+        fibers      <- Ref.make(Set.empty[Fiber[Any, Any]])
+        latch       <- Promise.make[Nothing, Unit]
+        forkWaiter = ZIO.uninterruptibleMask { restore =>
+                       (restore(latch.await)
+                         .onInterrupt(
+                           interrupted.update(_ + 1)
+                         ))
+                         .fork
+                         .tap(f => fibers.update(_ + f))
+                     }
+        awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
+        _       <- forkWaiter.race(forkWaiter)
+        count   <- latch.succeed(()) *> awaitAll *> interrupted.get
+      } yield assert(count <= 1)
+    }
+
+  def main(args: Array[String]): Unit = {
+    runtimeFlags()
+    helloWorld()
+    fib()
+    iteration()
+    asyncInterruption()
+    syncInterruption()
+    race()
+    autoInterruption()
+    autoInterruption2()
     asyncInterruptionOfNever()
+    raceInterruption()
+  }
 }

@@ -2581,7 +2581,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _      <- Live.withLive(fork.interrupt)(_.timeout(5.seconds))
           result <- finalized.get
         } yield assertTrue(result == false)
-      },
+      } @@ zioTag(interruption),
       test("sleep 0 must return") {
         assertZIO(Live.live(Clock.sleep(1.nanos)))(isUnit)
       },
