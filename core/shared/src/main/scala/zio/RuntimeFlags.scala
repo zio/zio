@@ -107,7 +107,7 @@ object RuntimeFlags {
       val disabledS =
         disabledSet.mkString("(", ", ", ")")
 
-      s"RuntimeFlags.Patch(enabled = ${enabledS}, isDisabled = ${disabledS})"
+      s"RuntimeFlags.Patch(enabled = ${enabledS}, disabled = ${disabledS})"
     }
 
     private def active: Int  = ((packed >> 0) & 0xffffffff).toInt
