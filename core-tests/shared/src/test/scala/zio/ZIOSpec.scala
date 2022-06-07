@@ -2660,21 +2660,24 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(b)(isFalse)
       } @@ zioTag(supervision),
       test("auto-interruption in fork of race") {
-        def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =
-          (latch.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer)
+        def plus1(start: Promise[Nothing, Unit], done: Promise[Nothing, Unit], finalizer: UIO[Any]) =
+          (start.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer *> done.succeed(()))
 
         for {
           interruptionRef <- Ref.make(0)
           latch1Start     <- Promise.make[Nothing, Unit]
           latch2Start     <- Promise.make[Nothing, Unit]
+          latch1Done      <- Promise.make[Nothing, Unit]
+          latch2Done      <- Promise.make[Nothing, Unit]
           inc              = interruptionRef.update(_ + 1)
-          left             = plus1(latch1Start, inc)
-          right            = plus1(latch2Start, inc)
+          left             = plus1(latch1Start, latch1Done, inc)
+          right            = plus1(latch2Start, latch2Done, inc)
           fiber           <- left.race(right).fork
-          _               <- latch1Start.await *> latch2Start.await *> fiber.interrupt
+          _               <- latch1Start.await *> latch2Start.await
+          _               <- fiber.interrupt *> latch1Done.await *> latch2Done.await
           interrupted     <- interruptionRef.get
         } yield assertTrue(interrupted == 2)
-      } /* @@ zioTag(interruption) @@ flaky*/,
+      } @@ zioTag(interruption),
       test("race in daemon is executed") {
         for {
           latch1 <- Promise.make[Nothing, Unit]
