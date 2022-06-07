@@ -149,27 +149,25 @@ object RuntimeBootstrapTests {
 
   def interruptRacedForks() =
     test("race of two forks does not interrupt winner") {
-      def forkWaiter(interrupted: Ref[Int], latch: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) = 
+      def forkWaiter(interrupted: Ref[Int], latch: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
         ZIO.uninterruptibleMask { restore =>
           restore(latch.await)
-            .onInterrupt(
-              interrupted.update(_ + 1) *> done.succeed(()))
-            
+            .onInterrupt(interrupted.update(_ + 1) *> done.succeed(()))
             .fork
         }
 
       for {
         interrupted <- Ref.make(0)
         fibers      <- Ref.make(Set.empty[Fiber[Any, Any]])
-        latch1       <- Promise.make[Nothing, Unit]
-        latch2       <- Promise.make[Nothing, Unit]
+        latch1      <- Promise.make[Nothing, Unit]
+        latch2      <- Promise.make[Nothing, Unit]
         done1       <- Promise.make[Nothing, Unit]
         done2       <- Promise.make[Nothing, Unit]
-        forkWaiter1 = forkWaiter(interrupted, latch1, done1)
-        forkWaiter2 = forkWaiter(interrupted, latch2, done2)
-        awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
-        _       <- forkWaiter1.race(forkWaiter2)
-        count   <- latch1.succeed(()) *> done1.await *> done2.await *> interrupted.get
+        forkWaiter1  = forkWaiter(interrupted, latch1, done1)
+        forkWaiter2  = forkWaiter(interrupted, latch2, done2)
+        awaitAll     = fibers.get.flatMap(Fiber.awaitAll(_))
+        _           <- forkWaiter1.race(forkWaiter2)
+        count       <- latch1.succeed(()) *> done1.await *> done2.await *> interrupted.get
       } yield assert(count == 2)
     }
 
@@ -275,9 +273,7 @@ object RuntimeBootstrapTests {
                    .disconnect
                    .fork
         _    <- startLatch.await
-        _ <- ZIO.debug("before interrupt")
         _    <- fiber.interrupt
-        _ <- ZIO.debug("before finalizedLatch.await")
         _    <- finalizedLatch.await
         test <- finalized.get
       } yield assert(test == true)
@@ -333,28 +329,28 @@ object RuntimeBootstrapTests {
 
   def main(args: Array[String]): Unit = {
     val _ = ()
-    // runtimeFlags()
-    // helloWorld()
-    // fib()
-    // iteration()
-    // asyncInterruption()
-    // syncInterruption()
-    // race()
-    // autoInterruption()
-    // autoInterruption2()
-    // asyncInterruptionOfNever()
-    // interruptRacedForks()
-    // useInheritance()
-    // useInheritance2()
-    // asyncUninterruptible()
-    // uninterruptibleClosingScope()
-    // syncInterruption2()
-    // acquireReleaseDisconnect()
+    runtimeFlags()
+    helloWorld()
+    fib()
+    iteration()
+    asyncInterruption()
+    syncInterruption()
+    race()
+    autoInterruption()
+    autoInterruption2()
+    asyncInterruptionOfNever()
+    interruptRacedForks()
+    useInheritance()
+    useInheritance2()
+    asyncUninterruptible()
+    uninterruptibleClosingScope()
+    syncInterruption2()
+    acquireReleaseDisconnect()
     disconnectedInterruption()
-    // interruptibleAfterRace()
-    // uninterruptibleRace()
-    // interruptionDetection()
-    // interruptionRecovery()
+    interruptibleAfterRace()
+    uninterruptibleRace()
+    interruptionDetection()
+    interruptionRecovery()
   }
 
 }

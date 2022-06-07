@@ -461,7 +461,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             } else {
               // We are committed to updating the flags, then updating them
               // back, so we need a patch to do the reversion:
-              val revertFlags = runtimeFlags.diff(oldRuntimeFlags)
+              val revertFlags = newRuntimeFlags.diff(oldRuntimeFlags)
 
               if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
                 cur = Refail(unsafeGetInterruptedCause())
