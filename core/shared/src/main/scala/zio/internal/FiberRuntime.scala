@@ -236,7 +236,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             stack = trampoline.stack.result()
           } else {
             tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
-            
+
             effect = null
             stack = Chunk.empty
 

@@ -2727,17 +2727,26 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(effect)(isUnit)
       },
       test("race of two forks does not interrupt winner") {
+        def forkWaiter(interrupted: Ref[Int], latch: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
+          ZIO.uninterruptibleMask { restore =>
+            restore(latch.await)
+              .onInterrupt(interrupted.update(_ + 1) *> done.succeed(()))
+              .fork
+          }
+
         for {
-          ref    <- Ref.make(0)
-          fibers <- Ref.make(Set.empty[Fiber[Any, Any]])
-          latch  <- Promise.make[Nothing, Unit]
-          effect = ZIO.uninterruptibleMask { restore =>
-                     restore(latch.await.onInterrupt(ref.update(_ + 1))).fork.tap(f => fibers.update(_ + f))
-                   }
-          awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
-          _       <- effect race effect
-          value2  <- latch.succeed(()) *> awaitAll *> ref.get
-        } yield assert(value2)(isLessThanEqualTo(1))
+          interrupted <- Ref.make(0)
+          fibers      <- Ref.make(Set.empty[Fiber[Any, Any]])
+          latch1      <- Promise.make[Nothing, Unit]
+          latch2      <- Promise.make[Nothing, Unit]
+          done1       <- Promise.make[Nothing, Unit]
+          done2       <- Promise.make[Nothing, Unit]
+          forkWaiter1  = forkWaiter(interrupted, latch1, done1)
+          forkWaiter2  = forkWaiter(interrupted, latch2, done2)
+          awaitAll     = fibers.get.flatMap(Fiber.awaitAll(_))
+          _           <- forkWaiter1.race(forkWaiter2)
+          count       <- latch1.succeed(()) *> done1.await *> done2.await *> interrupted.get
+        } yield assertTrue(count == 2)
       },
       test("firstSuccessOf of values") {
         val io = ZIO.firstSuccessOf(ZIO.fail(0), List(ZIO.succeed(100))).either
