@@ -57,7 +57,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       for {
         childRuntimeFlags <- self.runtimeFlags
-        patch = parentRuntimeFlags.diff(childRuntimeFlags).exclude(RuntimeFlag.WindDown) // Do not inherit WindDown!
+        // Do not inherit WindDown or Interruption!
+        patch =
+          parentRuntimeFlags.diff(childRuntimeFlags).exclude(RuntimeFlag.WindDown).exclude(RuntimeFlag.Interruption)
         _ <- ZIO.updateRuntimeFlags(patch)
       } yield ()
     }
@@ -452,40 +454,43 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn)
 
           case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
+            val updateFlags     = effect.update
             val oldRuntimeFlags = runtimeFlags
-            val newRuntimeFlags = effect.update(oldRuntimeFlags)
+            val newRuntimeFlags = updateFlags(oldRuntimeFlags)
 
-            if (newRuntimeFlags == oldRuntimeFlags) {
+            cur = if (newRuntimeFlags == oldRuntimeFlags) {
               // No change, short circuit:
-              cur = effect.scope(oldRuntimeFlags)
+              effect.scope(oldRuntimeFlags)
             } else {
-              // We are committed to updating the flags, then updating them
-              // back, so we need a patch to do the reversion:
-              val revertFlags = newRuntimeFlags.diff(oldRuntimeFlags)
-
-              if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
-                cur = Refail(unsafeGetInterruptedCause())
+              // One more chance to short circuit: if we're immediately going to interrupt.
+              // Interruption will cause immediate reversion of the flag, so as long as we
+              // "peek ahead", there's no need to set them to begin with.
+              if (newRuntimeFlags.interruptible && unsafeIsInterrupted()) {
+                Refail(unsafeGetInterruptedCause())
               } else {
-                respondToNewRuntimeFlags(effect.update)
-
+                // Impossible to short circuit, so record the changes:
                 runtimeFlags = newRuntimeFlags
 
-                cur =
-                  try {
-                    val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
+                respondToNewRuntimeFlags(updateFlags)
 
-                    // Go backward, on the stack stack:
-                    runtimeFlags = revertFlags(runtimeFlags)
+                // Since we updated the flags, we need to revert them:
+                val revertFlags = newRuntimeFlags.diff(oldRuntimeFlags)
 
-                    respondToNewRuntimeFlags(revertFlags)
+                try {
+                  val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
 
-                    if (runtimeFlags.interruptible && unsafeIsInterrupted())
-                      Refail(unsafeGetInterruptedCause())
-                    else ZIO.succeed(value)
-                  } catch {
-                    case reifyStack: ReifyStack =>
-                      reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
-                  }
+                  // Go backward, on the stack stack:
+                  runtimeFlags = revertFlags(runtimeFlags)
+
+                  respondToNewRuntimeFlags(revertFlags)
+
+                  if (runtimeFlags.interruptible && unsafeIsInterrupted())
+                    Refail(unsafeGetInterruptedCause())
+                  else ZIO.succeed(value)
+                } catch {
+                  case reifyStack: ReifyStack =>
+                    reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
+                }
               }
             }
 
@@ -540,11 +545,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             }
 
           case updateRuntimeFlags: UpdateRuntimeFlags =>
+            val updateFlags     = updateRuntimeFlags.update
             val oldRuntimeFlags = runtimeFlags
 
-            runtimeFlags = updateRuntimeFlags.update(runtimeFlags)
+            runtimeFlags = updateFlags(runtimeFlags)
 
-            respondToNewRuntimeFlags(updateRuntimeFlags.update)
+            respondToNewRuntimeFlags(updateFlags)
 
             // If we are nested inside another recursive call to `runLoop`,
             // then we need pop out to the very top in order to update

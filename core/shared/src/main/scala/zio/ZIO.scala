@@ -506,7 +506,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def ensuring[R1 <: R](finalizer: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseZIO(
-        cause1 => finalizer.foldCauseZIO(cause2 => ZIO.refailCause(cause1 ++ cause2), _ => ZIO.refailCause(cause1)),
+        cause1 =>
+          finalizer
+            .foldCauseZIO(cause2 => ZIO.refailCause(cause1 ++ cause2), _ => ZIO.refailCause(cause1)),
         a => finalizer.map(_ => a)
       )
     } // FIXME: This has to be interned to avoid this overhead
@@ -5446,8 +5448,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         new UpdateRuntimeFlags {
           override def update: RuntimeFlags.Patch = patch
         }
-
-      def setInterruptible(b: Boolean): UpdateRuntimeFlags = if (b) MakeInterruptible else MakeUninterruptible
 
       case object MakeInterruptible extends UpdateRuntimeFlags {
         val update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
