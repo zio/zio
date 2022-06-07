@@ -147,24 +147,30 @@ object RuntimeBootstrapTests {
       } yield assert(result == false)
     }
 
-  def raceInterruption() =
+  def interruptRacedForks() =
     test("race of two forks does not interrupt winner") {
+      def forkWaiter(interrupted: Ref[Int], latch: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) = 
+        ZIO.uninterruptibleMask { restore =>
+          restore(latch.await)
+            .onInterrupt(
+              interrupted.update(_ + 1) *> done.succeed(()))
+            
+            .fork
+        }
+
       for {
         interrupted <- Ref.make(0)
         fibers      <- Ref.make(Set.empty[Fiber[Any, Any]])
-        latch       <- Promise.make[Nothing, Unit]
-        forkWaiter = ZIO.uninterruptibleMask { restore =>
-                       (restore(latch.await)
-                         .onInterrupt(
-                           interrupted.update(_ + 1)
-                         ))
-                         .fork
-                         .tap(f => fibers.update(_ + f))
-                     }
+        latch1       <- Promise.make[Nothing, Unit]
+        latch2       <- Promise.make[Nothing, Unit]
+        done1       <- Promise.make[Nothing, Unit]
+        done2       <- Promise.make[Nothing, Unit]
+        forkWaiter1 = forkWaiter(interrupted, latch1, done1)
+        forkWaiter2 = forkWaiter(interrupted, latch2, done2)
         awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
-        _       <- forkWaiter.race(forkWaiter)
-        count   <- latch.succeed(()) *> awaitAll *> interrupted.get.debug("interrupted count")
-      } yield assert(count <= 1)
+        _       <- forkWaiter1.race(forkWaiter2)
+        count   <- latch1.succeed(()) *> done1.await *> done2.await *> interrupted.get
+      } yield assert(count == 2)
     }
 
   def useInheritance() =
@@ -269,7 +275,9 @@ object RuntimeBootstrapTests {
                    .disconnect
                    .fork
         _    <- startLatch.await
+        _ <- ZIO.debug("before interrupt")
         _    <- fiber.interrupt
+        _ <- ZIO.debug("before finalizedLatch.await")
         _    <- finalizedLatch.await
         test <- finalized.get
       } yield assert(test == true)
@@ -278,9 +286,9 @@ object RuntimeBootstrapTests {
   def interruptibleAfterRace() =
     test("interruptible after race") {
       for {
-        status1 <- ZIO.checkInterruptible(status => ZIO.succeed(status)).debug("interrupt status before race")
+        status1 <- ZIO.checkInterruptible(status => ZIO.succeed(status))
         _       <- ZIO.unit.race(ZIO.unit)
-        status2 <- ZIO.checkInterruptible(status => ZIO.succeed(status)).debug("interrupt status after race")
+        status2 <- ZIO.checkInterruptible(status => ZIO.succeed(status))
       } yield assert(status1 == InterruptStatus.Interruptible && status2 == InterruptStatus.Interruptible)
     }
 
@@ -325,28 +333,28 @@ object RuntimeBootstrapTests {
 
   def main(args: Array[String]): Unit = {
     val _ = ()
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-    asyncInterruptionOfNever()
-    raceInterruption()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    // asyncInterruptionOfNever()
+    // interruptRacedForks()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
     disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-    interruptionDetection()
-    interruptionRecovery()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
+    // interruptionDetection()
+    // interruptionRecovery()
   }
 
 }
