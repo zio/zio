@@ -110,20 +110,21 @@ object RuntimeBootstrapTests {
 
   def autoInterruption2() =
     test("auto interruption with finalization 2") {
-      def plus1(latch: Promise[Nothing, Unit], finalizer: UIO[Any]) =
-        (latch.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer)
+      def plus1(start: Promise[Nothing, Unit], end: Promise[Nothing, Unit], finalizer: UIO[Any]) =
+        (start.succeed(()) *> ZIO.sleep(1.hour)).onInterrupt(finalizer *> end.succeed(()))
 
       for {
         interruptionRef <- Ref.make(0)
         latch1Start     <- Promise.make[Nothing, Unit]
         latch2Start     <- Promise.make[Nothing, Unit]
+        latch1End       <- Promise.make[Nothing, Unit]
+        latch2End       <- Promise.make[Nothing, Unit]
         inc              = interruptionRef.update(_ + 1)
-        left             = plus1(latch1Start, inc)
-        right            = plus1(latch2Start, inc)
-        fiber           <- left.race(right).fork
-        _               <- latch1Start.await *> latch2Start.await *> fiber.interrupt
+        left             = plus1(latch1Start, latch1End, inc)
+        right            = plus1(latch2Start, latch2End, inc)
+        fiber           <- left.disconnect.race(right.disconnect).fork
+        _               <- latch1Start.await *> latch2Start.await *> fiber.interrupt *> latch1End.await *> latch2End.await
         interrupted     <- interruptionRef.get
-        _               <- ZIO.debug(s"Interrupted: ${interrupted}")
       } yield assert(interrupted == 2)
     }
 
@@ -162,7 +163,7 @@ object RuntimeBootstrapTests {
                      }
         awaitAll = fibers.get.flatMap(Fiber.awaitAll(_))
         _       <- forkWaiter.race(forkWaiter)
-        count   <- latch.succeed(()) *> awaitAll *> interrupted.get
+        count   <- latch.succeed(()) *> awaitAll *> interrupted.get.debug("interrupted count")
       } yield assert(count <= 1)
     }
 
@@ -277,9 +278,10 @@ object RuntimeBootstrapTests {
   def interruptibleAfterRace() =
     test("interruptible after race") {
       for {
-        _      <- ZIO.unit.race(ZIO.unit)
-        status <- ZIO.checkInterruptible(status => ZIO.succeed(status))
-      } yield assert(status == InterruptStatus.Interruptible)
+        status1 <- ZIO.checkInterruptible(status => ZIO.succeed(status)).debug("interrupt status before race")
+        _       <- ZIO.unit.race(ZIO.unit)
+        status2 <- ZIO.checkInterruptible(status => ZIO.succeed(status)).debug("interrupt status after race")
+      } yield assert(status1 == InterruptStatus.Interruptible && status2 == InterruptStatus.Interruptible)
     }
 
   def uninterruptibleRace() =
@@ -289,25 +291,62 @@ object RuntimeBootstrapTests {
       } yield assert(true)
     }
 
-  def main(args: Array[String]): Unit =
-    // runtimeFlags()
-    // helloWorld()
-    // fib()
-    // iteration()
-    // asyncInterruption()
-    // syncInterruption()
-    // race()
-    // autoInterruption()
+  def interruptionDetection() =
+    test("interruption detection") {
+      for {
+        startLatch <- Promise.make[Nothing, Unit]
+        endLatch   <- Promise.make[Nothing, Unit]
+        finalized  <- Ref.make(false)
+        fiber      <- (startLatch.succeed(()) *> ZIO.infinity).onInterrupt(finalized.set(true) *> endLatch.succeed(())).fork
+        _          <- startLatch.await
+        _          <- fiber.interrupt
+        _          <- endLatch.await
+        value      <- finalized.get
+      } yield assert(value == true)
+    }
+
+  def interruptionRecovery() =
+    test("interruption recovery") {
+      for {
+        startLatch          <- Promise.make[Nothing, Unit]
+        endLatch            <- Promise.make[Nothing, Unit]
+        exitRef             <- Ref.make[Exit[Any, Any]](Exit.succeed(()))
+        pastInterruptionRef <- Ref.make(false)
+        fiber <- (ZIO.uninterruptibleMask { restore =>
+                   restore(startLatch.succeed(()) *> ZIO.infinity).exit.flatMap(exitRef.set(_))
+                 } *> pastInterruptionRef.set(true)).ensuring(endLatch.succeed(())).fork
+        _    <- startLatch.await
+        _    <- fiber.interrupt
+        _    <- endLatch.await
+        exit <- exitRef.get
+        past <- pastInterruptionRef.get
+      } yield assert(exit.causeOption.get.isInterrupted && past == false)
+    }
+
+  def main(args: Array[String]): Unit = {
+    val _ = ()
+    runtimeFlags()
+    helloWorld()
+    fib()
+    iteration()
+    asyncInterruption()
+    syncInterruption()
+    race()
+    autoInterruption()
     autoInterruption2()
-  // asyncInterruptionOfNever()
-  // raceInterruption()
-  // useInheritance()
-  // useInheritance2()
-  // asyncUninterruptible()
-  // uninterruptibleClosingScope()
-  // syncInterruption2()
-  // acquireReleaseDisconnect()
-  // disconnectedInterruption()
-  // interruptibleAfterRace()
-  // uninterruptibleRace()
+    asyncInterruptionOfNever()
+    raceInterruption()
+    useInheritance()
+    useInheritance2()
+    asyncUninterruptible()
+    uninterruptibleClosingScope()
+    syncInterruption2()
+    acquireReleaseDisconnect()
+    disconnectedInterruption()
+    interruptibleAfterRace()
+    uninterruptibleRace()
+    interruptionDetection()
+    interruptionRecovery()
+  }
+
 }

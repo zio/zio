@@ -1067,7 +1067,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def onInterrupt[R1 <: R](cleanup: Set[FiberId] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseZIO(
-        cause => if (cause.isInterrupted) cleanup(cause.interruptors) *> ZIO.failCause(cause) else ZIO.failCause(cause),
+        cause =>
+          if (cause.isInterrupted) cleanup(cause.interruptors) *> ZIO.refailCause(cause) else ZIO.refailCause(cause),
         a => ZIO.succeedNow(a)
       )
     }
@@ -1228,15 +1229,11 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * succeeds, the other will be interrupted. If neither succeeds, then the
    * effect will fail with some error.
    *
-   * WARNING: The raced effect will safely interrupt the "loser", but will not
-   * resume until the loser has been cleanly terminated. If early return is
-   * desired, then instead of performing `l race r`, perform `l.disconnect race
-   * r.disconnect`, which disconnects left and right interruption signals,
-   * allowing a fast return, with interruption performed in the background.
-   *
-   * Note that if the `race` is embedded into an uninterruptible region, then
-   * because the loser cannot be interrupted, it will be allowed to continue
-   * executing in the background, without delaying the return of the race.
+   * Note that both effects are disconnected before being raced. This means that
+   * interruption of the loser will always be performed in the background. This
+   * is a change in behavior compared to ZIO 2.0. If this behavior is not
+   * desired, you can use [[ZIO#raceWith]], which will not disconnect or
+   * interrupt losers.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
     ZIO.fiberIdWith { parentFiberId =>
@@ -5587,6 +5584,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+
+    def isParentRegionInterruptible: Boolean
+
+    final def isParentRegionUninterruptible: Boolean = !isParentRegionInterruptible
+
+    final def parentInterruptStatus: InterruptStatus = InterruptStatus.fromBoolean(isParentRegionInterruptible)
   }
   object InterruptibilityRestorer {
     def apply(status: InterruptStatus): InterruptibilityRestorer =
@@ -5596,10 +5599,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     case object MakeInterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
+
+      def isParentRegionInterruptible: Boolean = true
     }
     case object MakeUninterruptible extends InterruptibilityRestorer {
       def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect)
+
+      def isParentRegionInterruptible: Boolean = false
     }
   }
 

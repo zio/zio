@@ -453,25 +453,29 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
           case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
             val oldRuntimeFlags = runtimeFlags
-            val updateFlags     = effect.update
-
-            runtimeFlags = updateFlags(oldRuntimeFlags)
+            val newRuntimeFlags = effect.update(oldRuntimeFlags)
 
             if (runtimeFlags == oldRuntimeFlags) {
+              // No change, short circuit:
               cur = effect.scope(oldRuntimeFlags)
             } else {
+              // We are committed to updating the flags, then updating them
+              // back, so we need a patch to do the reversion:
               val revertFlags = runtimeFlags.diff(oldRuntimeFlags)
-
-              respondToNewRuntimeFlags(updateFlags)
 
               if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
                 cur = Refail(unsafeGetInterruptedCause())
               } else {
+                respondToNewRuntimeFlags(effect.update)
+
+                runtimeFlags = newRuntimeFlags
+
                 cur =
                   try {
                     val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
 
-                    runtimeFlags = revertFlags(oldRuntimeFlags)
+                    // Backward, stack:
+                    runtimeFlags = revertFlags(runtimeFlags)
 
                     respondToNewRuntimeFlags(revertFlags)
 
@@ -479,7 +483,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       Refail(unsafeGetInterruptedCause())
                     else ZIO.succeed(value)
                   } catch {
-                    case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(revertFlags)
+                    case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(revertFlags) // Backward, heap
                   }
               }
             }
