@@ -10,7 +10,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReferenc
 import zio._
 
 class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
-    extends Fiber.Runtime.Internal[E, A] {
+    extends Fiber.Runtime.Internal[E, A]
+    with FiberRunnable {
   self =>
   type Erased = ZIO[Any, Any, Any]
 
@@ -290,6 +291,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     signal
   }
 
+  override final def run(): Unit = drainQueueOnCurrentThread()
+
   /**
    * On the current thread, executes all messages in the fiber's inbox. This
    * method may return before all work is done, in the event the fiber executes
@@ -335,7 +338,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     val currentExecutor = self.unsafeGetCurrentExecutor()
 
-    currentExecutor.unsafeSubmitOrThrow(() => drainQueueOnCurrentThread())
+    currentExecutor.unsafeSubmitOrThrow(self)
   }
 
   final def unsafeInterruptAllChildren(): UIO[Any] =
