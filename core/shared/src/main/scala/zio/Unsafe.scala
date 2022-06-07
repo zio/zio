@@ -17,7 +17,10 @@ package zio
 
 /**
  * A marker interface used to indicate that a method is side-effecting, partial,
- * or potentially type unsafe.
+ * or potentially type unsafe, such that it might throw a ClassCastException if
+ * used improperly. This marker interface is useful for certain low-level ZIO
+ * methods, to differentiate them from the higher-level methods, which are
+ * always pure, total, and type-safe.
  *
  * {{{
  * import Unsafe.unsafe
@@ -25,7 +28,9 @@ package zio
  * unsafe { ... }
  * }}}
  */
-sealed trait Unsafe
+sealed trait Unsafe[-Effects] {
+  def derive[Subeffects <: Effects]: Unsafe[Subeffects] = new Unsafe[Subeffects] {}
+}
 object Unsafe extends UnsafeVersionSpecific {
-  protected val unsafe: Unsafe = new Unsafe {}
+  protected val unsafe: Unsafe[Any] = new Unsafe[Any] {}
 }

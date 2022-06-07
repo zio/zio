@@ -16,6 +16,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   import ZIO._
   import ReifyStack.{AsyncJump, Trampoline, GenerateTrace}
+  import FiberRuntime.EvaluationSignal
 
   private var _fiberRefs      = fiberRefs0
   private val queue           = new java.util.concurrent.ConcurrentLinkedQueue[FiberMessage]()
@@ -122,7 +123,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def tell(message: FiberMessage): Unit = {
     queue.add(message)
 
-    if (running.compareAndSet(false, true)) drainQueue()
+    if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
   }
 
   /**
@@ -132,7 +133,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def tellHere(message: FiberMessage): Unit = {
     queue.add(message)
 
-    if (running.compareAndSet(false, true)) drainQueueHere()
+    if (running.compareAndSet(false, true)) drainQueueOnCurrentThread()
   }
 
   /**
@@ -156,7 +157,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * Evaluates a single message on the current thread, while the fiber is
    * suspended. This method should only be called while the fiber is suspended.
    */
-  final def evaluateMessage(fiberMessage: FiberMessage): Unit = {
+  final def evaluateMessage(fiberMessage: FiberMessage): EvaluationSignal = {
     assert(running.get == true)
 
     fiberMessage match {
@@ -168,12 +169,19 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         unsafeGetInterruptors().foreach { interruptor =>
           interruptor(interrupt)
         }
-      case FiberMessage.GenStackTrace(onTrace) => onTrace(StackTrace(self.id, self.suspendedStatus.stack.map(_.trace)))
+        EvaluationSignal.Continue
+
+      case FiberMessage.GenStackTrace(onTrace) =>
+        onTrace(StackTrace(self.id, self.suspendedStatus.stack.map(_.trace)))
+        EvaluationSignal.Continue
+
       case FiberMessage.Stateful(onFiber) =>
         onFiber(
           self.asInstanceOf[FiberRuntime[Any, Any]],
           if (_exitValue ne null) Fiber.Status.Done else suspendedStatus
         )
+        EvaluationSignal.Continue
+
       case FiberMessage.Resume(effect, stack) =>
         unsafeRemoveInterruptors()
         evaluateEffect(effect, stack)
@@ -186,7 +194,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def evaluateEffect(
     effect0: ZIO[Any, Any, Any],
     stack0: Chunk[EvaluationStep]
-  ): Unit = {
+  ): EvaluationSignal = {
     assert(running.get == true)
 
     var effect = effect0
@@ -226,7 +234,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           // Store the stack & runtime flags inside the heap so we can access this information during suspension:
           self.suspendedStatus = Fiber.Status.Suspended(nextStack, _runtimeFlags, asyncJump.trace, asyncJump.blockingOn)
 
-          lazy val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
+          val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
             if (alreadyCalled.compareAndSet(false, true)) {
               tell(FiberMessage.Resume(effect, nextStack))
             }
@@ -262,6 +270,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           effect = null
       }
     }
+
+    EvaluationSignal.Continue
   }
 
   /**
@@ -270,16 +280,18 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * an asynchronous operation.
    */
   @tailrec
-  final def drainQueueHere(): Unit = {
+  final def drainQueueOnCurrentThread(): Unit = {
     assert(running.get == true)
+
+    var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
 
     if (_runtimeFlags.currentFiber) Fiber._currentFiber.set(self)
 
     try {
-      while (!queue.isEmpty()) {
-        val head = queue.poll()
-
-        evaluateMessage(head)
+      while (evaluationSignal == EvaluationSignal.Continue) {
+        evaluationSignal =
+          if (queue.isEmpty()) EvaluationSignal.Done
+          else evaluateMessage(queue.poll())
       }
     } finally {
       running.set(false)
@@ -290,7 +302,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     // Maybe someone added something to the queue between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!queue.isEmpty() && running.compareAndSet(false, true)) drainQueueHere()
+    if (!queue.isEmpty() && running.compareAndSet(false, true)) {
+      if (evaluationSignal == EvaluationSignal.Yield) drainQueueLaterOnExecutor()
+      else drainQueueOnCurrentThread()
+    }
   }
 
   /**
@@ -299,12 +314,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * operation is completed, but potentially before such messages have been
    * executed.
    */
-  final def drainQueue(): Unit = {
+  final def drainQueueLaterOnExecutor(): Unit = {
     assert(running.get == true)
 
     val currentExecutor = self.unsafeGetCurrentExecutor()
 
-    currentExecutor.unsafeSubmitOrThrow(() => drainQueueHere())
+    currentExecutor.unsafeSubmitOrThrow(() => drainQueueOnCurrentThread())
   }
 
   final def unsafeInterruptAllChildren(): UIO[Any] =
@@ -736,6 +751,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 }
 
 object FiberRuntime {
+  sealed trait EvaluationSignal
+  object EvaluationSignal {
+    case object Continue extends EvaluationSignal
+    case object Yield    extends EvaluationSignal
+    case object Done     extends EvaluationSignal
+  }
   import java.util.concurrent.atomic.AtomicBoolean
 
   def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs, runtimeFlags: RuntimeFlags): FiberRuntime[E, A] =

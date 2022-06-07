@@ -16,7 +16,7 @@
 package zio
 
 private[zio] trait UnsafeVersionSpecific {
-  protected def unsafe: Unsafe
+  protected def unsafe: Unsafe[Any]
 
-  def unsafe[A](f: Unsafe => A): A = f(unsafe)
+  def unsafe[A](f: Unsafe[Any] => A): A = f(unsafe)
 }

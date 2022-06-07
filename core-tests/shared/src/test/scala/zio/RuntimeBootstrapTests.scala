@@ -274,7 +274,7 @@ object RuntimeBootstrapTests {
     }
 
   def interruptibleAfterRace() =
-    test("race") {
+    test("interruptible after race") {
       for {
         _      <- ZIO.unit.race(ZIO.unit)
         status <- ZIO.checkInterruptible(status => ZIO.succeed(status))
@@ -288,26 +288,25 @@ object RuntimeBootstrapTests {
       } yield assert(true)
     }
 
-  def main(args: Array[String]): Unit = {
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
+  def main(args: Array[String]): Unit =
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
     autoInterruption2()
-    asyncInterruptionOfNever()
-    raceInterruption()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
-    disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-  }
+    // asyncInterruptionOfNever()
+    // raceInterruption()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
+    // disconnectedInterruption()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
 }
