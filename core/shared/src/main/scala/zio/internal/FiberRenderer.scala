@@ -56,7 +56,7 @@ private[zio] object FiberRenderer {
       case Done          => "Done"
       case Running(_, t) => s"Running(${t})"
       case Suspended(_, runtimeFlags, trace, _) =>
-        val in = if (runtimeFlags.enabled(RuntimeFlag.Interruption)) "interruptible" else "uninterruptible"
+        val in = if (runtimeFlags.isEnabled(RuntimeFlag.Interruption)) "interruptible" else "uninterruptible"
         val as = trace.toString
         s"Suspended($in, $as)"
     }

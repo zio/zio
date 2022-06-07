@@ -545,7 +545,7 @@ object Fiber extends FiberPlatformSpecific {
     isLocked: Boolean
   ) {
     def interruptStatus: InterruptStatus =
-      InterruptStatus.fromBoolean(status.runtimeFlags.enabled(RuntimeFlag.Interruption))
+      InterruptStatus.fromBoolean(status.runtimeFlags.isEnabled(RuntimeFlag.Interruption))
   }
 
   final case class Dump(fiberId: FiberId.Runtime, status: Status, trace: StackTrace) extends Product with Serializable {

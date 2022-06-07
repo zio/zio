@@ -4495,7 +4495,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       trace,
       RuntimeFlags.disable(RuntimeFlag.Interruption),
       oldFlags =>
-        if (oldFlags.enabled(RuntimeFlag.Interruption)) f(InterruptibilityRestorer.MakeInterruptible)
+        if (oldFlags.isEnabled(RuntimeFlag.Interruption)) f(InterruptibilityRestorer.MakeInterruptible)
         else f(InterruptibilityRestorer.MakeUninterruptible)
     )
 

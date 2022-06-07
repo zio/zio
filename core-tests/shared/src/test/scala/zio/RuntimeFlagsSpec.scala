@@ -15,16 +15,16 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
   def spec =
     suite("RuntimeFlagsSpec") {
       suite("unit") {
-        test("enabled & disabled") {
+        test("enabled & isDisabled") {
           val flags =
             RuntimeFlags(Interruption, CurrentFiber)
 
-          assertTrue(flags.enabled(Interruption)) &&
-          assertTrue(flags.enabled(CurrentFiber)) &&
-          assertTrue(flags.disabled(FiberRoots)) &&
-          assertTrue(flags.disabled(OpLog)) &&
-          assertTrue(flags.disabled(OpSupervision)) &&
-          assertTrue(flags.disabled(RuntimeMetrics))
+          assertTrue(flags.isEnabled(Interruption)) &&
+          assertTrue(flags.isEnabled(CurrentFiber)) &&
+          assertTrue(flags.isDisabled(FiberRoots)) &&
+          assertTrue(flags.isDisabled(OpLog)) &&
+          assertTrue(flags.isDisabled(OpSupervision)) &&
+          assertTrue(flags.isDisabled(RuntimeMetrics))
         } +
           test("enabled patching") {
             val on = RuntimeFlags.enable(CurrentFiber) <> RuntimeFlags.enable(OpLog)
@@ -50,7 +50,7 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
         suite("gen") {
           test("enabled") {
             checkN(100)(genRuntimeFlags) { flags =>
-              assertTrue(flags.toSet.forall(flag => flags.enabled(flag)))
+              assertTrue(flags.toSet.forall(flag => flags.isEnabled(flag)))
             }
           } +
             test("diff") {

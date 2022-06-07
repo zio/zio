@@ -586,9 +586,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   }
 
   def respondToNewRuntimeFlags(patch: RuntimeFlags.Patch): Unit =
-    if (patch.enabled(RuntimeFlag.CurrentFiber)) {
+    if (patch.isEnabled(RuntimeFlag.CurrentFiber)) {
       Fiber._currentFiber.set(self)
-    } else if (patch.disabled(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
+    } else if (patch.isDisabled(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this

@@ -49,7 +49,7 @@ private[zio] object FiberScope {
     private[zio] def unsafeAdd(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
       trace: Trace
     ): Unit =
-      if (runtimeFlags.enabled(RuntimeFlag.FiberRoots)) {
+      if (runtimeFlags.isEnabled(RuntimeFlag.FiberRoots)) {
         val childRef = Fiber._roots.add(child)
 
         child.unsafeAddObserver(_ => childRef.clear())

@@ -59,12 +59,12 @@ object RuntimeBootstrapTests {
         val flags =
           RuntimeFlags(Interruption, CurrentFiber)
 
-        assert(flags.enabled(Interruption))
-        assert(flags.enabled(CurrentFiber))
-        assert(flags.disabled(FiberRoots))
-        assert(flags.disabled(OpLog))
-        assert(flags.disabled(OpSupervision))
-        assert(flags.disabled(RuntimeMetrics))
+        assert(flags.isEnabled(Interruption))
+        assert(flags.isEnabled(CurrentFiber))
+        assert(flags.isDisabled(FiberRoots))
+        assert(flags.isDisabled(OpLog))
+        assert(flags.isDisabled(OpSupervision))
+        assert(flags.isDisabled(RuntimeMetrics))
 
         assert(RuntimeFlags.enable(Interruption)(RuntimeFlags.none).interruption)
       }
