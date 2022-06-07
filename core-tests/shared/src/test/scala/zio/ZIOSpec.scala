@@ -3238,17 +3238,20 @@ object ZIOSpec extends ZIOBaseSpec {
           value   <- ref.get
         } yield assertTrue(value == true)
       } @@ nonFlaky @@ TestAspect.fibers,
-      test("effectAsyncInterrupt cancelation") {
+      test("asyncInterrupt cancelation") {
         for {
-          ref <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
-          effect = ZIO.asyncInterrupt[Any, Nothing, Any] { _ =>
-                     ref.incrementAndGet()
-                     Left(ZIO.succeed(ref.decrementAndGet()))
-                   }
+          ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
+          finalized <- Promise.make[Nothing, Unit]
+          effect = ZIO
+                     .asyncInterrupt[Any, Nothing, Any] { _ =>
+                       ref.incrementAndGet()
+                       Left(ZIO.succeed(ref.decrementAndGet()))
+                     }
+                     .ensuring(finalized.succeed(()))
           _     <- ZIO.unit.race(effect)
-          value <- ZIO.succeed(ref.get())
+          value <- finalized.await *> ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
-      } @@ jvm(nonFlaky(10000))
+      } @@ jvm(nonFlaky)
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
