@@ -132,13 +132,13 @@ object RuntimeBootstrapTests {
     test("async interruption of never") {
       for {
         finalized <- Ref.make(false)
-        fork <- (ZIO
+        fork <- ((ZIO
                   .asyncMaybe[Any, Nothing, Unit] { _ =>
                     Some(ZIO.unit)
                   }
                   .flatMap { _ =>
                     ZIO.never
-                  }
+                  })
                   .ensuring(finalized.set(true)))
                   .uninterruptible
                   .forkDaemon

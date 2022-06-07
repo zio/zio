@@ -455,7 +455,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             val oldRuntimeFlags = runtimeFlags
             val newRuntimeFlags = effect.update(oldRuntimeFlags)
 
-            if (runtimeFlags == oldRuntimeFlags) {
+            if (newRuntimeFlags == oldRuntimeFlags) {
               // No change, short circuit:
               cur = effect.scope(oldRuntimeFlags)
             } else {
@@ -474,7 +474,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   try {
                     val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
 
-                    // Backward, stack:
+                    // Go backward, on the stack stack:
                     runtimeFlags = revertFlags(runtimeFlags)
 
                     respondToNewRuntimeFlags(revertFlags)
@@ -483,7 +483,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       Refail(unsafeGetInterruptedCause())
                     else ZIO.succeed(value)
                   } catch {
-                    case reifyStack: ReifyStack => reifyStack.updateRuntimeFlags(revertFlags) // Backward, heap
+                    case reifyStack: ReifyStack =>
+                      reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
                   }
               }
             }
