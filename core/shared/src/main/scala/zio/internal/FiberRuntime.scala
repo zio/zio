@@ -195,12 +195,15 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    */
   final def evaluateEffect(
     effect0: ZIO[Any, Any, Any],
-    stack0: Chunk[EvaluationStep]
+    stack0: Chunk[EvaluationStep],
+    MaxTrampolines: Int = 1 // TODO: make configurable
   ): EvaluationSignal = {
     assert(running.get == true)
 
-    var effect = effect0
-    var stack  = stack0
+    var effect      = effect0
+    var stack       = stack0
+    var signal      = EvaluationSignal.Continue: EvaluationSignal
+    var trampolines = 0
 
     while (effect ne null) {
       try {
@@ -226,8 +229,19 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         }
       } catch {
         case trampoline: Trampoline =>
-          effect = trampoline.effect
-          stack = trampoline.stack.result()
+          trampolines = trampolines + 1
+
+          if (trampolines < MaxTrampolines) {
+            effect = trampoline.effect
+            stack = trampoline.stack.result()
+          } else {
+            tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
+            
+            effect = null
+            stack = Chunk.empty
+
+            signal = EvaluationSignal.Yield
+          }
 
         case asyncJump: AsyncJump =>
           val nextStack     = asyncJump.stack.result()
@@ -273,7 +287,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       }
     }
 
-    EvaluationSignal.Continue
+    signal
   }
 
   /**
