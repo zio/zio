@@ -57,7 +57,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       for {
         childRuntimeFlags <- self.runtimeFlags
-        patch = parentRuntimeFlags.diff(childRuntimeFlags).without(RuntimeFlag.WindDown) // Do not inherit WindDown!
+        patch = parentRuntimeFlags.diff(childRuntimeFlags).exclude(RuntimeFlag.WindDown) // Do not inherit WindDown!
         _ <- ZIO.updateRuntimeFlags(patch)
       } yield ()
     }

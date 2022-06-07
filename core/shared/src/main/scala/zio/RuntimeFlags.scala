@@ -81,24 +81,28 @@ object RuntimeFlags {
     def |(that: Patch): Patch =
       Patch(active | that.active, enabled | that.enabled)
 
-    def <>(that: Patch): Patch = self | that
+    def <>(that: Patch): Patch = self | that // FIXME: this should be equivalent to sequential patch application
 
     def apply(flag: RuntimeFlags): RuntimeFlags =
       RuntimeFlags((flag.packed & (~active | enabled)) | (active & enabled))
 
-    def without(flag: RuntimeFlag): RuntimeFlags.Patch = RuntimeFlags.Patch(active & flag.notMask, enabled)
+    def enabledSet: Set[RuntimeFlag] = RuntimeFlags(active & enabled).toSet
 
-    def isDisabled(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0) && ((enabled & flag.mask) == 0)
+    def exclude(flag: RuntimeFlag): RuntimeFlags.Patch = RuntimeFlags.Patch(active & flag.notMask, enabled)
 
-    def isEnabled(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0) && ((enabled & flag.mask) != 0)
+    def disabledSet: Set[RuntimeFlag] = RuntimeFlags(active & ~enabled).toSet
+
+    def includes(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0)
 
     def inverse: Patch = Patch(active, ~enabled)
 
+    def isActive(flag: RuntimeFlag): Boolean = (active & flag.mask) != 0
+
+    def isDisabled(flag: RuntimeFlag): Boolean = isActive(flag) && ((enabled & flag.mask) == 0)
+
     def isEmpty: Boolean = active == 0L
 
-    def enabledSet: Set[RuntimeFlag] = RuntimeFlags(active & enabled).toSet
-
-    def disabledSet: Set[RuntimeFlag] = RuntimeFlags(active & ~enabled).toSet
+    def isEnabled(flag: RuntimeFlag): Boolean = isActive(flag) && ((enabled & flag.mask) != 0)
 
     override def toString(): String = {
       val enabledS =

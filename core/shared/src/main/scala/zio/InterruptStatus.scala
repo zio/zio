@@ -19,8 +19,13 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * The `InterruptStatus` of a fiber determines whether or not it can be
+ * The [[InterruptStatus]] of a fiber determines whether or not it can be
  * interrupted. The status can change over time in different regions.
+ *
+ * If a fiber is interruptible but in wind-down mode, then it cannot be
+ * interrupted no matter what. The [[InterruptStatus]] of a fiber reflects only
+ * whether it is within an interruptible or uninterruptible region, regardless
+ * of wind-down mode.
  */
 sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Serializable with Product {
   final def isUninterruptible: Boolean = !isInterruptible

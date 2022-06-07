@@ -123,6 +123,7 @@ object RuntimeBootstrapTests {
         fiber           <- left.race(right).fork
         _               <- latch1Start.await *> latch2Start.await *> fiber.interrupt
         interrupted     <- interruptionRef.get
+        _               <- ZIO.debug(s"Interrupted: ${interrupted}")
       } yield assert(interrupted == 2)
     }
 
@@ -298,15 +299,15 @@ object RuntimeBootstrapTests {
     // race()
     // autoInterruption()
     autoInterruption2()
-    // asyncInterruptionOfNever()
-    // raceInterruption()
-    // useInheritance()
-    // useInheritance2()
-    // asyncUninterruptible()
-    // uninterruptibleClosingScope()
-    // syncInterruption2()
-    // acquireReleaseDisconnect()
-    // disconnectedInterruption()
-    // interruptibleAfterRace()
-    // uninterruptibleRace()
+  // asyncInterruptionOfNever()
+  // raceInterruption()
+  // useInheritance()
+  // useInheritance2()
+  // asyncUninterruptible()
+  // uninterruptibleClosingScope()
+  // syncInterruption2()
+  // acquireReleaseDisconnect()
+  // disconnectedInterruption()
+  // interruptibleAfterRace()
+  // uninterruptibleRace()
 }
