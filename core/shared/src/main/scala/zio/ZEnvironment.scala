@@ -136,7 +136,7 @@ final class ZEnvironment[+R] private (
   private def unsafeUpdate[A >: R](tag: LightTypeTag, f: A => A): ZEnvironment[R] =
     unsafeAdd[A](tag, f(unsafeGet(tag)))
 
-  def upcast[R1](implicit ev: R <:< R1): ZEnvironment[R1] =
+  def upcast[R1 >: R]: ZEnvironment[R1] =
     new ZEnvironment(map, index)
 
   /**

@@ -333,7 +333,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def toRuntime(implicit ev: Any <:< RIn, trace: Trace): ZIO[Scope, E, Runtime[ROut]] =
     for {
       scope       <- ZIO.scope
-      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.upcast(ev))
+      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.asInstanceOf[ZEnvironment[RIn]])
       environment <- (layer >>> self).build(scope)
       runtime     <- ZIO.runtime[ROut].provideEnvironment(environment)
     } yield runtime
@@ -347,6 +347,9 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
    */
   def unit(implicit trace: Trace): ZLayer[RIn, E, Unit] =
     self.map(_ => ZEnvironment(()))
+
+  def upcast[ROut1 >: ROut](implicit trace: Trace): ZLayer[RIn, E, ROut1] =
+    map(_.upcast[ROut1])
 
   /**
    * Updates one of the services output by this layer.
