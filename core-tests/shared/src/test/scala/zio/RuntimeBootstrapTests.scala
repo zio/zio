@@ -356,31 +356,99 @@ object RuntimeBootstrapTests {
       } yield assert(v1 > 0 && v2 > 0 && v3 > 0)
     }
 
+  def interruptionOfForkedRace() =
+    testN(100)("interruption of forked raced") {
+      def make(ref: Ref[Int], start: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
+        (start.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
+
+      for {
+        ref   <- Ref.make(0)
+        cont1 <- Promise.make[Nothing, Unit]
+        cont2 <- Promise.make[Nothing, Unit]
+        done1 <- Promise.make[Nothing, Unit]
+        done2 <- Promise.make[Nothing, Unit]
+        raced <- (make(ref, cont1, done1).race(make(ref, cont2, done2))).fork
+        _     <- cont1.await *> cont2.await
+        _     <- raced.interrupt
+        _     <- done1.await *> done2.await
+        count <- ref.get
+      } yield assert(count == 2)
+    }
+
+  def secondLevelCallStack =
+    for {
+      _ <- ZIO.succeed(10)
+      _ <- ZIO.succeed(20)
+      _ <- ZIO.succeed(30)
+      t <- ZIO.trace
+    } yield t
+
+  def firstLevelCallStack =
+    for {
+      _ <- ZIO.succeed(10)
+      _ <- ZIO.succeed(20)
+      _ <- ZIO.succeed(30)
+      t <- secondLevelCallStack
+    } yield t
+
+  def stackTraceTest1 =
+    for {
+      _ <- ZIO.succeed(10)
+      _ <- ZIO.succeed(20)
+      _ <- ZIO.succeed(30)
+      t <- firstLevelCallStack
+    } yield t
+
+  def secondLevelCallStackFail =
+    for {
+      _ <- ZIO.succeed(10)
+      _ <- ZIO.succeed(20)
+      _ <- ZIO.succeed(30)
+      t <- ZIO.fail("Uh oh!")
+    } yield t
+
+  def firstLevelCallStackFail =
+    for {
+      _ <- ZIO.succeed(10)
+      _ <- ZIO.succeed(20)
+      _ <- ZIO.succeed(30)
+      t <- secondLevelCallStackFail
+    } yield t
+
+  def stackTraceTest2 =
+    for {
+      _ <- ZIO.succeed(10)
+      _ <- ZIO.succeed(20)
+      _ <- ZIO.succeed(30)
+      t <- firstLevelCallStackFail
+    } yield t
+
   def main(args: Array[String]): Unit = {
     val _ = ()
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-    asyncInterruptionOfNever()
-    interruptRacedForks()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
-    disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-    interruptionDetection()
-    interruptionRecovery()
-    cooperativeYielding()
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    // asyncInterruptionOfNever()
+    // interruptRacedForks()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
+    // disconnectedInterruption()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
+    // interruptionDetection()
+    // interruptionRecovery()
+    // cooperativeYielding()
+    // interruptionOfForkedRace()
   }
 
 }

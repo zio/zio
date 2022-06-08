@@ -774,7 +774,7 @@
 //   private[zio] final def unsafeGetRef[A](fiberRef: FiberRef[A]): A =
 //     fiberRefLocals.get.get(fiberRef).map(_.head._2).asInstanceOf[Option[A]].getOrElse(fiberRef.initial)
 
-//   private[zio] def unsafeGetRefs(fiberRefLocals: FiberRefLocals): Map[FiberRef[_], Any] =
+//   private[zio] def unsafeGetRefs(fiberRefLocals: FiberRefLocals): FiberRefs =
 //     fiberRefLocals.get.transform { case (_, stack) => stack.head._2 }
 
 //   private def unsafeInterruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] = {

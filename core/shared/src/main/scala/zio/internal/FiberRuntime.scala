@@ -723,7 +723,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     val spans       = unsafeGetFiberRef(FiberRef.currentLogSpan)
     val annotations = unsafeGetFiberRef(FiberRef.currentLogAnnotations)
     val loggers     = unsafeGetLoggers()
-    val contextMap  = _fiberRefs.unsafeGefMap() // FIXME: Change Logger to take FiberRefs
+    val contextMap  = unsafeGetFiberRefs()
 
     loggers.foreach { logger =>
       logger(trace, fiberId, logLevel, message, cause, contextMap, spans, annotations)
@@ -803,6 +803,5 @@ object FiberRuntime {
   def apply[E, A](fiberId: FiberId.Runtime, fiberRefs: FiberRefs, runtimeFlags: RuntimeFlags): FiberRuntime[E, A] =
     new FiberRuntime(fiberId, fiberRefs, runtimeFlags)
 
-  // FIXME: Make this work
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
 }
