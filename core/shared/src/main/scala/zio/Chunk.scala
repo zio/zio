@@ -1903,6 +1903,11 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def nextAt(index: Int): Boolean =
       self(index)
 
+    override def slice(from: Int, until: Int): BitChunk[T] =
+      if (from <= 0 && until >= self.length) self
+      else if (from >= self.length || until <= from) newBitChunk(Chunk.empty, 0, 0)
+      else newBitChunk(chunk, self.minBitIndex + from, self.minBitIndex + until min self.maxBitIndex)
+
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
