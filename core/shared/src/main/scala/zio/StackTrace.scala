@@ -36,6 +36,18 @@ final case class StackTrace(
    */
   def toJava: Chunk[StackTraceElement] =
     stackTrace.flatMap(Trace.toJava)
+
+  override def toString(): String = {
+    def renderElements(indent: Int, prefix: String, elements: Chunk[StackTraceElement]) = {
+      val baseIndent  = "\t" * indent
+      val traceIndent = baseIndent + "\t"
+
+      s"${baseIndent}${prefix}\n" +
+        elements.map(trace => s"${traceIndent}at ${trace}").mkString("\n")
+    }
+
+    renderElements(0, "Exception in thread \"" + fiberId.threadName + "\":", toJava)
+  }
 }
 
 object StackTrace {

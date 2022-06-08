@@ -268,6 +268,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
           nextStack.foreach(k => builder += k.trace)
 
+          builder += id.location
+
           val trace = StackTrace(self.fiberId, builder.result())
 
           effect = ZIO.succeed(trace)(Trace.empty)

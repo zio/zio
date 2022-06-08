@@ -423,32 +423,47 @@ object RuntimeBootstrapTests {
       t <- firstLevelCallStackFail
     } yield t
 
+  def stackTrace() =
+    test("stack trace 1") {
+      for {
+        trace <- stackTraceTest1
+        t      = trace.stackTrace.map(_.toString())
+      } yield assert(
+        t.length == 5 &&
+          t.exists(_.contains("stackTrace")) &&
+          t.exists(_.contains("stackTraceTest1")) &&
+          t.exists(_.contains("firstLevelCallStack")) &&
+          t.exists(_.contains("secondLevelCallStack"))
+      )
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
-    // runtimeFlags()
-    // helloWorld()
-    // fib()
-    // iteration()
-    // asyncInterruption()
-    // syncInterruption()
-    // race()
-    // autoInterruption()
-    // autoInterruption2()
-    // asyncInterruptionOfNever()
-    // interruptRacedForks()
-    // useInheritance()
-    // useInheritance2()
-    // asyncUninterruptible()
-    // uninterruptibleClosingScope()
-    // syncInterruption2()
-    // acquireReleaseDisconnect()
-    // disconnectedInterruption()
-    // interruptibleAfterRace()
-    // uninterruptibleRace()
-    // interruptionDetection()
-    // interruptionRecovery()
-    // cooperativeYielding()
-    // interruptionOfForkedRace()
+    runtimeFlags()
+    helloWorld()
+    fib()
+    iteration()
+    asyncInterruption()
+    syncInterruption()
+    race()
+    autoInterruption()
+    autoInterruption2()
+    asyncInterruptionOfNever()
+    interruptRacedForks()
+    useInheritance()
+    useInheritance2()
+    asyncUninterruptible()
+    uninterruptibleClosingScope()
+    syncInterruption2()
+    acquireReleaseDisconnect()
+    disconnectedInterruption()
+    interruptibleAfterRace()
+    uninterruptibleRace()
+    interruptionDetection()
+    interruptionRecovery()
+    cooperativeYielding()
+    interruptionOfForkedRace()
+    stackTrace()
   }
 
 }
