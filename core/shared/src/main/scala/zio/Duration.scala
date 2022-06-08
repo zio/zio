@@ -53,7 +53,7 @@ object Duration {
 
   }
 
-  def apply(amount: Long, unit: TimeUnit): Duration = apply(amount, unit.toChronoUnit)
+  def apply(amount: Long, unit: TimeUnit): Duration = apply(amount, toChronoUnit(unit))
 
   def apply(amount: Long, unit: ChronoUnit): Duration = java.time.Duration.of(amount, unit)
 
@@ -79,6 +79,16 @@ object Duration {
     if (duration.isNegative) Zero
     else if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
     else fromNanos(duration.toNanos)
+
+  private def toChronoUnit(unit: TimeUnit): ChronoUnit = unit match {
+    case TimeUnit.NANOSECONDS  => ChronoUnit.NANOS
+    case TimeUnit.MICROSECONDS => ChronoUnit.MICROS
+    case TimeUnit.MILLISECONDS => ChronoUnit.MILLIS
+    case TimeUnit.SECONDS      => ChronoUnit.SECONDS
+    case TimeUnit.MINUTES      => ChronoUnit.MINUTES
+    case TimeUnit.HOURS        => ChronoUnit.HOURS
+    case TimeUnit.DAYS         => ChronoUnit.DAYS
+  }
 }
 
 final class DurationSyntax(val n: Long) extends AnyVal {
