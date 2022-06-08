@@ -87,10 +87,11 @@ import scala.collection.immutable.SortedSet
 trait TestClock extends Clock with Restorable {
   def adjust(duration: Duration)(implicit trace: Trace): UIO[Unit]
   def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+  def setInstant(instant: Instant)(implicit trace: Trace): UIO[Unit]
   def setDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): UIO[Unit]
   def setTime(duration: Duration)(implicit trace: Trace): UIO[Unit]
   def setTimeZone(zone: ZoneId)(implicit trace: Trace): UIO[Unit]
-  def sleeps(implicit trace: Trace): UIO[List[Duration]]
+  def sleeps(implicit trace: Trace): UIO[List[Instant]]
   def timeZone(implicit trace: Trace): UIO[ZoneId]
 }
 
@@ -112,7 +113,7 @@ object TestClock extends Serializable {
      * order.
      */
     def adjust(duration: Duration)(implicit trace: Trace): UIO[Unit] =
-      warningDone *> run(_ + duration)
+      warningDone *> run(_.plus(duration))
 
     /**
      * Increments the current clock time by the specified duration. Any effects
@@ -158,7 +159,7 @@ object TestClock extends Serializable {
         def getZone(): ZoneId =
           zoneId
         def instant(): Instant =
-          toInstant(clockState.unsafeGet.duration)
+          clockState.unsafeGet.instant
         override def withZone(zoneId: ZoneId): JavaClock =
           copy(zoneId = zoneId)
       }
@@ -182,12 +183,19 @@ object TestClock extends Serializable {
       } yield clockState.set(clockData)
 
     /**
+     * Sets the current clock time to the specified `Instant`. Any effects that
+     * were scheduled to occur on or before the new time will be run in order.
+     */
+    def setInstant(instant: Instant)(implicit trace: Trace): UIO[Unit] =
+      warningDone *> run(_ => instant)
+
+    /**
      * Sets the current clock time to the specified `OffsetDateTime`. Any
      * effects that were scheduled to occur on or before the new time will be
      * run in order.
      */
     def setDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): UIO[Unit] =
-      setTime(fromDateTime(dateTime))
+      setInstant(dateTime.toInstant)
 
     /**
      * Sets the current clock time to the specified time in terms of duration
@@ -195,7 +203,7 @@ object TestClock extends Serializable {
      * the new time will immediately be run in order.
      */
     def setTime(duration: Duration)(implicit trace: Trace): UIO[Unit] =
-      warningDone *> run(_ => duration)
+      setInstant(Instant.EPOCH.plus(duration))
 
     /**
      * Sets the time zone to the specified time zone. The clock time in terms of
@@ -214,8 +222,8 @@ object TestClock extends Serializable {
       for {
         promise <- Promise.make[Nothing, Unit]
         shouldAwait <- clockState.modify { data =>
-                         val end = data.duration + duration
-                         if (end > data.duration)
+                         val end = data.instant.plus(duration)
+                         if (end.isAfter(data.instant))
                            (true, data.copy(sleeps = (end, promise) :: data.sleeps))
                          else
                            (false, data)
@@ -227,7 +235,7 @@ object TestClock extends Serializable {
      * Returns a list of the times at which all queued effects are scheduled to
      * resume.
      */
-    def sleeps(implicit trace: Trace): UIO[List[Duration]] =
+    def sleeps(implicit trace: Trace): UIO[List[Instant]] =
       clockState.get.map(_.sleeps.map(_._1))
 
     /**
@@ -237,26 +245,26 @@ object TestClock extends Serializable {
       clockState.get.map(_.timeZone)
 
     override private[zio] def unsafeCurrentTime(unit: TimeUnit): Long =
-      unit.convert(clockState.unsafeGet.duration.toMillis, TimeUnit.MILLISECONDS)
+      unit.convert(clockState.unsafeGet.instant.toEpochMilli, TimeUnit.MILLISECONDS)
 
     override private[zio] def unsafeCurrentTime(unit: ChronoUnit): Long =
-      unit.between(Instant.EPOCH, clockState.unsafeGet.duration.addTo(Instant.EPOCH))
+      unit.between(Instant.EPOCH, clockState.unsafeGet.instant)
 
     override private[zio] def unsafeCurrentDateTime(): OffsetDateTime = {
       val data = clockState.unsafeGet
-      toDateTime(data.duration, data.timeZone)
+      OffsetDateTime.ofInstant(data.instant, data.timeZone)
     }
 
     override private[zio] def unsafeInstant(): Instant =
-      toInstant(clockState.unsafeGet.duration)
+      clockState.unsafeGet.instant
 
     override private[zio] def unsafeLocalDateTime(): LocalDateTime = {
       val data = clockState.unsafeGet
-      toLocalDateTime(data.duration, data.timeZone)
+      LocalDateTime.ofInstant(data.instant, data.timeZone)
     }
 
     override private[zio] def unsafeNanoTime(): Long =
-      clockState.unsafeGet.duration.toNanos
+      unsafeCurrentTime(ChronoUnit.NANOS)
 
     /**
      * Cancels the warning message that is displayed if a test is advancing the
@@ -328,22 +336,16 @@ object TestClock extends Serializable {
       }
 
     /**
-     * Constructs a `Duration` from an `OffsetDateTime`.
-     */
-    private def fromDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): Duration =
-      Duration(dateTime.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
-
-    /**
-     * Runs all effects scheduled to occur on or before the specified duration,
+     * Runs all effects scheduled to occur on or before the specified instant,
      * which may depend on the current time, in order.
      */
-    private def run(f: Duration => Duration)(implicit trace: Trace): UIO[Unit] =
+    private def run(f: Instant => Instant)(implicit trace: Trace): UIO[Unit] =
       awaitSuspended *>
         clockState.modify { data =>
-          val end = f(data.duration)
+          val end = f(data.instant)
           data.sleeps.sortBy(_._1) match {
-            case (duration, promise) :: sleeps if duration <= end =>
-              (Some((end, promise)), Data(duration, sleeps, data.timeZone))
+            case (instant, promise) :: sleeps if !end.isBefore(instant) =>
+              (Some((end, promise)), Data(instant, sleeps, data.timeZone))
             case _ => (None, Data(end, data.sleeps, data.timeZone))
           }
         }.flatMap {
@@ -362,24 +364,6 @@ object TestClock extends Serializable {
         if (first == last) ZIO.succeedNow(first)
         else ZIO.fail(())
       }
-
-    /**
-     * Constructs an `OffsetDateTime` from a `Duration` and a `ZoneId`.
-     */
-    private def toDateTime(duration: Duration, timeZone: ZoneId): OffsetDateTime =
-      OffsetDateTime.ofInstant(toInstant(duration), timeZone)
-
-    /**
-     * Constructs a `LocalDateTime` from a `Duration` and a `ZoneId`.
-     */
-    private def toLocalDateTime(duration: Duration, timeZone: ZoneId): LocalDateTime =
-      LocalDateTime.ofInstant(toInstant(duration), timeZone)
-
-    /**
-     * Constructs an `Instant` from a `Duration`.
-     */
-    private def toInstant(duration: Duration): Instant =
-      Instant.ofEpochMilli(duration.toMillis)
 
     /**
      * Forks a fiber that will display a warning message if a test is advancing
@@ -436,7 +420,7 @@ object TestClock extends Serializable {
     ZLayer.environment[TestClock](Tracer.newTrace)
 
   val default: ZLayer[Live with Annotations, Nothing, TestClock] =
-    live(Data(Duration.Zero, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
+    live(Data(Instant.EPOCH, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
 
   /**
    * Accesses a `TestClock` instance in the environment and increments the time
@@ -458,6 +442,14 @@ object TestClock extends Serializable {
    */
   def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testClockWith(_.save)
+
+  /**
+   * Accesses a `TestClock` instance in the environment and sets the clock time
+   * to the specified `Instant`, running any actions scheduled for on or before
+   * the new time in order.
+   */
+  def setInstant(instant: => Instant)(implicit trace: Trace): UIO[Unit] =
+    testClockWith(_.setInstant(instant))
 
   /**
    * Accesses a `TestClock` instance in the environment and sets the clock time
@@ -488,7 +480,7 @@ object TestClock extends Serializable {
    * Accesses a `TestClock` instance in the environment and returns a list of
    * times that effects are scheduled to run.
    */
-  def sleeps(implicit trace: Trace): UIO[List[Duration]] =
+  def sleeps(implicit trace: Trace): UIO[List[Instant]] =
     testClockWith(_.sleeps)
 
   /**
@@ -503,8 +495,8 @@ object TestClock extends Serializable {
    * and time zone.
    */
   final case class Data(
-    duration: Duration,
-    sleeps: List[(Duration, Promise[Nothing, Unit])],
+    instant: Instant,
+    sleeps: List[(Instant, Promise[Nothing, Unit])],
     timeZone: ZoneId
   )
 
