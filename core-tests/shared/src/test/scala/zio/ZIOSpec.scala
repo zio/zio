@@ -16,31 +16,31 @@ object ZIOSpec extends ZIOBaseSpec {
 
   def spec = suite("ZIOSpec")(
     suite("cooperative yielding") {
-        test("cooperative yielding") {          
-          import java.util.concurrent._
+      test("cooperative yielding") {
+        import java.util.concurrent._
 
-          val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor(), 1024)
+        val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor(), 1024)
 
-          val checkExecutor = 
-            ZIO.executor.flatMap(e => if (e != executor) ZIO.dieMessage("Executor is incorrect") else ZIO.unit)
+        val checkExecutor =
+          ZIO.executor.flatMap(e => if (e != executor) ZIO.dieMessage("Executor is incorrect") else ZIO.unit)
 
-          def infiniteProcess(ref: Ref[Int]): UIO[Nothing] = 
-            checkExecutor *> ref.update(_ + 1) *> infiniteProcess(ref)
+        def infiniteProcess(ref: Ref[Int]): UIO[Nothing] =
+          checkExecutor *> ref.update(_ + 1) *> infiniteProcess(ref)
 
-          for {
-            ref1 <- Ref.make(0)
-            ref2 <- Ref.make(0)
-            ref3 <- Ref.make(0)
-            fiber1 <- infiniteProcess(ref1).onExecutor(executor).fork
-            fiber2 <- infiniteProcess(ref2).onExecutor(executor).fork
-            fiber3 <- infiniteProcess(ref3).onExecutor(executor).fork
-            _ <- Live.live(ZIO.sleep(Duration.fromSeconds(1)))
-            _ <- fiber1.interruptFork *> fiber2.interruptFork *> fiber3.interruptFork 
-            _ <- fiber1.await *> fiber2.await *> fiber3.await 
-            v1 <- ref1.get
-            v2 <- ref2.get
-            v3 <- ref3.get
-          } yield assertTrue(v1 > 0 && v2 > 0 && v3 > 0)
+        for {
+          ref1   <- Ref.make(0)
+          ref2   <- Ref.make(0)
+          ref3   <- Ref.make(0)
+          fiber1 <- infiniteProcess(ref1).onExecutor(executor).fork
+          fiber2 <- infiniteProcess(ref2).onExecutor(executor).fork
+          fiber3 <- infiniteProcess(ref3).onExecutor(executor).fork
+          _      <- Live.live(ZIO.sleep(Duration.fromSeconds(1)))
+          _      <- fiber1.interruptFork *> fiber2.interruptFork *> fiber3.interruptFork
+          _      <- fiber1.await *> fiber2.await *> fiber3.await
+          v1     <- ref1.get
+          v2     <- ref2.get
+          v3     <- ref3.get
+        } yield assertTrue(v1 > 0 && v2 > 0 && v3 > 0)
       } @@ jvmOnly
     },
     suite("heap")(
@@ -3086,17 +3086,22 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assertTrue(list.length == 2 && list.forall(_.causeOption.get.isInterruptedOnly))
       },
       test("interruption of raced") {
+        def make(ref: Ref[Int], start: Promise[Nothing, Unit], done: Promise[Nothing, Unit]) =
+          (start.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1) *> done.succeed(()))
+
         for {
           ref   <- Ref.make(0)
           cont1 <- Promise.make[Nothing, Unit]
           cont2 <- Promise.make[Nothing, Unit]
-          make   = (p: Promise[Nothing, Unit]) => (p.succeed(()) *> ZIO.infinity).onInterrupt(ref.update(_ + 1))
-          raced <- (make(cont1) race (make(cont2))).fork
+          done1 <- Promise.make[Nothing, Unit]
+          done2 <- Promise.make[Nothing, Unit]
+          raced <- (make(ref, cont1, done1).race(make(ref, cont2, done2))).fork
           _     <- cont1.await *> cont2.await
           _     <- raced.interrupt
+          _     <- done1.await *> done2.await
           count <- ref.get
         } yield assert(count)(equalTo(2))
-      },
+      }, // FIXME: @@ nonFlaky,
       test("recovery of error in finalizer") {
         for {
           recovered <- Ref.make(false)

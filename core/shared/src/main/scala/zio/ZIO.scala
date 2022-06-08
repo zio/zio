@@ -4086,7 +4086,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Returns an effect that will execute the specified effect fully on the
-   * provided executor, before potentially returning to the previous executor. 
+   * provided executor, before potentially returning to the previous executor.
    * See [[ZIO!.onExecutor]].
    */
   def onExecutor[R, E, A](newExecutor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =

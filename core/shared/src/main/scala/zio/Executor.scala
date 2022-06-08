@@ -95,7 +95,7 @@ object Executor extends DefaultExecutors with Serializable {
 
           true
         } catch {
-          case t : RejectedExecutionException => false 
+          case t: RejectedExecutionException => false
         }
 
       override def yieldOpCount: Int = yieldOpCount0

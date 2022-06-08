@@ -196,8 +196,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    */
   final def evaluateEffect(
     effect0: ZIO[Any, Any, Any],
-    stack0: Chunk[EvaluationStep],
-    MaxTrampolines: Int = 1 // TODO: make configurable
+    stack0: Chunk[EvaluationStep]
   ): EvaluationSignal = {
     assert(running.get == true)
 
@@ -205,7 +204,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     var stack       = stack0
     var signal      = EvaluationSignal.Continue: EvaluationSignal
     var trampolines = 0
-    var ops         = 0 
+    var ops         = 0
 
     while (effect ne null) {
       try {
@@ -233,7 +232,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         case trampoline: Trampoline =>
           trampolines = trampolines + 1
 
-          if (!trampoline.forceYield && (trampolines < MaxTrampolines)) {
+          if (!trampoline.forceYield && (trampolines < FiberRuntime.MaxTrampolinesBeforeYield)) {
             effect = trampoline.effect
             stack = trampoline.stack.result()
           } else {
@@ -378,7 +377,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     var stackIndex   = 0
     var runtimeFlags = runtimeFlags0
     var lastTrace    = Trace.empty
-    var ops          = 0 
+    var ops          = 0
 
     if (currentDepth >= 500) {
       val builder = ChunkBuilder.make[EvaluationStep]()
@@ -417,9 +416,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       ops += 1
 
-      if (ops > 1000) {
+      if (ops > FiberRuntime.MaxOperationsBeforeYield) {
         ops = 0
-        val oldCur = cur 
+        val oldCur = cur
         cur = ZIO.yieldNow(lastTrace) *> oldCur
       } else {
         try {
@@ -790,6 +789,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 }
 
 object FiberRuntime {
+  val MaxTrampolinesBeforeYield = 5
+  val MaxOperationsBeforeYield  = 1024
+
   sealed trait EvaluationSignal
   object EvaluationSignal {
     case object Continue extends EvaluationSignal
