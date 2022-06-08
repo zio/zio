@@ -29,7 +29,8 @@ object ReifyStack {
 
   final case class Trampoline(
     effect: ZIO[Any, Any, Any],
-    stack: ChunkBuilder[EvaluationStep]
+    stack: ChunkBuilder[EvaluationStep],
+    forceYield: Boolean
   ) extends ReifyStack
 
   final case class GenerateTrace(stack: ChunkBuilder[EvaluationStep]) extends ReifyStack

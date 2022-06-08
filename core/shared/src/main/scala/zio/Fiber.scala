@@ -197,7 +197,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return
    *   `UIO[Unit]`
    */
-  final def interruptFork(implicit trace: Trace): UIO[Unit] = interrupt.forkDaemon.unit
+  final def interruptFork(implicit trace: Trace): UIO[Unit] = ZIO.fiberIdWith(fiberId => self.interruptAsFork(fiberId))
 
   /**
    * Joins the fiber, which suspends the joining fiber until the result of the

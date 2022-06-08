@@ -85,6 +85,21 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
 }
 
 object Executor extends DefaultExecutors with Serializable {
+  def fromJavaExecutor(executor: java.util.concurrent.Executor, yieldOpCount0: Int): Executor =
+    new Executor {
+      override def unsafeMetrics: Option[ExecutionMetrics] = None
+
+      override def unsafeSubmit(runnable: Runnable): Boolean =
+        try {
+          executor.execute(runnable)
+
+          true
+        } catch {
+          case t : RejectedExecutionException => false 
+        }
+
+      override def yieldOpCount: Int = yieldOpCount0
+    }
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.

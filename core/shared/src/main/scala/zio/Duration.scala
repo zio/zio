@@ -70,6 +70,9 @@ object Duration {
   def fromInstant(instant: Instant): Duration =
     Duration(instant.toEpochMilli, TimeUnit.MILLISECONDS)
 
+  def fromSeconds(seconds: Long): Duration =
+    java.time.Duration.ofSeconds(seconds)
+
   def fromScala(duration: ScalaDuration): Duration = duration match {
     case d: ScalaFiniteDuration => fromNanos(d.toNanos)
     case _                      => Infinity

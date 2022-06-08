@@ -4086,14 +4086,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Returns an effect that will execute the specified effect fully on the
-   * provided executor, before returning to the default executor. See
-   * [[ZIO!.onExecutor]].
+   * provided executor, before potentially returning to the previous executor. 
+   * See [[ZIO!.onExecutor]].
    */
-  def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def onExecutor[R, E, A](newExecutor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith { descriptor =>
-      if (descriptor.isLocked)
-        ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))(_ => zio)
-      else ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.unshift)(_ => zio)
+      val oldExecutor = descriptor.executor
+
+      if (descriptor.isLocked) ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
+      else ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
     }
 
   /**
@@ -4368,7 +4369,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * as [[ZIO!.onExecutor]] and [[ZIO!.onExecutionContext]].
    */
   def shift(executor: => Executor)(implicit trace: Trace): UIO[Unit] =
-    FiberRef.overrideExecutor.set(Some(executor)).unit
+    (FiberRef.overrideExecutor.set(Some(executor)) *> ZIO.yieldNow)
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -4813,8 +4814,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * stack. Manual use of this method can improve fairness, at the cost of
    * overhead.
    */
-  def yieldNow(implicit trace: Trace): UIO[Unit] =
-    async[Any, Nothing, Unit](k => k(ZIO.unit))
+  def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace)
 
   private[zio] def unsafeStateful[R, E, A](
     onState: (internal.FiberRuntime[E, A], Fiber.Status.Active) => ZIO[R, E, A]
@@ -5581,6 +5581,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E, S] {
     def withCreate(s: S): WhileLoop[R, E, S] = copy(create = () => s)
   }
+  private[zio] final case class YieldNow(trace: Trace) extends ZIO[Any, Nothing, Unit]
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]

@@ -205,6 +205,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     var stack       = stack0
     var signal      = EvaluationSignal.Continue: EvaluationSignal
     var trampolines = 0
+    var ops         = 0 
 
     while (effect ne null) {
       try {
@@ -232,15 +233,13 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         case trampoline: Trampoline =>
           trampolines = trampolines + 1
 
-          if (trampolines < MaxTrampolines) {
+          if (!trampoline.forceYield && (trampolines < MaxTrampolines)) {
             effect = trampoline.effect
             stack = trampoline.stack.result()
           } else {
             tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
 
             effect = null
-            stack = Chunk.empty
-
             signal = EvaluationSignal.Yield
           }
 
@@ -378,7 +377,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     var done         = null.asInstanceOf[AnyRef]
     var stackIndex   = 0
     var runtimeFlags = runtimeFlags0
-    var lastTrace    = null.asInstanceOf[Trace] // TODO: Rip out
+    var lastTrace    = Trace.empty
+    var ops          = 0 
 
     if (currentDepth >= 500) {
       val builder = ChunkBuilder.make[EvaluationStep]()
@@ -388,7 +388,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       // Save runtime flags to heap:
       self._runtimeFlags = runtimeFlags
 
-      throw Trampoline(effect, builder)
+      throw Trampoline(effect, builder, false)
     }
 
     while (cur ne null) {
@@ -415,23 +415,127 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         }
       }
 
-      try {
-        cur match {
-          case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
-            val effect = effect0.erase
+      ops += 1
 
-            cur =
+      if (ops > 1000) {
+        ops = 0
+        val oldCur = cur 
+        cur = ZIO.yieldNow(lastTrace) *> oldCur
+      } else {
+        try {
+          cur match {
+            case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
+              val effect = effect0.erase
+
+              cur =
+                try {
+                  effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+                } catch {
+                  case zioError: ZIOError => effect.onFailure(zioError.cause)
+
+                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                }
+
+            case effect: Sync[_] =>
               try {
-                effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
-              } catch {
-                case zioError: ZIOError => effect.onFailure(zioError.cause)
+                val value = effect.eval()
 
-                case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                cur = null
+
+                while ((cur eq null) && stackIndex < stack.length) {
+                  val element = stack(stackIndex)
+
+                  stackIndex += 1
+
+                  element match {
+                    case k: EvaluationStep.Continuation[_, _, _, _, _] =>
+                      cur = k.erase.onSuccess(value)
+
+                      assertNonNullContinuation(cur, k.trace)
+
+                    case k: EvaluationStep.UpdateRuntimeFlags =>
+                      runtimeFlags = k.update(runtimeFlags)
+
+                      respondToNewRuntimeFlags(k.update)
+
+                      if (runtimeFlags.interruptible && unsafeIsInterrupted())
+                        cur = Refail(unsafeGetInterruptedCause())
+
+                    case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
+                  }
+                }
+
+                if (cur eq null) done = value.asInstanceOf[AnyRef]
+              } catch {
+                case zioError: ZIOError =>
+                  cur = Refail(zioError.cause)
               }
 
-          case effect: Sync[_] =>
-            try {
-              val value = effect.eval()
+            case effect: Async[_, _, _] =>
+              // Save runtime flags to heap:
+              self._runtimeFlags = runtimeFlags
+
+              throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn)
+
+            case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
+              val updateFlags     = effect.update
+              val oldRuntimeFlags = runtimeFlags
+              val newRuntimeFlags = updateFlags(oldRuntimeFlags)
+
+              cur = if (newRuntimeFlags == oldRuntimeFlags) {
+                // No change, short circuit:
+                effect.scope(oldRuntimeFlags)
+              } else {
+                // One more chance to short circuit: if we're immediately going to interrupt.
+                // Interruption will cause immediate reversion of the flag, so as long as we
+                // "peek ahead", there's no need to set them to begin with.
+                if (newRuntimeFlags.interruptible && unsafeIsInterrupted()) {
+                  Refail(unsafeGetInterruptedCause())
+                } else {
+                  // Impossible to short circuit, so record the changes:
+                  runtimeFlags = newRuntimeFlags
+
+                  respondToNewRuntimeFlags(updateFlags)
+
+                  // Since we updated the flags, we need to revert them:
+                  val revertFlags = newRuntimeFlags.diff(oldRuntimeFlags)
+
+                  try {
+                    val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
+
+                    // Go backward, on the stack stack:
+                    runtimeFlags = revertFlags(runtimeFlags)
+
+                    respondToNewRuntimeFlags(revertFlags)
+
+                    if (runtimeFlags.interruptible && unsafeIsInterrupted())
+                      Refail(unsafeGetInterruptedCause())
+                    else ZIO.succeed(value)
+                  } catch {
+                    case reifyStack: ReifyStack =>
+                      reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
+                  }
+                }
+              }
+
+            case generateStackTrace: GenerateStackTrace =>
+              // Save runtime flags to heap:
+              self._runtimeFlags = runtimeFlags
+
+              val builder = ChunkBuilder.make[EvaluationStep]()
+
+              builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
+
+              throw GenerateTrace(builder)
+
+            case stateful: Stateful[_, _, _] =>
+              cur = stateful.erase.onState(
+                self.asInstanceOf[FiberRuntime[Any, Any]],
+                Fiber.Status.Running(runtimeFlags, lastTrace)
+              )
+
+            case refail: Refail[_] =>
+              val cause = refail.cause.asInstanceOf[Cause[Any]]
 
               cur = null
 
@@ -442,186 +546,93 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                 element match {
                   case k: EvaluationStep.Continuation[_, _, _, _, _] =>
-                    cur = k.erase.onSuccess(value)
-
-                    assertNonNullContinuation(cur, k.trace)
+                    cur = k.erase.onFailure(cause)
 
                   case k: EvaluationStep.UpdateRuntimeFlags =>
                     runtimeFlags = k.update(runtimeFlags)
 
                     respondToNewRuntimeFlags(k.update)
 
-                    if (runtimeFlags.interruptible && unsafeIsInterrupted())
-                      cur = Refail(unsafeGetInterruptedCause())
+                    if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
+                      cur = Refail(cause ++ unsafeGetInterruptedCause())
+                    }
 
                   case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
                 }
               }
 
-              if (cur eq null) done = value.asInstanceOf[AnyRef]
-            } catch {
-              case zioError: ZIOError =>
-                cur = Refail(zioError.cause)
-            }
+              if (cur eq null) {
+                // Save runtime flags to heap:
+                self._runtimeFlags = runtimeFlags
 
-          case effect: Async[_, _, _] =>
-            // Save runtime flags to heap:
-            self._runtimeFlags = runtimeFlags
+                throw ZIOError(cause)
+              }
 
-            throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn)
+            case updateRuntimeFlags: UpdateRuntimeFlags =>
+              val updateFlags     = updateRuntimeFlags.update
+              val oldRuntimeFlags = runtimeFlags
 
-          case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
-            val updateFlags     = effect.update
-            val oldRuntimeFlags = runtimeFlags
-            val newRuntimeFlags = updateFlags(oldRuntimeFlags)
+              runtimeFlags = updateFlags(runtimeFlags)
 
-            cur = if (newRuntimeFlags == oldRuntimeFlags) {
-              // No change, short circuit:
-              effect.scope(oldRuntimeFlags)
-            } else {
-              // One more chance to short circuit: if we're immediately going to interrupt.
-              // Interruption will cause immediate reversion of the flag, so as long as we
-              // "peek ahead", there's no need to set them to begin with.
-              if (newRuntimeFlags.interruptible && unsafeIsInterrupted()) {
-                Refail(unsafeGetInterruptedCause())
+              respondToNewRuntimeFlags(updateFlags)
+
+              // If we are nested inside another recursive call to `runLoop`,
+              // then we need pop out to the very top in order to update
+              // runtime flags globally:
+              if (currentDepth > 0) {
+                // Save runtime flags to heap:
+                self._runtimeFlags = runtimeFlags
+
+                throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep](), false)
               } else {
-                // Impossible to short circuit, so record the changes:
-                runtimeFlags = newRuntimeFlags
+                // We are at the top level, no need to update runtime flags
+                // globally:
+                cur = ZIO.unit
+              }
 
-                respondToNewRuntimeFlags(updateFlags)
+            case iterate0: WhileLoop[_, _, _] =>
+              val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
 
-                // Since we updated the flags, we need to revert them:
-                val revertFlags = newRuntimeFlags.diff(oldRuntimeFlags)
+              val state = iterate.create()
+              val check = iterate.check
 
-                try {
-                  val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
-
-                  // Go backward, on the stack stack:
-                  runtimeFlags = revertFlags(runtimeFlags)
-
-                  respondToNewRuntimeFlags(revertFlags)
-
-                  if (runtimeFlags.interruptible && unsafeIsInterrupted())
-                    Refail(unsafeGetInterruptedCause())
-                  else ZIO.succeed(value)
-                } catch {
-                  case reifyStack: ReifyStack =>
-                    reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
+              try {
+                while (check(state)) {
+                  runLoop(iterate.process(state), currentDepth + 1, Chunk.empty, runtimeFlags)
                 }
-              }
-            }
 
-          case generateStackTrace: GenerateStackTrace =>
-            // Save runtime flags to heap:
-            self._runtimeFlags = runtimeFlags
+                cur = ZIO.succeed(state)
+              } catch {
+                case reifyStack: ReifyStack =>
+                  val continuation = EvaluationStep.Continuation.fromSuccess((_: Any) => iterate.withCreate(state))
 
-            val builder = ChunkBuilder.make[EvaluationStep]()
+                  reifyStack.addContinuation(continuation)
 
-            builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
-
-            throw GenerateTrace(builder)
-
-          case stateful: Stateful[_, _, _] =>
-            cur = stateful.erase.onState(
-              self.asInstanceOf[FiberRuntime[Any, Any]],
-              Fiber.Status.Running(runtimeFlags, lastTrace)
-            )
-
-          case refail: Refail[_] =>
-            val cause = refail.cause.asInstanceOf[Cause[Any]]
-
-            cur = null
-
-            while ((cur eq null) && stackIndex < stack.length) {
-              val element = stack(stackIndex)
-
-              stackIndex += 1
-
-              element match {
-                case k: EvaluationStep.Continuation[_, _, _, _, _] =>
-                  cur = k.erase.onFailure(cause)
-
-                case k: EvaluationStep.UpdateRuntimeFlags =>
-                  runtimeFlags = k.update(runtimeFlags)
-
-                  respondToNewRuntimeFlags(k.update)
-
-                  if (runtimeFlags.interruptible && unsafeIsInterrupted()) {
-                    cur = Refail(cause ++ unsafeGetInterruptedCause())
-                  }
-
-                case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
-              }
-            }
-
-            if (cur eq null) {
-              // Save runtime flags to heap:
-              self._runtimeFlags = runtimeFlags
-
-              throw ZIOError(cause)
-            }
-
-          case updateRuntimeFlags: UpdateRuntimeFlags =>
-            val updateFlags     = updateRuntimeFlags.update
-            val oldRuntimeFlags = runtimeFlags
-
-            runtimeFlags = updateFlags(runtimeFlags)
-
-            respondToNewRuntimeFlags(updateFlags)
-
-            // If we are nested inside another recursive call to `runLoop`,
-            // then we need pop out to the very top in order to update
-            // runtime flags globally:
-            if (currentDepth > 0) {
-              // Save runtime flags to heap:
-              self._runtimeFlags = runtimeFlags
-
-              throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep]())
-            } else {
-              // We are at the top level, no need to update runtime flags
-              // globally:
-              cur = ZIO.unit
-            }
-
-          case iterate0: WhileLoop[_, _, _] =>
-            val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
-
-            val state = iterate.create()
-            val check = iterate.check
-
-            try {
-              while (check(state)) {
-                runLoop(iterate.process(state), currentDepth + 1, Chunk.empty, runtimeFlags)
+                  throw reifyStack
               }
 
-              cur = ZIO.succeed(state)
-            } catch {
-              case reifyStack: ReifyStack =>
-                val continuation = EvaluationStep.Continuation.fromSuccess((_: Any) => iterate.withCreate(state))
+            case yieldNow: ZIO.YieldNow => // TODO: Trace
+              throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep](), true)
+          }
+        } catch {
+          case zioError: ZIOError =>
+            throw zioError
 
-                reifyStack.addContinuation(continuation)
+          case reifyStack: ReifyStack =>
+            if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)
 
-                throw reifyStack
-            }
+            throw reifyStack
+
+          case interruptedException: InterruptedException =>
+            cur = Refail(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
+
+          case throwable: Throwable =>
+            cur = if (unsafeIsFatal(throwable)) {
+              FiberRuntime.catastrophicFailure.set(true)
+              throwable.printStackTrace()
+              throw throwable
+            } else Refail(Cause.die(throwable))
         }
-      } catch {
-        case zioError: ZIOError =>
-          throw zioError
-
-        case reifyStack: ReifyStack =>
-          if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)
-
-          throw reifyStack
-
-        case interruptedException: InterruptedException =>
-          cur = Refail(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
-
-        case throwable: Throwable =>
-          cur = if (unsafeIsFatal(throwable)) {
-            FiberRuntime.catastrophicFailure.set(true)
-            throwable.printStackTrace()
-            throw throwable
-          } else Refail(Cause.die(throwable))
       }
     }
 
