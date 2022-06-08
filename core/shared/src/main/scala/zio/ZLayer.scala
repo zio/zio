@@ -333,7 +333,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def toRuntime(implicit ev: Any <:< RIn, trace: Trace): ZIO[Scope, E, Runtime[ROut]] =
     for {
       scope       <- ZIO.scope
-      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.upcast(ev))
+      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.asInstanceOf[ZEnvironment[RIn]])
       environment <- (layer >>> self).build(scope)
       runtime     <- ZIO.runtime[ROut].provideEnvironment(environment)
     } yield runtime
