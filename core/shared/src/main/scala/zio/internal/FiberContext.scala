@@ -92,7 +92,7 @@
 
 //   final def id: FiberId.Runtime = fiberId
 
-//   final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.suspendSucceed {
+//   final def inheritAll(implicit trace: Trace): UIO[Unit] = ZIO.suspendSucceed {
 //     val childFiberRefLocals = fiberRefLocals.get
 
 //     if (childFiberRefLocals.isEmpty) ZIO.unit

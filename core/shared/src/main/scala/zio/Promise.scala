@@ -229,7 +229,7 @@ final class Promise[E, A] private (
       retry = !state.compareAndSet(oldState, newState)
     }
 
-    if (joiners ne null) joiners.reverse.foreach(_(io))
+    if (joiners ne null) joiners.foreach(_(io))
   }
 
 }
@@ -245,7 +245,7 @@ object Promise {
   /**
    * Makes a new promise to be completed by the fiber creating the promise.
    */
-  def make[E, A](implicit trace: Trace): UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
+  def make[E, A](implicit trace: Trace): UIO[Promise[E, A]] = ZIO.fiberIdWith(makeAs(_))
 
   /**
    * Makes a new promise to be completed by the fiber with the specified id.

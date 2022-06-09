@@ -26,7 +26,7 @@ object FiberSpec extends ZIOBaseSpec {
           for {
             fiberRef <- FiberRef.make(initial)
             child    <- withLatch(release => (fiberRef.set(update) *> release).fork)
-            _        <- child.map(_ => ()).inheritRefs
+            _        <- child.map(_ => ()).inheritAll
             value    <- fiberRef.get
           } yield assert(value)(equalTo(update))
         },
@@ -39,7 +39,7 @@ object FiberSpec extends ZIOBaseSpec {
             child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
             child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
             _        <- latch1.await *> latch2.await
-            _        <- child1.orElse(child2).inheritRefs
+            _        <- child1.orElse(child2).inheritAll
             value    <- fiberRef.get
           } yield assert(value)(equalTo("child1"))
         },
@@ -51,7 +51,7 @@ object FiberSpec extends ZIOBaseSpec {
             child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
             child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
             _        <- latch1.await *> latch2.await
-            _        <- child1.zip(child2).inheritRefs
+            _        <- child1.zip(child2).inheritAll
             value    <- fiberRef.get
           } yield assert(value)(equalTo("child1"))
         }
@@ -100,16 +100,12 @@ object FiberSpec extends ZIOBaseSpec {
           } yield assert(exit)(fails(equalTo("fail")))
         }
       ) @@ zioTag(errors),
-      test("grandparent interruption is propagated to grandchild despite parent termination") {
+      test("child becoming interruptible is interrupted due to auto-supervision of uninterruptible parent") {
         for {
-          latch1 <- Promise.make[Nothing, Unit]
-          latch2 <- Promise.make[Nothing, Unit]
-          c       = ZIO.never.interruptible.onInterrupt(latch2.succeed(()))
-          a       = (latch1.succeed(()) *> c.fork.fork).uninterruptible *> ZIO.never
-          fiber  <- a.fork
-          _      <- latch1.await
-          _      <- fiber.interrupt
-          _      <- latch2.await
+          latch <- Promise.make[Nothing, Unit]
+          child  = ZIO.never.interruptible.onInterrupt(latch.succeed(())).fork
+          _     <- child.fork.uninterruptible
+          _     <- latch.await
         } yield assertCompletes
       } @@ zioTag(interruption) @@ nonFlaky,
       suite("roots")(
@@ -146,18 +142,18 @@ object FiberSpec extends ZIOBaseSpec {
                               blockingOn
                             }
                             .eventually
-          } yield assert(blockingOn)(equalTo(f1.id))
-        } /*, FIXME with composite fiber id
+          } yield assertTrue(blockingOn == f1.id)
+        },
         test("in race") {
           for {
-            f <- ZIO.never.race(ZIO.never).fork
+            f <- ZIO.infinity.race(ZIO.infinity).fork
             blockingOn <- f.status
-                            .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn, _) =>
+                            .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn) =>
                               blockingOn
                             }
                             .eventually
-          } yield assert(blockingOn)(hasSize(equalTo(2)))
-        }*/
+          } yield assertTrue(blockingOn.toSet.size == 2)
+        }
       )
     )
 
