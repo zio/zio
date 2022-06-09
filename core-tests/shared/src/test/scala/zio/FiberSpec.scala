@@ -26,7 +26,7 @@ object FiberSpec extends ZIOBaseSpec {
           for {
             fiberRef <- FiberRef.make(initial)
             child    <- withLatch(release => (fiberRef.set(update) *> release).fork)
-            _        <- child.map(_ => ()).inheritRefs
+            _        <- child.map(_ => ()).inheritAll
             value    <- fiberRef.get
           } yield assert(value)(equalTo(update))
         },
@@ -39,7 +39,7 @@ object FiberSpec extends ZIOBaseSpec {
             child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
             child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
             _        <- latch1.await *> latch2.await
-            _        <- child1.orElse(child2).inheritRefs
+            _        <- child1.orElse(child2).inheritAll
             value    <- fiberRef.get
           } yield assert(value)(equalTo("child1"))
         },
@@ -51,7 +51,7 @@ object FiberSpec extends ZIOBaseSpec {
             child1   <- (fiberRef.set("child1") *> latch1.succeed(())).fork
             child2   <- (fiberRef.set("child2") *> latch2.succeed(())).fork
             _        <- latch1.await *> latch2.await
-            _        <- child1.zip(child2).inheritRefs
+            _        <- child1.zip(child2).inheritAll
             value    <- fiberRef.get
           } yield assert(value)(equalTo("child1"))
         }
@@ -142,11 +142,12 @@ object FiberSpec extends ZIOBaseSpec {
             f1 <- ZIO.never.fork
             f2 <- f1.await.fork
             blockingOn <- f2.status
+                            .debug("fiber status")
                             .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn) =>
                               blockingOn
                             }
                             .eventually
-          } yield assert(blockingOn)(equalTo(f1.id))
+          } yield assertTrue(blockingOn == f1.id)
         } /*, FIXME with composite fiber id
         test("in race") {
           for {

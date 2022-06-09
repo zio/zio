@@ -48,7 +48,7 @@ private[zio] trait FiberPlatformSpecific {
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         ZIO.succeed(cs.toCompletableFuture.cancel(false)).unit
 
-      final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.unit
+      final def inheritAll(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
   }
 
@@ -83,7 +83,7 @@ private[zio] trait FiberPlatformSpecific {
       def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         ZIO.succeed(ftr.cancel(false)).unit
 
-      def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.unit
+      def inheritAll(implicit trace: Trace): UIO[Unit] = ZIO.unit
     }
   }
 }

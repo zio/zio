@@ -155,7 +155,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return
    *   `UIO[Unit]`
    */
-  def inheritRefs(implicit trace: Trace): UIO[Unit]
+  def inheritAll(implicit trace: Trace): UIO[Unit]
 
   /**
    * Interrupts the fiber from whichever fiber is calling this method. If the
@@ -209,7 +209,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return
    *   `IO[E, A]`
    */
-  final def join(implicit trace: Trace): IO[E, A] = await.flatMap(ZIO.done(_)) <* inheritRefs
+  final def join(implicit trace: Trace): IO[E, A] = await.flatMap(ZIO.done(_)) <* inheritAll
 
   /**
    * Maps over the value the Fiber computes.
@@ -249,8 +249,8 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = self.children
 
       def id: FiberId = self.id
-      final def inheritRefs(implicit trace: Trace): UIO[Unit] =
-        self.inheritRefs
+      final def inheritAll(implicit trace: Trace): UIO[Unit] =
+        self.inheritAll
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         self.interruptAsFork(id)
       final def poll(implicit trace: Trace): UIO[Option[Exit[E1, B]]] =
@@ -286,8 +286,8 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         self.interruptAsFork(id) *> that.interruptAsFork(id)
 
-      final def inheritRefs(implicit trace: Trace): UIO[Unit] =
-        that.inheritRefs *> self.inheritRefs
+      final def inheritAll(implicit trace: Trace): UIO[Unit] =
+        that.inheritAll *> self.inheritAll
 
       final def poll(implicit trace: Trace): UIO[Option[Exit[E1, A1]]] =
         self.poll.zipWith(that.poll) {
@@ -455,7 +455,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit] =
         self.interruptAsFork(id) *> that.interruptAsFork(id)
 
-      final def inheritRefs(implicit trace: Trace): UIO[Unit] = that.inheritRefs *> self.inheritRefs
+      final def inheritAll(implicit trace: Trace): UIO[Unit] = that.inheritAll *> self.inheritAll
 
       final def poll(implicit trace: Trace): UIO[Option[Exit[E1, C]]] =
         self.poll.zipWith(that.poll) {
@@ -617,8 +617,8 @@ object Fiber extends FiberPlatformSpecific {
 
       final def id: FiberId = fibers.foldLeft(FiberId.None: FiberId)(_ <> _.id)
 
-      def inheritRefs(implicit trace: Trace): UIO[Unit] =
-        ZIO.foreachDiscard(fibers)(_.inheritRefs)
+      def inheritAll(implicit trace: Trace): UIO[Unit] =
+        ZIO.foreachDiscard(fibers)(_.inheritAll)
       def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
         ZIO
           .foreachDiscard(fibers)(_.interruptAsFork(fiberId))
@@ -650,7 +650,7 @@ object Fiber extends FiberPlatformSpecific {
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
       final def id: FiberId                                                      = FiberId.None
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit]   = ZIO.unit
-      final def inheritRefs(implicit trace: Trace): UIO[Unit]                    = ZIO.unit
+      final def inheritAll(implicit trace: Trace): UIO[Unit]                     = ZIO.unit
       final def poll(implicit trace: Trace): UIO[Option[Exit[E, A]]]             = ZIO.succeedNow(Some(exit))
     }
 
@@ -718,7 +718,7 @@ object Fiber extends FiberPlatformSpecific {
           }
         }
 
-      final def inheritRefs(implicit trace: Trace): UIO[Unit] = ZIO.unit
+      final def inheritAll(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
       final def poll(implicit trace: Trace): UIO[Option[Exit[Throwable, A]]] =
         ZIO.succeed(ftr.value.map(Exit.fromTry))
@@ -795,7 +795,7 @@ object Fiber extends FiberPlatformSpecific {
       final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] = ZIO.succeedNow(Chunk.empty)
       final def id: FiberId                                                      = FiberId.None
       final def interruptAsFork(id: FiberId)(implicit trace: Trace): UIO[Unit]   = ZIO.unit
-      final def inheritRefs(implicit trace: Trace): UIO[Unit]                    = ZIO.unit
+      final def inheritAll(implicit trace: Trace): UIO[Unit]                     = ZIO.unit
       final def poll(implicit trace: Trace): UIO[Option[Exit[Nothing, Nothing]]] = ZIO.succeedNow(None)
     }
 

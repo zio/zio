@@ -1290,9 +1290,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                     }
 
-               inheritRefs = { (res: (A1, Fiber[E1, A1])) => res._2.inheritRefs.as(res._1) }
+               inheritAll = { (res: (A1, Fiber[E1, A1])) => res._2.inheritAll.as(res._1) }
 
-               c <- restore(done.await.flatMap(inheritRefs))
+               c <- restore(done.await.flatMap(inheritAll))
                       .onInterrupt(fs.foldLeft(ZIO.unit)((io, f) => io <* f.interrupt))
              } yield c
            }
@@ -1382,7 +1382,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
             leftFiber.startBackground(self)
             rightFiber.startBackground(right)
           },
-          FiberId.combineAll(Set(leftFiber.id, rightFiber.id))
+          leftFiber.id <> rightFiber.id
         )
     }
 
@@ -1399,14 +1399,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       (winner, loser) =>
         winner.await.flatMap {
           case exit: Exit.Success[_] =>
-            winner.inheritRefs.flatMap(_ => leftDone(exit, loser))
+            winner.inheritAll.flatMap(_ => leftDone(exit, loser))
           case exit: Exit.Failure[_] =>
             leftDone(exit, loser)
         },
       (winner, loser) =>
         winner.await.flatMap {
           case exit: Exit.Success[B] =>
-            winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
+            winner.inheritAll.flatMap(_ => rightDone(exit, loser))
           case exit: Exit.Failure[E1] =>
             rightDone(exit, loser)
         }
@@ -2398,7 +2398,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       winner.await.flatMap {
         case Exit.Success(a) =>
           loser.await.flatMap {
-            case Exit.Success(b)     => winner.inheritRefs *> loser.inheritRefs *> ZIO.succeed(f(a, b))
+            case Exit.Success(b)     => winner.inheritAll *> loser.inheritAll *> ZIO.succeed(f(a, b))
             case Exit.Failure(cause) => ZIO.refailCause(cause)
           }
         case Exit.Failure(cause) =>
@@ -2631,7 +2631,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     register: (ZIO[R, E, A] => Unit) => Any,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, register, blockingOn)
+    Async(trace, register, () => blockingOn)
 
   /**
    * Imports an asynchronous side-effect into a ZIO effect. The side-effect has
@@ -2656,14 +2656,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       val cancelerRef = Ref.unsafeMake[URIO[R, Any]](ZIO.unit)
 
       ZIO
-        .async[R, E, A] { k =>
-          val result = register(k(_))
+        .async[R, E, A](
+          { k =>
+            val result = register(k(_))
 
-          result match {
-            case Left(canceler) => cancelerRef.unsafeSet(canceler)
-            case Right(done)    => k(done)
-          }
-        }
+            result match {
+              case Left(canceler) => cancelerRef.unsafeSet(canceler)
+              case Right(done)    => k(done)
+            }
+          },
+          blockingOn
+        )
         .onInterrupt(cancelerRef.unsafeGet)
     }
 
@@ -4061,15 +4064,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Returns a effect that will never produce anything. The moral equivalent of
-   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
-   * running this effect are automatically garbage collected on the JVM, because
-   * they cannot be reactivated.
+   * `while(true) {}`, only without the wasted CPU cycles. Fibers that execute
+   * this effect will be automatically garbage collected on the JVM when no
+   * explicit references to them are held, because they cannot be reactivated.
    */
   def never(implicit trace: Trace): UIO[Nothing] =
     async[Any, Nothing, Nothing](_ => ())
 
   /**
-   * Returns an effect with the empty value.
+   * Returns an effect that succeeds with the `None` value.
    */
   lazy val none: UIO[Option[Nothing]] = succeedNow(None)
 
@@ -5505,7 +5508,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final case class Async[R, E, A](
     trace: Trace,
     registerCallback: (ZIO[R, E, A] => Unit) => Any,
-    blockingOn: FiberId
+    blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
   private[zio] sealed trait OnSuccessOrFailure[R, E1, E2, A, B]
       extends ZIO[R, E2, B]
@@ -5730,7 +5733,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                     case Some(Exit.Failure(causes)) => ZIO.refailCause(cause.stripFailures && causes)
                     case _                          => ZIO.refailCause(cause.stripFailures)
                   }),
-              _ => ZIO.foreachDiscard(fibers)(_.inheritRefs)
+              _ => ZIO.foreachDiscard(fibers)(_.inheritAll)
             )
           }
         }

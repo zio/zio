@@ -30,12 +30,14 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.async[Any, Nothing, Exit[E, A]] { cb =>
-      tell(FiberMessage.Stateful { (fiber, _) =>
-        if (fiber._exitValue ne null) cb(ZIO.succeed(fiber.unsafeExitValue().asInstanceOf[Exit[E, A]]))
-        else fiber.unsafeAddObserver(exit => cb(ZIO.succeed(exit.asInstanceOf[Exit[E, A]])))
-      })
-    }
+    ZIO.async[Any, Nothing, Exit[E, A]](
+      cb =>
+        tell(FiberMessage.Stateful { (fiber, _) =>
+          if (fiber._exitValue ne null) cb(ZIO.succeed(fiber.unsafeExitValue().asInstanceOf[Exit[E, A]]))
+          else fiber.unsafeAddObserver(exit => cb(ZIO.succeed(exit.asInstanceOf[Exit[E, A]])))
+        }),
+      id
+    )
 
   def children(implicit trace: Trace): UIO[Chunk[FiberRuntime[_, _]]] =
     ask((fiber, _) => Chunk.fromJavaIterable(fiber.unsafeGetChildren()))
@@ -45,7 +47,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   def id: FiberId.Runtime = fiberId
 
-  def inheritRefs(implicit trace: Trace): UIO[Unit] =
+  def inheritAll(implicit trace: Trace): UIO[Unit] =
     ZIO.unsafeStateful[Any, Nothing, Unit] { (parentFiber, parentStatus) =>
       val parentFiberId      = parentFiber.id
       val parentFiberRefs    = parentFiber.unsafeGetFiberRefs()
@@ -476,7 +478,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               // Save runtime flags to heap:
               self._runtimeFlags = runtimeFlags
 
-              throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn)
+              throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn())
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
               val updateFlags     = effect.update
