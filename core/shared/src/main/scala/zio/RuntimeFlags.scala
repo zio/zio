@@ -22,31 +22,28 @@ package zio
  *
  * For more information on individual flags, see [[zio.RuntimeFlag]].
  */
-final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
-  def +(flag: RuntimeFlag): RuntimeFlags = self ++ RuntimeFlags(flag)
+object RuntimeFlags {
 
-  def -(flag: RuntimeFlag): RuntimeFlags = self -- RuntimeFlags(flag)
+  def currentFiber(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.CurrentFiber)
 
-  def ++(that: RuntimeFlags): RuntimeFlags = RuntimeFlags(self.packed | that.packed)
+  def diff(oldValue: RuntimeFlags, newValue: RuntimeFlags): RuntimeFlags.Patch =
+    RuntimeFlags.Patch(oldValue ^ newValue, newValue)
 
-  def --(that: RuntimeFlags): RuntimeFlags = RuntimeFlags(self.packed & ~that.packed)
+  def disable(flags: RuntimeFlags)(flag: RuntimeFlag): RuntimeFlags =
+    flags & flag.notMask
 
-  def currentFiber: Boolean = isEnabled(RuntimeFlag.CurrentFiber)
+  def disableAll(self: RuntimeFlags)(that: RuntimeFlags): RuntimeFlags =
+    self & ~that
 
-  def diff(newValue: RuntimeFlags): RuntimeFlags.Patch =
-    RuntimeFlags.Patch(packed ^ newValue.packed, newValue.packed)
+  def enable(flags: RuntimeFlags)(flag: RuntimeFlag): RuntimeFlags =
+    flags | flag.mask
 
-  def disable(flag: RuntimeFlag): RuntimeFlags = RuntimeFlags(packed & flag.notMask)
+  def enableAll(self: RuntimeFlags)(that: RuntimeFlags): RuntimeFlags =
+    self | that
 
-  def isDisabled(flag: RuntimeFlag): Boolean = !isEnabled(flag)
-
-  def enable(flag: RuntimeFlag): RuntimeFlags = RuntimeFlags(packed | flag.mask)
-
-  def isEnabled(flag: RuntimeFlag): Boolean = (packed & flag.mask) != 0
-
-  def fiberRoots: Boolean = isEnabled(RuntimeFlag.FiberRoots)
-
-  def interruption: Boolean = isEnabled(RuntimeFlag.Interruption)
+  def fiberRoots(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.FiberRoots)
 
   /**
    * This method returns true only if the flag `Interruption` is ENABLED, and
@@ -56,76 +53,103 @@ final case class RuntimeFlags(packed: Int) extends AnyVal { self =>
    * turned on, and the fiber is not in its wind-down phase, in which it takes
    * care of cleanup activities related to fiber shutdown.
    */
-  def interruptible: Boolean = interruption && !windDown
+  def interruptible(flags: RuntimeFlags): Boolean =
+    interruption(flags) && !windDown(flags)
 
-  def opLog: Boolean = isEnabled(RuntimeFlag.OpLog)
+  def interruption(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.Interruption)
 
-  def opSupervision: Boolean = isEnabled(RuntimeFlag.OpSupervision)
+  def isDisabled(flags: RuntimeFlags)(flag: RuntimeFlag): Boolean =
+    !isEnabled(flags)(flag)
 
-  def patch(p: RuntimeFlags.Patch): RuntimeFlags = p(self)
+  def isEnabled(flags: RuntimeFlags)(flag: RuntimeFlag): Boolean =
+    (flags & flag.mask) != 0
 
-  def runtimeMetrics: Boolean = isEnabled(RuntimeFlag.RuntimeMetrics)
+  def opLog(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.OpLog)
 
-  def toSet: Set[RuntimeFlag] = RuntimeFlag.all.filter(isEnabled(_))
+  def opSupervision(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.OpSupervision)
 
-  override def toString(): String =
-    toSet.mkString("RuntimeFlags(", ", ", ")")
+  def patch(patch: RuntimeFlags.Patch)(flags: RuntimeFlags): RuntimeFlags =
+    Patch.patch(patch)(flags)
 
-  def windDown: Boolean = isEnabled(RuntimeFlag.WindDown)
-}
-object RuntimeFlags {
-  final case class Patch(packed: Long) extends AnyVal { self =>
-    def &(that: Patch): Patch =
-      Patch(active | that.active, enabled & that.enabled)
+  def render(flags: RuntimeFlags): String =
+    toSet(flags).mkString("RuntimeFlags(", ", ", ")")
 
-    def |(that: Patch): Patch =
-      Patch(active | that.active, enabled | that.enabled)
+  def runtimeMetrics(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.RuntimeMetrics)
 
-    def <>(that: Patch): Patch = self | that // FIXME: this should be equivalent to sequential patch application
+  def toSet(flags: RuntimeFlags): Set[RuntimeFlag] =
+    RuntimeFlag.all.filter(isEnabled(flags))
 
-    def apply(flag: RuntimeFlags): RuntimeFlags =
-      RuntimeFlags((flag.packed & (~active | enabled)) | (active & enabled))
+  def windDown(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.WindDown)
 
-    def enabledSet: Set[RuntimeFlag] = RuntimeFlags(active & enabled).toSet
+  type Patch = Long
 
-    def exclude(flag: RuntimeFlag): RuntimeFlags.Patch = RuntimeFlags.Patch(active & flag.notMask, enabled)
+  object Patch {
 
-    def disabledSet: Set[RuntimeFlag] = RuntimeFlags(active & ~enabled).toSet
+    def andThen(first: Patch, second: Patch): Patch =
+      first | second
 
-    def includes(flag: RuntimeFlag): Boolean = ((active & flag.mask) != 0)
+    def apply(active: Int, enabled: Int): Patch =
+      (active.toLong << 0) + ((enabled & active).toLong << 32)
 
-    def inverse: Patch = Patch(active, ~enabled)
+    def both(left: Patch, right: Patch): Patch =
+      Patch(active(left) | active(right), enabled(left) & enabled(right))
 
-    def isActive(flag: RuntimeFlag): Boolean = (active & flag.mask) != 0
+    def disabledSet(patch: Patch): Set[RuntimeFlag] =
+      RuntimeFlags.toSet(active(patch) & ~enabled(patch))
 
-    def isDisabled(flag: RuntimeFlag): Boolean = isActive(flag) && ((enabled & flag.mask) == 0)
+    def either(left: Patch, right: Patch): Patch =
+      Patch(active(left) | active(right), enabled(left) | enabled(right))
 
-    def isEmpty: Boolean = active == 0L
+    val empty: Patch = Patch(0, 0)
 
-    def isEnabled(flag: RuntimeFlag): Boolean = isActive(flag) && ((enabled & flag.mask) != 0)
+    def enabledSet(patch: Patch): Set[RuntimeFlag] =
+      RuntimeFlags.toSet(active(patch) & enabled(patch))
 
-    override def toString(): String = {
+    def exclude(patch: Patch)(flag: RuntimeFlag): Patch =
+      Patch(active(patch) & flag.notMask, enabled(patch))
+
+    def includes(patch: Patch)(flag: RuntimeFlag): Boolean =
+      ((active(patch) & flag.mask) != 0)
+
+    def inverse(patch: Patch): Patch =
+      Patch(active(patch), ~enabled(patch))
+
+    def isActive(patch: Patch)(flag: RuntimeFlag): Boolean =
+      (active(patch) & flag.mask) != 0
+
+    def isDisabled(patch: Patch)(flag: RuntimeFlag): Boolean =
+      isActive(patch)(flag) && ((enabled(patch) & flag.mask) == 0)
+
+    def isEmpty(patch: Patch): Boolean =
+      active(patch) == 0L
+
+    def isEnabled(patch: Patch)(flag: RuntimeFlag): Boolean =
+      isActive(patch)(flag) && ((enabled(patch) & flag.mask) != 0)
+
+    def patch(patch: Patch)(flags: RuntimeFlags): RuntimeFlags =
+      (flags & (~active(patch) | enabled(patch))) | (active(patch) & enabled(patch))
+
+    def render(patch: Patch): String = {
       val enabledS =
-        enabledSet.mkString("(", ", ", ")")
+        enabledSet(patch).mkString("(", ", ", ")")
 
       val disabledS =
-        disabledSet.mkString("(", ", ", ")")
+        disabledSet(patch).mkString("(", ", ", ")")
 
       s"RuntimeFlags.Patch(enabled = ${enabledS}, disabled = ${disabledS})"
     }
 
-    private def active: Int  = ((packed >> 0) & 0xffffffff).toInt
-    private def enabled: Int = ((packed >> 32) & 0xffffffff).toInt
-  }
-  object Patch {
-    def apply(active: Int, enabled: Int): Patch =
-      Patch((active.toLong << 0) + ((enabled & active).toLong << 32))
-
-    val empty: Patch = Patch(0, 0)
+    private def active(patch: Patch): Int  = ((patch >> 0) & 0xffffffff).toInt
+    private def enabled(patch: Patch): Int = ((patch >> 32) & 0xffffffff).toInt
   }
 
   def apply(flags: RuntimeFlag*): RuntimeFlags =
-    RuntimeFlags(flags.foldLeft(0)(_ | _.mask))
+    flags.foldLeft(0)(_ | _.mask)
 
   /**
    * The default set of runtime flags, recommended for most applications.
@@ -148,5 +172,5 @@ object RuntimeFlags {
   /**
    * No runtime flags.
    */
-  val none: RuntimeFlags = RuntimeFlags(0)
+  val none: RuntimeFlags = 0
 }

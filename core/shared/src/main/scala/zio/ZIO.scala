@@ -2766,7 +2766,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.unsafeStateful[R, E, A] { (_, status) =>
-      f(InterruptStatus.fromBoolean(status.runtimeFlags.interruption))
+      f(InterruptStatus.fromBoolean(RuntimeFlags.interruption(status.runtimeFlags)))
     }
 
   /**
@@ -4498,7 +4498,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       trace,
       RuntimeFlags.disable(RuntimeFlag.Interruption),
       oldFlags =>
-        if (oldFlags.isEnabled(RuntimeFlag.Interruption)) f(InterruptibilityRestorer.MakeInterruptible)
+        if (RuntimeFlags.interruption(oldFlags)) f(InterruptibilityRestorer.MakeInterruptible)
         else f(InterruptibilityRestorer.MakeUninterruptible)
     )
 
@@ -4793,7 +4793,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withRuntimeFlagsScoped(update: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZIO.uninterruptible {
       ZIO.updateRuntimeFlags(update) *>
-        ZIO.addFinalizer(ZIO.updateRuntimeFlags(update.inverse)).unit
+        ZIO.addFinalizer(ZIO.updateRuntimeFlags(RuntimeFlags.Patch.inverse(update))).unit
     }
 
   /**

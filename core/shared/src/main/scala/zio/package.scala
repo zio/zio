@@ -27,6 +27,8 @@ package object zio
     with VersionSpecific
     with DurationModule {
 
+  type RuntimeFlags = Int
+
   type ZNothing <: Nothing
 
   type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.
