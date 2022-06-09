@@ -214,9 +214,13 @@ module.exports = {
     {
       "Quickstart Guides": [
         "guides/quickstarts/hello-world",
-        "guides/quickstarts/restful-webservice",  
+        "guides/quickstarts/restful-webservice", 
+        "guides/quickstarts/graphql-webservice",
       ],
       "Tutorial Guides": [
+        "guides/tutorials/configurable-zio-application",
+        "guides/tutorials/encode-and-decode-json-data", 
+        "guides/tutorials/enable-logging-in-a-zio-application",
         "guides/handle-errors"
       ],
       "Integration Guides": [

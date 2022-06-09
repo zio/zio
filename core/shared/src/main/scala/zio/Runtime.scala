@@ -472,13 +472,6 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.SuperviseOperations))
   }
 
-  /**
-   * A layer that adds a supervisor that tracks all forked fibers in a set. Note
-   * that this may have a negative impact on performance.
-   */
-  def track(weak: Boolean)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    addSupervisor(Supervisor.unsafeTrack(weak))
-
   val trackRuntimeMetrics: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
     ZLayer.scoped(FiberRef.currentRuntimeFlags.locallyScopedWith(_ + RuntimeFlag.TrackRuntimeMetrics))

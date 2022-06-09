@@ -18,12 +18,11 @@ abstract class BaseTestTask[T](
   val runtime: zio.Runtime[T]
 ) extends Task {
 
-  protected def sharedFilledTestlayer(
-    console: Console
-  )(implicit trace: Trace): ZLayer[Any, Nothing, TestEnvironment with TestLogger with ZIOAppArgs with Scope] = {
+  protected def sharedFilledTestLayer(implicit
+    trace: Trace
+  ): ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope] = {
     ZIOAppArgs.empty +!+ (
-      (liveEnvironment ++ Scope.default) >>>
-        TestEnvironment.live >+> TestLogger.fromConsole(console)
+      (liveEnvironment ++ Scope.default) >>> TestEnvironment.live
     )
   } +!+ Scope.default
 
@@ -32,13 +31,10 @@ abstract class BaseTestTask[T](
   )(implicit trace: Trace): ZIO[Any, Throwable, Unit] =
     ZIO.consoleWith { console =>
       (for {
-        summary <- spec
-                     .runSpecInfallible(FilteredSpec(spec.spec, args), args, console, runtime, eventHandlerZ)
-        _ <- sendSummary.provideEnvironment(ZEnvironment(summary))
+        summary <- spec.runSpecInfallible(spec.spec, args, console, runtime, eventHandlerZ)
+        _       <- sendSummary.provideEnvironment(ZEnvironment(summary))
       } yield ())
-        .provideLayer(
-          sharedFilledTestlayer(console)
-        )
+        .provideLayer(sharedFilledTestLayer)
     }
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {

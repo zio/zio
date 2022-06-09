@@ -16,12 +16,11 @@
 
 package zio
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import java.nio._
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
+import scala.math.log
 import scala.reflect.{ClassTag, classTag}
 
 /**
@@ -89,14 +88,86 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
         }
     }
 
+  /**
+   * Returns the concatenation of this chunk with the specified chunk.
+   */
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
 
   /**
+   * Returns the bitwise AND of this chunk and the specified chunk.
+   */
+  def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
+    Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ & _)
+
+  /**
+   * Returns the bitwise OR of this chunk and the specified chunk.
+   */
+  def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
+    Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ | _)
+
+  /**
+   * Returns the bitwise XOR of this chunk and the specified chunk.
+   */
+  def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
+    Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ ^ _)
+
+  /**
+   * Returns the bitwise NOT of this chunk.
+   */
+  def negate(implicit ev: A <:< Boolean): Chunk.BitChunkByte = {
+    val bits      = self.length
+    val fullBytes = bits >> 3
+    val remBytes  = bits & 7
+    val arr       = Array.ofDim[Byte](fullBytes + (if (remBytes == 0) 0 else 1))
+    var i         = 0
+    var mask      = 128
+    while (i < fullBytes) {
+      var byte = 0
+      mask = 128
+      (0 until 8).foreach { k =>
+        byte = byte | (if (!ev(self(i * 8 + k))) mask else 0)
+        mask >>= 1
+      }
+      arr(i) = byte.asInstanceOf[Byte]
+      i += 1
+    }
+    if (remBytes != 0) {
+      var byte = 0
+      mask = 128
+      (0 until remBytes).foreach { k =>
+        byte = byte | (if (!ev(self(fullBytes * 8 + k))) mask else 0)
+        mask >>= 1
+      }
+      arr(fullBytes) = byte.asInstanceOf[Byte]
+    }
+    Chunk.BitChunkByte(Chunk.fromArray(arr), 0, bits)
+  }
+
+  /**
+   * Converts a chunk of ints to a chunk of bits.
+   */
+  final def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
+    Chunk.BitChunkInt(self.asInstanceOf[Chunk[Int]], endianness, 0, length << 5)
+
+  /**
+   * Converts a chunk of longs to a chunk of bits.
+   */
+  final def asBitsLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Long): Chunk[Boolean] =
+    Chunk.BitChunkLong(self.asInstanceOf[Chunk[Long]], endianness, 0, length << 6)
+
+  /**
    * Converts a chunk of bytes to a chunk of bits.
    */
-  final def asBits(implicit ev: A <:< Byte): Chunk[Boolean] =
-    Chunk.BitChunk(self.map(ev), 0, length << 3)
+  final def asBitsByte(implicit ev: A <:< Byte): Chunk[Boolean] =
+    Chunk.BitChunkByte(self.map(ev), 0, length << 3)
+
+  def toPackedByte(implicit ev: A <:< Boolean): Chunk[Byte] =
+    Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, Chunk.BitChunk.Endianness.BigEndian)
+  def toPackedInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Int] =
+    Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
+  def toPackedLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Long] =
+    Chunk.ChunkPackedBoolean[Long](self.asInstanceOf[Chunk[Boolean]], 64, endianness)
 
   /**
    * Get the element at the specified index.
@@ -1029,6 +1100,45 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   override def apply[A](as: A*): Chunk[A] =
     fromIterable(as)
 
+  /*
+   * Performs bitwise operations on boolean chunks returning a Chunk.BitChunk
+   */
+  private def bitwise(
+    left: Chunk[Boolean],
+    right: Chunk[Boolean],
+    op: (Boolean, Boolean) => Boolean
+  ): Chunk.BitChunkByte = {
+    val bits      = left.length min right.length
+    val fullBytes = bits >> 3
+    val remBits   = bits & 7
+    val arr = Array.ofDim[Byte](
+      if (remBits == 0) fullBytes else fullBytes + 1
+    )
+    var i    = 0
+    var mask = 128
+    while (i < fullBytes) {
+      var byte = 0
+      mask = 128
+      (0 until 8).foreach { k =>
+        byte = byte | (if (op(left(i * 8 + k), right(i * 8 + k))) mask else 0)
+        mask >>= 1
+      }
+      arr(i) = byte.toByte
+      i += 1
+    }
+    if (remBits != 0) {
+      val offset = fullBytes * 8
+      var byte   = 0
+      mask = 128
+      (0 until remBits).foreach { k =>
+        byte = byte | (if (op(left(offset + k), right(offset + k))) mask else 0)
+        mask >>= 1
+      }
+      arr(fullBytes) = byte.toByte
+    }
+    Chunk.BitChunkByte(Chunk.fromArray(arr), 0, bits)
+  }
+
   /**
    * Returns the empty chunk.
    */
@@ -1256,7 +1366,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: Slice[_]       => x.classTag.asInstanceOf[ClassTag[A]]
       case x: Update[_]      => x.classTag.asInstanceOf[ClassTag[A]]
       case x: VectorChunk[_] => x.classTag.asInstanceOf[ClassTag[A]]
-      case _: BitChunk       => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
+      case _: BitChunk[_]    => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
   /**
@@ -1726,65 +1836,116 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
-  private[zio] final case class BitChunk(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
-      extends Chunk[Boolean]
+  private[zio] trait BitOps[T] {
+    def zero: T
+    def one: T
+    def reverse(a: T): T
+    def <<(x: T, n: Int): T
+    def >>(x: T, n: Int): T
+    def |(x: T, y: T): T
+    def &(x: T, y: T): T
+    def ^(x: T, y: T): T
+    def unary_~(x: T): T
+  }
+
+  private[zio] object BitOps {
+    def apply[T](implicit ops: BitOps[T]): BitOps[T] = ops
+    implicit val ByteOps: BitOps[Byte] = new BitOps[Byte] {
+      def zero: Byte                = 0
+      def one: Byte                 = 1
+      def reverse(a: Byte): Byte    = throw new UnsupportedOperationException
+      def <<(x: Byte, n: Int): Byte = (x << n).toByte
+      def >>(x: Byte, n: Int): Byte = (x >> n).toByte
+      def |(x: Byte, y: Byte): Byte = (x | y).toByte
+      def &(x: Byte, y: Byte): Byte = (x & y).toByte
+      def ^(x: Byte, y: Byte): Byte = (x ^ y).toByte
+      def unary_~(x: Byte): Byte    = (~x).toByte
+    }
+    implicit val IntOps: BitOps[Int] = new BitOps[Int] {
+      def zero: Int               = 0
+      def one: Int                = 1
+      def reverse(a: Int): Int    = Integer.reverse(a)
+      def <<(x: Int, n: Int): Int = x << n
+      def >>(x: Int, n: Int): Int = x >> n
+      def |(x: Int, y: Int): Int  = x | y
+      def &(x: Int, y: Int): Int  = x & y
+      def ^(x: Int, y: Int): Int  = x ^ y
+      def unary_~(x: Int): Int    = ~x
+    }
+    implicit val LongOps: BitOps[Long] = new BitOps[Long] {
+      def zero: Long                = 0L
+      def one: Long                 = 1L
+      def reverse(a: Long): Long    = java.lang.Long.reverse(a)
+      def <<(x: Long, n: Int): Long = x << n
+      def >>(x: Long, n: Int): Long = x >> n
+      def |(x: Long, y: Long): Long = x | y
+      def &(x: Long, y: Long): Long = x & y
+      def ^(x: Long, y: Long): Long = x ^ y
+      def unary_~(x: Long): Long    = ~x
+    }
+  }
+
+  private[zio] sealed abstract class BitChunk[T](
+    chunk: Chunk[T],
+    val bits: Int
+  ) extends Chunk[Boolean]
       with ChunkIterator[Boolean] {
     self =>
 
-    override val length: Int =
+    protected val minBitIndex: Int
+    protected val maxBitIndex: Int
+
+    protected val bitsLog2: Int = (log(bits.toDouble) / log(2d)).toInt
+
+    val length: Int =
       maxBitIndex - minBitIndex
 
-    override def apply(n: Int): Boolean =
-      (bytes(n >> 3) & (1 << (7 - (n & 7)))) != 0
+    protected def elementAt(n: Int): T
 
-    override def drop(n: Int): BitChunk = {
+    protected def newBitChunk(chunk: Chunk[T], min: Int, max: Int): BitChunk[T]
+
+    override def drop(n: Int): Chunk[Boolean] = {
       val index  = (minBitIndex + n) min maxBitIndex
-      val toDrop = index >> 3
-      val min    = index & 7
+      val toDrop = index >> bitsLog2
+      val min    = index & bits - 1
       val max    = maxBitIndex - index + min
-      BitChunk(bytes.drop(toDrop), min, max)
+      newBitChunk(chunk.drop(toDrop), min, max)
+    }
+
+    override def take(n: Int): Chunk[Boolean] = {
+      val index  = (minBitIndex + n) min maxBitIndex
+      val toTake = (index + bits - 1) >> bitsLog2
+      newBitChunk(chunk.take(toTake), minBitIndex, index)
     }
 
     override def foreach[A](f: Boolean => A): Unit = {
-      val minByteIndex    = (minBitIndex + 7) >> 3
-      val maxByteIndex    = maxBitIndex >> 3
-      val minFullBitIndex = (minByteIndex << 3) min maxBitIndex
-      val maxFullBitIndex = (maxByteIndex << 3) max minFullBitIndex
+      val minLongIndex    = (minBitIndex + bits - 1) >> bitsLog2
+      val maxLongIndex    = maxBitIndex >> bitsLog2
+      val minFullBitIndex = (minLongIndex << bitsLog2) min maxBitIndex
+      val maxFullBitIndex = (maxLongIndex << bitsLog2) max minFullBitIndex
       var i               = minBitIndex
       while (i < minFullBitIndex) {
-        f(apply(i))
+        f(self.apply(i))
         i += 1
       }
-      i = minByteIndex
-      while (i < maxByteIndex) {
-        val byte = bytes(i)
-        f((byte & 128) != 0)
-        f((byte & 64) != 0)
-        f((byte & 32) != 0)
-        f((byte & 16) != 0)
-        f((byte & 8) != 0)
-        f((byte & 4) != 0)
-        f((byte & 2) != 0)
-        f((byte & 1) != 0)
+      i = minLongIndex
+      while (i < maxLongIndex) {
+        foreachElement(f, elementAt(i))
         i += 1
       }
       i = maxFullBitIndex
       while (i < maxBitIndex) {
-        f(apply(i))
+        f(self.apply(i))
         i += 1
       }
     }
 
-    override def take(n: Int): BitChunk = {
-      val index  = (minBitIndex + n) min maxBitIndex
-      val toTake = (index + 7) >> 3
-      BitChunk(bytes.take(toTake), minBitIndex, index)
-    }
+    protected def foreachElement[A](f: Boolean => A, elem: T): Unit
 
     override def toArray[A1 >: Boolean](n: Int, dest: Array[A1]): Unit = {
       var i = n
       while (i < length) {
-        dest(i + n) = apply(i)
+        dest(i + n) = self.apply(i)
         i += 1
       }
     }
@@ -1798,10 +1959,389 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def nextAt(index: Int): Boolean =
       self(index)
 
+    override def slice(from: Int, until: Int): BitChunk[T] =
+      if (from <= 0 && until >= self.length) self
+      else if (from >= self.length || until <= from) newBitChunk(Chunk.empty, 0, 0)
+      else newBitChunk(chunk, self.minBitIndex + from, self.minBitIndex + until min self.maxBitIndex)
+
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
-      else BitChunk(bytes, self.minBitIndex + offset, self.minBitIndex + offset + length min self.maxBitIndex)
+      else newBitChunk(chunk, self.minBitIndex + offset, self.minBitIndex + offset + length min self.maxBitIndex)
+
+  }
+
+  object BitChunk {
+    sealed trait Endianness
+    object Endianness {
+      case object BigEndian    extends Endianness
+      case object LittleEndian extends Endianness
+    }
+
+  }
+
+  private[zio] final case class BitChunkByte(bytes: Chunk[Byte], minBitIndex: Int, maxBitIndex: Int)
+      extends BitChunk[Byte](bytes, 8) {
+    self =>
+
+    override val length: Int =
+      maxBitIndex - minBitIndex
+
+    override def apply(n: Int): Boolean =
+      (bytes(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
+
+    override protected def elementAt(n: Int): Byte = bytes(n)
+
+    override protected def newBitChunk(bytes: Chunk[Byte], min: Int, max: Int): BitChunk[Byte] =
+      BitChunkByte(bytes, min, max)
+
+    override protected def foreachElement[A](f: Boolean => A, byte: Byte): Unit = {
+      f((byte & 128) != 0)
+      f((byte & 64) != 0)
+      f((byte & 32) != 0)
+      f((byte & 16) != 0)
+      f((byte & 8) != 0)
+      f((byte & 4) != 0)
+      f((byte & 2) != 0)
+      f((byte & 1) != 0)
+      ()
+    }
+
+    override def toPackedByte(implicit ev: Boolean <:< Boolean): Chunk[Byte] =
+      if (minBitIndex == maxBitIndex) Chunk.empty
+      else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Byte](self, bits, BitChunk.Endianness.BigEndian)
+      else if ((maxBitIndex & bits - 1) != 0) {
+        val minByteIndex = minBitIndex >> bitsLog2
+        val maxByteIndex = maxBitIndex >> bitsLog2
+        val maxByte      = bytes(maxByteIndex)
+        val maxByteValue = (maxByte & 0xff) >> bits - (maxBitIndex & bits - 1)
+        bytes.slice(minByteIndex, maxByteIndex) :+ maxByteValue.toByte
+      } else bytes
+
+    private def nthByte(n: Int): Byte = {
+      val offset    = minBitIndex & 7
+      val startByte = minBitIndex >> 3
+      if (offset == 0) {
+        bytes(n + startByte)
+      } else {
+        val leftover = minBitIndex + (n + 1) * 8 - maxBitIndex
+        if (leftover <= 0) {
+          val index  = n + startByte
+          val first  = ((255 >> offset) & bytes(index)) << offset
+          val second = (255 << (8 - offset) & 255 & bytes(index + 1)) >> (8 - offset)
+          (first | second).asInstanceOf[Byte]
+        } else {
+          throw new ArrayIndexOutOfBoundsException(s"There are only $leftover bits left.")
+        }
+      }
+    }
+
+    private def bitwise(that: BitChunkByte, f: (Byte, Byte) => Byte, g: (Boolean, Boolean) => Boolean): BitChunkByte = {
+      val bits      = self.length min that.length
+      val bytes     = bits >> 3
+      val leftovers = bits - bytes * 8
+      val arr = Array.ofDim[Byte](
+        if (leftovers == 0) bytes else bytes + 1
+      )
+
+      (0 until bytes).foreach { n =>
+        arr(n) = f(self.nthByte(n), that.nthByte(n))
+      }
+
+      if (leftovers != 0) {
+        val offset     = bytes * 8
+        var last: Byte = null.asInstanceOf[Byte]
+        var mask       = 128
+        var i          = 0
+        while (i < leftovers) {
+          if (g(self.apply(offset + self.minBitIndex + i), that.apply(offset + that.minBitIndex + i)))
+            last = (last | mask).asInstanceOf[Byte]
+          i += 1
+          mask >>= 1
+        }
+        arr(bytes) = last
+      }
+
+      BitChunkByte(Chunk.fromArray(arr), 0, bits)
+    }
+
+    def and(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l & r).asInstanceOf[Byte], _ && _)
+
+    def &(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l & r).asInstanceOf[Byte], _ && _)
+
+    def or(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l | r).asInstanceOf[Byte], _ || _)
+
+    def |(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l | r).asInstanceOf[Byte], _ || _)
+
+    def xor(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l ^ r).asInstanceOf[Byte], _ ^ _)
+
+    def ^(that: BitChunkByte): BitChunkByte =
+      bitwise(that, (l, r) => (l ^ r).asInstanceOf[Byte], _ ^ _)
+
+    def negate: BitChunkByte = {
+      val bits      = self.length
+      val bytes     = bits >> 3
+      val leftovers = bits - bytes * 8
+
+      val arr = Array.ofDim[Byte](
+        if (leftovers == 0) bytes else bytes + 1
+      )
+
+      (0 until bytes).foreach { n =>
+        arr(n) = (~self.nthByte(n)).asInstanceOf[Byte]
+      }
+
+      if (leftovers != 0) {
+        val offset     = bytes * 8 + self.minBitIndex
+        var last: Byte = null.asInstanceOf[Byte]
+        var mask       = 128
+        var i          = 0
+        while (i < leftovers) {
+          if (!self.apply(offset + i))
+            last = (last | mask).asInstanceOf[Byte]
+          i += 1
+          mask >>= 1
+        }
+        arr(bytes) = last
+      }
+
+      BitChunkByte(Chunk.fromArray(arr), 0, bits)
+    }
+  }
+
+  private[zio] final case class BitChunkInt(
+    ints: Chunk[Int],
+    endianness: BitChunk.Endianness,
+    minBitIndex: Int,
+    maxBitIndex: Int
+  ) extends BitChunk[Int](ints, 32) {
+    self =>
+
+    override val length: Int =
+      maxBitIndex - minBitIndex
+
+    override protected def elementAt(n: Int): Int =
+      respectEndian(endianness, ints(n))
+
+    override def apply(n: Int): Boolean =
+      (elementAt(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
+
+    override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): BitChunk[Int] =
+      BitChunkInt(chunk, endianness, min, max)
+
+    override protected def foreachElement[A](f: Boolean => A, int: Int): Unit = {
+      f((int & 0x80000000) != 0)
+      f((int & 0x40000000) != 0)
+      f((int & 0x20000000) != 0)
+      f((int & 0x10000000) != 0)
+      f((int & 0x8000000) != 0)
+      f((int & 0x4000000) != 0)
+      f((int & 0x2000000) != 0)
+      f((int & 0x1000000) != 0)
+      f((int & 0x800000) != 0)
+      f((int & 0x400000) != 0)
+      f((int & 0x200000) != 0)
+      f((int & 0x100000) != 0)
+      f((int & 0x80000) != 0)
+      f((int & 0x40000) != 0)
+      f((int & 0x20000) != 0)
+      f((int & 0x10000) != 0)
+      f((int & 0x8000) != 0)
+      f((int & 0x4000) != 0)
+      f((int & 0x2000) != 0)
+      f((int & 0x1000) != 0)
+      f((int & 0x800) != 0)
+      f((int & 0x400) != 0)
+      f((int & 0x200) != 0)
+      f((int & 0x100) != 0)
+      f((int & 0x80) != 0)
+      f((int & 0x40) != 0)
+      f((int & 0x20) != 0)
+      f((int & 0x10) != 0)
+      f((int & 0x8) != 0)
+      f((int & 0x4) != 0)
+      f((int & 0x2) != 0)
+      f((int & 0x1) != 0)
+      ()
+    }
+
+    override def toPackedInt(endianness: BitChunk.Endianness)(implicit ev: Boolean <:< Boolean): Chunk[Int] =
+      if (minBitIndex == maxBitIndex) Chunk.empty
+      else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Int](self, bits, endianness)
+      else if ((maxBitIndex & bits - 1) != 0) {
+        val minIntIndex = minBitIndex >> bitsLog2
+        val maxIntIndex = maxBitIndex >> bitsLog2
+        val maxInt      = elementAt(maxIntIndex)
+        val maxIntValue = maxInt >>> bits - (maxBitIndex & bits - 1)
+        val fullInts    = ints.slice(minIntIndex, maxIntIndex)
+
+        if (self.endianness == endianness) fullInts :+ respectEndian(endianness, maxIntValue)
+        else fullInts.map(Integer.reverse) :+ respectEndian(endianness, maxIntValue)
+
+      } else if (self.endianness == endianness) ints
+      else ints.map(Integer.reverse)
+
+    private def respectEndian(endianness: BitChunk.Endianness, bigEndianValue: Int) =
+      if (endianness == BitChunk.Endianness.BigEndian) bigEndianValue
+      else Integer.reverse(bigEndianValue)
+  }
+
+  private[zio] final case class BitChunkLong(
+    longs: Chunk[Long],
+    endianness: BitChunk.Endianness,
+    minBitIndex: Int,
+    maxBitIndex: Int
+  ) extends BitChunk[Long](longs, 64) {
+    self =>
+
+    override protected def elementAt(n: Int): Long =
+      if (endianness == BitChunk.Endianness.BigEndian) longs(n) else java.lang.Long.reverse(longs(n))
+
+    def apply(n: Int): Boolean =
+      (elementAt(n >> bitsLog2) & (1L << (bits - 1 - (n & bits - 1)))) != 0
+
+    override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): BitChunk[Long] =
+      BitChunkLong(longs, endianness, min, max)
+
+    override protected def foreachElement[A](f: Boolean => A, long: Long): Unit = {
+      f((long & 0x8000000000000000L) != 0)
+      f((long & 0x4000000000000000L) != 0)
+      f((long & 0x2000000000000000L) != 0)
+      f((long & 0x1000000000000000L) != 0)
+      f((long & 0x800000000000000L) != 0)
+      f((long & 0x400000000000000L) != 0)
+      f((long & 0x200000000000000L) != 0)
+      f((long & 0x100000000000000L) != 0)
+      f((long & 0x80000000000000L) != 0)
+      f((long & 0x40000000000000L) != 0)
+      f((long & 0x20000000000000L) != 0)
+      f((long & 0x10000000000000L) != 0)
+      f((long & 0x8000000000000L) != 0)
+      f((long & 0x4000000000000L) != 0)
+      f((long & 0x2000000000000L) != 0)
+      f((long & 0x1000000000000L) != 0)
+      f((long & 0x800000000000L) != 0)
+      f((long & 0x400000000000L) != 0)
+      f((long & 0x200000000000L) != 0)
+      f((long & 0x100000000000L) != 0)
+      f((long & 0x80000000000L) != 0)
+      f((long & 0x40000000000L) != 0)
+      f((long & 0x20000000000L) != 0)
+      f((long & 0x10000000000L) != 0)
+      f((long & 0x8000000000L) != 0)
+      f((long & 0x4000000000L) != 0)
+      f((long & 0x2000000000L) != 0)
+      f((long & 0x1000000000L) != 0)
+      f((long & 0x800000000L) != 0)
+      f((long & 0x400000000L) != 0)
+      f((long & 0x200000000L) != 0)
+      f((long & 0x100000000L) != 0)
+      f((long & 0x80000000L) != 0)
+      f((long & 0x40000000L) != 0)
+      f((long & 0x20000000L) != 0)
+      f((long & 0x10000000L) != 0)
+      f((long & 0x8000000L) != 0)
+      f((long & 0x4000000L) != 0)
+      f((long & 0x2000000L) != 0)
+      f((long & 0x1000000L) != 0)
+      f((long & 0x800000L) != 0)
+      f((long & 0x400000L) != 0)
+      f((long & 0x200000L) != 0)
+      f((long & 0x100000L) != 0)
+      f((long & 0x80000L) != 0)
+      f((long & 0x40000L) != 0)
+      f((long & 0x20000L) != 0)
+      f((long & 0x10000L) != 0)
+      f((long & 0x8000L) != 0)
+      f((long & 0x4000L) != 0)
+      f((long & 0x2000L) != 0)
+      f((long & 0x1000L) != 0)
+      f((long & 0x800L) != 0)
+      f((long & 0x400L) != 0)
+      f((long & 0x200L) != 0)
+      f((long & 0x100L) != 0)
+      f((long & 0x80L) != 0)
+      f((long & 0x40L) != 0)
+      f((long & 0x20L) != 0)
+      f((long & 0x10L) != 0)
+      f((long & 0x8L) != 0)
+      f((long & 0x4L) != 0)
+      f((long & 0x2L) != 0)
+      f((long & 0x1L) != 0)
+      ()
+    }
+
+    override def toPackedLong(endianness: BitChunk.Endianness)(implicit ev: Boolean <:< Boolean): Chunk[Long] =
+      if (minBitIndex == maxBitIndex) Chunk.empty
+      else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Long](self, bits, endianness)
+      else if ((maxBitIndex & bits - 1) != 0) {
+        val minLongIndex = minBitIndex >> bitsLog2
+        val maxLongIndex = maxBitIndex >> bitsLog2
+        val maxLong      = elementAt(maxLongIndex)
+        val maxLongValue = maxLong >>> bits - (maxBitIndex & bits - 1)
+        val fullLongs    = longs.slice(minLongIndex, maxLongIndex)
+
+        if (self.endianness == endianness) fullLongs :+ respectEndian(endianness, maxLongValue)
+        else fullLongs.map(java.lang.Long.reverse) :+ respectEndian(endianness, maxLongValue)
+
+      } else if (self.endianness == endianness) longs
+      else longs.map(java.lang.Long.reverse)
+
+    private def respectEndian(endianness: BitChunk.Endianness, bigEndianValue: Long) =
+      if (endianness == BitChunk.Endianness.BigEndian) bigEndianValue
+      else java.lang.Long.reverse(bigEndianValue)
+
+  }
+
+  private[zio] final case class ChunkPackedBoolean[T](
+    unpacked: Chunk[Boolean],
+    bits: Int,
+    endianness: Chunk.BitChunk.Endianness
+  )(implicit val ops: BitOps[T])
+      extends Chunk[T]
+      with ChunkIterator[T] {
+    self =>
+
+    import ops._
+
+    override val length: Int       = unpacked.length / bits + (if (unpacked.length % bits == 0) 0 else 1)
+    private def bitOr0(index: Int) = if (index < unpacked.length && unpacked(index)) one else zero
+    override def apply(n: Int): T =
+      if (n < 0 || n >= length)
+        throw new IndexOutOfBoundsException(s"Packed boolean chunk index $n out of bounds [0, $length)")
+      else {
+        val offset     = n * bits
+        val bitsToRead = if ((n + 1) * bits > unpacked.length) unpacked.length % bits else bits
+        var elem       = zero
+        var i          = bitsToRead - 1
+        while (i >= 0) {
+          val shiftBy = bitsToRead - 1 - i
+          val index   = offset + i
+          val shifted = <<(bitOr0(index), shiftBy)
+          elem = ops.|(elem, shifted)
+          i -= 1
+        }
+
+        if (endianness == BitChunk.Endianness.BigEndian) elem else ops.reverse(elem)
+      }
+
+    override def chunkIterator: ChunkIterator[T] =
+      self
+
+    def hasNextAt(index: Int): Boolean =
+      index < length
+
+    def nextAt(index: Int): T =
+      self(index)
+
+    def sliceIterator(offset: Int, length: Int): ChunkIterator[T] =
+      if (offset < 0 && offset >= this.length) self
+      else ChunkPackedBoolean(unpacked.slice(offset * bits, length * bits), bits, endianness)
   }
 
   private case object Empty extends Chunk[Nothing] { self =>

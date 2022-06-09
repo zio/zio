@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
+
 object ExecutionEventSinkSpec extends ZIOSpecDefault {
   val uuid = SuiteId(0)
 
@@ -46,6 +48,6 @@ object ExecutionEventSinkSpec extends ZIOSpecDefault {
         summary <- ExecutionEventSink.getSummary
       } yield assertTrue(summary.success == 1)
     }
-  ).provide(sinkLayer(zio.Console.ConsoleLive))
+  ).provide(sinkLayer(zio.Console.ConsoleLive, ConsoleEventRenderer))
 
 }

@@ -1,10 +1,10 @@
 package zio.test
 
+import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
-import zio.test.TestAspect.silent
 import zio.test.render.IntelliJRenderer
-import zio.{Scope, ZIO, ZIOAppArgs, ZLayer, Trace}
+import zio.{Chunk, ExecutionStrategy, Scope, Trace, ZIO}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -15,147 +15,134 @@ object IntellijRendererSpec extends ZIOBaseSpec {
         assertZIO(runLog(test1))(equalTo(test1Expected.mkString))
       },
       test("correctly reports a failed test") {
-        assertZIO(runLog(test3))(equalTo(test3Expected.mkString))
+        runLog(test3).map(res => test3Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
       test("correctly reports successful test suite") {
         assertZIO(runLog(suite1))(equalTo(suite1Expected.mkString))
       },
       test("correctly reports failed test suite") {
-        assertZIO(runLog(suite2))(equalTo(suite2Expected.mkString))
+        runLog(suite2).map(res => suite2Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
       test("correctly reports multiple test suites") {
-        assertZIO(runLog(suite3))(equalTo(suite3Expected.mkString))
+        runLog(suite3).map(res => suite3Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
       test("correctly reports empty test suite") {
-        assertZIO(runLog(suite4))(equalTo(suite4Expected.mkString))
+        runLog(suite4).map(res => suite4Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
       test("correctly reports failure of simple assertion") {
-        assertZIO(runLog(test5))(equalTo(test5Expected.mkString))
-      },
-      test("correctly reports multiple nested failures") {
-        assertZIO(runLog(test6))(equalTo(test6Expected.mkString))
+        runLog(test5).map(res => test5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
       test("correctly reports labeled failures") {
-        assertZIO(runLog(test7))(equalTo(test7Expected.mkString))
+        runLog(test7).map(res => test7Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       },
       test("correctly reports negated failures") {
-        runLog(test8).map(str => assertTrue(str == test8Expected.mkString))
+        runLog(test8).map(res => test8Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
       }
-    ) @@ silent @@ TestAspect.ignore
-  // TODO Investigate these expectations once ZIO-intellij plugin is updated
+    ) @@ TestAspect.scala2Only
 
-  def test1Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test1Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFinished("Addition works fine")
   )
 
-  def test2Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test2Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Subtraction works fine"),
     testFinished("Subtraction works fine")
   )
 
-  def test3Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test3Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Value falls within range"),
     testFailed(
       "Value falls within range",
       Vector(
-        withOffset(2)(s"${blue("52")} did not satisfy ${cyan("equalTo(42)")}\n"),
-        withOffset(2)(
-          s"${blue("52")} did not satisfy ${cyan("(") + yellow("equalTo(42)") + cyan(" || (isGreaterThan(5) && isLessThan(10)))")}\n"
-        ),
+        withOffset(2)("✗ 52 was not equal to 42\n"),
+        withOffset(2)("52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))\n"),
         withOffset(2)(assertSourceLocation() + "\n"),
-        "\n",
-        withOffset(2)(s"${blue("52")} did not satisfy ${cyan("isLessThan(10)")}\n"),
-        withOffset(2)(
-          s"${blue("52")} did not satisfy ${cyan("(equalTo(42) || (isGreaterThan(5) && ") + yellow("isLessThan(10)") + cyan("))")}\n"
-        ),
-        withOffset(2)(assertSourceLocation()),
-        "\n"
+        withOffset(2)("✗ 52 was not less than 10\n"),
+        withOffset(2)("52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))\n"),
+        withOffset(2)(assertSourceLocation() + "\n")
       )
     )
   )
 
-  def suite1Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite1Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite1")
   ) ++ test1Expected ++ test2Expected ++
     Vector(
       suiteFinished("Suite1")
     )
 
-  def suite2Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite2Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite2")
   ) ++ test1Expected ++ test2Expected ++ test3Expected ++
     Vector(
       suiteFinished("Suite2")
     )
 
-  def suite3Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite3Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite3")
   ) ++ suite1Expected ++ suite2Expected ++ test3Expected ++ Vector(
     suiteFinished("Suite3")
   )
 
-  def suite4Expected(implicit trace: Trace): Vector[String] = Vector(
+  def suite4Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     suiteStarted("Suite4")
   ) ++ suite1Expected ++ Vector(suiteStarted("Empty"), suiteFinished("Empty")) ++
     test3Expected ++ Vector(suiteFinished("Suite4"))
 
-  def test5Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Addition works fine"),
     testFailed(
       "Addition works fine",
       Vector(
-        withOffset(2)(
-          s"${blue(expressionIfNotRedundant(showExpression(1 + 1), 2))} did not satisfy ${cyan("equalTo(3)")}\n"
-        ),
+        withOffset(2)("✗ 2 was not equal to 3\n"),
+        withOffset(2)("1 + 1 did not satisfy equalTo(3)\n"),
+        withOffset(2)("1 + 1 = 2\n"),
         withOffset(2)(assertSourceLocation()),
         "\n"
       )
     )
   )
 
-  def test6Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test6Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Multiple nested failures"),
     testFailed(
       "Multiple nested failures",
       Vector(
-        withOffset(2)(s"${blue("3")} did not satisfy ${cyan("isGreaterThan(4)")}\n"),
-        withOffset(2)(
-          s"${blue("Some(3)")} did not satisfy ${cyan("isSome(") + yellow("isGreaterThan(4)") + cyan(")")}\n"
-        ),
-        withOffset(2)(
-          s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}\n"
-        ),
+        withOffset(2)("✗ 3 was not greater than 4\n"),
+        withOffset(2)("Right(Some(3)) did not satisfy isRight(isSome(isGreaterThan(4)))\n"),
+        withOffset(2)("isSome = 3\n"),
+        withOffset(2)("isRight = Some(3)\n"),
+        withOffset(2)("Right(Some(3)) = Right(value = Some(3))\n"),
         withOffset(2)(assertSourceLocation()),
         "\n"
       )
     )
   )
 
-  def test7Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test7Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("labeled failures"),
     testFailed(
       "labeled failures",
       Vector(
-        withOffset(2)(s"${blue("0")} did not satisfy ${cyan("equalTo(1)")}\n"),
-        withOffset(2)(
-          s"${blue("`c` = Some(0)")} did not satisfy ${cyan("(isSome(") + yellow("equalTo(1)") + cyan(") ?? \"third\")")}\n"
-        ),
+        withOffset(2)("✗ 0 was not equal to 1\n"),
+        withOffset(2)("third\n"),
+        withOffset(2)("c did not satisfy isSome(equalTo(1)).label(\"third\")\n"),
+        withOffset(2)("isSome = 0\n"),
+        withOffset(2)("c = Some(0)\n"),
         withOffset(2)(assertSourceLocation()),
         "\n"
       )
     )
   )
 
-  def test8Expected(implicit trace: Trace): Vector[String] = Vector(
+  def test8Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     testStarted("Not combinator"),
     testFailed(
       "Not combinator",
       Vector(
-        withOffset(2)(s"${blue("100")} satisfied ${cyan("equalTo(100)")}\n"),
-        withOffset(2)(
-          s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}\n"
-        ),
+        withOffset(2)("✗ 100 was equal to 100\n"),
+        withOffset(2)("100 did not satisfy not(equalTo(100))\n"),
         withOffset(2)(assertSourceLocation()),
         "\n"
       )
@@ -171,45 +158,43 @@ object IntelliJRenderUtils {
   def suiteFinished(name: String): String =
     s"##teamcity[testSuiteFinished name='$name']" + "\n"
 
-  def testStarted(name: String)(implicit trace: Trace): String = {
-    val location = Option(trace).collect { case Trace(_, file, line) =>
-      (file, line)
-    }
-
-    val loc = location.fold("") { case (file, line) => s"file://$file:$line" }
-    s"##teamcity[testStarted name='$name' locationHint='$loc']" + "\n"
-  }
+  def testStarted(name: String)(implicit sourceLocation: SourceLocation): String =
+    s"##teamcity[testStarted name='$name' locationHint='file://${sourceLocation.path}:${sourceLocation.line}' captureStandardOutput='true']" + "\n"
 
   def testFinished(name: String): String =
-    s"##teamcity[testFinished name='$name' duration='']" + "\n"
+    s"##teamcity[testFinished name='$name' duration='0']" + "\n"
 
   def testFailed(name: String, error: Vector[String]): String =
     s"##teamcity[testFailed name='$name' message='Assertion failed:' details='${escape(error.mkString)}']" + "\n"
 
-  // TODO de-dup layer creation
+  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult =
+    assertTrue(unstyled(string).contains(unstyled(substring)))
+
+  def unstyled(str: String): String =
+    str
+      .replaceAll("\u001B\\|\\[\\d+m", "")
+      .replaceAll("\\|n", "\n")
+
+  object TestRenderer extends ReporterEventRenderer {
+    override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] = {
+      val event = executionEvent match {
+        case t @ ExecutionEvent.Test(_, _, _, _, _, _) => t.copy(duration = 0L)
+        case other                                     => other
+      }
+      Chunk.fromIterable(
+        IntelliJRenderer
+          .render(event, includeCause = false)
+      )
+    }
+  }
+
   def runLog(
     spec: Spec[TestEnvironment, String]
-  )(implicit trace: Trace): ZIO[TestEnvironment with Scope, Nothing, String] =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment with Scope, Nothing, String] =
     for {
-      _ <-
-        IntelliJTestRunner(testEnvironment)
-          .run(spec)
-          .provideLayer[Nothing, TestEnvironment with Scope](
-            TestClock.default ++ sinkLayer(zio.Console.ConsoleLive)
-          )
+      console <- ZIO.console
+      _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))
+             .run(spec, ExecutionStrategy.Sequential) // to ensure deterministic output
       output <- TestConsole.output
     } yield output.mkString
-
-  private[this] def IntelliJTestRunner(
-    testEnvironment: ZLayer[Scope, Nothing, TestEnvironment]
-  )(implicit trace: Trace) =
-    TestRunner[TestEnvironment, String](
-      executor = TestExecutor.default[TestEnvironment, String](
-        Scope.default >>> testEnvironment,
-        (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
-        sinkLayer(zio.Console.ConsoleLive),
-        _ => ZIO.unit // Does Intellij need to report events?
-      ),
-      reporter = DefaultTestReporter(IntelliJRenderer, TestAnnotationRenderer.default)
-    )
 }

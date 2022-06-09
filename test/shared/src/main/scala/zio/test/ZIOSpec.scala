@@ -17,6 +17,7 @@
 package zio.test
 
 import zio._
+import zio.internal.stacktracer.SourceLocation
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract with ZIOSpecVersionSpecific[R] { self =>
@@ -31,12 +32,14 @@ abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract with ZIOSpecVe
     assertion: => In
   )(implicit
     testConstructor: TestConstructor[Nothing, In],
+    sourceLocation: SourceLocation,
     trace: Trace
   ): testConstructor.Out =
     zio.test.test(label)(assertion)
 
   def suite[In](label: String)(specs: In*)(implicit
     suiteConstructor: SuiteConstructor[In],
+    sourceLocation: SourceLocation,
     trace: Trace
   ): Spec[suiteConstructor.OutEnvironment, suiteConstructor.OutError] =
     zio.test.suite(label)(specs: _*)

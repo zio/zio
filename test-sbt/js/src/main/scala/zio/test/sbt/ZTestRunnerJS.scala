@@ -94,7 +94,7 @@ sealed class ZTestTask(
         ZIO.consoleWith { console =>
           (for {
             summary <- spec
-                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, zio.Console.ConsoleLive)
+                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
             _ <- sendSummary.provide(ZLayer.succeed(summary))
             // TODO Confirm if/how these events needs to be handled in #6481
             //    Check XML behavior
@@ -115,7 +115,7 @@ sealed class ZTestTask(
                  }
           } yield ())
             .provideLayer(
-              sharedFilledTestlayer(console)
+              sharedFilledTestLayer
             )
         }
       logic

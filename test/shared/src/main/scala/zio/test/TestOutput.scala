@@ -70,7 +70,7 @@ object TestOutput {
         sectionOutput <- getAndRemoveSectionOutput(end.id).map(_ :+ end)
         _ <-
           if (suiteIsPrinting)
-            printToConsole(sectionOutput)
+            print(sectionOutput)
           else {
             end.ancestors.headOption match {
               case Some(parentId) =>
@@ -96,7 +96,7 @@ object TestOutput {
           if (suiteIsPrinting) {
             for {
               globalOutput <- getAndRemoveSectionOutput(SuiteId.global)
-              _            <- printToConsole(globalOutput)
+              _            <- print(globalOutput)
             } yield ()
 
           } else {
@@ -116,12 +116,12 @@ object TestOutput {
         _ <- ZIO.when(suiteIsPrinting)(
                for {
                  currentOutput <- getAndRemoveSectionOutput(reporterEvent.id)
-                 _             <- printToConsole(currentOutput)
+                 _             <- print(currentOutput)
                } yield ()
              )
       } yield ()
 
-    private def printToConsole(events: Chunk[ExecutionEvent]) =
+    private def print(events: Chunk[ExecutionEvent]) =
       ZIO.foreachDiscard(events) { event =>
         executionEventPrinter.print(event)
       }

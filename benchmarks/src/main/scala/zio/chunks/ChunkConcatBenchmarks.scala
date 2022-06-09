@@ -8,6 +8,8 @@ import java.util.concurrent.TimeUnit
 @State(Scope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 10)
+@Measurement(iterations = 10, time = 10)
 class ChunkConcatBenchmarks {
 
   val chunk: Chunk[Int] = Chunk.empty

@@ -227,6 +227,17 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
     catchAll(e => ZLayer.fail(f(e)))
 
   /**
+   * Returns a layer with its full cause of failure mapped using the specified
+   * function. This can be used to transform errors while preserving the
+   * original structure of `Cause`.
+   *
+   * @see
+   *   [[catchAllCause]]
+   */
+  final def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZLayer[RIn, E2, ROut] =
+    self.foldCauseLayer(c => ZLayer.failCause(h(c)), a => ZLayer.succeedEnvironment(a))
+
+  /**
    * Returns a scoped effect that, if evaluated, will return the lazily computed
    * result of this layer.
    */
@@ -322,7 +333,7 @@ sealed abstract class ZLayer[-RIn, +E, +ROut] { self =>
   final def toRuntime(implicit ev: Any <:< RIn, trace: Trace): ZIO[Scope, E, Runtime[ROut]] =
     for {
       scope       <- ZIO.scope
-      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.upcast(ev))
+      layer        = ZLayer.succeedEnvironment(ZEnvironment.empty.asInstanceOf[ZEnvironment[RIn]])
       environment <- (layer >>> self).build(scope)
       runtime     <- ZIO.runtime[ROut].provideEnvironment(environment)
     } yield runtime
