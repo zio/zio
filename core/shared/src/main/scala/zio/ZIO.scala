@@ -764,7 +764,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]] { (fiberState, status) =>
-      ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, status.runtimeFlags))
+      ZIO.succeedNow(ZIO.unsafeFork(trace, self, fiberState, status.runtimeFlags))
     }
 
   /**
@@ -2466,10 +2466,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
     val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
-    childFiber.unsafeForeachSupervisor { supervisor =>
-      // Call the supervisor who can observe the fork of the child fiber
-      val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
+    // Call the supervisor who can observe the fork of the child fiber
+    val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
 
+    childFiber.unsafeForeachSupervisor { supervisor =>
       supervisor.unsafeOnStart(
         childEnvironment,
         effect.asInstanceOf[ZIO[Any, Any, Any]],

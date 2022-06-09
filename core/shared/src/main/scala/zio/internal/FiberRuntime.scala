@@ -202,103 +202,114 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   ): EvaluationSignal = {
     assert(running.get == true)
 
-    var effect      = effect0
-    var stack       = stack0
-    var signal      = EvaluationSignal.Continue: EvaluationSignal
-    var trampolines = 0
-    var ops         = 0
-
-    while (effect ne null) {
-      try {
-        val exit =
-          try {
-            Exit.succeed(runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A])
-          } catch {
-            case zioError: ZIOError =>
-              Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
-          }
-
-        val interruption = unsafeInterruptAllChildren()
-
-        if (interruption == null) {
-          if (queue.isEmpty) {
-            // No more messages to process, so we will allow the fiber to end life:
-            self.unsafeSetDone(exit)
-          } else {
-            // There are messages, possibly added by the final op executed by
-            // the fiber. To be safe, we should execute those now before we
-            // allow the fiber to end life:
-            tell(FiberMessage.Resume(ZIO.done(exit), Chunk.empty))
-          }
-
-          effect = null
-        } else {
-          _runtimeFlags = _runtimeFlags.enable(RuntimeFlag.WindDown)
-
-          effect = interruption *> ZIO.done(exit)
-          stack = Chunk.empty
-        }
-      } catch {
-        case trampoline: Trampoline =>
-          trampolines = trampolines + 1
-
-          if (!trampoline.forceYield && (trampolines < FiberRuntime.MaxTrampolinesBeforeYield)) {
-            effect = trampoline.effect
-            stack = trampoline.stack.result()
-          } else {
-            tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
-
-            effect = null
-            signal = EvaluationSignal.Yield
-          }
-
-        case asyncJump: AsyncJump =>
-          val nextStack     = asyncJump.stack.result()
-          val alreadyCalled = new AtomicBoolean(false)
-
-          // Store the stack & runtime flags inside the heap so we can access this information during suspension:
-          self.suspendedStatus = Fiber.Status.Suspended(nextStack, _runtimeFlags, asyncJump.trace, asyncJump.blockingOn)
-
-          val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
-            if (alreadyCalled.compareAndSet(false, true)) {
-              tell(FiberMessage.Resume(effect, nextStack))
-            }
-          }
-
-          if (_runtimeFlags.interruptible) unsafeAddInterruptor(callback)
-
-          // FIXME: registerCallback throws
-          asyncJump.registerCallback(callback)
-
-          effect = null
-
-        case traceGen: GenerateTrace =>
-          val nextStack = traceGen.stack.result()
-          val builder   = StackTraceBuilder.unsafeMake()
-
-          nextStack.foreach(k => builder += k.trace)
-
-          builder += id.location
-
-          val trace = StackTrace(self.fiberId, builder.result())
-
-          effect = ZIO.succeed(trace)(Trace.empty)
-          stack = nextStack
-
-        case t: Throwable => // FIXME: Non-fatal
-          // No error should escape to this level.
-          self.unsafeLog(
-            () => s"An unhandled error was encountered while executing ${id.threadName}",
-            Cause.die(t),
-            ZIO.someError,
-            Trace.empty
-          )
-
-          effect = null
-      }
+    unsafeGetSupervisors().foreach { supervisor =>
+      supervisor.unsafeOnResume(self)
     }
 
-    signal
+    try {
+      var effect      = effect0
+      var stack       = stack0
+      var signal      = EvaluationSignal.Continue: EvaluationSignal
+      var trampolines = 0
+      var ops         = 0
+
+      while (effect ne null) {
+        try {
+          val exit =
+            try {
+              Exit.succeed(runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A])
+            } catch {
+              case zioError: ZIOError =>
+                Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
+            }
+
+          val interruption = unsafeInterruptAllChildren()
+
+          if (interruption == null) {
+            if (queue.isEmpty) {
+              // No more messages to process, so we will allow the fiber to end life:
+              self.unsafeSetDone(exit)
+            } else {
+              // There are messages, possibly added by the final op executed by
+              // the fiber. To be safe, we should execute those now before we
+              // allow the fiber to end life:
+              tell(FiberMessage.Resume(ZIO.done(exit), Chunk.empty))
+            }
+
+            effect = null
+          } else {
+            _runtimeFlags = _runtimeFlags.enable(RuntimeFlag.WindDown)
+
+            effect = interruption *> ZIO.done(exit)
+            stack = Chunk.empty
+          }
+        } catch {
+          case trampoline: Trampoline =>
+            trampolines = trampolines + 1
+
+            if (!trampoline.forceYield && (trampolines < FiberRuntime.MaxTrampolinesBeforeYield)) {
+              effect = trampoline.effect
+              stack = trampoline.stack.result()
+            } else {
+              tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
+
+              effect = null
+              signal = EvaluationSignal.Yield
+            }
+
+          case asyncJump: AsyncJump =>
+            val nextStack     = asyncJump.stack.result()
+            val alreadyCalled = new AtomicBoolean(false)
+
+            // Store the stack & runtime flags inside the heap so we can access this information during suspension:
+            self.suspendedStatus =
+              Fiber.Status.Suspended(nextStack, _runtimeFlags, asyncJump.trace, asyncJump.blockingOn)
+
+            val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
+              if (alreadyCalled.compareAndSet(false, true)) {
+                tell(FiberMessage.Resume(effect, nextStack))
+              }
+            }
+
+            if (_runtimeFlags.interruptible) unsafeAddInterruptor(callback)
+
+            // FIXME: registerCallback throws
+            asyncJump.registerCallback(callback)
+
+            effect = null
+
+          case traceGen: GenerateTrace =>
+            val nextStack = traceGen.stack.result()
+            val builder   = StackTraceBuilder.unsafeMake()
+
+            nextStack.foreach(k => builder += k.trace)
+
+            builder += id.location
+
+            val trace = StackTrace(self.fiberId, builder.result())
+
+            effect = ZIO.succeed(trace)(Trace.empty)
+            stack = nextStack
+
+          case t: Throwable => // FIXME: Non-fatal
+            // No error should escape to this level.
+            self.unsafeLog(
+              () => s"An unhandled error was encountered while executing ${id.threadName}",
+              Cause.die(t),
+              ZIO.someError,
+              Trace.empty
+            )
+
+            effect = null
+        }
+      }
+
+      signal
+    } finally {
+      unsafeGetSupervisors().foreach { supervisor =>
+        supervisor.unsafeOnSuspend(self)
+      }
+    }
   }
 
   override final def run(): Unit = drainQueueOnCurrentThread()
@@ -403,6 +414,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     }
 
     while (cur ne null) {
+      if (runtimeFlags.isEnabled(RuntimeFlag.OpSupervision)) {
+        self.unsafeGetSupervisors().foreach { supervisor =>
+          supervisor.unsafeOnEffect(self, cur)
+        }
+      }
+
       val nextTrace = cur.trace
       if (nextTrace ne Trace.empty) lastTrace = nextTrace
 
@@ -716,6 +733,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   final def unsafeGetReportFatal(): Throwable => Nothing =
     unsafeGetFiberRef(FiberRef.currentReportFatal)
+
+  private def unsafeGetSupervisors(): Set[Supervisor[Any]] =
+    unsafeGetFiberRef(FiberRef.currentSupervisors)
 
   final def unsafeIsFatal(t: Throwable): Boolean =
     unsafeGetFiberRef(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
