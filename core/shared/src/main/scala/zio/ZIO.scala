@@ -763,9 +763,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]]((fiberState, status) =>
+    ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]] { (fiberState, status) =>
       ZIO.succeed(ZIO.unsafeFork(trace, self, fiberState, status.runtimeFlags))
-    )
+    }
 
   /**
    * Forks the effect in the specified scope. The fiber will be interrupted when

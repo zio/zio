@@ -451,34 +451,45 @@ object RuntimeBootstrapTests {
       )
     }
 
+  def interruptibleHole() =
+    test("child becoming interruptible is interrupted due to auto-supervision of uninterruptible parent") {
+      for {
+        latch <- Promise.make[Nothing, Unit]
+        child  = ZIO.infinity.interruptible.onInterrupt(latch.succeed(())).fork
+        _     <- child.fork.uninterruptible
+        _     <- latch.await
+      } yield assert(true)
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-    asyncInterruptionOfNever()
-    interruptRacedForks()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
-    disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-    interruptionDetection()
-    interruptionRecovery()
-    cooperativeYielding()
-    interruptionOfForkedRace()
-    stackTrace1()
-    stackTrace2()
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    // asyncInterruptionOfNever()
+    // interruptRacedForks()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
+    // disconnectedInterruption()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
+    // interruptionDetection()
+    // interruptionRecovery()
+    // cooperativeYielding()
+    // interruptionOfForkedRace()
+    // stackTrace1()
+    // stackTrace2()
+    interruptibleHole()
   }
 
 }

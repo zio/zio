@@ -221,7 +221,15 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         val interruption = unsafeInterruptAllChildren()
 
         if (interruption == null) {
-          self.unsafeSetDone(exit)
+          if (queue.isEmpty) {
+            // No more messages to process, so we will allow the fiber to end life:
+            self.unsafeSetDone(exit)
+          } else {
+            // There are messages, possibly added by the final op executed by
+            // the fiber. To be safe, we should execute those now before we
+            // allow the fiber to end life:
+            tell(FiberMessage.Resume(ZIO.done(exit), Chunk.empty))
+          }
 
           effect = null
         } else {
