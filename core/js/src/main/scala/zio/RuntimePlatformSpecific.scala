@@ -78,6 +78,6 @@ private[zio] trait RuntimePlatformSpecific {
     Set(logger.filterLogLevel(_ >= LogLevel.Info))
   }
 
-  final val defaultSupervisors: Set[Supervisor[Any]] =
-    Set.empty
+  final val defaultSupervisor: Supervisor[Any] =
+    Supervisor.none
 }

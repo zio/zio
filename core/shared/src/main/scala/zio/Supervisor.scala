@@ -47,41 +47,8 @@ abstract class Supervisor[+A] { self =>
    * the function of the specified supervisor, producing a tuple of the outputs
    * produced by both supervisors.
    */
-  final def ++[B](that0: Supervisor[B]): Supervisor[(A, B)] =
-    new Supervisor[(A, B)] {
-      lazy val that = that0
-
-      def value(implicit trace: Trace) = self.value zip that.value
-
-      def unsafeOnStart[R, E, A](
-        environment: ZEnvironment[R],
-        effect: ZIO[R, E, A],
-        parent: Option[Fiber.Runtime[Any, Any]],
-        fiber: Fiber.Runtime[E, A]
-      ): Unit =
-        try self.unsafeOnStart(environment, effect, parent, fiber)
-        finally that.unsafeOnStart(environment, effect, parent, fiber)
-
-      def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = {
-        self.unsafeOnEnd(value, fiber)
-        that.unsafeOnEnd(value, fiber)
-      }
-
-      override def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit = {
-        self.unsafeOnEffect(fiber, effect)
-        that.unsafeOnEffect(fiber, effect)
-      }
-
-      override def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit = {
-        self.unsafeOnSuspend(fiber)
-        that.unsafeOnSuspend(fiber)
-      }
-
-      override def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = {
-        self.unsafeOnResume(fiber)
-        that.unsafeOnResume(fiber)
-      }
-    }
+  final def ++[B](that: Supervisor[B]): Supervisor[(A, B)] =
+    Supervisor.Zip(self, that)
 
   def unsafeOnStart[R, E, A](
     environment: ZEnvironment[R],
@@ -99,6 +66,7 @@ abstract class Supervisor[+A] { self =>
   def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = ()
 }
 object Supervisor {
+
   import zio.internal._
 
   /**
@@ -216,4 +184,109 @@ object Supervisor {
     override def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit =
       underlying.unsafeOnResume(fiber)
   }
+
+  sealed trait Patch { self =>
+    import Patch._
+
+    /**
+     * Applies an update to the supervisor to produce a new supervisor.
+     */
+    def apply(supervisor: Supervisor[Any]): Supervisor[Any] = {
+
+      def loop(supervisor: Supervisor[Any], patches: List[Patch]): Supervisor[Any] =
+        patches match {
+          case AddSupervisor(added) :: patches      => loop(supervisor ++ added, patches)
+          case AndThen(first, second) :: patches    => loop(supervisor, first :: second :: patches)
+          case Empty :: patches                     => loop(supervisor, patches)
+          case RemoveSupervisor(removed) :: patches => loop(removeSupervisor(supervisor, removed), patches)
+          case Nil                                  => supervisor
+        }
+
+      loop(supervisor, List.empty)
+    }
+
+    /**
+     * Combines two patches to produce a new patch that describes applying the
+     * updates from this patch and then the updates from the specified patch.
+     */
+    def combine(that: Patch): Patch =
+      AndThen(self, that)
+  }
+
+  object Patch {
+
+    /**
+     * Constructs a patch that describes the updates necessary to transform the
+     * specified old environment into the specified new environment.
+     */
+    def diff(oldValue: Supervisor[Any], newValue: Supervisor[Any]): Patch =
+      if (oldValue == newValue) Empty
+      else {
+        val oldSupervisors = supervisors(oldValue)
+        val newSupervisors = supervisors(newValue)
+        val added = newSupervisors
+          .diff(oldSupervisors)
+          .foldLeft(empty)((patch, supervisor) => patch.combine(AddSupervisor(supervisor)))
+        val removed = oldSupervisors
+          .diff(newSupervisors)
+          .foldLeft(empty)((patch, supervisor) => patch.combine(RemoveSupervisor(supervisor)))
+        added.combine(removed)
+      }
+
+    val empty: Patch =
+      Empty
+
+    private final case class AddSupervisor(supervisor: Supervisor[Any])    extends Patch
+    private final case class AndThen(first: Patch, second: Patch)          extends Patch
+    private final case object Empty                                        extends Patch
+    private final case class RemoveSupervisor(supervisor: Supervisor[Any]) extends Patch
+  }
+
+  private final case class Zip[A, B](left: Supervisor[A], right: Supervisor[B]) extends Supervisor[(A, B)] {
+
+    def value(implicit trace: Trace) = left.value zip right.value
+
+    def unsafeOnStart[R, E, A](
+      environment: ZEnvironment[R],
+      effect: ZIO[R, E, A],
+      parent: Option[Fiber.Runtime[Any, Any]],
+      fiber: Fiber.Runtime[E, A]
+    ): Unit =
+      try left.unsafeOnStart(environment, effect, parent, fiber)
+      finally right.unsafeOnStart(environment, effect, parent, fiber)
+
+    def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit = {
+      left.unsafeOnEnd(value, fiber)
+      right.unsafeOnEnd(value, fiber)
+    }
+
+    override def unsafeOnEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _]): Unit = {
+      left.unsafeOnEffect(fiber, effect)
+      right.unsafeOnEffect(fiber, effect)
+    }
+
+    override def unsafeOnSuspend[E, A](fiber: Fiber.Runtime[E, A]): Unit = {
+      left.unsafeOnSuspend(fiber)
+      right.unsafeOnSuspend(fiber)
+    }
+
+    override def unsafeOnResume[E, A](fiber: Fiber.Runtime[E, A]): Unit = {
+      left.unsafeOnResume(fiber)
+      right.unsafeOnResume(fiber)
+    }
+  }
+
+  private def removeSupervisor(self: Supervisor[Any], that: Supervisor[Any]): Supervisor[Any] =
+    if (self == that) Supervisor.none
+    else
+      self match {
+        case Zip(left, right) => removeSupervisor(left, that) ++ removeSupervisor(right, that)
+        case supervisor       => supervisor
+      }
+
+  private def supervisors(supervisor: Supervisor[Any]): Set[Supervisor[Any]] =
+    supervisor match {
+      case Zip(left, right) => supervisors(left) ++ supervisors(right)
+      case supervisor       => Set(supervisor)
+    }
 }

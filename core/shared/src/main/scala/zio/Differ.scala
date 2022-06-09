@@ -187,6 +187,21 @@ object Differ {
     }
 
   /**
+   * Constructs a differ that knows how to diff `Supervisor` values.
+   */
+  def supervisor: Differ[Supervisor[Any], Supervisor.Patch] =
+    new Differ[Supervisor[Any], Supervisor.Patch] {
+      def combine(first: Supervisor.Patch, second: Supervisor.Patch): Supervisor.Patch =
+        first.combine(second)
+      def diff(oldValue: Supervisor[Any], newValue: Supervisor[Any]): Supervisor.Patch =
+        Supervisor.Patch.diff(oldValue, newValue)
+      def empty: Supervisor.Patch =
+        Supervisor.Patch.empty
+      def patch(patch: Supervisor.Patch)(oldValue: Supervisor[Any]): Supervisor[Any] =
+        patch(oldValue)
+    }
+
+  /**
    * Constructs a differ that just diffs two values by returning a function that
    * sets the value to the new value. This differ does not support combining
    * multiple updates to the value compositionally and should only be used when

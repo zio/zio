@@ -195,12 +195,12 @@ trait Runtime[+R] { self =>
 
     FiberScope.global.unsafeAdd(runtimeFlags, fiber)
 
-    fiber.unsafeForeachSupervisor { supervisor =>
-      if (supervisor != Supervisor.none) {
-        supervisor.unsafeOnStart(environment, zio, None, fiber)
+    val supervisor = fiber.unsafeGetSupervisor()
 
-        fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
-      }
+    if (supervisor != Supervisor.none) {
+      supervisor.unsafeOnStart(environment, zio, None, fiber)
+
+      fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
     }
 
     fiber.unsafeAddObserver { exit =>
@@ -226,7 +226,7 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ + logger))
 
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.currentSupervisors.locallyScopedWith(_ + supervisor))
+    ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_ ++ supervisor))
 
   /**
    * Builds a new runtime given an environment `R` and a [[zio.FiberRefs]].
