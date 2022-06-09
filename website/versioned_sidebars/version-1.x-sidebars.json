@@ -40,7 +40,7 @@
       "version-1.x/datatypes/contextual/urlayer",
       "version-1.x/datatypes/contextual/tasklayer"
     ],
-    "Fiber Primitives": [
+    "Fiversion-1.x/ber Primitives": [
       "version-1.x/datatypes/fiber/index",
       "version-1.x/datatypes/fiber/fiber",
       "version-1.x/datatypes/fiber/fiberref",
@@ -108,31 +108,17 @@
       "version-1.x/services/system"
     ]
   },
-  "guides-sidebar": {
-    "Overview": [
-      "version-1.x/guides/index"
-    ],
-    "Guides": [
-      "version-1.x/guides/use-test-assertions",
-      "version-1.x/guides/test-effects",
-      "version-1.x/guides/mock-services",
-      "version-1.x/guides/handle-errors",
-      "version-1.x/guides/access-system-information",
-      "version-1.x/guides/use-zio-macros"
-    ],
-    "Interop": [
-      "version-1.x/guides/interop/with-cats-effect",
-      "version-1.x/guides/interop/with-future",
-      "version-1.x/guides/interop/with-java",
-      "version-1.x/guides/interop/with-javascript",
-      "version-1.x/guides/interop/with-monix",
-      "version-1.x/guides/interop/with-scalaz-7x",
-      "version-1.x/guides/interop/with-reactive-streams",
-      "version-1.x/guides/interop/with-twitter",
-      "version-1.x/guides/interop/with-guava"
-    ],
-    "Migrate": [
-      "version-1.x/guides/migrate/from-monix"
+  "usecases-sidebar": {
+    "Use Cases": [
+      "version-1.x/usecases/usecases_index",
+      "version-1.x/usecases/usecases_asynchronous",
+      "version-1.x/usecases/usecases_concurrency",
+      "version-1.x/usecases/usecases_parallelism",
+      "version-1.x/usecases/usecases_queueing",
+      "version-1.x/usecases/usecases_retrying",
+      "version-1.x/usecases/usecases_scheduling",
+      "version-1.x/usecases/usecases_streaming",
+      "version-1.x/usecases/usecases_testing"
     ]
   },
   "resources-sidebar": {
@@ -156,11 +142,12 @@
     ]
   },
   "about-sidebar": {
-    "About": [
-      "version-1.x/about/about_index",
-      "version-1.x/about/about_coding_guidelines",
-      "version-1.x/about/about_contributing",
-      "version-1.x/about/about_coc"
-    ]
+      "About": [
+          "version-1.x/about/about_index",
+          "version-1.x/about/about_coding_guidelines",
+          "version-1.x/about/about_contributing",
+          "version-1.x/about/about_coc"
+      ]
   }
 }
+

@@ -3,7 +3,7 @@ module.exports = {
   tagline: 'Type-safe, composable asynchronous and concurrent programming for Scala',
   url: 'https://zio.dev',
   baseUrl: '/',
-  onBrokenLinks: 'throw',
+  onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.png',
   organizationName: 'zio',
@@ -29,7 +29,7 @@ module.exports = {
       items: [
         { to: 'version-1.x/overview/', label: 'Overview', position: 'right' },
         { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
-        { to: 'version-1.x/guides/', label: 'Guides', position: 'right' },
+        { to: 'next/guides/', label: 'Guides', position: 'right' },
         { to: 'version-1.x/resources/', label: 'Resources', position: 'right' },
         { to: 'version-1.x/about/', label: 'About', position: 'right' },
         {
