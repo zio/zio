@@ -88,7 +88,7 @@ object ScopedRef {
             exit     <- restore(acquire.provideSomeEnvironment[R](_.add[Scope](newScope))).exit
             result <- exit match {
                         case Exit.Failure(cause) =>
-                          newScope.close(Exit.unit).ignore.as(ZIO.failCause(cause) -> (oldScope -> a))
+                          newScope.close(Exit.unit).ignore.as(ZIO.refailCause(cause) -> (oldScope -> a))
                         case Exit.Success(a) => oldScope.close(Exit.unit).ignore.as(ZIO.unit -> (newScope -> a))
                       }
           } yield result

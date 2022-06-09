@@ -721,7 +721,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           pull        <- self.toPull
           _ <- pull
                  .foldCauseZIO(
-                   cause => queue.offer(ZIO.failCause(cause)),
+                   cause => queue.offer(ZIO.refailCause(cause)),
                    {
                      case Left(outDone) =>
                        permits.withPermits(n.toLong)(ZIO.unit).interruptible *> queue.offer(ZIO.succeed(Left(outDone)))
@@ -958,7 +958,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             case ChannelState.Done =>
               exec.getDone match {
                 case Exit.Success(done)  => ZIO.succeed(Left(done))
-                case Exit.Failure(cause) => ZIO.failCause(cause)
+                case Exit.Failure(cause) => ZIO.refailCause(cause)
               }
             case ChannelState.Emit =>
               ZIO.succeed(Right(exec.getEmit))
@@ -1502,12 +1502,14 @@ object ZChannel {
                                  }
                                case None => ZIO.unit
                              }
-                             .catchAllCause(cause => queue.offer(ZIO.failCause(cause)) *> errorSignal.succeed(()).unit)
+                             .catchAllCause(cause =>
+                               queue.offer(ZIO.refailCause(cause)) *> errorSignal.succeed(()).unit
+                             )
           _ <- pull
                  .foldCauseZIO(
                    cause =>
                      getChildren
-                       .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause)).as(false),
+                       .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.refailCause(cause)).as(false),
                    {
                      case Left(outDone) =>
                        errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
@@ -1822,7 +1824,7 @@ object ZChannel {
           ZIO.uninterruptibleMask { restore =>
             restore(scope.extend[R](zio))
               .foldCauseZIO(
-                cause => scope.close(Exit.failCause(cause)) *> ZIO.failCause(cause),
+                cause => scope.close(Exit.failCause(cause)) *> ZIO.refailCause(cause),
                 { case out => ZIO.succeedNow((out, scope)) }
               )
           }

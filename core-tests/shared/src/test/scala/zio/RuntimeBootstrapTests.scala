@@ -423,7 +423,7 @@ object RuntimeBootstrapTests {
       t <- firstLevelCallStackFail
     } yield t
 
-  def stackTrace() =
+  def stackTrace1() =
     test("stack trace 1") {
       for {
         trace <- stackTraceTest1
@@ -437,33 +437,43 @@ object RuntimeBootstrapTests {
       )
     }
 
+  def stackTrace2() =
+    test("stack trace 2") {
+      for {
+        cause <- stackTraceTest2.sandbox.flip
+        trace  = cause.trace
+        _     <- ZIO.debug(cause.prettyPrint)
+      } yield assert(true)
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-    asyncInterruptionOfNever()
-    interruptRacedForks()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
-    disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-    interruptionDetection()
-    interruptionRecovery()
-    cooperativeYielding()
-    interruptionOfForkedRace()
-    stackTrace()
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    // asyncInterruptionOfNever()
+    // interruptRacedForks()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
+    // disconnectedInterruption()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
+    // interruptionDetection()
+    // interruptionRecovery()
+    // cooperativeYielding()
+    // interruptionOfForkedRace()
+    // stackTrace1()
+    stackTrace2()
   }
 
 }

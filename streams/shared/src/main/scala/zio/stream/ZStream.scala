@@ -1062,7 +1062,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                            {
                              // we ignore all downstream queues that were shut down and remove them later
                              case c if c.isInterrupted => ZIO.succeedNow(id :: acc)
-                             case c                    => ZIO.failCause(c)
+                             case c                    => ZIO.refailCause(c)
                            },
                            _ => ZIO.succeedNow(acc)
                          )
@@ -2283,7 +2283,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * effect will not be interrupted.
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any])(implicit trace: Trace): ZStream[R1, E, A] =
-    catchAllCause(cause => ZStream.fromZIO(cleanup(cause) *> ZIO.failCause(cause)))
+    catchAllCause(cause => ZStream.fromZIO(cleanup(cause) *> ZIO.refailCause(cause)))
 
   /**
    * Locks the execution of this stream to the specified executor. Any streams
@@ -3098,7 +3098,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def tapErrorCause[R1 <: R, E1 >: E](
     f: Cause[E] => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZStream[R1, E1, A] =
-    catchAllCause(e => ZStream.fromZIO(f(e) *> ZIO.failCause(e)))
+    catchAllCause(e => ZStream.fromZIO(f(e) *> ZIO.refailCause(e)))
 
   /**
    * Sends all elements emitted by this stream to the specified sink in addition
@@ -4050,7 +4050,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * The stream that always fails with `cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace: Trace): ZStream[Any, E, Nothing] =
-    fromZIO(ZIO.failCause(cause))
+    fromZIO(ZIO.refailCause(cause))
 
   /**
    * Creates a one-element stream that never fails and executes the finalizer
@@ -5342,7 +5342,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       d.take.flatMap(_.done)
     def fail[E](e: E)(implicit trace: Trace): IO[Option[E], Nothing] = ZIO.fail(Some(e))
     def failCause[E](c: Cause[E])(implicit trace: Trace): IO[Option[E], Nothing] =
-      ZIO.failCause(c).mapError(Some(_))
+      ZIO.refailCause(c).mapError(Some(_))
     def empty[A](implicit trace: Trace): IO[Nothing, Chunk[A]]   = ZIO.succeed(Chunk.empty)
     def end(implicit trace: Trace): IO[Option[Nothing], Nothing] = ZIO.fail(None)
   }
@@ -5595,7 +5595,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * Terminates the stream with the specified cause.
      */
     def halt(cause: Cause[E])(implicit trace: Trace): B =
-      apply(ZIO.failCause(cause.map(e => Some(e))))
+      apply(ZIO.refailCause(cause.map(e => Some(e))))
 
     /**
      * Emits a chunk containing the specified value.

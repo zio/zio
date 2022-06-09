@@ -886,7 +886,7 @@ object ZSTM {
                   ZIO.done(exit)
                 case _ =>
                   onInterrupt()
-                  ZIO.failCause(cause)
+                  ZIO.refailCause(cause)
               }
             }
           }
@@ -1434,18 +1434,18 @@ object ZSTM {
               state match {
                 case State.Done(Exit.Success(a)) =>
                   release(a).foldCauseZIO(
-                    cause2 => ZIO.failCause(cause ++ cause2),
-                    _ => ZIO.failCause(cause)
+                    cause2 => ZIO.refailCause(cause ++ cause2),
+                    _ => ZIO.refailCause(cause)
                   )
-                case _ => ZIO.failCause(cause)
+                case _ => ZIO.refailCause(cause)
               }
             },
             a =>
               restore(use(a)).foldCauseZIO(
                 cause =>
                   release(a).foldCauseZIO(
-                    cause2 => ZIO.failCause(cause ++ cause2),
-                    _ => ZIO.failCause(cause)
+                    cause2 => ZIO.refailCause(cause ++ cause2),
+                    _ => ZIO.refailCause(cause)
                   ),
                 b => release(a) *> ZIO.succeed(b)
               )

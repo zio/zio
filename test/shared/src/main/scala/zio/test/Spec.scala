@@ -80,7 +80,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   final def execute(defExec: ExecutionStrategy)(implicit
     trace: Trace
   ): ZIO[R with Scope, Nothing, Spec[Any, E]] =
-    ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.failCause(_), ZIO.succeedNow))
+    ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(ZIO.refailCause(_), ZIO.succeedNow))
 
   /**
    * Returns a new spec with only those tests with annotations satisfying the
@@ -149,7 +149,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
       case LabeledCase(label, spec) => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(LabeledCase(label, z)))
       case ScopedCase(scoped) =>
         scoped.foldCauseZIO(
-          c => f(ScopedCase(ZIO.failCause(c))),
+          c => f(ScopedCase(ZIO.refailCause(c))),
           spec => spec.foldScoped[R1, E1, Z](defExec)(f).flatMap(z => f(ScopedCase(ZIO.succeedNow(z))))
         )
       case MultipleCase(specs) =>

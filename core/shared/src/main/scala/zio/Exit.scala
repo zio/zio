@@ -220,7 +220,7 @@ sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
    */
   final def toZIO(implicit trace: Trace): IO[E, A] =
     self match {
-      case Exit.Failure(cause) => ZIO.failCause(cause)
+      case Exit.Failure(cause) => ZIO.refailCause(cause)
       case Exit.Success(value) => ZIO.succeedNow(value)
     }
 

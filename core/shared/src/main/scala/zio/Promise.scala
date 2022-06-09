@@ -182,6 +182,14 @@ final class Promise[E, A] private (
     }
 
   /**
+   * Fails the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise. No new stack trace is attached
+   * to the cause.
+   */
+  def refailCause(e: Cause[E])(implicit trace: Trace): UIO[Boolean] =
+    completeWith(ZIO.refailCause(e))
+
+  /**
    * Completes the promise with the specified value.
    */
   def succeed(a: A)(implicit trace: Trace): UIO[Boolean] = completeWith(ZIO.succeedNow(a))
