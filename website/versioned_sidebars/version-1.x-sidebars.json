@@ -40,7 +40,7 @@
       "version-1.x/datatypes/contextual/urlayer",
       "version-1.x/datatypes/contextual/tasklayer"
     ],
-    "Fiversion-1.x/ber Primitives": [
+    "Fiber Primitives": [
       "version-1.x/datatypes/fiber/index",
       "version-1.x/datatypes/fiber/fiber",
       "version-1.x/datatypes/fiber/fiberref",
