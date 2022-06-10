@@ -207,8 +207,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   ): EvaluationSignal = {
     assert(running.get == true)
 
-    val supervisor = unsafeGetSupervisor()
-    supervisor.unsafeOnResume(self)
+    unsafeGetSupervisor().unsafeOnResume(self)
 
     try {
       var effect      = effect0
@@ -310,8 +309,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       signal
     } finally {
-      val supervisor = unsafeGetSupervisor()
-      supervisor.unsafeOnSuspend(self)
+      unsafeGetSupervisor().unsafeOnSuspend(self)
     }
   }
 
@@ -418,8 +416,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     while (cur ne null) {
       if (RuntimeFlags.opSupervision(runtimeFlags)) {
-        val supervisor = self.unsafeGetSupervisor()
-        supervisor.unsafeOnEffect(self, cur)
+        self.unsafeGetSupervisor().unsafeOnEffect(self, cur)
       }
 
       val nextTrace = cur.trace

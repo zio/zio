@@ -162,7 +162,7 @@ object Supervisor {
     }
   }
 
-  private class ProxySupervisor[A](value0: Trace => UIO[A], underlying: Supervisor[Any]) extends Supervisor[A] {
+  private case class ProxySupervisor[A](value0: Trace => UIO[A], underlying: Supervisor[Any]) extends Supervisor[A] {
     def value(implicit trace: Trace): UIO[A] = value0(trace)
 
     def unsafeOnStart[R, E, A](

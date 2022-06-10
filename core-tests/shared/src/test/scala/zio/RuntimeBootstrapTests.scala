@@ -480,6 +480,40 @@ object RuntimeBootstrapTests {
     }
   }
 
+  def localSupervision() = {
+    def aThreadLocal() =
+      new ThreadLocal[Option[String]] {
+        override def initialValue() = None
+      }
+
+    def tracking[R, E, A](
+      initialValue: String
+    )(effect: (FiberRef[String], UIO[Option[String]]) => ZIO[R, E, A]): ZIO[R & Scope & ThreadLocalBridge, E, A] = {
+      val threadLocal    = aThreadLocal()
+      val threadLocalGet = ZIO.succeed(threadLocal.get)
+      ThreadLocalBridge
+        .makeFiberRef[String](initialValue)(a => threadLocal.set(Some(a)))
+        .flatMap(effect(_, threadLocalGet))
+    }
+
+    test("track initial value") {
+      val tag          = "tiv"
+      val initialValue = s"initial-value-$tag"
+      tracking(initialValue) { (_, threadLocalGet) =>
+        (for {
+          _     <- FiberRef.currentSupervisor.get.debug("currentSupervisor")
+          ab    <- threadLocalGet zipPar threadLocalGet
+          (a, b) = ab
+        } yield {
+          assert(
+            a.contains(initialValue),
+            b.contains(initialValue)
+          )
+        })
+      }.provide(Scope.default, ThreadLocalBridge.live)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
     runtimeFlags()
@@ -510,6 +544,7 @@ object RuntimeBootstrapTests {
     stackTrace2()
     interruptibleHole()
     queueOfferInterruption()
+    localSupervision()
   }
 
 }
