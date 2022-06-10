@@ -6,26 +6,31 @@ object FromFunctionExample extends ZIOAppDefault {
   final case class DatabaseConfig()
 
   object DatabaseConfig {
-    val live = ZLayer.succeed(DatabaseConfig())
+    private[examples] val live = ZLayer.succeed(DatabaseConfig())
   }
 
-  final case class Database(databaseConfig: DatabaseConfig)
+  trait Database
 
-  object Database {
-    val live: ZLayer[DatabaseConfig, Nothing, Database] =
-      ZLayer.fromFunction(Database.apply _)
+  final case class DatabaseLive(databaseConfig: DatabaseConfig) extends Database
+
+  object DatabaseLive {
+    private[examples] val layer = ZLayer.fromFunction[Database](apply _)
   }
 
-  final case class Analytics()
+  trait Analytics
 
-  object Analytics {
-    val live: ULayer[Analytics] = ZLayer.succeed(Analytics())
+  final case class AnalyticsLive() extends Analytics
+
+  object AnalyticsLive {
+    private[examples] val layer = ZLayer.fromFunction[Analytics](apply _)
   }
 
-  final case class Users(database: Database, analytics: Analytics)
+  trait Users
 
-  object Users {
-    val live = ZLayer.fromFunction(Users.apply _)
+  final case class UsersLive(database: Database, analytics: Analytics) extends Users
+
+  object UsersLive {
+    private[examples] val layer = ZLayer.fromFunction[Users](apply _)
   }
 
   final case class App(users: Users, analytics: Analytics) {
@@ -34,7 +39,7 @@ object FromFunctionExample extends ZIOAppDefault {
   }
 
   object App {
-    val live = ZLayer.fromFunction(App.apply _)
+    private[examples] val live = ZLayer.fromFunction(App.apply _)
   }
 
   def run =
@@ -42,6 +47,6 @@ object FromFunctionExample extends ZIOAppDefault {
       .serviceWithZIO[App](_.execute)
       // Cannot use `provide` due to this dotty bug: https://github.com/lampepfl/dotty/issues/12498
       .provideLayer(
-        (((DatabaseConfig.live >>> Database.live) ++ Analytics.live >>> Users.live) ++ Analytics.live) >>> App.live
+        (((DatabaseConfig.live >>> DatabaseLive.layer) ++ AnalyticsLive.layer >>> UsersLive.layer) ++ AnalyticsLive.layer) >>> App.live
       )
 }

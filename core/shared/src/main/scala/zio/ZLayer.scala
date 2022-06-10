@@ -589,11 +589,20 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         .map(environment => ZEnvironment(environment.get.result()))
     }
 
+  class FromFunctionPartiallApplied[+OutParam] {
+    def apply[In[+_], OutParam1 >: OutParam](in: In[OutParam1])(implicit
+      constructor: FunctionConstructorX[In],
+      trace: Trace,
+      OutParam: Tag[OutParam1]
+    ): constructor.Out[OutParam1] =
+      constructor(in)
+  }
+
   /**
    * Constructs a layer from the specified function.
    */
-  def fromFunction[In](in: In)(implicit constructor: FunctionConstructor[In], trace: Trace): constructor.Out =
-    constructor(in)
+  def fromFunction[OutParam]: FromFunctionPartiallApplied[OutParam] =
+    new FromFunctionPartiallApplied[OutParam]
 
   /**
    * Constructs a layer from the specified effect.
@@ -711,6 +720,49 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       trace: Trace
     ): ZLayer[RIn, E, Reloadable[ROut]] =
       Reloadable.manual(self)
+  }
+
+  trait FunctionConstructorX[In[+_]] {
+    type Out[+x]
+    def apply[OutParam: Tag](in: In[OutParam])(implicit trace: Trace): Out[OutParam]
+  }
+
+  object FunctionConstructorX {
+    type WithOut[In[+_], Out0[+_]] = FunctionConstructorX[In] { type Out[x] = Out0[x] }
+
+    implicit def function0Constructor
+      : WithOut[({ type lambda[+x] = () => x })#lambda, ({ type lambda[+x] = ZLayer[Any, Nothing, x] })#lambda] =
+      new FunctionConstructorX[({ type lambda[+x] = () => x })#lambda] {
+        type Out[+x] = ZLayer[Any, Nothing, x]
+        def apply[OutParam: Tag](f: () => OutParam)(implicit trace: Trace): Out[OutParam] =
+          ZLayer.succeed(f())
+      }
+
+    implicit def function1Constructor[T1: Tag]
+      : WithOut[({ type lambda[+x] = T1 => x })#lambda, ({ type lambda[+x] = ZLayer[T1, Nothing, x] })#lambda] =
+      new FunctionConstructorX[({ type lambda[+x] = T1 => x })#lambda] {
+        type Out[+x] = ZLayer[T1, Nothing, x]
+
+        def apply[OutParam: Tag](f: T1 => OutParam)(implicit trace: Trace): Out[OutParam] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.serviceWith[T1](a => ZEnvironment(f(a)))
+          }
+      }
+
+    implicit def function2Constructor[T1: Tag, T2: Tag]: WithOut[
+      ({ type lambda[+x] = (T1, T2) => x })#lambda,
+      ({ type lambda[+x] = ZLayer[T1 with T2, Nothing, x] })#lambda
+    ] =
+      new FunctionConstructorX[({ type lambda[+x] = (T1, T2) => x })#lambda] {
+        type Out[+x] = ZLayer[T1 with T2, Nothing, x]
+
+        def apply[OutParam: Tag](f: (T1, T2) => OutParam)(implicit trace: Trace): Out[OutParam] =
+          ZLayer.fromZIOEnvironment {
+            ZIO.environmentWith[T1 with T2] { env =>
+              ZEnvironment(f(env.get[T1], env.get[T2]))
+            }
+          }
+      }
   }
 
   /**
