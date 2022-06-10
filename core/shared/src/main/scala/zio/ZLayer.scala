@@ -589,7 +589,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         .map(environment => ZEnvironment(environment.get.result()))
     }
 
-  class FromFunctionPartiallApplied[+OutParam] {
+  class FromFunctionPartiallApplied[+OutParam](private val self: Unit) extends AnyVal {
     def apply[In[+_], OutParam1 >: OutParam](in: In[OutParam1])(implicit
       constructor: FunctionConstructorX[In],
       trace: Trace,
@@ -602,7 +602,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * Constructs a layer from the specified function.
    */
   def fromFunction[OutParam]: FromFunctionPartiallApplied[OutParam] =
-    new FromFunctionPartiallApplied[OutParam]
+    new FromFunctionPartiallApplied[OutParam](())
 
   /**
    * Constructs a layer from the specified effect.
