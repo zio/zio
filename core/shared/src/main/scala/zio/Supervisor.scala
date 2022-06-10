@@ -202,7 +202,7 @@ object Supervisor {
           case Nil                                  => supervisor
         }
 
-      loop(supervisor, List.empty)
+      loop(supervisor, List(self))
     }
 
     /**
@@ -222,8 +222,8 @@ object Supervisor {
     def diff(oldValue: Supervisor[Any], newValue: Supervisor[Any]): Patch =
       if (oldValue == newValue) Empty
       else {
-        val oldSupervisors = supervisors(oldValue)
-        val newSupervisors = supervisors(newValue)
+        val oldSupervisors = toSet(oldValue)
+        val newSupervisors = toSet(newValue)
         val added = newSupervisors
           .diff(oldSupervisors)
           .foldLeft(empty)((patch, supervisor) => patch.combine(AddSupervisor(supervisor)))
@@ -284,9 +284,11 @@ object Supervisor {
         case supervisor       => supervisor
       }
 
-  private def supervisors(supervisor: Supervisor[Any]): Set[Supervisor[Any]] =
+  private[zio] def toSet(supervisor: Supervisor[Any]): Set[Supervisor[Any]] =
+    if (supervisor == Supervisor.none) Set.empty
+    else
     supervisor match {
-      case Zip(left, right) => supervisors(left) ++ supervisors(right)
+      case Zip(left, right) => toSet(left) ++ toSet(right)
       case supervisor       => Set(supervisor)
     }
 }
