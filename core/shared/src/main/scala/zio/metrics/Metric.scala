@@ -318,24 +318,20 @@ object Metric {
     def set(value: => In): UIO[Unit] = gauge.update(value)
   }
 
-  def fromMetricKey[Type <: MetricKeyType](
-    key: MetricKey[Type]
-  ): Metric[Type, key.keyType.In, key.keyType.Out] =
-    new Metric[Type, key.keyType.In, key.keyType.Out] {
-      val keyType = key.keyType
+  /**
+   * Core metrics that are updated by the ZIO runtime system.
+   */
+  object core {
+    val fiberFailureCauses = Metric.frequency("zio_fiber_failure_causes")
+    val fiberForkLocations = Metric.frequency("zio_fiber_fork_locations")
 
-      final def unsafeUpdate(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty): Unit =
-        hook(extraTags).update(in)
+    val fibersStarted  = Metric.counter("zio_fiber_started")
+    val fiberSuccesses = Metric.counter("zio_fiber_successes")
+    val fiberFailures  = Metric.counter("zio_fiber_failures")
+    val fiberLifetimes = Metric.histogram("zio_fiber_lifetimes", fiberLifetimeBoundaries)
 
-      final def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): key.keyType.Out =
-        hook(extraTags).get()
-
-      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
-        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
-
-        metricRegistry.get(fullKey)
-      }
-    }
+    val fiberLifetimeBoundaries = MetricKeyType.Histogram.Boundaries.exponential(1.0, 2.0, 100)
+  }
 
   /**
    * A counter, which can be incremented by longs.
@@ -361,6 +357,29 @@ object Metric {
    */
   def frequency(name: String): Frequency[String] =
     fromMetricKey(MetricKey.frequency(name))
+
+  /**
+   * Creates a metric from a metric key. This is the primary constructor for
+   * [[zio.Metric]].
+   */
+  def fromMetricKey[Type <: MetricKeyType](
+    key: MetricKey[Type]
+  ): Metric[Type, key.keyType.In, key.keyType.Out] =
+    new Metric[Type, key.keyType.In, key.keyType.Out] {
+      val keyType = key.keyType
+
+      final def unsafeUpdate(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty): Unit =
+        hook(extraTags).update(in)
+
+      final def unsafeValue(extraTags: Set[MetricLabel] = Set.empty): key.keyType.Out =
+        hook(extraTags).get()
+
+      def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
+        val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
+
+        metricRegistry.get(fullKey)
+      }
+    }
 
   /**
    * A gauge, which can be set to a value.

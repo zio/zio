@@ -408,9 +408,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       builder ++= stack
 
-      // Save runtime flags to heap:
-      self._runtimeFlags = runtimeFlags
-
       throw Trampoline(effect, builder, false)
     }
 
@@ -481,9 +478,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       assertNonNullContinuation(cur, k.trace)
 
                     case k: EvaluationStep.UpdateRuntimeFlags =>
-                      runtimeFlags = RuntimeFlags.Patch.patch(k.update)(runtimeFlags)
-
-                      respondToNewRuntimeFlags(k.update)
+                      runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
 
                       if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
                         cur = Refail(unsafeGetInterruptedCause())
@@ -499,9 +494,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               }
 
             case effect: Async[_, _, _] =>
-              // Save runtime flags to heap:
-              self._runtimeFlags = runtimeFlags
-
               throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn())
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
@@ -520,9 +512,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   Refail(unsafeGetInterruptedCause())
                 } else {
                   // Impossible to short circuit, so record the changes:
-                  runtimeFlags = newRuntimeFlags
-
-                  respondToNewRuntimeFlags(updateFlags)
+                  runtimeFlags = patchRuntimeFlags(runtimeFlags, updateFlags)
 
                   // Since we updated the flags, we need to revert them:
                   val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
@@ -531,9 +521,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
 
                     // Go backward, on the stack stack:
-                    runtimeFlags = RuntimeFlags.Patch.patch(revertFlags)(runtimeFlags)
-
-                    respondToNewRuntimeFlags(revertFlags)
+                    runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
                       Refail(unsafeGetInterruptedCause())
@@ -546,9 +534,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               }
 
             case generateStackTrace: GenerateStackTrace =>
-              // Save runtime flags to heap:
-              self._runtimeFlags = runtimeFlags
-
               val builder = ChunkBuilder.make[EvaluationStep]()
 
               builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
@@ -576,9 +561,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     cur = k.erase.onFailure(cause)
 
                   case k: EvaluationStep.UpdateRuntimeFlags =>
-                    runtimeFlags = RuntimeFlags.Patch.patch(k.update)(runtimeFlags)
-
-                    respondToNewRuntimeFlags(k.update)
+                    runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted()) {
                       cur = Refail(cause ++ unsafeGetInterruptedCause())
@@ -588,33 +571,20 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 }
               }
 
-              if (cur eq null) {
-                // Save runtime flags to heap:
-                self._runtimeFlags = runtimeFlags
-
-                throw ZIOError(cause)
-              }
+              if (cur eq null) throw ZIOError(cause)
 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
-              val updateFlags     = updateRuntimeFlags.update
-              val oldRuntimeFlags = runtimeFlags
-
-              runtimeFlags = RuntimeFlags.Patch.patch(updateFlags)(runtimeFlags)
-
-              respondToNewRuntimeFlags(updateFlags)
+              runtimeFlags = patchRuntimeFlags(runtimeFlags, updateRuntimeFlags.update)
 
               // If we are nested inside another recursive call to `runLoop`,
               // then we need pop out to the very top in order to update
               // runtime flags globally:
-              if (currentDepth > 0) {
-                // Save runtime flags to heap:
-                self._runtimeFlags = runtimeFlags
-
+              cur = if (currentDepth > 0) {
                 throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep](), false)
               } else {
                 // We are at the top level, no need to update runtime flags
                 // globally:
-                cur = ZIO.unit
+                ZIO.unit
               }
 
             case iterate0: WhileLoop[_, _, _] =>
@@ -666,10 +636,17 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     done
   }
 
-  def respondToNewRuntimeFlags(patch: RuntimeFlags.Patch): Unit =
+  def patchRuntimeFlags(oldRuntimeFlags: RuntimeFlags, patch: RuntimeFlags.Patch): RuntimeFlags = {
+    val newRuntimeFlags = RuntimeFlags.patch(patch)(oldRuntimeFlags)
+
     if (RuntimeFlags.Patch.isEnabled(patch)(RuntimeFlag.CurrentFiber)) {
       Fiber._currentFiber.set(self)
     } else if (RuntimeFlags.Patch.isDisabled(patch)(RuntimeFlag.CurrentFiber)) Fiber._currentFiber.set(null)
+
+    self._runtimeFlags = newRuntimeFlags
+
+    newRuntimeFlags
+  }
 
   /**
    * Adds an interruptor to the set of interruptors that are interrupting this
