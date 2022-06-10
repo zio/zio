@@ -6,7 +6,9 @@ sidebar_label: "Create Custom Logger for a ZIO Application"
 
 ## Introduction
 
-As we have seen in the [previous tutorial](enable-logging-in-a-zio-application.md), ZIO has variety of built-in logging facilities. Also, it has a default logger that can be used to print log messages to the console. When we go to production, we may want to use a different logger with customized configuration. For example, we may want to log to a file, or to a database instead of the console. In this tutorial, we are going to see how we can create a custom logger for a ZIO application.
+As we have seen in the [previous tutorial](enable-logging-in-a-zio-application.md), ZIO has a variety of built-in logging facilities. Also, it has a default logger that can be used to print log messages to the console. When we go to production, we may want to use a different logger with a customized configuration. For example, we may want to log to a file or a database instead of the console.
+
+In this tutorial, we are going to see how we can create a custom logger for a ZIO application.
 
 ## Running the Examples
 
@@ -30,7 +32,7 @@ $ sbt run
 
 ## Creating a Custom Logger
 
-To create a new logger for ZIO application, we need to create a new `ZLogger` object. The `ZLogger` is a trait that defines the interface for a ZIO logger. The default logger is implemented this trait through the `ZLogger.default` object.
+To create a new logger for the ZIO application, we need to create a new `ZLogger` object. The `ZLogger` is a trait that defines the interface for a ZIO logger. The default logger has implemented this trait through the `ZLogger.default` object.
 
 ```scala mdoc:compile-only
 import zio._
@@ -96,7 +98,7 @@ By running this application, the log messages will be printed like this:
 
 So far, we learned how to write a custom logger for a ZIO application. Now, in this section, we want to add SLF4J Logging support to the `UserApp` we have developed in the [Restful Web Service](../quickstarts/restful-webservice.md) quickstart.
 
-SLF4J is a logging facade that decouples our application code from the any underlying logging implementation. To enable SLF4J logging in a ZIO application, we need to implement the `ZLogger` trait using SLF4J. Fortunately, ZIO Logging project have done this for us. 
+SLF4J is a logging facade that decouples our application code from any underlying logging implementation. To enable SLF4J logging for a ZIO application, we need to implement the `ZLogger` trait using SLF4J. Fortunately, the ZIO Logging project has done this for us.
 
 So we can simply add this library to our project by adding the following dependencies to our `build.sbt` file:
 
@@ -127,7 +129,7 @@ SLF4J: Defaulting to no-operation (NOP) logger implementation
 SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
 ```
 
-Oops! The SLF4J failed find any binding in the classpath. To fix this, we need to add a slf4j binding to our classpath.
+Oops! The SLF4J failed to find any binding in the classpath. To fix this, we need to add an SLF4J binding to our classpath.
 
 ## Adding a Simple SLF4J Binding to the Classpath
 
@@ -143,17 +145,17 @@ And then we can run the application again:
 [ZScheduler-Worker-7] INFO zio-slf4j-logger - timestamp=2022-06-04T19:36:43.768256+04:30 level=INFO thread=zio-fiber-6 message="Application started!"
 ```
 
-It works! Now, our ZIO application is logging using SLF4J. 
+It works! Now, our ZIO application uses SLF4J for its logging backend.
 
 Similarly, we can bind our application to any other logging framework by adding the appropriate dependency to our `build.sbt` file:
-- slf4j-log4j12
-- slf4j-reload4j
-- slf4j-jdk14
-- slf4j-nop
-- slf4j-jcl
-- logback-classic 
+- `slf4j-log4j12`
+- `slf4j-reload4j`
+- `slf4j-jdk14`
+- `slf4j-nop`
+- `slf4j-jcl`
+- `logback-classic`
 
-To switch to another logging framework, we need to provide one of the above dependencies instead of `slf4j-simple`. In the next section we will learn how to switch to the `reload4j` logging framework.
+To switch to another logging framework, we need to provide one of the above dependencies instead of `slf4j-simple`. In the next section, we will learn how to switch to the `reload4j` logging framework.
 
 ## Switching to the Reload4j Logging Framework
 
