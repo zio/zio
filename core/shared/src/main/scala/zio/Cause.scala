@@ -167,7 +167,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     failCase0: (E, StackTrace) => Z,
     dieCase0: (Throwable, StackTrace) => Z,
     interruptCase0: (FiberId, StackTrace) => Z
-  )(bothCase0: (Z, Z) => Z, thenCase0: (Z, Z) => Z, stacklessCase0: (Z, Boolean) => Z): Z =
+  )(thenCase0: (Z, Z) => Z, bothCase0: (Z, Z) => Z, stacklessCase0: (Z, Boolean) => Z): Z =
     foldContext[Unit, E, Z](())(new Cause.Folder[Unit, E, Z] {
       def empty(u: Unit)                                              = empty0
       def failCase(u: Unit, e: E, trace: StackTrace)                  = failCase0(e, trace)
