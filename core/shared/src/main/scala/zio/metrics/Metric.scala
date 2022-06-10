@@ -321,16 +321,15 @@ object Metric {
   /**
    * Core metrics that are updated by the ZIO runtime system.
    */
-  object core {
+  object runtime {
     val fiberFailureCauses = Metric.frequency("zio_fiber_failure_causes")
     val fiberForkLocations = Metric.frequency("zio_fiber_fork_locations")
 
     val fibersStarted  = Metric.counter("zio_fiber_started")
     val fiberSuccesses = Metric.counter("zio_fiber_successes")
     val fiberFailures  = Metric.counter("zio_fiber_failures")
-    val fiberLifetimes = Metric.histogram("zio_fiber_lifetimes", fiberLifetimeBoundaries)
-
-    val fiberLifetimeBoundaries = MetricKeyType.Histogram.Boundaries.exponential(1.0, 2.0, 100)
+    val fiberLifetimes =
+      Metric.histogram("zio_fiber_lifetimes", MetricKeyType.Histogram.Boundaries.exponential(1.0, 2.0, 100))
   }
 
   /**

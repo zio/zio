@@ -8,6 +8,7 @@ import java.util.{Set => JavaSet}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
 
 import zio._
+import zio.metrics.Metric
 
 class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
     extends Fiber.Runtime.Internal[E, A]
@@ -26,6 +27,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private val running         = new AtomicBoolean(false)
   private var _runtimeFlags   = runtimeFlags0
+
+  if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
+    Metric.runtime.fibersStarted.update(1)
+    Metric.runtime.fiberForkLocations.update(fiberId.location.toString())
+  }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
 
@@ -749,6 +755,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             id.location
           )
         }
+
+        if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
+          Metric.runtime.fiberFailures.update(1)
+          cause.foldContext(())(FiberRuntime.fiberFailureTracker)
+        }
       } catch {
         case t: Throwable =>
           if (unsafeIsFatal(t)) {
@@ -759,6 +770,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           }
       }
     case _ =>
+      if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
+        Metric.runtime.fiberSuccesses.update(1)
+      }
   }
 
   /**
@@ -779,6 +793,14 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   final def unsafeSetDone(e: Exit[E, A]): Unit = {
     _exitValue = e
+
+    if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
+      val startTimeSeconds = fiberId.startTimeSeconds
+      val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
+      val lifetime         = endTimeSeconds - startTimeSeconds
+
+      Metric.runtime.fiberLifetimes.unsafeUpdate(lifetime.toDouble)
+    }
 
     unsafeReportUnhandled(e)
 
@@ -834,4 +856,17 @@ object FiberRuntime {
     new FiberRuntime(fiberId, fiberRefs, runtimeFlags)
 
   private[zio] val catastrophicFailure: AtomicBoolean = new AtomicBoolean(false)
+
+  private val fiberFailureTracker: Cause.Folder[Unit, Any, Unit] =
+    new Cause.Folder[Unit, Any, Unit] {
+      def empty(context: Unit): Unit = ()
+      def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
+        Metric.runtime.fiberFailureCauses.update(error.getClass.getName())
+      def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
+        Metric.runtime.fiberFailureCauses.update(t.getClass.getName())
+      def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
+      def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
+      def thenCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
+      def stacklessCase(context: Unit, value: Unit, stackless: Boolean): Unit          = ()
+    }
 }

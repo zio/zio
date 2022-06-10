@@ -162,16 +162,29 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   final def flatten[E1](implicit ev: E <:< Cause[E1]): Cause[E1] =
     self.flatMap(ev)
 
+  final def fold[Z](
+    empty0: => Z,
+    failCase0: (E, StackTrace) => Z,
+    dieCase0: (Throwable, StackTrace) => Z,
+    interruptCase0: (FiberId, StackTrace) => Z
+  )(bothCase0: (Z, Z) => Z, thenCase0: (Z, Z) => Z, stacklessCase0: (Z, Boolean) => Z): Z =
+    foldContext[Unit, E, Z](())(new Cause.Folder[Unit, E, Z] {
+      def empty(u: Unit)                                              = empty0
+      def failCase(u: Unit, e: E, trace: StackTrace)                  = failCase0(e, trace)
+      def dieCase(u: Unit, t: Throwable, trace: StackTrace)           = dieCase0(t, trace)
+      def interruptCase(u: Unit, fiberId: FiberId, trace: StackTrace) = interruptCase0(fiberId, trace)
+      def bothCase(u: Unit, a: Z, b: Z)                               = bothCase0(a, b)
+      def thenCase(u: Unit, a: Z, b: Z)                               = thenCase0(a, b)
+      def stacklessCase(u: Unit, a: Z, b: Boolean)                    = stacklessCase0(a, b)
+    })
+
   /**
    * Folds over the cases of this cause with the specified functions.
    */
-  final def fold[Z](
-    empty: => Z,
-    failCase: (E, StackTrace) => Z,
-    dieCase: (Throwable, StackTrace) => Z,
-    interruptCase: (FiberId, StackTrace) => Z
-  )(thenCase: (Z, Z) => Z, bothCase: (Z, Z) => Z, stacklessCase: (Z, Boolean) => Z): Z = {
-
+  final def foldContext[C, E1 >: E, Z](context: C)(
+    folder: Folder[C, E1, Z]
+  ): Z = {
+    import folder._
     sealed trait CauseCase
 
     case object BothCase                               extends CauseCase
@@ -181,25 +194,25 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     @tailrec
     def loop(in: List[Cause[E]], out: List[Either[CauseCase, Z]]): List[Z] =
       in match {
-        case Fail(e, trace) :: causes              => loop(causes, Right(failCase(e, trace)) :: out)
-        case Die(t, trace) :: causes               => loop(causes, Right(dieCase(t, trace)) :: out)
-        case Interrupt(fiberId, trace) :: causes   => loop(causes, Right(interruptCase(fiberId, trace)) :: out)
+        case Fail(e, trace) :: causes              => loop(causes, Right(failCase(context, e, trace)) :: out)
+        case Die(t, trace) :: causes               => loop(causes, Right(dieCase(context, t, trace)) :: out)
+        case Interrupt(fiberId, trace) :: causes   => loop(causes, Right(interruptCase(context, fiberId, trace)) :: out)
         case Both(left, right) :: causes           => loop(left :: right :: causes, Left(BothCase) :: out)
         case Then(left, right) :: causes           => loop(left :: right :: causes, Left(ThenCase) :: out)
         case Stackless(cause, stackless) :: causes => loop(cause :: causes, Left(StacklessCase(stackless)) :: out)
-        case _ :: causes                           => loop(causes, Right(empty) :: out)
+        case _ :: causes                           => loop(causes, Right(empty(context)) :: out)
         case Nil =>
           out.foldLeft[List[Z]](List.empty) {
             case (acc, Right(causes)) => causes :: acc
             case (acc, Left(BothCase)) =>
               val left :: right :: causes = (acc: @unchecked)
-              bothCase(left, right) :: causes
+              bothCase(context, left, right) :: causes
             case (acc, Left(ThenCase)) =>
               val left :: right :: causes = (acc: @unchecked)
-              thenCase(left, right) :: causes
+              thenCase(context, left, right) :: causes
             case (acc, Left(StacklessCase(stackless))) =>
               val cause :: causes = acc
-              stacklessCase(cause, stackless) :: causes
+              stacklessCase(context, cause, stackless) :: causes
           }
       }
     loop(List(self), List.empty).head
@@ -553,6 +566,17 @@ object Cause extends Serializable {
   def interrupt(fiberId: FiberId, trace: StackTrace = StackTrace.none): Cause[Nothing] = Interrupt(fiberId, trace)
   def stack[E](cause: Cause[E]): Cause[E]                                              = Stackless(cause, false)
   def stackless[E](cause: Cause[E]): Cause[E]                                          = Stackless(cause, true)
+
+  trait Folder[-Context, -E, Z] {
+    def empty(context: Context): Z
+    def failCase(context: Context, error: E, stackTrace: StackTrace): Z
+    def dieCase(context: Context, t: Throwable, stackTrace: StackTrace): Z
+    def interruptCase(context: Context, fiberId: FiberId, stackTrace: StackTrace): Z
+
+    def bothCase(context: Context, left: Z, right: Z): Z
+    def thenCase(context: Context, left: Z, right: Z): Z
+    def stacklessCase(context: Context, value: Z, stackless: Boolean): Z
+  }
 
   final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement]) {
     def toThrowable: Throwable =
