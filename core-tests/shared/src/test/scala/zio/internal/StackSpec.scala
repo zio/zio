@@ -2,7 +2,6 @@ package zio.internal
 
 import zio.test.Assertion.equalTo
 import zio.test._
-import zio.test.TestAspect._
 import zio.ZIOBaseSpec
 
 object StackSpec extends ZIOBaseSpec {
@@ -58,9 +57,10 @@ object StackSpec extends ZIOBaseSpec {
         stack   <- ZIO.succeed(Stack[String]())
         fiber   <- makeWriter(stack).forever.fork
         readers <- ZIO.forkAll(List.fill(100)(ZIO.succeed(stack.toList.forall(_ != null))))
-        noNulls <- readers.join.map(_.forall(a => a)) <* fiber.interrupt
+        noNulls <- readers.join.map(_.forall(a => a))
+        _       <- fiber.interrupt
       } yield assertTrue(noNulls)
-    } @@ nonFlaky,
+    } @@ TestAspect.nonFlaky,
     test("stack safety") {
       val stack = Stack[String]()
       val n     = 100000

@@ -24,6 +24,8 @@ object RuntimeBootstrapTests {
         e.printStackTrace()
       case t: Throwable =>
         println("...CATASTROPHIC")
+        println(t.getMessage())
+        println(t.toString())
         t.printStackTrace()
     }
   }
@@ -514,37 +516,63 @@ object RuntimeBootstrapTests {
     }
   }
 
+  def bigSyncInterruption() =
+    testN(100)("big sync interruption") {
+      import zio.internal.Stack
+
+      def makeWriter(stack: Stack[String]) = ZIO.succeed {
+        var goUp   = 90
+        var goDown = 80
+        stack.push("1")
+        while (!stack.isEmpty) {
+          (0 to goUp).foreach(_ => stack.push("1"))
+          (0 to goDown).foreach(_ => if (!stack.isEmpty) stack.pop())
+          goUp = goUp - 1
+          goDown = goDown + 1
+        }
+      }
+
+      for {
+        stack   <- ZIO.succeed(Stack[String]())
+        fiber   <- makeWriter(stack).forever.fork
+        readers <- ZIO.forkAll(List.fill(100)(ZIO.succeed(stack.toList.forall(_ != null))))
+        noNulls <- readers.join.map(_.forall(a => a))
+        _       <- fiber.interrupt
+      } yield assert(noNulls)
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-    asyncInterruptionOfNever()
-    interruptRacedForks()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
-    disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-    interruptionDetection()
-    interruptionRecovery()
-    cooperativeYielding()
-    interruptionOfForkedRace()
-    stackTrace1()
-    stackTrace2()
-    interruptibleHole()
-    queueOfferInterruption()
-    localSupervision()
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    // asyncInterruptionOfNever()
+    // interruptRacedForks()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
+    // disconnectedInterruption()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
+    // interruptionDetection()
+    // interruptionRecovery()
+    // cooperativeYielding()
+    // interruptionOfForkedRace()
+    // stackTrace1()
+    // stackTrace2()
+    // interruptibleHole()
+    // queueOfferInterruption()
+    // localSupervision()
+    bigSyncInterruption()
   }
 
 }
