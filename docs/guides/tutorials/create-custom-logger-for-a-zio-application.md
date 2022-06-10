@@ -109,7 +109,7 @@ libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.0.0-RC10"
 
 Now we can use the `SLF4J.sl4j` layer to enable SLF4J logging:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 import zio.logging.LogFormat
 import zio.logging.backend.SLF4J
