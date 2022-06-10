@@ -3,6 +3,9 @@ package zio
 object RuntimeBootstrapTests {
   import LatchOps._
 
+  val singleThreadedExecutor =
+    zio.Executor.fromJavaExecutor(java.util.concurrent.Executors.newSingleThreadExecutor(), 1024)
+
   implicit class RunSyntax[A](
     task: Task[A]
   ) {
@@ -331,24 +334,18 @@ object RuntimeBootstrapTests {
 
   def cooperativeYielding() =
     test("cooperative yielding") {
-      import java.util.concurrent._
       import zio._
 
-      val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor(), 1024)
-
-      val checkExecutor =
-        ZIO.executor.flatMap(e => if (e != executor) ZIO.dieMessage("Executor is incorrect") else ZIO.unit)
-
       def infiniteProcess(ref: Ref[Int]): UIO[Nothing] =
-        checkExecutor *> ref.update(_ + 1) *> infiniteProcess(ref)
+        ref.update(_ + 1) *> infiniteProcess(ref)
 
       for {
         ref1   <- Ref.make(0)
         ref2   <- Ref.make(0)
         ref3   <- Ref.make(0)
-        fiber1 <- infiniteProcess(ref1).onExecutor(executor).fork
-        fiber2 <- infiniteProcess(ref2).onExecutor(executor).fork
-        fiber3 <- infiniteProcess(ref3).onExecutor(executor).fork
+        fiber1 <- infiniteProcess(ref1).onExecutor(singleThreadedExecutor).fork
+        fiber2 <- infiniteProcess(ref2).onExecutor(singleThreadedExecutor).fork
+        fiber3 <- infiniteProcess(ref3).onExecutor(singleThreadedExecutor).fork
         _      <- ZIO.sleep(Duration.fromSeconds(1))
         _      <- fiber1.interruptFork *> fiber2.interruptFork *> fiber3.interruptFork
         _      <- fiber1.await *> fiber2.await *> fiber3.await
@@ -470,7 +467,7 @@ object RuntimeBootstrapTests {
     def waitForSize[A](queue: Queue[A], size: Int): UIO[Int] =
       waitForValue(queue.size, size)
 
-    test("offers are suspended by back pressure") {
+    testN(100)("offers are suspended by back pressure") {
       for {
         queue        <- Queue.bounded[Int](10)
         _            <- queue.offer(1).repeatN(9)
@@ -485,33 +482,33 @@ object RuntimeBootstrapTests {
 
   def main(args: Array[String]): Unit = {
     val _ = ()
-    // runtimeFlags()
-    // helloWorld()
-    // fib()
-    // iteration()
-    // asyncInterruption()
-    // syncInterruption()
-    // race()
-    // autoInterruption()
-    // autoInterruption2()
-    // asyncInterruptionOfNever()
-    // interruptRacedForks()
-    // useInheritance()
-    // useInheritance2()
-    // asyncUninterruptible()
-    // uninterruptibleClosingScope()
-    // syncInterruption2()
-    // acquireReleaseDisconnect()
-    // disconnectedInterruption()
-    // interruptibleAfterRace()
-    // uninterruptibleRace()
-    // interruptionDetection()
-    // interruptionRecovery()
-    // cooperativeYielding()
-    // interruptionOfForkedRace()
-    // stackTrace1()
-    // stackTrace2()
-    // interruptibleHole()
+    runtimeFlags()
+    helloWorld()
+    fib()
+    iteration()
+    asyncInterruption()
+    syncInterruption()
+    race()
+    autoInterruption()
+    autoInterruption2()
+    asyncInterruptionOfNever()
+    interruptRacedForks()
+    useInheritance()
+    useInheritance2()
+    asyncUninterruptible()
+    uninterruptibleClosingScope()
+    syncInterruption2()
+    acquireReleaseDisconnect()
+    disconnectedInterruption()
+    interruptibleAfterRace()
+    uninterruptibleRace()
+    interruptionDetection()
+    interruptionRecovery()
+    cooperativeYielding()
+    interruptionOfForkedRace()
+    stackTrace1()
+    stackTrace2()
+    interruptibleHole()
     queueOfferInterruption()
   }
 
