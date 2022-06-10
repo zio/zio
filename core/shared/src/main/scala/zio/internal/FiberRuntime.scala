@@ -761,6 +761,29 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def unsafeRemoveInterruptors(): Unit =
     unsafeSetFiberRef(FiberRef.interruptors, Set.empty[ZIO[Any, Nothing, Nothing] => Unit])
 
+  final def unsafeReportUnhandled(v: Exit[E, A]): Unit = v match {
+    case Exit.Failure(cause) =>
+      try {
+        if (!cause.isInterruptedOnly) {
+          unsafeLog(
+            () => s"Fiber ${fiberId.threadName} did not handle an error",
+            cause,
+            unsafeGetFiberRef(FiberRef.unhandledErrorLogLevel),
+            id.location
+          )
+        }
+      } catch {
+        case t: Throwable =>
+          if (unsafeIsFatal(t)) {
+            unsafeGetReportFatal()(t)
+          } else {
+            println("An exception was thrown by a logger:")
+            t.printStackTrace
+          }
+      }
+    case _ =>
+  }
+
   /**
    * Sets the fiber ref to the specified value.
    */
@@ -779,6 +802,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   final def unsafeSetDone(e: Exit[E, A]): Unit = {
     _exitValue = e
+
+    unsafeReportUnhandled(e)
 
     val iterator = observers.iterator
 

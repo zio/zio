@@ -468,6 +468,9 @@ object FiberRef {
   private[zio] val interruptors: FiberRef[Set[ZIO[Any, Nothing, Nothing] => Unit]] =
     FiberRef.unsafeMake(Set.empty, identity(_), (parent, _) => parent)
 
+  private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
+    FiberRef.unsafeMake(Some(LogLevel.Debug), identity(_), (_, child) => child)
+
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
