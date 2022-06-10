@@ -744,7 +744,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def unsafeRemoveInterruptors(): Unit =
     unsafeSetFiberRef(FiberRef.interruptors, Set.empty[ZIO[Any, Nothing, Nothing] => Unit])
 
-  final def unsafeReportUnhandled(v: Exit[E, A]): Unit = v match {
+  final def unsafeReportExitValue(v: Exit[E, A]): Unit = v match {
     case Exit.Failure(cause) =>
       try {
         if (!cause.isInterruptedOnly) {
@@ -802,7 +802,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       Metric.runtime.fiberLifetimes.unsafeUpdate(lifetime.toDouble)
     }
 
-    unsafeReportUnhandled(e)
+    unsafeReportExitValue(e)
 
     val iterator = observers.iterator
 
