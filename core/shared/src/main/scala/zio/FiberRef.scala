@@ -112,8 +112,8 @@ trait FiberRef[A] extends Serializable { self =>
    * no value was `set` or inherited from parent.
    */
   def get(implicit trace: Trace): UIO[A] =
-    ZIO.unsafeStateful[Any, Nothing, A] { (fiberState, _) =>
-      ZIO.succeedNow(fiberState.unsafeGetFiberRef(self))
+    modify { v =>
+      (v, v)
     }
 
   /**
@@ -151,9 +151,7 @@ trait FiberRef[A] extends Serializable { self =>
    * specified effect.
    */
   def getWith[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.unsafeStateful[R, E, B] { (fiberState, _) =>
-      f(fiberState.unsafeGetFiberRef(self))
-    }
+    get.flatMap(f)
 
   /**
    * Returns a `ZIO` that runs with `value` bound to the current fiber.
@@ -161,13 +159,7 @@ trait FiberRef[A] extends Serializable { self =>
    * Guarantees that fiber data is properly restored via `acquireRelease`.
    */
   def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
-    ZIO.unsafeStateful[R, E, B] { (fiberState, _) =>
-      val oldValue = fiberState.unsafeGetFiberRef(self)
-
-      fiberState.unsafeSetFiberRef(self, newValue)
-
-      zio.ensuring(ZIO.succeed(fiberState.unsafeSetFiberRef(self, oldValue)))
-    }
+    ZIO.acquireReleaseWith(get <* set(newValue))(set)(_ => zio)
 
   /**
    * Returns a `ZIO` that runs with `f` applied to the current fiber.
@@ -225,10 +217,8 @@ trait FiberRef[A] extends Serializable { self =>
    * Sets the value associated with the current fiber.
    */
   def set(value: A)(implicit trace: Trace): UIO[Unit] =
-    ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _) =>
-      fiberState.unsafeSetFiberRef(self, value)
-
-      ZIO.unit
+    modify { _ =>
+      ((), value)
     }
 
   /**
@@ -406,7 +396,7 @@ object FiberRef {
     differ: Differ[Value0, Patch0],
     fork0: Patch0
   ): FiberRef.WithPatch[Value0, Patch0] =
-    new FiberRef[Value0] {
+    new FiberRef[Value0] { self =>
       type Patch = Patch0
       def combine(first: Patch, second: Patch): Patch =
         differ.combine(first, second)
@@ -418,6 +408,28 @@ object FiberRef {
         initialValue0
       def patch(patch: Patch)(oldValue: Value): Value =
         differ.patch(patch)(oldValue)
+      override def get(implicit trace: Trace): UIO[Value] =
+        ZIO.unsafeStateful[Any, Nothing, Value] { (fiberState, _) =>
+          ZIO.succeedNow(fiberState.unsafeGetFiberRef(self))
+        }
+      override def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.unsafeStateful[R, E, A] { (fiberState, _) =>
+          f(fiberState.unsafeGetFiberRef(self))
+        }
+      override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.unsafeStateful[R, E, A] { (fiberState, _) =>
+          val oldValue = fiberState.unsafeGetFiberRef(self)
+
+          fiberState.unsafeSetFiberRef(self, newValue)
+
+          zio.ensuring(ZIO.succeed(fiberState.unsafeSetFiberRef(self, oldValue)))
+        }
+      override def set(value: Value)(implicit trace: Trace): UIO[Unit] =
+        ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _) =>
+          fiberState.unsafeSetFiberRef(self, value)
+
+          ZIO.unit
+        }
     }
 
   private[zio] def unsafeMakeSet[A](
