@@ -1896,7 +1896,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * forked in the effect are reported to the specified supervisor.
    */
   final def supervised(supervisor: => Supervisor[Any])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentSupervisors.locallyWith(_ + supervisor)(self)
+    FiberRef.currentSupervisor.locallyWith(_ ++ supervisor)(self)
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
@@ -2469,16 +2469,16 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     // Call the supervisor who can observe the fork of the child fiber
     val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
 
-    childFiber.unsafeForeachSupervisor { supervisor =>
-      supervisor.unsafeOnStart(
-        childEnvironment,
-        effect.asInstanceOf[ZIO[Any, Any, Any]],
-        Some(parentFiber),
-        childFiber
-      )
+    val supervisor = childFiber.unsafeGetSupervisor()
 
-      childFiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, childFiber))
-    }
+    supervisor.unsafeOnStart(
+      childEnvironment,
+      effect.asInstanceOf[ZIO[Any, Any, Any]],
+      Some(parentFiber),
+      childFiber
+    )
+
+    childFiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, childFiber))
 
     val parentScope = parentFiber.unsafeGetFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
 

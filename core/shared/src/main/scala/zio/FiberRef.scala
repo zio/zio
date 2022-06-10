@@ -429,6 +429,15 @@ object FiberRef {
       SetPatch.empty
     )
 
+  private[zio] def unsafeMakeSupervisor[A](
+    initial: Supervisor[Any]
+  ): FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
+    unsafeMakePatch[Supervisor[Any], Supervisor.Patch](
+      initial,
+      Differ.supervisor,
+      Supervisor.Patch.empty
+    )
+
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
     FiberRef.unsafeMake(None, _ => None) // Do not inherit on `fork`
 
@@ -453,8 +462,8 @@ object FiberRef {
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
     FiberRef.unsafeMake(Runtime.defaultReportFatal)
 
-  private[zio] val currentSupervisors: FiberRef.WithPatch[Set[Supervisor[Any]], SetPatch[Supervisor[Any]]] =
-    FiberRef.unsafeMakeSet(Runtime.defaultSupervisors)
+  private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
+    FiberRef.unsafeMakeSupervisor(Runtime.defaultSupervisor)
 
   private[zio] val interruptors: FiberRef[Set[ZIO[Any, Nothing, Nothing] => Unit]] =
     FiberRef.unsafeMake(Set.empty, identity(_), (parent, _) => parent)

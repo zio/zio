@@ -207,9 +207,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   ): EvaluationSignal = {
     assert(running.get == true)
 
-    unsafeGetSupervisors().foreach { supervisor =>
-      supervisor.unsafeOnResume(self)
-    }
+    val supervisor = unsafeGetSupervisor()
+    supervisor.unsafeOnResume(self)
 
     try {
       var effect      = effect0
@@ -311,9 +310,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       signal
     } finally {
-      unsafeGetSupervisors().foreach { supervisor =>
-        supervisor.unsafeOnSuspend(self)
-      }
+      val supervisor = unsafeGetSupervisor()
+      supervisor.unsafeOnSuspend(self)
     }
   }
 
@@ -420,9 +418,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     while (cur ne null) {
       if (RuntimeFlags.opSupervision(runtimeFlags)) {
-        self.unsafeGetSupervisors().foreach { supervisor =>
-          supervisor.unsafeOnEffect(self, cur)
-        }
+        val supervisor = self.unsafeGetSupervisor()
+        supervisor.unsafeOnEffect(self, cur)
       }
 
       val nextTrace = cur.trace
@@ -705,9 +702,6 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    */
   final def unsafeExitValue(): Exit[E, A] = _exitValue
 
-  final def unsafeForeachSupervisor(f: Supervisor[Any] => Unit): Unit =
-    _fiberRefs.getOrDefault(FiberRef.currentSupervisors).foreach(f)
-
   final def unsafeGetCurrentExecutor(): Executor =
     unsafeGetFiberRef(FiberRef.overrideExecutor).getOrElse(Runtime.defaultExecutor)
 
@@ -739,8 +733,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def unsafeGetReportFatal(): Throwable => Nothing =
     unsafeGetFiberRef(FiberRef.currentReportFatal)
 
-  private def unsafeGetSupervisors(): Set[Supervisor[Any]] =
-    unsafeGetFiberRef(FiberRef.currentSupervisors)
+  final def unsafeGetSupervisor(): Supervisor[Any] =
+    unsafeGetFiberRef(FiberRef.currentSupervisor)
 
   final def unsafeIsFatal(t: Throwable): Boolean =
     unsafeGetFiberRef(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))

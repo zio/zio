@@ -50,6 +50,6 @@ private[zio] trait RuntimePlatformSpecific {
       throw t
     }
 
-  final val defaultSupervisors: Set[Supervisor[Any]] =
-    Set.empty
+  final val defaultSupervisor: Supervisor[Any] =
+    Supervisor.none
 }
