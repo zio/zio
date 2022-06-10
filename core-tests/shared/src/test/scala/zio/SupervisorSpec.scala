@@ -18,7 +18,9 @@ object SupervisorSpec extends ZIOSpecDefault {
       } yield assertTrue(value == 2)
     },
     suite("laws") {
-      DifferSpec.diffLaws(Differ.supervisor)(genSupervisor)((left, right) => Supervisor.toSet(left) == Supervisor.toSet(right))
+      DifferSpec.diffLaws(Differ.supervisor)(genSupervisor)((left, right) =>
+        Supervisor.toSet(left) == Supervisor.toSet(right)
+      )
     }
   )
 

@@ -287,8 +287,8 @@ object Supervisor {
   private[zio] def toSet(supervisor: Supervisor[Any]): Set[Supervisor[Any]] =
     if (supervisor == Supervisor.none) Set.empty
     else
-    supervisor match {
-      case Zip(left, right) => toSet(left) ++ toSet(right)
-      case supervisor       => Set(supervisor)
-    }
+      supervisor match {
+        case Zip(left, right) => toSet(left) ++ toSet(right)
+        case supervisor       => Set(supervisor)
+      }
 }
