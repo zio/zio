@@ -463,6 +463,26 @@ object RuntimeBootstrapTests {
       } yield assert(true)
     }
 
+  def queueOfferInterruption() = {
+    def waitForValue[T](ref: UIO[T], value: T): UIO[T] =
+      (ref <* Clock.sleep(10.millis)).repeatUntil(_ == value)
+
+    def waitForSize[A](queue: Queue[A], size: Int): UIO[Int] =
+      waitForValue(queue.size, size)
+
+    test("offers are suspended by back pressure") {
+      for {
+        queue        <- Queue.bounded[Int](10)
+        _            <- queue.offer(1).repeatN(9)
+        refSuspended <- Ref.make[Boolean](true)
+        f            <- (queue.offer(2) *> refSuspended.set(false)).fork
+        _            <- waitForSize(queue, 11)
+        isSuspended  <- refSuspended.get
+        _            <- f.interrupt
+      } yield assert(isSuspended)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
     // runtimeFlags()
@@ -491,7 +511,8 @@ object RuntimeBootstrapTests {
     // interruptionOfForkedRace()
     // stackTrace1()
     // stackTrace2()
-    interruptibleHole()
+    // interruptibleHole()
+    queueOfferInterruption()
   }
 
 }
