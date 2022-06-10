@@ -1,6 +1,6 @@
 ---
 id: create-custom-logger-for-a-zio-application
-title: "Tutorial: How to Create a Custom Logger for a ZIO Application"
+title: "Tutorial: How to Create a Custom Logger for a ZIO Application?"
 sidebar_label: "Create Custom Logger for a ZIO Application"
 ---
 
