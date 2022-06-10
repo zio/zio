@@ -614,8 +614,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   throw reifyStack
               }
 
-            case yieldNow: ZIO.YieldNow => // TODO: Trace
-              throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep](), true)
+            case yieldNow: ZIO.YieldNow =>
+              val builder = ChunkBuilder.make[EvaluationStep]()
+
+              builder += EvaluationStep.UpdateTrace(yieldNow.trace)
+
+              throw Trampoline(ZIO.unit, builder, true)
           }
         } catch {
           case zioError: ZIOError =>
