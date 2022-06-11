@@ -88,8 +88,6 @@ trait TestClock extends Clock with Restorable {
   def adjust(duration: Duration)(implicit trace: Trace): UIO[Unit]
   def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   def setInstant(instant: Instant)(implicit trace: Trace): UIO[Unit]
-  def setDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): UIO[Unit]
-  def setTime(duration: Duration)(implicit trace: Trace): UIO[Unit]
   def setTimeZone(zone: ZoneId)(implicit trace: Trace): UIO[Unit]
   def sleeps(implicit trace: Trace): UIO[List[Instant]]
   def timeZone(implicit trace: Trace): UIO[ZoneId]
@@ -188,22 +186,6 @@ object TestClock extends Serializable {
      */
     def setInstant(instant: Instant)(implicit trace: Trace): UIO[Unit] =
       warningDone *> run(_ => instant)
-
-    /**
-     * Sets the current clock time to the specified `OffsetDateTime`. Any
-     * effects that were scheduled to occur on or before the new time will be
-     * run in order.
-     */
-    def setDateTime(dateTime: OffsetDateTime)(implicit trace: Trace): UIO[Unit] =
-      setInstant(dateTime.toInstant)
-
-    /**
-     * Sets the current clock time to the specified time in terms of duration
-     * since the epoch. Any effects that were scheduled to occur on or before
-     * the new time will immediately be run in order.
-     */
-    def setTime(duration: Duration)(implicit trace: Trace): UIO[Unit] =
-      setInstant(Instant.EPOCH.plus(duration))
 
     /**
      * Sets the time zone to the specified time zone. The clock time in terms of
@@ -450,22 +432,6 @@ object TestClock extends Serializable {
    */
   def setInstant(instant: => Instant)(implicit trace: Trace): UIO[Unit] =
     testClockWith(_.setInstant(instant))
-
-  /**
-   * Accesses a `TestClock` instance in the environment and sets the clock time
-   * to the specified `OffsetDateTime`, running any actions scheduled for on or
-   * before the new time in order.
-   */
-  def setDateTime(dateTime: => OffsetDateTime)(implicit trace: Trace): UIO[Unit] =
-    testClockWith(_.setDateTime(dateTime))
-
-  /**
-   * Accesses a `TestClock` instance in the environment and sets the clock time
-   * to the specified time in terms of duration since the epoch, running any
-   * actions scheduled for on or before the new time in order.
-   */
-  def setTime(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-    testClockWith(_.setTime(duration))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone
