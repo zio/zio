@@ -598,11 +598,14 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
       constructor(in)
   }
 
+  def fromFunctionX[OutParam]: FromFunctionPartiallApplied[OutParam] =
+    new FromFunctionPartiallApplied[OutParam](())
+
   /**
    * Constructs a layer from the specified function.
    */
-  def fromFunction[OutParam]: FromFunctionPartiallApplied[OutParam] =
-    new FromFunctionPartiallApplied[OutParam](())
+  def fromFunction[In](in: In)(implicit constructor: FunctionConstructor[In], trace: Trace): constructor.Out =
+    constructor(in)
 
   /**
    * Constructs a layer from the specified effect.

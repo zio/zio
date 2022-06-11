@@ -14,7 +14,7 @@ object FromFunctionExample extends ZIOAppDefault {
   final case class DatabaseLive(databaseConfig: DatabaseConfig) extends Database
 
   object DatabaseLive {
-    private[examples] val layer = ZLayer.fromFunction[Database](apply _)
+    private[examples] val layer = ZLayer.fromFunctionX[Database](apply _)
   }
 
   trait Analytics
@@ -22,7 +22,7 @@ object FromFunctionExample extends ZIOAppDefault {
   final case class AnalyticsLive() extends Analytics
 
   object AnalyticsLive {
-    private[examples] val layer = ZLayer.fromFunction[Analytics](apply _)
+    private[examples] val layer = ZLayer.fromFunctionX[Analytics](apply _)
   }
 
   trait Users
@@ -30,7 +30,7 @@ object FromFunctionExample extends ZIOAppDefault {
   final case class UsersLive(database: Database, analytics: Analytics) extends Users
 
   object UsersLive {
-    private[examples] val layer = ZLayer.fromFunction[Users](apply _)
+    private[examples] val layer = ZLayer.fromFunctionX[Users](apply _)
   }
 
   final case class App(users: Users, analytics: Analytics) {
@@ -39,7 +39,7 @@ object FromFunctionExample extends ZIOAppDefault {
   }
 
   object App {
-    private[examples] val live = ZLayer.fromFunction(App.apply _)
+    private[examples] val live = ZLayer.fromFunctionX(App.apply _)
   }
 
   def run =
