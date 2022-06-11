@@ -589,7 +589,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
         .map(environment => ZEnvironment(environment.get.result()))
     }
 
-  class FromFunctionPartiallApplied[+OutParam](private val self: Unit) extends AnyVal {
+  class FromFunctionPartiallApplied[+OutParam] {
     def apply[In[+_], OutParam1 >: OutParam](in: In[OutParam1])(implicit
       constructor: FunctionConstructorX[In],
       trace: Trace,
