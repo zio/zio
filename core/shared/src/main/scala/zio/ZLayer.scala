@@ -731,7 +731,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   }
 
   object FunctionConstructorX {
-    type WithOut[In[+_], Out0[+_]] = FunctionConstructorX[In] { type Out[x] = Out0[x] }
+    type WithOut[In[+_], Out0[+_]] = FunctionConstructorX[In] { type Out[+x] = Out0[x] }
 
     implicit def function0Constructor
       : WithOut[({ type lambda[+x] = () => x })#lambda, ({ type lambda[+x] = ZLayer[Any, Nothing, x] })#lambda] =
