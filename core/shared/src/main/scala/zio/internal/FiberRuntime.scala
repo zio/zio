@@ -565,7 +565,37 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               )
 
             case success: Exit.Success[_] =>
-              ???
+              try {
+                val value = success.value
+
+                cur = null
+
+                while ((cur eq null) && stackIndex < stack.length) {
+                  val element = stack(stackIndex)
+
+                  stackIndex += 1
+
+                  element match {
+                    case k: EvaluationStep.Continuation[_, _, _, _, _] =>
+                      cur = k.erase.onSuccess(value)
+
+                      assertNonNullContinuation(cur, k.trace)
+
+                    case k: EvaluationStep.UpdateRuntimeFlags =>
+                      runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
+
+                      if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
+                        cur = Exit.Failure(unsafeGetInterruptedCause())
+
+                    case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
+                  }
+                }
+
+                if (cur eq null) done = value.asInstanceOf[AnyRef]
+              } catch {
+                case zioError: ZIOError =>
+                  cur = Exit.Failure(zioError.cause)
+              }
 
             case refail: Exit.Failure[_] =>
               val cause = refail.cause.asInstanceOf[Cause[Any]]
