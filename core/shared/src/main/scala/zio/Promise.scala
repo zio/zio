@@ -85,7 +85,7 @@ final class Promise[E, A] private (
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def done(e: Exit[E, A])(implicit trace: Trace): UIO[Boolean] = completeWith(ZIO.done(e))
+  def done(e: Exit[E, A])(implicit trace: Trace): UIO[Boolean] = completeWith(e)
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -94,8 +94,7 @@ final class Promise[E, A] private (
    * Note that [[Promise.completeWith]] will be much faster, so consider using
    * that if you do not need to memoize the result of the specified effect.
    */
-  def complete(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] =
-    io.intoPromise(this)
+  def complete(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] = io.intoPromise(this)
 
   /**
    * Completes the promise with the specified effect. If the promise has already

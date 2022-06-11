@@ -236,7 +236,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *   `Fiber[E, B]` The continued fiber.
    */
   final def mapFiber[E1 >: E, B](f: A => Fiber[E1, B])(implicit trace: Trace): UIO[Fiber[E1, B]] =
-    self.await.map(_.fold(Fiber.failCause(_), f))
+    self.await.map(_.foldExit(Fiber.failCause(_), f))
 
   /**
    * Effectually maps over the value the fiber computes.
@@ -359,7 +359,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       def success(value: A): UIO[p.type]        = ZIO.succeed(p.success(value))
 
       val completeFuture =
-        self.await.flatMap(_.foldZIO[Any, Nothing, p.type](failure, success))
+        self.await.flatMap(_.foldExitZIO[Any, Nothing, p.type](failure(_), success(_)))
 
       for {
         runtime <- ZIO.runtime[Any]

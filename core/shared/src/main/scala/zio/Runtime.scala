@@ -33,12 +33,16 @@ trait Runtime[+R] { self =>
   def environment: ZEnvironment[R]
 
   /**
-   * The `FiberRef` values that will be used for workflows executed by the
+   * The [[zio.FiberRefs]] that will be used for all effects executed by this
    * runtime.
    */
   def fiberRefs: FiberRefs =
     FiberRefs.empty
 
+  /**
+   * The [[zio.RuntimeFlags]] that will be used for all effects executed by this
+   * [[zio.Runtime]].
+   */
   def runtimeFlags: RuntimeFlags =
     RuntimeFlags.default
 
@@ -52,7 +56,7 @@ trait Runtime[+R] { self =>
    * Constructs a new `Runtime` by mapping the environment.
    */
   def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
-    Runtime(f(environment), fiberRefs)
+    Runtime(f(environment), fiberRefs, runtimeFlags)
 
   /**
    * Runs the effect "purely" through an async boundary. Useful for testing.
@@ -93,13 +97,30 @@ trait Runtime[+R] { self =>
    * This method is effectful and should only be invoked at the edges of your
    * program.
    */
-  final def unsafeRunSync[E, A](zio0: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] =
-    defaultUnsafeRunSync(zio0)
-
-  private[zio] final def defaultUnsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] = {
+  final def unsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] = {
     val result = internal.OneShot.make[Exit[E, A]]
 
-    unsafeRunWith(zio)(result.set)
+    import internal.FiberRuntime
+
+    val fiberId   = FiberId.unsafeMake(trace)
+    val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
+    val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
+
+    FiberScope.global.unsafeAdd(runtimeFlags, fiber)
+
+    val supervisor = fiber.unsafeGetSupervisor()
+
+    if (supervisor != Supervisor.none) {
+      supervisor.unsafeOnStart(environment, zio, None, fiber)
+
+      fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
+    }
+
+    fiber.unsafeAddObserver { exit =>
+      result.set(exit)
+    }
+
+    fiber.start[R](zio)
 
     result.get()
   }
@@ -149,7 +170,7 @@ trait Runtime[+R] { self =>
    * program.
    */
   final def unsafeRunTask[A](task: RIO[R, A])(implicit trace: Trace): A =
-    unsafeRunSync(task).fold(cause => throw cause.squashTrace, identity)
+    unsafeRunSync(task).foldExit(cause => throw cause.squashTrace, identity)
 
   /**
    * Runs the IO, returning a Future that will be completed when the effect has
@@ -163,7 +184,7 @@ trait Runtime[+R] { self =>
   )(implicit trace: Trace): CancelableFuture[A] = {
     val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
-    val canceler = unsafeRunWith(zio)(_.fold(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+    val canceler = unsafeRunWith(zio)(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
 
     new CancelableFuture[A](p.future) {
       def cancel(): Future[Exit[Throwable, A]] = {
@@ -215,6 +236,29 @@ trait Runtime[+R] { self =>
           (exit: Exit[Nothing, Exit[E, A]], fiberRefs: FiberRefs) => k(exit.flatten, fiberRefs)
         )
   }
+
+  // final def unsafeStart[E, A](
+  //   zio: ZIO[R, E, A],
+  //   fiberRefs0: FiberRefs
+  // )(implicit trace: Trace): internal.FiberRuntime[E, A] = {
+  //   import internal.FiberRuntime
+
+  //   val fiberId   = FiberId.unsafeMake(trace)
+  //   val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
+  //   val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
+
+  //   FiberScope.global.unsafeAdd(runtimeFlags, fiber)
+
+  //   val supervisor = fiber.unsafeGetSupervisor()
+
+  //   if (supervisor != Supervisor.none) {
+  //     supervisor.unsafeOnStart(environment, zio, None, fiber)
+
+  //     fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
+  //   }
+
+  //   fiber.start[R](zio)
+  // }
 }
 
 object Runtime extends RuntimePlatformSpecific {
@@ -234,7 +278,7 @@ object Runtime extends RuntimePlatformSpecific {
   def apply[R](
     r: ZEnvironment[R],
     fiberRefs0: FiberRefs,
-    runtimeFlags0: RuntimeFlags = RuntimeFlags.default
+    runtimeFlags0: RuntimeFlags
   ): Runtime[R] =
     new Runtime[R] {
       val environment           = r
@@ -248,7 +292,7 @@ object Runtime extends RuntimePlatformSpecific {
    * for typical ZIO applications.
    */
   val default: Runtime[Any] =
-    Runtime(ZEnvironment.empty, FiberRefs.empty)
+    Runtime(ZEnvironment.empty, FiberRefs.empty, RuntimeFlags.default)
 
   def enableCurrentFiber(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {

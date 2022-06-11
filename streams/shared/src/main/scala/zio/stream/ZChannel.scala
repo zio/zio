@@ -1698,7 +1698,7 @@ object ZChannel {
         ZChannel.fromZIO(queue.take).flatMap {
           case Right(elem) => write(elem) *> fromQueue(queue)
           case Left(exit) =>
-            exit.fold(
+            exit.foldExit(
               failCause(_),
               succeedNow(_)
             )

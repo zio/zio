@@ -144,22 +144,18 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   }
 
   /**
-   * Adds a message to be processed by the fiber on the current thread. Note
-   * this should only be called from a thread on the correct thread pool.
-   */
-  final def tellHere(message: FiberMessage): Unit = {
-    queue.add(message)
-
-    if (running.compareAndSet(false, true)) drainQueueOnCurrentThread()
-  }
-
-  /**
    * Begins execution of the effect associated with this fiber on the current
    * thread. This can be called to "kick off" execution of a fiber after it has
    * been created, in hopes that the effect can be executed synchronously.
    */
   final def start[R](effect: ZIO[R, E, A]): Unit =
-    tellHere(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
+    if (running.compareAndSet(false, true)) {
+      try {
+        evaluateEffect(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty)
+      } finally {
+        running.set(false)
+      }
+    } else tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
 
   /**
    * Begins execution of the effect associated with this fiber on in the
@@ -218,7 +214,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
     try {
       var effect =
-        if (RuntimeFlags.interruptible(_runtimeFlags) && unsafeIsInterrupted()) ZIO.Refail(unsafeGetInterruptedCause())
+        if (RuntimeFlags.interruptible(_runtimeFlags) && unsafeIsInterrupted())
+          Exit.Failure(unsafeGetInterruptedCause())
         else effect0
       var stack       = stack0
       var signal      = EvaluationSignal.Continue: EvaluationSignal
@@ -245,14 +242,14 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               // There are messages, possibly added by the final op executed by
               // the fiber. To be safe, we should execute those now before we
               // allow the fiber to end life:
-              tell(FiberMessage.Resume(ZIO.done(exit), Chunk.empty))
+              tell(FiberMessage.Resume(exit, Chunk.empty))
             }
 
             effect = null
           } else {
             _runtimeFlags = RuntimeFlags.enable(_runtimeFlags)(RuntimeFlag.WindDown)
 
-            effect = interruption *> ZIO.done(exit)
+            effect = interruption *> exit
             stack = Chunk.empty
           }
         } catch {
@@ -294,7 +291,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 if (unsafeIsFatal(throwable)) {
                   handleFatalError(throwable)
                 } else {
-                  effect = Refail(Cause.die(throwable))
+                  effect = Exit.Failure(Cause.die(throwable))
                   stack = Chunk.empty
                 }
             }
@@ -312,16 +309,21 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             effect = ZIO.succeed(trace)(Trace.empty)
             stack = nextStack
 
-          case t: Throwable => // FIXME: Non-fatal
-            // No error should escape to this level.
-            self.unsafeLog(
-              () => s"An unhandled error was encountered while executing ${id.threadName}",
-              Cause.die(t),
-              ZIO.someError,
-              Trace.empty
-            )
+          case t: Throwable =>
+            if (unsafeIsFatal(t)) {
+              handleFatalError(t)
+            } else {
+              // No error should escape to this level.
+              self.unsafeLog(
+                () => s"An unhandled error was encountered while executing ${id.threadName}",
+                Cause.die(t),
+                ZIO.someError,
+                Trace.empty
+              )
 
-            effect = null
+              effect = null
+            }
+
         }
       }
 
@@ -440,7 +442,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case FiberMessage.InterruptSignal(cause) =>
             self.unsafeAddInterruptedCause(cause)
 
-            cur = if (RuntimeFlags.interruptible(runtimeFlags)) Refail(cause) else cur
+            cur = if (RuntimeFlags.interruptible(runtimeFlags)) Exit.Failure(cause) else cur
 
           case FiberMessage.GenStackTrace(onTrace) =>
             val oldCur = cur
@@ -497,7 +499,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
 
                       if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
-                        cur = Refail(unsafeGetInterruptedCause())
+                        cur = Exit.Failure(unsafeGetInterruptedCause())
 
                     case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
                   }
@@ -506,7 +508,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 if (cur eq null) done = value.asInstanceOf[AnyRef]
               } catch {
                 case zioError: ZIOError =>
-                  cur = Refail(zioError.cause)
+                  cur = Exit.Failure(zioError.cause)
               }
 
             case effect: Async[_, _, _] =>
@@ -525,7 +527,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 // Interruption will cause immediate reversion of the flag, so as long as we
                 // "peek ahead", there's no need to set them to begin with.
                 if (RuntimeFlags.interruptible(newRuntimeFlags) && unsafeIsInterrupted()) {
-                  Refail(unsafeGetInterruptedCause())
+                  Exit.Failure(unsafeGetInterruptedCause())
                 } else {
                   // Impossible to short circuit, so record the changes:
                   runtimeFlags = patchRuntimeFlags(runtimeFlags, updateFlags)
@@ -540,7 +542,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
-                      Refail(unsafeGetInterruptedCause())
+                      Exit.Failure(unsafeGetInterruptedCause())
                     else ZIO.succeed(value)
                   } catch {
                     case reifyStack: ReifyStack =>
@@ -562,7 +564,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 Fiber.Status.Running(runtimeFlags, lastTrace)
               )
 
-            case refail: Refail[_] =>
+            case success: Exit.Success[_] =>
+              ???
+
+            case refail: Exit.Failure[_] =>
               val cause = refail.cause.asInstanceOf[Cause[Any]]
 
               cur = null
@@ -580,7 +585,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted()) {
-                      cur = Refail(cause ++ unsafeGetInterruptedCause())
+                      cur = Exit.Failure(cause ++ unsafeGetInterruptedCause())
                     }
 
                   case k: EvaluationStep.UpdateTrace => if (k.trace ne Trace.empty) lastTrace = k.trace
@@ -641,12 +646,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             throw reifyStack
 
           case interruptedException: InterruptedException =>
-            cur = Refail(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
+            cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
 
           case throwable: Throwable =>
             cur = if (unsafeIsFatal(throwable)) {
               handleFatalError(throwable)
-            } else Refail(Cause.die(throwable))
+            } else Exit.Failure(Cause.die(throwable))
         }
       }
     }
@@ -686,7 +691,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * Adds an observer to the list of observers.
    */
   final def unsafeAddObserver(observer: Exit[E, A] => Unit): Unit =
-    observers = observer :: observers
+    if (_exitValue ne null) observer(_exitValue)
+    else observers = observer :: observers
 
   final def unsafeDeleteFiberRef(ref: FiberRef[_]): Unit =
     _fiberRefs = _fiberRefs.delete(ref)

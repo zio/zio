@@ -479,13 +479,13 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
       }
     }
 
-    val state = subexecDone.fold(doneHalt, doneSucceed)
+    val state = subexecDone.foldExit(doneHalt, doneSucceed)
     activeSubexecutor = null
     state
   }
 
   def finishWithExit(exit: Exit[Any, Any])(implicit trace: Trace): ZIO[Env, Any, Any] = {
-    val state = exit.fold(doneHalt, doneSucceed)
+    val state = exit.foldExit(doneHalt, doneSucceed)
     activeSubexecutor = null
 
     if (state eq null) ZIO.unit

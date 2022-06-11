@@ -377,7 +377,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             ZChannel.fromZIO {
               queue.take
             }.flatMap { (exit: Exit[Option[E], A]) =>
-              exit.fold(
+              exit.foldExit(
                 Cause
                   .flipCauseOption(_)
                   .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.failCause(_)),
@@ -1739,7 +1739,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
             )
 
           case Some(exit) =>
-            exit.fold(ZChannel.failCause(_), _ => ZChannel.unit)
+            exit.foldExit(ZChannel.failCause(_), _ => ZChannel.unit)
         }
       }
 

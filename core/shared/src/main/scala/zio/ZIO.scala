@@ -25,7 +25,6 @@ import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
-import scala.util.{Failure, Success}
 import izumi.reflect.macrortti.LightTypeTag
 
 /**
@@ -50,7 +49,11 @@ import izumi.reflect.macrortti.LightTypeTag
  * effects. Runtimes bundle a thread pool together with the environment that
  * effects need.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] with ZIOVersionSpecific[R, E, A] {
+sealed trait ZIO[-R, +E, +A]
+    extends Product
+    with Serializable
+    with ZIOPlatformSpecific[R, E, A]
+    with ZIOVersionSpecific[R, E, A] {
   self =>
 
   /**
@@ -439,8 +442,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeed(println(value)))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+      .tap(value => ZIO.succeedNow(println(value)))
+      .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $error")))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
@@ -448,8 +451,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(prefix: => String)(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
+      .tap(value => ZIO.succeedNow(println(s"$prefix: $value")))
+      .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $prefix: $error")))
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -1241,12 +1244,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.fiberIdWith { parentFiberId =>
       (self.disconnect.raceWith(that.disconnect))(
         (exit, right) =>
-          exit.foldZIO[Any, E1, A1](
+          exit.foldExitZIO[Any, E1, A1](
             cause => right.join.mapErrorCause(cause && _),
             a => right.interruptAs(parentFiberId).as(a)
           ),
         (exit, left) =>
-          exit.foldZIO[Any, E1, A1](
+          exit.foldExitZIO[Any, E1, A1](
             cause => left.join.mapErrorCause(_ && cause),
             a => left.interruptAs(parentFiberId).as(a)
           )
@@ -1267,7 +1270,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       promise: Promise[E1, (A1, Fiber[E1, A1])],
       fails: Ref[Int]
     )(res: Exit[E1, A1]): URIO[R1, Any] =
-      res.foldZIO[R1, Nothing, Unit](
+      res.foldExitZIO[R1, Nothing, Unit](
         e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) promise.failCause(e).unit else ZIO.unit) -> (c - 1))),
         a =>
           promise
@@ -3044,12 +3047,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect from a [[zio.Exit]] value.
    */
   def done[E, A](r: => Exit[E, A])(implicit trace: Trace): IO[E, A] =
-    ZIO.suspendSucceed {
-      r match {
-        case Exit.Success(b)     => succeedNow(b)
-        case Exit.Failure(cause) => failCause(cause)
-      }
-    }
+    ZIO.suspendSucceed(r)
 
   /**
    * Accesses the whole environment of the effect.
@@ -3522,6 +3520,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit trace: Trace): Task[A] =
     ZIO.descriptorWith { d =>
+      import scala.util.{Failure, Success}
       val ec = d.executor.asExecutionContext
       ZIO.attempt(make(ec)).flatMap { f =>
         val canceler: UIO[Unit] = f match {
@@ -3564,6 +3563,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     make: ExecutionContext => scala.concurrent.Future[A]
   )(implicit trace: Trace): Task[A] =
     ZIO.descriptorWith { d =>
+      import scala.util.{Failure, Success}
       val ec          = d.executor.asExecutionContext
       val interrupted = new java.util.concurrent.atomic.AtomicBoolean(false)
       val latch       = scala.concurrent.Promise[Unit]()
@@ -4226,7 +4226,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       mergeAllPar(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
     }
 
-  def refailCause[E](cause: Cause[E])(implicit trace: Trace): ZIO[Any, E, Nothing] = Refail(cause)
+  def refailCause[E](cause: Cause[E])(implicit trace: Trace): ZIO[Any, E, Nothing] = Exit.Failure(cause)
 
   /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
@@ -4995,7 +4995,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
               ZIO
                 .suspendSucceed(release(a, e))
                 .foldCauseZIO(
-                  cause2 => ZIO.refailCause(e.fold(_ ++ cause2, _ => cause2)),
+                  cause2 => ZIO.refailCause(e.foldExit(_ ++ cause2, _ => cause2)),
                   _ => ZIO.done(e)
                 )
             })
@@ -5576,9 +5576,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E, A] { self =>
     def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
   }
-  private[zio] final case class Refail[E](cause: Cause[E]) extends ZIO[Any, E, Nothing] {
-    def trace: Trace = Trace.empty
-  }
   private[zio] final case class WhileLoop[R, E, S](
     trace: Trace,
     create: () => S,
@@ -5624,7 +5621,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] val someDebug   = Some(LogLevel.Debug)
   private[zio] val someTrace   = Some(LogLevel.Trace)
 
-  private[zio] def succeedNow[A](a: A): UIO[A] = ZIO.succeed(a)(Trace.empty) // FIXME
+  private[zio] def succeedNow[A](a: A): UIO[A] = Exit.Success(a)
 
   private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit
     trace: Trace
@@ -5651,8 +5648,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
               case None => ZIO.unit
             }
 
+          val array = Array.ofDim[AnyRef](size)
+
           for {
-            array <- ZIO.succeed(Array.ofDim[AnyRef](size))
             queue <- Queue.bounded[(A, Int)](size)
             _     <- queue.offerAll(as.zipWithIndex)
             _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n)(worker(queue, array)))
@@ -5739,4 +5737,325 @@ object ZIO extends ZIOCompanionPlatformSpecific {
         }
       }
     }
+}
+
+/**
+ * An `Exit[E, A]` describes the result of executing an `IO` value. The result
+ * is either succeeded with a value `A`, or failed with a `Cause[E]`.
+ */
+sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
+  import Exit._
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the
+   * first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ && _)
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the
+   * first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ ++ _)
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the
+   * second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ && _)
+
+  /**
+   * Parallelly zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
+   */
+  final def <&>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ && _)
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the
+   * second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ ++ _)
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
+   */
+  final def <*>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ ++ _)
+
+  /**
+   * Replaces the success value with the one provided.
+   */
+  final def as[B](b: B): Exit[E, B] = map(_ => b)
+
+  /**
+   * Returns an option of the cause of failure.
+   */
+  final def causeOption: Option[Cause[E]] =
+    self match {
+      case Failure(cause) => Some(cause)
+      case _              => None
+    }
+
+  final def exists(p: A => Boolean): Boolean =
+    foldExit(_ => false, p)
+
+  /**
+   * Flat maps over the value type.
+   */
+  final def flatMap[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
+    self match {
+      case Success(a)     => f(a)
+      case e @ Failure(_) => e
+    }
+
+  /**
+   * Flat maps over the value type.
+   */
+  final def flatMapZIO[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
+    self match {
+      case Success(a)     => f(a)
+      case e @ Failure(_) => ZIO.succeedNow(e)
+    }
+
+  /**
+   * Flattens an Exit of an Exit into a single Exit value.
+   */
+  final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
+    Exit.flatten(self.map(ev))
+
+  /**
+   * Folds over the value or cause.
+   */
+  final def foldExit[Z](failed: Cause[E] => Z, completed: A => Z): Z =
+    self match {
+      case Success(v)     => completed(v)
+      case Failure(cause) => failed(cause)
+    }
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
+   */
+  final def foldExitZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
+    trace: Trace
+  ): ZIO[R, E1, B] =
+    self match {
+      case Failure(cause) => failed(cause)
+      case Success(v)     => completed(v)
+    }
+
+  /**
+   * Applies the function `f` to the successful result of the `Exit` and returns
+   * the result in a new `Exit`.
+   */
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, Nothing, Exit[E1, B]] =
+    foldExit(c => ZIO.succeedNow(failCause(c)), a => f(a).exit)
+
+  /**
+   * Retrieves the `A` if succeeded, or else returns the specified default `A`.
+   */
+  final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
+    case Success(value) => value
+    case Failure(cause) => orElse(cause)
+  }
+
+  /**
+   * Determines if the result is a failure.
+   */
+  final def isFailure: Boolean = !isSuccess
+
+  /**
+   * Determines if the result is interrupted.
+   */
+  final def isInterrupted: Boolean = self match {
+    case Success(_) => false
+    case Failure(c) => c.isInterrupted
+  }
+
+  /**
+   * Determines if the result is a success.
+   */
+  final def isSuccess: Boolean = self match {
+    case Success(_) => true
+    case _          => false
+  }
+
+  /**
+   * Maps over the value type.
+   */
+  final def map[A1](f: A => A1): Exit[E, A1] =
+    self match {
+      case Success(v)     => Exit.succeed(f(v))
+      case e @ Failure(_) => e
+    }
+
+  /**
+   * Maps over both the error and value type.
+   */
+  final def mapBoth[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
+    mapError(f).map(g)
+
+  /**
+   * Maps over the error type.
+   */
+  final def mapError[E1](f: E => E1): Exit[E1, A] =
+    self match {
+      case e @ Success(_) => e
+      case Failure(c)     => failCause(c.map(f))
+    }
+
+  /**
+   * Maps over the cause type.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): Exit[E1, A] =
+    self match {
+      case e @ Success(_) => e
+      case Failure(c)     => Failure(f(c))
+    }
+
+  /**
+   * Replaces the error value with the one provided.
+   */
+  final def orElseFail[E1](e1: => E1): Exit[E1, A] =
+    mapError(_ => e1)
+
+  /**
+   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the cause in
+   * `FiberFailure` (if the result is failed).
+   */
+  final def toEither: Either[Throwable, A] = self match {
+    case Success(value) => Right(value)
+    case Failure(cause) => Left(FiberFailure(cause))
+  }
+
+  final def toTry(implicit ev: E <:< Throwable): scala.util.Try[A] =
+    self match {
+      case Success(value) => scala.util.Try(value)
+      case Failure(cause) => scala.util.Failure(cause.squash)
+    }
+
+  /**
+   * Converts the `Exit` to a `ZIO` effect.
+   */
+  final def toZIO(implicit trace: Trace): IO[E, A] =
+    self match {
+      case Exit.Failure(cause) => ZIO.refailCause(cause)
+      case Exit.Success(value) => ZIO.succeedNow(value)
+    }
+
+  final def trace: Trace = Trace.empty
+
+  /**
+   * Discards the value.
+   */
+  final def unit: Exit[E, Unit] = as(())
+
+  /**
+   * Returns an untraced exit value.
+   */
+  final def untraced: Exit[E, A] = mapErrorCause(_.untraced)
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <*> that
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <&> that
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self &> that
+
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
+
+  /**
+   * Zips this together with the specified result using the combination
+   * functions.
+   */
+  final def zipWith[E1 >: E, B, C](that: Exit[E1, B])(
+    f: (A, B) => C,
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): Exit[E1, C] =
+    (self, that) match {
+      case (Success(a), Success(b)) => Exit.succeed(f(a, b))
+      case (Failure(l), Failure(r)) => Exit.failCause(g(l, r))
+      case (e @ Failure(_), _)      => e
+      case (_, e @ Failure(_))      => e
+    }
+}
+
+object Exit extends Serializable {
+
+  final case class Success[+A](value: A)        extends Exit[Nothing, A]
+  final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
+
+  def interrupt(id: FiberId): Exit[Nothing, Nothing] =
+    failCause(Cause.interrupt(id))
+
+  def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .map(_.reverse)
+    }
+
+  def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
+        .map(_.reverse)
+    }
+
+  def die(t: Throwable): Exit[Nothing, Nothing] =
+    failCause(Cause.die(t))
+
+  def fail[E](error: E): Exit[E, Nothing] =
+    failCause(Cause.fail(error))
+
+  def failCause[E](cause: Cause[E]): Exit[E, Nothing] =
+    Failure(cause)
+
+  def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
+    exit.flatMap(identity)
+
+  def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
+    e.fold(fail, succeed)
+
+  def fromOption[A](o: Option[A]): Exit[Unit, A] =
+    o.fold[Exit[Unit, A]](fail(()))(succeed)
+
+  def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
+    t match {
+      case scala.util.Success(a) => succeed(a)
+      case scala.util.Failure(t) => fail(t)
+    }
+
+  def succeed[A](a: A): Exit[Nothing, A] = Success(a)
+
+  val unit: Exit[Nothing, Unit] = succeed(())
+
+  private[zio] val empty: Exit[Nothing, Nothing] = Exit.failCause[Nothing](Cause.empty)
 }
