@@ -599,7 +599,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
   }
 
   def fromFunctionX[OutParam]: FromFunctionPartiallApplied[OutParam] =
-    new FromFunctionPartiallApplied[OutParam](())
+    new FromFunctionPartiallApplied[OutParam]
 
   /**
    * Constructs a layer from the specified function.
