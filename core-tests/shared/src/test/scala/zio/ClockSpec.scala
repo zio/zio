@@ -44,7 +44,7 @@ object ClockSpec extends ZIOBaseSpec {
       test("should accept any Instant") {
         check(Gen.instant) { instant =>
           for {
-            _   <- TestClock.setInstant(instant)
+            _   <- TestClock.setTime(instant)
             now <- Clock.instant
           } yield assertTrue(now == instant)
         }
@@ -57,7 +57,7 @@ object ClockSpec extends ZIOBaseSpec {
           _       <- TestClock.adjust(maxMillisDuration)
           promise <- Promise.make[Nothing, Unit]
           _       <- (ZIO.sleep(maxMillisDuration) *> promise.succeed(())).fork
-          _       <- TestClock.setInstant(Instant.MAX)
+          _       <- TestClock.setTime(Instant.MAX)
           _       <- promise.await
         } yield assertTrue(true)
       }

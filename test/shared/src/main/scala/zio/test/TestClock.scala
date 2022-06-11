@@ -87,7 +87,7 @@ import scala.collection.immutable.SortedSet
 trait TestClock extends Clock with Restorable {
   def adjust(duration: Duration)(implicit trace: Trace): UIO[Unit]
   def adjustWith[R, E, A](duration: Duration)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
-  def setInstant(instant: Instant)(implicit trace: Trace): UIO[Unit]
+  def setTime(instant: Instant)(implicit trace: Trace): UIO[Unit]
   def setTimeZone(zone: ZoneId)(implicit trace: Trace): UIO[Unit]
   def sleeps(implicit trace: Trace): UIO[List[Instant]]
   def timeZone(implicit trace: Trace): UIO[ZoneId]
@@ -184,7 +184,7 @@ object TestClock extends Serializable {
      * Sets the current clock time to the specified `Instant`. Any effects that
      * were scheduled to occur on or before the new time will be run in order.
      */
-    def setInstant(instant: Instant)(implicit trace: Trace): UIO[Unit] =
+    def setTime(instant: Instant)(implicit trace: Trace): UIO[Unit] =
       warningDone *> run(_ => instant)
 
     /**
@@ -430,8 +430,8 @@ object TestClock extends Serializable {
    * to the specified `Instant`, running any actions scheduled for on or before
    * the new time in order.
    */
-  def setInstant(instant: => Instant)(implicit trace: Trace): UIO[Unit] =
-    testClockWith(_.setInstant(instant))
+  def setTime(instant: => Instant)(implicit trace: Trace): UIO[Unit] =
+    testClockWith(_.setTime(instant))
 
   /**
    * Accesses a `TestClock` instance in the environment, setting the time zone

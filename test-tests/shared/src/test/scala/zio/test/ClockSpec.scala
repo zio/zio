@@ -48,7 +48,7 @@ object ClockSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(false)
           _      <- ref.set(true).delay(10.hours).fork
-          _      <- setInstant(Instant.EPOCH.plus(11.hours))
+          _      <- setTime(Instant.EPOCH.plus(11.hours))
           result <- ref.get
         } yield assert(result)(isTrue)
       } @@ forked @@ nonFlaky,
@@ -89,31 +89,31 @@ object ClockSpec extends ZIOBaseSpec {
       test("setInstant correctly sets currentDateTime") {
         for {
           expected <- ZIO.succeed(Instant.now)
-          _        <- setInstant(expected)
+          _        <- setTime(expected)
           actual   <- Clock.currentDateTime
         } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toEpochMilli))
       },
       test("setInstant correctly sets nanotime") {
         for {
-          _    <- setInstant(Instant.EPOCH.plus(1.millis))
+          _    <- setTime(Instant.EPOCH.plus(1.millis))
           time <- Clock.nanoTime
         } yield assert(time)(equalTo(1.millis.toNanos))
       },
       test("setInstant correctly sets currentTime") {
         for {
-          _    <- setInstant(Instant.EPOCH.plus(1.millis))
+          _    <- setTime(Instant.EPOCH.plus(1.millis))
           time <- currentTime(TimeUnit.NANOSECONDS)
         } yield assert(time)(equalTo(1.millis.toNanos))
       },
       test("setInstant correctly sets currentDateTime") {
         for {
-          _    <- TestClock.setInstant(Instant.EPOCH.plus(1.millis))
+          _    <- TestClock.setTime(Instant.EPOCH.plus(1.millis))
           time <- currentDateTime
         } yield assert(time.toInstant.toEpochMilli)(equalTo(1.millis.toMillis))
       },
       test("setInstant does not produce sleeps") {
         for {
-          _      <- setInstant(Instant.EPOCH.plus(1.millis))
+          _      <- setTime(Instant.EPOCH.plus(1.millis))
           sleeps <- sleeps
         } yield assert(sleeps)(isEmpty)
       },
