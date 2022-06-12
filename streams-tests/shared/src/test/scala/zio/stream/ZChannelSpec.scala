@@ -762,18 +762,21 @@ object ZChannelSpec extends ZIOBaseSpec {
       ),
       test("cause is propagated on channel interruption") {
         for {
-          promise <- Promise.make[Nothing, Unit]
-          ref     <- Ref.make[Exit[Any, Any]](Exit.unit)
+          promise  <- Promise.make[Nothing, Unit]
+          finished <- Promise.make[Nothing, Unit]
+          ref      <- Ref.make[Exit[Any, Any]](Exit.unit)
           _ <- ZChannel
                  .fromZIO(promise.succeed(()) *> ZIO.never)
                  .runDrain
                  .onExit(ref.set)
+                 .ensuring(finished.succeed(()))
                  .raceEither(promise.await)
+          _ <- finished.await // Note: interruption in race is now done in the background
           exit <- ref.get
         } yield assertTrue(exit.isInterrupted)
       }
     )
-  )
+  ) @@ TestAspect.diagnose(2.seconds)
 
   def refReader[T](ref: Ref[List[T]]): ZChannel[Any, Any, Any, Any, Nothing, T, Unit] =
     ZChannel
