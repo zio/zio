@@ -22,14 +22,14 @@ The following guides have been written to help you get started with ZIO with min
 2. [How to Encode and Decode JSON Data](tutorials/encode-and-decode-json-data.md)
 3. [How to Enable Logging in a ZIO Application?](tutorials/enable-logging-in-a-zio-application.md)
 4. [How to Create a Custom Logger for a ZIO Application?](tutorials/create-custom-logger-for-a-zio-application.md)
-5. How to Setup the IntelliJ IDEA to Use ZIO?
-6. How to Setup the VsCode to Use ZIO?
-7. Building a RESTful Web Service
-8. Building a Web Service Client
-9. Building a gRPC Service with its Client
-10. How to Build a Chat Client and Server using ZIO Streams?
-11. How to Deploy a ZIO Application Using Docker?
-12. How to Monitor a ZIO Application Using Built-in Metrics
+5. [How to Monitor a ZIO Application Using Built-in Metrics](tutorials/monitor-a-zio-application-using-built-in-metrics.md)
+6. How to Setup the IntelliJ IDEA to Use ZIO?
+7. How to Setup the VsCode to Use ZIO?
+8. Building a RESTful Web Service
+9. Building a Web Service Client
+10. Building a gRPC Service with its Client
+11. How to Build a Chat Client and Server using ZIO Streams?
+12. How to Deploy a ZIO Application Using Docker?
 13. How to Monitor a ZIO Application by Implementing Custom Metrics
 14. How to Integrate ZIO With a Legacy JVM Application?
 15. How to Consume/Produce Data From/To a Kafka Topic?
