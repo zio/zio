@@ -484,7 +484,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
               val effect = effect0.erase
 
-              val cur =
+              cur =
                 try {
                   effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
                 } catch {
