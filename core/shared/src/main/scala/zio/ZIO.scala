@@ -5515,9 +5515,6 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       with EvaluationStep.Continuation[R, E1, E2, A, B] {
     self =>
     def first: ZIO[R, E1, A]
-
-    final override def erase: OnSuccessOrFailure[Any, Any, Any, Any, Any] =
-      self.asInstanceOf[OnSuccessOrFailure[Any, Any, Any, Any, Any]]
   }
   private[zio] final case class OnSuccessAndFailure[R, E1, E2, A, B](
     trace: Trace,
@@ -5531,7 +5528,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   }
   private[zio] final case class OnSuccess[R, A, E, B](trace: Trace, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
       extends OnSuccessOrFailure[R, E, E, A, B] {
-    def onFailure(c: Cause[E]): ZIO[R, E, B] = ZIO.refailCause(c)(trace)
+    def onFailure(c: Cause[E]): ZIO[R, E, B] = Exit.Failure(c)
 
     def onSuccess(a: A): ZIO[R, E, B] = successK(a.asInstanceOf[A])
   }
@@ -5542,7 +5539,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends OnSuccessOrFailure[R, E1, E2, A, A] {
     def onFailure(c: Cause[E1]): ZIO[R, E2, A] = failureK(c)
 
-    def onSuccess(a: A): ZIO[R, E2, A] = ZIO.succeed(a)(trace)
+    def onSuccess(a: A): ZIO[R, E2, A] = Exit.Success(a)
   }
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends ZIO[Any, Nothing, Unit]

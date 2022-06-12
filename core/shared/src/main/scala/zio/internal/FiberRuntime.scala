@@ -481,14 +481,15 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       } else {
         try {
           cur match {
-            case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
-              val effect = effect0.erase
+
+            case effect0: OnSuccess[_, _, _, _] =>
+              val effect = effect0.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
 
               cur =
                 try {
-                  effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+                  effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
                 } catch {
-                  case zioError: ZIOError => effect.onFailure(zioError.cause)
+                  case zioError: ZIOError => Exit.Failure(zioError.cause)
 
                   case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
                 }
@@ -525,6 +526,30 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 case zioError: ZIOError =>
                   cur = Exit.Failure(zioError.cause)
               }
+
+            case effect0: OnFailure[_, _, _, _] =>
+              val effect = effect0.asInstanceOf[OnFailure[Any, Any, Any, Any]]
+
+              cur =
+                try {
+                  Exit.Success(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+                } catch {
+                  case zioError: ZIOError => effect.onFailure(zioError.cause)
+
+                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                }
+
+            case effect0: OnSuccessAndFailure[_, _, _, _, _] =>
+              val effect = effect0.asInstanceOf[OnSuccessAndFailure[Any, Any, Any, Any, Any]]
+
+              cur =
+                try {
+                  effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+                } catch {
+                  case zioError: ZIOError => effect.failureK(zioError.cause)
+
+                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                }
 
             case effect: Async[_, _, _] =>
               throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn())
