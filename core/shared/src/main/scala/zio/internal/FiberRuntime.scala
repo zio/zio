@@ -190,7 +190,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         EvaluationSignal.Continue
 
       case FiberMessage.GenStackTrace(onTrace) =>
-        onTrace(StackTrace(self.id, self.suspendedStatus.stack.map(_.trace)))
+        val stackTrace =
+          if (self.suspendedStatus == null) StackTrace(id, Chunk.empty)
+          else buildStackTrace(self.suspendedStatus.stack)
+
+        onTrace(stackTrace)
 
         EvaluationSignal.Continue
 
@@ -309,16 +313,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             }
 
           case traceGen: GenerateTrace =>
-            val nextStack = traceGen.stack.result()
-            val builder   = StackTraceBuilder.unsafeMake()
+            val nextStack  = traceGen.stack.result()
+            val stackTrace = buildStackTrace(nextStack)
 
-            nextStack.foreach(k => builder += k.trace)
-
-            builder += id.location
-
-            val trace = StackTrace(self.fiberId, builder.result())
-
-            effect = ZIO.succeed(trace)(Trace.empty)
+            effect = ZIO.succeedNow(stackTrace)
             stack = nextStack
 
           case t: Throwable =>
@@ -391,6 +389,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     assert(running.get == true)
 
     self.unsafeGetCurrentExecutor().unsafeSubmitOrThrow(self)
+  }
+
+  private def buildStackTrace(stack: Chunk[EvaluationStep]): StackTrace = {
+    val builder = StackTraceBuilder.unsafeMake()
+
+    stack.foreach(k => builder += k.trace)
+
+    builder += id.location
+
+    StackTrace(self.fiberId, builder.result())
   }
 
   final def unsafeInterruptAllChildren(): UIO[Any] =
