@@ -35,7 +35,6 @@ The following guides have been written to help you get started with ZIO with min
 15. How to Consume/Produce Data From/To a Kafka Topic?
 16. How to Consume/Produce Data From/To a RabbitMQ Queue?
 17. How to Enable Tracing in ZIO and How to Use it?
-18. [How to Use ZIO Macros?](howto-macros.md)
 
 ## Integration Guides
 
