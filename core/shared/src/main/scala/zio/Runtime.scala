@@ -98,15 +98,13 @@ trait Runtime[+R] { self =>
    * program.
    */
   final def unsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] = {
-    val result = internal.OneShot.make[Exit[E, A]]
-
     import internal.FiberRuntime
 
     val fiberId   = FiberId.unsafeMake(trace)
     val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
     val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
 
-    FiberScope.global.unsafeAdd(runtimeFlags, fiber)
+    //FiberScope.global.unsafeAdd(runtimeFlags, fiber)
 
     val supervisor = fiber.unsafeGetSupervisor()
 
@@ -115,14 +113,16 @@ trait Runtime[+R] { self =>
 
       fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
     }
+    
+    val fastExit = fiber.start[R](zio)
 
-    fiber.unsafeAddObserver { exit =>
-      result.set(exit)
+    if (fastExit != null) fastExit 
+    else {
+      import internal.{FiberMessage, OneShot}
+      val result = OneShot.make[Exit[E, A]]
+      fiber.tell(FiberMessage.Stateful((fiber, _) => fiber.unsafeAddObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]]))))
+      result.get()
     }
-
-    fiber.start[R](zio)
-
-    result.get()
   }
 
   /**

@@ -148,14 +148,17 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
    * thread. This can be called to "kick off" execution of a fiber after it has
    * been created, in hopes that the effect can be executed synchronously.
    */
-  final def start[R](effect: ZIO[R, E, A]): Unit =
+  final def start[R](effect: ZIO[R, E, A]): Exit[E, A] =
     if (running.compareAndSet(false, true)) {
       try {
         evaluateEffect(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty)
       } finally {
         running.set(false)
       }
-    } else tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
+    } else {
+      tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
+      null
+    }
 
   /**
    * Begins execution of the effect associated with this fiber on in the
@@ -198,6 +201,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       case FiberMessage.Resume(effect, stack) =>
         _interruptor = null
         evaluateEffect(effect, stack)
+        EvaluationSignal.Continue
+
+      case FiberMessage.YieldNow =>
+        EvaluationSignal.Yield 
     }
   }
 
@@ -207,7 +214,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def evaluateEffect(
     effect0: ZIO[Any, Any, Any],
     stack0: Chunk[EvaluationStep]
-  ): EvaluationSignal = {
+  ): Exit[E, A] = {
     assert(running.get == true)
 
     unsafeGetSupervisor().unsafeOnResume(self)
@@ -218,9 +225,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           Exit.Failure(unsafeGetInterruptedCause())
         else effect0
       var stack       = stack0
-      var signal      = EvaluationSignal.Continue: EvaluationSignal
       var trampolines = 0
-      var ops         = 0
+      var finalExit   = null.asInstanceOf[Exit[E, A]]
 
       while (effect ne null) {
         try {
@@ -236,6 +242,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
           if (interruption == null) {
             if (queue.isEmpty) {
+              finalExit = exit 
+
               // No more messages to process, so we will allow the fiber to end life:
               self.unsafeSetDone(exit)
             } else {
@@ -260,10 +268,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               effect = trampoline.effect
               stack = trampoline.stack.result()
             } else {
+              tell(FiberMessage.YieldNow)
               tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
 
               effect = null
-              signal = EvaluationSignal.Yield
             }
 
           case asyncJump: AsyncJump =>
@@ -327,7 +335,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         }
       }
 
-      signal
+      finalExit
     } finally {
       unsafeGetSupervisor().unsafeOnSuspend(self)
     }
@@ -454,6 +462,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
           case FiberMessage.Resume(_, _) =>
             throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
+
+          case FiberMessage.YieldNow =>
+            val oldCur = cur
+
+            cur = ZIO.yieldNow(Trace.empty) *> oldCur
         }
       }
 
@@ -469,14 +482,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
               val effect = effect0.erase
 
-              cur =
+              val value =
                 try {
-                  effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+                  runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags)
                 } catch {
                   case zioError: ZIOError => effect.onFailure(zioError.cause)
 
                   case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
                 }
+                
+              cur = effect.onSuccess(value)
 
             case effect: Sync[_] =>
               try {
