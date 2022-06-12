@@ -64,11 +64,11 @@ object FiberId {
     Runtime(id, startTimeSeconds, location)
 
   private[zio] def unsafeMake(location: Trace): FiberId.Runtime =
-    FiberId.Runtime(_fiberCounter.getAndIncrement(), (java.lang.System.currentTimeMillis / 1000).toInt, location)
+    FiberId.Runtime(_fiberCounter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
   case object None                                                          extends FiberId
-  final case class Runtime(id: Int, startTimeSeconds: Int, location: Trace) extends FiberId
+  final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId
   final case class Composite(left: FiberId, right: FiberId)                 extends FiberId
 }

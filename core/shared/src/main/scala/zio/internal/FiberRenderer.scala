@@ -27,7 +27,7 @@ private[zio] object FiberRenderer {
     ZIO.succeed(unsafePrettyPrint(dump, System.currentTimeMillis()))
 
   private def unsafePrettyPrint(dump: Fiber.Dump, now: Long): String = {
-    val millis  = (now - dump.fiberId.startTimeSeconds * 1000).toLong
+    val millis  = (now - dump.fiberId.startTimeMillis)
     val seconds = millis / 1000L
     val minutes = seconds / 60L
     val hours   = minutes / 60L
@@ -45,22 +45,29 @@ private[zio] object FiberRenderer {
     val statMsg = renderStatus(dump.status)
 
     s"""
-       |"${name}" ($lifeMsg) $waitMsg
-       |   Status: $statMsg
-       |${zio.Cause.fail(zio.Cause.empty, dump.trace).prettyPrint}
+       |${name} ($lifeMsg) $waitMsg
+       |\tStatus: $statMsg
+       |${dump.trace.prettyPrint}
        |""".stripMargin
   }
 
+  private def renderFlags(runtimeFlags: RuntimeFlags): String =
+    RuntimeFlags.toSet(runtimeFlags).map(_.toString().toLowerCase).mkString(",")
+
+  private def renderTrace(trace: Trace): String =
+    if (trace == "") "<no trace>" else trace.toString()
+
   private def renderStatus(status: Fiber.Status): String =
     status match {
-      case Done          => "Done"
-      case Running(_, t) => s"Running(${t})"
-      case Suspended(_, runtimeFlags, trace, _) =>
-        val in =
-          if (RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.Interruption)) "interruptible" else "uninterruptible"
-        val as0 = trace.toString
-        val as  = if (as0 == "") "<no trace>" else as0
-        s"Suspended($in, $as)"
+      case Done => "Done"
+      case Running(runtimeFlags, trace0) =>
+        val flags = renderFlags(runtimeFlags)
+        val trace = renderTrace(trace0)
+        s"Running(${flags}, ${trace})"
+      case Suspended(_, runtimeFlags, trace0, blockingOn) =>
+        val flags = renderFlags(runtimeFlags)
+        val trace = renderTrace(trace0)
+        s"Suspended($flags, $trace)"
     }
 
 }

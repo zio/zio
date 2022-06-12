@@ -122,7 +122,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       val promise = zio.Promise.unsafeMake[Nothing, A](fiberId)
 
       tell(
-        FiberMessage.Stateful((fiber, suspendedStatus) => promise.unsafeDone(ZIO.succeedNow(f(fiber, suspendedStatus))))
+        FiberMessage.Stateful((fiber, status) => promise.unsafeDone(ZIO.succeedNow(f(fiber, status))))
       )
 
       promise.await
@@ -896,9 +896,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     _exitValue = e
 
     if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-      val startTimeSeconds = fiberId.startTimeSeconds
-      val endTimeSeconds   = java.lang.System.currentTimeMillis() / 1000
-      val lifetime         = endTimeSeconds - startTimeSeconds
+      val startTimeMillis = fiberId.startTimeMillis
+      val endTimeMillis   = java.lang.System.currentTimeMillis()
+      val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
       Metric.runtime.fiberLifetimes.unsafeUpdate(lifetime.toDouble)
     }

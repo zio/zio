@@ -510,7 +510,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] object Runtime {
 
     implicit def fiberOrdering[E, A]: Ordering[Fiber.Runtime[E, A]] =
-      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeSeconds, fiber.id.id))
+      Ordering.by[Fiber.Runtime[E, A], (Long, Long)](fiber => (fiber.id.startTimeMillis, fiber.id.id))
 
     abstract class Internal[+E, +A] extends Runtime[E, A]
   }

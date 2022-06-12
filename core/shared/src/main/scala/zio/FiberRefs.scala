@@ -95,7 +95,7 @@ final class FiberRefs private (
             else parentFiberRefs + (ref -> ::((fiberId, childValue), Nil))
           } { parentStack =>
             def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
-              val compare = left.startTimeSeconds.compare(right.startTimeSeconds)
+              val compare = left.startTimeMillis.compare(right.startTimeMillis)
               if (compare == 0) left.id.compare(right.id) else compare
             }
 
