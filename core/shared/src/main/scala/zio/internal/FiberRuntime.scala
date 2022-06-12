@@ -189,6 +189,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       case FiberMessage.GenStackTrace(onTrace) =>
         onTrace(StackTrace(self.id, self.suspendedStatus.stack.map(_.trace)))
+
         EvaluationSignal.Continue
 
       case FiberMessage.Stateful(onFiber) =>
@@ -196,15 +197,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           self.asInstanceOf[FiberRuntime[Any, Any]],
           if (_exitValue ne null) Fiber.Status.Done else suspendedStatus
         )
+
         EvaluationSignal.Continue
 
       case FiberMessage.Resume(effect, stack) =>
         _interruptor = null
         evaluateEffect(effect, stack)
+
         EvaluationSignal.Continue
 
-      case FiberMessage.YieldNow =>
-        EvaluationSignal.Yield 
+      case FiberMessage.YieldNow => EvaluationSignal.YieldNow
     }
   }
 
@@ -242,7 +244,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
           if (interruption == null) {
             if (queue.isEmpty) {
-              finalExit = exit 
+              finalExit = exit
 
               // No more messages to process, so we will allow the fiber to end life:
               self.unsafeSetDone(exit)
@@ -372,7 +374,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
     if (!queue.isEmpty() && running.compareAndSet(false, true)) {
-      if (evaluationSignal == EvaluationSignal.Yield) drainQueueLaterOnExecutor()
+      if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor()
       else drainQueueOnCurrentThread()
     }
   }
@@ -482,16 +484,14 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             case effect0: OnSuccessOrFailure[_, _, _, _, _] =>
               val effect = effect0.erase
 
-              val value =
+              val cur =
                 try {
-                  runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags)
+                  effect.onSuccess(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
                 } catch {
                   case zioError: ZIOError => effect.onFailure(zioError.cause)
 
                   case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
                 }
-                
-              cur = effect.onSuccess(value)
 
             case effect: Sync[_] =>
               try {
@@ -907,7 +907,7 @@ object FiberRuntime {
   sealed trait EvaluationSignal
   object EvaluationSignal {
     case object Continue extends EvaluationSignal
-    case object Yield    extends EvaluationSignal
+    case object YieldNow extends EvaluationSignal
     case object Done     extends EvaluationSignal
   }
   import java.util.concurrent.atomic.AtomicBoolean

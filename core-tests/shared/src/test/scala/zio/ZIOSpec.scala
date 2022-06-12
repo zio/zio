@@ -140,7 +140,7 @@ object ZIOSpec extends ZIOBaseSpec {
                       ZIO.die(releaseDied)
                     )(_ => ZIO.fail("use failed"))
                     .exit
-          cause <- exit.foldZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          cause <- exit.foldExitZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures)(equalTo(List("use failed"))) &&
           assert(cause.defects)(equalTo(List(releaseDied)))
       } @@ zioTag(errors)
@@ -184,7 +184,7 @@ object ZIOSpec extends ZIOBaseSpec {
                     )(_ => ZIO.fail("use failed"))
                     .disconnect
                     .exit
-          cause <- exit.foldZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          cause <- exit.foldExitZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
         } yield assert(cause.failures)(equalTo(List("use failed"))) &&
           assert(cause.defects)(equalTo(List(releaseDied)))
       } @@ zioTag(errors),
@@ -198,7 +198,7 @@ object ZIOSpec extends ZIOBaseSpec {
                     )(_ => throw releaseDied)
                     .disconnect
                     .exit
-          cause      <- exit.foldZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
+          cause      <- exit.foldExitZIO(cause => ZIO.succeed(cause), _ => ZIO.fail("effect should have failed"))
           isReleased <- released.get
         } yield assert(cause.defects)(equalTo(List(releaseDied))) && assert(isReleased)(isTrue)
       } @@ zioTag(errors)
@@ -2631,7 +2631,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val zio = ZIO
           .asyncZIO[Any, String, Unit](_ => ZIO.succeed(throw new Error("Ouch")))
           .exit
-          .map(_.fold(_.defects.headOption.map(_.getMessage), _ => None))
+          .map(_.foldExit(_.defects.headOption.map(_.getMessage), _ => None))
 
         assertZIO(zio)(isSome(equalTo("Ouch")))
       } @@ zioTag(errors)

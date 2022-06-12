@@ -71,7 +71,7 @@ object RTSSpec extends ZIOBaseSpec {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
         rez      <- producer.interrupt
-        _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
+        _        <- Console.printLine(rez.foldExit(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
     test("interruption of unending acquireReleaseWith") {

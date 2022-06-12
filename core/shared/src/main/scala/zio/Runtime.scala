@@ -113,14 +113,16 @@ trait Runtime[+R] { self =>
 
       fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
     }
-    
+
     val fastExit = fiber.start[R](zio)
 
-    if (fastExit != null) fastExit 
+    if (fastExit != null) fastExit
     else {
       import internal.{FiberMessage, OneShot}
       val result = OneShot.make[Exit[E, A]]
-      fiber.tell(FiberMessage.Stateful((fiber, _) => fiber.unsafeAddObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]]))))
+      fiber.tell(
+        FiberMessage.Stateful((fiber, _) => fiber.unsafeAddObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
+      )
       result.get()
     }
   }
