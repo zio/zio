@@ -776,7 +776,7 @@ object ZChannelSpec extends ZIOBaseSpec {
         } yield assertTrue(exit.isInterrupted)
       }
     )
-  ) @@ TestAspect.diagnose(2.seconds)
+  )
 
   def refReader[T](ref: Ref[List[T]]): ZChannel[Any, Any, Any, Any, Nothing, T, Unit] =
     ZChannel
