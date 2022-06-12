@@ -2621,14 +2621,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
 
   /**
-   * Imports an asynchronous side-effect into a pure `ZIO` value. See
-   * `asyncMaybe` for the more expressive variant of this function that can
-   * return a value synchronously.
+   * Converts an asynchronous, callback-style API into a ZIO effect, which will
+   * be executed asynchronously.
    *
-   * The callback function `ZIO[R, E, A] => Any` must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
+   * This method allows you to specify the fiber id that is responsible for
+   * invoking callbacks provided to the `register` function. This is called the
+   * "blocking fiber", because it is stopping the fiber executing the async
+   * effect from making progress (although it is not "blocking" a thread).
+   * Specifying this fiber id in cases where it is known will improve
+   * diagnostics, but not affect the behavior of the returned effect.
    */
   def async[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Any,
@@ -2637,19 +2638,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     Async(trace, register, () => blockingOn)
 
   /**
-   * Imports an asynchronous side-effect into a ZIO effect. The side-effect has
-   * the option of returning the value synchronously, which is useful in cases
-   * where it cannot be determined if the effect is synchronous or asynchronous
-   * until the side-effect is actually executed. The effect also has the option
-   * of returning a canceler, which will be used by the runtime to cancel the
-   * asynchronous effect if the fiber executing the effect is interrupted.
+   * Converts an asynchronous, callback-style API into a ZIO effect, which will
+   * be executed asynchronously.
    *
-   * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
-   * function must be called at most once.
+   * With this variant, you can specify either a way to cancel the asynchrounous
+   * action, or you can return the result right away if no asynchronous
+   * operation is required.
    *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
+   * This method allows you to specify the fiber id that is responsible for
+   * invoking callbacks provided to the `register` function. This is called the
+   * "blocking fiber", because it is stopping the fiber executing the async
+   * effect from making progress (although it is not "blocking" a thread).
+   * Specifying this fiber id in cases where it is known will improve
+   * diagnostics, but not affect the behavior of the returned effect.
    */
   def asyncInterrupt[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
@@ -2674,8 +2675,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     }
 
   /**
-   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
-   * necessary when the effect is itself expressed in terms of `ZIO`.
+   * Converts an asynchronous, callback-style API into a ZIO effect, which will
+   * be executed asynchronously.
+   *
+   * With this variant, the registration function may return a ZIO effect.
    */
   def asyncZIO[R, E, A](
     register: (ZIO[R, E, A] => Unit) => ZIO[R, E, Any]
@@ -2691,15 +2694,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     } yield a
 
   /**
-   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
-   * the value synchronously.
+   * Converts an asynchronous, callback-style API into a ZIO effect, which will
+   * be executed asynchronously.
    *
-   * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
-   * function must be called at most once.
+   * With this variant, the registration function may return the result right
+   * away, if it turns out that no asynchronous operation is required to
+   * complete the operation.
    *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
+   * This method allows you to specify the fiber id that is responsible for
+   * invoking callbacks provided to the `register` function. This is called the
+   * "blocking fiber", because it is stopping the fiber executing the async
+   * effect from making progress (although it is not "blocking" a thread).
+   * Specifying this fiber id in cases where it is known will improve
+   * diagnostics, but not affect the behavior of the returned effect.
    */
   def asyncMaybe[R, E, A](
     register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
@@ -2714,48 +2721,72 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     )
 
   /**
-   * Imports a synchronous side-effect into a pure `ZIO` value, translating any
-   * thrown exceptions into typed failed effects creating with `ZIO.fail`.
+   * Returns an effect that, when executed, will cautiously run the provided
+   * code, catching any exception and translated it into a failed ZIO effect.
+   *
+   * This method should be used whenever you want to take arbitrary code, which
+   * may throw exceptions or not be type safe, and convert it into a ZIO effect,
+   * which can safely execute that code whenever the effect is executed.
    *
    * {{{
    * def printLine(line: String): Task[Unit] = ZIO.attempt(println(line))
    * }}}
    */
-  def attempt[A](effect: => A)(implicit trace: Trace): Task[A] =
+  def attempt[A](code: => A)(implicit trace: Trace): Task[A] =
     ZIO.unsafeStateful[Any, Throwable, A] { (fiberState, _) =>
       try {
-        ZIO.succeedNow(effect)
+        val result = code
+
+        ZIO.succeedNow(result)
       } catch {
-        // FIXME: Attach stack trace to this cause:
-        case t: Throwable if !fiberState.unsafeIsFatal(t) => throw new ZIOError(Cause.fail(t))
+        case t: Throwable if !fiberState.unsafeIsFatal(t) => throw ZIOError.Traced(Cause.fail(t))
       }
     }
 
   /**
-   * Imports a synchronous effect that does blocking IO into a pure value.
+   * Returns an effect that, when executed, will cautiously run the provided
+   * code, catching any exception and translated it into a failed ZIO effect.
+   *
+   * This method should be used whenever you want to take arbitrary code, which
+   * may throw exceptions or not be type safe, and convert it into a ZIO effect,
+   * which can safely execute that code whenever the effect is executed.
+   *
+   * This variant expects that the provided code will engage in blocking I/O,
+   * and therefore, pro-actively executes the code on a dedicated blocking
+   * thread pool, so it won't interfere with the main thread pool that ZIO uses.
    */
   def attemptBlocking[A](effect: => A)(implicit trace: Trace): Task[A] =
     blocking(ZIO.attempt(effect))
 
   /**
-   * Imports a synchronous effect that does blocking IO into a pure value, with
-   * a custom cancel effect.
+   * Returns an effect that, when executed, will cautiously run the provided
+   * code, catching any exception and translated it into a failed ZIO effect.
    *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via the cancel effect.
+   * This method should be used whenever you want to take arbitrary code, which
+   * may throw exceptions or not be type safe, and convert it into a ZIO effect,
+   * which can safely execute that code whenever the effect is executed.
+   *
+   * This variant expects that the provided code will engage in blocking I/O,
+   * and therefore, pro-actively executes the code on a dedicated blocking
+   * thread pool, so it won't interfere with the main thread pool that ZIO uses.
+   *
+   * Additionally, this variant allows you to specify an effect that will cancel
+   * the blocking operation. This effect will be executed if the fiber that is
+   * executing the blocking effect is interrupted for any reason.
    */
   def attemptBlockingCancelable[R, A](effect: => A)(cancel: => URIO[R, Any])(implicit trace: Trace): RIO[R, A] =
     blocking(ZIO.attempt(effect)).fork.flatMap(_.join).onInterrupt(cancel)
 
   /**
-   * Imports a synchronous effect that does blocking IO into a pure value,
-   * refining the error type to `[[java.io.IOException]]`.
+   * This function is the same as `attempt`, except that it only exposes
+   * `IOException`, treating any other exception as fatal.
    */
   def attemptBlockingIO[A](effect: => A)(implicit trace: Trace): IO[IOException, A] =
     attemptBlocking(effect).refineToOrDie[IOException]
 
   /**
-   * Locks the specified effect to the blocking thread pool.
+   * Returns a new effect that, when executed, will execute the original effect
+   * on the blocking thread pool.
    */
   def blocking[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.blockingExecutor.flatMap(zio.onExecutor(_))
@@ -3515,8 +3546,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(fiber.flatMap(_.join))
 
   /**
-   * Imports a function that creates a [[scala.concurrent.Future]] from an
-   * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
+   * Returns an effect that, when executed, will both create and launch a
+   * [[scala.concurrent.Future]], feeding it an
+   * [[scala.concurrent.ExecutionContext]] that is backed by ZIO's own executor.
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit trace: Trace): Task[A] =
     ZIO.descriptorWith { d =>
@@ -4823,7 +4855,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace)
 
   private[zio] def unsafeStateful[R, E, A](
-    onState: (internal.FiberRuntime[E, A], Fiber.Status.Active) => ZIO[R, E, A]
+    onState: (internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
     Stateful(trace, onState)
 
@@ -5438,7 +5470,23 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
-  final case class ZIOError(cause: Cause[Any]) extends Exception with NoStackTrace
+  private[zio] sealed abstract class ZIOError extends Exception with NoStackTrace {
+    def cause: Cause[Any]
+
+    def isTraced: Boolean
+
+    final def isUntraced: Boolean = !isTraced
+  }
+  private[zio] object ZIOError {
+    def apply(cause: Cause[Any]): ZIOError = Untraced(cause)
+
+    final case class Untraced(cause: Cause[Any]) extends ZIOError {
+      def isTraced: Boolean = false
+    }
+    final case class Traced(cause: Cause[Any]) extends ZIOError {
+      def isTraced: Boolean = true
+    }
+  }
 
   private[zio] sealed trait EvaluationStep { self =>
     def trace: Trace
@@ -5569,7 +5617,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
   private[zio] final case class Stateful[R, E, A](
     trace: Trace,
-    onState: (zio.internal.FiberRuntime[E, A], Fiber.Status.Active) => ZIO[R, E, A]
+    onState: (zio.internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
   ) extends ZIO[R, E, A] { self =>
     def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
   }

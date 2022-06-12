@@ -2570,7 +2570,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val stream =
               ZStream.fromIterable(0 to 3).mapZIOParUnordered(10)(_ => ZIO.fail("fail"))
             assertZIO(stream.runDrain.exit)(fails(equalTo("fail")))
-          } @@ nonFlaky
+          } @@ nonFlaky @@ TestAspect.diagnose(10.seconds)
         ),
         suite("mergeTerminateLeft")(
           test("terminates as soon as the first stream terminates") {

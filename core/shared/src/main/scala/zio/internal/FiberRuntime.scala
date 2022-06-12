@@ -96,15 +96,17 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags] =
     ask[RuntimeFlags] { (state, status) =>
       status match {
-        case Fiber.Status.Done           => state._runtimeFlags
-        case active: Fiber.Status.Active => active.runtimeFlags
+        case Fiber.Status.Done               => state._runtimeFlags
+        case active: Fiber.Status.Unfinished => active.runtimeFlags
       }
     }
 
   final def scope: FiberScope = FiberScope.unsafeMake(this.asInstanceOf[FiberRuntime[_, _]])
 
   final def status(implicit trace: Trace): UIO[zio.Fiber.Status] =
-    ask[zio.Fiber.Status]((_, suspendedStatus) => suspendedStatus)
+    ask[zio.Fiber.Status]((_, suspendedStatus) =>
+      if (suspendedStatus eq null) Fiber.Status.Running(_runtimeFlags, Trace.empty) else suspendedStatus
+    )
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
     ZIO.suspendSucceed {
@@ -496,6 +498,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             case effect: Sync[_] =>
               try {
+                // Keep this in sync with Exit.Success
                 val value = effect.eval()
 
                 cur = null
@@ -524,7 +527,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 if (cur eq null) done = value.asInstanceOf[AnyRef]
               } catch {
                 case zioError: ZIOError =>
-                  cur = Exit.Failure(zioError.cause)
+                  cur =
+                    if (zioError.isUntraced) Exit.Failure(zioError.cause)
+                    else ZIO.failCause(zioError.cause)(effect.trace)
               }
 
             case effect0: OnFailure[_, _, _, _] =>
@@ -606,6 +611,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             case success: Exit.Success[_] =>
               try {
+                // Keep this in sync with Sync
                 val value = success.value
 
                 cur = null
@@ -634,7 +640,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 if (cur eq null) done = value.asInstanceOf[AnyRef]
               } catch {
                 case zioError: ZIOError =>
-                  cur = Exit.Failure(zioError.cause)
+                  cur =
+                    if (zioError.isUntraced) Exit.Failure(zioError.cause)
+                    else ZIO.failCause(zioError.cause)(effect.trace)
               }
 
             case refail: Exit.Failure[_] =>

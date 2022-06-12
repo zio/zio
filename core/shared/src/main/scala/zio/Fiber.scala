@@ -539,7 +539,7 @@ object Fiber extends FiberPlatformSpecific {
    */
   final case class Descriptor(
     id: FiberId.Runtime,
-    status: Status.Active,
+    status: Status.Running,
     interrupters: Set[FiberId],
     executor: Executor,
     isLocked: Boolean
@@ -573,7 +573,7 @@ object Fiber extends FiberPlatformSpecific {
     def isSuspended: Boolean = self match { case _: Status.Suspended => true; case _ => false }
   }
   object Status {
-    sealed trait Active extends Status {
+    sealed trait Unfinished extends Status {
       def runtimeFlags: RuntimeFlags
 
       def trace: Trace
@@ -582,13 +582,13 @@ object Fiber extends FiberPlatformSpecific {
     case object Done extends Status {
       def trace: Trace = Trace.empty
     }
-    final case class Running(runtimeFlags: RuntimeFlags, trace: Trace) extends Active
+    final case class Running(runtimeFlags: RuntimeFlags, trace: Trace) extends Unfinished
     final case class Suspended(
       stack: Chunk[ZIO.EvaluationStep],
       runtimeFlags: RuntimeFlags,
       trace: Trace,
       blockingOn: FiberId
-    ) extends Active
+    ) extends Unfinished
   }
 
   /**
