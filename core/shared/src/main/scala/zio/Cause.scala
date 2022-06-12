@@ -46,7 +46,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Determines if this cause contains or is equal to the specified cause.
    */
   final def contains[E1 >: E](that: Cause[E1]): Boolean =
-    (self eq that) || foldLeft[Boolean](false) { case (acc, cause) =>
+    (that == Empty) || (self eq that) || foldLeft[Boolean](false) { case (acc, cause) =>
       acc || (cause == that)
     }
 
@@ -116,6 +116,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         v :: z
       }
       .reverse
+
+  /**
+   * Filters the specified causes out of this cause.
+   */
+  final def filter(p: Cause[E] => Boolean): Cause[E] = self.foldContext(())(Cause.Folder.Filter[E](p))
 
   /**
    * Finds something and extracts some details from it.
@@ -576,6 +581,34 @@ object Cause extends Serializable {
     def bothCase(context: Context, left: Z, right: Z): Z
     def thenCase(context: Context, left: Z, right: Z): Z
     def stacklessCase(context: Context, value: Z, stackless: Boolean): Z
+  }
+  object Folder {
+    final case class Filter[E](p: Cause[E] => Boolean) extends Folder[Any, E, Cause[E]] {
+      def empty(context: Any): Cause[E] = Cause.empty
+
+      def failCase(context: Any, error: E, stackTrace: StackTrace): Cause[E] = Cause.Fail(error, stackTrace)
+
+      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Cause[E] = Cause.Die(t, stackTrace)
+
+      def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Cause[E] =
+        Cause.Interrupt(fiberId, stackTrace)
+
+      def bothCase(context: Any, left: Cause[E], right: Cause[E]): Cause[E] =
+        if (p(left)) {
+          if (p(right)) Cause.Both(left, right)
+          else left
+        } else if (p(right)) right
+        else Cause.empty
+
+      def thenCase(context: Any, left: Cause[E], right: Cause[E]): Cause[E] =
+        if (p(left)) {
+          if (p(right)) Cause.Then(left, right)
+          else left
+        } else if (p(right)) right
+        else Cause.empty
+
+      def stacklessCase(context: Any, value: Cause[E], stackless: Boolean): Cause[E] = Stackless(value, stackless)
+    }
   }
 
   final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement]) {
