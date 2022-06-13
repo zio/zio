@@ -770,6 +770,12 @@ object ZIOSpec extends ZIOBaseSpec {
           assertZIO(res)(isSubtype[List[Int]](anything) && hasSize(equalTo(100)))
         }
       },
+      test("returns the list of results with async nodes") {
+        checkAll(functionIOGen, listGen) { (f, list) =>
+          val res = ZIO.foreach(list)(a => ZIO.async[Any, Nothing, Unit](k => k(ZIO.unit)) *> f(a))
+          assertZIO(res)(isSubtype[List[Int]](anything) && hasSize(equalTo(100)))
+        }
+      },
       test("both evaluates effects and returns the list of results in the same order") {
         val list = List("1", "2", "3")
         for {

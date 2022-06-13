@@ -427,13 +427,15 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       _children = null
 
+      val body = () => {
+        val next = iterator.next()
+
+        if (next != null) next.await(id.location) else ZIO.unit
+      }
+
       // Now await all children to finish:
       ZIO
-        .whileLoop(iterator)(_.hasNext)({ iterator =>
-          val next = iterator.next()
-
-          if (next != null) next.await(id.location) else ZIO.unit
-        })(id.location)
+        .whileLoop(iterator.hasNext)(body())(_ => ())(id.location)
     }
 
   def runLoop(
@@ -712,19 +714,23 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             case iterate0: WhileLoop[_, _, _] =>
               val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
 
-              val state = iterate.create()
               val check = iterate.check
 
               try {
-                while (check(state)) {
-                  runLoop(iterate.process(state), currentDepth + 1, Chunk.empty, runtimeFlags)
+                while (check()) {
+                  val result = runLoop(iterate.body(), currentDepth + 1, Chunk.empty, runtimeFlags)
+
+                  iterate.process(result)
                 }
 
-                cur = ZIO.succeedNow(state)
+                cur = ZIO.unit
               } catch {
                 case reifyStack: ReifyStack =>
                   val continuation =
-                    EvaluationStep.Continuation.fromSuccess((_: Any) => iterate.withCreate(state))(iterate.trace)
+                    EvaluationStep.Continuation.fromSuccess({ (element: Any) =>
+                      iterate.process(element)
+                      iterate
+                    })(iterate.trace)
 
                   reifyStack.addContinuation(continuation)
 

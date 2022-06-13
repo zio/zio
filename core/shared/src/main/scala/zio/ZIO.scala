@@ -3296,16 +3296,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       val iterator = in.iterator
       val builder  = bf.newBuilder(in)
 
-      lazy val recurse: B => ZIO[R, E, Collection[B]] = { b =>
-        builder += b
-        loop()
-      }
-
-      def loop(): ZIO[R, E, Collection[B]] =
-        if (iterator.hasNext) f(iterator.next()).flatMap(recurse)
-        else ZIO.succeedNow(builder.result())
-
-      loop()
+      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
     }
 
   /**
@@ -3373,14 +3364,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreachDiscard[R, E, A](
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
-    ZIO.succeed(as.iterator).flatMap { i =>
-      lazy val recurse: Any => ZIO[R, E, Unit] = _ => loop()
+    ZIO.suspendSucceed {
+      val iterator = as.iterator
 
-      def loop(): ZIO[R, E, Unit] =
-        if (i.hasNext) f(i.next()).flatMap(recurse)
-        else ZIO.unit
-
-      loop()
+      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(_ => ())
     }
 
   /**
@@ -3758,18 +3745,21 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       val ref = new java.util.concurrent.atomic.AtomicReference[S](initial)
 
       ZIO
-        .whileLoop(ref)(ref => cont(ref.get)) { ref =>
-          body(ref.get).map { input =>
-            ref.set(input)
-          }
-        }
+        .whileLoop(cont(ref.get))(body(ref.get))(ref.set)
         .as(ref.get)
     }
 
-  def whileLoop[R, E, S, T](
-    create: => S
-  )(check: S => Boolean)(process: S => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, S] =
-    ZIO.WhileLoop(trace, () => create, check, process)
+  /**
+   * A low-level while-loop with direct support in the ZIO runtime. The only
+   * reason to use this constructor is performance.
+   *
+   * See [[ZIO.iterate]] for a user-friendly version of this operator that is
+   * compatible with purely functional code.
+   */
+  def whileLoop[R, E, A](check: => Boolean)(body: => ZIO[R, E, A])(process: A => Any)(implicit
+    trace: Trace
+  ): ZIO[R, E, Unit] =
+    ZIO.WhileLoop(trace, () => check, () => body, process)
 
   /**
    * Returns an effect with the value on the left part.
@@ -5621,14 +5611,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   ) extends ZIO[R, E, A] { self =>
     def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
   }
-  private[zio] final case class WhileLoop[R, E, S](
+  private[zio] final case class WhileLoop[R, E, A](
     trace: Trace,
-    create: () => S,
-    check: S => Boolean,
-    process: S => ZIO[R, E, Any]
-  ) extends ZIO[R, E, S] {
-    def withCreate(s: S): WhileLoop[R, E, S] = copy(create = () => s)
-  }
+    check: () => Boolean,
+    body: () => ZIO[R, E, A],
+    process: A => Any
+  ) extends ZIO[R, E, Unit]
   private[zio] final case class YieldNow(trace: Trace) extends ZIO[Any, Nothing, Unit]
 
   sealed trait InterruptibilityRestorer {
