@@ -591,7 +591,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
               cur = if (newRuntimeFlags == oldRuntimeFlags) {
                 // No change, short circuit:
-                effect.scope(oldRuntimeFlags)
+                effect.scope(oldRuntimeFlags).asInstanceOf[ZIO[Any, Any, Any]]
               } else {
                 // One more chance to short circuit: if we're immediately going to interrupt.
                 // Interruption will cause immediate reversion of the flag, so as long as we
@@ -606,7 +606,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   val revertFlags = RuntimeFlags.diff(newRuntimeFlags, oldRuntimeFlags)
 
                   try {
-                    val value = runLoop(effect.scope(oldRuntimeFlags), currentDepth + 1, Chunk.empty, runtimeFlags)
+                    val value = runLoop(
+                      effect.scope(oldRuntimeFlags).asInstanceOf[ZIO[Any, Any, Any]],
+                      currentDepth + 1,
+                      Chunk.empty,
+                      runtimeFlags
+                    )
 
                     // Go backward, on the stack stack:
                     runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
