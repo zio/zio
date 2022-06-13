@@ -9,6 +9,6 @@ object StreamBugIsolator extends ZIOAppDefault {
       .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
         channel.mapOut(_ + n)
       }
-      .runCollect.debug("Result")  <&> (ZIO.sleep(1.second) *> Fiber.dumpAll)
+      .runCollect.debug("Result")
   }
 }
