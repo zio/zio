@@ -381,7 +381,7 @@ object RuntimeBootstrapTests {
       _ <- ZIO.succeed(10)
       _ <- ZIO.succeed(20)
       _ <- ZIO.succeed(30)
-      t <- ZIO.trace
+      t <- ZIO.stackTrace
     } yield t
 
   def firstLevelCallStack =

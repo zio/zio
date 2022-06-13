@@ -1,5 +1,7 @@
 package zio.internal
 
+import zio.stacktracer.TracingImplicits.disableAutoTrace
+
 import scala.concurrent._
 import scala.annotation.tailrec
 import scala.util.control.NoStackTrace
@@ -30,8 +32,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   private var _interruptor    = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-    Metric.runtime.fibersStarted.update(1)
-    Metric.runtime.fiberForkLocations.update(fiberId.location.toString())
+    Metric.runtime.fibersStarted.unsafeUpdate(1)
+    Metric.runtime.fiberForkLocations.unsafeUpdate(fiberId.location.toString())
   }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
@@ -183,7 +185,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         self.unsafeAddInterruptedCause(cause)
 
         if (_interruptor != null) {
-          _interruptor(ZIO.refailCause(cause))
+          _interruptor(Exit.Failure(cause))
           _interruptor = null
         }
 
@@ -265,7 +267,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           } else {
             _runtimeFlags = RuntimeFlags.enable(_runtimeFlags)(RuntimeFlag.WindDown)
 
-            effect = interruption *> exit
+            effect = interruption.flatMap(_ => exit)(id.location)
             stack = Chunk.empty
           }
         } catch {
@@ -328,7 +330,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 () => s"An unhandled error was encountered while executing ${id.threadName}",
                 Cause.die(t),
                 ZIO.someError,
-                Trace.empty
+                id.location
               )
 
               effect = null
@@ -419,11 +421,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       // Now await all children to finish:
       ZIO
-        .whileLoop(iterator)(_.hasNext) { iterator =>
+        .whileLoop(iterator)(_.hasNext)({ iterator =>
           val next = iterator.next()
 
-          if (next != null) next.await else ZIO.unit
-        }
+          if (next != null) next.await(id.location) else ZIO.unit
+        })(id.location)
     }
 
   def runLoop(
@@ -467,7 +469,12 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case FiberMessage.GenStackTrace(onTrace) =>
             val oldCur = cur
 
-            cur = ZIO.trace(Trace.empty).map(onTrace(_)) *> oldCur
+            cur = ZIO
+              .stackTrace(Trace.empty)
+              .flatMap({ stackTrace =>
+                onTrace(stackTrace)
+                oldCur
+              })(Trace.empty)
 
           case FiberMessage.Stateful(onFiber) =>
             onFiber(self.asInstanceOf[FiberRuntime[Any, Any]], Fiber.Status.Running(runtimeFlags, lastTrace))
@@ -478,7 +485,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case FiberMessage.YieldNow =>
             val oldCur = cur
 
-            cur = ZIO.yieldNow(Trace.empty) *> oldCur
+            cur = ZIO.yieldNow(Trace.empty).flatMap(_ => oldCur)(Trace.empty)
         }
       }
 
@@ -487,7 +494,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       if (ops > FiberRuntime.MaxOperationsBeforeYield) {
         ops = 0
         val oldCur = cur
-        cur = ZIO.yieldNow(lastTrace) *> oldCur
+        cur = ZIO.yieldNow(lastTrace).flatMap(_ => oldCur)(Trace.empty)
       } else {
         try {
           cur match {
@@ -596,7 +603,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
                       Exit.Failure(unsafeGetInterruptedCause())
-                    else ZIO.succeed(value)
+                    else ZIO.succeedNow(value)
                   } catch {
                     case reifyStack: ReifyStack =>
                       reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
@@ -705,10 +712,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   runLoop(iterate.process(state), currentDepth + 1, Chunk.empty, runtimeFlags)
                 }
 
-                cur = ZIO.succeed(state)
+                cur = ZIO.succeedNow(state)
               } catch {
                 case reifyStack: ReifyStack =>
-                  val continuation = EvaluationStep.Continuation.fromSuccess((_: Any) => iterate.withCreate(state))
+                  val continuation =
+                    EvaluationStep.Continuation.fromSuccess((_: Any) => iterate.withCreate(state))(iterate.trace)
 
                   reifyStack.addContinuation(continuation)
 
@@ -858,7 +866,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         }
 
         if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-          Metric.runtime.fiberFailures.update(1)
+          Metric.runtime.fiberFailures.unsafeUpdate(1)
           cause.foldContext(())(FiberRuntime.fiberFailureTracker)
         }
       } catch {
@@ -872,7 +880,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       }
     case _ =>
       if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-        Metric.runtime.fiberSuccesses.update(1)
+        Metric.runtime.fiberSuccesses.unsafeUpdate(1)
       }
   }
 
@@ -962,9 +970,9 @@ object FiberRuntime {
     new Cause.Folder[Unit, Any, Unit] {
       def empty(context: Unit): Unit = ()
       def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.update(error.getClass.getName())
+        Metric.runtime.fiberFailureCauses.unsafeUpdate(error.getClass.getName())
       def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.update(t.getClass.getName())
+        Metric.runtime.fiberFailureCauses.unsafeUpdate(t.getClass.getName())
       def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
       def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
       def thenCase(context: Unit, left: Unit, right: Unit): Unit                       = ()

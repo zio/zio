@@ -3135,7 +3135,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect that models failure with the specified `Cause`.
    */
   def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
-    ZIO.trace(trace0).flatMap(trace => refailCause(cause.traced(trace)))
+    ZIO.stackTrace(trace0).flatMap(trace => refailCause(cause.traced(trace)))
 
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this
@@ -4488,9 +4488,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     DefaultServices.currentServices.getWith(services => f(services.get(System.tag)))
 
   /**
-   * Capture ZIO trace at the current point
+   * Capture ZIO stack trace at the current point.
    */
-  def trace(implicit trace: Trace): UIO[StackTrace] =
+  def stackTrace(implicit trace: Trace): UIO[StackTrace] =
     GenerateStackTrace(trace)
 
   /**
