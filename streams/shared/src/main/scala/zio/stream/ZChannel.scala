@@ -1505,7 +1505,8 @@ object ZChannel {
                                case None => ZIO.unit
                              }
                              .catchAllCause { cause =>
-                               queue.offer(ZIO.refailCause(cause)) *> errorSignal.succeed(()).unit
+                               if (cause.isInterrupted) ZIO.refailCause(cause)
+                               else queue.offer(ZIO.refailCause(cause)) *> errorSignal.succeed(()).unit
                              }
           _ <- pull
                  .foldCauseZIO(
