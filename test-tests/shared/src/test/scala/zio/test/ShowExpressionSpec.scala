@@ -59,7 +59,7 @@ object ShowExpressionSpec extends ZIOBaseSpec {
 
   def test(desc: String, actual: String, expected: String): Spec[Any, Nothing] =
     test(desc) {
-      val code = actual
+      val code = actual.replaceAll("(\r\n|\n)", "\n");
       assert(code)(equalTo(expected))
     }
 }
