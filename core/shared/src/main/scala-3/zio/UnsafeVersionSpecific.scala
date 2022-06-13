@@ -21,6 +21,6 @@ private[zio] trait UnsafeVersionSpecific { self =>
   def unsafe[A](f: Unsafe[Any] ?=> A): A = {
     given Unsafe[Any] = self.unsafe 
     
-    f(unsafe)
+    f
   }
 }
