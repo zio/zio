@@ -15,34 +15,34 @@ object ZIOSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec = suite("ZIOSpec")(
-    suite("cooperative yielding") {
-      test("cooperative yielding") {
-        import java.util.concurrent._
+    // suite("cooperative yielding") {
+    //   test("cooperative yielding") {
+    //     import java.util.concurrent._
 
-        val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor(), 1024)
+    //     val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor(), 1024)
 
-        val checkExecutor =
-          ZIO.executor.flatMap(e => if (e != executor) ZIO.dieMessage("Executor is incorrect") else ZIO.unit)
+    //     val checkExecutor =
+    //       ZIO.executor.flatMap(e => if (e != executor) ZIO.dieMessage("Executor is incorrect") else ZIO.unit)
 
-        def infiniteProcess(ref: Ref[Int]): UIO[Nothing] =
-          checkExecutor *> ref.update(_ + 1) *> infiniteProcess(ref)
+    //     def infiniteProcess(ref: Ref[Int]): UIO[Nothing] =
+    //       checkExecutor *> ref.update(_ + 1) *> infiniteProcess(ref)
 
-        for {
-          ref1   <- Ref.make(0)
-          ref2   <- Ref.make(0)
-          ref3   <- Ref.make(0)
-          fiber1 <- infiniteProcess(ref1).onExecutor(executor).fork
-          fiber2 <- infiniteProcess(ref2).onExecutor(executor).fork
-          fiber3 <- infiniteProcess(ref3).onExecutor(executor).fork
-          _      <- Live.live(ZIO.sleep(Duration.fromSeconds(1)))
-          _      <- fiber1.interruptFork *> fiber2.interruptFork *> fiber3.interruptFork
-          _      <- fiber1.await *> fiber2.await *> fiber3.await
-          v1     <- ref1.get
-          v2     <- ref2.get
-          v3     <- ref3.get
-        } yield assertTrue(v1 > 0 && v2 > 0 && v3 > 0)
-      } @@ jvmOnly
-    },
+    //     for {
+    //       ref1   <- Ref.make(0)
+    //       ref2   <- Ref.make(0)
+    //       ref3   <- Ref.make(0)
+    //       fiber1 <- infiniteProcess(ref1).onExecutor(executor).fork
+    //       fiber2 <- infiniteProcess(ref2).onExecutor(executor).fork
+    //       fiber3 <- infiniteProcess(ref3).onExecutor(executor).fork
+    //       _      <- Live.live(ZIO.sleep(Duration.fromSeconds(1)))
+    //       _      <- fiber1.interruptFork *> fiber2.interruptFork *> fiber3.interruptFork
+    //       _      <- fiber1.await *> fiber2.await *> fiber3.await
+    //       v1     <- ref1.get
+    //       v2     <- ref2.get
+    //       v3     <- ref3.get
+    //     } yield assertTrue(v1 > 0 && v2 > 0 && v3 > 0)
+    //   } @@ jvmOnly
+    // },
     suite("heap")(
       test("unit.forever is safe") {
         for {
