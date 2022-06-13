@@ -1,6 +1,7 @@
 package zio.test.render
 
 import zio.Trace
+import zio.internal.stacktracer.SourceLocation
 import zio.test.ExecutionEvent.{SectionEnd, SectionStart, Test, TopLevelFlush}
 import zio.test.TestAnnotationRenderer.LeafRenderer
 import zio.test.render.ExecutionResult.{ResultType, Status}
@@ -146,8 +147,8 @@ trait IntelliJRenderer extends TestRenderer {
 object IntelliJRenderer extends IntelliJRenderer {
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>
-      child.headOption.collect { case Trace(_, file, line) =>
-        s"file://$file:$line"
+      child.headOption.collect { case SourceLocation(path, line) =>
+        s"file://$path:$line"
       }
     }
 }

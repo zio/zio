@@ -53,9 +53,9 @@ object Duration {
 
   }
 
-  def apply(amount: Long, unit: TimeUnit): Duration = fromNanos(unit.toNanos(amount))
+  def apply(amount: Long, unit: TimeUnit): Duration = apply(amount, toChronoUnit(unit))
 
-  def apply(amount: Long, unit: ChronoUnit): Duration = fromNanos(unit.getDuration.toNanos * amount)
+  def apply(amount: Long, unit: ChronoUnit): Duration = java.time.Duration.of(amount, unit)
 
   def fromMillis(millis: Long): Duration = java.time.Duration.ofMillis(millis)
 
@@ -82,11 +82,21 @@ object Duration {
     if (duration.isNegative) Zero
     else if (duration.compareTo(JavaDuration.ofNanos(Long.MaxValue)) >= 0) Infinity
     else fromNanos(duration.toNanos)
+
+  private def toChronoUnit(unit: TimeUnit): ChronoUnit = unit match {
+    case TimeUnit.NANOSECONDS  => ChronoUnit.NANOS
+    case TimeUnit.MICROSECONDS => ChronoUnit.MICROS
+    case TimeUnit.MILLISECONDS => ChronoUnit.MILLIS
+    case TimeUnit.SECONDS      => ChronoUnit.SECONDS
+    case TimeUnit.MINUTES      => ChronoUnit.MINUTES
+    case TimeUnit.HOURS        => ChronoUnit.HOURS
+    case TimeUnit.DAYS         => ChronoUnit.DAYS
+  }
 }
 
 final class DurationSyntax(val n: Long) extends AnyVal {
   private[this] def asDuration(unit: TemporalUnit): Duration =
-    if (n >= 0) java.time.Duration.of(n, unit) else Duration.Zero
+    if (n != 0) java.time.Duration.of(n, unit) else Duration.Zero
 
   def nanoseconds: Duration = asDuration(ChronoUnit.NANOS)
   def nanos                 = nanoseconds

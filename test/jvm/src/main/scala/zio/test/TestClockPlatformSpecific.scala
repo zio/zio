@@ -48,7 +48,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             }
 
           def now(): Instant =
-            Instant.ofEpochMilli(clockState.unsafeGet.duration.toMillis)
+            clockState.unsafeGet.instant
 
           def scheduleFuture[S, A](initial: Instant, s: S)(
             f: (Instant, S) => Option[(Instant, S)]

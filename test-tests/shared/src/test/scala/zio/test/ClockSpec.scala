@@ -7,8 +7,9 @@ import zio.stream._
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test.TestClock._
+
 import java.time.temporal.ChronoUnit
-import java.time.{OffsetDateTime, ZoneId}
+import java.time.{Instant, ZoneId}
 import java.util.concurrent.TimeUnit
 
 object ClockSpec extends ZIOBaseSpec {
@@ -47,7 +48,7 @@ object ClockSpec extends ZIOBaseSpec {
         for {
           ref    <- Ref.make(false)
           _      <- ref.set(true).delay(10.hours).fork
-          _      <- setTime(11.hours)
+          _      <- setTime(Instant.EPOCH.plus(11.hours))
           result <- ref.get
         } yield assert(result)(isTrue)
       } @@ forked @@ nonFlaky,
@@ -85,34 +86,34 @@ object ClockSpec extends ZIOBaseSpec {
           sleeps <- sleeps
         } yield assert(sleeps)(isEmpty)
       },
-      test("setDateTime correctly sets currentDateTime") {
+      test("setInstant correctly sets currentDateTime") {
         for {
-          expected <- ZIO.succeed(OffsetDateTime.now(ZoneId.of("UTC+9")))
-          _        <- setDateTime(expected)
+          expected <- ZIO.succeed(Instant.now)
+          _        <- setTime(expected)
           actual   <- Clock.currentDateTime
-        } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toInstant.toEpochMilli))
+        } yield assert(actual.toInstant.toEpochMilli)(equalTo(expected.toEpochMilli))
       },
-      test("setTime correctly sets nanotime") {
+      test("setInstant correctly sets nanotime") {
         for {
-          _    <- setTime(1.millis)
+          _    <- setTime(Instant.EPOCH.plus(1.millis))
           time <- Clock.nanoTime
         } yield assert(time)(equalTo(1.millis.toNanos))
       },
-      test("setTime correctly sets currentTime") {
+      test("setInstant correctly sets currentTime") {
         for {
-          _    <- setTime(1.millis)
+          _    <- setTime(Instant.EPOCH.plus(1.millis))
           time <- currentTime(TimeUnit.NANOSECONDS)
         } yield assert(time)(equalTo(1.millis.toNanos))
       },
-      test("setTime correctly sets currentDateTime") {
+      test("setInstant correctly sets currentDateTime") {
         for {
-          _    <- TestClock.setTime(1.millis)
+          _    <- TestClock.setTime(Instant.EPOCH.plus(1.millis))
           time <- currentDateTime
         } yield assert(time.toInstant.toEpochMilli)(equalTo(1.millis.toMillis))
       },
-      test("setTime does not produce sleeps") {
+      test("setInstant does not produce sleeps") {
         for {
-          _      <- setTime(1.millis)
+          _      <- setTime(Instant.EPOCH.plus(1.millis))
           sleeps <- sleeps
         } yield assert(sleeps)(isEmpty)
       },

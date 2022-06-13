@@ -65,6 +65,13 @@ object BitChunkIntSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
+    test("slice") {
+      check(genIntChunk, genInt, genInt, genEndianness) { (bytes, n, m, endianness) =>
+        val actual   = bytes.asBitsInt(endianness).slice(n, m).toBinaryString
+        val expected = bytes.map(toBinaryString(endianness)).mkString.slice(n, m)
+        assert(actual)(equalTo(expected))
+      }
+    },
     test("toBinaryString") {
       check(genIntChunk, genEndianness) { (ints, endianness) =>
         val actual   = ints.asBitsInt(endianness).toBinaryString

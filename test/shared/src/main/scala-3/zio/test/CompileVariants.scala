@@ -16,6 +16,7 @@
 
 package zio.test
 
+import zio.internal.stacktracer.{SourceLocation, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{UIO, ZIO, Trace}
 
@@ -41,11 +42,11 @@ trait CompileVariants {
   private val errorMessage =
     "Reporting of compilation error messages on Scala 3 is not currently supported due to instability of the underlying APIs."
 
-  inline def assertTrue(inline exprs: => Boolean*)(implicit trace: Trace): TestResult =
-    ${SmartAssertMacros.smartAssert('exprs, 'trace)}
+  inline def assertTrue(inline exprs: => Boolean*)(implicit sourceLocation: SourceLocation): TestResult =
+    ${SmartAssertMacros.smartAssert('exprs, 'sourceLocation)}
 
-  inline def assert[A](inline value: => A)(inline assertion: Assertion[A])(implicit trace: Trace): TestResult =
-    ${Macros.assert_impl('value)('assertion, 'trace)}
+  inline def assert[A](inline value: => A)(inline assertion: Assertion[A])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
+    ${Macros.assert_impl('value)('assertion, 'trace, 'sourceLocation)}
 
   inline def assertZIO[R, E, A](effect: ZIO[R, E, A])(assertion: Assertion[A]): ZIO[R, E, TestResult] =
      ${Macros.assertZIO_impl('effect)('assertion)}
@@ -60,11 +61,11 @@ object CompileVariants {
 
   def assertProxy[A](value: => A, expression: String, assertionCode: String)(
     assertion: Assertion[A]
-  )(implicit trace: Trace): TestResult =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     zio.test.assertImpl(value, Some(expression), Some(assertionCode))(assertion)
 
   def assertZIOProxy[R, E, A](effect: ZIO[R, E, A], expression: String, assertionCode: String)(
     assertion: Assertion[A],
-  )(implicit trace: Trace): ZIO[R, E, TestResult] =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[R, E, TestResult] =
     zio.test.assertZIOImpl(effect, Some(expression), Some(assertionCode))(assertion)
 }

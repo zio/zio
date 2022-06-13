@@ -1,6 +1,6 @@
 package zio
 
-import zio.test.Assertion.equalTo
+import zio.test.Assertion.{equalTo, not}
 import zio.test.assert
 import java.time.temporal.ChronoUnit
 import java.time.{Duration => JavaDuration}
@@ -26,8 +26,32 @@ object DurationSpec extends ZIOBaseSpec {
       test("Creating it with a j.u.c.TimeUnit is identical") {
         assert(Duration(12L, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(12L)))
       },
+      test("Creating it with a j.u.c.TimeUnit is identical on negative values") {
+        assert(Duration(-12L, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(-12L)))
+      },
+      test("Creating it with a j.u.c.TimeUnit is identical on big values") {
+        assert(Duration(Long.MaxValue, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(Long.MaxValue)))
+      },
+      test("Creating it with a j.u.c.TimeUnit is identical on big negative values") {
+        assert(Duration(Long.MinValue, TimeUnit.NANOSECONDS))(equalTo(Duration.fromNanos(Long.MinValue)))
+      },
+      test("Creating it with a j.u.c.TimeUnit is identical on big millis values") {
+        assert(Duration(Long.MaxValue, TimeUnit.MILLISECONDS))(equalTo(Duration.fromMillis(Long.MaxValue)))
+      },
       test("Creating it with a j.t.t.ChronoUnit is identical") {
         assert(Duration(12L, ChronoUnit.NANOS))(equalTo(Duration.fromNanos(12L)))
+      },
+      test("Creating it with a j.t.t.ChronoUnit is identical on negative values") {
+        assert(Duration(-12L, ChronoUnit.NANOS))(equalTo(Duration.fromNanos(-12L)))
+      },
+      test("Creating it with a j.t.t.ChronoUnit is identical big values") {
+        assert(Duration(Long.MaxValue, ChronoUnit.NANOS))(equalTo(Duration.fromNanos(Long.MaxValue)))
+      },
+      test("Creating it with a j.t.t.ChronoUnit is identical on big negative values") {
+        assert(Duration(Long.MinValue, ChronoUnit.NANOS))(equalTo(Duration.fromNanos(Long.MinValue)))
+      },
+      test("Creating it with a j.t.t.ChronoUnit is identical big millis values") {
+        assert(Duration(Long.MaxValue, ChronoUnit.MILLIS))(equalTo(Duration.fromMillis(Long.MaxValue)))
       },
       test("It knows its length in ns") {
         assert(Duration.fromNanos(123L).toNanos)(equalTo(123L))
@@ -97,8 +121,8 @@ object DurationSpec extends ZIOBaseSpec {
       }
     ),
     suite("Make a Duration from negative nanos and check that:")(
-      test("The Duration is Zero ") {
-        assert(Duration.fromNanos(-1))(equalTo(Duration.Zero: Duration))
+      test("The Duration is not Zero ") {
+        assert(Duration.fromNanos(-1))(not(equalTo(Duration.Zero: Duration)))
       }
     ),
     suite("Take Infinity and check that: ")(
@@ -146,8 +170,8 @@ object DurationSpec extends ZIOBaseSpec {
       }
     ),
     suite("Make a Scala stdlib s.c.d.Duration and check that: ")(
-      test("A negative s.c.d.Duration converts to Zero") {
-        assert(Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)))(equalTo(Duration.Zero: Duration))
+      test("A negative s.c.d.Duration not converts to Zero") {
+        assert(Duration.fromScala(ScalaDuration(-1L, TimeUnit.NANOSECONDS)))(equalTo(Duration.fromNanos(-1): Duration))
       },
       test("The infinite s.c.d.Duration converts to Infinity") {
         assert(Duration.fromScala(ScalaDuration.Inf))(equalTo(Duration.Infinity: Duration))

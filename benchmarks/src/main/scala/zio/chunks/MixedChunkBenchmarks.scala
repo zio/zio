@@ -8,14 +8,15 @@ import java.util.concurrent.TimeUnit
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Measurement(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
-@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 3)
+@Warmup(iterations = 10, time = 10)
+@Measurement(iterations = 10, time = 10)
 @Fork(1)
 class MixedChunkBenchmarks {
   @Param(Array("1000"))
   var size: Int = _
 
-  var chunk: Chunk[Int] = _
+  var chunk: Chunk[Int]             = _
+  var chunkMaterialized: Chunk[Int] = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
@@ -45,30 +46,56 @@ class MixedChunkBenchmarks {
     chunk = firstHundredFifty ++ secondThreeHundred ++ thirdFifty ++
       fourthTwoHundredFifty ++ fifthHundred ++ sixthOne ++
       seventhHundredNinetyEight ++ lastOne
+
+    chunkMaterialized = chunk.materialize
   }
 
   @Benchmark
   def fold(): Int = chunk.foldLeft(0)(_ + _)
 
   @Benchmark
+  def foldMaterialized(): Int = chunkMaterialized.foldLeft(0)(_ + _)
+
+  @Benchmark
   def filterZIO(): Chunk[Int] =
     BenchmarkUtil.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+
+  @Benchmark
+  def filterMaterializedZIO(): Chunk[Int] =
+    BenchmarkUtil.unsafeRun(chunkMaterialized.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
 
   @Benchmark
   def map(): Chunk[Int] = chunk.map(_ * 2)
 
   @Benchmark
+  def mapMaterialized(): Chunk[Int] = chunkMaterialized.map(_ * 2)
+
+  @Benchmark
   def flatMap(): Chunk[Int] = chunk.flatMap(n => Chunk(n + 2))
 
   @Benchmark
+  def flatMapMaterialized(): Chunk[Int] = chunkMaterialized.flatMap(n => Chunk(n + 2))
+
+  @Benchmark
   def find(): Option[Int] = chunk.find(_ > 2)
+
+  @Benchmark
+  def findMaterialized(): Option[Int] = chunkMaterialized.find(_ > 2)
 
   @Benchmark
   def mapZIO(): Unit =
     BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
 
   @Benchmark
+  def mapZIOMaterialized(): Unit =
+    BenchmarkUtil.unsafeRun(chunkMaterialized.mapZIODiscard(_ => ZIO.unit))
+
+  @Benchmark
   def foldZIO(): Int =
     BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+
+  @Benchmark
+  def foldZIOMaterialized(): Int =
+    BenchmarkUtil.unsafeRun(chunkMaterialized.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 
 }

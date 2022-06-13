@@ -11,7 +11,7 @@ object EnvironmentSpec extends ZIOBaseSpec {
   def spec = suite("EnvironmentSpec")(
     test("Clock returns time when it is set") {
       for {
-        _    <- TestClock.setTime(1.millis)
+        _    <- TestClock.adjust(1.millis)
         time <- Clock.currentTime(TimeUnit.MILLISECONDS)
       } yield assert(time)(equalTo(1L))
     },

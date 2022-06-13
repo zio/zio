@@ -22,14 +22,14 @@ The goal of this project is to create the best all-round JSON library for Scala:
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-json" % "0.1.5"
+libraryDependencies += "dev.zio" %% "zio-json" % "0.3.0-RC8"
 ```
 
 ## Example
 
 Let's try a simple example of encoding and decoding JSON using ZIO JSON:
 
-```scala
+```scala mdoc:compile-only
 import zio.json._
 
 sealed trait Fruit                   extends Product with Serializable

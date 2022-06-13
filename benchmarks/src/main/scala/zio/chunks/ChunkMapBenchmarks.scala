@@ -8,35 +8,35 @@ import java.util.concurrent.TimeUnit
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-class ChunkArrayBenchmarks {
+@Warmup(iterations = 10, time = 10)
+@Measurement(iterations = 10, time = 10)
+class ChunkMapBenchmarks {
   @Param(Array("1000"))
   var size: Int = _
 
-  var chunk: Chunk[Int] = _
+  var chunk: Chunk[Int]   = _
+  var vector: Vector[Int] = _
+  var list: List[Int]     = _
 
   @Setup(Level.Trial)
   def setup(): Unit = {
     val array = (1 to size).toArray
     chunk = Chunk.fromArray(array)
+    vector = array.toVector
+    list = array.toList
   }
 
   @Benchmark
-  def fold(): Int = chunk.fold(0)(_ + _)
+  def mapChunk(): Chunk[Int] = chunk.map(_ * 2)
 
   @Benchmark
-  def map(): Chunk[Int] = chunk.map(_ * 2)
+  def mapVector(): Vector[Int] = vector.map(_ * 2)
 
   @Benchmark
-  def flatMap(): Chunk[Int] = chunk.flatMap(n => Chunk(n + 2))
-
-  @Benchmark
-  def find(): Option[Int] = chunk.find(_ > 2)
+  def mapList(): List[Int] = list.map(_ * 2)
 
   @Benchmark
   def mapZIO(): Unit =
     BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
 
-  @Benchmark
-  def foldZIO(): Int =
-    BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
 }
