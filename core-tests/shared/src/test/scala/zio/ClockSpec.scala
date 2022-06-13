@@ -3,6 +3,8 @@ package zio
 import zio.test._
 import zio.test.Assertion._
 
+import java.time.Instant
+
 object ClockSpec extends ZIOBaseSpec {
 
   val someFixedInstant = java.time.Instant.parse("2021-11-13T03:42:09.343835Z")
@@ -37,6 +39,28 @@ object ClockSpec extends ZIOBaseSpec {
       assertZIO(ZIO.collectAll(Chunk(zioEuropeAmsterdamClock.localDateTime, zioAmericaPhoenixClock.localDateTime)))(
         isDistinct
       )
-    }
+    },
+    suite("TestClock")(
+      test("should accept any Instant") {
+        check(Gen.instant) { instant =>
+          for {
+            _   <- TestClock.setTime(instant)
+            now <- Clock.instant
+          } yield assertTrue(now == instant)
+        }
+      },
+      test("should allow long sleep") {
+        val maxMillisDuration = Duration.fromMillis(Long.MaxValue)
+
+        for {
+          _       <- TestClock.adjust(maxMillisDuration)
+          _       <- TestClock.adjust(maxMillisDuration)
+          promise <- Promise.make[Nothing, Unit]
+          _       <- (ZIO.sleep(maxMillisDuration) *> promise.succeed(())).fork
+          _       <- TestClock.setTime(Instant.MAX)
+          _       <- promise.await
+        } yield assertTrue(true)
+      }
+    )
   )
 }
