@@ -119,7 +119,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       promise.await
     }
 
-  def ask[A](f: (FiberRuntime[Any, Any], Fiber.Status) => A)(implicit trace: Trace): UIO[A] =
+  def ask[A](f: (FiberRuntime[_, _], Fiber.Status) => A)(implicit trace: Trace): UIO[A] =
     ZIO.suspendSucceed {
       val promise = zio.Promise.unsafeMake[Nothing, A](fiberId)
 
@@ -209,10 +209,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         EvaluationSignal.Continue
 
       case FiberMessage.Stateful(onFiber) =>
-        onFiber(
-          self.asInstanceOf[FiberRuntime[Any, Any]],
-          if (_exitValue ne null) Fiber.Status.Done else suspendedStatus
-        )
+        onFiber(self, getStatus(_runtimeFlags))
 
         EvaluationSignal.Continue
 
@@ -401,6 +398,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     self.unsafeGetCurrentExecutor().unsafeSubmitOrThrow(self)
   }
 
+  private def getStatus(runtimeFlags: RuntimeFlags): Fiber.Status =
+    if (_exitValue ne null) Fiber.Status.Done
+    else if (self.suspendedStatus == null) Fiber.Status.Running(runtimeFlags, Trace.empty)
+    else self.suspendedStatus
+
   private def buildStackTrace(stack: Chunk[EvaluationStep]): StackTrace = {
     val builder = StackTraceBuilder.unsafeMake()
 
@@ -487,7 +489,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               })(Trace.empty)
 
           case FiberMessage.Stateful(onFiber) =>
-            onFiber(self.asInstanceOf[FiberRuntime[Any, Any]], Fiber.Status.Running(runtimeFlags, lastTrace))
+            onFiber(self, Fiber.Status.Running(runtimeFlags, lastTrace))
 
           case FiberMessage.Resume(_, _) =>
             throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
