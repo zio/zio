@@ -197,9 +197,9 @@ package capture {
             while (done == null) {
               try {
                 cur match {
-                  case flatMap @ FlatMap(first, andThen) =>
+                  case flatMap @ FlatMap(_, _) =>
                     try {
-                      cur = flatMap.erase.onSuccess(loop(first, depth + 1, null))
+                      cur = flatMap.erase.onSuccess(loop(flatMap.first, depth + 1, null))
                     } catch {
                       case reifyStack: ReifyStack =>
                         reifyStack.stack += flatMap.erase
