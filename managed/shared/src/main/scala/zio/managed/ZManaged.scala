@@ -1982,7 +1982,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         )
 
       ZIO
-        .foreachPar(as.toIterable)(a =>
+        .foreachPar(as)(a =>
           makeInnerMap.flatMap(innerMap => ZManaged.currentReleaseMap.locally(innerMap)(f(a).zio.map(_._2)))
         )
         .map(bf.fromSpecific(as))

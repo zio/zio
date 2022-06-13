@@ -56,7 +56,7 @@ private[zio] object FiberRenderer {
     RuntimeFlags.toSet(runtimeFlags).mkString("(", ", ", ")")
 
   private def renderTrace(trace: Trace): String =
-    if (trace == "") "<no trace>" else trace.toString()
+    if (trace == Trace.empty) "<no trace>" else trace.toString()
 
   private def renderStatus(status: Fiber.Status): String =
     status match {

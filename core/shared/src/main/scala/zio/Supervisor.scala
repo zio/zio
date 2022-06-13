@@ -238,7 +238,7 @@ object Supervisor {
 
     private final case class AddSupervisor(supervisor: Supervisor[Any])    extends Patch
     private final case class AndThen(first: Patch, second: Patch)          extends Patch
-    private final case object Empty                                        extends Patch
+    private case object Empty                                              extends Patch
     private final case class RemoveSupervisor(supervisor: Supervisor[Any]) extends Patch
   }
 
