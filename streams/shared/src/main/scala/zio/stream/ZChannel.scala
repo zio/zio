@@ -1532,7 +1532,7 @@ object ZChannel {
                              latch <- Promise.make[Nothing, Unit]
                              raceIOs =
                                ZIO.scoped[Env](
-                                 (queueReader >>> channel).toPull.flatMap(evaluatePull(_).race(errorSignal.await))
+                                 (queueReader >>> channel).toPull.flatMap(evaluatePull(_).raceAwait(errorSignal.await))
                                )
                              childFiber <- permits
                                              .withPermit(latch.succeed(()) *> raceIOs)
@@ -1552,7 +1552,7 @@ object ZChannel {
                              raceIOs =
                                ZIO.scoped[Env](
                                  (queueReader >>> channel).toPull.flatMap(
-                                   evaluatePull(_).race(errorSignal.await).race(canceler.await)
+                                   evaluatePull(_).raceAwait(errorSignal.await).raceAwait(canceler.await)
                                  )
                                )
                              childFiber <- permits

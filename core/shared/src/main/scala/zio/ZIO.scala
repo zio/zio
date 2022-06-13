@@ -1241,8 +1241,11 @@ sealed trait ZIO[-R, +E, +A]
    * interrupt losers.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
+    self.disconnect.raceAwait(that.disconnect)
+
+  final def raceAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
     ZIO.fiberIdWith { parentFiberId =>
-      (self.disconnect.raceWith(that.disconnect))(
+      (self.raceWith(that))(
         (exit, right) =>
           exit.foldExitZIO[Any, E1, A1](
             cause => right.join.mapErrorCause(cause && _),

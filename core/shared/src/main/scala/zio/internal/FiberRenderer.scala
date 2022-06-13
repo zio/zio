@@ -27,15 +27,16 @@ private[zio] object FiberRenderer {
     ZIO.succeed(unsafePrettyPrint(dump, System.currentTimeMillis()))
 
   private def unsafePrettyPrint(dump: Fiber.Dump, now: Long): String = {
-    val millis  = (now - dump.fiberId.startTimeMillis)
-    val seconds = millis / 1000L
-    val minutes = seconds / 60L
-    val hours   = minutes / 60L
+    val totalMillis = (now - dump.fiberId.startTimeMillis)
+    val millis      = totalMillis % 1000
+    val seconds     = totalMillis / 1000L
+    val minutes     = seconds / 60L
+    val hours       = minutes / 60L
 
     val name = "\"" + dump.fiberId.threadName + "\""
-    val lifeMsg = (if (hours == 0) "" else s"${hours}h") +
-      (if (hours == 0 && minutes == 0) "" else s"${minutes}m") +
-      (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s") +
+    val lifeMsg = (if (hours == 0) "" else s"${hours}h ") +
+      (if (hours == 0 && minutes == 0) "" else s"${minutes}m ") +
+      (if (hours == 0 && minutes == 0 && seconds == 0) "" else s"${seconds}s ") +
       (s"${millis}ms")
     val waitMsg = dump.status match {
       case Suspended(_, _, _, blockingOn) =>
