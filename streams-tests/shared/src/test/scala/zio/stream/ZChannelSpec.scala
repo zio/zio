@@ -736,7 +736,7 @@ object ZChannelSpec extends ZIOBaseSpec {
               .runCollect
               .map(_._1.head)
           )(equalTo((1 to N).foldLeft(1L)(_ + _)))
-        },
+        } @@ TestAspect.ignore,
         test("concatMap is stack safe") {
           val N = 100000L
           assertZIO(
