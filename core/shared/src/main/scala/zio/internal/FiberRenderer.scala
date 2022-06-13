@@ -52,7 +52,7 @@ private[zio] object FiberRenderer {
   }
 
   private def renderFlags(runtimeFlags: RuntimeFlags): String =
-    RuntimeFlags.toSet(runtimeFlags).map(_.toString().toLowerCase).mkString(",")
+    RuntimeFlags.toSet(runtimeFlags).mkString("(", ", ", ")")
 
   private def renderTrace(trace: Trace): String =
     if (trace == "") "<no trace>" else trace.toString()

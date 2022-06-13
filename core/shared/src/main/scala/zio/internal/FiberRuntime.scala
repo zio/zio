@@ -144,6 +144,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   final def tell(message: FiberMessage): Unit = {
     queue.add(message)
 
+    // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
   }
 
@@ -158,9 +159,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         evaluateEffect(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty)
       } finally {
         running.set(false)
+
+        // Because we're special casing `start`, we have to be responsible
+        // for spinning up the fiber if there were new messages added to
+        // the queue between the completion of the effect and the transition
+        // to the not running state.
+        if (!queue.isEmpty && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
       }
     } else {
       tell(FiberMessage.Resume(effect.asInstanceOf[ZIO[Any, Any, Any]], Chunk.empty))
+
       null
     }
 

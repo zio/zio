@@ -2123,6 +2123,11 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("RTS synchronous correctness")(
+      test("fast-path resumption") {        
+        for {
+          _ <- ZIOAppDefault.fromZIO(ZIO.yieldNow).invoke(Chunk.empty)
+        } yield assertCompletes 
+      },
       test("widen Nothing") {
         val op1 = ZIO.succeed[String]("1")
         val op2 = ZIO.succeed[String]("2")

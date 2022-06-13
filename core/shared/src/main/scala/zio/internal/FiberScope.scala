@@ -64,7 +64,7 @@ private[zio] object FiberScope {
       val parent = parentRef.get()
 
       if (parent ne null) {
-        parent.tell(FiberMessage.Stateful((fiber, _) => fiber.unsafeAddChild(child)))
+        parent.tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.unsafeAddChild(child)))
       }
     }
   }
