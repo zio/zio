@@ -1470,15 +1470,11 @@ object ZChannel {
     f: (OutDone, OutDone) => OutDone
   )(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone] =
     unwrapScoped[Env] {
-      {
+      ZIO.withChildren { getChildren =>
         for {
-          input         <- SingleProducerAsyncInput.make[InErr, InElem, InDone]
-          queueReader    = ZChannel.fromInput(input)
           n             <- ZIO.succeed(n)
           bufferSize    <- ZIO.succeed(bufferSize)
           mergeStrategy <- ZIO.succeed(mergeStrategy)
-          childFibers   <- Ref.make[Map[FiberId, Fiber[Any, Unit]]](Map.empty)
-          getChildren    = childFibers.get.map(_.values)
           _             <- ZIO.addFinalizer(getChildren.flatMap(Fiber.interruptAll(_)))
           queue         <- ZIO.acquireRelease(Queue.bounded[ZIO[Env, OutErr, Either[OutDone, OutElem]]](bufferSize))(_.shutdown)
           cancelers     <- ZIO.acquireRelease(Queue.unbounded[Promise[Nothing, Unit]])(_.shutdown)
@@ -1505,14 +1501,14 @@ object ZChannel {
                                case None => ZIO.unit
                              }
                              .catchAllCause { cause =>
-                               queue.offer(ZIO.refailCause(cause)) *> errorSignal.succeed(()).unit
+                               if (cause.isInterrupted) ZIO.refailCause(cause)
+                               else queue.offer(ZIO.failCause(cause)) *> errorSignal.succeed(()).unit
                              }
           _ <- pull
                  .foldCauseZIO(
                    cause =>
-                     queue.offer(ZIO.failCause(cause)) *>
-                       getChildren.flatMap(Fiber.interruptAll(_)) *>
-                       ZIO.succeed(false),
+                     getChildren
+                       .flatMap(Fiber.interruptAll(_)) *> queue.offer(ZIO.failCause(cause)).as(false),
                    {
                      case Left(outDone) =>
                        errorSignal.await.raceWith(permits.withPermits(n.toLong)(ZIO.unit))(
@@ -1530,15 +1526,10 @@ object ZChannel {
                          case MergeStrategy.BackPressure =>
                            for {
                              latch <- Promise.make[Nothing, Unit]
-                             raceIOs =
-                               ZIO.scoped[Env](
-                                 (queueReader >>> channel).toPull.flatMap(evaluatePull(_).raceAwait(errorSignal.await))
-                               )
-                             childFiber <- permits
-                                             .withPermit(latch.succeed(()) *> raceIOs)
-                                             .ensuring(ZIO.fiberId.flatMap(id => childFibers.update(_ - id)))
-                                             .fork
-                             _       <- childFibers.update(_ + (childFiber.id -> childFiber))
+                             raceIOs = ZIO.scoped[Env](
+                                         channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await))
+                                       )
+                             _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
                              _       <- latch.await
                              errored <- errorSignal.isDone
                            } yield !errored
@@ -1551,15 +1542,9 @@ object ZChannel {
                              _        <- cancelers.offer(canceler)
                              raceIOs =
                                ZIO.scoped[Env](
-                                 (queueReader >>> channel).toPull.flatMap(
-                                   evaluatePull(_).raceAwait(errorSignal.await).raceAwait(canceler.await)
-                                 )
+                                 channel.toPull.flatMap(evaluatePull(_).race(errorSignal.await).race(canceler.await))
                                )
-                             childFiber <- permits
-                                             .withPermit(latch.succeed(()) *> raceIOs)
-                                             .ensuring(ZIO.fiberId.flatMap(id => childFibers.update(_ - id)))
-                                             .fork
-                             _       <- childFibers.update(_ + (childFiber.id -> childFiber))
+                             _       <- permits.withPermit(latch.succeed(()) *> raceIOs).fork
                              _       <- latch.await
                              errored <- errorSignal.isDone
                            } yield !errored
@@ -1568,8 +1553,8 @@ object ZChannel {
                  )
                  .repeatWhileEquals(true)
                  .forkScoped
-        } yield (queue, input)
-      }.map { case (queue, input) =>
+        } yield queue
+      }.map { queue =>
         lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
           unwrap[Env, Any, Any, Any, OutErr, OutElem, OutDone] {
             queue.take.flatten.foldCause(
@@ -1581,7 +1566,7 @@ object ZChannel {
             )
           }
 
-        consumer.embedInput(input)
+        consumer
       }
     }
 
