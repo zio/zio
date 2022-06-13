@@ -1174,7 +1174,7 @@ sealed trait ZIO[-R, +E, +A]
       cause =>
         cause.failures match {
           case Nil            => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
-          case ::(head, tail) => ZIO.refailCause(Cause.fail(::(head, tail)).traced(cause.trace))
+          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail)).traced(cause.trace))
         },
       ZIO.succeedNow
     )
@@ -6062,7 +6062,7 @@ object Exit extends Serializable {
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .foldLeft(head.map((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
         .map(_.reverse)
     }
 
@@ -6070,7 +6070,7 @@ object Exit extends Serializable {
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.map(List(_)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
+        .foldLeft(head.map((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
         .map(_.reverse)
     }
 

@@ -142,7 +142,7 @@ object Take {
    * Creates a `Take[E, A]` from `Exit[E, A]`.
    */
   def done[E, A](exit: Exit[E, A]): Take[E, A] =
-    Take(exit.mapError[Option[E]](Some(_)).map(Chunk.single))
+    Take(exit.mapError[Option[E]]((e: E) => Some(e)).map(Chunk.single))
 
   /**
    * End-of-stream marker

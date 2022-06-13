@@ -1,4 +1,4 @@
-package zio.stream 
+package zio.stream
 
 import zio._
 
@@ -9,6 +9,7 @@ object StreamBugIsolator extends ZIOAppDefault {
       .foldLeft(ZChannel.write(1L)) { case (channel, n) =>
         channel.mapOut(_ + n)
       }
-      .runCollect.debug("Result")
+      .runCollect
+      .debug("Result")
   }
 }

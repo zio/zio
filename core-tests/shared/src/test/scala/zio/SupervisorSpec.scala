@@ -1,7 +1,6 @@
 package zio
 
 import zio.test._
-import zio.UIO
 
 object SupervisorSpec extends ZIOSpecDefault {
 
