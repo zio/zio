@@ -3462,9 +3462,9 @@ object ZIOSpec extends ZIOSpecDefault {
         assertM(ZIO(1).validate(ZIO.fail(2)).sandbox.either)(isLeft(equalTo(Cause.Fail(2))))
       },
       test("combines both cause") {
-        for {
-          result <- ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either
-        } yield assertTrue(result.left.get == (Cause.fail(1) ++ Cause.fail(2)))
+        assertM(ZIO.fail(1).validate(ZIO.fail(2)).sandbox.either)(
+          isLeft(equalTo(Cause.Then(Cause.Fail(1), Cause.Fail(2))))
+        )
       }
     ),
     suite("when")(
