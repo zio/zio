@@ -100,6 +100,8 @@ trait FiberRef[A] extends Serializable { self =>
    */
   def fork: Patch
 
+  def join(oldValue: Value, newValue: Value): Value
+
   def delete(implicit trace: Trace): UIO[Unit] =
     ZIO.unsafeStateful[Any, Nothing, Unit] { (fiberState, _) =>
       fiberState.unsafeDeleteFiberRef(self)
@@ -321,6 +323,8 @@ object FiberRef {
     override def patch(patch: Patch)(oldValue: Value): Value = delegate.patch(patch)(oldValue)
 
     override def fork: Patch = delegate.fork
+
+    override def join(oldValue: Value, newValue: Value): Value = delegate.join(oldValue, newValue)
   }
 
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
@@ -378,8 +382,9 @@ object FiberRef {
   ): FiberRef.WithPatch[A, A => A] =
     unsafeMakePatch[A, A => A](
       initial,
-      Differ.updateWith[A](join),
-      fork
+      Differ.update[A],
+      fork,
+      join
     )
 
   private[zio] def unsafeMakeEnvironment[A](
@@ -394,7 +399,8 @@ object FiberRef {
   private[zio] def unsafeMakePatch[Value0, Patch0](
     initialValue0: Value0,
     differ: Differ[Value0, Patch0],
-    fork0: Patch0
+    fork0: Patch0,
+    join0: (Value0, Value0) => Value0 = (_: Value0, newValue: Value0) => newValue
   ): FiberRef.WithPatch[Value0, Patch0] =
     new FiberRef[Value0] { self =>
       type Patch = Patch0
@@ -408,6 +414,8 @@ object FiberRef {
         initialValue0
       def patch(patch: Patch)(oldValue: Value): Value =
         differ.patch(patch)(oldValue)
+      def join(oldValue: Value, newValue: Value): Value =
+        join0(oldValue, newValue)
       override def get(implicit trace: Trace): UIO[Value] =
         ZIO.unsafeStateful[Any, Nothing, Value] { (fiberState, _) =>
           ZIO.succeedNow(fiberState.unsafeGetFiberRef(self))

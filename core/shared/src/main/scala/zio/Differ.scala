@@ -208,13 +208,6 @@ object Differ {
    * there is no compositional way to update them.
    */
   def update[A]: Differ[A, A => A] =
-    updateWith((_, a) => a)
-
-  /**
-   * A variant of `update` that allows specifying the function that will be used
-   * to combine old values with new values.
-   */
-  def updateWith[A](f: (A, A) => A): Differ[A, A => A] =
     new Differ[A, A => A] {
       def combine(first: A => A, second: A => A): A => A =
         if (first == empty) second
@@ -225,7 +218,7 @@ object Differ {
       def empty: A => A =
         ZIO.identityFn
       def patch(patch: A => A)(oldValue: A): A =
-        f(oldValue, patch(oldValue))
+        patch(oldValue)
     }
 
   /**
