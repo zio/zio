@@ -903,7 +903,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             handleFatalError(throwable)
           } else {
             println("An exception was thrown by a logger:")
-            t.printStackTrace
+            throwable.printStackTrace
           }
       }
     case _ =>
