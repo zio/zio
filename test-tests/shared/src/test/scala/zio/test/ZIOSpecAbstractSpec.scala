@@ -51,7 +51,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
         res <-
           ZIO.consoleWith(console => failingSpec.runSpecInfallible(failingSpec.spec, TestArgs.empty, console))
       } yield assertTrue(res.fail == 1) &&
-        assertTrue(res.summary.contains(s"$suiteName - $testName"))
+        assertTrue(res.failureDetails.contains(s"$suiteName - $testName"))
     }
   ) @@ TestAspect.ignore)
     .provide(
@@ -64,5 +64,5 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
     a.success == b.success &&
       a.fail == b.fail &&
       a.ignore == b.ignore &&
-      a.summary == b.summary
+      a.failureDetails == b.failureDetails
 }
