@@ -24,6 +24,9 @@ package zio
  */
 object RuntimeFlags {
 
+  def cooperativeYielding(flags: RuntimeFlags): Boolean =
+    isEnabled(flags)(RuntimeFlag.CooperativeYielding)
+
   def currentFiber(flags: RuntimeFlags): Boolean =
     isEnabled(flags)(RuntimeFlag.CurrentFiber)
 
@@ -155,7 +158,7 @@ object RuntimeFlags {
    * The default set of runtime flags, recommended for most applications.
    */
   val default: RuntimeFlags =
-    RuntimeFlags(RuntimeFlag.FiberRoots, RuntimeFlag.Interruption)
+    RuntimeFlags(RuntimeFlag.FiberRoots, RuntimeFlag.Interruption, RuntimeFlag.CooperativeYielding)
 
   /**
    * Creates a patch that disables the specified runtime flag.

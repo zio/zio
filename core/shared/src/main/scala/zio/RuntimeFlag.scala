@@ -113,4 +113,14 @@ object RuntimeFlag {
     final val mask    = 1 << index
     final val notMask = ~mask
   }
+
+  /**
+   * The cooperative yielding flag determines whether the ZIO runtime will yield
+   * to another fiber.
+   */
+  case object CooperativeYielding extends RuntimeFlag {
+    final val index   = 7
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
 }
