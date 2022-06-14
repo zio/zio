@@ -560,6 +560,17 @@ object RuntimeBootstrapTests {
       } yield assert(cause == Cause.fail("foo"))
     }
 
+  def invisibleinterruptedCause() =
+    test("child interrupted cause cause cannot be seen from parent") {
+      for {
+        parentId     <- ZIO.fiberId
+        parentBefore <- FiberRef.interruptedCause.get.debug("before")
+        child        <- FiberRef.interruptedCause.set(Cause.interrupt(parentId)).fork
+        _            <- child.join
+        parentAfter  <- FiberRef.interruptedCause.get.debug("after")
+      } yield assert(parentBefore == parentAfter)
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
     // runtimeFlags()
@@ -593,7 +604,8 @@ object RuntimeBootstrapTests {
     // localSupervision()
     // bigSyncInterruption()
     // yieldForked()
-    invisibleInterruption()
+    // invisibleInterruption()
+    invisibleinterruptedCause()
   }
 
 }
