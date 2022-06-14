@@ -122,7 +122,7 @@ final class FiberRefs private (
               val patch = ref.diff(ancestor, childValue)
 
               val oldValue = parentStack.head._2
-              val newValue = ref.patch(patch)(oldValue)
+              val newValue = ref.join(oldValue, ref.patch(patch)(oldValue))
 
               if (oldValue == newValue) parentFiberRefs
               else {
