@@ -2633,7 +2633,7 @@ object ZIOSpec extends ZIOBaseSpec {
       } @@ zioTag(errors)
     ),
     suite("interruption semantics") {
-      test("self interruption triggers onInterrupt") {
+      test("self-interruption triggers onInterrupt") {
         for {
           ref   <- Ref.make(false)
           fiber <- ZIO.interrupt.onInterrupt(ref.set(true)).fork
@@ -2641,6 +2641,14 @@ object ZIOSpec extends ZIOBaseSpec {
           value <- ref.get
         } yield assertTrue(value == true)
       } +
+        test("self-interruption can be averted") {
+          for {
+            ref   <- Ref.make(false)
+            fiber <- ZIO.interrupt.catchAllCause(_ => ref.set(true)).fork
+            _     <- fiber.await
+            value <- ref.get
+          } yield assertTrue(value == true)
+        } +
         test("child interrupted cause cause cannot be seen from parent") {
           for {
             parentId     <- ZIO.fiberId
@@ -2671,7 +2679,7 @@ object ZIOSpec extends ZIOBaseSpec {
             value <- fiber.join *> ref.get
           } yield assertTrue(value == false)
         } +
-        test("interruptors can be seen even in uninterruptible regions") {
+        test("interrupters can be seen even in uninterruptible regions") {
           for {
             parentId   <- ZIO.fiberId
             startLatch <- Promise.make[Nothing, Unit]

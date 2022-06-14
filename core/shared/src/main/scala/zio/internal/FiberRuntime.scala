@@ -898,9 +898,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           cause.foldContext(())(FiberRuntime.fiberFailureTracker)
         }
       } catch {
-        case t: Throwable =>
-          if (unsafeIsFatal(t)) {
-            unsafeGetReportFatal()(t)
+        case throwable: Throwable =>
+          if (unsafeIsFatal(throwable)) {
+            handleFatalError(throwable)
           } else {
             println("An exception was thrown by a logger:")
             t.printStackTrace
