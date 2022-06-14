@@ -20,14 +20,14 @@ import zio.{Duration, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class Summary(
-  success: Int,
-  fail: Int,
-  ignore: Int,
-  summary: String,
-  duration: Duration = Duration.Zero
+                          success: Int,
+                          fail: Int,
+                          ignore: Int,
+                          failureOutput: String,
+                          duration: Duration = Duration.Zero
 ) {
   val status: Summary.Status =
-    if (summary.trim.isEmpty)
+    if (failureOutput.trim.isEmpty)
       Summary.Success
     else
       Summary.Failure
@@ -41,11 +41,11 @@ final case class Summary(
       success + other.success,
       fail + other.fail,
       ignore + other.ignore,
-      summary +
-        (if (other.summary.trim.isEmpty)
+      failureOutput +
+        (if (other.failureOutput.trim.isEmpty)
            ""
          else
-           "\n" + other.summary),
+           "\n" + other.failureOutput),
       duration.plus(other.duration)
     )
 }

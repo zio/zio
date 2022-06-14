@@ -30,7 +30,7 @@ object SummaryProtocol {
       summary.success.toString,
       summary.fail.toString,
       summary.ignore.toString,
-      summary.summary
+      summary.failureOutput
     ).map(escape).mkString("\t")
 
   def deserialize(s: String): Option[Summary] =
