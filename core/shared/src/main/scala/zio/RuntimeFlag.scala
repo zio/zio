@@ -30,7 +30,7 @@ sealed trait RuntimeFlag {
 
 object RuntimeFlag {
   lazy val all: Set[RuntimeFlag] =
-    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots, WindDown)
+    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots, WindDown, CooperativeYielding)
 
   /**
    * The interruption flag determines whether or not the ZIO runtime system will

@@ -39,9 +39,6 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set.empty
 
-  final val defaultFlags: Set[RuntimeFlag] =
-    Set(RuntimeFlag.FiberRoots)
-
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {
       t.printStackTrace()

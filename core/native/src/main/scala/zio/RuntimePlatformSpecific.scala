@@ -38,9 +38,6 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set.empty
 
-  final val defaultFlags: Set[RuntimeFlag] =
-    Set(RuntimeFlag.FiberRoots)
-
   final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))
 
