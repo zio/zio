@@ -455,7 +455,7 @@ object FiberRef {
     unsafeMakePatch[Supervisor[Any], Supervisor.Patch](
       initial,
       Differ.supervisor,
-      Supervisor.Patch.empty,
+      Supervisor.Patch.empty
     )
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
