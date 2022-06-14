@@ -39,7 +39,11 @@ sealed abstract class ZTestRunnerNative(
     if (summaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else
-      summaries.map(_.failureDetails).filter(_.nonEmpty).flatMap(s => colored(s) :: "\n" :: Nil).mkString("", "", "Done")
+      summaries
+        .map(_.failureDetails)
+        .filter(_.nonEmpty)
+        .flatMap(s => colored(s) :: "\n" :: Nil)
+        .mkString("", "", "Done")
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
