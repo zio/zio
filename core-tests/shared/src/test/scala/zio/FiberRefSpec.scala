@@ -12,18 +12,16 @@ object FiberRefSpec extends ZIOBaseSpec {
   def spec = suite("FiberRefSpec")(
     suite("Classic FiberRef.make")(
       test("fork can modify ref value") {
-        val ref = FiberRef.unsafeMake[Int](0, _ + 1, (parent, _) => parent)
-
         for {
+          ref     <- FiberRef.make[Int](0, _ + 1, (parent, _) => parent)
           initial <- ref.get
           fiber   <- ref.get.fork
           child   <- fiber.join
         } yield assertTrue(initial == 0 && child == 1)
       },
       test("parent can be retained") {
-        val ref = FiberRef.unsafeMake[Int](0, _ + 1, (parent, _) => parent)
-
         for {
+          ref            <- FiberRef.make[Int](0, _ + 1, (parent, _) => parent)
           initial1       <- ref.get
           fiber          <- (ref.update(_ + 42) *> ref.get).fork
           initial2       <- ref.get
