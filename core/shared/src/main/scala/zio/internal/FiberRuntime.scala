@@ -300,6 +300,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             val callback: ZIO[Any, Any, Any] => Unit = (effect: ZIO[Any, Any, Any]) => {
               if (alreadyCalled.compareAndSet(false, true)) {
                 tell(FiberMessage.Resume(effect, nextStack))
+              } else {
+                val msg = s"An async callback was invoked more than once, which could be a sign of a defect: ${effect}"
+
+                unsafeLog(() => msg, Cause.empty, ZIO.someDebug, asyncJump.trace)
               }
             }
 
@@ -307,17 +311,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
             try {
               asyncJump.registerCallback(callback)
-
-              effect = null
             } catch {
               case throwable: Throwable =>
                 if (unsafeIsFatal(throwable)) {
                   handleFatalError(throwable)
                 } else {
-                  effect = Exit.Failure(Cause.die(throwable))
-                  stack = Chunk.empty
+                  callback(Exit.Failure(Cause.die(throwable)))
                 }
             }
+
+            effect = null
 
           case traceGen: GenerateTrace =>
             val nextStack  = traceGen.stack.result()

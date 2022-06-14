@@ -2550,6 +2550,20 @@ object ZIOSpec extends ZIOBaseSpec {
           a <- release.await
         } yield assert(a)(isUnit)
       } @@ zioTag(interruption),
+      test("fatal errors in registering async callback are captured") {
+        val error = new Exception("Uh oh!")
+
+        for {
+          exit <- ZIO.async[Any, Nothing, Int](_ => throw error).exit
+        } yield assertTrue(exit.causeOption.get.defects(0) == error)
+      },
+      test("resumption takes precedence over fatal error in registering callback") {
+        val error = new Exception("Uh oh!")
+
+        for {
+          value <- ZIO.async[Any, Nothing, Int] { k => k(ZIO.succeed(42)); throw error }
+        } yield assertTrue(value == 42)
+      },
       test("async should not resume fiber twice after interruption") {
         for {
           step            <- Promise.make[Nothing, Unit]
