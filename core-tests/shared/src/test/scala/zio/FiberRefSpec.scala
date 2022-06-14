@@ -10,6 +10,28 @@ object FiberRefSpec extends ZIOBaseSpec {
   import ZIOTag._
 
   def spec = suite("FiberRefSpec")(
+    suite("Classic FiberRef.make")(
+      test("fork can modify ref value") {
+        val ref = FiberRef.unsafeMake[Int](0, _ + 1, (parent, _) => parent)
+
+        for {
+          initial <- ref.get
+          fiber   <- ref.get.fork
+          child   <- fiber.join
+        } yield assertTrue(initial == 0 && child == 1)
+      },
+      test("parent can be retained") {
+        val ref = FiberRef.unsafeMake[Int](0, _ + 1, (parent, _) => parent)
+
+        for {
+          initial1       <- ref.get
+          fiber          <- (ref.update(_ + 42) *> ref.get).fork
+          initial2       <- ref.get
+          tuple          <- fiber.join <*> ref.get
+          (child, joined) = tuple
+        } yield assertTrue(initial1 == 0 && initial2 == 0 && child == 43 && joined == 0)
+      }
+    ),
     suite("Create a new FiberRef with a specified value and check if:")(
       test("`delete` restores the original value") {
         for {
