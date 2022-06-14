@@ -69,7 +69,7 @@ object ExecutorSpec extends ZIOBaseSpec {
         )
       },
       test("When created from an EC, must not throw when fed an effect ") {
-        assert(Executor.fromExecutionContext(1)(TestExecutor.ec).unsafeSubmit(TestExecutor.runnable))(
+        assert(Executor.fromExecutionContext(TestExecutor.ec).unsafeSubmit(TestExecutor.runnable))(
           not(throwsA[RejectedExecutionException])
         )
       },

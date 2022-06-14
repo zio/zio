@@ -23,24 +23,14 @@ import scala.scalajs.js.Dynamic.{global => jsglobal}
 
 private[zio] trait RuntimePlatformSpecific {
 
-  /**
-   * The default number of operations the ZIO runtime should execute before
-   * yielding to other fibers.
-   */
-  final val defaultYieldOpCount: Int =
-    2048
-
   final val defaultExecutor: Executor =
-    Executor.fromExecutionContext(defaultYieldOpCount)(ExecutionContext.global)
+    Executor.fromExecutionContext(ExecutionContext.global)
 
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
   final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set.empty
-
-  final val defaultFlags: Set[RuntimeFlag] =
-    Set(RuntimeFlag.FiberRoots)
 
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {

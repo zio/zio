@@ -1050,7 +1050,7 @@ sealed trait ZIO[-R, +E, +A]
    * back to the default one.
    */
   final def onExecutionContext(ec: => ExecutionContext)(implicit trace: Trace): ZIO[R, E, A] =
-    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    self.onExecutor(Executor.fromExecutionContext(ec))
 
   /**
    * Ensures that a cleanup functions runs, whether this effect succeeds, fails,

@@ -4,7 +4,7 @@ object RuntimeBootstrapTests {
   import LatchOps._
 
   val singleThreadedExecutor =
-    zio.Executor.fromJavaExecutor(java.util.concurrent.Executors.newSingleThreadExecutor(), 1024)
+    zio.Executor.fromJavaExecutor(java.util.concurrent.Executors.newSingleThreadExecutor())
 
   implicit class RunSyntax[A](
     task: Task[A]

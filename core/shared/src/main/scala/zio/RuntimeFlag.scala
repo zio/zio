@@ -30,7 +30,7 @@ sealed trait RuntimeFlag {
 
 object RuntimeFlag {
   lazy val all: Set[RuntimeFlag] =
-    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots, WindDown)
+    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots, WindDown, CooperativeYielding)
 
   /**
    * The interruption flag determines whether or not the ZIO runtime system will
@@ -110,6 +110,16 @@ object RuntimeFlag {
    */
   case object WindDown extends RuntimeFlag {
     final val index   = 6
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The cooperative yielding flag determines whether the ZIO runtime will yield
+   * to another fiber.
+   */
+  case object CooperativeYielding extends RuntimeFlag {
+    final val index   = 7
     final val mask    = 1 << index
     final val notMask = ~mask
   }

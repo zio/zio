@@ -279,7 +279,11 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
           case trampoline: Trampoline =>
             trampolines = trampolines + 1
 
-            if (!trampoline.forceYield && (trampolines < FiberRuntime.MaxTrampolinesBeforeYield)) {
+            if (
+              !RuntimeFlags.cooperativeYielding(
+                _runtimeFlags
+              ) || (!trampoline.forceYield && (trampolines < FiberRuntime.MaxTrampolinesBeforeYield))
+            ) {
               effect = trampoline.effect
               stack = trampoline.stack.result()
             } else {

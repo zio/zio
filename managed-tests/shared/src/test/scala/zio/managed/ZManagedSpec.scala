@@ -486,7 +486,7 @@ object ZManagedSpec extends ZIOBaseSpec {
     suite("onExecutor")(
       test("runs acquire, use, and release actions on the specified executor") {
         val executor: UIO[Executor] = ZIO.descriptorWith(descriptor => ZIO.succeedNow(descriptor.executor))
-        val global                  = Executor.fromExecutionContext(100)(ExecutionContext.global)
+        val global                  = Executor.fromExecutionContext(ExecutionContext.global)
         for {
           default <- executor
           ref1    <- Ref.make[Executor](default)
@@ -507,7 +507,7 @@ object ZManagedSpec extends ZIOBaseSpec {
         val thread = ZIO.succeed(Thread.currentThread())
 
         val global =
-          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(scala.concurrent.ExecutionContext.global)
         for {
           which   <- Ref.make[Option[Thread]](None)
           beforeL <- ZIO.descriptor.map(_.isLocked)

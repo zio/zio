@@ -504,7 +504,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
    * sequentially after it, using the specified `ExecutionContext`.
    */
   final def onExecutionContext(ec: => ExecutionContext)(implicit trace: Trace): ZManaged[R, E, A] =
-    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    self.onExecutor(Executor.fromExecutionContext(ec))
 
   /**
    * Ensures that a cleanup function runs when this ZManaged is finalized, after

@@ -59,7 +59,7 @@ import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 object CustomizedRuntimeZIOApp extends ZIOAppDefault {
   override val bootstrap = Runtime.setExecutor(
-    Executor.fromThreadPoolExecutor(_ => 1024)(
+    Executor.fromThreadPoolExecutor(
       new ThreadPoolExecutor(
         5,
         10,

@@ -295,6 +295,11 @@ object Runtime extends RuntimePlatformSpecific {
   val default: Runtime[Any] =
     Runtime(ZEnvironment.empty, FiberRefs.empty, RuntimeFlags.default)
 
+  def enableCooperativeYielding(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.scoped {
+      ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.CooperativeYielding))
+    }
+
   def enableCurrentFiber(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
       ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.CurrentFiber))
