@@ -92,7 +92,7 @@ final class FiberRefs private (
           .get(ref)
           .fold {
             if (childValue == ref.initial) parentFiberRefs
-            else parentFiberRefs + (ref -> ::((fiberId, childValue), Nil))
+            else parentFiberRefs + (ref -> ::((fiberId, ref.join(ref.initial, childValue)), Nil))
           } { parentStack =>
             def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
               val compare = left.startTimeMillis.compare(right.startTimeMillis)
