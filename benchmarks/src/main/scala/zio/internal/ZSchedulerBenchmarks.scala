@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
 @Fork(value = 3)
 class ZSchedulerBenchmarks {
 
-  final def fixedThreadPoolExecutor(yieldOpCount: Int): zio.Executor =
+  final def fixedThreadPoolExecutor(): zio.Executor =
     zio.Executor.fromThreadPoolExecutor(_ => yieldOpCount) {
       val corePoolSize  = java.lang.Runtime.getRuntime.availableProcessors() * 2
       val maxPoolSize   = corePoolSize
@@ -40,8 +40,8 @@ class ZSchedulerBenchmarks {
     }
 
   val catsRuntime: IORuntime        = IORuntime.global
-  val fixedThreadPool: zio.Executor = fixedThreadPoolExecutor
-  val zScheduler: zio.Executor      = zio.Executor.makeDefault
+  val fixedThreadPool: zio.Executor = fixedThreadPoolExecutor()
+  val zScheduler: zio.Executor      = zio.Executor.makeDefault()
 
   @Benchmark
   def catsRuntimeChainedFork(): Int =
