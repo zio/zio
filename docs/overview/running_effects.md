@@ -59,7 +59,7 @@ A custom `Runtime[R]` can be created with an `Environment[R]`. This represents t
 For example, the following creates a `Runtime` that can provide an `Int` to effects :
 
 ```scala mdoc:silent
-val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), FiberRefs.empty)
+val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), FiberRefs.empty, RuntimeFlags.default)
 ```
 
 ## Error Reporting
