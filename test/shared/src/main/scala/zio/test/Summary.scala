@@ -23,11 +23,11 @@ final case class Summary(
                           success: Int,
                           fail: Int,
                           ignore: Int,
-                          failureOutput: String,
+                          failureDetails: String,
                           duration: Duration = Duration.Zero
 ) {
   val status: Summary.Status =
-    if (failureOutput.trim.isEmpty)
+    if (failureDetails.trim.isEmpty)
       Summary.Success
     else
       Summary.Failure
@@ -41,11 +41,11 @@ final case class Summary(
       success + other.success,
       fail + other.fail,
       ignore + other.ignore,
-      failureOutput +
-        (if (other.failureOutput.trim.isEmpty)
+      failureDetails +
+        (if (other.failureDetails.trim.isEmpty)
            ""
          else
-           "\n" + other.failureOutput),
+           "\n" + other.failureDetails),
       duration.plus(other.duration)
     )
 }

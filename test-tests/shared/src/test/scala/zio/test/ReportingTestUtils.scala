@@ -59,7 +59,7 @@ object ReportingTestUtils {
     for {
       console <- ZIO.console
       summary <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(spec)
-    } yield summary.failureOutput
+    } yield summary.failureDetails
 
   private[test] def TestTestRunner(
     testEnvironment: ZLayer[Scope, Nothing, TestEnvironment],
