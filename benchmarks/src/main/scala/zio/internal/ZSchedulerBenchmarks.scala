@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 class ZSchedulerBenchmarks {
 
   final def fixedThreadPoolExecutor(): zio.Executor =
-    zio.Executor.fromThreadPoolExecutor(_ => yieldOpCount) {
+    zio.Executor.fromThreadPoolExecutor {
       val corePoolSize  = java.lang.Runtime.getRuntime.availableProcessors() * 2
       val maxPoolSize   = corePoolSize
       val keepAliveTime = 60000L
