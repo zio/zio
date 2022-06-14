@@ -546,39 +546,54 @@ object RuntimeBootstrapTests {
       ZIOAppDefault.fromZIO(ZIO.yieldNow).invoke(Chunk.empty).asInstanceOf[Task[Any]]
     }
 
+  def invisibleInterruption() =
+    test("recovery in uninterruptible region does not reveal interruption in cause") {
+      for {
+        startLatch <- Promise.make[Nothing, Unit]
+        failLatch  <- Promise.make[Nothing, Unit]
+        fiber0     <- (startLatch.succeed(()) *> failLatch.await *> ZIO.fail("foo")).sandbox.flip.fork.uninterruptible
+        fiber       = fiber0: Fiber[Nothing, Cause[String]]
+        _          <- startLatch.await *> fiber.interruptFork *> failLatch.succeed(())
+        _          <- ZIO.debug("\n******* About to join!")
+        cause      <- fiber.join.debug("cause2")
+        _          <- ZIO.debug("\n+++++++ Ending here!")
+      } yield assert(cause == Cause.fail("foo"))
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
-    runtimeFlags()
-    helloWorld()
-    fib()
-    iteration()
-    asyncInterruption()
-    syncInterruption()
-    race()
-    autoInterruption()
-    autoInterruption2()
-    asyncInterruptionOfNever()
-    interruptRacedForks()
-    useInheritance()
-    useInheritance2()
-    asyncUninterruptible()
-    uninterruptibleClosingScope()
-    syncInterruption2()
-    acquireReleaseDisconnect()
-    disconnectedInterruption()
-    interruptibleAfterRace()
-    uninterruptibleRace()
-    interruptionDetection()
-    interruptionRecovery()
-    cooperativeYielding()
-    interruptionOfForkedRace()
-    stackTrace1()
-    stackTrace2()
-    interruptibleHole()
-    queueOfferInterruption()
-    localSupervision()
-    bigSyncInterruption()
-    yieldForked()
+    // runtimeFlags()
+    // helloWorld()
+    // fib()
+    // iteration()
+    // asyncInterruption()
+    // syncInterruption()
+    // race()
+    // autoInterruption()
+    // autoInterruption2()
+    // asyncInterruptionOfNever()
+    // interruptRacedForks()
+    // useInheritance()
+    // useInheritance2()
+    // asyncUninterruptible()
+    // uninterruptibleClosingScope()
+    // syncInterruption2()
+    // acquireReleaseDisconnect()
+    // disconnectedInterruption()
+    // interruptibleAfterRace()
+    // uninterruptibleRace()
+    // interruptionDetection()
+    // interruptionRecovery()
+    // cooperativeYielding()
+    // interruptionOfForkedRace()
+    // stackTrace1()
+    // stackTrace2()
+    // interruptibleHole()
+    // queueOfferInterruption()
+    // localSupervision()
+    // bigSyncInterruption()
+    // yieldForked()
+    invisibleInterruption()
   }
 
 }

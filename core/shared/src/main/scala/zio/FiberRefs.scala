@@ -146,6 +146,8 @@ final class FiberRefs private (
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
     }
 
+  override final def toString(): String = fiberRefLocals.mkString("FiberRefLocals(", ",", ")")
+
   def updatedAs[A](fiberId: FiberId.Runtime)(fiberRef: FiberRef[A], value: A): FiberRefs = {
     val oldStack = fiberRefLocals.get(fiberRef).getOrElse(List.empty)
     val newStack =

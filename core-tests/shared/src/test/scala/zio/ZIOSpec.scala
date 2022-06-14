@@ -2633,6 +2633,46 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(zio)(isSome(equalTo("Ouch")))
       } @@ zioTag(errors)
     ),
+    suite("interruption semantics") {
+      test("self interruption triggers onInterrupt") {
+        for {
+          ref   <- Ref.make(false)
+          fiber <- ZIO.interrupt.onInterrupt(ref.set(true)).fork
+          _     <- fiber.await
+          value <- ref.get
+        } yield assertTrue(value == true)
+      } +
+        test("interruption cannot be be seen from within the region it originates 1") {
+          for {
+            startLatch <- Promise.make[Nothing, Unit]
+            failLatch  <- Promise.make[Nothing, Unit]
+            cause1     <- ZIO.fail("foo").sandbox.fork.flatMap(_.join).flip
+            fiber      <- (startLatch.succeed(()) *> failLatch.await *> ZIO.fail("foo")).sandbox.flip.fork.uninterruptible
+            _          <- startLatch.await *> fiber.interruptFork *> failLatch.succeed(())
+            cause2     <- fiber.join
+          } yield assertTrue(cause2 == cause1)
+        } + 
+        test("interruption cannot be be seen from within the region it originates 2") {
+          for {
+            startLatch <- Promise.make[Nothing, Unit]
+            failLatch  <- Promise.make[Nothing, Unit]
+            ref        <- Ref.make(false)
+            fiber      <- (startLatch.succeed(()) *> failLatch.await *> ZIO.fail("foo")).onInterrupt(ref.set(true)).sandbox.flip.fork.uninterruptible
+            _          <- startLatch.await *> fiber.interruptFork *> failLatch.succeed(())
+            value      <- fiber.join *> ref.get 
+          } yield assertTrue(value == false)
+        } + 
+        test("interruptors can be seen even in uninterruptible regions") {
+          for {
+            parentId   <- ZIO.fiberId 
+            startLatch <- Promise.make[Nothing, Unit]
+            endLatch   <- Promise.make[Nothing, Unit]
+            fiber      <- (startLatch.succeed(()) *> endLatch.await *> ZIO.descriptor).fork.uninterruptible
+            _          <- startLatch.await *> fiber.interruptFork *> endLatch.succeed(())
+            descriptor <- fiber.join
+          } yield assertTrue(descriptor.interrupters.contains(parentId))
+        }
+    },
     suite("RTS concurrency correctness")(
       test("shallow fork/join identity") {
         for {
@@ -3128,6 +3168,17 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- fiber.interrupt
           value <- recovered.get
         } yield assert(value)(isTrue)
+      },
+      test("sandbox of ordinary failure") {
+        for {
+          cause <- ZIO.fail("Uh oh!").sandbox.flip
+        } yield assertTrue(cause == Cause.fail("Uh oh!"))
+      },
+      test("sandbox of ordinary failure - fork/join") {
+        for {
+          fiber <- ZIO.fail("Uh oh!").sandbox.flip.fork
+          cause <- fiber.join
+        } yield assertTrue(cause == Cause.fail("Uh oh!"))
       },
       test("sandbox of interruptible") {
         for {

@@ -42,8 +42,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     ZIO.async[Any, Nothing, Exit[E, A]](
       cb =>
         tell(FiberMessage.Stateful { (fiber, _) =>
-          if (fiber._exitValue ne null) cb(ZIO.succeed(fiber.unsafeExitValue().asInstanceOf[Exit[E, A]]))
-          else fiber.unsafeAddObserver(exit => cb(ZIO.succeed(exit.asInstanceOf[Exit[E, A]])))
+          if (fiber._exitValue ne null) cb(Exit.Success(fiber.unsafeExitValue().asInstanceOf[Exit[E, A]]))
+          else fiber.unsafeAddObserver(exit => cb(Exit.Success(exit.asInstanceOf[Exit[E, A]])))
         }),
       id
     )
