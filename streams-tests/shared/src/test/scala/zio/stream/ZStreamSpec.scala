@@ -2314,7 +2314,7 @@ object ZStreamSpec extends ZIOBaseSpec {
         ) @@ zioTag(interruption),
         suite("onExecutor")(
           test("shifts and shifts back if there is a previous locked executor") {
-            val global = Executor.fromExecutionContext(100)(ExecutionContext.global)
+            val global = Executor.fromExecutionContext(ExecutionContext.global)
             for {
               default   <- ZIO.executor
               ref1      <- Ref.make[Executor](default)
@@ -2329,7 +2329,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("shifts and does not shift back if there is no previous locked executor") {
             val thread = ZIO.succeed(Thread.currentThread())
-            val global = Executor.fromExecutionContext(Int.MaxValue)(ExecutionContext.global)
+            val global = Executor.fromExecutionContext(ExecutionContext.global)
             for {
               default <- thread
               during  <- Ref.make[Thread](default)

@@ -9,7 +9,7 @@ object ZIOSpecJVM extends ZIOBaseSpec {
       test("cooperative yielding") {
         import java.util.concurrent._
 
-        val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor(), 1024)
+        val executor = zio.Executor.fromJavaExecutor(Executors.newSingleThreadExecutor())
 
         val checkExecutor =
           ZIO.executor.flatMap(e => if (e != executor) ZIO.dieMessage("Executor is incorrect") else ZIO.unit)

@@ -39,11 +39,6 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   def unsafeSubmit(runnable: Runnable): Boolean
 
   /**
-   * The number of operations a fiber should run before yielding.
-   */
-  def yieldOpCount: Int
-
-  /**
    * Views this `Executor` as a Scala `ExecutionContext`.
    */
   lazy val asExecutionContext: ExecutionContext =
@@ -85,7 +80,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
 }
 
 object Executor extends DefaultExecutors with Serializable {
-  def fromJavaExecutor(executor: java.util.concurrent.Executor, yieldOpCount0: Int): Executor =
+  def fromJavaExecutor(executor: java.util.concurrent.Executor): Executor =
     new Executor {
       override def unsafeMetrics: Option[ExecutionMetrics] = None
 
@@ -97,18 +92,13 @@ object Executor extends DefaultExecutors with Serializable {
         } catch {
           case t: RejectedExecutionException => false
         }
-
-      override def yieldOpCount: Int = yieldOpCount0
     }
 
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`.
    */
-  def fromExecutionContext(yieldOpCount0: Int)(
-    ec: ExecutionContext
-  ): Executor =
+  def fromExecutionContext(ec: ExecutionContext): Executor =
     new Executor {
-      def yieldOpCount = yieldOpCount0
 
       def unsafeSubmit(runnable: Runnable): Boolean =
         try {

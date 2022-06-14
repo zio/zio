@@ -21,15 +21,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
 
-  /**
-   * The default number of operations the ZIO runtime should execute before
-   * yielding to other fibers.
-   */
-  final val defaultYieldOpCount: Int =
-    2048
-
   final val defaultExecutor: Executor =
-    Executor.makeDefault(defaultYieldOpCount)
+    Executor.makeDefault
 
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor

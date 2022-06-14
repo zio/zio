@@ -28,7 +28,7 @@ import java.util.concurrent.locks.LockSupport
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(val yieldOpCount: Int) extends Executor {
+private final class ZScheduler extends Executor {
   private[this] val poolSize    = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val cache       = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
   private[this] val globalQueue = MutableConcurrentQueue.unbounded[Runnable]

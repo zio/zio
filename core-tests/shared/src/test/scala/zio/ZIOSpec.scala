@@ -451,7 +451,7 @@ object ZIOSpec extends ZIOBaseSpec {
     ),
     suite("executor")(
       test("retrieves the current executor for this effect") {
-        val executor = Executor.fromExecutionContext(100) {
+        val executor = Executor.fromExecutionContext {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         for {
@@ -1379,7 +1379,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val thread = ZIO.succeed(Thread.currentThread())
 
         val global =
-          Executor.fromExecutionContext(Int.MaxValue)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(scala.concurrent.ExecutionContext.global)
         for {
           which   <- Ref.make[Option[Thread]](None)
           beforeL <- ZIO.descriptor.map(_.isLocked)
@@ -1392,7 +1392,7 @@ object ZIOSpec extends ZIOBaseSpec {
       test("effects are shifted back if executor is specified") {
         val default = Runtime.defaultExecutor
         val global =
-          Executor.fromExecutionContext(Runtime.defaultYieldOpCount)(scala.concurrent.ExecutionContext.global)
+          Executor.fromExecutionContext(scala.concurrent.ExecutionContext.global)
         val effect = for {
           _        <- ZIO.unit.onExecutor(global)
           executor <- ZIO.descriptor.map(_.executor)
@@ -3321,7 +3321,7 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(v)(equalTo(InterruptStatus.uninterruptible))
       } @@ zioTag(interruption),
       test("executor is heritable") {
-        val executor = Executor.fromExecutionContext(100) {
+        val executor = Executor.fromExecutionContext {
           scala.concurrent.ExecutionContext.Implicits.global
         }
         val pool = ZIO.succeed(Platform.getCurrentThreadGroup)

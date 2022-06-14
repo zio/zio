@@ -8,7 +8,7 @@ object ZIOSpecSpec extends ZIOSpecDefault {
     scala.concurrent.ExecutionContext.global
 
   val expected =
-    Executor.fromExecutionContext(Runtime.defaultYieldOpCount)(global)
+    Executor.fromExecutionContext(global)
 
   override val bootstrap =
     testEnvironment ++ Runtime.setBlockingExecutor(expected)

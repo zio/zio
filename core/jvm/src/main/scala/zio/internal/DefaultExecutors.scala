@@ -22,8 +22,8 @@ import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
 
 private[zio] abstract class DefaultExecutors {
 
-  final def makeDefault(yieldOpCount: Int): zio.Executor =
-    new ZScheduler(yieldOpCount)
+  final def makeDefault(): zio.Executor =
+    new ZScheduler
 
   final def fromThreadPoolExecutor(yieldOpCount0: ExecutionMetrics => Int)(
     es: ThreadPoolExecutor
