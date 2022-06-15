@@ -16,7 +16,7 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka" % "0.15.0" 
+libraryDependencies += "dev.zio" %% "zio-kafka" % "2.0.0-M3" 
 ```
 
 ## Example
@@ -53,17 +53,15 @@ Now, we can run our ZIO Kafka Streaming application:
 
 ```scala
 import zio._
-import zio.console.putStrLn
-import zio.duration.durationInt
-import zio.kafka.consumer.{Consumer, ConsumerSettings, _}
+import zio.kafka.consumer._
 import zio.kafka.producer.{Producer, ProducerSettings}
 import zio.kafka.serde._
 import zio.stream.ZStream
 
-object ZIOKafkaProducerConsumerExample extends zio.App {
-  val producer =
+object MainApp extends ZIOAppDefault {
+  val producer: ZStream[Any with Producer, Throwable, Nothing] =
     ZStream
-      .repeatEffect(zio.random.nextIntBetween(0, Int.MaxValue))
+      .repeatZIO(Random.nextIntBetween(0, Int.MaxValue))
       .schedule(Schedule.fixed(2.seconds))
       .mapZIO { random =>
         Producer.produce[Any, Long, String](
@@ -76,36 +74,34 @@ object ZIOKafkaProducerConsumerExample extends zio.App {
       }
       .drain
 
-  val consumer =
+  val consumer: ZStream[Any with Consumer, Throwable, Nothing] =
     Consumer
       .subscribeAnd(Subscription.topics("random"))
       .plainStream(Serde.long, Serde.string)
-      .tap(r => putStrLn(r.value))
+      .tap(r => Console.printLine(r.value))
       .map(_.offset)
       .aggregateAsync(Consumer.offsetBatches)
       .mapZIO(_.commit)
       .drain
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    producer
-      .merge(consumer)
+  def producerLayer =
+    ZLayer.scoped(
+      Producer.make(
+        settings = ProducerSettings(List("localhost:29092"))
+      )
+    )
+
+  def consumerLayer =
+    ZLayer.scoped(
+      Consumer.make(
+        ConsumerSettings(List("localhost:29092")).withGroupId("group")
+      )
+    )
+
+  override def run =
+    producer.merge(consumer)
       .runDrain
-      .provideCustom(appLayer)
-      .exitCode
-
-  def producerLayer = ZLayer.fromManaged(
-    Producer.make(
-      settings = ProducerSettings(List("localhost:29092"))
-    )
-  )
-
-  def consumerLayer = ZLayer.fromManaged(
-    Consumer.make(
-      ConsumerSettings(List("localhost:29092")).withGroupId("group")
-    )
-  )
-
-  def appLayer = producerLayer ++ consumerLayer
+      .provide(producerLayer, consumerLayer)
 }
 ```
 
