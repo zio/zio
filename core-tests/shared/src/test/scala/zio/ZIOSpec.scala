@@ -2663,11 +2663,11 @@ object ZIOSpec extends ZIOBaseSpec {
             fiber           <- effect.fork.uninterruptible
             _               <- (breakpoint1.await *> fiber.interruptFork *> breakpoint2.succeed(())).fork
             _               <- started.await
-            tuple           <- fiber.interruptFork *> fiber.join.debug
+            tuple           <- fiber.interruptFork *> fiber.join
             (cause1, cause2) = tuple
           } yield assertTrue(cause1.size == 1 && cause2.size == 2)
         } +
-        test("child interrupted cause cause cannot be seen from parent") {
+        test("child interrupted cause cannot be seen from parent") {
           for {
             parentId     <- ZIO.fiberId
             parentBefore <- FiberRef.interruptedCause.get
@@ -2706,8 +2706,75 @@ object ZIOSpec extends ZIOBaseSpec {
             _          <- startLatch.await *> fiber.interruptFork *> endLatch.succeed(())
             descriptor <- fiber.join
           } yield assertTrue(descriptor.interrupters.contains(parentId))
+        } +
+        test("interruption cannot be caught in interruptible regions") {
+          for {
+            started   <- Promise.make[Nothing, Unit]
+            finalized <- Ref.make(false)
+            fiber     <- (started.succeed(()) *> ZIO.never).catchAllCause(_ => finalized.set(true)).fork
+            _         <- started.await *> fiber.interrupt
+            result    <- finalized.get
+          } yield assertTrue(result == false)
+        } +
+        test("interruption cannot be caught at the end of uninterruptible regions") {
+          for {
+            started   <- Promise.make[Nothing, Unit]
+            latch     <- Promise.make[Nothing, Unit]
+            finalized <- Ref.make(false)
+            fiber <- ZIO.uninterruptible {
+                       started.succeed(()) *> latch.await
+                     }.catchAllCause(_ => finalized.set(true)).fork
+            _      <- started.await *> fiber.interruptFork *> latch.succeed(()) *> fiber.await
+            result <- finalized.get
+          } yield assertTrue(result == false)
+        } +
+        test("interruption can be caught at the beginning of uninterruptible regions") {
+          for {
+            started   <- Promise.make[Nothing, Unit]
+            latch     <- Promise.make[Nothing, Nothing]
+            finalized <- Ref.make(false)
+            fiber <- ZIO.uninterruptibleMask { restore =>
+                       restore((started.succeed(()) *> latch.await)).catchAllCause(_ => finalized.set(true))
+                     }.fork
+            _      <- started.await *> fiber.interrupt
+            result <- finalized.get
+          } yield assertTrue(result == true)
+        } + // - asyncInterrupt cancelation
+        test("previous typed errors are discarded after interruptible region") {
+
+          for {
+            ensuring <- Promise.make[Nothing, Unit]
+            fiber <- ZIO.uninterruptibleMask { restore =>
+                       restore(
+                         ZIO
+                           .fail("Uh oh!")
+                           .ensuring(ensuring.succeed(()) *> ZIO.interruptible(ZIO.never))
+                           .mapError(_ => 42)
+                       )
+                         .catchAllCause(cause => ZIO.succeed(cause.failures))
+                         .fork
+                     }
+            failures <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
+          } yield assertTrue(failures.length == 0)
+        } +
+        test("previous untyped errors are retained even after interruptible region") {
+          val err = new Exception("Uh oh!")
+          for {
+            ensuring <- Promise.make[Nothing, Unit]
+            fiber <- ZIO.uninterruptibleMask { restore =>
+                       restore(
+                         (ZIO.die(err): Task[Nothing])
+                           .ensuring(ensuring.succeed(()) *> ZIO.interruptible(ZIO.never))
+                           .mapError(_ => 42)
+                       )
+                         .catchAllCause(cause => ZIO.succeed(cause.defects))
+                         .fork
+                     }
+            failures <- ensuring.await *> fiber.interrupt.flatMap(ZIO.done(_))
+          } yield assertTrue(failures.length == 1)
         }
-    },
+
+    } @@ zioTag(interruption),
     suite("RTS concurrency correctness")(
       test("shallow fork/join identity") {
         for {

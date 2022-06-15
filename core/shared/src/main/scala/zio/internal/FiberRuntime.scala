@@ -513,7 +513,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       if (ops > FiberRuntime.MaxOperationsBeforeYield) {
         ops = 0
         val oldCur = cur
-        cur = ZIO.yieldNow(lastTrace).flatMap(_ => oldCur)(Trace.empty)
+        val trace  = lastTrace
+        cur = ZIO.yieldNow(trace).flatMap(_ => oldCur)(trace)
       } else {
         try {
           cur match {
@@ -684,8 +685,8 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     else ZIO.failCause(zioError.cause)(effect.trace)
               }
 
-            case refail: Exit.Failure[_] =>
-              val cause = refail.cause.asInstanceOf[Cause[Any]]
+            case failure: Exit.Failure[_] =>
+              var cause = failure.cause.asInstanceOf[Cause[Any]]
 
               cur = null
 
@@ -696,7 +697,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                 element match {
                   case k: EvaluationStep.Continuation[_, _, _, _, _] =>
-                    cur = k.erase.onFailure(cause)
+                    if (!(RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted()))
+                      cur = k.erase.onFailure(cause)
+                    else cause = cause.stripFailures // Skipped an error handler which changed E1 => E2, so must discard
 
                   case k: EvaluationStep.UpdateRuntimeFlags =>
                     runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
