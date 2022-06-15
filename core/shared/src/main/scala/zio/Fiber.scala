@@ -209,7 +209,8 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return
    *   `IO[E, A]`
    */
-  final def join(implicit trace: Trace): IO[E, A] = await.flatMap(ZIO.done(_)) <* inheritAll
+  final def join(implicit trace: Trace): IO[E, A] =
+    await.flatMap(exit => inheritAll *> exit)
 
   /**
    * Maps over the value the Fiber computes.

@@ -4,7 +4,7 @@ import zio.Cause._
 import zio.LatchOps._
 import zio.internal.Platform
 import zio.test.Assertion._
-import zio.test.TestAspect.{flaky, forked, ignore, jvm, jvmOnly, nonFlaky, scala2Only}
+import zio.test.TestAspect.{flaky, forked, jvm, jvmOnly, nonFlaky, scala2Only}
 import zio.test._
 
 import scala.annotation.tailrec
@@ -2651,19 +2651,22 @@ object ZIOSpec extends ZIOBaseSpec {
         } +
         test("interrupters are accretive") {
           for {
-            started <- Promise.make[Nothing, Unit]
-            effect = 
-              ZIO.uninterruptibleMask(restore => 
-                for {
-                  _      <- started.succeed(())
-                  cause1 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_))
-                  cause2 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_))
-                } yield (cause1, cause2))
-            fiber <- effect.fork
-            tuple <- fiber.join 
+            breakpoint1 <- Promise.make[Nothing, Unit]
+            breakpoint2 <- Promise.make[Nothing, Unit]
+            started     <- Promise.make[Nothing, Unit]
+            effect =
+              for {
+                _      <- started.succeed(())
+                cause1 <- ZIO.interruptible(ZIO.never).catchAllCause(ZIO.succeed(_)) <* breakpoint1.succeed(())
+                cause2 <- breakpoint2.await *> ZIO.interruptible(ZIO.never).catchAllCause(ZIO.succeed(_))
+              } yield (cause1, cause2)
+            fiber           <- effect.fork.uninterruptible
+            _               <- (breakpoint1.await *> fiber.interruptFork *> breakpoint2.succeed(())).fork
+            _               <- started.await
+            tuple           <- fiber.interruptFork *> fiber.join.debug
             (cause1, cause2) = tuple
           } yield assertTrue(cause1.size == 1 && cause2.size == 2)
-        } + 
+        } +
         test("child interrupted cause cause cannot be seen from parent") {
           for {
             parentId     <- ZIO.fiberId
@@ -2704,7 +2707,7 @@ object ZIOSpec extends ZIOBaseSpec {
             descriptor <- fiber.join
           } yield assertTrue(descriptor.interrupters.contains(parentId))
         }
-    } @@ ignore,
+    },
     suite("RTS concurrency correctness")(
       test("shallow fork/join identity") {
         for {

@@ -571,26 +571,25 @@ object RuntimeBootstrapTests {
       } yield assert(parentBefore == parentAfter)
     }
 
-  def accretiveInterruptions() = 
+  def accretiveInterruptions() =
     test("interrupters are accretive") {
       for {
         breakpoint1 <- Promise.make[Nothing, Unit]
         breakpoint2 <- Promise.make[Nothing, Unit]
-        started <- Promise.make[Nothing, Unit]
-        effect = 
-          ZIO.uninterruptibleMask(restore => 
-            for {
-              _      <- started.succeed(())
-              cause1 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_)) *> breakpoint1.succeed(())
-              cause2 <- breakpoint2.await(()) *> restore(ZIO.never).catchAllCause(ZIO.succeed(_))
-            } yield (cause1, cause2))
-        fiber <- effect.fork
-        _     <- (breakpoint1.await *> fiber.interruptFork *> breakpoint2.succeed(())).fork
-        _     <- started.await
-        tuple <- fiber.interruptFork *> fiber.join.debug
+        started     <- Promise.make[Nothing, Unit]
+        effect =
+          for {
+            _      <- started.succeed(())
+            cause1 <- ZIO.interruptible(ZIO.never).catchAllCause(ZIO.succeed(_)) <* breakpoint1.succeed(())
+            cause2 <- breakpoint2.await *> ZIO.interruptible(ZIO.never).catchAllCause(ZIO.succeed(_))
+          } yield (cause1, cause2)
+        fiber           <- effect.fork.uninterruptible
+        _               <- (breakpoint1.await *> fiber.interruptFork *> breakpoint2.succeed(())).fork
+        _               <- started.await
+        tuple           <- fiber.interruptFork *> fiber.join
         (cause1, cause2) = tuple
       } yield assert(cause1.size == 1 && cause2.size == 2)
-    } 
+    }
 
   def main(args: Array[String]): Unit = {
     val _ = ()
