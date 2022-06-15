@@ -4,7 +4,7 @@ import zio._
 import zio.stm.TQueue
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout}
+import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, timeout, withLiveClock}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -122,7 +122,33 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .aggregateAsync(ZSink.collectAllN[Int](2))
                 .runCollect
             )(equalTo(Chunk(Chunk(1, 2), Chunk(3))))
-          } @@ nonFlaky
+          } @@ nonFlaky,
+          test("zio-kafka issue") {
+            assertZIO(
+              for {
+                queue <- Queue.unbounded[Take[Nothing, Int]]
+                fiber <- ZStream
+                           .fromQueue(queue)
+                           .flattenTake
+                           .aggregateAsync(
+                             ZSink
+                               .foldLeft[Int, List[Int]](Nil) { case (l, n) => n :: l }
+                           )
+                           .runCollect
+                           .fork
+
+                _ <- ZIO.sleep(1.second)
+                _ <- queue.offer(Take.chunk(Chunk(1, 2, 3, 4, 5)))
+                _ <- ZIO.sleep(1.second)
+                _ <- queue.offer(Take.chunk(Chunk(6, 7, 8, 9, 10)))
+                _ <- ZIO.sleep(1.second)
+                _ <- queue.offer(Take.chunk(Chunk(11, 12, 13, 14, 15)))
+                _ <- queue.offer(Take.end)
+
+                result <- fiber.join
+              } yield result
+            )(equalTo(Chunk(List(5, 4, 3, 2, 1), List(10, 9, 8, 7, 6), List(15, 14, 13, 12, 11), List())))
+          } @@ withLiveClock
         ),
         suite("transduce")(
           test("simple example") {
