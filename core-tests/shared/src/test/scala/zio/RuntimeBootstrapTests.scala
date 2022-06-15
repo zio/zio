@@ -574,16 +574,18 @@ object RuntimeBootstrapTests {
   def accretiveInterruptions() = 
     test("interrupters are accretive") {
       for {
-        breakpoint <- 
+        breakpoint1 <- Promise.make[Nothing, Unit]
+        breakpoint2 <- Promise.make[Nothing, Unit]
         started <- Promise.make[Nothing, Unit]
         effect = 
           ZIO.uninterruptibleMask(restore => 
             for {
               _      <- started.succeed(())
-              cause1 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_))
-              cause2 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_))
+              cause1 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_)) *> breakpoint1.succeed(())
+              cause2 <- breakpoint2.await(()) *> restore(ZIO.never).catchAllCause(ZIO.succeed(_))
             } yield (cause1, cause2))
         fiber <- effect.fork
+        _     <- (breakpoint1.await *> fiber.interruptFork *> breakpoint2.succeed(())).fork
         _     <- started.await
         tuple <- fiber.interruptFork *> fiber.join.debug
         (cause1, cause2) = tuple
