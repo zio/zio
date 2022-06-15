@@ -210,7 +210,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *   `IO[E, A]`
    */
   final def join(implicit trace: Trace): IO[E, A] =
-    await.flatMap(exit => inheritAll *> exit)
+    await.unexit <* inheritAll
 
   /**
    * Maps over the value the Fiber computes.

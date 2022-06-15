@@ -2199,6 +2199,9 @@ sealed trait ZIO[-R, +E, +A]
   final def updateServiceAt[Service]: ZIO.UpdateServiceAt[R, E, A, Service] =
     new ZIO.UpdateServiceAt[R, E, A, Service](self)
 
+  final def unexit[E1 >: E, A2](implicit ev: A <:< Exit[E1, A2], trace: Trace): ZIO[R, E1, A2] =
+    self.flatMap(exit => exit)
+
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
    */
