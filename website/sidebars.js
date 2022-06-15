@@ -222,7 +222,7 @@ module.exports = {
         "guides/tutorials/encode-and-decode-json-data", 
         "guides/tutorials/enable-logging-in-a-zio-application", 
         "guides/tutorials/create-custom-logger-for-a-zio-application",
-        "guides/tutorials/monitor-a-zio-application-using-built-in-metrics",
+        "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
         "guides/handle-errors"
       ],
       "Integration Guides": [
