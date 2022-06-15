@@ -1014,6 +1014,32 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     }
 
   /**
+   * Generate a tuple of two elements of the same type and guaranties that those
+   * two elements are not the same
+   */
+  def tuple2Diff[R <: Random, A](gen: Gen[R, A]): Gen[R, (A, A)] = Gen.setOfN(2)(gen).map { set =>
+    (set.head, set.tail.head)
+  }
+
+  /**
+   * Generate a tuple of three elements of the same type and guaranties that
+   * those three elements are all different
+   */
+  def tuple3Diff[R <: Random, A](gen: Gen[R, A]): Gen[R, (A, A, A)] = Gen.setOfN(3)(gen).map { set =>
+    val list = set.toList
+    (set.head, list(1), list(2))
+  }
+
+  /**
+   * Generate a tuple of four elements of the same type and guaranties that
+   * those four elements are all different
+   */
+  def tuple4Diff[R <: Random, A](gen: Gen[R, A]): Gen[R, (A, A, A, A)] = Gen.setOfN(4)(gen).map { set =>
+    val list = set.toList
+    (set.head, list(1), list(2), list(3))
+  }
+
+  /**
    * Restricts an integer to the specified range.
    */
   private def clamp(n: Int, min: Int, max: Int): Int =
