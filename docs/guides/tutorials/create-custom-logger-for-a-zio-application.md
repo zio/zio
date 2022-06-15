@@ -207,4 +207,4 @@ Then we can configure our logger by adding the `logback.xml` to the resources di
 
 In this article, we have learned how to create a custom logger for a ZIO application. We also covered how to add SLF4J logging support instead of default ZIO logging.
 
-The complete working example of this tutorial is available on the `custom-logger` branch of our [Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/custom-logger) quickstart on GitHub.
+The complete working example of this tutorial is available on the `custom-logger` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/custom-logger) quickstart on GitHub.

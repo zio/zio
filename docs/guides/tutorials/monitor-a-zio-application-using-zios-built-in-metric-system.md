@@ -192,4 +192,4 @@ Now that we have the metrics as a REST API, we can add this endpoint to our Prom
 
 In this tutorial, we have learned how to define metrics and apply them to our application. We have also learned how to provide the metrics as a REST API which then can be polled by a Prometheus server.
 
-The complete working example of this tutorial is available on the `metrics` branch of our [ZIO Quickstart: ](https://github.com/zio/zio-quickstart-restful-webservice/tree/metrics) quickstart on GitHub.
+The complete working example of this tutorial is available on the `metrics` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/metrics) quickstart on GitHub.

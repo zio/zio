@@ -394,4 +394,4 @@ We can see that both log lines have the same `correlation-id` annotation.
 
 In this tutorial, we learned how to enable logging in a ZIO application and how to use the built-in logging facilities of ZIO without requiring any additional dependencies.
 
-The complete working example of this tutorial is available on the `logging` branch of our [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-restful-webservice/tree/logging) quickstart on GitHub.
+The complete working example of this tutorial is available on the `logging` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/logging) quickstart on GitHub.
