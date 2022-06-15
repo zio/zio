@@ -48,7 +48,7 @@ object MainApp extends ZIOAppDefault {
     for {
       i <- Console.readLine("Please enter a number to calculate fibonacci: ").mapAttempt(_.toInt)
       n <- fib(i) @@ count
-      _ <- console.printLine(s"fib($i) = $n")
+      _ <- Console.printLine(s"fib($i) = $n")
       c <- count.value
       _ <- ZIO.debug(s"number of fib calls to calculate fib($i): ${c.count}")
     } yield ()
