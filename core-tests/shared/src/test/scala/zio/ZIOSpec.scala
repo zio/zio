@@ -2649,6 +2649,21 @@ object ZIOSpec extends ZIOBaseSpec {
             value <- ref.get
           } yield assertTrue(value == true)
         } +
+        test("interrupters are accretive") {
+          for {
+            started <- Promise.make[Nothing, Unit]
+            effect = 
+              ZIO.uninterruptibleMask(restore => 
+                for {
+                  _      <- started.succeed(())
+                  cause1 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_))
+                  cause2 <- restore(ZIO.never).catchAllCause(ZIO.succeed(_))
+                } yield (cause1, cause2))
+            fiber <- effect.fork
+            tuple <- fiber.join 
+            (cause1, cause2) = tuple
+          } yield assertTrue(cause1.size == 1 && cause2.size == 2)
+        } + 
         test("child interrupted cause cause cannot be seen from parent") {
           for {
             parentId     <- ZIO.fiberId

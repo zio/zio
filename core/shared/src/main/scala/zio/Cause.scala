@@ -388,6 +388,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     self.linearize.map(renderCause).mkString("\n")
   }
 
+  def size: Int = self.foldContext(())(Cause.Folder.Size)
+
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
    * important" `Throwable`.
@@ -583,6 +585,17 @@ object Cause extends Serializable {
     def stacklessCase(context: Context, value: Z, stackless: Boolean): Z
   }
   object Folder {
+    final case object Size extends Folder[Any, Any, Int] {
+      def empty(context: Any): Int = 0 
+      def failCase(context: Any, error: Any, stackTrace: StackTrace): Int = 1 
+      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Int = 1
+      def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Int = 1
+
+      def bothCase(context: Any, left: Int, right: Int): Int = left + right 
+      def thenCase(context: Any, left: Int, right: Int): Int = left + right 
+      def stacklessCase(context: Any, value: Int, stackless: Boolean): Int = value 
+    }
+    
     final case class Filter[E](p: Cause[E] => Boolean) extends Folder[Any, E, Cause[E]] {
       def empty(context: Any): Cause[E] = Cause.empty
 
