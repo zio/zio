@@ -78,11 +78,13 @@ object TestRunner {
   lazy val defaultBootstrap = {
     implicit val emptyTracer = Trace.empty
 
-    ZLayer.make[TestOutput with ExecutionEventSink](
-      ExecutionEventPrinter.live(ConsoleEventRenderer),
-      TestLogger.fromConsole(Console.ConsoleLive),
-      TestOutput.live,
-      ExecutionEventSink.live
-    )
+    ZLayer
+      .make[TestOutput with ExecutionEventSink](
+        ExecutionEventPrinter.live(ConsoleEventRenderer),
+        TestLogger.fromConsole(Console.ConsoleLive),
+        TestOutput.live,
+        ExecutionEventSink.live
+      )
+      .debug("Making TestRunner.defaultBootstrap. SHOULD NOT BE CALLED")
   }
 }

@@ -20,7 +20,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       }
       val composedSpec: ZIOSpecAbstract = basicSpec <> specWithBrokenLayer <> basicSpec
       for {
-        _       <- ZIO.consoleWith(console => composedSpec.runSpecInfallible(composedSpec.spec, TestArgs.empty, console))
+        _       <- ZIO.consoleWith(console => composedSpec.runSpecAsApp(composedSpec.spec, TestArgs.empty, console))
         console <- testConsole
         output  <- console.output.map(_.mkString("\n"))
       } yield assertTrue(output.contains("scala.NotImplementedError: an implementation is missing")) &&
@@ -49,7 +49,7 @@ object ZIOSpecAbstractSpec extends ZIOSpecDefault {
       }
       for {
         res <-
-          ZIO.consoleWith(console => failingSpec.runSpecInfallible(failingSpec.spec, TestArgs.empty, console))
+          ZIO.consoleWith(console => failingSpec.runSpecAsApp(failingSpec.spec, TestArgs.empty, console))
       } yield assertTrue(res.fail == 1) &&
         assertTrue(res.summary.contains(s"$suiteName - $testName"))
     }
