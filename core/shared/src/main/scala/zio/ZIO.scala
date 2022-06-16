@@ -5507,44 +5507,14 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
     }
     final case class UpdateTrace(trace: Trace) extends EvaluationStep
-    sealed trait Continuation[R, E1, E2, A, B] extends EvaluationStep { self =>
-      def trace: Trace
-
-      def onSuccess(a: A): ZIO[R, E2, B]
-
-      def onFailure(c: Cause[E1]): ZIO[R, E2, B]
-
-      def erase: Continuation.Erased = self.asInstanceOf[Continuation.Erased]
-    }
     object Continuation {
-      type Erased = Continuation[Any, Any, Any, Any, Any]
-
-      def ensuring[R, E, A](
-        finalizer: ZIO[R, Nothing, Any]
-      )(implicit trace0: Trace): Continuation[R, E, E, A, A] =
-        new Continuation[R, E, E, A, A] {
-          def trace                  = trace0
-          def onSuccess(a: A)        = finalizer.flatMap(_ => ZIO.succeed(a))
-          def onFailure(c: Cause[E]) = finalizer.flatMap(_ => ZIO.refailCause(c))
-        }
-
       def fromSuccess[R, E, A, B](
         f: A => ZIO[R, E, B]
-      )(implicit trace0: Trace): Continuation[R, E, E, A, B] =
-        new Continuation[R, E, E, A, B] {
-          def trace                  = trace0
-          def onSuccess(a: A)        = f(a)
-          def onFailure(c: Cause[E]) = ZIO.refailCause(c)
-        }
+      )(implicit trace0: Trace): EvaluationStep = ZIO.OnSuccess(trace0, null.asInstanceOf[ZIO[R, E, A]], f)
 
       def fromFailure[R, E1, E2, A](
         f: Cause[E1] => ZIO[R, E2, A]
-      )(implicit trace0: Trace): Continuation[R, E1, E2, A, A] =
-        new Continuation[R, E1, E2, A, A] {
-          def trace                   = trace0
-          def onSuccess(a: A)         = ZIO.succeed(a)
-          def onFailure(c: Cause[E1]) = f(c)
-        }
+      )(implicit trace0: Trace): EvaluationStep = ZIO.OnFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], f)
     }
   }
 
@@ -5554,24 +5524,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     registerCallback: (ZIO[R, E, A] => Unit) => Any,
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
-  private[zio] sealed trait OnSuccessOrFailure[R, E1, E2, A, B]
-      extends ZIO[R, E2, B]
-      with EvaluationStep.Continuation[R, E1, E2, A, B] {
-    self =>
-    def first: ZIO[R, E1, A]
-  }
   private[zio] final case class OnSuccessAndFailure[R, E1, E2, A, B](
     trace: Trace,
     first: ZIO[R, E1, A],
     successK: A => ZIO[R, E2, B],
     failureK: Cause[E1] => ZIO[R, E2, B]
-  ) extends OnSuccessOrFailure[R, E1, E2, A, B] {
+  ) extends ZIO[R, E2, B]
+      with EvaluationStep {
     def onFailure(c: Cause[E1]): ZIO[R, E2, B] = failureK(c)
 
     def onSuccess(a: A): ZIO[R, E2, B] = successK(a.asInstanceOf[A])
   }
   private[zio] final case class OnSuccess[R, A, E, B](trace: Trace, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
-      extends OnSuccessOrFailure[R, E, E, A, B] {
+      extends ZIO[R, E, B]
+      with EvaluationStep {
     def onFailure(c: Cause[E]): ZIO[R, E, B] = Exit.Failure(c)
 
     def onSuccess(a: A): ZIO[R, E, B] = successK(a.asInstanceOf[A])
@@ -5580,7 +5546,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     trace: Trace,
     first: ZIO[R, E1, A],
     failureK: Cause[E1] => ZIO[R, E2, A]
-  ) extends OnSuccessOrFailure[R, E1, E2, A, A] {
+  ) extends ZIO[R, E2, A]
+      with EvaluationStep {
     def onFailure(c: Cause[E1]): ZIO[R, E2, A] = failureK(c)
 
     def onSuccess(a: A): ZIO[R, E2, A] = Exit.Success(a)

@@ -337,15 +337,18 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             if (unsafeIsFatal(t)) {
               handleFatalError(t)
             } else {
+              val death = Cause.die(t)
+
               // No error should escape to this level.
               self.unsafeLog(
-                () => s"An unhandled error was encountered while executing ${id.threadName}",
-                Cause.die(t),
+                () => s"An unhandled error was encountered on fiber ${id.threadName}, created at ${id.location}.",
+                death,
                 ZIO.someError,
                 id.location
               )
 
-              effect = null
+              effect = null // Exit.Failure(death)
+              // stack = Chunk.empty
             }
 
         }
@@ -455,6 +458,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   ): AnyRef = {
     assert(running.get == true)
 
+    type Erased         = ZIO[Any, Any, Any]
+    type ErasedSuccessK = Any => ZIO[Any, Any, Any]
+    type ErasedFailureK = Cause[Any] => ZIO[Any, Any, Any]
+
     var cur          = effect
     var done         = null.asInstanceOf[AnyRef]
     var stackIndex   = 0
@@ -528,7 +535,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 } catch {
                   case zioError: ZIOError => Exit.Failure(zioError.cause)
 
-                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                  case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                 }
 
             case effect: Sync[_] =>
@@ -544,10 +551,13 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   stackIndex += 1
 
                   element match {
-                    case k: EvaluationStep.Continuation[_, _, _, _, _] =>
-                      cur = k.erase.onSuccess(value)
+                    case k: ZIO.OnSuccess[_, _, _, _] =>
+                      cur = k.successK.asInstanceOf[ErasedSuccessK](value)
 
-                      assertNonNullContinuation(cur, k.trace)
+                    case k: ZIO.OnSuccessAndFailure[_, _, _, _, _] =>
+                      cur = k.successK.asInstanceOf[ErasedSuccessK](value)
+
+                    case k: ZIO.OnFailure[_, _, _, _] =>
 
                     case k: EvaluationStep.UpdateRuntimeFlags =>
                       runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
@@ -576,7 +586,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 } catch {
                   case zioError: ZIOError => effect.onFailure(zioError.cause)
 
-                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                  case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                 }
 
             case effect0: OnSuccessAndFailure[_, _, _, _, _] =>
@@ -588,7 +598,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 } catch {
                   case zioError: ZIOError => effect.failureK(zioError.cause)
 
-                  case reifyStack: ReifyStack => reifyStack.addContinuation(effect)
+                  case reifyStack: ReifyStack => reifyStack.addAndThrow(effect)
                 }
 
             case effect: Async[_, _, _] =>
@@ -662,10 +672,13 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                   stackIndex += 1
 
                   element match {
-                    case k: EvaluationStep.Continuation[_, _, _, _, _] =>
-                      cur = k.erase.onSuccess(value)
+                    case k: ZIO.OnSuccess[_, _, _, _] =>
+                      cur = k.successK.asInstanceOf[ErasedSuccessK](value)
 
-                      assertNonNullContinuation(cur, k.trace)
+                    case k: ZIO.OnSuccessAndFailure[_, _, _, _, _] =>
+                      cur = k.successK.asInstanceOf[ErasedSuccessK](value)
+
+                    case k: ZIO.OnFailure[_, _, _, _] =>
 
                     case k: EvaluationStep.UpdateRuntimeFlags =>
                       runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
@@ -696,9 +709,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 stackIndex += 1
 
                 element match {
-                  case k: EvaluationStep.Continuation[_, _, _, _, _] =>
+                  case k: ZIO.OnSuccess[_, _, _, _] => ()
+
+                  case k: ZIO.OnSuccessAndFailure[_, _, _, _, _] =>
                     if (!(RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted()))
-                      cur = k.erase.onFailure(cause)
+                      cur = k.failureK.asInstanceOf[ErasedFailureK](cause)
+                    else cause = cause.stripFailures // Skipped an error handler which changed E1 => E2, so must discard
+
+                  case k: ZIO.OnFailure[_, _, _, _] =>
+                    if (!(RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted()))
+                      cur = k.failureK.asInstanceOf[ErasedFailureK](cause)
                     else cause = cause.stripFailures // Skipped an error handler which changed E1 => E2, so must discard
 
                   case k: EvaluationStep.UpdateRuntimeFlags =>
@@ -749,9 +769,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       iterate
                     })(iterate.trace)
 
-                  reifyStack.addContinuation(continuation)
-
-                  throw reifyStack
+                  reifyStack.addAndThrow(continuation)
               }
 
             case yieldNow: ZIO.YieldNow =>

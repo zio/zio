@@ -5,16 +5,13 @@ import zio.ZIO.EvaluationStep
 
 import scala.util.control.NoStackTrace
 
-sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
-  def addContinuation(continuation: EvaluationStep.Continuation[_, _, _, _, _]): Nothing =
-    self.addAndThrow(continuation)
-
+private[zio] sealed abstract class ReifyStack extends Exception with NoStackTrace { self =>
   def updateRuntimeFlags(update: RuntimeFlags.Patch): Nothing =
     self.addAndThrow(EvaluationStep.UpdateRuntimeFlags(update))
 
   def stack: ChunkBuilder[EvaluationStep]
 
-  private final def addAndThrow(k: EvaluationStep): Nothing = {
+  final def addAndThrow(k: EvaluationStep): Nothing = {
     stack += (k)
     throw this
   }
