@@ -22,7 +22,7 @@ import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLay
 
 import java.util.concurrent.atomic.AtomicReference
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.ReporterEventRenderer.{ConsoleEventRenderer, IntelliJEventRenderer}
+import zio.test.ReporterEventRenderer.ConsoleEventRenderer
 import zio.test.render.ConsoleRenderer
 
 final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String], testClassLoader: ClassLoader)
