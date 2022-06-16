@@ -260,6 +260,39 @@ package object test extends CompileVariants {
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
+   * A version of `check` that accepts seven random variables.
+   */
+  def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H]
+  )(
+    test: (A, B, C, D, F, G, H) => TestResult
+  ): URIO[R1, TestResult] =
+    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(reassociate(test))
+
+  /**
+   * A version of `check` that accepts height random variables.
+   */
+  def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, I](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H],
+    rv8: Gen[R, I]
+  )(
+    test: (A, B, C, D, F, G, H, I) => TestResult
+  ): URIO[R1, TestResult] =
+    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8)(reassociate(test))
+
+  /**
    * Checks the effectual test passes for "sufficient" numbers of samples from
    * the given random variable.
    */
@@ -322,6 +355,39 @@ package object test extends CompileVariants {
     checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
 
   /**
+   * A version of `checkM` that accepts seven random variables.
+   */
+  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H]
+  )(
+    test: (A, B, C, D, F, G, H) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(reassociate(test))
+
+  /**
+   * A version of `checkM` that accepts height random variables.
+   */
+  def checkM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H],
+    rv8: Gen[R, I]
+  )(
+    test: (A, B, C, D, F, G, H, I) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8)(reassociate(test))
+
+  /**
    * Checks the test passes for all values from the given random variable. This
    * is useful for deterministic `Gen` that comprehensively explore all
    * possibilities in a given domain.
@@ -381,6 +447,39 @@ package object test extends CompileVariants {
     test: (A, B, C, D, F, G) => TestResult
   ): URIO[R, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+
+  /**
+   * A version of `checkAll` that accepts seven random variables.
+   */
+  def checkAll[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H]
+  )(
+    test: (A, B, C, D, F, G, H) => TestResult
+  ): URIO[R1, TestResult] =
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(reassociate(test))
+
+  /**
+   * A version of `checkAll` that accepts height random variables.
+   */
+  def checkAll[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H],
+    rv8: Gen[R, I]
+  )(
+    test: (A, B, C, D, F, G, H, I) => TestResult
+  ): URIO[R1, TestResult] =
+    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8)(reassociate(test))
 
   /**
    * Checks the effectual test passes for all values from the given random
@@ -449,6 +548,39 @@ package object test extends CompileVariants {
     test: (A, B, C, D, F, G) => ZIO[R1, E, TestResult]
   ): ZIO[R1, E, TestResult] =
     checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(reassociate(test))
+
+  /**
+   * A version of `checkAllM` that accepts seven random variables.
+   */
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H]
+  )(
+    test: (A, B, C, D, F, G, H) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(reassociate(test))
+
+  /**
+   * A version of `checkAllM` that accepts height random variables.
+   */
+  def checkAllM[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I](
+    rv1: Gen[R, A],
+    rv2: Gen[R, B],
+    rv3: Gen[R, C],
+    rv4: Gen[R, D],
+    rv5: Gen[R, F],
+    rv6: Gen[R, G],
+    rv7: Gen[R, H],
+    rv8: Gen[R, I]
+  )(
+    test: (A, B, C, D, F, G, H, I) => ZIO[R1, E, TestResult]
+  ): ZIO[R1, E, TestResult] =
+    checkAllM(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8)(reassociate(test))
 
   /**
    * Checks in parallel the effectual test passes for all values from the given
@@ -948,6 +1080,18 @@ package object test extends CompileVariants {
 
   private def reassociate[A, B, C, D, E, F, G](fn: (A, B, C, D, E, F) => G): ((((((A, B), C), D), E), F)) => G = {
     case (((((a, b), c), d), e), f) => fn(a, b, c, d, e, f)
+  }
+
+  private def reassociate[A, B, C, D, E, F, G, H](
+    fn: (A, B, C, D, E, F, G) => H
+  ): (((((((A, B), C), D), E), F), G)) => H = { case ((((((a, b), c), d), e), f), g) =>
+    fn(a, b, c, d, e, f, g)
+  }
+
+  private def reassociate[A, B, C, D, E, F, G, H, I](
+    fn: (A, B, C, D, E, F, G, H) => I
+  ): ((((((((A, B), C), D), E), F), G), H)) => I = { case (((((((a, b), c), d), e), f), g), h) =>
+    fn(a, b, c, d, e, f, g, h)
   }
 
   implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
