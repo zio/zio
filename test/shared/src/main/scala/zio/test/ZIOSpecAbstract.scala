@@ -70,7 +70,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       args    <- ZIO.service[ZIOAppArgs]
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
-      summary <- runSpecInfallible(spec, testArgs, console)
+      summary <- runSpecAsApp(spec, testArgs, console)
       _ <- ZIO.when(testArgs.printSummary) {
              console.printLine(ConsoleRenderer.renderSummary(summary)).orDie
            }
@@ -86,7 +86,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
    * Regardless of test assertion or runtime failures, this method will always return a summary
    * capturing this information
    */
-  private[zio] def runSpecInfallible(
+  private[zio] def runSpecAsApp(
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
     console: Console,
@@ -128,10 +128,9 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     } yield summary
   }
 
-  private[zio] def runSpecInfallible(
+  private[zio] def runSpecWithSharedRuntimeLayer(
     spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
     testArgs: TestArgs,
-    console: Console,
     runtime: Runtime[_],
     testEventHandler: ZTestEventHandler
   )(implicit
@@ -154,15 +153,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
           .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
 
-      eventRenderer           = getTestEventRenderer(testArgs)
-      executionEventSinkLayer = sinkLayer(console, eventRenderer)
       runner =
         TestRunner(
           TestExecutor
             .default[Environment, Any](
               sharedLayer,
               perTestLayer,
-              executionEventSinkLayer,
+              sharedLayer,
               testEventHandler
             )
         )
