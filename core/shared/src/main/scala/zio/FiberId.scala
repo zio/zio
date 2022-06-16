@@ -63,7 +63,7 @@ object FiberId {
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
     Runtime(id, startTimeSeconds, location)
 
-  private[zio] def unsafeMake(location: Trace): FiberId.Runtime =
+  private[zio] def make(location: Trace)(implicit unsafe: Unsafe[Any]): FiberId.Runtime =
     FiberId.Runtime(_fiberCounter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)

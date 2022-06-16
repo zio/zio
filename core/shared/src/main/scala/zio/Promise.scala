@@ -250,8 +250,8 @@ object Promise {
    * Makes a new promise to be completed by the fiber with the specified id.
    */
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =
-    ZIO.succeed(unsafeMake(fiberId))
+    ZIO.succeedUnsafe(implicit u => unsafeMake(fiberId))
 
-  private[zio] def unsafeMake[E, A](fiberId: FiberId): Promise[E, A] =
+  private[zio] def unsafeMake[E, A](fiberId: FiberId)(implicit unsafe: Unsafe[Any]): Promise[E, A] =
     new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
 }

@@ -16,6 +16,7 @@
 
 package zio.internal
 
+import zio.Unsafe
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{RejectedExecutionException, ThreadPoolExecutor}
@@ -50,9 +51,9 @@ private[zio] abstract class DefaultExecutors {
         def dequeuedCount: Long = enqueuedCount - size.toLong
       }
 
-      def unsafeMetrics = Some(metrics0)
+      def metrics(implicit unsafe: Unsafe[Any]) = Some(metrics0)
 
-      def unsafeSubmit(runnable: Runnable): Boolean =
+      def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
         try {
           es.execute(runnable)
 

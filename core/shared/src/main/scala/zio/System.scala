@@ -47,32 +47,36 @@ trait System extends Serializable {
     trace: Trace
   ): IO[Throwable, Option[String]]
 
-  private[zio] def unsafeEnv(variable: String): Option[String] =
-    Runtime.default.unsafeRun(env(variable)(Trace.empty))(Trace.empty)
+  private[zio] def unsafeEnv(variable: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+    Runtime.default.unsafeRun(env(variable)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeEnvOrElse(variable: String, alt: => String): String =
-    Runtime.default.unsafeRun(envOrElse(variable, alt)(Trace.empty))(Trace.empty)
+  private[zio] def unsafeEnvOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+    Runtime.default.unsafeRun(envOrElse(variable, alt)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String]): Option[String] =
-    Runtime.default.unsafeRun(envOrOption(variable, alt)(Trace.empty))(Trace.empty)
+  private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String])(implicit
+    unsafe: Unsafe[Any]
+  ): Option[String] =
+    Runtime.default.unsafeRun(envOrOption(variable, alt)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeEnvs(): Map[String, String] =
-    Runtime.default.unsafeRun(envs(Trace.empty))(Trace.empty)
+  private[zio] def unsafeEnvs()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+    Runtime.default.unsafeRun(envs(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeLineSeparator(): String =
-    Runtime.default.unsafeRun(lineSeparator(Trace.empty))(Trace.empty)
+  private[zio] def unsafeLineSeparator()(implicit unsafe: Unsafe[Any]): String =
+    Runtime.default.unsafeRun(lineSeparator(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeProperties(): Map[String, String] =
-    Runtime.default.unsafeRun(properties(Trace.empty))(Trace.empty)
+  private[zio] def unsafeProperties()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+    Runtime.default.unsafeRun(properties(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeProperty(prop: String): Option[String] =
-    Runtime.default.unsafeRun(property(prop)(Trace.empty))(Trace.empty)
+  private[zio] def unsafeProperty(prop: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+    Runtime.default.unsafeRun(property(prop)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePropertyOrElse(prop: String, alt: => String): String =
-    Runtime.default.unsafeRun(propertyOrElse(prop, alt)(Trace.empty))(Trace.empty)
+  private[zio] def unsafePropertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+    Runtime.default.unsafeRun(propertyOrElse(prop, alt)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String]): Option[String] =
-    Runtime.default.unsafeRun(propertyOrOption(prop, alt)(Trace.empty))(Trace.empty)
+  private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String])(implicit
+    unsafe: Unsafe[Any]
+  ): Option[String] =
+    Runtime.default.unsafeRun(propertyOrOption(prop, alt)(Trace.empty))(Trace.empty, unsafe)
 }
 
 object System extends Serializable {
@@ -81,63 +85,67 @@ object System extends Serializable {
 
   object SystemLive extends System {
     def env(variable: => String)(implicit trace: Trace): IO[SecurityException, Option[String]] =
-      ZIO.attempt(unsafeEnv(variable)).refineToOrDie[SecurityException]
+      ZIO.attemptUnsafe(implicit u => unsafeEnv(variable)).refineToOrDie[SecurityException]
 
     def envOrElse(variable: => String, alt: => String)(implicit trace: Trace): IO[SecurityException, String] =
-      ZIO.attempt(unsafeEnvOrElse(variable, alt)).refineToOrDie[SecurityException]
+      ZIO.attemptUnsafe(implicit u => unsafeEnvOrElse(variable, alt)).refineToOrDie[SecurityException]
 
     def envOrOption(variable: => String, alt: => Option[String])(implicit
       trace: Trace
     ): IO[SecurityException, Option[String]] =
-      ZIO.attempt(unsafeEnvOrOption(variable, alt)).refineToOrDie[SecurityException]
+      ZIO.attemptUnsafe(implicit u => unsafeEnvOrOption(variable, alt)).refineToOrDie[SecurityException]
 
     def envs(implicit trace: Trace): IO[SecurityException, Map[String, String]] =
-      ZIO.attempt(unsafeEnvs()).refineToOrDie[SecurityException]
+      ZIO.attemptUnsafe(implicit u => unsafeEnvs()).refineToOrDie[SecurityException]
 
     def lineSeparator(implicit trace: Trace): UIO[String] =
-      ZIO.succeed(unsafeLineSeparator())
+      ZIO.succeedUnsafe(implicit u => unsafeLineSeparator())
 
     def properties(implicit trace: Trace): IO[Throwable, Map[String, String]] =
-      ZIO.attempt(unsafeProperties())
+      ZIO.attemptUnsafe(implicit u => unsafeProperties())
 
     def property(prop: => String)(implicit trace: Trace): IO[Throwable, Option[String]] =
-      ZIO.attempt(unsafeProperty(prop))
+      ZIO.attemptUnsafe(implicit u => unsafeProperty(prop))
 
     def propertyOrElse(prop: => String, alt: => String)(implicit trace: Trace): IO[Throwable, String] =
-      ZIO.attempt(unsafePropertyOrElse(prop, alt))
+      ZIO.attemptUnsafe(implicit u => unsafePropertyOrElse(prop, alt))
 
     def propertyOrOption(prop: => String, alt: => Option[String])(implicit
       trace: Trace
     ): IO[Throwable, Option[String]] =
-      ZIO.attempt(unsafePropertyOrOption(prop, alt))
+      ZIO.attemptUnsafe(implicit u => unsafePropertyOrOption(prop, alt))
 
-    override private[zio] def unsafeEnv(variable: String): Option[String] =
+    override private[zio] def unsafeEnv(variable: String)(implicit unsafe: Unsafe[Any]): Option[String] =
       Option(JSystem.getenv(variable))
 
-    override private[zio] def unsafeEnvOrElse(variable: String, alt: => String): String =
+    override private[zio] def unsafeEnvOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
       envOrElseWith(variable, alt)(unsafeEnv)
 
-    override private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String]): Option[String] =
+    override private[zio] def unsafeEnvOrOption(variable: String, alt: => Option[String])(implicit
+      unsafe: Unsafe[Any]
+    ): Option[String] =
       envOrOptionWith(variable, alt)(unsafeEnv)
 
     @silent("JavaConverters")
-    override private[zio] def unsafeEnvs(): Map[String, String] =
+    override private[zio] def unsafeEnvs()(implicit unsafe: Unsafe[Any]): Map[String, String] =
       JSystem.getenv.asScala.toMap
 
-    override private[zio] def unsafeLineSeparator(): String =
+    override private[zio] def unsafeLineSeparator()(implicit unsafe: Unsafe[Any]): String =
       JSystem.lineSeparator
 
     @silent("JavaConverters")
-    override private[zio] def unsafeProperties(): Map[String, String] =
+    override private[zio] def unsafeProperties()(implicit unsafe: Unsafe[Any]): Map[String, String] =
       JSystem.getProperties.asScala.toMap
 
-    override private[zio] def unsafeProperty(prop: String): Option[String] =
+    override private[zio] def unsafeProperty(prop: String)(implicit unsafe: Unsafe[Any]): Option[String] =
       Option(JSystem.getProperty(prop))
 
-    override private[zio] def unsafePropertyOrElse(prop: String, alt: => String): String =
+    override private[zio] def unsafePropertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
       propertyOrElseWith(prop, alt)(unsafeProperty)
 
-    override private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String]): Option[String] =
+    override private[zio] def unsafePropertyOrOption(prop: String, alt: => Option[String])(implicit
+      unsafe: Unsafe[Any]
+    ): Option[String] =
       propertyOrOptionWith(prop, alt)(unsafeProperty)
   }
 

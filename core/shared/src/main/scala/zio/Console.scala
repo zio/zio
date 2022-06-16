@@ -37,20 +37,20 @@ trait Console extends Serializable {
   def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
     print(prompt) *> readLine
 
-  private[zio] def unsafePrint(line: Any): Unit =
-    Runtime.default.unsafeRun(print(line)(Trace.empty))(Trace.empty)
+  private[zio] def unsafePrint(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    Runtime.default.unsafeRun(print(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePrintError(line: Any): Unit =
-    Runtime.default.unsafeRun(printError(line)(Trace.empty))(Trace.empty)
+  private[zio] def unsafePrintError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    Runtime.default.unsafeRun(printError(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePrintLine(line: Any): Unit =
-    Runtime.default.unsafeRun(printLine(line)(Trace.empty))(Trace.empty)
+  private[zio] def unsafePrintLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    Runtime.default.unsafeRun(printLine(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePrintLineError(line: Any): Unit =
-    Runtime.default.unsafeRun(printLineError(line)(Trace.empty))(Trace.empty)
+  private[zio] def unsafePrintLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    Runtime.default.unsafeRun(printLineError(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeReadLine(): String =
-    Runtime.default.unsafeRun(readLine(Trace.empty))(Trace.empty)
+  private[zio] def unsafeReadLine()(implicit unsafe: Unsafe[Any]): String =
+    Runtime.default.unsafeRun(readLine(Trace.empty))(Trace.empty, unsafe)
 }
 
 object Console extends Serializable {
@@ -60,33 +60,33 @@ object Console extends Serializable {
   object ConsoleLive extends Console {
 
     def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(unsafePrint(line))
+      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrint(line)))
 
     def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(unsafePrintError(line))
+      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrintError(line)))
 
     def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(unsafePrintLine(line))
+      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrintLine(line)))
 
     def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(unsafePrintLineError(line))
+      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrintLineError(line)))
 
     def readLine(implicit trace: Trace): IO[IOException, String] =
-      ZIO.attemptBlockingInterrupt(unsafeReadLine()).refineToOrDie[IOException]
+      ZIO.attemptBlockingInterrupt(Unsafe.unsafeCompat(implicit u => unsafeReadLine())).refineToOrDie[IOException]
 
-    override private[zio] def unsafePrint(line: Any): Unit =
+    override private[zio] def unsafePrint(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
       print(SConsole.out)(line)
 
-    override private[zio] def unsafePrintError(line: Any): Unit =
+    override private[zio] def unsafePrintError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
       print(SConsole.err)(line)
 
-    override private[zio] def unsafePrintLine(line: Any): Unit =
+    override private[zio] def unsafePrintLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
       printLine(SConsole.out)(line)
 
-    override private[zio] def unsafePrintLineError(line: Any): Unit =
+    override private[zio] def unsafePrintLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
       printLine(SConsole.err)(line)
 
-    override private[zio] def unsafeReadLine(): String = {
+    override private[zio] def unsafeReadLine()(implicit unsafe: Unsafe[Any]): String = {
       val line = StdIn.readLine()
 
       if (line ne null) line
