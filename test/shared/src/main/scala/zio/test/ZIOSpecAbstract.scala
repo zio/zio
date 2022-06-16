@@ -96,7 +96,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   )(implicit
     trace: Trace
   ): URIO[
-    TestEnvironment with ZIOAppArgs with Scope,
+    TestEnvironment with Scope,
     Summary
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
@@ -138,7 +138,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   )(implicit
     trace: Trace
   ): URIO[
-    TestEnvironment with ZIOAppArgs with Scope,
+    TestEnvironment with Scope,
     Summary
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
