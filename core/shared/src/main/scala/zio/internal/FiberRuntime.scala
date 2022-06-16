@@ -247,10 +247,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         try {
           val exit =
             try {
-              Exit.succeed(runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A])
+              Exit.Success(runLoop(effect, 0, stack, _runtimeFlags).asInstanceOf[A])
             } catch {
               case zioError: ZIOError =>
-                Exit.failCause(zioError.cause.asInstanceOf[Cause[E]])
+                Exit.Failure(zioError.cause.asInstanceOf[Cause[E]])
             }
 
           val interruption = unsafeInterruptAllChildren()
@@ -557,7 +557,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                     case k: ZIO.OnSuccessAndFailure[_, _, _, _, _] =>
                       cur = k.successK.asInstanceOf[ErasedSuccessK](value)
 
-                    case k: ZIO.OnFailure[_, _, _, _] =>
+                    case k: ZIO.OnFailure[_, _, _, _] => ()
 
                     case k: EvaluationStep.UpdateRuntimeFlags =>
                       runtimeFlags = patchRuntimeFlags(runtimeFlags, k.update)
@@ -633,13 +633,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                       runtimeFlags
                     )
 
-                    // Go backward, on the stack stack:
+                    // Go backward, on the stack:
                     runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && unsafeIsInterrupted())
                       Exit.Failure(unsafeGetInterruptedCause())
-                    else ZIO.succeedNow(value)
+                    else Exit.Success(value)
                   } catch {
+                    case zioError: ZIOError =>
+                      Exit.Failure(zioError.cause)
+
                     case reifyStack: ReifyStack =>
                       reifyStack.updateRuntimeFlags(revertFlags) // Go backward, on the heap
                   }
@@ -762,6 +765,9 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
                 cur = ZIO.unit
               } catch {
+                case zioError: ZIOError =>
+                  cur = Exit.Failure(zioError.cause)
+
                 case reifyStack: ReifyStack =>
                   val continuation =
                     EvaluationStep.Continuation.fromSuccess({ (element: Any) =>
@@ -780,8 +786,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               throw Trampoline(ZIO.unit, builder, true)
           }
         } catch {
-          case zioError: ZIOError =>
-            throw zioError
+          case zioError: ZIOError => throw zioError
 
           case reifyStack: ReifyStack =>
             if (stackIndex < stack.length) reifyStack.stack ++= stack.drop(stackIndex)

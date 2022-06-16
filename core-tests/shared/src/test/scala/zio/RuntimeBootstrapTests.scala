@@ -591,6 +591,19 @@ object RuntimeBootstrapTests {
       } yield assert(cause1.size == 1 && cause2.size == 2)
     }
 
+  def stackRegression1() =
+    test("return a `CompletableFuture` that fails if `IO` fails") {
+      val ex                       = new Exception("IOs also can fail")
+      val failedIO: Task[Unit]     = ZIO.fail[Throwable](ex)
+      val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => ZIO.attempt(f.get()))
+
+      for {
+        cause <- failedFuture.exit.map(_.causeOption.get).debug("cause")
+        // fiber  <- failedFuture.debug("foo").fork
+        // cause <- fiber.await.map(_.causeOption.get).debug("cause")
+      } yield assert(cause.failures(0).getCause == ex)
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
     // runtimeFlags()
@@ -626,7 +639,8 @@ object RuntimeBootstrapTests {
     // yieldForked()
     // invisibleInterruption()
     // invisibleinterruptedCause()
-    accretiveInterruptions()
+    // accretiveInterruptions()
+    stackRegression1()
   }
 
 }
