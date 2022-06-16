@@ -26,10 +26,12 @@ import zio.test.render.ConsoleRenderer
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
   self =>
 
-  def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any]
+  def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
-  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
+  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
     Chunk(TestAspect.fibers)
+
+  def bootstrap: ZLayer[Scope, Any, Environment]
 
   final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = Trace.empty
@@ -44,10 +46,10 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
 
-      def bootstrap: ZLayer[ZIOAppArgs with Scope, Any, Environment] =
+      def bootstrap: ZLayer[Scope, Any, Environment] =
         self.bootstrap +!+ that.bootstrap
 
-      def spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
+      def spec: Spec[Environment with TestEnvironment with Scope, Any] =
         self.aspects.foldLeft(self.spec)(_ @@ _) + that.aspects.foldLeft(that.spec)(_ @@ _)
 
       def environmentTag: EnvironmentTag[Environment] = {
@@ -57,7 +59,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
         EnvironmentTag[Environment]
       }
 
-      override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment with ZIOAppArgs]] =
+      override def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
         Chunk.empty
     }
 
@@ -87,7 +89,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
    * capturing this information
    */
   private[zio] def runSpecAsApp(
-    spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
+    spec: Spec[Environment with TestEnvironment with Scope, Any],
     testArgs: TestArgs,
     console: Console,
     testEventHandler: ZTestEventHandler = ZTestEventHandler.silent
@@ -102,14 +104,14 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     for {
       runtime <-
         ZIO.runtime[
-          TestEnvironment with ZIOAppArgs with Scope
+          TestEnvironment with Scope
         ]
-      environment0: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
-      environment1: ZEnvironment[ZIOAppArgs with Scope] = runtime.environment
+      environment0: ZEnvironment[Scope] = runtime.environment
+      environment1: ZEnvironment[Scope] = runtime.environment
       sharedLayer: ZLayer[Any, Any, Environment] =
         ZLayer.succeedEnvironment(environment0) >>> bootstrap
       perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
-                       .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
+                       .environment[Scope])
 
       eventRenderer           = getTestEventRenderer(testArgs)
       executionEventSinkLayer = sinkLayer(console, eventRenderer)
@@ -129,7 +131,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   }
 
   private[zio] def runSpecWithSharedRuntimeLayer(
-    spec: Spec[Environment with TestEnvironment with ZIOAppArgs with Scope, Any],
+    spec: Spec[Environment with TestEnvironment with Scope, Any],
     testArgs: TestArgs,
     runtime: Runtime[_],
     testEventHandler: ZTestEventHandler
@@ -141,17 +143,17 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val castedRuntime: Runtime[Environment with ZIOAppArgs with Scope with ExecutionEventSink] =
-      runtime.asInstanceOf[Runtime[Environment with ZIOAppArgs with Scope with ExecutionEventSink]]
+    val castedRuntime: Runtime[Environment with Scope with ExecutionEventSink] =
+      runtime.asInstanceOf[Runtime[Environment with Scope with ExecutionEventSink]]
 
     for {
-      _                                                <- ZIO.unit
-      environment1: ZEnvironment[ZIOAppArgs with Scope] = castedRuntime.environment
+      _                                <- ZIO.unit
+      environment1: ZEnvironment[Scope] = castedRuntime.environment
       sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
         ZLayer.succeedEnvironment(castedRuntime.environment)
-      perTestLayer: ZLayer[Any, Nothing, TestEnvironment with Scope with ZIOAppArgs] =
+      perTestLayer: ZLayer[Any, Nothing, TestEnvironment with Scope] =
         (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
-          .environment[Scope] ++ ZLayer.environment[ZIOAppArgs])
+          .environment[Scope])
 
       runner =
         TestRunner(
