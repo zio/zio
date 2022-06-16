@@ -556,7 +556,7 @@ package object test extends CompileVariants {
       TestExecutor.default(
         Scope.default >>> testEnvironment,
         (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
-        sinkLayer(Console.ConsoleLive, ConsoleEventRenderer).debug("defaultTestRunner sinkLayer"),
+        sinkLayer(Console.ConsoleLive, ConsoleEventRenderer),
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
     )

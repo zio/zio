@@ -19,7 +19,6 @@ object TestOutput {
       for {
         executionEventPrinter <- ZIO.service[ExecutionEventPrinter]
         outputLive            <- TestOutputLive.make(executionEventPrinter)
-//                                  .debug("Making in TestOutput.live")
       } yield outputLive
     )
 
@@ -43,7 +42,6 @@ object TestOutput {
     reporters: TestReporters,
     executionEventPrinter: ExecutionEventPrinter
   ) extends TestOutput {
-//    println("Creating TestOutputLive: " + Thread.dumpStack())
 
     private def getAndRemoveSectionOutput(id: SuiteId) =
       output
