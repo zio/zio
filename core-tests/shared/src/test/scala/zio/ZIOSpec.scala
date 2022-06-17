@@ -3028,7 +3028,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _        <- promise2.await
           _        <- fiber.interrupt
         } yield assertCompletes
-      } @@ TestAspect.ignore,
+      },
       test("sync forever is interruptible") {
         for {
           latch <- Promise.make[Nothing, Unit]

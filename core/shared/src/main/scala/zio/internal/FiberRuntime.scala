@@ -191,6 +191,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     fiberMessage match {
       case FiberMessage.InterruptSignal(cause) =>
         self.unsafeAddInterruptedCause(cause)
+        unsafeSendInterruptSignalToAllChildren
 
         if (_interruptor != null) {
           _interruptor(Exit.Failure(cause))
@@ -423,19 +424,29 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     StackTrace(self.fiberId, builder.result())
   }
 
-  final def unsafeInterruptAllChildren(): UIO[Any] =
-    if (_children == null || _children.isEmpty) null
+  final def unsafeSendInterruptSignalToAllChildren(): Boolean =
+    if (_children == null || _children.isEmpty) false
     else {
       // Initiate asynchronous interruption of all children:
-      var iterator = _children.iterator()
+      val iterator = _children.iterator()
+      var told     = false
 
       while (iterator.hasNext()) {
         val next = iterator.next()
 
-        next.tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
+        if (next ne null) {
+          next.tell(FiberMessage.InterruptSignal(Cause.interrupt(id)))
+
+          told = true
+        }
       }
 
-      iterator = _children.iterator()
+      told
+    }
+
+  final def unsafeInterruptAllChildren(): UIO[Any] =
+    if (unsafeSendInterruptSignalToAllChildren()) {
+      val iterator = _children.iterator()
 
       _children = null
 
@@ -448,7 +459,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       // Now await all children to finish:
       ZIO
         .whileLoop(iterator.hasNext)(body())(_ => ())(id.location)
-    }
+    } else null
 
   def drainQueueWhileRunning(
     runtimeFlags: RuntimeFlags,
@@ -461,6 +472,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       queue.poll() match {
         case FiberMessage.InterruptSignal(cause) =>
           self.unsafeAddInterruptedCause(cause)
+          unsafeSendInterruptSignalToAllChildren()
 
           cur = if (RuntimeFlags.interruptible(runtimeFlags)) Exit.Failure(cause) else cur
 
