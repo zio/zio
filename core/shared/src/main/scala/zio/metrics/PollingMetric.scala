@@ -15,10 +15,7 @@
  */
 package zio.metrics
 
-import zio.stacktracer.TracingImplicits.disableAutoTrace
-
 import zio._
-import zio.metrics._
 
 /**
  * A `PollingMetric[Type, Out]` is a combination of a metric and an effect that
@@ -128,19 +125,21 @@ object PollingMetric {
     in0: Iterable[PollingMetric[R, E, Out]]
   ): PollingMetric[R, E, Chunk[Out]] =
     new PollingMetric[R, E, Chunk[Out]] {
-      val in = Chunk.fromIterable(in0)
+      val ins = Chunk.fromIterable(in0)
       type Type = Chunk[Any]
       type In   = Chunk[Any]
 
-      def metric: Metric[Type, In, Chunk[Out]] = {
-        val start =
-          Metric.succeed(Chunk.empty).mapType(_ => Chunk.empty)
-
-        in.zipWithIndex.foldLeft[Metric[Type, In, Chunk[Out]]](start) { case (acc, (metric, index)) =>
-          metric.metric.mapType(Chunk(_)).map(Chunk(_)).contramap[In](chunk => chunk(index).asInstanceOf[metric.In])
+      def metric: Metric[Type, In, Chunk[Out]] =
+        new Metric[Type, In, Chunk[Out]] {
+          override val keyType: Type = Chunk[Any](())
+          override private[zio] def unsafeUpdate(in: In, extraTags: Set[MetricLabel]): Unit =
+            ins.zip(in).foreach { case (pollingmetric, input) =>
+              pollingmetric.metric.unsafeUpdate(input.asInstanceOf[pollingmetric.In])
+            }
+          override private[zio] def unsafeValue(extraTags: Set[MetricLabel]) =
+            ins.map(_.metric.unsafeValue(extraTags))
         }
-      }
 
-      def poll(implicit trace: Trace): ZIO[R, E, In] = ZIO.foreach(in)(_.poll)
+      def poll(implicit trace: Trace): ZIO[R, E, In] = ZIO.foreach(ins)(_.poll)
     }
 }

@@ -32,12 +32,12 @@ object TestExecutor {
 
   def default[R, E](
     sharedSpecLayer: ZLayer[Any, E, R],
-    freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope],
+    freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with Scope],
     sinkLayer: Layer[Nothing, ExecutionEventSink],
     eventHandlerZ: ZTestEventHandler
-  ): TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] =
-    new TestExecutor[R with TestEnvironment with ZIOAppArgs with Scope, E] {
-      def run(spec: Spec[R with TestEnvironment with ZIOAppArgs with Scope, E], defExec: ExecutionStrategy)(implicit
+  ): TestExecutor[R with TestEnvironment with Scope, E] =
+    new TestExecutor[R with TestEnvironment with Scope, E] {
+      def run(spec: Spec[R with TestEnvironment with Scope, E], defExec: ExecutionStrategy)(implicit
         trace: Trace
       ): UIO[Summary] =
         (for {

@@ -7,7 +7,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
 
-  override val bootstrap: ZLayer[ZIOAppArgs with Scope, Any, TestEnvironment] =
+  override val bootstrap: ZLayer[Scope, Any, TestEnvironment] =
     testEnvironment
 
   def spec: Spec[TestEnvironment with Scope, Any]
