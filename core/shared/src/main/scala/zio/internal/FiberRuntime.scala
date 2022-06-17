@@ -425,7 +425,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   final def processNewInterruptSignal(cause: Cause[Nothing]): Unit = {
     self.unsafeAddInterruptedCause(cause)
-    unsafeSendInterruptSignalToAllChildren
+    unsafeSendInterruptSignalToAllChildren()
   }
 
   final def unsafeSendInterruptSignalToAllChildren(): Boolean =
