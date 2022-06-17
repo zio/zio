@@ -191,7 +191,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     fiberMessage match {
       case FiberMessage.InterruptSignal(cause) =>
         self.unsafeAddInterruptedCause(cause)
-        unsafeSendInterruptSignalToAllChildren
+        unsafeSendInterruptSignalToAllChildren()
 
         if (_interruptor != null) {
           _interruptor(Exit.Failure(cause))
