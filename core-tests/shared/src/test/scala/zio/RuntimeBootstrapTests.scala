@@ -593,11 +593,14 @@ object RuntimeBootstrapTests {
 
   def stackRegression1() =
     test("return a `CompletableFuture` that fails if `IO` fails") {
-      val error  = new Exception("IOs also can fail")
-      val failed = ZIO.fail(error).catchAll(e => ZIO.attempt(throw e))
+      val error = new Exception("IOs also can fail")
+      val failed = ZIO.fail(error).catchAll { e =>
+        println("about to throw: " + e)
+        ZIO.attempt(throw e)
+      }
 
       for {
-        exit <- failed.exit.debug("error")
+        exit <- failed.exit
       } yield assert(exit == Exit.fail(error))
     }
 
