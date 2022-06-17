@@ -604,6 +604,20 @@ object RuntimeBootstrapTests {
       } yield assert(cause.failures(0).getCause == ex)
     }
 
+  def zipParInterruption() =
+    test("zipPar is interruptible") {
+      for {
+        promise1 <- Promise.make[Nothing, Unit]
+        promise2 <- Promise.make[Nothing, Unit]
+        left      = promise1.succeed(()) *> ZIO.never
+        right     = promise2.succeed(()) *> ZIO.never
+        fiber    <- left.zipPar(right).fork
+        _        <- promise1.await
+        _        <- promise2.await
+        _        <- fiber.interrupt
+      } yield ()
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
     // runtimeFlags()
@@ -640,7 +654,8 @@ object RuntimeBootstrapTests {
     // invisibleInterruption()
     // invisibleinterruptedCause()
     // accretiveInterruptions()
-    stackRegression1()
+    // stackRegression1()
+    zipParInterruption()
   }
 
 }
