@@ -3017,6 +3017,18 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("RTS interruption")(
+      test("zipPar is interruptible") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          left      = promise1.succeed(()) *> ZIO.never
+          right     = promise2.succeed(()) *> ZIO.never
+          fiber    <- left.zipPar(right).fork
+          _        <- promise1.await
+          _        <- promise2.await
+          _        <- fiber.interrupt
+        } yield assertCompletes
+      } @@ TestAspect.ignore,
       test("sync forever is interruptible") {
         for {
           latch <- Promise.make[Nothing, Unit]
