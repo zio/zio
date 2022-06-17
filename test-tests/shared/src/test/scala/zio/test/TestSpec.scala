@@ -66,15 +66,19 @@ object TestSpec extends ZIOBaseSpec {
         spec = test("test") {
                  for {
                    _ <- ref.update(_ + 1)
-                   _ <- assertTrue(false)
+                   _ <- assertTrue(1 == 2)
                    _ <- ref.update(_ + 1)
-                 } yield assertCompletes
+                 } yield assertTrue(3 == 4)
                }
         summary <- execute(spec)
         count   <- ref.get
       } yield assert(count)(equalTo(1)) &&
         assert(summary.fail)(equalTo(1)) &&
-        assert(summary.failureDetails)(containsString("Result was false"))
+        assert(summary.failureDetails)(
+          containsString("Result was false") &&
+            containsString("1 == 2") &&
+            not(containsString("3 == 4"))
+        )
     },
     test("composed assertions are lifted to ZIO and fully evaluated") {
       for {
