@@ -39,7 +39,11 @@ sealed abstract class ZTestRunnerJS(
     if (summaries.isEmpty || total == ignore)
       s"${Console.YELLOW}No tests were executed${Console.RESET}"
     else
-      summaries.map(_.summary).filter(_.nonEmpty).flatMap(s => colored(s) :: "\n" :: Nil).mkString("", "", "Done")
+      summaries
+        .map(_.failureDetails)
+        .filter(_.nonEmpty)
+        .flatMap(s => colored(s) :: "\n" :: Nil)
+        .mkString("", "", "Done")
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
@@ -94,7 +98,7 @@ sealed class ZTestTask(
         ZIO.consoleWith { console =>
           (for {
             summary <- spec
-                         .runSpecInfallible(FilteredSpec(spec.spec, args), args, console)
+                         .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
             _ <- sendSummary.provide(ZLayer.succeed(summary))
             // TODO Confirm if/how these events needs to be handled in #6481
             //    Check XML behavior

@@ -75,7 +75,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       }
 
     val scoped =
-      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment with zio.test.TestEnvironment with zio.ZIOAppArgs](
+      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment with zio.test.TestEnvironment](
         traverse(filteredSpec, description)
       )
 
@@ -83,7 +83,6 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       scoped
         .provide(
           Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          ZIOAppArgs.empty,
           spec.bootstrap
         )
     )
@@ -93,13 +92,12 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   override def run(notifier: RunNotifier): Unit = {
     val _ = zio.Runtime.default.unsafeRun {
 
-      val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
+      val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
-        .runSpecInfallible(instrumented, TestArgs.empty, Console.ConsoleLive)
+        .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
         .provide(
-          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          ZIOAppArgs.empty
+          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope])
         )
     }
   }
