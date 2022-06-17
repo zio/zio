@@ -585,7 +585,7 @@ object Cause extends Serializable {
     def stacklessCase(context: Context, value: Z, stackless: Boolean): Z
   }
   object Folder {
-    final case object Size extends Folder[Any, Any, Int] {
+    case object Size extends Folder[Any, Any, Int] {
       def empty(context: Any): Int                                                   = 0
       def failCase(context: Any, error: Any, stackTrace: StackTrace): Int            = 1
       def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Int           = 1
