@@ -40,18 +40,18 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   def setGenFailureDetails(details: GenFailureDetails): TestResult =
     TestResult(arrow.setGenFailureDetails(details))
-
-  def orDie[R, E](implicit trace: Trace): ZIO[R, E, TestResult] =
-    if (isSuccess)
-      ZIO.succeed(this)
-    else
-      ZIO.die(TestResult.Exit(this))
 }
 
 object TestResult {
   def all(asserts: TestResult*): TestResult = asserts.reduce(_ && _)
 
   def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
+
+  implicit def liftTestResultToZIO[R, E](testResult: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+    if (testResult.isSuccess)
+      ZIO.succeed(testResult)
+    else
+      ZIO.die(TestResult.Exit(testResult))
 
   private[zio] case class Exit(result: TestResult) extends Throwable
 }
