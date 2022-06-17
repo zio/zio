@@ -593,15 +593,15 @@ object RuntimeBootstrapTests {
 
   def stackRegression1() =
     test("return a `CompletableFuture` that fails if `IO` fails") {
-      val ex                       = new Exception("IOs also can fail")
-      val failedIO: Task[Unit]     = ZIO.fail[Throwable](ex)
-      val failedFuture: Task[Unit] = failedIO.toCompletableFuture.flatMap(f => ZIO.attempt(f.get()))
+      val error = new Exception("IOs also can fail")
+      val failed = ZIO.fail(error).catchAll { e =>
+        println("about to throw: " + e)
+        ZIO.attempt(throw e)
+      }
 
       for {
-        cause <- failedFuture.exit.map(_.causeOption.get).debug("cause")
-        // fiber  <- failedFuture.debug("foo").fork
-        // cause <- fiber.await.map(_.causeOption.get).debug("cause")
-      } yield assert(cause.failures(0).getCause == ex)
+        exit <- failed.exit
+      } yield assert(exit == Exit.fail(error))
     }
 
   def zipParInterruption() =
@@ -654,8 +654,8 @@ object RuntimeBootstrapTests {
     // invisibleInterruption()
     // invisibleinterruptedCause()
     // accretiveInterruptions()
-    // stackRegression1()
-    zipParInterruption()
+    stackRegression1()
+    //zipParInterruption()
   }
 
 }
