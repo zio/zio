@@ -450,6 +450,46 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         .whileLoop(iterator.hasNext)(body())(_ => ())(id.location)
     }
 
+  def drainQueueWhileRunning(
+    runtimeFlags: RuntimeFlags,
+    lastTrace: Trace,
+    cur0: ZIO[Any, Any, Any]
+  ): ZIO[Any, Any, Any] = {
+    var cur = cur0
+
+    while (!queue.isEmpty()) {
+      queue.poll() match {
+        case FiberMessage.InterruptSignal(cause) =>
+          self.unsafeAddInterruptedCause(cause)
+
+          cur = if (RuntimeFlags.interruptible(runtimeFlags)) Exit.Failure(cause) else cur
+
+        case FiberMessage.GenStackTrace(onTrace) =>
+          val oldCur = cur
+
+          cur = ZIO
+            .stackTrace(Trace.empty)
+            .flatMap({ stackTrace =>
+              onTrace(stackTrace)
+              oldCur
+            })(Trace.empty)
+
+        case FiberMessage.Stateful(onFiber) =>
+          onFiber(self, Fiber.Status.Running(runtimeFlags, lastTrace))
+
+        case FiberMessage.Resume(_, _) =>
+          throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
+
+        case FiberMessage.YieldNow =>
+          val oldCur = cur
+
+          cur = ZIO.yieldNow(Trace.empty).flatMap(_ => oldCur)(Trace.empty)
+      }
+    }
+
+    cur
+  }
+
   def runLoop(
     effect: ZIO[Any, Any, Any],
     currentDepth: Int,
@@ -485,35 +525,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       val nextTrace = cur.trace
       if (nextTrace ne Trace.empty) lastTrace = nextTrace
 
-      while (!queue.isEmpty()) {
-        queue.poll() match {
-          case FiberMessage.InterruptSignal(cause) =>
-            self.unsafeAddInterruptedCause(cause)
-
-            cur = if (RuntimeFlags.interruptible(runtimeFlags)) Exit.Failure(cause) else cur
-
-          case FiberMessage.GenStackTrace(onTrace) =>
-            val oldCur = cur
-
-            cur = ZIO
-              .stackTrace(Trace.empty)
-              .flatMap({ stackTrace =>
-                onTrace(stackTrace)
-                oldCur
-              })(Trace.empty)
-
-          case FiberMessage.Stateful(onFiber) =>
-            onFiber(self, Fiber.Status.Running(runtimeFlags, lastTrace))
-
-          case FiberMessage.Resume(_, _) =>
-            throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
-
-          case FiberMessage.YieldNow =>
-            val oldCur = cur
-
-            cur = ZIO.yieldNow(Trace.empty).flatMap(_ => oldCur)(Trace.empty)
-        }
-      }
+      cur = drainQueueWhileRunning(runtimeFlags, lastTrace, cur)
 
       ops += 1
 
