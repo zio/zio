@@ -47,11 +47,11 @@ object TestResult {
 
   def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
 
-  implicit def liftTestResultToZIO[R, E](testResult: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
-    if (testResult.isSuccess)
-      ZIO.succeed(testResult)
+  implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+    if (result.isSuccess)
+      ZIO.succeed(result)
     else
-      ZIO.die(TestResult.Exit(testResult))
+      ZIO.die(TestResult.Exit(result))
 
   private[zio] case class Exit(result: TestResult) extends Throwable
 }
