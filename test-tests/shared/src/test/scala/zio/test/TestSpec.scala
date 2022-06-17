@@ -60,6 +60,24 @@ object TestSpec extends ZIOBaseSpec {
         message <- STM.succeed("Hello from an STM transaction!")
       } yield assert(message)(anything)
     },
+    test("TestResult#orDie enables fail-fast assertion") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 for {
+                   _ <- ref.update(_ + 1)
+                   _ <- assertTrue(false).orDie
+                   _ <- ref.update(_ + 1)
+                   _ <- assertTrue(false).orDie
+                   _ <- ref.update(_ + 1)
+                 } yield assertCompletes
+               }
+        summary <- execute(spec)
+        count   <- ref.get
+      } yield assert(count)(equalTo(1)) &&
+        assert(summary.fail)(equalTo(1)) &&
+        assert(summary.failureDetails)(containsString("Result was false"))
+    },
     suite("suites can be effectual") {
       ZIO.succeed {
         Chunk(

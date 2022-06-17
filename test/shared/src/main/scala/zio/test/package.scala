@@ -214,7 +214,11 @@ package object test extends CompileVariants {
           }
         }
         .foldCauseZIO(
-          cause => ZIO.fail(TestFailure.Runtime(cause)),
+          cause =>
+            cause.dieOption match {
+              case Some(TestResult.Exit(assert)) => ZIO.fail(TestFailure.Assertion(assert))
+              case _                             => ZIO.fail(TestFailure.Runtime(cause))
+            },
           assert =>
             if (assert.isFailure)
               ZIO.fail(TestFailure.Assertion(assert))

@@ -3,7 +3,7 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.language.implicitConversions
-import zio.Trace
+import zio.{Trace, ZIO}
 import zio.internal.stacktracer.SourceLocation
 
 import scala.util.control.NonFatal
@@ -40,6 +40,12 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   def setGenFailureDetails(details: GenFailureDetails): TestResult =
     TestResult(arrow.setGenFailureDetails(details))
+
+  def orDie[R, E](implicit trace: Trace): ZIO[R, E, TestResult] =
+    if (isSuccess)
+      ZIO.succeed(this)
+    else
+      ZIO.die(TestResult.Exit(this))
 }
 
 object TestResult {
@@ -47,6 +53,7 @@ object TestResult {
 
   def any(asserts: TestResult*): TestResult = asserts.reduce(_ || _)
 
+  private[zio] case class Exit(result: TestResult) extends Throwable
 }
 
 sealed trait TestArrow[-A, +B] { self =>
