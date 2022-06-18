@@ -8,8 +8,7 @@ import zio.internal.ansi.AnsiStringOps
 
 import java.nio.charset.StandardCharsets
 import java.util.Base64
-import scala.annotation.tailrec
-import scala.collection.mutable.{Builder, ListBuffer}
+import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
 
 /**
@@ -256,36 +255,45 @@ final case class LayerBuilder[Type, Expr](
    * Generates a link of the layer graph for the Mermaid.js graph viz library's
    * live-editor (https://mermaid-js.github.io/mermaid-live-editor)
    */
-  private def generateMermaidJsLink(
-    tree: LayerTree[Expr]
-  ): String = {
+  private def generateMermaidJsLink(tree: LayerTree[Expr]): String = {
+
+    def escapeString(string: String): String =
+      "\\\"" + string.replace("\"", "&quot") + "\\\""
 
     val map = tree
-      .map(showExpr(_))
-      .fold[Map[String, Chunk[String]]](
-        z = Map.empty,
-        value = str => Map(str -> Chunk.empty),
+      .map(expr => escapeString(showExpr(expr)))
+      .fold[MermaidGraph](
+        z = MermaidGraph.empty,
+        value = MermaidGraph.make,
         composeH = _ ++ _,
-        composeV = (m1, m2) =>
-          m2.map { case (key, values) =>
-            val result = m1.keys.toSet -- m1.values.flatten.toSet
-            key -> (values ++ Chunk.fromIterable(result))
-          } ++ m1
+        composeV = _ >>> _
+      )
+      .deps
+
+    val aliases = mutable.Map.empty[String, String]
+
+    def getAlias(name: String): String =
+      aliases.getOrElse(
+        name, {
+          val alias = s"L${aliases.size}"
+          aliases += name -> alias
+          s"$alias($name)"
+        }
       )
 
     val mermaidCode: String =
       map.flatMap {
         case (key, children) if children.isEmpty =>
-          List(s"    $key")
+          List(getAlias(key))
         case (key, children) =>
           children.map { child =>
-            s"    $key --> $child"
+            s"${getAlias(key)} --> ${getAlias(child)}"
           }
       }
         .mkString("\\n")
 
     val mermaidGraph =
-      s"""{"code":"graph\\n$mermaidCode\\n    ","mermaid": "{\\n  \\"theme\\": \\"default\\"\\n}", "updateEditor": true, "autoSync": true, "updateDiagram": true}"""
+      s"""{"code":"graph\\n$mermaidCode","mermaid": "{\\"theme\\": \\"default\\"}"}"""
 
     val encodedMermaidGraph: String =
       new String(Base64.getEncoder.encode(mermaidGraph.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)
@@ -296,17 +304,40 @@ final case class LayerBuilder[Type, Expr](
 
   // Backwards compatibility for 2.11/2.12
   private def groupMap[A, K, B](as: List[A])(key: A => K)(f: A => B): Map[K, List[B]] = {
-    val m = mutable.Map.empty[K, Builder[B, List[B]]]
+    val m = mutable.Map.empty[K, mutable.Builder[B, List[B]]]
     for (elem <- as) {
-      val k    = key(elem)
-      val bldr = m.getOrElseUpdate(k, new ListBuffer[B])
-      bldr += f(elem)
+      val k       = key(elem)
+      val builder = m.getOrElseUpdate(k, new ListBuffer[B])
+      builder += f(elem)
     }
     var result = immutable.Map.empty[K, List[B]]
     m.foreach { case (k, v) =>
       result = result + ((k, v.result()))
     }
     result
+  }
+
+  final case class MermaidGraph(
+    topLevel: Chunk[String],
+    deps: Map[String, Chunk[String]]
+  ) {
+    def ++(that: MermaidGraph): MermaidGraph =
+      MermaidGraph(topLevel ++ that.topLevel, deps ++ that.deps)
+
+    def >>>(that: MermaidGraph): MermaidGraph = {
+      val newDeps =
+        that.deps.map { case (key, values) =>
+          key -> (values ++ topLevel)
+        }
+      MermaidGraph(that.topLevel, deps ++ newDeps)
+    }
+  }
+
+  object MermaidGraph {
+    def empty: MermaidGraph = MermaidGraph(Chunk.empty, Map.empty)
+
+    def make(string: String): MermaidGraph =
+      MermaidGraph(Chunk(string), Map(string -> Chunk.empty))
   }
 
 }
