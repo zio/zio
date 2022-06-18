@@ -767,7 +767,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]] { implicit u => (fiberState, status) =>
-      ZIO.succeedNow(ZIO.fork(trace, self, fiberState, status.runtimeFlags))
+      ZIO.succeedNow(ZIO.unsafe.fork(trace, self, fiberState, status.runtimeFlags))
     }
 
   /**
@@ -1366,8 +1366,8 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber  = ZIO.forkUnstarted(trace, self, parentState, parentRuntimeFlags)
-      val rightFiber = ZIO.forkUnstarted(trace, right, parentState, parentRuntimeFlags)
+      val leftFiber  = ZIO.unsafe.forkUnstarted(trace, self, parentState, parentRuntimeFlags)
+      val rightFiber = ZIO.unsafe.forkUnstarted(trace, right, parentState, parentRuntimeFlags)
 
       leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))
       rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))
@@ -2450,57 +2450,59 @@ sealed trait ZIO[-R, +E, +A]
 }
 
 object ZIO extends ZIOCompanionPlatformSpecific {
-  private def fork[R, E1, E2, A, B](
-    trace: Trace,
-    effect: ZIO[R, E1, A],
-    parentFiber: internal.FiberRuntime[E2, B],
-    parentRuntimeFlags: RuntimeFlags
-  )(implicit unsafe: Unsafe[Any]): internal.FiberRuntime[E1, A] = {
-    val childFiber = ZIO.forkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
+  private object unsafe {
+    def fork[R, E1, E2, A, B](
+      trace: Trace,
+      effect: ZIO[R, E1, A],
+      parentFiber: internal.FiberRuntime[E2, B],
+      parentRuntimeFlags: RuntimeFlags
+    )(implicit unsafe: Unsafe[Any]): internal.FiberRuntime[E1, A] = {
+      val childFiber = ZIO.unsafe.forkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
 
-    childFiber.startBackground(effect)
+      childFiber.startBackground(effect)
 
-    childFiber
-  }
-
-  private def forkUnstarted[R, E1, E2, A, B](
-    trace: Trace,
-    effect: ZIO[R, E1, A],
-    parentFiber: internal.FiberRuntime[E2, B],
-    parentRuntimeFlags: RuntimeFlags
-  )(implicit unsafe: Unsafe[Any]): internal.FiberRuntime[E1, A] = {
-    val childId         = FiberId.make(trace)
-    val parentFiberRefs = parentFiber.getFiberRefs()
-    val childFiberRefs  = parentFiberRefs.forkAs(childId)
-
-    val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
-
-    // Call the supervisor who can observe the fork of the child fiber
-    val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
-
-    val supervisor = childFiber.getSupervisor()
-
-    supervisor.onStart(
-      childEnvironment,
-      effect.asInstanceOf[ZIO[Any, Any, Any]],
-      Some(parentFiber),
       childFiber
-    )
+    }
 
-    childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
+    def forkUnstarted[R, E1, E2, A, B](
+      trace: Trace,
+      effect: ZIO[R, E1, A],
+      parentFiber: internal.FiberRuntime[E2, B],
+      parentRuntimeFlags: RuntimeFlags
+    )(implicit unsafe: Unsafe[Any]): internal.FiberRuntime[E1, A] = {
+      val childId         = FiberId.make(trace)
+      val parentFiberRefs = parentFiber.getFiberRefs()
+      val childFiberRefs  = parentFiberRefs.forkAs(childId)
 
-    val parentScope = parentFiber.getFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
+      val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
 
-    parentScope.add(parentRuntimeFlags, childFiber)(trace, unsafe)
+      // Call the supervisor who can observe the fork of the child fiber
+      val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
 
-    childFiber
+      val supervisor = childFiber.getSupervisor()
+
+      supervisor.onStart(
+        childEnvironment,
+        effect.asInstanceOf[ZIO[Any, Any, Any]],
+        Some(parentFiber),
+        childFiber
+      )
+
+      childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
+
+      val parentScope = parentFiber.getFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
+
+      parentScope.add(parentRuntimeFlags, childFiber)(trace, unsafe)
+
+      childFiber
+    }
   }
 
   /**
    * The level of parallelism for parallel operators.
    */
   final lazy val Parallelism: FiberRef[Option[Int]] =
-    FiberRef.unsafeMake(None)
+    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(None))
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -2662,8 +2664,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
-      val cancelerRef = Ref.unsafeMake[URIO[R, Any]](ZIO.unit)
+    ZIO.suspendSucceedUnsafe { implicit u =>
+      val cancelerRef = Ref.unsafe.make[URIO[R, Any]](ZIO.unit)
 
       ZIO
         .async[R, E, A](
@@ -2671,14 +2673,20 @@ object ZIO extends ZIOCompanionPlatformSpecific {
             val result = register(k(_))
 
             result match {
-              case Left(canceler) => cancelerRef.unsafeSet(canceler)
+              case Left(canceler) => cancelerRef.unsafe.set(canceler)
               case Right(done)    => k(done)
             }
           },
           blockingOn
         )
-        .onInterrupt(cancelerRef.unsafeGet)
+        .onInterrupt(cancelerRef.unsafe.get)
     }
+
+  def asyncInterruptUnsafe[R, E, A](
+    register: Unsafe[Any] => (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
+    blockingOn: => FiberId = FiberId.None
+  )(implicit trace: Trace): ZIO[R, E, A] =
+    asyncInterrupt(cb => Unsafe.unsafeCompat(implicit u => register(u)(cb)), blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -2792,6 +2800,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def attemptBlockingIO[A](effect: => A)(implicit trace: Trace): IO[IOException, A] =
     attemptBlocking(effect).refineToOrDie[IOException]
+
+  def attemptBlockingIOUnsafe[A](effect: Unsafe[Any] => A)(implicit trace: Trace): IO[IOException, A] =
+    attemptBlockingIO(Unsafe.unsafeCompat(implicit u => effect(u)))
 
   /**
    * Returns a new effect that, when executed, will execute the original effect
@@ -5090,8 +5101,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       trace: Trace
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
-      ZIO.suspendSucceed {
-        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
+      ZIO.suspendSucceedUnsafe { implicit u =>
+        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafe.get(tag)))
       }
     }
   }
@@ -5720,7 +5731,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       else {
         val size = as.size
         ZIO.uninterruptibleMask { restore =>
-          val promise = Promise.unsafeMake[Unit, Unit](FiberId.None)
+          val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)
           val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
           ZIO.transplant { graft =>
             ZIO.foreach(as) { a =>
@@ -5729,7 +5740,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                   cause => promise.fail(()) *> ZIO.refailCause(cause),
                   _ =>
                     if (ref.incrementAndGet == size) {
-                      promise.unsafeDone(ZIO.unit)
+                      promise.unsafe.done(ZIO.unit)
                       ZIO.unit
                     } else {
                       ZIO.unit

@@ -32,8 +32,10 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   private var _interruptor    = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-    Metric.runtime.fibersStarted.unsafeUpdate(1)
-    Metric.runtime.fiberForkLocations.unsafeUpdate(fiberId.location.toString())
+    Unsafe.unsafeCompat { implicit u =>
+      Metric.runtime.fibersStarted.unsafe.update(1)
+      Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString())
+    }
   }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
@@ -118,19 +120,19 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
     ZIO.suspendSucceedUnsafe { implicit u =>
-      val promise = zio.Promise.unsafeMake[Nothing, StackTrace](fiberId)
+      val promise = zio.Promise.unsafe.make[Nothing, StackTrace](fiberId)
 
-      tell(FiberMessage.GenStackTrace(trace => promise.unsafeDone(ZIO.succeedNow(trace))))
+      tell(FiberMessage.GenStackTrace(trace => promise.unsafe.done(ZIO.succeedNow(trace))))
 
       promise.await
     }
 
   def ask[A](f: Unsafe[Any] => (FiberRuntime[_, _], Fiber.Status) => A)(implicit trace: Trace): UIO[A] =
     ZIO.suspendSucceedUnsafe { implicit u =>
-      val promise = zio.Promise.unsafeMake[Nothing, A](fiberId)
+      val promise = zio.Promise.unsafe.make[Nothing, A](fiberId)
 
       tell(
-        FiberMessage.Stateful((fiber, status) => promise.unsafeDone(ZIO.succeedNow(f(u)(fiber, status))))
+        FiberMessage.Stateful((fiber, status) => promise.unsafe.done(ZIO.succeedNow(f(u)(fiber, status))))
       )
 
       promise.await
@@ -924,7 +926,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
         }
 
         if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-          Metric.runtime.fiberFailures.unsafeUpdate(1)
+          Metric.runtime.fiberFailures.unsafe.update(1)
           cause.foldContext(())(FiberRuntime.fiberFailureTracker)
         }
       } catch {
@@ -938,7 +940,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       }
     case _ =>
       if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
-        Metric.runtime.fiberSuccesses.unsafeUpdate(1)
+        Metric.runtime.fiberSuccesses.unsafe.update(1)
       }
   }
 
@@ -966,7 +968,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
       val endTimeMillis   = java.lang.System.currentTimeMillis()
       val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
-      Metric.runtime.fiberLifetimes.unsafeUpdate(lifetime.toDouble)
+      Metric.runtime.fiberLifetimes.unsafe.update(lifetime.toDouble)
     }
 
     reportExitValue(e)
@@ -1028,9 +1030,13 @@ object FiberRuntime {
     new Cause.Folder[Unit, Any, Unit] {
       def empty(context: Unit): Unit = ()
       def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafeUpdate(error.getClass.getName())
+        Unsafe.unsafeCompat { implicit u =>
+          Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName())
+        }
       def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafeUpdate(t.getClass.getName())
+        Unsafe.unsafeCompat { implicit u =>
+          Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName())
+        }
       def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
       def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
       def thenCase(context: Unit, left: Unit, right: Unit): Unit                       = ()

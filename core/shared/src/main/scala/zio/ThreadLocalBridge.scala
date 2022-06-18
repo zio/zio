@@ -24,9 +24,9 @@ object ThreadLocalBridge {
           for {
             fiberRef <- FiberRef.make(initialValue)
             _         = link(initialValue)
-            _         = supervisor.trackFiberRef(fiberRef, link)
+            _         = Unsafe.unsafeCompat(implicit u => supervisor.trackFiberRef(fiberRef, link))
             _ <- Scope.addFinalizer(
-                   ZIO.succeed {
+                   ZIO.succeedUnsafe { implicit u =>
                      link(initialValue)
                      supervisor.forgetFiberRef(fiberRef, link)
                    }
@@ -55,11 +55,11 @@ object ThreadLocalBridge {
       fiber: Fiber.Runtime[E, A1]
     )(implicit unsafe: Unsafe[Any]): Unit = ()
 
-    def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
-      trackedRefs.unsafeUpdate(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
+    def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe[Any]): Unit =
+      trackedRefs.unsafe.update(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
 
-    def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
-      trackedRefs.unsafeUpdate(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
+    def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe[Any]): Unit =
+      trackedRefs.unsafe.update(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
 
     override def onSuspend[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe[Any]): Unit =
       foreachTrackedRef { (fiberRef, link) =>
@@ -72,8 +72,8 @@ object ThreadLocalBridge {
         link(value)
       }
 
-    private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit): Unit =
-      trackedRefs.unsafeGet.foreach { case (fiberRef, link) =>
+    private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit)(implicit unsafe: Unsafe[Any]): Unit =
+      trackedRefs.unsafe.get.foreach { case (fiberRef, link) =>
         f(fiberRef, link)
       }
   }

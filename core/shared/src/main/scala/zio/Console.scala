@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.Console.ConsoleLive
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -23,7 +24,7 @@ import java.io.{EOFException, IOException, PrintStream}
 import scala.io.StdIn
 import scala.{Console => SConsole}
 
-trait Console extends Serializable {
+trait Console extends Serializable { self =>
   def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit]
 
   def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit]
@@ -37,20 +38,30 @@ trait Console extends Serializable {
   def readLine(prompt: String)(implicit trace: Trace): IO[IOException, String] =
     print(prompt) *> readLine
 
-  private[zio] def unsafePrint(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-    Runtime.default.unsafeRun(print(line)(Trace.empty))(Trace.empty, unsafe)
+  private[zio] trait UnsafeAPI {
+    def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit
+    def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit
+    def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit
+    def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit
+    def readLine()(implicit unsafe: Unsafe[Any]): String
+  }
 
-  private[zio] def unsafePrintError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-    Runtime.default.unsafeRun(printError(line)(Trace.empty))(Trace.empty, unsafe)
+  private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
+    def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      Runtime.default.unsafeRun(self.print(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePrintLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-    Runtime.default.unsafeRun(printLine(line)(Trace.empty))(Trace.empty, unsafe)
+    def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      Runtime.default.unsafeRun(self.printError(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafePrintLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-    Runtime.default.unsafeRun(printLineError(line)(Trace.empty))(Trace.empty, unsafe)
+    def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      Runtime.default.unsafeRun(self.printLine(line)(Trace.empty))(Trace.empty, unsafe)
 
-  private[zio] def unsafeReadLine()(implicit unsafe: Unsafe[Any]): String =
-    Runtime.default.unsafeRun(readLine(Trace.empty))(Trace.empty, unsafe)
+    def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      Runtime.default.unsafeRun(self.printLineError(line)(Trace.empty))(Trace.empty, unsafe)
+
+    def readLine()(implicit unsafe: Unsafe[Any]): String =
+      Runtime.default.unsafeRun(self.readLine(Trace.empty))(Trace.empty, unsafe)
+  }
 }
 
 object Console extends Serializable {
@@ -60,44 +71,46 @@ object Console extends Serializable {
   object ConsoleLive extends Console {
 
     def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrint(line)))
+      ZIO.attemptBlockingIOUnsafe(implicit u => unsafe.print(line))
 
     def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrintError(line)))
+      ZIO.attemptBlockingIOUnsafe(implicit u => unsafe.printError(line))
 
     def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrintLine(line)))
+      ZIO.attemptBlockingIOUnsafe(implicit u => unsafe.printLine(line))
 
     def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.attemptBlockingIO(Unsafe.unsafeCompat(implicit u => unsafePrintLineError(line)))
+      ZIO.attemptBlockingIOUnsafe(implicit u => unsafe.printLineError(line))
 
     def readLine(implicit trace: Trace): IO[IOException, String] =
-      ZIO.attemptBlockingInterrupt(Unsafe.unsafeCompat(implicit u => unsafeReadLine())).refineToOrDie[IOException]
+      ZIO.attemptBlockingInterrupt(Unsafe.unsafeCompat(implicit u => unsafe.readLine())).refineToOrDie[IOException]
 
-    override private[zio] def unsafePrint(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      print(SConsole.out)(line)
+    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+      override def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        print(SConsole.out)(line)
 
-    override private[zio] def unsafePrintError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      print(SConsole.err)(line)
+      override def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        print(SConsole.err)(line)
 
-    override private[zio] def unsafePrintLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      printLine(SConsole.out)(line)
+      override def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        printLine(SConsole.out)(line)
 
-    override private[zio] def unsafePrintLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      printLine(SConsole.err)(line)
+      override def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        printLine(SConsole.err)(line)
 
-    override private[zio] def unsafeReadLine()(implicit unsafe: Unsafe[Any]): String = {
-      val line = StdIn.readLine()
+      override def readLine()(implicit unsafe: Unsafe[Any]): String = {
+        val line = StdIn.readLine()
 
-      if (line ne null) line
-      else throw new EOFException("There is no more input left to read")
+        if (line ne null) line
+        else throw new EOFException("There is no more input left to read")
+      }
+
+      private def print(stream: => PrintStream)(line: => Any): Unit =
+        SConsole.withOut(stream)(SConsole.print(line))
+
+      private def printLine(stream: => PrintStream)(line: => Any): Unit =
+        SConsole.withOut(stream)(SConsole.println(line))
     }
-
-    private def print(stream: => PrintStream)(line: => Any): Unit =
-      SConsole.withOut(stream)(SConsole.print(line))
-
-    private def printLine(stream: => PrintStream)(line: => Any): Unit =
-      SConsole.withOut(stream)(SConsole.println(line))
   }
 
   /**
