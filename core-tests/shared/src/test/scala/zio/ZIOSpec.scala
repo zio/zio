@@ -3459,7 +3459,7 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- (started.await *> ZIO.unit).race(effect)
           value <- finalized.await *> ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
-      } @@ jvm(nonFlaky(10000))
+      } @@ jvm(nonFlaky)
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
