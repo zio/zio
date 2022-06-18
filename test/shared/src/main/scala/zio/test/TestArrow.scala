@@ -49,7 +49,7 @@ object TestResult {
 
   implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
     if (result.isSuccess)
-      ZIO.succeed(result)
+      ZIO.succeedNow(result)
     else
       ZIO.die(TestResult.Exit(result))
 
