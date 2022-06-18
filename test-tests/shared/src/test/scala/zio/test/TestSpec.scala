@@ -2,6 +2,7 @@ package zio.test
 
 import zio._
 import zio.Clock._
+import zio.internal.macros.StringUtils.StringOps
 import zio.stm.STM
 import zio.test.Assertion._
 import zio.test.TestAspect.{failing, timeout}
@@ -74,9 +75,8 @@ object TestSpec extends ZIOBaseSpec {
         count   <- ref.get
       } yield assert(count)(equalTo(1)) &&
         assert(summary.fail)(equalTo(1)) &&
-        assert(summary.failureDetails)(
-          containsString("Result was false") &&
-            containsString("1 == 2") &&
+        assert(summary.failureDetails.unstyled)(
+          containsString("1 == 2") &&
             not(containsString("3 == 4"))
         )
     },
@@ -94,9 +94,8 @@ object TestSpec extends ZIOBaseSpec {
         count   <- ref.get
       } yield assert(count)(equalTo(1)) &&
         assert(summary.fail)(equalTo(1)) &&
-        assert(summary.failureDetails)(
-          containsString("Result was false") &&
-            containsString("1 == 2") &&
+        assert(summary.failureDetails.unstyled)(
+          containsString("1 == 2") &&
             containsString("3 == 4")
         )
     },
