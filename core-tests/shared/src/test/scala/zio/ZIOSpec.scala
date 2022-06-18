@@ -3449,16 +3449,17 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
           finalized <- Promise.make[Nothing, Unit]
-          effect = ZIO
+          started   <- Promise.make[Nothing, Unit]
+          effect = (started.succeed(()) *> ZIO
                      .asyncInterrupt[Any, Nothing, Any] { _ =>
                        ref.incrementAndGet()
                        Left(ZIO.succeed(ref.decrementAndGet()))
-                     }
+                     })
                      .ensuring(finalized.succeed(()))
-          _     <- ZIO.unit.race(effect)
+          _     <- (started.await *> ZIO.unit).race(effect)
           value <- finalized.await *> ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
-      } @@ jvm(nonFlaky)
+      } @@ jvm(nonFlaky(10000))
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
