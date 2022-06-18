@@ -20,7 +20,7 @@ object ReporterEventRenderer {
     override def render(executionEvent: ExecutionEvent)(implicit trace: Trace): Chunk[String] =
       Chunk.fromIterable(
         IntelliJRenderer
-          .render(executionEvent, includeCause = false)
+          .render(executionEvent, includeCause = true)
       )
   }
 }
