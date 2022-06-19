@@ -196,7 +196,7 @@ object Random extends Serializable {
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
       ZIO.succeedUnsafe(implicit u => unsafe.shuffle(collection))
 
-    private[zio] override val unsafe: UnsafeAPI = new UnsafeAPI {
+    @transient private[zio] override val unsafe: UnsafeAPI = new UnsafeAPI {
       override def nextBoolean()(implicit unsafe: Unsafe[Any]): Boolean =
         scala.util.Random.nextBoolean()
 
@@ -323,7 +323,7 @@ object Random extends Serializable {
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
       ZIO.succeedUnsafe(implicit u => unsafe.shuffle(collection))
 
-    private[zio] override val unsafe: UnsafeAPI = new UnsafeAPI {
+    @transient private[zio] override val unsafe: UnsafeAPI = new UnsafeAPI {
       override def nextBoolean()(implicit unsafe: Unsafe[Any]): Boolean =
         random.nextBoolean()
 

@@ -129,7 +129,7 @@ object System extends Serializable {
     ): IO[Throwable, Option[String]] =
       ZIO.attemptUnsafe(implicit u => unsafe.propertyOrOption(prop, alt))
 
-    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+    @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
       override def env(variable: String)(implicit unsafe: Unsafe[Any]): Option[String] =
         Option(JSystem.getenv(variable))
 

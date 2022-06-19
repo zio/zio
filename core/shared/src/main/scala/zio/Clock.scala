@@ -107,7 +107,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
 
-    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+    @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
       override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long = {
         val inst = instant()
         unit match {
@@ -178,7 +178,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(JavaClock(ZoneId.systemDefault))
     }
 
-    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+    @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
       override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long = {
         val inst = instant()
         // A nicer solution without loss of precision or range would be
