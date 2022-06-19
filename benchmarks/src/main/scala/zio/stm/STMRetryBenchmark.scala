@@ -33,7 +33,5 @@ class STMRetryBenchmark {
 
   @Benchmark
   def mixedTransactions(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(long.race(short))
-    }
+    unsafeRun(long.race(short))
 }

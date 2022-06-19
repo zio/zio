@@ -2571,14 +2571,14 @@ object ZIOSpec extends ZIOBaseSpec {
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
                       Unsafe.unsafeCompat { implicit u =>
-                        runtime.unsafeRunAsync {
+                        runtime.unsafe.fork {
                           step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                         }
                       }
                     }
                     .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
                       Unsafe.unsafeCompat { implicit u =>
-                        runtime.unsafeRunAsync {
+                        runtime.unsafe.fork {
                           step.succeed(())
                         }
                       }

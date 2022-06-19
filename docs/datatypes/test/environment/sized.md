@@ -67,9 +67,9 @@ The return type require the _Sized_ service. Therefore, to run this effect, we n
 
 ```scala mdoc:silent:nest
 Unsafe.unsafe { implicit u =>
-    zio.Runtime.default.unsafeRun(
+    zio.Runtime.default.unsafe.run(
       samples.provide(Sized.live(100)) 
-    )
+    ).getOrThrowFiberFailure
 }
 // Sample Output: List(34, 44, 89, 14, 15)
 ```

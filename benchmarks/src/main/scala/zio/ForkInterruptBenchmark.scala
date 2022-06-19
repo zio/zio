@@ -36,7 +36,7 @@ class ForkInterruptBenchmark {
       else ZIO.unit
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafeRun(loop(0))
+      runtime.unsafe.run(loop(0)).getOrThrowFiberFailure
     }
   }
 }

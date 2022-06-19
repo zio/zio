@@ -17,15 +17,11 @@ private[this] class ReduceAllParBenchmark {
 
   @Benchmark
   def reduceAllPar(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(ZIO.reduceAllPar(a, as)((_, _) => ()))
-    }
+    unsafeRun(ZIO.reduceAllPar(a, as)((_, _) => ()))
 
   @Benchmark
   def naiveReduceAllPar(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(naiveReduceAllPar(a, as)((_, _) => ()))
-    }
+    unsafeRun(naiveReduceAllPar(a, as)((_, _) => ()))
 
   def naiveReduceAllPar[R, R1 <: R, E, A](a: ZIO[R, E, A], as: Iterable[ZIO[R1, E, A]])(
     f: (A, A) => A

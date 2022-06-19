@@ -3426,7 +3426,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       pull    <- toPull
     } yield {
       def unfoldPull(implicit unsafe: Unsafe[Any]): Iterator[Either[E, A]] =
-        runtime.unsafeRunSync(pull) match {
+        runtime.unsafe.run(pull) match {
           case Exit.Success(chunk) => chunk.iterator.map(Right(_)) ++ unfoldPull
           case Exit.Failure(cause) =>
             cause.failureOrCause match {

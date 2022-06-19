@@ -22,9 +22,9 @@ class TSetOpsBenchmarks {
   @Setup(Level.Trial)
   def setup(): Unit = {
     val data = (1 to size).toList
-    set = Unsafe.unsafeCompat(implicit u => unsafeRun(TSet.fromIterable(data).commit))
+    set = unsafeRun(TSet.fromIterable(data).commit)
   }
 
   @Benchmark
-  def union(): Unit = Unsafe.unsafeCompat(implicit u => unsafeRun(set.union(set).commit))
+  def union(): Unit = unsafeRun(set.union(set).commit)
 }

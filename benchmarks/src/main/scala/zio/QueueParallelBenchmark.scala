@@ -28,7 +28,7 @@ class QueueParallelBenchmark {
   var zioTQ: TQueue[Int]                    = _
 
   @Setup(Level.Trial)
-  def createQueues(): Unit = Unsafe.unsafeCompat { implicit u =>
+  def createQueues(): Unit = {
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = cats.effect.std.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
     zioTQ = unsafeRun(TQueue.bounded(totalSize).commit)
@@ -44,9 +44,7 @@ class QueueParallelBenchmark {
       _      <- takes.join
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io)
-    }
+    unsafeRun(io)
   }
 
   @Benchmark
@@ -59,9 +57,7 @@ class QueueParallelBenchmark {
       _      <- takes.join
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io)
-    }
+    unsafeRun(io)
   }
 
   @Benchmark

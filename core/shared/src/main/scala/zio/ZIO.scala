@@ -2647,7 +2647,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-             val f = register(k => Unsafe.unsafeCompat(implicit u => r.unsafeRunAsync(k.intoPromise(p))))
+             val f = register(k =>
+               Unsafe.unsafeCompat { implicit u =>
+                 r.unsafe.fork(k.intoPromise(p))
+               }
+             )
 
              restore(f.catchAllCause(p.refailCause)).fork *> restore(p.await)
            }
@@ -4303,7 +4307,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def stateful[R]: StatefulPartiallyApplied[R] =
     new StatefulPartiallyApplied[R]
 
-  private[zio] def succeedUnsafe[A](a: Unsafe[Any] => A)(implicit trace: Trace): UIO[A] =
+  def succeedBlockingUnsafe[A](a: Unsafe[Any] => A)(implicit trace: Trace): UIO[A] =
+    ZIO.blocking(ZIO.succeedUnsafe(a))
+
+  def succeedUnsafe[A](a: Unsafe[Any] => A)(implicit trace: Trace): UIO[A] =
     ZIO.succeed(Unsafe.unsafeCompat(a))
 
   /**
@@ -5728,6 +5735,12 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     case Success(value) => value
     case Failure(cause) => orElse(cause)
   }
+
+  final def getOrThrow(implicit ev: E <:< Throwable): A =
+    getOrElse(cause => throw cause.squashTrace)
+
+  final def getOrThrowFiberFailure: A =
+    getOrElse(c => throw FiberFailure(c))
 
   /**
    * Determines if the result is a failure.

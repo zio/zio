@@ -59,22 +59,24 @@ final case class TestRunner[R, E](
      * An unsafe, synchronous run of the specified spec.
      */
     def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Unit =
-      runtime.unsafeRun(self.run(spec).provideLayer(bootstrap))
+      runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure
 
     /**
      * An unsafe, asynchronous run of the specified spec.
      */
-    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe[Any]): Unit =
-      runtime.unsafeRunAsyncWith(self.run(spec).provideLayer(bootstrap)) {
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe[Any]): Unit = {
+      val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
+      fiber.addObserver {
         case Exit.Success(_) => k
         case Exit.Failure(c) => throw FiberFailure(c)
       }
+    }
 
     /**
      * An unsafe, synchronous run of the specified spec.
      */
     def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[Nothing, Unit] =
-      runtime.unsafeRunSync(self.run(spec).unit.provideLayer(bootstrap))
+      runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
   }
 
   private[test] def buildRuntime(implicit

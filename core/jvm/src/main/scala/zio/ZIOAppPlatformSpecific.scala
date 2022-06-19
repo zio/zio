@@ -16,7 +16,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
         bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafeRun {
+      runtime.unsafe.run {
         (for {
           runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
           _       <- installSignalHandlers(runtime)
@@ -34,7 +34,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
                       "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
                   )
                 } else {
-                  try runtime.unsafeRunSync(fiber.interrupt)
+                  try runtime.unsafe.run(fiber.interrupt)
                   catch {
                     case _: Throwable =>
                   }
@@ -46,7 +46,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
           result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
           _      <- exit(result)
         } yield ()).provideLayer(newLayer)
-      }
+      }.getOrThrowFiberFailure
     }
   }
 

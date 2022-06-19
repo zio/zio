@@ -21,13 +21,11 @@ class SingleRefBenchmark {
 
   @Benchmark
   def refContention(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(for {
-        ref   <- Ref.make(0)
-        fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(ref.update(_ + 1))))
-        _     <- fiber.join
-      } yield ())
-    }
+    unsafeRun(for {
+      ref   <- Ref.make(0)
+      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(ref.update(_ + 1))))
+      _     <- fiber.join
+    } yield ())
 
   @Benchmark
   def trefContention(): Unit =

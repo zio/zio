@@ -70,65 +70,73 @@ trait Random extends Serializable { self =>
 
   private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
     def nextBoolean()(implicit unsafe: Unsafe[Any]): Boolean =
-      Runtime.default.unsafeRun(self.nextBoolean(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextBoolean(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextBytes(length: Int)(implicit unsafe: Unsafe[Any]): Chunk[Byte] =
-      Runtime.default.unsafeRun(self.nextBytes(length)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextBytes(length)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextDouble()(implicit unsafe: Unsafe[Any]): Double =
-      Runtime.default.unsafeRun(self.nextDouble(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextDouble(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit
       unsafe: Unsafe[Any]
     ): Double =
-      Runtime.default.unsafeRun(self.nextDoubleBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe
+        .run(self.nextDoubleBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
 
     def nextFloat()(implicit unsafe: Unsafe[Any]): Float =
-      Runtime.default.unsafeRun(self.nextFloat(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextFloat(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit
       unsafe: Unsafe[Any]
     ): Float =
-      Runtime.default.unsafeRun(self.nextFloatBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe
+        .run(self.nextFloatBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
 
     def nextGaussian()(implicit unsafe: Unsafe[Any]): Double =
-      Runtime.default.unsafeRun(self.nextGaussian(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextGaussian(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextInt()(implicit unsafe: Unsafe[Any]): Int =
-      Runtime.default.unsafeRun(self.nextInt(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextInt(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextIntBetween(minInclusive: Int, maxExclusive: Int)(implicit unsafe: Unsafe[Any]): Int =
-      Runtime.default.unsafeRun(self.nextIntBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe
+        .run(self.nextIntBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
 
     def nextIntBounded(n: Int)(implicit unsafe: Unsafe[Any]): Int =
-      Runtime.default.unsafeRun(self.nextIntBounded(n)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextIntBounded(n)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextLong()(implicit unsafe: Unsafe[Any]): Long =
-      Runtime.default.unsafeRun(self.nextLong(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextLong(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe[Any]): Long =
-      Runtime.default.unsafeRun(self.nextLongBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe
+        .run(self.nextLongBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
 
     def nextLongBounded(n: Long)(implicit unsafe: Unsafe[Any]): Long =
-      Runtime.default.unsafeRun(self.nextLongBounded(n)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextLongBounded(n)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextPrintableChar()(implicit unsafe: Unsafe[Any]): Char =
-      Runtime.default.unsafeRun(self.nextPrintableChar(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextPrintableChar(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextString(length: Int)(implicit unsafe: Unsafe[Any]): String =
-      Runtime.default.unsafeRun(self.nextString(length)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextString(length)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nextUUID()(implicit unsafe: Unsafe[Any]): UUID =
-      Runtime.default.unsafeRun(self.nextUUID(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nextUUID(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def setSeed(seed: Long)(implicit unsafe: Unsafe[Any]): Unit =
-      Runtime.default.unsafeRun(self.setSeed(seed)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.setSeed(seed)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
       bf: BuildFrom[Collection[A], A, Collection[A]],
       unsafe: Unsafe[Any]
     ): Collection[A] =
-      Runtime.default.unsafeRun(self.shuffle(collection)(bf, Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.shuffle(collection)(bf, Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
   }
 }
 

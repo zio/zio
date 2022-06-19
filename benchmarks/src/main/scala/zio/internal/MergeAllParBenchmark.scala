@@ -17,15 +17,11 @@ private[this] class MergeAllParBenchmark {
 
   @Benchmark
   def mergeAllPar(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(ZIO.mergeAllPar(in)(())((_, _) => ()))
-    }
+    unsafeRun(ZIO.mergeAllPar(in)(())((_, _) => ()))
 
   @Benchmark
   def naiveMergeAllPar(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(naiveMergeAllPar(in)(())((_, _) => ()))
-    }
+    unsafeRun(naiveMergeAllPar(in)(())((_, _) => ()))
 
   private def naiveMergeAllPar[R, E, A, B](
     in: Iterable[ZIO[R, E, A]]

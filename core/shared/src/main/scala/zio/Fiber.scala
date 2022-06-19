@@ -368,7 +368,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] =
           Unsafe.unsafeCompat { implicit u =>
-            runtime.unsafeRunToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
+            runtime.unsafe.runToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
           }
       }
     }.uninterruptible
@@ -508,6 +508,13 @@ object Fiber extends FiberPlatformSpecific {
      * The trace of the fiber.
      */
     def trace(implicit trace: Trace): UIO[StackTrace]
+
+    /**
+     * Adds an observer to the list of observers.
+     */
+    def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe[Any]): Unit
+
+    def getFiberRefs()(implicit unsafe: Unsafe[Any]): FiberRefs
   }
 
   private[zio] object Runtime {

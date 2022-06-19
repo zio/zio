@@ -48,19 +48,19 @@ trait Console extends Serializable { self =>
 
   private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
     def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      Runtime.default.unsafeRun(self.print(line)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.print(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      Runtime.default.unsafeRun(self.printError(line)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.printError(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      Runtime.default.unsafeRun(self.printLine(line)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.printLine(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
-      Runtime.default.unsafeRun(self.printLineError(line)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.printLineError(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def readLine()(implicit unsafe: Unsafe[Any]): String =
-      Runtime.default.unsafeRun(self.readLine(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.readLine(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
   }
 }
 

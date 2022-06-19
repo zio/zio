@@ -58,22 +58,24 @@ trait Clock extends Serializable { self =>
 
   private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
     def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long =
-      Runtime.default.unsafeRun(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe[Any]): Long =
-      Runtime.default.unsafeRun(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
+      Runtime.default.unsafe
+        .run(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
 
     def currentDateTime()(implicit unsafe: Unsafe[Any]): OffsetDateTime =
-      Runtime.default.unsafeRun(self.currentDateTime(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.currentDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def instant()(implicit unsafe: Unsafe[Any]): Instant =
-      Runtime.default.unsafeRun(self.instant(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.instant(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def localDateTime()(implicit unsafe: Unsafe[Any]): LocalDateTime =
-      Runtime.default.unsafeRun(self.localDateTime(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.localDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def nanoTime()(implicit unsafe: Unsafe[Any]): Long =
-      Runtime.default.unsafeRun(self.nanoTime(Trace.empty))(Trace.empty, unsafe)
+      Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
   }
 }
 

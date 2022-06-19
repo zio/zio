@@ -43,7 +43,7 @@ abstract class BaseTestTask[T](
     try {
       val res: CancelableFuture[Unit] =
         Unsafe.unsafeCompat { implicit u =>
-          runtime.unsafeRunToFuture {
+          runtime.unsafe.runToFuture {
             run(zTestHandler)
           }
         }

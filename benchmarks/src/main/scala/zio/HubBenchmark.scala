@@ -375,9 +375,7 @@ class HubBenchmarks {
       _ <- zioJoinAll(subscribers)
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io)
-    }
+    unsafeRun(io)
   }
 
   def zioSequential(makeHub: UIO[ZIOHubLike[Int]]): Int = {
@@ -398,9 +396,7 @@ class HubBenchmarks {
       _ <- zioJoinAll(subscribers)
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io)
-    }
+    unsafeRun(io)
   }
 
   def zioForkAll[R, E, A](as: List[ZIO[R, E, A]]): ZIO[R, Nothing, List[Fiber[E, A]]] =

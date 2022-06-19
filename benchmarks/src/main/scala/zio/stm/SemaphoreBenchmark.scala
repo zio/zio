@@ -22,13 +22,11 @@ class SemaphoreBenchmark {
 
   @Benchmark
   def tsemaphoreContention(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(for {
-        sem   <- TSemaphore.make(fibers / 2L).commit
-        fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeedNow(1)))))
-        _     <- fiber.join
-      } yield ())
-    }
+    unsafeRun(for {
+      sem   <- TSemaphore.make(fibers / 2L).commit
+      fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeedNow(1)))))
+      _     <- fiber.join
+    } yield ())
 
   @Benchmark
   def semaphoreCatsContention(): Unit = {

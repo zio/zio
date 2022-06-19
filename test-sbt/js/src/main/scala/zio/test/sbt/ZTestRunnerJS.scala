@@ -94,7 +94,7 @@ sealed class ZTestTask(
 
   def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
     Unsafe.unsafeCompat { implicit u =>
-      Runtime.default.unsafeRunAsyncWith {
+      val fiber = Runtime.default.unsafe.fork {
         val logic =
           ZIO.consoleWith { console =>
             (for {
@@ -124,7 +124,8 @@ sealed class ZTestTask(
               )
           }
         logic
-      } { exit =>
+      }
+      fiber.addObserver { exit =>
         exit match {
           case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
           case _                   =>

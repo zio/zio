@@ -40,7 +40,7 @@ class ForkJoinBenchmark {
     val forkFiber     = ZIO.unit.forkDaemon
     val forkAllFibers = ZIO.foreach(range)(_ => forkFiber)
 
-    val _ = Unsafe.unsafeCompat { implicit u =>
+    val _ =
       unsafeRun(
         forkAllFibers.flatMap(fibers =>
           fibers.foldLeft[UIO[Any]](ZIO.unit) { case (acc, fiber) =>
@@ -48,7 +48,6 @@ class ForkJoinBenchmark {
           }
         )
       )
-    }
   }
 
   @Benchmark

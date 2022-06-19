@@ -101,12 +101,12 @@ object RTSSpec extends ZIOBaseSpec {
 
       (0 until 1000).foreach { _ =>
         Unsafe.unsafeCompat { implicit u =>
-          rts.unsafeRun {
+          rts.unsafe.run {
             ZIO.async[Any, Nothing, Int] { k =>
               val c: Callable[Unit] = () => k(ZIO.succeed(1))
               val _                 = e.submit(c)
             }
-          }
+          }.getOrThrowFiberFailure
         }
       }
 

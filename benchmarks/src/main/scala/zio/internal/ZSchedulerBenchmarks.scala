@@ -166,9 +166,7 @@ class ZSchedulerBenchmarks {
       _       <- promise.await
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.onExecutor(executor))
-    }
+    unsafeRun(io.onExecutor(executor))
   }
 
   def zioForkMany(executor: zio.Executor): Int = {
@@ -181,9 +179,7 @@ class ZSchedulerBenchmarks {
       _       <- promise.await
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.onExecutor(executor))
-    }
+    unsafeRun(io.onExecutor(executor))
   }
 
   def zioPingPong(executor: zio.Executor): Int = {
@@ -204,9 +200,7 @@ class ZSchedulerBenchmarks {
       _       <- promise.await
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.onExecutor(executor))
-    }
+    unsafeRun(io.onExecutor(executor))
   }
 
   def zioYieldMany(executor: zio.Executor): Int = {
@@ -220,8 +214,6 @@ class ZSchedulerBenchmarks {
       _ <- promise.await
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.onExecutor(executor))
-    }
+    unsafeRun(io.onExecutor(executor))
   }
 }

@@ -24,15 +24,13 @@ class BubbleSortBenchmark {
   def zioBubbleSort(): Unit = {
     import ZIOArray._
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(
-        for {
-          array <- ZIO.succeed[Array[Int]](createTestArray)
-          _     <- bubbleSort[Int](_ <= _)(array)
-          _     <- ZIO.succeed[Unit](assertSorted(array))
-        } yield ()
-      )
-    }
+    unsafeRun(
+      for {
+        array <- ZIO.succeed[Array[Int]](createTestArray)
+        _     <- bubbleSort[Int](_ <= _)(array)
+        _     <- ZIO.succeed[Unit](assertSorted(array))
+      } yield ()
+    )
   }
   @Benchmark
   def catsBubbleSort(): Unit = {

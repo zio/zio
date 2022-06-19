@@ -16,15 +16,11 @@ private[this] class ForeachParDiscardBenchmark {
 
   @Benchmark
   def foreachParDiscard(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(ZIO.foreachParDiscard(as)(_ => ZIO.unit))
-    }
+    unsafeRun(ZIO.foreachParDiscard(as)(_ => ZIO.unit))
 
   @Benchmark
   def naiveForeachParDiscard(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(naiveForeachParDiscard(as)(_ => ZIO.unit))
-    }
+    unsafeRun(naiveForeachParDiscard(as)(_ => ZIO.unit))
 
   private def naiveForeachParDiscard[R, E, A](
     as: Iterable[A]

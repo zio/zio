@@ -101,9 +101,7 @@ class DeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(descend(0))
-    }
+    unsafeRun(descend(0))
   }
 
   @Benchmark
@@ -113,9 +111,7 @@ class DeepAttemptBenchmark {
       else if (n == halfway) descend(n + 1).fold[BigInt](_ => 50, identity)
       else descend(n + 1).map(_ + n)
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(descend(0))
-    }
+    unsafeRun(descend(0))
   }
 
   @Benchmark

@@ -34,9 +34,7 @@ class BlockingBenchmark {
       _ <- repeat(size)(ZIO.blocking(ZIO.unit))
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.exitCode)
-    }
+    unsafeRun(io.exitCode)
   }
 
   @Benchmark
@@ -46,9 +44,7 @@ class BlockingBenchmark {
       _ <- ZIO.blocking(repeat(size)(ZIO.unit))
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.exitCode)
-    }
+    unsafeRun(io.exitCode)
   }
 
   @Benchmark
@@ -58,8 +54,6 @@ class BlockingBenchmark {
       _ <- ZIO.blocking(repeat(size)(ZIO.blocking(ZIO.unit)))
     } yield 0
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(io.exitCode)
-    }
+    unsafeRun(io.exitCode)
   }
 }

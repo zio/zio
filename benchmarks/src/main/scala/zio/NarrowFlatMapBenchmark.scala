@@ -93,7 +93,7 @@ class NarrowFlatMapBenchmark {
       else ZIO.succeed(i)
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafeRun(ZIO.succeed(0).flatMap[Any, Nothing, Int](loop))
+      runtime.unsafe.run(ZIO.succeed(0).flatMap[Any, Nothing, Int](loop)).getOrThrowFiberFailure
     }
   }
 

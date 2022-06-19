@@ -53,7 +53,7 @@ Person("Alex", 31, "0123").diff(Person("Alex", 31, "124"))
 def toHex(chunk: Chunk[Byte]): String =
   chunk.toArray.map("%02X".format(_)).mkString
 
-zio.Runtime.default.unsafeRun(
+zio.Runtime.default.unsafe.run(
   ZStream
     .succeed(Person("Thomas", 23, "2354"))
     .transduce(
@@ -61,7 +61,7 @@ zio.Runtime.default.unsafeRun(
     )
     .runCollect
     .flatMap(x => putStrLn(s"Encoded data with protobuf codec: ${toHex(x)}"))
-)
+).getOrThrowFiberFailure
 ```
 
 ## Resources

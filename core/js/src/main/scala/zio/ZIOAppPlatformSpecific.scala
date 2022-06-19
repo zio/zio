@@ -16,7 +16,7 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
         bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafeRunAsync {
+      runtime.unsafe.fork {
         (for {
           runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
           _       <- installSignalHandlers(runtime)

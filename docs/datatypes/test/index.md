@@ -31,9 +31,9 @@ import zio._
 import scala.Predef.assert
 
 val random = Unsafe.unsafe {
-  Runtime.default.unsafeRun(
+  Runtime.default.unsafe.run(
     Random.nextIntBounded(10)
-  )
+  ).getOrThrowFiberFailure
 }
 
 assert(random >= 0)

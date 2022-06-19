@@ -91,7 +91,7 @@ class BroadFlatMapBenchmark {
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => ZIO.succeed(a + b)))
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafeRun(fib(depth))
+      runtime.unsafe.run(fib(depth)).getOrThrowFiberFailure
     }
   }
 

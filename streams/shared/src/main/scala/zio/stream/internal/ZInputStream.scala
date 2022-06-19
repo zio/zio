@@ -112,7 +112,7 @@ private[zio] object ZInputStream {
     trace: Trace
   ): ZInputStream = {
     def unfoldPull(implicit unsafe: Unsafe[Any]): Iterator[Chunk[Byte]] =
-      runtime.unsafeRunSync(pull) match {
+      runtime.unsafe.run(pull) match {
         case Exit.Success(chunk) => Iterator.single(chunk) ++ unfoldPull
         case Exit.Failure(cause) =>
           cause.failureOrCause match {

@@ -72,9 +72,7 @@ class StreamBenchmarks {
     val sink   = ZSink.foldLeftChunks(0L)((s, as: Chunk[Long]) => as.fold(s)(_ + _))
     val result = stream.run(sink)
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -112,9 +110,7 @@ class StreamBenchmarks {
       }
       .runLast
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -148,9 +144,7 @@ class StreamBenchmarks {
       .sliding(100, 1)
       .runCount
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -184,9 +178,7 @@ class StreamBenchmarks {
       .takeWhile(i => (i < (chunkCount * chunkSize) / 2))
       .runLast
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -220,9 +212,7 @@ class StreamBenchmarks {
       .groupedWithin(100, Duration(1, TimeUnit.SECONDS))
       .runCount
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -245,9 +235,7 @@ class StreamBenchmarks {
       .groupAdjacentBy(_ % 2)
       .runCount
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -260,9 +248,7 @@ class StreamBenchmarks {
       }
       .runCount
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -296,9 +282,7 @@ class StreamBenchmarks {
       .mapZIOPar(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
       .runCount
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -332,9 +316,7 @@ class StreamBenchmarks {
       .mapZIOParUnordered(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
       .runCount
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
   @Benchmark
@@ -367,9 +349,7 @@ class StreamBenchmarks {
     val s2     = ZStream.fromChunks(chunks: _*).map(_ * 2L)
     val result = s1.zipWith(s2)(_ + _).runSum
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(result)
-    }
+    unsafeRun(result)
   }
 
 }
@@ -481,9 +461,7 @@ class CSVStreamBenchmarks {
       }
       .mapConcatChunk(identity)
 
-    Unsafe.unsafeCompat { implicit u =>
-      unsafeRun(stream.run(ZSink.drain))
-    }
+    unsafeRun(stream.run(ZSink.drain))
   }
 }
 

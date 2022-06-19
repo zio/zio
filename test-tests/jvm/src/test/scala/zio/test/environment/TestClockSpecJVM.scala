@@ -22,10 +22,10 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                      new Runnable {
                        def run(): Unit =
                          Unsafe.unsafeCompat { implicit u =>
-                           runtime.unsafeRun {
+                           runtime.unsafe.run {
                              clock.sleep(2.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                           }
+                           }.getOrThrowFiberFailure
                          }
                      },
                      3,
@@ -49,10 +49,10 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                      new Runnable {
                        def run(): Unit =
                          Unsafe.unsafeCompat { implicit u =>
-                           runtime.unsafeRun {
+                           runtime.unsafe.run {
                              clock.sleep(5.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                           }
+                           }.getOrThrowFiberFailure
                          }
                      },
                      3,
@@ -76,10 +76,10 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                      new Runnable {
                        def run(): Unit =
                          Unsafe.unsafeCompat { implicit u =>
-                           runtime.unsafeRun {
+                           runtime.unsafe.run {
                              clock.sleep(2.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                           }
+                           }.getOrThrowFiberFailure
                          }
                      },
                      3,
@@ -103,10 +103,10 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                           new Runnable {
                             def run(): Unit =
                               Unsafe.unsafeCompat { implicit u =>
-                                runtime.unsafeRun {
+                                runtime.unsafe.run {
                                   clock.sleep(2.seconds) *>
                                     clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                                }
+                                }.getOrThrowFiberFailure
                               }
                           },
                           3,
