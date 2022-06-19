@@ -215,7 +215,7 @@ final class Promise[E, A] private (
     def done(io: IO[E, A])(implicit unsafe: Unsafe[Any]): Unit
   }
 
-  private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+  @transient private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
     def done(io: IO[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
       var retry: Boolean                 = true
       var joiners: List[IO[E, A] => Any] = null

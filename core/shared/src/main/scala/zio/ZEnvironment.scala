@@ -47,7 +47,7 @@ final class ZEnvironment[+R] private (
    */
   def get[A >: R](implicit tag: Tag[A]): A =
     Unsafe.unsafeCompat { implicit u =>
-      unsafe.get(tag.tag)
+      unsafe.get[A](tag.tag)
     }
 
   /**

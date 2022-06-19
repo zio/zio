@@ -306,7 +306,7 @@ object Ref extends Serializable {
       def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A
     }
 
-    val unsafe: UnsafeAPI = new UnsafeAPI {
+    @transient lazy val unsafe: UnsafeAPI = new UnsafeAPI {
       def get(implicit unsafe: Unsafe[Any]): A =
         value.get
 

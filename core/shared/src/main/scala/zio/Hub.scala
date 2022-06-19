@@ -399,7 +399,9 @@ object Hub {
           ZIO.suspendSucceed {
             if (shutdownFlag.get) ZIO.interrupt
             else if (hub.publish(a)) {
-              strategy.completeSubscribers(hub, subscribers)
+              Unsafe.unsafeCompat { implicit unsafe =>
+                strategy.completeSubscribers(hub, subscribers)
+              }
               ZIO.succeedNow(true)
             } else {
               strategy.handleSurplus(hub, subscribers, Chunk(a), shutdownFlag)
@@ -409,13 +411,15 @@ object Hub {
           ZIO.suspendSucceed {
             if (shutdownFlag.get) ZIO.interrupt
             else {
-              val surplus = self.publishAll(hub, as)
-              strategy.completeSubscribers(hub, subscribers)
-              if (surplus.isEmpty) ZIO.succeedNow(Chunk.empty)
-              else
-                strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag).map { published =>
-                  if (published) Chunk.empty else surplus
-                }
+              Unsafe.unsafeCompat { implicit unsafe =>
+                val surplus = self.publishAll(hub, as)
+                strategy.completeSubscribers(hub, subscribers)
+                if (surplus.isEmpty) ZIO.succeedNow(Chunk.empty)
+                else
+                  strategy.handleSurplus(hub, subscribers, surplus, shutdownFlag).map { published =>
+                    if (published) Chunk.empty else surplus
+                  }
+              }
             }
           }
         def shutdown(implicit trace: Trace): UIO[Unit] =
