@@ -591,6 +591,33 @@ object RuntimeBootstrapTests {
       } yield assert(cause1.size == 1 && cause2.size == 2)
     }
 
+  def stackRegression1() =
+    test("return a `CompletableFuture` that fails if `IO` fails") {
+      val error = new Exception("IOs also can fail")
+      val failed = ZIO.fail(error).catchAll { e =>
+        println("about to throw: " + e)
+        ZIO.attempt(throw e)
+      }
+
+      for {
+        exit <- failed.exit
+      } yield assert(exit == Exit.fail(error))
+    }
+
+  def zipParInterruption() =
+    test("zipPar is interruptible") {
+      for {
+        promise1 <- Promise.make[Nothing, Unit]
+        promise2 <- Promise.make[Nothing, Unit]
+        left      = promise1.succeed(()) *> ZIO.never
+        right     = promise2.succeed(()) *> ZIO.never
+        fiber    <- left.zipPar(right).fork
+        _        <- promise1.await
+        _        <- promise2.await
+        _        <- fiber.interrupt
+      } yield ()
+    }
+
   def main(args: Array[String]): Unit = {
     val _ = ()
     // runtimeFlags()
@@ -626,7 +653,9 @@ object RuntimeBootstrapTests {
     // yieldForked()
     // invisibleInterruption()
     // invisibleinterruptedCause()
-    accretiveInterruptions()
+    // accretiveInterruptions()
+    stackRegression1()
+    //zipParInterruption()
   }
 
 }

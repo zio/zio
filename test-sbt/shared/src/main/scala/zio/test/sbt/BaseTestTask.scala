@@ -29,13 +29,11 @@ abstract class BaseTestTask[T](
   private[zio] def run(
     eventHandlerZ: ZTestEventHandler
   )(implicit trace: Trace): ZIO[Any, Throwable, Unit] =
-    ZIO.consoleWith { console =>
-      (for {
-        summary <- spec.runSpecInfallible(spec.spec, args, console, runtime, eventHandlerZ)
-        _       <- sendSummary.provideEnvironment(ZEnvironment(summary))
-      } yield ())
-        .provideLayer(sharedFilledTestLayer)
-    }
+    (for {
+      summary <- spec.runSpecWithSharedRuntimeLayer(spec.spec, args, runtime, eventHandlerZ)
+      _       <- sendSummary.provideEnvironment(ZEnvironment(summary))
+    } yield ())
+      .provideLayer(sharedFilledTestLayer)
 
   override def execute(eventHandler: EventHandler, loggers: Array[Logger]): Array[Task] = {
     implicit val trace = Trace.empty

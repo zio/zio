@@ -7,11 +7,11 @@ import java.util.concurrent.RejectedExecutionException
 import scala.concurrent.ExecutionContext
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {
-  val here: Boolean                             = true
-  def shutdown(): Unit                          = ()
-  def unsafeSubmit(runnable: Runnable): Boolean = submitResult
-  def yieldOpCount: Int                         = 1
-  def unsafeMetrics: None.type                  = None
+  val here: Boolean                                                     = true
+  def shutdown(): Unit                                                  = ()
+  def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean = submitResult
+  def yieldOpCount: Int                                                 = 1
+  def metrics(implicit unsafe: Unsafe[Any]): None.type                  = None
 }
 
 final class CheckPrintThrowable extends Throwable {

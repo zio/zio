@@ -454,7 +454,9 @@ object ZManagedSpec extends ZIOBaseSpec {
           runtime <- ZIO.runtime[Any]
           effects <- Ref.make(List[String]())
           closeable = ZIO.succeed(new AutoCloseable {
-                        def close(): Unit = runtime.unsafeRun(effects.update("Closed" :: _))
+                        def close(): Unit = Unsafe.unsafeCompat { implicit u =>
+                          runtime.unsafeRun(effects.update("Closed" :: _))
+                        }
                       })
           _      <- ZManaged.fromAutoCloseable(closeable).useDiscard(ZIO.unit)
           result <- effects.get

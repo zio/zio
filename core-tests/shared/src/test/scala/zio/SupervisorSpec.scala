@@ -29,14 +29,14 @@ object SupervisorSpec extends ZIOSpecDefault {
         new Supervisor[Any] {
           def value(implicit trace: zio.Trace): UIO[Any] =
             ZIO.unit
-          def unsafeOnStart[R, E, A](
+          def onStart[R, E, A](
             environment: ZEnvironment[R],
             effect: ZIO[R, E, A],
             parent: Option[Fiber.Runtime[Any, Any]],
             fiber: Fiber.Runtime[E, A]
-          ): Unit =
+          )(implicit unsafe: Unsafe[Any]): Unit =
             ()
-          def unsafeOnEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A]): Unit =
+          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit =
             ()
         }
       }

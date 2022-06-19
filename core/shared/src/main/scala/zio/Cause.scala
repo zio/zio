@@ -539,7 +539,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       causes match {
         case Nil => result
 
-        case Empty :: more                       => loop(more, fiberId, stackless, result)
+        case (_: Empty.type) :: more             => loop(more, fiberId, stackless, result)
         case Both(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
         case Stackless(cause, stackless) :: more => loop(cause :: more, fiberId, stackless, result)
         case Then(left, right) :: more           => loop(left :: right :: more, fiberId, stackless, result)
@@ -585,7 +585,7 @@ object Cause extends Serializable {
     def stacklessCase(context: Context, value: Z, stackless: Boolean): Z
   }
   object Folder {
-    final case object Size extends Folder[Any, Any, Int] {
+    case object Size extends Folder[Any, Any, Int] {
       def empty(context: Any): Int                                                   = 0
       def failCase(context: Any, error: Any, stackTrace: StackTrace): Int            = 1
       def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Int           = 1
@@ -738,8 +738,8 @@ object Cause extends Serializable {
         else loop(stack.head, stack.tail, parallel + fiberId, sequential)
       case Then(left, right) =>
         left match {
-          case Empty      => loop(right, stack, parallel, sequential)
-          case Then(l, r) => loop(Then(l, Then(r, right)), stack, parallel, sequential)
+          case (_: Empty.type) => loop(right, stack, parallel, sequential)
+          case Then(l, r)      => loop(Then(l, Then(r, right)), stack, parallel, sequential)
           case Both(l, r) =>
             loop(Both(Then(l, right), Then(r, right)), stack, parallel, sequential)
           case Stackless(c, _) => loop(Then(c, right), stack, parallel, sequential)

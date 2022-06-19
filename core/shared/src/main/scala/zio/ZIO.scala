@@ -4473,7 +4473,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.isFatalWith { isFatal =>
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => throw ZIOError(Cause.fail(t))
+        case t: Throwable if !isFatal(t) => throw ZIOError.Traced(Cause.fail(t))
       }
     }
 

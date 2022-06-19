@@ -33,9 +33,13 @@ class TMapContentionBenchmarks {
 
   @Benchmark
   def contentionMap(): Unit =
-    unsafeRun(mapUpdates)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(mapUpdates)
+    }
 
   @Benchmark
   def contentionRef(): Unit =
-    unsafeRun(refUpdates)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(refUpdates)
+    }
 }

@@ -61,7 +61,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     defs: Array[TaskDef],
     console: zio.Console
   )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
-    val testArgs = TestArgs.parse(args)
+    val testArgs        = TestArgs.parse(args)
+    val sharedSinkLayer = sinkLayer(console, ConsoleEventRenderer)
 
     val specTasks: Array[ZIOSpecAbstract] = defs.map(disectTask(_, testClassLoader))
     val sharedLayerFromSpecs: ZLayer[Any, Any, Any] =
@@ -70,7 +71,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
         .foldLeft(ZLayer.empty: ZLayer[ZIOAppArgs with zio.Scope, Any, Any])(_ +!+ _)
 
     val sharedLayer: ZLayer[Any, Any, ExecutionEventSink] =
-      sharedLayerFromSpecs +!+ sinkLayer(console, ConsoleEventRenderer)
+      sharedLayerFromSpecs +!+ sharedSinkLayer
 
     val runtime: zio.Runtime[ExecutionEventSink] =
       Unsafe.unsafeCompat { implicit u =>
