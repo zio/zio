@@ -285,16 +285,16 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               ) || (!trampoline.forceYield && (trampolines < FiberRuntime.MaxTrampolinesBeforeYield))
             ) {
               effect = trampoline.effect
-              stack = trampoline.stack.result()
+              stack = trampoline.stack.toChunk
             } else {
               tell(FiberMessage.YieldNow)
-              tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.result()))
+              tell(FiberMessage.Resume(trampoline.effect, trampoline.stack.toChunk))
 
               effect = null
             }
 
           case asyncJump: AsyncJump =>
-            val nextStack     = asyncJump.stack.result()
+            val nextStack     = asyncJump.stack.toChunk
             val alreadyCalled = new AtomicBoolean(false)
 
             // Store the stack & runtime flags inside the heap so we can access this information during suspension:
@@ -327,7 +327,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
             effect = null
 
           case traceGen: GenerateTrace =>
-            val nextStack  = traceGen.stack.result()
+            val nextStack  = traceGen.stack.toChunk
             val stackTrace = buildStackTrace(nextStack)
 
             effect = ZIO.succeedNow(stackTrace)
@@ -545,7 +545,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     var ops          = 0
 
     if (currentDepth >= 500) {
-      val builder = ChunkBuilder.make[EvaluationStep]()
+      val builder = GrowableArray.make[EvaluationStep](currentDepth)
 
       builder ++= stack
 
@@ -647,7 +647,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
                 }
 
             case effect: Async[_, _, _] =>
-              throw AsyncJump(effect.registerCallback, ChunkBuilder.make(), lastTrace, effect.blockingOn())
+              throw AsyncJump(effect.registerCallback, GrowableArray.make(currentDepth), lastTrace, effect.blockingOn())
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
               val updateFlags     = effect.update
@@ -695,7 +695,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               }
 
             case generateStackTrace: GenerateStackTrace =>
-              val builder = ChunkBuilder.make[EvaluationStep]()
+              val builder = GrowableArray.make[EvaluationStep](currentDepth)
 
               builder += EvaluationStep.UpdateTrace(generateStackTrace.trace)
 
@@ -787,7 +787,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               // then we need pop out to the very top in order to update
               // runtime flags globally:
               cur = if (currentDepth > 0) {
-                throw Trampoline(ZIO.unit, ChunkBuilder.make[EvaluationStep](), false)
+                throw Trampoline(ZIO.unit, GrowableArray.make[EvaluationStep](currentDepth), false)
               } else {
                 // We are at the top level, no need to update runtime flags
                 // globally:
@@ -822,7 +822,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
               }
 
             case yieldNow: ZIO.YieldNow =>
-              val builder = ChunkBuilder.make[EvaluationStep]()
+              val builder = GrowableArray.make[EvaluationStep](currentDepth)
 
               builder += EvaluationStep.UpdateTrace(yieldNow.trace)
 
