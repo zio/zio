@@ -3,7 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{FiberRefs, Runtime, RuntimeFlags, Task, UIO, URIO, ZEnvironment, ZIO}
+import zio.{FiberRefs, Runtime, RuntimeFlags, Task, UIO, Unsafe, URIO, ZEnvironment, ZIO}
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
