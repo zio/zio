@@ -32,7 +32,7 @@ class QueueChunkBenchmark {
 
   @Setup(Level.Trial)
   def setup(): Unit = {
-    queue = unsafeRun(Queue.bounded[Int](totalSize))
+    queue = Unsafe.unsafeCompat(implicit u => unsafeRun(Queue.bounded[Int](totalSize)))
     offerChunks = List.fill(parallelism) {
       repeat(totalSize * 1 / chunkSize * 1 / parallelism)(queue.offerAll(chunk))
     }
@@ -57,7 +57,9 @@ class QueueChunkBenchmark {
       _      <- takes.join
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -70,7 +72,9 @@ class QueueChunkBenchmark {
       _      <- takes.join
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -81,7 +85,9 @@ class QueueChunkBenchmark {
       _ <- repeat(totalSize)(queue.take)
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -92,6 +98,8 @@ class QueueChunkBenchmark {
       _ <- repeat(totalSize / chunkSize)(queue.takeBetween(chunkSize, chunkSize))
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 }

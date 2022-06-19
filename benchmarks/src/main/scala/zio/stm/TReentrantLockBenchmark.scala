@@ -107,7 +107,9 @@ class TReentrantLockBenchmark {
       _    <- ZIO.scoped(lock.readLock *> doWorkZIO())
     } yield ()
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)
@@ -117,7 +119,9 @@ class TReentrantLockBenchmark {
       _    <- ZIO.scoped(lock.writeLock.flatMap(_ => doWorkZIO()))
     } yield ()
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @CompilerControl(CompilerControl.Mode.DONT_INLINE)

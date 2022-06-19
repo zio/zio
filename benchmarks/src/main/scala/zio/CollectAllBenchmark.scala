@@ -50,21 +50,27 @@ class CollectAllBenchmark {
   def zioCollectAll(): Long = {
     val tasks  = (0 until count).map(_ => ZIO.succeed(1)).toList
     val result = ZIO.collectAll(tasks).map(_.sum.toLong)
-    unsafeRun(result)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(result)
+    }
   }
 
   @Benchmark
   def zioCollectAllPar(): Long = {
     val tasks  = (0 until count).map(_ => ZIO.succeed(1)).toList
     val result = ZIO.collectAllPar(tasks).map(_.sum.toLong)
-    unsafeRun(result)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(result)
+    }
   }
 
   @Benchmark
   def zioCollectAllParN(): Long = {
     val tasks  = (0 until count).map(_ => ZIO.succeed(1)).toList
     val result = ZIO.collectAllPar(tasks).map(_.sum.toLong).withParallelism(parallelism)
-    unsafeRun(result)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(result)
+    }
   }
 
   @Benchmark

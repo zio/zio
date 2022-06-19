@@ -41,7 +41,7 @@ class RegionBenchmark {
       if (n <= 1) uio
       else ZIO.suspendSucceed(nest(n - 1, uio)).ensuring(ZIO.unit)
 
-    val _ = unsafeRun(nest(nesting, ZIO.unit))
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(nest(nesting, ZIO.unit)))
   }
 
   @Benchmark
@@ -50,7 +50,7 @@ class RegionBenchmark {
       if (n <= 1) uio
       else ZIO.acquireReleaseWith(ZIO.unit)(_ => ZIO.unit)(_ => nest(n - 1, uio))
 
-    val _ = unsafeRun(nest(nesting, ZIO.unit))
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(nest(nesting, ZIO.unit)))
   }
 
   @Benchmark
@@ -59,7 +59,7 @@ class RegionBenchmark {
       if (n <= 1) uio
       else (ZIO.suspendSucceed(nest(n - 1, uio)): ZIO[Unit, Nothing, Unit]).provideEnvironment(ZEnvironment(()))
 
-    val _ = unsafeRun(nest(nesting, ZIO.unit))
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(nest(nesting, ZIO.unit)))
   }
 
   @Benchmark
@@ -68,7 +68,7 @@ class RegionBenchmark {
       if (n <= 1) uio
       else ZIO.suspendSucceed(nest(n - 1, uio)).uninterruptible
 
-    val _ = unsafeRun(nest(nesting, ZIO.unit))
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(nest(nesting, ZIO.unit)))
   }
 
   @Benchmark
@@ -82,7 +82,7 @@ class RegionBenchmark {
         else effect.interruptible
       }
 
-    val _ = unsafeRun(nest(nesting, ZIO.unit))
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(nest(nesting, ZIO.unit)))
   }
 
   @Benchmark
@@ -91,7 +91,7 @@ class RegionBenchmark {
       if (n <= 1) uio
       else ZIO.suspendSucceed(ZIO.uninterruptibleMask(restore => ZIO.unit *> restore(nest(n - 1, uio))))
 
-    val _ = unsafeRun(nest(nesting, ZIO.unit))
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(nest(nesting, ZIO.unit)))
   }
 
   @Benchmark

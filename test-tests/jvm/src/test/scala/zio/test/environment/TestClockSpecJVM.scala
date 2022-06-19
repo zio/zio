@@ -21,9 +21,11 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
-                         runtime.unsafeRun {
-                           clock.sleep(2.seconds) *>
-                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                         Unsafe.unsafeCompat { implicit u =>
+                           runtime.unsafeRun {
+                             clock.sleep(2.seconds) *>
+                               clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                           }
                          }
                      },
                      3,
@@ -46,9 +48,11 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
-                         runtime.unsafeRun {
-                           clock.sleep(5.seconds) *>
-                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                         Unsafe.unsafeCompat { implicit u =>
+                           runtime.unsafeRun {
+                             clock.sleep(5.seconds) *>
+                               clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                           }
                          }
                      },
                      3,
@@ -71,9 +75,11 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    scheduledExecutorService.scheduleWithFixedDelay(
                      new Runnable {
                        def run(): Unit =
-                         runtime.unsafeRun {
-                           clock.sleep(2.seconds) *>
-                             clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                         Unsafe.unsafeCompat { implicit u =>
+                           runtime.unsafeRun {
+                             clock.sleep(2.seconds) *>
+                               clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                           }
                          }
                      },
                      3,
@@ -96,9 +102,11 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                         scheduledExecutorService.scheduleAtFixedRate(
                           new Runnable {
                             def run(): Unit =
-                              runtime.unsafeRun {
-                                clock.sleep(2.seconds) *>
-                                  clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                              Unsafe.unsafeCompat { implicit u =>
+                                runtime.unsafeRun {
+                                  clock.sleep(2.seconds) *>
+                                    clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
+                                }
                               }
                           },
                           3,

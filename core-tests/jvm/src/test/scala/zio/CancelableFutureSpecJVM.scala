@@ -18,14 +18,18 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
         val tst =
           for {
             runtime <- ZIO.runtime[Any]
-            r       <- ZIO.fromFuture(_ => runtime.unsafeRunToFuture(ZIO.succeedNow(0)))
+            r <- ZIO.fromFuture { _ =>
+                   Unsafe.unsafeCompat { implicit u =>
+                     runtime.unsafeRunToFuture(ZIO.succeedNow(0))
+                   }
+                 }
           } yield assert(r)(equalTo(0))
 
         val executor = Executor.fromExecutionContext(
           ExecutionContext.fromExecutor(Executors.newSingleThreadScheduledExecutor())
         )
 
-        ZIO.runtime[Any].map(_.unsafeRun(tst.onExecutor(executor)))
+        ZIO.runtime[Any].map(runtime => Unsafe.unsafeCompat(implicit u => runtime.unsafeRun(tst.onExecutor(executor))))
       } @@ nonFlaky
     ) @@ zioTag(future)
 }

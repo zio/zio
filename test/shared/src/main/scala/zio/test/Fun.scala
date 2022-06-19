@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Executor, Runtime, RuntimeFlag, RuntimeFlags, URIO, ZIO, Trace}
+import zio.{Executor, Runtime, RuntimeFlag, RuntimeFlags, Trace, URIO, Unsafe, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -63,7 +63,13 @@ private[test] object Fun {
         ZIO.shift(executor) *> ZIO.unshift
       } { _ =>
         funRuntime[R].map { runtime =>
-          Fun(a => runtime.unsafeRun(f(a)), hash)
+          Fun(
+            a =>
+              Unsafe.unsafeCompat { implicit u =>
+                runtime.unsafeRun(f(a))
+              },
+            hash
+          )
         }
       }
     }

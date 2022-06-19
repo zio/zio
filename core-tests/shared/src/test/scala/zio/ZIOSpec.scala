@@ -2570,13 +2570,17 @@ object ZIOSpec extends ZIOBaseSpec {
           runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
-                      runtime.unsafeRunAsync {
-                        step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
+                      Unsafe.unsafeCompat { implicit u =>
+                        runtime.unsafeRunAsync {
+                          step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
+                        }
                       }
                     }
                     .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
-                      runtime.unsafeRunAsync {
-                        step.succeed(())
+                      Unsafe.unsafeCompat { implicit u =>
+                        runtime.unsafeRunAsync {
+                          step.succeed(())
+                        }
                       }
                     //never complete
                     })

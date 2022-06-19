@@ -74,7 +74,9 @@ class ForEachBenchmark {
       _ <- ZIO.foreachDiscard(ints)(ZIO.succeedNow(_).forkDaemon)
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -85,7 +87,9 @@ class ForEachBenchmark {
       _      <- ZIO.foreach(fibers)(_.await)
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -97,7 +101,9 @@ class ForEachBenchmark {
       value <- ref.get
     } yield value
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -107,6 +113,8 @@ class ForEachBenchmark {
       _ <- ZIO.foreachDiscard(ints)(_ => ZIO.unit)
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 }

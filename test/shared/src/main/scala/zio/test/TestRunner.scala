@@ -47,26 +47,35 @@ final case class TestRunner[R, E](
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
 
-  /**
-   * An unsafe, synchronous run of the specified spec.
-   */
-  def unsafeRun(spec: Spec[R, E])(implicit trace: Trace): Unit =
-    runtime.unsafeRun(run(spec).provideLayer(bootstrap))
+  trait UnsafeAPI {
+    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Unit
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe[Any]): Unit
+    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[Nothing, Unit]
+  }
 
-  /**
-   * An unsafe, asynchronous run of the specified spec.
-   */
-  def unsafeRunAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace): Unit =
-    runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
-      case Exit.Success(_) => k
-      case Exit.Failure(c) => throw FiberFailure(c)
-    }
+  val unsafe: UnsafeAPI = new UnsafeAPI {
 
-  /**
-   * An unsafe, synchronous run of the specified spec.
-   */
-  def unsafeRunSync(spec: Spec[R, E])(implicit trace: Trace): Exit[Nothing, Unit] =
-    runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
+    /**
+     * An unsafe, synchronous run of the specified spec.
+     */
+    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Unit =
+      runtime.unsafeRun(self.run(spec).provideLayer(bootstrap))
+
+    /**
+     * An unsafe, asynchronous run of the specified spec.
+     */
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe[Any]): Unit =
+      runtime.unsafeRunAsyncWith(self.run(spec).provideLayer(bootstrap)) {
+        case Exit.Success(_) => k
+        case Exit.Failure(c) => throw FiberFailure(c)
+      }
+
+    /**
+     * An unsafe, synchronous run of the specified spec.
+     */
+    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[Nothing, Unit] =
+      runtime.unsafeRunSync(self.run(spec).unit.provideLayer(bootstrap))
+  }
 
   private[test] def buildRuntime(implicit
     trace: Trace

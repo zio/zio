@@ -23,12 +23,14 @@ class ArrayFillBenchmark {
       if (i >= array.length) ZIO.unit
       else ZIO.succeed(array.update(i, i)).flatMap(_ => arrayFill(array)(i + 1))
 
-    unsafeRun(
-      for {
-        array <- ZIO.succeed[Array[Int]](createTestArray)
-        _     <- arrayFill(array)(0)
-      } yield ()
-    )
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(
+        for {
+          array <- ZIO.succeed[Array[Int]](createTestArray)
+          _     <- arrayFill(array)(0)
+        } yield ()
+      )
+    }
   }
 
   @Benchmark

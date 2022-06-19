@@ -18,41 +18,49 @@ object HubConcurrencyTests {
   )
   @State
   class ManyToManyTest {
-    val hub: Hub[Int]       = runtime.unsafeRun(Hub.bounded(2))
-    val left: Dequeue[Int]  = runtime.unsafeRun(Scope.global.extend[Any](hub.subscribe))
-    val right: Dequeue[Int] = runtime.unsafeRun(Scope.global.extend[Any](hub.subscribe))
-    var p1                  = 0
-    var p2                  = 0
-    var p3                  = 0
-    var p4                  = 0
+    val hub: Hub[Int] = Unsafe.unsafeCompat(implicit u => runtime.unsafeRun(Hub.bounded(2)))
+    val left: Dequeue[Int] = Unsafe.unsafeCompat { implicit u =>
+      runtime.unsafeRun(Scope.global.extend[Any](hub.subscribe))
+    }
+    val right: Dequeue[Int] = Unsafe.unsafeCompat { implicit u =>
+      runtime.unsafeRun(Scope.global.extend[Any](hub.subscribe))
+    }
+    var p1 = 0
+    var p2 = 0
+    var p3 = 0
+    var p4 = 0
 
     @Actor
-    def actor1(): Unit = {
+    def actor1(): Unit = Unsafe.unsafeCompat { implicit u =>
       runtime.unsafeRun(hub.publish(1))
       ()
     }
 
     @Actor
-    def actor2(): Unit = {
+    def actor2(): Unit = Unsafe.unsafeCompat { implicit u =>
       runtime.unsafeRun(hub.publish(2))
       ()
     }
 
     @Actor
     def actor3(): Unit =
-      runtime.unsafeRun {
-        left.take.zipWith(left.take) { (first, last) =>
-          p1 = first
-          p2 = last
+      Unsafe.unsafeCompat { implicit u =>
+        runtime.unsafeRun {
+          left.take.zipWith(left.take) { (first, last) =>
+            p1 = first
+            p2 = last
+          }
         }
       }
 
     @Actor
     def actor4(): Unit =
-      runtime.unsafeRun {
-        right.take.zipWith(right.take) { (first, last) =>
-          p3 = first
-          p4 = last
+      Unsafe.unsafeCompat { implicit u =>
+        runtime.unsafeRun {
+          right.take.zipWith(right.take) { (first, last) =>
+            p3 = first
+            p4 = last
+          }
         }
       }
 

@@ -40,6 +40,8 @@ class STMFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => STM.succeedNow(a + b)))
 
-    unsafeRun(fib(depth).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(fib(depth).commit)
+    }
   }
 }

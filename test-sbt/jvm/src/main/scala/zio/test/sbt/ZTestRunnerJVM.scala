@@ -17,7 +17,7 @@
 package zio.test.sbt
 
 import sbt.testing._
-import zio.{Scope, Trace, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Scope, Trace, Unsafe, ZIO, ZIOAppArgs, ZLayer}
 import zio.test.{ExecutionEventSink, Summary, TestArgs, ZIOSpecAbstract, sinkLayer}
 
 import java.util.concurrent.atomic.AtomicReference
@@ -73,7 +73,9 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
       sharedLayerFromSpecs +!+ sinkLayer(console, ConsoleEventRenderer)
 
     val runtime: zio.Runtime[ExecutionEventSink] =
-      zio.Runtime.unsafeFromLayer(sharedLayer)
+      Unsafe.unsafeCompat { implicit u =>
+        zio.Runtime.unsafeFromLayer(sharedLayer)
+      }
 
     defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
   }

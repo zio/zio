@@ -73,12 +73,12 @@ class UnsafeRunBenchmark {
 
   @Benchmark
   def zioLeft(): Unit = {
-    val _ = unsafeRun(leftZio)
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(leftZio))
   }
 
   @Benchmark
   def zioRight(): Unit = {
-    val _ = unsafeRun(rightZio)
+    val _ = Unsafe.unsafeCompat(implicit u => unsafeRun(rightZio))
   }
 
   @Benchmark

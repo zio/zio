@@ -28,11 +28,11 @@ class QueueSequentialBenchmark {
   // var monixQ: monix.catnap.ConcurrentQueue[MTask, Int] = _
 
   @Setup(Level.Trial)
-  def createQueues(): Unit = {
+  def createQueues(): Unit = Unsafe.unsafeCompat { implicit u =>
     zioQ = unsafeRun(Queue.bounded[Int](totalSize))
     fs2Q = cats.effect.std.Queue.bounded[CIO, Int](totalSize).unsafeRunSync()
     zioTQ = unsafeRun(TQueue.bounded(totalSize).commit)
-    // monixQ = monix.catnap.ConcurrentQueue.withConfig[MTask, Int](Bounded(totalSize), SPSC).runSyncUnsafe()
+  // monixQ = monix.catnap.ConcurrentQueue.withConfig[MTask, Int](Bounded(totalSize), SPSC).runSyncUnsafe()
   }
 
   @Benchmark
@@ -47,7 +47,9 @@ class QueueSequentialBenchmark {
       _ <- repeat(zioQ.take.unit, totalSize)
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark
@@ -62,7 +64,9 @@ class QueueSequentialBenchmark {
       _ <- repeat(zioTQ.take.unit.commit, totalSize)
     } yield 0
 
-    unsafeRun(io)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(io)
+    }
   }
 
   @Benchmark

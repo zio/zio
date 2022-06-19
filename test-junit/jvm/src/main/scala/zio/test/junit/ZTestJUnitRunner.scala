@@ -79,28 +79,32 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         traverse(filteredSpec, description)
       )
 
-    unsafeRun(
-      scoped
-        .provide(
-          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          ZIOAppArgs.empty,
-          spec.bootstrap
-        )
-    )
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(
+        scoped
+          .provide(
+            Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+            ZIOAppArgs.empty,
+            spec.bootstrap
+          )
+      )
+    }
     description
   }
 
   override def run(notifier: RunNotifier): Unit = {
-    val _ = zio.Runtime.default.unsafeRun {
+    val _ = Unsafe.unsafeCompat { implicit u =>
+      zio.Runtime.default.unsafeRun {
 
-      val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
-        instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-      spec
-        .runSpecInfallible(instrumented, TestArgs.empty, Console.ConsoleLive)
-        .provide(
-          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          ZIOAppArgs.empty
-        )
+        val instrumented: Spec[spec.Environment with TestEnvironment with ZIOAppArgs with Scope, Any] =
+          instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
+        spec
+          .runSpecInfallible(instrumented, TestArgs.empty, Console.ConsoleLive)
+          .provide(
+            Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+            ZIOAppArgs.empty
+          )
+      }
     }
   }
 

@@ -28,58 +28,84 @@ class TArrayOpsBenchmarks {
   def setup(): Unit = {
     val data = (1 to size).toList
     idx = size / 2
-    array = unsafeRun(TArray.fromIterable(data).commit)
+    array = Unsafe.unsafeCompat(implicit u => unsafeRun(TArray.fromIterable(data).commit))
   }
 
   @Benchmark
   def lookup(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => array(idx).commit))
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(ZIO.foreachDiscard(calls)(_ => array(idx).commit))
+    }
 
   @Benchmark
   def find(): Option[Int] =
-    unsafeRun(array.find(_ == size).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.find(_ == size).commit)
+    }
 
   @Benchmark
   def findSTM(): Option[Int] =
-    unsafeRun(array.findSTM(a => STM.succeedNow(a == size)).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.findSTM(a => STM.succeedNow(a == size)).commit)
+    }
 
   @Benchmark
   def fold(): Int =
-    unsafeRun(array.fold(0)(_ + _).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.fold(0)(_ + _).commit)
+    }
 
   @Benchmark
   def foldSTM(): Int =
-    unsafeRun(array.foldSTM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.foldSTM(0)((acc, e) => STM.succeedNow(acc + e)).commit)
+    }
 
   @Benchmark
   def indexWhere(): Int =
-    unsafeRun(array.indexWhere(_ == size).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.indexWhere(_ == size).commit)
+    }
 
   @Benchmark
   def indexWhereSTM(): Int =
-    unsafeRun(array.indexWhereSTM(a => STM.succeedNow(a == size)).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.indexWhereSTM(a => STM.succeedNow(a == size)).commit)
+    }
 
   @Benchmark
   def reduceOption(): Option[Int] =
-    unsafeRun(array.reduceOption(_ + _).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.reduceOption(_ + _).commit)
+    }
 
   @Benchmark
   def reduceOptionSTM(): Option[Int] =
-    unsafeRun(array.reduceOptionSTM((a, b) => STM.succeedNow(a + b)).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.reduceOptionSTM((a, b) => STM.succeedNow(a + b)).commit)
+    }
 
   @Benchmark
   def transform(): Unit =
-    unsafeRun(array.transform(_ + 1).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.transform(_ + 1).commit)
+    }
 
   @Benchmark
   def transformSTM(): Unit =
-    unsafeRun(array.transformSTM(i => STM.succeedNow(i + 1)).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(array.transformSTM(i => STM.succeedNow(i + 1)).commit)
+    }
 
   @Benchmark
   def update(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.update(idx, _ + 1).commit))
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(ZIO.foreachDiscard(calls)(_ => array.update(idx, _ + 1).commit))
+    }
 
   @Benchmark
   def updateSTM(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => array.updateSTM(idx, i => STM.succeedNow(i + 1)).commit))
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(ZIO.foreachDiscard(calls)(_ => array.updateSTM(idx, i => STM.succeedNow(i + 1)).commit))
+    }
 }

@@ -24,7 +24,7 @@ class TMapContentionBenchmarks {
   def setup(): Unit = {
     val keysToUpdate = (1 to 100).toList
     val data         = (1 to 1000).toList.zipWithIndex
-    val map          = unsafeRun(TMap.fromIterable(data).commit)
+    val map          = Unsafe.unsafeCompat(implicit u => unsafeRun(TMap.fromIterable(data).commit))
     val ref          = TRef.unsafeMake(data.toMap)
 
     mapUpdates = ZIO.foreachParDiscard(keysToUpdate)(i => map.put(i, i).commit.repeatN(repeatedUpdates))

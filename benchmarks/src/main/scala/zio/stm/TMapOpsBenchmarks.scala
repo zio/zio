@@ -29,34 +29,36 @@ class TMapOpsBenchmarks {
     val data = (1 to size).toList.zipWithIndex
 
     idx = size / 2
-    map = unsafeRun(TMap.fromIterable(data).commit)
+    map = Unsafe.unsafeCompat(implicit u => unsafeRun(TMap.fromIterable(data).commit))
   }
 
   @Benchmark
   def lookup(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.get(idx).commit))
+    Unsafe.unsafeCompat(implicit u => unsafeRun(ZIO.foreachDiscard(calls)(_ => map.get(idx).commit)))
 
   @Benchmark
   def update(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.put(idx, idx).commit))
+    Unsafe.unsafeCompat(implicit u => unsafeRun(ZIO.foreachDiscard(calls)(_ => map.put(idx, idx).commit)))
 
   @Benchmark
   def transform(): Unit =
-    unsafeRun(map.transform((k, v) => (k, v)).commit)
+    Unsafe.unsafeCompat(implicit u => unsafeRun(map.transform((k, v) => (k, v)).commit))
 
   @Benchmark
   def transformSTM(): Unit =
-    unsafeRun(map.transformSTM((k, v) => STM.succeedNow(v).map(k -> _)).commit)
+    Unsafe.unsafeCompat(implicit u => unsafeRun(map.transformSTM((k, v) => STM.succeedNow(v).map(k -> _)).commit))
 
   @Benchmark
   def removal(): Unit =
-    unsafeRun(ZIO.foreachDiscard(calls)(_ => map.delete(idx).commit))
+    Unsafe.unsafeCompat(implicit u => unsafeRun(ZIO.foreachDiscard(calls)(_ => map.delete(idx).commit)))
 
   @Benchmark
   def fold(): Int =
-    unsafeRun(map.fold(0)((acc, kv) => acc + kv._2).commit)
+    Unsafe.unsafeCompat(implicit u => unsafeRun(map.fold(0)((acc, kv) => acc + kv._2).commit))
 
   @Benchmark
   def foldSTM(): Int =
-    unsafeRun(map.foldSTM[Any, Nothing, Int](0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafeRun(map.foldSTM[Any, Nothing, Int](0)((acc, kv) => STM.succeedNow(acc + kv._2)).commit)
+    }
 }
