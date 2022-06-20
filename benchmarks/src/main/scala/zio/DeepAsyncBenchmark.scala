@@ -30,6 +30,31 @@ GROWABLE ARRAY
 [info] DeepAsyncBenchmark.zioDeepAsyncMany          50  thrpt   10  24288.439 ± 1061.643  ops/s
 [info] DeepAsyncBenchmark.zioDeepAsyncOne           50  thrpt   10  38537.448 ± 1570.877  ops/s
 
+REUSE GROWABLE ARRAY
+
+[info] Benchmark                               (depth)   Mode  Cnt      Score      Error  Units
+[info] DeepAsyncBenchmark.catsDeepAsyncMany         50  thrpt   10  51275.253 ±  927.356  ops/s
+[info] DeepAsyncBenchmark.catsDeepAsyncOne          50  thrpt   10  77765.254 ± 1150.578  ops/s
+[info] DeepAsyncBenchmark.futureDeepAsyncMany       50  thrpt   10  10605.806 ±  770.572  ops/s
+[info] DeepAsyncBenchmark.futureDeepAsyncOne        50  thrpt   10  33811.533 ± 1987.224  ops/s
+[info] DeepAsyncBenchmark.zioDeepAsyncMany          50  thrpt   10  29901.062 ±  286.237  ops/s
+[info] DeepAsyncBenchmark.zioDeepAsyncOne           50  thrpt   10  53428.394 ±  502.145  ops/s
+
+MUTABLE ASYNC STATUS
+
+[info] Benchmark                               (depth)   Mode  Cnt      Score      Error  Units
+[info] DeepAsyncBenchmark.catsDeepAsyncMany         50  thrpt   10  45563.829 ± 4984.766  ops/s
+[info] DeepAsyncBenchmark.catsDeepAsyncOne          50  thrpt   10  79798.669 ± 1374.365  ops/s
+[info] DeepAsyncBenchmark.futureDeepAsyncMany       50  thrpt   10  10718.747 ± 1025.896  ops/s
+[info] DeepAsyncBenchmark.futureDeepAsyncOne        50  thrpt   10  30636.797 ± 3881.584  ops/s
+[info] DeepAsyncBenchmark.zioDeepAsyncMany          50  thrpt   10  30047.426 ± 362.773  ops/s
+[info] DeepAsyncBenchmark.zioDeepAsyncOne           50  thrpt   10  54828.353 ± 511.713  ops/s
+
+FULLY FIBER HEAP-BASED AYSNC STATUS
+
+[info] Benchmark                            (depth)   Mode  Cnt      Score      Error  Units
+[info] DeepAsyncBenchmark.zioDeepAsyncMany       50  thrpt   10  29352.500 ± 1078.870  ops/s
+[info] DeepAsyncBenchmark.zioDeepAsyncOne        50  thrpt   10  54886.982 ±  429.813  ops/s
 
  */
 @State(JScope.Thread)

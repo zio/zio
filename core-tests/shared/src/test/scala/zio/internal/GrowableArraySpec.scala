@@ -24,7 +24,7 @@ object GrowableArraySpec extends ZIOBaseSpec {
       a += "2"
       a += "3"
 
-      assertTrue(a.toChunk == Chunk("1", "2", "3"))
+      assertTrue(a.asChunk() == Chunk("1", "2", "3"))
     }
 
   val addMany =
@@ -39,13 +39,27 @@ object GrowableArraySpec extends ZIOBaseSpec {
       }
 
       assertTrue(a.length == chunkRange.size)
-      assertTrue(a.toChunk == chunkRange)
+      assertTrue(a.asChunk() == chunkRange)
+    }
+
+  val buildResets =
+    test("build does a reset") {
+      val range      = (0 to 100).map(_.toString)
+      val chunkRange = Chunk.fromIterable(range)
+      val a          = make(1)
+
+      (0 to 100).foreach { number =>
+        a += number.toString
+      }
+
+      assertTrue(chunkRange == a.build() && a.size == 0)
     }
 
   def spec =
     suite("GrowableArraySpec")(
       initialState,
       addAFew,
-      addMany
+      addMany,
+      buildResets
     )
 }
