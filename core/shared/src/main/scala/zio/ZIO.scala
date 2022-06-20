@@ -1471,12 +1471,13 @@ sealed trait ZIO[-R, +E, +A]
    * that succeeds, executes `io` an additional time.
    */
   final def repeatN(n: => Int)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
+    self.flatMap { a =>
+      var result = a
+      var i      = n
 
-      def loop(n: Int): ZIO[R, E, A] =
-        self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else ZIO.yieldNow *> loop(n - 1))
-
-      loop(n)
+      ZIO
+        .whileLoop(i > 0)(ZIO.yieldNow *> self) { a => result = a; i -= 1 }
+        .as(result)
     }
 
   /**
