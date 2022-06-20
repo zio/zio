@@ -19,11 +19,12 @@ import scala.reflect.ClassTag
 
 import zio.Chunk
 
-final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
+final class PinchableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
   import java.lang.System
 
-  private var array = if (hint < 0) null else new Array[A](hint)
-  private var _size = 0
+  private var array  = if (hint < 0) null else new Array[A](hint)
+  private var _pinch = null.asInstanceOf[Array[A]]
+  private var _size  = 0
 
   def +=(a: A): Unit = {
     ensureCapacity(1)
@@ -47,18 +48,6 @@ final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
   }
 
   def apply(index: Int): A = array(index) // No error checking for performance
-
-  def build(): Chunk[A] =
-    if ((array eq null) || _size == 0) Chunk.empty
-    else {
-      val copy = new Array[A](_size)
-
-      System.arraycopy(array, 0, copy, 0, _size)
-
-      _size = 0
-
-      Chunk.fromArray(copy)
-    }
 
   def ensureCapacity(elements: Int): Unit = {
     val newSize = _size + elements
@@ -91,12 +80,34 @@ final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
 
   def length: Int = _size
 
+  def pinch(): Chunk[A] = {
+    val size = self._size
+
+    if ((array eq null) || size == 0) Chunk.empty
+    else {
+      ensurePinchCapacity(size)
+
+      System.arraycopy(array, 0, _pinch, 0, size)
+
+      _size = 0
+
+      Chunk.fromArray(_pinch).take(size)
+    }
+  }
+
   private[zio] def asChunk(): Chunk[A] =
     if (array == null) Chunk.empty
     else Chunk.fromArray(array).take(_size)
 
-  override def toString(): String = self.mkString("GrowableArray(", ",", ")")
+  private def ensurePinchCapacity(newSize: Int): Unit =
+    if (_pinch eq null) {
+      _pinch = new Array[A](newSize)
+    } else if (newSize > _pinch.length) {
+      _pinch = new Array[A](newSize)
+    }
+
+  override def toString(): String = self.mkString("PinchableArray(", ",", ")")
 }
-object GrowableArray {
-  def make[A: ClassTag](hint: Int): GrowableArray[A] = new GrowableArray[A](hint)
+object PinchableArray {
+  def make[A: ClassTag](hint: Int): PinchableArray[A] = new PinchableArray[A](hint)
 }

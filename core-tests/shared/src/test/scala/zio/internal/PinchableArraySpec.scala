@@ -5,9 +5,9 @@ import zio.test._
 import zio.ZIOBaseSpec
 
 object GrowableArraySpec extends ZIOBaseSpec {
-  import zio.internal.GrowableArray
+  import zio.internal.PinchableArray
 
-  def make(hint: Int = 0): GrowableArray[String] = new GrowableArray[String](hint)
+  def make(hint: Int = 0): PinchableArray[String] = new PinchableArray[String](hint)
 
   val initialState =
     test("initial state") {
@@ -43,7 +43,7 @@ object GrowableArraySpec extends ZIOBaseSpec {
     }
 
   val buildResets =
-    test("build does a reset") {
+    test("pinch does a reset") {
       val range      = (0 to 100).map(_.toString)
       val chunkRange = Chunk.fromIterable(range)
       val a          = make(1)
@@ -52,7 +52,7 @@ object GrowableArraySpec extends ZIOBaseSpec {
         a += number.toString
       }
 
-      assertTrue(chunkRange == a.build() && a.size == 0)
+      assertTrue(chunkRange == a.pinch() && a.size == 0)
     }
 
   val iterating =

@@ -28,7 +28,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
   private var observers        = Nil: List[Exit[E, A] => Unit]
   private val running          = new AtomicBoolean(false)
   private var _runtimeFlags    = runtimeFlags0
-  private val reifiedStack     = GrowableArray.make[EvaluationStep](-1)
+  private val reifiedStack     = PinchableArray.make[EvaluationStep](-1)
   private var asyncEffect      = null.asInstanceOf[ZIO[Any, Any, Any]]
   private var asyncInterruptor = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
   private var asyncTrace       = null.asInstanceOf[Trace]
@@ -259,7 +259,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
 
       while (effect ne null) {
         try {
-          val localStack = self.reifiedStack.build()
+          val localStack = self.reifiedStack.pinch()
 
           val exit =
             try {
