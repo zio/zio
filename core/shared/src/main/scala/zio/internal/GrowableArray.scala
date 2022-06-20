@@ -15,12 +15,14 @@
  */
 package zio.internal
 
+import scala.reflect.ClassTag
+
 import zio.Chunk
 
-final class GrowableArray[A <: AnyRef](hint: Int) extends Iterable[A] { self =>
+final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
   import java.lang.System
 
-  private var array = if (hint < 0) null else new Array[AnyRef](hint)
+  private var array = if (hint < 0) null else new Array[A](hint)
   private var _size = 0
 
   def +=(a: A): Unit = {
@@ -58,30 +60,37 @@ final class GrowableArray[A <: AnyRef](hint: Int) extends Iterable[A] { self =>
     as.foreach(self += _)
   }
 
-  def apply(index: Int): A = array(index).asInstanceOf[A] // No error checking for performance
+  def apply(index: Int): A = array(index) // No error checking for performance
 
   def build(): Chunk[A] =
     Chunk.fromArray(buildArray())
 
-  def buildArray(): Array[A] =
-    if (array eq null) Array.empty[AnyRef].asInstanceOf[Array[A]]
+  def buildArray(): Array[A] = {
+    val copy = buildArrayOrNull()
+
+    if (copy eq null) Array.empty[A]
+    else copy
+  }
+
+  def buildArrayOrNull(): Array[A] =
+    if ((array eq null) || _size == 0) null
     else {
-      val copy = Array.ofDim[AnyRef](_size)
+      val copy = new Array[A](_size)
 
       System.arraycopy(array, 0, copy, 0, _size)
 
       _size = 0
 
-      copy.asInstanceOf[Array[A]]
+      copy
     }
 
   def ensureCapacity(elements: Int): Unit = {
     val newSize = _size + elements
 
     if (array eq null) {
-      array = new Array[AnyRef](newSize)
+      array = new Array[A](newSize)
     } else if (newSize > array.length) {
-      val newStack = new Array[AnyRef](newSize + _size / 2)
+      val newStack = new Array(newSize + _size / 2)
       System.arraycopy(array, 0, newStack, 0, _size)
       array = newStack
     }
@@ -100,7 +109,7 @@ final class GrowableArray[A <: AnyRef](hint: Int) extends Iterable[A] { self =>
 
         index = index + 1
 
-        value.asInstanceOf[A]
+        value
       }
     }
 
@@ -108,10 +117,10 @@ final class GrowableArray[A <: AnyRef](hint: Int) extends Iterable[A] { self =>
 
   private[zio] def asChunk(): Chunk[A] =
     if (array == null) Chunk.empty
-    else Chunk.fromArray(array.asInstanceOf[Array[A]]).take(_size)
+    else Chunk.fromArray(array).take(_size)
 
   override def toString(): String = self.mkString("GrowableArray(", ",", ")")
 }
 object GrowableArray {
-  def make[A <: AnyRef](hint: Int): GrowableArray[A] = new GrowableArray[A](hint)
+  def make[A: ClassTag](hint: Int): GrowableArray[A] = new GrowableArray[A](hint)
 }
