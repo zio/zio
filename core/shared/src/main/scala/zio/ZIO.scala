@@ -730,7 +730,7 @@ sealed trait ZIO[-R, +E, +A]
    * schedules, see the `repeat` method.
    */
   final def forever(implicit trace: Trace): ZIO[R, E, Nothing] =
-     ZIO.whileLoop(true)(self *> ZIO.yieldNow)(identity) *> ZIO.never
+    ZIO.whileLoop(true)(self *> ZIO.yieldNow)(identity) *> ZIO.never
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,
