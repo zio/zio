@@ -32,14 +32,6 @@ final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
     _size += 1
   }
 
-  def ++=(as: Array[A]): Unit = {
-    ensureCapacity(as.length)
-
-    System.arraycopy(as, 0, array, _size, as.length)
-
-    _size += as.length
-  }
-
   def ++=(as: Chunk[A]): Unit = {
     ensureCapacity(as.length)
 
@@ -52,12 +44,6 @@ final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
     }
 
     _size = _size + as.length
-  }
-
-  def ++=(as: Iterable[A]): Unit = {
-    ensureCapacity(as.size)
-
-    as.foreach(self += _)
   }
 
   def apply(index: Int): A = array(index) // No error checking for performance
