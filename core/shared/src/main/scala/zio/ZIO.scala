@@ -729,11 +729,8 @@ sealed trait ZIO[-R, +E, +A]
    * Repeats this effect forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
-  final def forever(implicit trace: Trace): ZIO[R, E, Nothing] = {
-    lazy val loop: ZIO[R, E, Nothing] = self *> ZIO.yieldNow *> loop
-
-    loop
-  }
+  final def forever(implicit trace: Trace): ZIO[R, E, Nothing] =
+     ZIO.whileLoop(true)(self *> ZIO.yieldNow)(identity) *> ZIO.never
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,
