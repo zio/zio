@@ -542,7 +542,7 @@ sealed trait ZIO[-R, +E, +A]
    * eventually succeeds.
    */
   final def eventually(implicit ev: CanFail[E], trace: Trace): URIO[R, A] =
-    self <> ZIO.yieldNow *> eventually
+     flipWith(_.forever)
 
   /**
    * Returns an effect that semantically runs the effect on a fiber, producing
