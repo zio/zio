@@ -51,9 +51,9 @@ object TestResult {
     if (result.isSuccess)
       ZIO.succeedNow(result)
     else
-      ZIO.die(TestResult.Exit(result))
+      ZIO.die(Exit(result))
 
-  private[zio] case class Exit(result: TestResult) extends Throwable
+  private[zio] final case class Exit(result: TestResult) extends Throwable
 }
 
 sealed trait TestArrow[-A, +B] { self =>
