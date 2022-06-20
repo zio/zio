@@ -3745,11 +3745,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     initial: => S
   )(cont: S => Boolean)(body: S => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.suspendSucceed {
-      val ref = new java.util.concurrent.atomic.AtomicReference[S](initial)
+      var result = initial
 
       ZIO
-        .whileLoop(cont(ref.get))(body(ref.get))(ref.set)
-        .as(ref.get)
+        .whileLoop(cont(result))(body(result))(result = _)
+        .as(result)
     }
 
   /**
