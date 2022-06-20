@@ -2,7 +2,6 @@ package zio
 
 import zio.FiberRefSpecUtil._
 import zio.test.Assertion._
-import zio.test.TestAspect._
 import zio.test._
 
 object FiberRefSpec extends ZIOBaseSpec {
@@ -288,7 +287,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           _      <- winner1.raceAll(losers1)
           value1 <- fiberRef.get <* fiberRef.set(initial)
 
-          winner2 = fiberRef.set(update1) *> ZIO.never
+          winner2 = fiberRef.set(update1)
           loser2  = fiberRef.set(update2) *> ZIO.fail("Nooooo")
           losers2 = Iterable.fill(n)(loser2)
           _      <- winner2.raceAll(losers2)
