@@ -63,17 +63,7 @@ final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
   def apply(index: Int): A = array(index) // No error checking for performance
 
   def build(): Chunk[A] =
-    Chunk.fromArray(buildArray())
-
-  def buildArray(): Array[A] = {
-    val copy = buildArrayOrNull()
-
-    if (copy eq null) Array.empty[A]
-    else copy
-  }
-
-  def buildArrayOrNull(): Array[A] =
-    if ((array eq null) || _size == 0) null
+    if ((array eq null) || _size == 0) Chunk.empty
     else {
       val copy = new Array[A](_size)
 
@@ -81,7 +71,7 @@ final class GrowableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
 
       _size = 0
 
-      copy
+      Chunk.fromArray(copy)
     }
 
   def ensureCapacity(elements: Int): Unit = {
