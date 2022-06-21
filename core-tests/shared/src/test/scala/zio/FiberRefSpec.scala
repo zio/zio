@@ -182,12 +182,13 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("its value is inherited after a race with a bad winner") {
         for {
           fiberRef <- FiberRef.make(initial)
-          badWinner = fiberRef.set(update1) *> ZIO.fail("ups")
-          goodLoser = fiberRef.set(update2) *> ZIO.never
+          latch    <- Promise.make[Nothing, Unit]
+          badWinner = fiberRef.set(update1) *> ZIO.fail("ups").ensuring(latch.succeed(()))
+          goodLoser = fiberRef.set(update2) *> latch.await *> Live.live(ZIO.sleep(1.second))
           _        <- badWinner.race(goodLoser)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(update2))
-      },
+      } @@ TestAspect.flaky,
       test("its value is not inherited after a race of losers") {
         for {
           fiberRef <- FiberRef.make(initial)
@@ -201,12 +202,12 @@ object FiberRefSpec extends ZIOBaseSpec {
         for {
           fiberRef <- FiberRef.make(initial)
           latch    <- Promise.make[Nothing, Unit]
-          winner    = fiberRef.set(update1) *> latch.succeed(()).unit
-          loser     = latch.await *> fiberRef.set(update2) *> ZIO.never
+          winner    = fiberRef.set(update1) *> latch.succeed(())
+          loser     = latch.await *> Live.live(ZIO.sleep(1.second)) *> fiberRef.set(update2)
           _        <- winner.zipPar(loser)
           value    <- fiberRef.get
         } yield assert(value)(equalTo(update2))
-      } @@ zioTag(errors),
+      } @@ TestAspect.flaky @@ zioTag(errors),
       test("nothing gets inherited with a failure in zipPar") {
         for {
           fiberRef <- FiberRef.make(initial)
