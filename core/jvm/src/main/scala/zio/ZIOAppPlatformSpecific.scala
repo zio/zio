@@ -15,34 +15,38 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
       Scope.default +!+ ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
         bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
-    runtime.unsafeRun {
-      (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
-        _       <- installSignalHandlers(runtime)
-        fiber   <- runtime.run(run).fork
-        _ <-
-          ZIO.succeed(Platform.addShutdownHook { () =>
-            if (!shuttingDown.getAndSet(true)) {
+    Unsafe.unsafeCompat { implicit u =>
+      runtime.unsafe.run {
+        (for {
+          runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
+          _       <- installSignalHandlers(runtime)
+          fiber   <- runtime.run(run).fork
+          _ <-
+            ZIO.succeed(Platform.addShutdownHook { () =>
+              if (!shuttingDown.getAndSet(true)) {
 
-              if (FiberRuntime.catastrophicFailure.get) {
-                println(
-                  "**** WARNING ****\n" +
-                    "Catastrophic error encountered. " +
-                    "Application not safely interrupted. " +
-                    "Resources may be leaked. " +
-                    "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
-                )
-              } else {
-                try runtime.unsafeRunSync(fiber.interrupt)
-                catch { case _: Throwable => }
+                if (FiberRuntime.catastrophicFailure.get) {
+                  println(
+                    "**** WARNING ****\n" +
+                      "Catastrophic error encountered. " +
+                      "Application not safely interrupted. " +
+                      "Resources may be leaked. " +
+                      "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
+                  )
+                } else {
+                  try runtime.unsafe.run(fiber.interrupt)
+                  catch {
+                    case _: Throwable =>
+                  }
+                }
+
+                ()
               }
-
-              ()
-            }
-          })
-        result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
-        _      <- exit(result)
-      } yield ()).provideLayer(newLayer)
+            })
+          result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
+          _      <- exit(result)
+        } yield ()).provideLayer(newLayer)
+      }.getOrThrowFiberFailure
     }
   }
 

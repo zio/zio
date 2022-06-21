@@ -16,7 +16,7 @@ object CanFailSpec extends ZIOBaseSpec {
             """
       }
       assertZIO(result)(isRight(anything))
-    },
+    } @@ TestAspect.scala2Only,
     test("useless combinators don't compile") {
       val result = typeCheck {
         """

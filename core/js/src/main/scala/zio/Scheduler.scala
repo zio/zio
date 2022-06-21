@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
 abstract class Scheduler {
-  def unsafeSchedule(task: Runnable, duration: Duration): CancelToken
+  def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): CancelToken
 }
 
 object Scheduler {
@@ -32,23 +32,24 @@ object Scheduler {
     new Scheduler {
       val ConstFalse = () => false
 
-      override def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
-        case Duration.Infinity => ConstFalse
-        case Duration.Zero =>
-          task.run()
+      override def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): CancelToken =
+        (duration: @unchecked) match {
+          case Duration.Infinity => ConstFalse
+          case Duration.Zero =>
+            task.run()
 
-          ConstFalse
-        case Duration.Finite(_) =>
-          val future = service.schedule(
-            new Runnable {
-              def run: Unit =
-                task.run()
-            },
-            duration.toNanos,
-            TimeUnit.NANOSECONDS
-          )
+            ConstFalse
+          case Duration.Finite(_) =>
+            val future = service.schedule(
+              new Runnable {
+                def run: Unit =
+                  task.run()
+              },
+              duration.toNanos,
+              TimeUnit.NANOSECONDS
+            )
 
-          () => future.cancel(true)
-      }
+            () => future.cancel(true)
+        }
     }
 }

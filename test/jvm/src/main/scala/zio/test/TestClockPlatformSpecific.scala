@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Duration, Scheduler, UIO, ZIO, Trace}
+import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.Instant
@@ -30,10 +30,10 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     (ZIO.executor <*> ZIO.runtime[Any]).map { case (executor, runtime) =>
       new Scheduler {
-        def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
-          val canceler =
-            runtime.unsafeRunAsyncCancelable((sleep(duration) *> ZIO.succeed(runnable.run())))(_ => ())
-          () => canceler(zio.FiberId.None).isInterrupted
+        def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): Scheduler.CancelToken = {
+          val fiber =
+            runtime.unsafe.fork((sleep(duration) *> ZIO.succeed(runnable.run())))
+          () => runtime.unsafe.run(fiber.interruptAs(zio.FiberId.None)).getOrThrowFiberFailure.isInterrupted
         }
 
         def asScheduledExecutorService: ScheduledExecutorService = {
@@ -48,7 +48,9 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             }
 
           def now(): Instant =
-            clockState.unsafeGet.instant
+            Unsafe.unsafeCompat { implicit u =>
+              clockState.unsafe.get.instant
+            }
 
           def scheduleFuture[S, A](initial: Instant, s: S)(
             f: (Instant, S) => Option[(Instant, S)]
@@ -71,26 +73,29 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
               if (updatedState == Scheduling(end)) {
                 val start    = now()
                 val interval = Duration.fromInterval(start, end)
-                val cancelToken = unsafeSchedule(
-                  () =>
-                    executor.unsafeSubmitOrThrow { () =>
-                      compute(a) match {
-                        case Left(t) =>
-                          state.set(Done(Left(t)))
-                          latch.countDown()
-                        case Right(a) =>
-                          val end = now()
-                          f(end, s) match {
-                            case Some((interval, s)) =>
-                              loop(interval, s)
-                            case None =>
-                              state.set(Done(Right(a)))
-                              latch.countDown()
-                          }
-                      }
-                    },
-                  interval
-                )
+                val cancelToken = Unsafe.unsafeCompat { implicit u =>
+                  schedule(
+                    () =>
+                      executor.submitOrThrow { () =>
+                        compute(a) match {
+                          case Left(t) =>
+                            state.set(Done(Left(t)))
+                            latch.countDown()
+                          case Right(a) =>
+                            val end = now()
+                            f(end, s) match {
+                              case Some((interval, s)) =>
+                                loop(interval, s)
+                              case None =>
+                                state.set(Done(Right(a)))
+                                latch.countDown()
+                            }
+                        }
+
+                      },
+                    interval
+                  )
+                }
                 val currentState = state.getAndUpdate {
                   case Scheduling(end) => Running(cancelToken, end)
                   case state           => state
@@ -154,10 +159,11 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
           new AbstractExecutorService with ScheduledExecutorService {
             def awaitTermination(timeout: Long, unit: TimeUnit): Boolean =
               false
-            def execute(command: Runnable): Unit = {
-              executor.unsafeSubmit(command)
-              ()
-            }
+            def execute(command: Runnable): Unit =
+              Unsafe.unsafeCompat { implicit u =>
+                executor.submit(command)
+                ()
+              }
             def isShutdown(): Boolean =
               false
             def isTerminated(): Boolean =

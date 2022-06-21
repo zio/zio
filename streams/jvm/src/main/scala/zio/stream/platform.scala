@@ -66,8 +66,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       eitherStream <- ZIO.succeed {
                         register { k =>
                           try {
-                            runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
-                            ()
+                            Unsafe.unsafeCompat { implicit u =>
+                              runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer)).getOrThrowFiberFailure
+                              ()
+                            }
                           } catch {
                             case FiberFailure(c) if c.isInterrupted =>
                           }
@@ -110,8 +112,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
-                 runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
-                 ()
+                 Unsafe.unsafeCompat { implicit u =>
+                   runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer)).getOrThrowFiberFailure
+                   ()
+                 }
                } catch {
                  case FiberFailure(c) if c.isInterrupted =>
                }
@@ -141,8 +145,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
-               runtime.unsafeRun(stream.Take.fromPull(k).flatMap(output.offer))
-               ()
+               Unsafe.unsafeCompat { implicit u =>
+                 runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer)).getOrThrowFiberFailure
+                 ()
+               }
              } catch {
                case FiberFailure(c) if c.isInterrupted =>
              }

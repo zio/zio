@@ -16,6 +16,7 @@
 
 package zio.metrics
 
+import zio.Unsafe
 import zio.internal.metrics._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -40,6 +41,6 @@ private[zio] object MetricClient {
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
-  final def unsafeSnapshot(): Set[MetricPair.Untyped] =
+  final def snapshot()(implicit unsafe: Unsafe[Any]): Set[MetricPair.Untyped] =
     metricRegistry.snapshot()
 }

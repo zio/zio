@@ -1,7 +1,7 @@
 package zio.test.sbt
 
 import sbt.testing.{Event, EventHandler, Logger, Status, Task, TaskDef}
-import zio.{CancelableFuture, Console, Runtime, Scope, UIO, ZEnvironment, ZIO, ZIOAppArgs, ZLayer, Trace}
+import zio.{CancelableFuture, Console, Runtime, Scope, Trace, UIO, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 import zio.test.render.ConsoleRenderer
 import zio.test._
 
@@ -42,8 +42,10 @@ abstract class BaseTestTask[T](
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
-        runtime.unsafeRunToFuture {
-          run(zTestHandler)
+        Unsafe.unsafeCompat { implicit u =>
+          runtime.unsafe.runToFuture {
+            run(zTestHandler)
+          }
         }
 
       resOutter = res

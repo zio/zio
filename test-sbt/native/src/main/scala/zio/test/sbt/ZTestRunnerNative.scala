@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
-import zio.{Exit, Runtime, Scope, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Exit, Runtime, Scope, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -90,25 +90,28 @@ sealed class ZTestTask(
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
   def execute(continuation: Array[Task] => Unit): Unit =
-    Runtime.default.unsafeRunAsyncWith {
-      for {
-        summary <- ZIO.scoped {
-                     spec.run
-                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
-                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
-                   }
-        _ <- sendSummary.provide(ZLayer.succeed(summary))
-        _ <- ZIO.when(summary.status == Summary.Failure)(
-               ZIO.fail(new Exception("Failed tests."))
-             )
-      } yield ()
+    Unsafe.unsafeCompat { implicit u =>
+      val fiber = Runtime.default.unsafe.fork {
+        for {
+          summary <- ZIO.scoped {
+                       spec.run
+                         .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
+                         .onError(e => ZIO.succeed(println(e.prettyPrint)))
+                     }
+          _ <- sendSummary.provide(ZLayer.succeed(summary))
+          _ <- ZIO.when(summary.status == Summary.Failure)(
+                 ZIO.fail(new Exception("Failed tests."))
+               )
+        } yield ()
 
-    } { exit =>
-      exit match {
-        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-        case _                   =>
       }
-      continuation(Array())
+      fiber.addObserver { exit =>
+        exit match {
+          case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+          case _                   =>
+        }
+        continuation(Array())
+      }
     }
 }
 

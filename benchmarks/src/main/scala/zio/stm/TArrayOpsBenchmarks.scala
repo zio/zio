@@ -28,7 +28,7 @@ class TArrayOpsBenchmarks {
   def setup(): Unit = {
     val data = (1 to size).toList
     idx = size / 2
-    array = unsafeRun(TArray.fromIterable(data).commit)
+    array = Unsafe.unsafeCompat(implicit u => unsafeRun(TArray.fromIterable(data).commit))
   }
 
   @Benchmark

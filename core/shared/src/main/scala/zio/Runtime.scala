@@ -63,203 +63,133 @@ trait Runtime[+R] { self =>
    */
   final def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): IO[E, A] =
     ZIO.fiberId.flatMap { fiberId =>
-      ZIO.asyncInterrupt[Any, E, A] { callback =>
-        val canceler = unsafeRunAsyncCancelable(zio)(exit => callback(ZIO.done(exit)))
-        Left(ZIO.succeedBlocking(canceler(fiberId)))
+      ZIO.asyncInterruptUnsafe[Any, E, A] { implicit u => callback =>
+        val fiber = unsafe.fork(zio)
+        fiber.addObserver(exit => callback(ZIO.done(exit)))
+        Left(ZIO.blocking(fiber.interruptAs(fiberId)))
       }
     }
 
-  /**
-   * Executes the effect synchronously, failing with [[zio.FiberFailure]] if
-   * there are any errors. May fail on Scala.js if the effect cannot be entirely
-   * run synchronously.
-   *
-   * This method is effectful and should only be done at the edges of your
-   * program.
-   */
-  final def unsafeRun[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): A =
-    unsafeRunSync(zio).getOrElse(c => throw FiberFailure(c))
+  trait UnsafeAPI {
 
-  /**
-   * Executes the effect asynchronously, discarding the result of execution.
-   *
-   * This method is effectful and should only be invoked at the edges of your
-   * program.
-   */
-  final def unsafeRunAsync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Unit =
-    unsafeRunAsyncWith(zio)(_ => ())
+    /**
+     * Executes the effect synchronously and returns it's results as an Exit
+     * value. May fail on Scala.js if the effect cannot be entirely run
+     * synchronously.
+     *
+     * This method is effectful and should only be done at the edges of your
+     * program.
+     */
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[E, A]
 
-  /**
-   * Executes the effect asynchronously, eventually passing the exit value to
-   * the specified callback. It returns a callback, which can be used to
-   * interrupt the running execution.
-   *
-   * This method is effectful and should only be invoked at the edges of your
-   * program.
-   */
-  final def unsafeRunSync[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Exit[E, A] = {
-    import internal.FiberRuntime
+    /**
+     * Executes the effect asynchronously, eventually passing the exit value to
+     * the specified callback. It returns an interface, which can be used to
+     * query and manipulate the running execution.
+     *
+     * This method is effectful and should only be invoked at the edges of your
+     * program.
+     */
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Fiber.Runtime[E, A]
 
-    val fiberId   = FiberId.unsafeMake(trace)
-    val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-    val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
-
-    val supervisor = fiber.unsafeGetSupervisor()
-
-    if (supervisor != Supervisor.none) {
-      supervisor.unsafeOnStart(environment, zio, None, fiber)
-
-      fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
-    }
-
-    val fastExit = fiber.start[R](zio)
-
-    if (fastExit != null) fastExit
-    else {
-      import internal.{FiberMessage, OneShot}
-      FiberScope.global.unsafeAdd(runtimeFlags, fiber)
-      val result = OneShot.make[Exit[E, A]]
-      fiber.tell(
-        FiberMessage.Stateful((fiber, _) => fiber.unsafeAddObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
-      )
-      result.get()
-    }
+    /**
+     * Runs the IO, returning a Future that will be completed when the effect
+     * has been executed.
+     *
+     * This method is effectful and should only be used at the edges of your
+     * program.
+     */
+    def runToFuture[E <: Throwable, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe[Any]): CancelableFuture[A]
   }
 
-  /**
-   * Executes the effect asynchronously, eventually passing the exit value to
-   * the specified callback.
-   *
-   * This method is effectful and should only be invoked at the edges of your
-   * program.
-   */
-  final def unsafeRunAsyncWith[E, A](
-    zio: ZIO[R, E, A]
-  )(k: Exit[E, A] => Any)(implicit trace: Trace): Unit = {
-    unsafeRunAsyncCancelable(zio)(k)
-    ()
-  }
+  val unsafe: UnsafeAPI = new UnsafeAPI {
 
-  /**
-   * Executes the effect asynchronously, eventually passing the exit value to
-   * the specified callback. It returns a callback, which can be used to
-   * interrupt the running execution.
-   *
-   * This method is effectful and should only be invoked at the edges of your
-   * program.
-   */
-  final def unsafeRunAsyncCancelable[E, A](
-    zio: ZIO[R, E, A]
-  )(k: Exit[E, A] => Any)(implicit trace: Trace): FiberId => Exit[E, A] = {
-    lazy val curZio = zio
-    val canceler    = unsafeRunWith(curZio)(k)
-    fiberId => {
-      val result = internal.OneShot.make[Exit[E, A]]
-      canceler(fiberId)(result.set)
-      result.get()
-    }
-  }
+    /**
+     * Executes the effect synchronously and returns it's results as an Exit
+     * value. May fail on Scala.js if the effect cannot be entirely run
+     * synchronously.
+     *
+     * This method is effectful and should only be done at the edges of your
+     * program.
+     */
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[E, A] = {
+      import internal.FiberRuntime
 
-  /**
-   * Executes the Task/RIO effect synchronously, failing with the original
-   * `Throwable` on both [[Cause.Fail]] and [[Cause.Die]]. In addition, appends
-   * a new element to the `Throwable`s "caused by" chain, with this `Cause`
-   * "pretty printed" (in stackless mode) as the message. May fail on Scala.js
-   * if the effect cannot be entirely run synchronously.
-   *
-   * This method is effectful and should only be done at the edges of your
-   * program.
-   */
-  final def unsafeRunTask[A](task: RIO[R, A])(implicit trace: Trace): A =
-    unsafeRunSync(task).foldExit(cause => throw cause.squashTrace, identity)
+      val fiberId   = FiberId.make(trace)
+      val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
+      val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
 
-  /**
-   * Runs the IO, returning a Future that will be completed when the effect has
-   * been executed.
-   *
-   * This method is effectful and should only be used at the edges of your
-   * program.
-   */
-  final def unsafeRunToFuture[E <: Throwable, A](
-    zio: ZIO[R, E, A]
-  )(implicit trace: Trace): CancelableFuture[A] = {
-    val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
+      val supervisor = fiber.getSupervisor()
 
-    val canceler = unsafeRunWith(zio)(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+      if (supervisor != Supervisor.none) {
+        supervisor.onStart(environment, zio, None, fiber)
 
-    new CancelableFuture[A](p.future) {
-      def cancel(): Future[Exit[Throwable, A]] = {
-        val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
-        canceler(FiberId.None)(p.success)
-        p.future
+        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
       }
-    }
-  }
 
-  private final def unsafeRunWith[E, A](
-    zio: ZIO[R, E, A]
-  )(k: Exit[E, A] => Any)(implicit trace: Trace): FiberId => (Exit[E, A] => Any) => Unit = {
-    val canceler = unsafeRunWithRefs(zio, fiberRefs)((exit, _) => k(exit))
-    fiberId => k => canceler(fiberId)((exit, _) => k(exit))
-  }
+      val fastExit = fiber.start[R](zio)
 
-  private final def unsafeRunWithRefs[E, A](
-    zio: ZIO[R, E, A],
-    fiberRefs0: FiberRefs
-  )(
-    k: (Exit[E, A], FiberRefs) => Any
-  )(implicit trace: Trace): FiberId => ((Exit[E, A], FiberRefs) => Any) => Unit = {
-    import internal.FiberRuntime
-
-    val fiberId   = FiberId.unsafeMake(trace)
-    val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-    val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
-
-    FiberScope.global.unsafeAdd(runtimeFlags, fiber)
-
-    val supervisor = fiber.unsafeGetSupervisor()
-
-    if (supervisor != Supervisor.none) {
-      supervisor.unsafeOnStart(environment, zio, None, fiber)
-
-      fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
-    }
-
-    fiber.unsafeAddObserver { exit =>
-      k(exit, fiber.unsafeGetFiberRefs())
-    }
-
-    fiber.start[R](zio)
-
-    fiberId =>
-      k =>
-        unsafeRunWithRefs(fiber.interruptAs(fiberId), fiberRefs)(
-          (exit: Exit[Nothing, Exit[E, A]], fiberRefs: FiberRefs) => k(exit.flatten, fiberRefs)
+      if (fastExit != null) fastExit
+      else {
+        import internal.{FiberMessage, OneShot}
+        FiberScope.global.add(runtimeFlags, fiber)
+        val result = OneShot.make[Exit[E, A]]
+        fiber.tell(
+          FiberMessage.Stateful((fiber, _) => fiber.addObserver(exit => result.set(exit.asInstanceOf[Exit[E, A]])))
         )
+        result.get()
+      }
+    }
+
+    /**
+     * Executes the effect asynchronously, eventually passing the exit value to
+     * the specified callback. It returns an interface, which can be used to
+     * query and manipulate the running execution.
+     *
+     * This method is effectful and should only be invoked at the edges of your
+     * program.
+     */
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Fiber.Runtime[E, A] = {
+      import internal.FiberRuntime
+
+      val fiberId   = FiberId.make(trace)
+      val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
+      val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
+
+      FiberScope.global.add(runtimeFlags, fiber)
+
+      val supervisor = fiber.getSupervisor()
+
+      if (supervisor != Supervisor.none) {
+        supervisor.onStart(environment, zio, None, fiber)
+
+        fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
+      }
+
+      fiber.start[R](zio)
+      fiber
+    }
+
+    def runToFuture[E <: Throwable, A](
+      zio: ZIO[R, E, A]
+    )(implicit trace: Trace, unsafe: Unsafe[Any]): CancelableFuture[A] = {
+      val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
+
+      val fiber = fork(zio)
+      fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+
+      new CancelableFuture[A](p.future) {
+        def cancel(): Future[Exit[Throwable, A]] = {
+          val p: scala.concurrent.Promise[Exit[Throwable, A]] = scala.concurrent.Promise[Exit[Throwable, A]]()
+          val cancelFiber                                     = fork(fiber.interruptAs(FiberId.None))
+          cancelFiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
+          p.future
+        }
+      }
+    }
   }
-
-  // final def unsafeStart[E, A](
-  //   zio: ZIO[R, E, A],
-  //   fiberRefs0: FiberRefs
-  // )(implicit trace: Trace): internal.FiberRuntime[E, A] = {
-  //   import internal.FiberRuntime
-
-  //   val fiberId   = FiberId.unsafeMake(trace)
-  //   val fiberRefs = fiberRefs0.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-  //   val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
-
-  //   FiberScope.global.unsafeAdd(runtimeFlags, fiber)
-
-  //   val supervisor = fiber.unsafeGetSupervisor()
-
-  //   if (supervisor != Supervisor.none) {
-  //     supervisor.unsafeOnStart(environment, zio, None, fiber)
-
-  //     fiber.unsafeAddObserver(exit => supervisor.unsafeOnEnd(exit, fiber))
-  //   }
-
-  //   fiber.start[R](zio)
-  // }
 }
 
 object Runtime extends RuntimePlatformSpecific {
@@ -348,19 +278,19 @@ object Runtime extends RuntimePlatformSpecific {
    * legacy code, but other applications should investigate using
    * [[ZIO.provide]] directly in their application entry points.
    */
-  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace): Runtime.Scoped[R] = {
-    val (runtime, shutdown) = default.unsafeRun {
+  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe[Any]): Runtime.Scoped[R] = {
+    val (runtime, shutdown) = default.unsafe.run {
       Scope.make.flatMap { scope =>
         scope.extend(layer.toRuntime).flatMap { acquire =>
           val finalizer = () =>
-            default.unsafeRun {
+            default.unsafe.run {
               scope.close(Exit.unit).uninterruptible.unit
-            }
+            }.getOrThrowFiberFailure
 
           ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
         }
       }
-    }
+    }.getOrThrowFiberFailure
 
     Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
   }

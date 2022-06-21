@@ -37,6 +37,8 @@ class ChunkMapBenchmarks {
 
   @Benchmark
   def mapZIO(): Unit =
-    BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
+    }
 
 }

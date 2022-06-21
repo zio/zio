@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Console, FiberRef, IO, Ref, UIO, URIO, ZIO, ZLayer, Trace}
+import zio.{Console, FiberRef, IO, Ref, Trace, UIO, URIO, Unsafe, ZIO, ZLayer}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -118,7 +118,7 @@ object TestConsole extends Serializable {
      * with an `EOFException`.
      */
     def readLine(implicit trace: Trace): IO[IOException, String] =
-      ZIO.attempt(unsafeReadLine()).refineToOrDie[IOException]
+      ZIO.attemptUnsafe(implicit u => unsafe.readLine()).refineToOrDie[IOException]
 
     /**
      * Returns the contents of the output buffer. The first value written to the
@@ -138,14 +138,14 @@ object TestConsole extends Serializable {
      * Writes the specified string to the output buffer.
      */
     override def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.succeed(unsafePrint(line)) *>
+      ZIO.succeedUnsafe(implicit u => unsafe.print(line)) *>
         live.provide(Console.print(line)).whenZIO(debugState.get).unit
 
     /**
      * Writes the specified string to the error buffer.
      */
     override def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.succeed(unsafePrintError(line)) *>
+      ZIO.succeedUnsafe(implicit u => unsafe.printError(line)) *>
         live.provide(Console.printError(line)).whenZIO(debugState.get).unit
 
     /**
@@ -153,7 +153,7 @@ object TestConsole extends Serializable {
      * character.
      */
     override def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.succeed(unsafePrintLine(line)) *>
+      ZIO.succeedUnsafe(implicit u => unsafe.printLine(line)) *>
         live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
 
     /**
@@ -161,7 +161,7 @@ object TestConsole extends Serializable {
      * character.
      */
     override def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.succeed(unsafePrintLineError(line)) *>
+      ZIO.succeedUnsafe(implicit u => unsafe.printLineError(line)) *>
         live.provide(Console.printLineError(line)).whenZIO(debugState.get).unit
 
     /**
@@ -181,36 +181,38 @@ object TestConsole extends Serializable {
     def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       debugState.locally(false)(zio)
 
-    override private[zio] def unsafePrint(line: Any): Unit =
-      consoleState.unsafeUpdate { data =>
-        Data(data.input, data.output :+ line.toString, data.errOutput)
-      }
-
-    override private[zio] def unsafePrintError(line: Any): Unit =
-      consoleState.unsafeUpdate { data =>
-        Data(data.input, data.output, data.errOutput :+ line.toString)
-      }
-
-    override private[zio] def unsafePrintLine(line: Any): Unit =
-      consoleState.unsafeUpdate { data =>
-        Data(data.input, data.output :+ s"$line\n", data.errOutput)
-      }
-
-    override private[zio] def unsafePrintLineError(line: Any): Unit =
-      consoleState.unsafeUpdate { data =>
-        Data(data.input, data.output, data.errOutput :+ s"$line\n")
-      }
-
-    override private[zio] def unsafeReadLine(): String =
-      consoleState.unsafeModify { data =>
-        data.input match {
-          case head :: tail =>
-            head -> Data(tail, data.output, data.errOutput)
-          case Nil =>
-            throw new EOFException("There is no more input left to read")
-
+    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+      override def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        consoleState.unsafe.update { data =>
+          Data(data.input, data.output :+ line.toString, data.errOutput)
         }
-      }
+
+      override def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        consoleState.unsafe.update { data =>
+          Data(data.input, data.output, data.errOutput :+ line.toString)
+        }
+
+      override def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        consoleState.unsafe.update { data =>
+          Data(data.input, data.output :+ s"$line\n", data.errOutput)
+        }
+
+      override def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+        consoleState.unsafe.update { data =>
+          Data(data.input, data.output, data.errOutput :+ s"$line\n")
+        }
+
+      override def readLine()(implicit unsafe: Unsafe[Any]): String =
+        consoleState.unsafe.modify { data =>
+          data.input match {
+            case head :: tail =>
+              head -> Data(tail, data.output, data.errOutput)
+            case Nil =>
+              throw new EOFException("There is no more input left to read")
+
+          }
+        }
+    }
   }
 
   /**
@@ -223,7 +225,7 @@ object TestConsole extends Serializable {
     ZLayer.scoped {
       for {
         live     <- ZIO.service[Live]
-        ref      <- ZIO.succeed(Ref.unsafeMake(data))
+        ref      <- ZIO.succeedUnsafe(implicit u => Ref.unsafe.make(data))
         debugRef <- FiberRef.make(debug)
         test      = Test(ref, live, debugRef)
         _        <- ZIO.withConsoleScoped(test)

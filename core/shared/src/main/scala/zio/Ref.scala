@@ -143,10 +143,12 @@ object Ref extends Serializable {
    * Creates a new `Ref` with the specified value.
    */
   def make[A](a: => A)(implicit trace: Trace): UIO[Ref[A]] =
-    ZIO.succeed(unsafeMake(a))
+    ZIO.succeedUnsafe(implicit u => unsafe.make(a))
 
-  private[zio] def unsafeMake[A](a: A): Ref.Atomic[A] =
-    Atomic(new AtomicReference(a))
+  private[zio] object unsafe {
+    def make[A](a: A)(implicit unsafe: Unsafe[Any]): Ref.Atomic[A] =
+      Atomic(new AtomicReference(a))
+  }
 
   /**
    * A `Ref.Synchronized` is a purely functional description of a mutable
@@ -275,127 +277,144 @@ object Ref extends Serializable {
     self =>
 
     def get(implicit trace: Trace): UIO[A] =
-      ZIO.succeed(unsafeGet)
+      ZIO.succeedUnsafe(implicit u => unsafe.get)
 
     def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
-      ZIO.succeed(unsafeModify(f))
+      ZIO.succeedUnsafe(implicit u => unsafe.modify(f))
 
     def set(a: A)(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(unsafeSet(a))
+      ZIO.succeedUnsafe(implicit u => unsafe.set(a))
 
     def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(unsafeSetAsync(a))
+      ZIO.succeedUnsafe(implicit u => unsafe.setAsync(a))
 
     override def toString: String =
       s"Ref(${value.get})"
 
-    def unsafeGet: A =
-      value.get
-
-    def unsafeGetAndSet(a: A): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        loop = !value.compareAndSet(current, a)
-      }
-      current
+    trait UnsafeAPI {
+      def get(implicit unsafe: Unsafe[Any]): A
+      def getAndSet(a: A)(implicit unsafe: Unsafe[Any]): A
+      def getAndUpdate(f: A => A)(implicit unsafe: Unsafe[Any]): A
+      def getAndUpdateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A
+      def modify[B](f: A => (B, A))(implicit unsafe: Unsafe[Any]): B
+      def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit unsafe: Unsafe[Any]): B
+      def set(a: A)(implicit unsafe: Unsafe[Any]): Unit
+      def setAsync(a: A)(implicit unsafe: Unsafe[Any]): Unit
+      def update(f: A => A)(implicit unsafe: Unsafe[Any]): Unit
+      def updateAndGet(f: A => A)(implicit unsafe: Unsafe[Any]): A
+      def updateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): Unit
+      def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A
     }
 
-    def unsafeGetAndUpdate(f: A => A): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        val next = f(current)
-        loop = !value.compareAndSet(current, next)
+    @transient lazy val unsafe: UnsafeAPI = new UnsafeAPI {
+      def get(implicit unsafe: Unsafe[Any]): A =
+        value.get
+
+      def getAndSet(a: A)(implicit unsafe: Unsafe[Any]): A = {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+        while (loop) {
+          current = value.get
+          loop = !value.compareAndSet(current, a)
+        }
+        current
       }
-      current
-    }
 
-    def unsafeGetAndUpdateSome(pf: PartialFunction[A, A]): A = {
-      var loop       = true
-      var current: A = null.asInstanceOf[A]
-      while (loop) {
-        current = value.get
-        val next = pf.applyOrElse(current, (_: A) => current)
-        loop = !value.compareAndSet(current, next)
+      def getAndUpdate(f: A => A)(implicit unsafe: Unsafe[Any]): A = {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+        while (loop) {
+          current = value.get
+          val next = f(current)
+          loop = !value.compareAndSet(current, next)
+        }
+        current
       }
-      current
-    }
 
-    def unsafeModify[B](f: A => (B, A)): B = {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = f(current)
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
+      def getAndUpdateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A = {
+        var loop       = true
+        var current: A = null.asInstanceOf[A]
+        while (loop) {
+          current = value.get
+          val next = pf.applyOrElse(current, (_: A) => current)
+          loop = !value.compareAndSet(current, next)
+        }
+        current
       }
-      b
-    }
 
-    def unsafeModifySome[B](default: B)(pf: PartialFunction[A, (B, A)]): B = {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
+      def modify[B](f: A => (B, A))(implicit unsafe: Unsafe[Any]): B = {
+        var loop = true
+        var b: B = null.asInstanceOf[B]
+        while (loop) {
+          val current = value.get
+          val tuple   = f(current)
+          b = tuple._1
+          loop = !value.compareAndSet(current, tuple._2)
+        }
+        b
       }
-      b
-    }
 
-    def unsafeSet(a: A): Unit =
-      value.set(a)
-
-    def unsafeSetAsync(a: A): Unit =
-      value.lazySet(a)
-
-    def unsafeUpdate(f: A => A): Unit = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = f(current)
-        loop = !value.compareAndSet(current, next)
+      def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit unsafe: Unsafe[Any]): B = {
+        var loop = true
+        var b: B = null.asInstanceOf[B]
+        while (loop) {
+          val current = value.get
+          val tuple   = pf.applyOrElse(current, (_: A) => (default, current))
+          b = tuple._1
+          loop = !value.compareAndSet(current, tuple._2)
+        }
+        b
       }
-      ()
-    }
 
-    def unsafeUpdateAndGet(f: A => A): A = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = f(current)
-        loop = !value.compareAndSet(current, next)
-      }
-      next
-    }
+      def set(a: A)(implicit unsafe: Unsafe[Any]): Unit =
+        value.set(a)
 
-    def unsafeUpdateSome(pf: PartialFunction[A, A]): Unit = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = pf.applyOrElse(current, (_: A) => current)
-        loop = !value.compareAndSet(current, next)
-      }
-      ()
-    }
+      def setAsync(a: A)(implicit unsafe: Unsafe[Any]): Unit =
+        value.lazySet(a)
 
-    def unsafeUpdateSomeAndGet(pf: PartialFunction[A, A]): A = {
-      var loop    = true
-      var next: A = null.asInstanceOf[A]
-      while (loop) {
-        val current = value.get
-        next = pf.applyOrElse(current, (_: A) => current)
-        loop = !value.compareAndSet(current, next)
+      def update(f: A => A)(implicit unsafe: Unsafe[Any]): Unit = {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = f(current)
+          loop = !value.compareAndSet(current, next)
+        }
+        ()
       }
-      next
+
+      def updateAndGet(f: A => A)(implicit unsafe: Unsafe[Any]): A = {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = f(current)
+          loop = !value.compareAndSet(current, next)
+        }
+        next
+      }
+
+      def updateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): Unit = {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = pf.applyOrElse(current, (_: A) => current)
+          loop = !value.compareAndSet(current, next)
+        }
+        ()
+      }
+
+      def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A = {
+        var loop    = true
+        var next: A = null.asInstanceOf[A]
+        while (loop) {
+          val current = value.get
+          next = pf.applyOrElse(current, (_: A) => current)
+          loop = !value.compareAndSet(current, next)
+        }
+        next
+      }
     }
   }
 }

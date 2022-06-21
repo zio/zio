@@ -88,7 +88,9 @@ class MapBenchmark {
       if (n <= 1) t
       else sumTo(t.map(_ + n), n - 1)
 
-    runtime.unsafeRun(sumTo(ZIO.succeed(0), depth))
+    Unsafe.unsafeCompat { implicit u =>
+      runtime.unsafe.run(sumTo(ZIO.succeed(0), depth)).getOrThrowFiberFailure
+    }
   }
 
   @Benchmark

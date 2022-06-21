@@ -863,10 +863,10 @@ object ZSTM {
   private def unsafeAtomically[R, E, A](
     stm: ZSTM[R, E, A]
   )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.unsafeStateful[R, E, A] { (fiberState, _) =>
-      val r        = fiberState.unsafeGetFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
+    ZIO.unsafeStateful[R, E, A] { implicit u => (fiberState, _) =>
+      val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId  = fiberState.id
-      val executor = fiberState.unsafeGetCurrentExecutor()
+      val executor = fiberState.getCurrentExecutor()
 
       tryCommitSync(executor, fiberId, stm, r) match {
         case TryCommit.Done(exit) =>
@@ -1723,10 +1723,12 @@ object ZSTM {
     /**
      * Runs all the todos.
      */
-    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, executor: Executor): TryCommit[E, A] = {
+    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, executor: Executor)(implicit
+      unsafe: Unsafe[Any]
+    ): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) executor.unsafeSubmitOrThrow(() => execTodos(todos))
+      if (todos.size > 0) executor.submitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit)
     }
@@ -1765,7 +1767,7 @@ object ZSTM {
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: ZEnvironment[R]
-    ): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe[Any]): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
@@ -1843,7 +1845,7 @@ object ZSTM {
       r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
-    )(implicit trace: Trace): Unit = {
+    )(implicit trace: Trace, unsafe: Unsafe[Any]): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
       @tailrec
@@ -1881,7 +1883,7 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
-    ): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe[Any]): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 

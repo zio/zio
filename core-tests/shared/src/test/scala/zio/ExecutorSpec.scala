@@ -7,11 +7,11 @@ import java.util.concurrent.RejectedExecutionException
 import scala.concurrent.ExecutionContext
 
 final class TestExecutor(val submitResult: Boolean) extends Executor {
-  val here: Boolean                             = true
-  def shutdown(): Unit                          = ()
-  def unsafeSubmit(runnable: Runnable): Boolean = submitResult
-  def yieldOpCount: Int                         = 1
-  def unsafeMetrics: None.type                  = None
+  val here: Boolean                                                     = true
+  def shutdown(): Unit                                                  = ()
+  def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean = submitResult
+  def yieldOpCount: Int                                                 = 1
+  def metrics(implicit unsafe: Unsafe[Any]): None.type                  = None
 }
 
 final class CheckPrintThrowable extends Throwable {
@@ -53,7 +53,9 @@ object ExecutorSpec extends ZIOBaseSpec {
     ),
     suite("Create an executor that cannot have tasks submitted to and check that:")(
       test("It throws an exception upon submission") {
-        assert(TestExecutor.failing.unsafeSubmitOrThrow(TestExecutor.runnable))(throwsA[RejectedExecutionException])
+        assert(Unsafe.unsafeCompat(implicit u => TestExecutor.failing.submitOrThrow(TestExecutor.runnable)))(
+          throwsA[RejectedExecutionException]
+        )
       },
       test("When converted to Java, it throws an exception upon calling execute") {
         assert(TestExecutor.failing.asJava.execute(TestExecutor.runnable))(throwsA[RejectedExecutionException])
@@ -61,7 +63,9 @@ object ExecutorSpec extends ZIOBaseSpec {
     ),
     suite("Create a yielding executor and check that:")(
       test("Runnables can be submitted ") {
-        assert(TestExecutor.y.unsafeSubmitOrThrow(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+        assert(Unsafe.unsafeCompat(implicit u => TestExecutor.y.submitOrThrow(TestExecutor.runnable)))(
+          not(throwsA[RejectedExecutionException])
+        )
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
         assert(TestExecutor.y.asExecutionContext.execute(TestExecutor.runnable))(
@@ -69,7 +73,9 @@ object ExecutorSpec extends ZIOBaseSpec {
         )
       },
       test("When created from an EC, must not throw when fed an effect ") {
-        assert(Executor.fromExecutionContext(TestExecutor.ec).unsafeSubmit(TestExecutor.runnable))(
+        assert(Unsafe.unsafeCompat { implicit u =>
+          Executor.fromExecutionContext(TestExecutor.ec).submit(TestExecutor.runnable)
+        })(
           not(throwsA[RejectedExecutionException])
         )
       },
@@ -79,7 +85,9 @@ object ExecutorSpec extends ZIOBaseSpec {
     ),
     suite("Create an unyielding executor and check that:")(
       test("Runnables can be submitted") {
-        assert(TestExecutor.u.unsafeSubmitOrThrow(TestExecutor.runnable))(not(throwsA[RejectedExecutionException]))
+        assert(Unsafe.unsafeCompat(implicit u => TestExecutor.u.submitOrThrow(TestExecutor.runnable)))(
+          not(throwsA[RejectedExecutionException])
+        )
       },
       test("When converted to an ExecutionContext, it accepts Runnables") {
         assert(TestExecutor.u.asExecutionContext.execute(TestExecutor.runnable))(
