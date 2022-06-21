@@ -26,20 +26,21 @@ private[zio] trait ClockPlatformSpecific {
 
     private[this] val ConstFalse = () => false
 
-    override def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
-      case Duration.Infinity => ConstFalse
-      case Duration.Finite(_) =>
-        var completed = false
+    override def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): CancelToken =
+      (duration: @unchecked) match {
+        case Duration.Infinity => ConstFalse
+        case Duration.Finite(_) =>
+          var completed = false
 
-        val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
-          completed = true
+          val handle = js.timers.setTimeout(duration.toMillis.toDouble) {
+            completed = true
 
-          task.run()
-        }
-        () => {
-          js.timers.clearTimeout(handle)
-          !completed
-        }
-    }
+            task.run()
+          }
+          () => {
+            js.timers.clearTimeout(handle)
+            !completed
+          }
+      }
   }
 }

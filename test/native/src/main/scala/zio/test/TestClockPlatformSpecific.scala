@@ -17,17 +17,17 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Duration, Scheduler, UIO, ZIO, Trace}
+import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
 
 trait TestClockPlatformSpecific { self: TestClock.Test =>
 
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
       new Scheduler {
-        def unsafeSchedule(runnable: Runnable, duration: Duration): Scheduler.CancelToken = {
-          val canceler =
-            runtime.unsafeRunAsyncCancelable(sleep(duration) *> ZIO.succeed(runnable.run()))(_ => ())
-          () => canceler(zio.FiberId.None).isInterrupted
+        def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): Scheduler.CancelToken = {
+          val fiber =
+            runtime.unsafe.fork((sleep(duration) *> ZIO.succeed(runnable.run())))
+          () => runtime.unsafe.run(fiber.interruptAs(zio.FiberId.None)).getOrThrowFiberFailure.isInterrupted
         }
       }
     }

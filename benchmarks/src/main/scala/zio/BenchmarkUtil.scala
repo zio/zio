@@ -26,4 +26,7 @@ object BenchmarkUtil extends Runtime[Any] {
   def catsRepeat[A](n: Int)(io: CIO[A]): CIO[A] =
     if (n <= 1) io
     else io.flatMap(_ => catsRepeat(n - 1)(io))
+
+  def unsafeRun[E, A](zio: ZIO[Any, E, A]): A =
+    Unsafe.unsafeCompat(implicit u => unsafe.run(zio).getOrThrowFiberFailure)
 }

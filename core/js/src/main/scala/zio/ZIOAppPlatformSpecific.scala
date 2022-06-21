@@ -15,12 +15,14 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
       Scope.default +!+ ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
         bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
-    runtime.unsafeRunAsync {
-      (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
-        _       <- installSignalHandlers(runtime)
-        _       <- runtime.run(run).tapErrorCause(ZIO.logErrorCause(_)).exitCode.tap(exit)
-      } yield ()).provideLayer(newLayer)
+    Unsafe.unsafeCompat { implicit u =>
+      runtime.unsafe.fork {
+        (for {
+          runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
+          _       <- installSignalHandlers(runtime)
+          _       <- runtime.run(run).tapErrorCause(ZIO.logErrorCause(_)).exitCode.tap(exit)
+        } yield ()).provideLayer(newLayer)
+      }
     }
   }
 }

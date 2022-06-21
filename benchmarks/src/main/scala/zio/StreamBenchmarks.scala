@@ -281,6 +281,7 @@ class StreamBenchmarks {
       .fromChunks(chunks: _*)
       .mapZIOPar(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
       .runCount
+
     unsafeRun(result)
   }
 
@@ -314,6 +315,7 @@ class StreamBenchmarks {
       .fromChunks(chunks: _*)
       .mapZIOParUnordered(4)(i => ZIO.succeed(BigDecimal.valueOf(i.toLong).pow(3)))
       .runCount
+
     unsafeRun(result)
   }
 
@@ -346,6 +348,7 @@ class StreamBenchmarks {
     val s1     = ZStream.fromChunks(chunks: _*)
     val s2     = ZStream.fromChunks(chunks: _*).map(_ * 2L)
     val result = s1.zipWith(s2)(_ + _).runSum
+
     unsafeRun(result)
   }
 

@@ -20,30 +20,33 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermit {
-    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
-    val semaphore: TSemaphore           = runtime.unsafeRun(TSemaphore.makeCommit(1L))
-    var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
+    val promise: Promise[Nothing, Unit] = Unsafe.unsafeCompat { implicit u =>
+      Promise.unsafe.make[Nothing, Unit](FiberId.None)
+    }
+    val semaphore: TSemaphore =
+      Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(TSemaphore.makeCommit(1L)).getOrThrowFiberFailure)
+    var fiber: Fiber[Nothing, Unit] = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
-    def actor1(): Unit = {
+    def actor1(): Unit = Unsafe.unsafeCompat { implicit u =>
       val zio = semaphore.withPermit(ZIO.unit)
-      fiber = runtime.unsafeRun(zio.fork)
-      runtime.unsafeRun(promise.succeed(()))
-      runtime.unsafeRun(fiber.await)
+      fiber = runtime.unsafe.run(zio.fork).getOrThrowFiberFailure
+      runtime.unsafe.run(promise.succeed(())).getOrThrowFiberFailure
+      runtime.unsafe.run(fiber.await).getOrThrowFiberFailure
       ()
     }
 
     @Actor
-    def actor2(): Unit = {
+    def actor2(): Unit = Unsafe.unsafeCompat { implicit u =>
       val zio = promise.await *> fiber.interrupt
-      runtime.unsafeRun(zio)
+      runtime.unsafe.run(zio).getOrThrowFiberFailure
       ()
     }
 
     @Arbiter
-    def arbiter(r: I_Result): Unit = {
+    def arbiter(r: I_Result): Unit = Unsafe.unsafeCompat { implicit u =>
       val zio     = semaphore.permits.get.commit
-      val permits = runtime.unsafeRun(zio)
+      val permits = runtime.unsafe.run(zio).getOrThrowFiberFailure
       r.r1 = permits.toInt
     }
   }
@@ -60,30 +63,33 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermitScoped {
-    val promise: Promise[Nothing, Unit] = Promise.unsafeMake[Nothing, Unit](FiberId.None)
-    val semaphore: TSemaphore           = runtime.unsafeRun(TSemaphore.makeCommit(1L))
-    var fiber: Fiber[Nothing, Unit]     = null.asInstanceOf[Fiber[Nothing, Unit]]
+    val promise: Promise[Nothing, Unit] = Unsafe.unsafeCompat { implicit u =>
+      Promise.unsafe.make[Nothing, Unit](FiberId.None)
+    }
+    val semaphore: TSemaphore =
+      Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(TSemaphore.makeCommit(1L)).getOrThrowFiberFailure)
+    var fiber: Fiber[Nothing, Unit] = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
-    def actor1(): Unit = {
+    def actor1(): Unit = Unsafe.unsafeCompat { implicit u =>
       val zio = ZIO.scoped(semaphore.withPermitScoped)
-      fiber = runtime.unsafeRun(zio.fork)
-      runtime.unsafeRun(promise.succeed(()))
-      runtime.unsafeRun(fiber.await)
+      fiber = runtime.unsafe.run(zio.fork).getOrThrowFiberFailure
+      runtime.unsafe.run(promise.succeed(())).getOrThrowFiberFailure
+      runtime.unsafe.run(fiber.await).getOrThrowFiberFailure
       ()
     }
 
     @Actor
-    def actor2(): Unit = {
+    def actor2(): Unit = Unsafe.unsafeCompat { implicit u =>
       val zio = promise.await *> fiber.interrupt
-      runtime.unsafeRun(zio)
+      runtime.unsafe.run(zio).getOrThrowFiberFailure
       ()
     }
 
     @Arbiter
-    def arbiter(r: I_Result): Unit = {
+    def arbiter(r: I_Result): Unit = Unsafe.unsafeCompat { implicit u =>
       val zio     = semaphore.permits.get.commit
-      val permits = runtime.unsafeRun(zio)
+      val permits = runtime.unsafe.run(zio).getOrThrowFiberFailure
       r.r1 = permits.toInt
     }
   }
@@ -101,8 +107,10 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentGetAndSet {
-    val inner: TRef[Boolean]       = runtime.unsafeRun(TRef.makeCommit(false))
-    val outer: TRef[TRef[Boolean]] = runtime.unsafeRun(TRef.makeCommit(inner))
+    val inner: TRef[Boolean] =
+      Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(TRef.makeCommit(false)).getOrThrowFiberFailure)
+    val outer: TRef[TRef[Boolean]] =
+      Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(TRef.makeCommit(inner)).getOrThrowFiberFailure)
 
     @Actor
     def actor1(): Unit = {
@@ -114,8 +122,10 @@ object ZSTMConcurrencyTests {
              else inner.set(true) *> outer.set(fresh)
       } yield value
       val zio = ZIO.foreachParDiscard(1 to 1000)(_ => stm.commit)
-      runtime.unsafeRun(zio)
-      ()
+      Unsafe.unsafeCompat { implicit u =>
+        runtime.unsafe.run(zio).getOrThrowFiberFailure
+        ()
+      }
     }
 
     @Arbiter

@@ -42,7 +42,6 @@ import zio.test.render.LogLine.Message
  * doesn't support custom runners.
  */
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
-  import zio.Runtime.default.unsafeRun
 
   private val className = klass.getName.stripSuffix("$")
 
@@ -79,26 +78,32 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         traverse(filteredSpec, description)
       )
 
-    unsafeRun(
-      scoped
-        .provide(
-          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-          spec.bootstrap
+    Unsafe.unsafeCompat { implicit u =>
+      zio.Runtime.default.unsafe
+        .run(
+          scoped
+            .provide(
+              Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+              spec.bootstrap
+            )
         )
-    )
-    description
+        .getOrThrowFiberFailure
+      description
+    }
   }
 
   override def run(notifier: RunNotifier): Unit = {
-    val _ = zio.Runtime.default.unsafeRun {
+    val _ = Unsafe.unsafeCompat { implicit u =>
+      zio.Runtime.default.unsafe.run {
 
-      val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =
-        instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-      spec
-        .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
-        .provide(
-          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope])
-        )
+        val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =
+          instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
+        spec
+          .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
+          .provide(
+            Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope])
+          )
+      }.getOrThrowFiberFailure
     }
   }
 

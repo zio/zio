@@ -367,7 +367,9 @@ sealed abstract class Fiber[+E, +A] { self =>
         _ <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] =
-          runtime.unsafeRunToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
+          Unsafe.unsafeCompat { implicit u =>
+            runtime.unsafe.runToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
+          }
       }
     }.uninterruptible
 
@@ -506,6 +508,13 @@ object Fiber extends FiberPlatformSpecific {
      * The trace of the fiber.
      */
     def trace(implicit trace: Trace): UIO[StackTrace]
+
+    /**
+     * Adds an observer to the list of observers.
+     */
+    def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe[Any]): Unit
+
+    def getFiberRefs()(implicit unsafe: Unsafe[Any]): FiberRefs
   }
 
   private[zio] object Runtime {
@@ -832,7 +841,7 @@ object Fiber extends FiberPlatformSpecific {
    * always be `None` unless called from within an executing effect and this
    * feature is enabled using [[Runtime.enableCurrentFiber]].
    */
-  def unsafeCurrentFiber(): Option[Fiber[Any, Any]] =
+  def currentFiber()(unsafe: Unsafe[Any]): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberRuntime[_, _]] =

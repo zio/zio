@@ -132,12 +132,16 @@ object PollingMetric {
       def metric: Metric[Type, In, Chunk[Out]] =
         new Metric[Type, In, Chunk[Out]] {
           override val keyType: Type = Chunk[Any](())
-          override private[zio] def unsafeUpdate(in: In, extraTags: Set[MetricLabel]): Unit =
-            ins.zip(in).foreach { case (pollingmetric, input) =>
-              pollingmetric.metric.unsafeUpdate(input.asInstanceOf[pollingmetric.In])
-            }
-          override private[zio] def unsafeValue(extraTags: Set[MetricLabel]) =
-            ins.map(_.metric.unsafeValue(extraTags))
+
+          override private[zio] val unsafe = new UnsafeAPI {
+            override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe[Any]): Unit =
+              ins.zip(in).foreach { case (pollingmetric, input) =>
+                pollingmetric.metric.unsafe.update(input.asInstanceOf[pollingmetric.In])
+              }
+
+            override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe[Any]): Chunk[Out] =
+              ins.map(_.metric.unsafe.value(extraTags))
+          }
         }
 
       def poll(implicit trace: Trace): ZIO[R, E, In] = ZIO.foreach(ins)(_.poll)

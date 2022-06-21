@@ -54,11 +54,13 @@ class ParallelMergeSortBenchmark {
     sortInput.zip(sortOutput).foreach(verifySorted)
   }
 
-  private def benchMergeSort(runtime: Runtime[Any]): Unit = runtime.unsafeRun {
-    for {
-      sortOutput <- ZIO.foreach(sortInput)(mergeSort)
-      _          <- ZIO.foreach(sortInput.zip(sortOutput))(verifySorted)
-    } yield ()
+  private def benchMergeSort(runtime: Runtime[Any]): Unit = Unsafe.unsafeCompat { implicit u =>
+    runtime.unsafe.run {
+      for {
+        sortOutput <- ZIO.foreach(sortInput)(mergeSort)
+        _          <- ZIO.foreach(sortInput.zip(sortOutput))(verifySorted)
+      } yield ()
+    }.getOrThrowFiberFailure
   }
 
   private def verifySorted(inOut: (Iterable[Int], Iterable[Int])): IO[AssertionError, Unit] = {

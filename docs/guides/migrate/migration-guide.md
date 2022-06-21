@@ -756,9 +756,13 @@ object MainApp extends zio.App {
     ZIO
       .runtime[ZEnv]
       .map { runtime =>
-        runtime
-          .mapPlatform(_.withExecutor(customExecutor))
-          .unsafeRun(myApp)
+        Unsafe.unsafe { implicit u =>
+          runtime
+            .mapPlatform(_.withExecutor(customExecutor))
+            .unsafe
+            .run(myApp)
+            .getOrThrowFiberFailure
+        }
       }
       .exitCode
 }
@@ -835,16 +839,20 @@ object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
 
   def zioApplication(): Int =
-    Runtime
-      .unsafeFromLayer(
-        Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
-      )
-      .unsafeRun(zioWorkflow)
+      Unsafe.unsafe { implicit u =>
+        Runtime
+          .unsafeFromLayer(
+            Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+          )
+          .unsafe
+          .run(zioWorkflow)
+          .getOrThrowFiberFailure
+      }
 
   def main(args: Array[String]): Unit = {
     val result = zioApplication()
     legacyApplication(result)
-  }
+  }  
 
 }
 ```

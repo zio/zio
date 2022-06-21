@@ -28,9 +28,11 @@ package zio
  * unsafe { ... }
  * }}}
  */
-sealed trait Unsafe[-Effects] {
+sealed trait Unsafe[-Effects] extends Serializable {
   def derive[Subeffects <: Effects]: Unsafe[Subeffects] = new Unsafe[Subeffects] {}
 }
 object Unsafe extends UnsafeVersionSpecific {
   protected val unsafe: Unsafe[Any] = new Unsafe[Any] {}
+
+  def unsafeCompat[A](f: Unsafe[Any] => A): A = f(unsafe)
 }
