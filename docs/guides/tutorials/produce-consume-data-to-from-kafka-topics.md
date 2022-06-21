@@ -571,4 +571,6 @@ object JsonStreamingKafkaApp extends ZIOAppDefault {
 
 ## Conclusion
 
-TODO
+In this tutorial first, we learned how to create a producer and consumer for Kafka using the ZIO workflow with ZIO Kafka. Then we learned how to do the same with ZIO Streams. We also learned how to create a custom serializer and deserializer for the Kafka records and how to produce and consume JSON data using the ZIO JSON library.
+
+The complete working example of this tutorial is available on the `kafka` branch of our [ZIO Quickstart: Hello World](https://github.com/zio/zio-quickstart-hello-world/tree/kafka) quickstart on GitHub.
