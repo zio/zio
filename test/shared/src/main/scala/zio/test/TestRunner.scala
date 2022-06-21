@@ -28,11 +28,8 @@ import java.util.concurrent.TimeUnit
  * require a test executor, a runtime configuration, and a reporter.
  */
 final case class TestRunner[R, E](
-  executor: TestExecutor[R, E],
-  bootstrap: ULayer[TestOutput with ExecutionEventSink] = TestRunner.defaultBootstrap
+  executor: TestExecutor[R, E]
 ) { self =>
-
-  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.
@@ -46,43 +43,4 @@ final case class TestRunner[R, E](
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
-
-  /**
-   * An unsafe, synchronous run of the specified spec.
-   */
-  def unsafeRun(spec: Spec[R, E])(implicit trace: Trace): Unit =
-    runtime.unsafeRun(run(spec).provideLayer(bootstrap))
-
-  /**
-   * An unsafe, asynchronous run of the specified spec.
-   */
-  def unsafeRunAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace): Unit =
-    runtime.unsafeRunAsyncWith(run(spec).provideLayer(bootstrap)) {
-      case Exit.Success(_) => k
-      case Exit.Failure(c) => throw FiberFailure(c)
-    }
-
-  /**
-   * An unsafe, synchronous run of the specified spec.
-   */
-  def unsafeRunSync(spec: Spec[R, E])(implicit trace: Trace): Exit[Nothing, Unit] =
-    runtime.unsafeRunSync(run(spec).unit.provideLayer(bootstrap))
-
-  private[test] def buildRuntime(implicit
-    trace: Trace
-  ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
-    bootstrap.toRuntime
-}
-
-object TestRunner {
-  lazy val defaultBootstrap = {
-    implicit val emptyTracer = Trace.empty
-
-    ZLayer.make[TestOutput with ExecutionEventSink](
-      ExecutionEventPrinter.live(ConsoleEventRenderer),
-      TestLogger.fromConsole(Console.ConsoleLive),
-      TestOutput.live,
-      ExecutionEventSink.live
-    )
-  }
 }
