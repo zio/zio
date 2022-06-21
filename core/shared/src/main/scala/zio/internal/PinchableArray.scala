@@ -55,7 +55,7 @@ final class PinchableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
     if (array eq null) {
       array = new Array[A](newSize)
     } else if (newSize > array.length) {
-      val newStack = new Array(newSize + _size / 2)
+      val newStack = new Array[A](newSize + _size / 2)
       System.arraycopy(array, 0, newStack, 0, _size)
       array = newStack
     }
