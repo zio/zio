@@ -542,7 +542,7 @@ sealed trait ZIO[-R, +E, +A]
    * eventually succeeds.
    */
   final def eventually(implicit ev: CanFail[E], trace: Trace): URIO[R, A] =
-    self <> ZIO.yieldNow *> eventually
+    flipWith(_.forever)
 
   /**
    * Returns an effect that semantically runs the effect on a fiber, producing
@@ -729,11 +729,8 @@ sealed trait ZIO[-R, +E, +A]
    * Repeats this effect forever (until the first error). For more sophisticated
    * schedules, see the `repeat` method.
    */
-  final def forever(implicit trace: Trace): ZIO[R, E, Nothing] = {
-    lazy val loop: ZIO[R, E, Nothing] = self *> ZIO.yieldNow *> loop
-
-    loop
-  }
+  final def forever(implicit trace: Trace): ZIO[R, E, Nothing] =
+    ZIO.whileLoop(true)(self *> ZIO.yieldNow)(identity) *> ZIO.never
 
   /**
    * Returns an effect that forks this effect into its own separate fiber,
@@ -1474,12 +1471,13 @@ sealed trait ZIO[-R, +E, +A]
    * that succeeds, executes `io` an additional time.
    */
   final def repeatN(n: => Int)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
+    self.flatMap { a =>
+      var result = a
+      var i      = n
 
-      def loop(n: Int): ZIO[R, E, A] =
-        self.flatMap(a => if (n <= 0) ZIO.succeedNow(a) else ZIO.yieldNow *> loop(n - 1))
-
-      loop(n)
+      ZIO
+        .whileLoop(i > 0)(ZIO.yieldNow *> self) { a => result = a; i -= 1 }
+        .as(result)
     }
 
   /**
@@ -3621,11 +3619,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     initial: => S
   )(cont: S => Boolean)(body: S => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.suspendSucceed {
-      val ref = new java.util.concurrent.atomic.AtomicReference[S](initial)
+      var result = initial
 
       ZIO
-        .whileLoop(cont(ref.get))(body(ref.get))(ref.set)
-        .as(ref.get)
+        .whileLoop(cont(result))(body(result))(result = _)
+        .as(result)
     }
 
   /**
