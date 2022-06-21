@@ -51,7 +51,7 @@ private final class ZScheduler extends Executor {
   supervisor.setDaemon(true)
   supervisor.start()
 
-  def metrics(implicit unsafe: Unsafe[Any]): Option[ExecutionMetrics] = {
+  def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
         Int.MaxValue
@@ -100,7 +100,7 @@ private final class ZScheduler extends Executor {
     Some(metrics)
   }
 
-  def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
+  def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     if (isBlocking(runnable)) {
       submitBlocking(runnable)
     } else {
@@ -142,7 +142,7 @@ private final class ZScheduler extends Executor {
       true
     }
 
-  override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
+  override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     if (isBlocking(runnable)) {
       submitBlocking(runnable)
     } else {
@@ -422,7 +422,7 @@ private final class ZScheduler extends Executor {
       }
     }
 
-  private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
+  private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     Blocking.blockingExecutor.submit(runnable)
 }
 

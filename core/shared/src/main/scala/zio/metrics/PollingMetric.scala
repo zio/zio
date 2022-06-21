@@ -134,12 +134,12 @@ object PollingMetric {
           override val keyType: Type = Chunk[Any](())
 
           override private[zio] val unsafe = new UnsafeAPI {
-            override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe[Any]): Unit =
+            override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
               ins.zip(in).foreach { case (pollingmetric, input) =>
                 pollingmetric.metric.unsafe.update(input.asInstanceOf[pollingmetric.In])
               }
 
-            override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe[Any]): Chunk[Out] =
+            override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Chunk[Out] =
               ins.map(_.metric.unsafe.value(extraTags))
           }
         }

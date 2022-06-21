@@ -229,26 +229,26 @@ object TestClock extends Serializable {
       clockState.get.map(_.timeZone)
 
     override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long =
+      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
         unit.convert(clockState.unsafe.get.instant.toEpochMilli, TimeUnit.MILLISECONDS)
 
-      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe[Any]): Long =
+      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
         unit.between(Instant.EPOCH, clockState.unsafe.get.instant)
 
-      override def currentDateTime()(implicit unsafe: Unsafe[Any]): OffsetDateTime = {
+      override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime = {
         val data = clockState.unsafe.get
         OffsetDateTime.ofInstant(data.instant, data.timeZone)
       }
 
-      override def instant()(implicit unsafe: Unsafe[Any]): Instant =
+      override def instant()(implicit unsafe: Unsafe): Instant =
         clockState.unsafe.get.instant
 
-      override def localDateTime()(implicit unsafe: Unsafe[Any]): LocalDateTime = {
+      override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime = {
         val data = clockState.unsafe.get
         LocalDateTime.ofInstant(data.instant, data.timeZone)
       }
 
-      override def nanoTime()(implicit unsafe: Unsafe[Any]): Long =
+      override def nanoTime()(implicit unsafe: Unsafe): Long =
         currentTime(ChronoUnit.NANOS)
     }
 

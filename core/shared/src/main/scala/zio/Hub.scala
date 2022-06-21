@@ -166,7 +166,7 @@ object Hub {
     def onHubEmptySpace(
       hub: internal.Hub[A],
       subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
-    )(implicit unsafe: Unsafe[Any]): Unit
+    )(implicit unsafe: Unsafe): Unit
 
     /**
      * Describes how subscribers waiting for additional values from the hub
@@ -178,7 +178,7 @@ object Hub {
       subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
       subscription: internal.Hub.Subscription[A],
       pollers: MutableConcurrentQueue[Promise[Nothing, A]]
-    )(implicit unsafe: Unsafe[Any]): Unit = {
+    )(implicit unsafe: Unsafe): Unit = {
       var keepPolling = true
       val nullPoller  = null.asInstanceOf[Promise[Nothing, A]]
       val empty       = null.asInstanceOf[A]
@@ -208,7 +208,7 @@ object Hub {
     final def completeSubscribers(
       hub: internal.Hub[A],
       subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
-    )(implicit unsafe: Unsafe[Any]): Unit = {
+    )(implicit unsafe: Unsafe): Unit = {
       val iterator = subscribers.iterator
       while (iterator.hasNext) {
         val (subscription, pollers) = iterator.next()
@@ -260,7 +260,7 @@ object Hub {
       def onHubEmptySpace(
         hub: internal.Hub[A],
         subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
-      )(implicit unsafe: Unsafe[Any]): Unit = {
+      )(implicit unsafe: Unsafe): Unit = {
         val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
         var keepPolling = true
 
@@ -280,7 +280,7 @@ object Hub {
 
       }
 
-      private def offer(as: Iterable[A], promise: Promise[Nothing, Boolean])(implicit unsafe: Unsafe[Any]): Unit =
+      private def offer(as: Iterable[A], promise: Promise[Nothing, Boolean])(implicit unsafe: Unsafe): Unit =
         if (as.nonEmpty) {
           val iterator = as.iterator
           var a        = iterator.next()
@@ -292,7 +292,7 @@ object Hub {
           ()
         }
 
-      private def remove(promise: Promise[Nothing, Boolean])(implicit unsafe: Unsafe[Any]): Unit = {
+      private def remove(promise: Promise[Nothing, Boolean])(implicit unsafe: Unsafe): Unit = {
         Hub.unsafe.offerAll(publishers, Hub.unsafe.pollAll(publishers).filterNot(_._2 == promise))
         ()
       }
@@ -322,7 +322,7 @@ object Hub {
       def onHubEmptySpace(
         hub: internal.Hub[A],
         subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
-      )(implicit unsafe: Unsafe[Any]): Unit =
+      )(implicit unsafe: Unsafe): Unit =
         ()
     }
 
@@ -341,7 +341,7 @@ object Hub {
         as: Iterable[A],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
-        def slidingPublish(as: Iterable[A])(implicit unsafe: Unsafe[Any]): Unit =
+        def slidingPublish(as: Iterable[A])(implicit unsafe: Unsafe): Unit =
           if (as.nonEmpty && hub.capacity > 0) {
             val iterator = as.iterator
             var a        = iterator.next()
@@ -370,7 +370,7 @@ object Hub {
       def onHubEmptySpace(
         hub: internal.Hub[A],
         subscribers: Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])]
-      )(implicit unsafe: Unsafe[Any]): Unit =
+      )(implicit unsafe: Unsafe): Unit =
         ()
     }
   }
@@ -387,7 +387,7 @@ object Hub {
       shutdownHook: Promise[Nothing, Unit],
       shutdownFlag: AtomicBoolean,
       strategy: Strategy[A]
-    )(implicit unsafe: Unsafe[Any]): Hub[A] =
+    )(implicit unsafe: Unsafe): Hub[A] =
       new Hub[A] {
         def awaitShutdown(implicit trace: Trace): UIO[Unit] =
           shutdownHook.await
@@ -457,7 +457,7 @@ object Hub {
       shutdownHook: Promise[Nothing, Unit],
       shutdownFlag: AtomicBoolean,
       strategy: Strategy[A]
-    )(implicit unsafe: Unsafe[Any]): Dequeue[A] =
+    )(implicit unsafe: Unsafe): Dequeue[A] =
       new Dequeue[A] { self =>
         def awaitShutdown(implicit trace: Trace): UIO[Unit] =
           shutdownHook.await
@@ -529,43 +529,43 @@ object Hub {
     /**
      * Unsafely completes a promise with the specified value.
      */
-    def completePromise[A](promise: Promise[Nothing, A], a: A)(implicit unsafe: Unsafe[Any]): Unit =
+    def completePromise[A](promise: Promise[Nothing, A], a: A)(implicit unsafe: Unsafe): Unit =
       promise.unsafe.done(ZIO.succeedNow(a))
 
     /**
      * Unsafely offers the specified values to a queue.
      */
-    def offerAll[A](queue: MutableConcurrentQueue[A], as: Iterable[A])(implicit unsafe: Unsafe[Any]): Chunk[A] =
+    def offerAll[A](queue: MutableConcurrentQueue[A], as: Iterable[A])(implicit unsafe: Unsafe): Chunk[A] =
       queue.offerAll(as)
 
     /**
      * Unsafely polls all values from a queue.
      */
-    def pollAll[A](queue: MutableConcurrentQueue[A])(implicit unsafe: Unsafe[Any]): Chunk[A] =
+    def pollAll[A](queue: MutableConcurrentQueue[A])(implicit unsafe: Unsafe): Chunk[A] =
       queue.pollUpTo(Int.MaxValue)
 
     /**
      * Unsafely polls all values from a subscription.
      */
-    def pollAll[A](subscription: internal.Hub.Subscription[A])(implicit unsafe: Unsafe[Any]): Chunk[A] =
+    def pollAll[A](subscription: internal.Hub.Subscription[A])(implicit unsafe: Unsafe): Chunk[A] =
       subscription.pollUpTo(Int.MaxValue)
 
     /**
      * Unsafely polls the specified number of values from a subscription.
      */
-    def pollN[A](subscription: internal.Hub.Subscription[A], max: Int)(implicit unsafe: Unsafe[Any]): Chunk[A] =
+    def pollN[A](subscription: internal.Hub.Subscription[A], max: Int)(implicit unsafe: Unsafe): Chunk[A] =
       subscription.pollUpTo(max)
 
     /**
      * Unsafely publishes the specified values to a hub.
      */
-    def publishAll[A, B <: A](hub: internal.Hub[A], as: Iterable[B])(implicit unsafe: Unsafe[Any]): Chunk[B] =
+    def publishAll[A, B <: A](hub: internal.Hub[A], as: Iterable[B])(implicit unsafe: Unsafe): Chunk[B] =
       hub.publishAll(as)
 
     /**
      * Unsafely removes the specified item from a queue.
      */
-    def remove[A](queue: MutableConcurrentQueue[A], a: A)(implicit unsafe: Unsafe[Any]): Unit = {
+    def remove[A](queue: MutableConcurrentQueue[A], a: A)(implicit unsafe: Unsafe): Unit = {
       offerAll(queue, pollAll(queue).filterNot(_ == a))
       ()
     }

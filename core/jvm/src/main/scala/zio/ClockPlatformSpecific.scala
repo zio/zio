@@ -36,7 +36,7 @@ private[zio] trait ClockPlatformSpecific {
     def asScheduledExecutorService: ScheduledExecutorService =
       service
 
-    def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): CancelToken =
+    def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
       (duration: @unchecked) match {
         case Duration.Infinity => ConstFalse
         case _ =>

@@ -48,33 +48,33 @@ trait Clock extends Serializable { self =>
   def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit]
 
   private[zio] trait UnsafeAPI {
-    def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long
-    def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe[Any]): Long
-    def currentDateTime()(implicit unsafe: Unsafe[Any]): OffsetDateTime
-    def instant()(implicit unsafe: Unsafe[Any]): Instant
-    def localDateTime()(implicit unsafe: Unsafe[Any]): LocalDateTime
-    def nanoTime()(implicit unsafe: Unsafe[Any]): Long
+    def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long
+    def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long
+    def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime
+    def instant()(implicit unsafe: Unsafe): Instant
+    def localDateTime()(implicit unsafe: Unsafe): LocalDateTime
+    def nanoTime()(implicit unsafe: Unsafe): Long
   }
 
   private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
-    def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long =
+    def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
       Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe[Any]): Long =
+    def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
       Runtime.default.unsafe
         .run(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
         .getOrThrowFiberFailure
 
-    def currentDateTime()(implicit unsafe: Unsafe[Any]): OffsetDateTime =
+    def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
       Runtime.default.unsafe.run(self.currentDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def instant()(implicit unsafe: Unsafe[Any]): Instant =
+    def instant()(implicit unsafe: Unsafe): Instant =
       Runtime.default.unsafe.run(self.instant(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def localDateTime()(implicit unsafe: Unsafe[Any]): LocalDateTime =
+    def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
       Runtime.default.unsafe.run(self.localDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def nanoTime()(implicit unsafe: Unsafe[Any]): Long =
+    def nanoTime()(implicit unsafe: Unsafe): Long =
       Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
   }
 }
@@ -110,7 +110,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(globalScheduler)
 
     @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long = {
+      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
         val inst = instant()
         unit match {
           case TimeUnit.NANOSECONDS =>
@@ -121,19 +121,19 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe[Any]): Long =
+      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
         unit.between(Instant.EPOCH, instant())
 
-      override def currentDateTime()(implicit unsafe: Unsafe[Any]): OffsetDateTime =
+      override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
         OffsetDateTime.now(clock)
 
-      override def instant()(implicit unsafe: Unsafe[Any]): Instant =
+      override def instant()(implicit unsafe: Unsafe): Instant =
         clock.instant()
 
-      override def localDateTime()(implicit unsafe: Unsafe[Any]): LocalDateTime =
+      override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
         LocalDateTime.now(clock)
 
-      override def nanoTime()(implicit unsafe: Unsafe[Any]): Long =
+      override def nanoTime()(implicit unsafe: Unsafe): Long =
         currentTime(TimeUnit.NANOSECONDS)
     }
   }
@@ -181,7 +181,7 @@ object Clock extends ClockPlatformSpecific with Serializable {
     }
 
     @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe[Any]): Long = {
+      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
         val inst = instant()
         // A nicer solution without loss of precision or range would be
         // unit.toChronoUnit.between(Instant.EPOCH, inst)
@@ -195,19 +195,19 @@ object Clock extends ClockPlatformSpecific with Serializable {
         }
       }
 
-      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe[Any]): Long =
+      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
         unit.between(Instant.EPOCH, instant())
 
-      override def currentDateTime()(implicit unsafe: Unsafe[Any]): OffsetDateTime =
+      override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
         OffsetDateTime.now()
 
-      override def instant()(implicit unsafe: Unsafe[Any]): Instant =
+      override def instant()(implicit unsafe: Unsafe): Instant =
         Instant.now()
 
-      override def localDateTime()(implicit unsafe: Unsafe[Any]): LocalDateTime =
+      override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
         LocalDateTime.now()
 
-      override def nanoTime()(implicit unsafe: Unsafe[Any]): Long =
+      override def nanoTime()(implicit unsafe: Unsafe): Long =
         JSystem.nanoTime
     }
   }

@@ -23,7 +23,7 @@ import java.util.concurrent.{ScheduledExecutorService, TimeUnit}
 
 abstract class Scheduler {
   def asScheduledExecutorService: ScheduledExecutorService
-  def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): CancelToken
+  def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken
 }
 
 object Scheduler {
@@ -36,7 +36,7 @@ object Scheduler {
       def asScheduledExecutorService: ScheduledExecutorService =
         service
 
-      def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe[Any]): CancelToken =
+      def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
         (duration: @unchecked) match {
           case Duration.Infinity => ConstFalse
           case Duration.Zero =>

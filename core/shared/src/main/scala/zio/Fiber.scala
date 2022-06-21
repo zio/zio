@@ -512,9 +512,9 @@ object Fiber extends FiberPlatformSpecific {
     /**
      * Adds an observer to the list of observers.
      */
-    def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe[Any]): Unit
+    def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
 
-    def getFiberRefs()(implicit unsafe: Unsafe[Any]): FiberRefs
+    def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs
   }
 
   private[zio] object Runtime {
@@ -841,7 +841,7 @@ object Fiber extends FiberPlatformSpecific {
    * always be `None` unless called from within an executing effect and this
    * feature is enabled using [[Runtime.enableCurrentFiber]].
    */
-  def currentFiber()(unsafe: Unsafe[Any]): Option[Fiber[Any, Any]] =
+  def currentFiber()(unsafe: Unsafe): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberRuntime[_, _]] =

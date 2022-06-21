@@ -18,7 +18,7 @@ trait ZIOCompanionVersionSpecific {
    * diagnostics, but not affect the behavior of the returned effect.
    */
   def async[R, E, A](
-    register: Unsafe[Any] ?=> (ZIO[R, E, A] => Unit) => Any,
+    register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Any,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     Async(trace, Unsafe.unsafe(register), () => blockingOn)
@@ -39,7 +39,7 @@ trait ZIOCompanionVersionSpecific {
    * diagnostics, but not affect the behavior of the returned effect.
    */
   def asyncInterrupt[R, E, A](
-    register: Unsafe[Any] ?=> (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
+    register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceedUnsafe { implicit u =>
@@ -76,7 +76,7 @@ trait ZIOCompanionVersionSpecific {
    * diagnostics, but not affect the behavior of the returned effect.
    */
   def asyncMaybe[R, E, A](
-    register: Unsafe[Any] ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
+    register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     asyncInterrupt(
@@ -99,7 +99,7 @@ trait ZIOCompanionVersionSpecific {
    * def printLine(line: String): Task[Unit] = ZIO.attempt(println(line))
    * }}}
    */
-  def attempt[A](code: Unsafe[Any] ?=> A)(implicit trace: Trace): Task[A] =
+  def attempt[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
     ZIO.unsafeStateful[Any, Throwable, A] { implicit u => (fiberState, _) =>
       try {
         val result = code
@@ -122,7 +122,7 @@ trait ZIOCompanionVersionSpecific {
    * and therefore, pro-actively executes the code on a dedicated blocking
    * thread pool, so it won't interfere with the main thread pool that ZIO uses.
    */
-  def attemptBlocking[A](effect: Unsafe[Any] ?=> A)(implicit trace: Trace): Task[A] =
+  def attemptBlocking[A](effect: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
     ZIO.blocking(ZIO.attempt(effect))
 
   /**
@@ -148,20 +148,20 @@ trait ZIOCompanionVersionSpecific {
    * This function is the same as `attempt`, except that it only exposes
    * `IOException`, treating any other exception as fatal.
    */
-  def attemptBlockingIO[A](effect: Unsafe[Any] ?=> A)(implicit trace: Trace): IO[IOException, A] =
+  def attemptBlockingIO[A](effect: Unsafe ?=> A)(implicit trace: Trace): IO[IOException, A] =
     attemptBlocking(effect).refineToOrDie[IOException]
 
 
   /**
    * Returns an effect that models success with the specified value.
    */
-  def succeed[A](a: Unsafe[Any] ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
+  def succeed[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
     ZIO.Sync(trace, () => Unsafe.unsafe(a))
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the
    * specified value.
    */
-  def succeedBlocking[A](a: Unsafe[Any] ?=> A)(implicit trace: Trace): UIO[A] =
+  def succeedBlocking[A](a: Unsafe ?=> A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeed(a))
 }

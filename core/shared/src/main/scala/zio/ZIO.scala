@@ -2454,7 +2454,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       effect: ZIO[R, E1, A],
       parentFiber: internal.FiberRuntime[E2, B],
       parentRuntimeFlags: RuntimeFlags
-    )(implicit unsafe: Unsafe[Any]): internal.FiberRuntime[E1, A] = {
+    )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childFiber = ZIO.unsafe.forkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
 
       childFiber.startBackground(effect)
@@ -2467,7 +2467,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       effect: ZIO[R, E1, A],
       parentFiber: internal.FiberRuntime[E2, B],
       parentRuntimeFlags: RuntimeFlags
-    )(implicit unsafe: Unsafe[Any]): internal.FiberRuntime[E1, A] = {
+    )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childId         = FiberId.make(trace)
       val parentFiberRefs = parentFiber.getFiberRefs()
       val childFiberRefs  = parentFiberRefs.forkAs(childId)
@@ -2627,7 +2627,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
 
   def asyncInterruptUnsafe[R, E, A](
-    register: Unsafe[Any] => (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
+    register: Unsafe => (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     asyncInterrupt(cb => Unsafe.unsafeCompat(implicit u => register(u)(cb)), blockingOn)
@@ -2655,10 +2655,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
            }
     } yield a
 
-  def attemptUnsafe[A](a: Unsafe[Any] => A)(implicit trace: Trace): Task[A] =
+  def attemptUnsafe[A](a: Unsafe => A)(implicit trace: Trace): Task[A] =
     ZIO.attempt(Unsafe.unsafeCompat(a))
 
-  def attemptBlockingIOUnsafe[A](effect: Unsafe[Any] => A)(implicit trace: Trace): IO[IOException, A] =
+  def attemptBlockingIOUnsafe[A](effect: Unsafe => A)(implicit trace: Trace): IO[IOException, A] =
     attemptBlockingIO(Unsafe.unsafeCompat(implicit u => effect(u)))
 
   /**
@@ -4305,10 +4305,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def stateful[R]: StatefulPartiallyApplied[R] =
     new StatefulPartiallyApplied[R]
 
-  def succeedBlockingUnsafe[A](a: Unsafe[Any] => A)(implicit trace: Trace): UIO[A] =
+  def succeedBlockingUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
     ZIO.blocking(ZIO.succeedUnsafe(a))
 
-  def succeedUnsafe[A](a: Unsafe[Any] => A)(implicit trace: Trace): UIO[A] =
+  def succeedUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
     ZIO.succeed(Unsafe.unsafeCompat(a))
 
   /**
@@ -4334,7 +4334,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def suspendSucceed[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.succeed(zio).flatMap(identityFn)
 
-  def suspendSucceedUnsafe[R, E, A](zio: Unsafe[Any] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def suspendSucceedUnsafe[R, E, A](zio: Unsafe => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.succeedUnsafe(zio).flatMap(identityFn)
 
   /**
@@ -4718,7 +4718,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace)
 
   private[zio] def unsafeStateful[R, E, A](
-    onState: Unsafe[Any] => (internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
+    onState: Unsafe => (internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
     Stateful(trace, Unsafe.unsafeCompat(onState))
 

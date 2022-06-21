@@ -138,7 +138,7 @@ object Queue {
     def onQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
       takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    )(implicit unsafe: Unsafe[Any]): Unit
+    )(implicit unsafe: Unsafe): Unit
 
     def surplusSize: Int
 
@@ -147,7 +147,7 @@ object Queue {
     final def completeTakers(
       queue: MutableConcurrentQueue[A],
       takers: MutableConcurrentQueue[Promise[Nothing, A]]
-    )(implicit unsafe: Unsafe[Any]): Unit = {
+    )(implicit unsafe: Unsafe): Unit = {
       // check if there is both a taker and an item in the queue, starting by the taker
       var keepPolling = true
       val nullTaker   = null.asInstanceOf[Promise[Nothing, A]]
@@ -178,7 +178,7 @@ object Queue {
       // Boolean indicates if it's the last item to offer (promise should be completed once this item is added)
       private val putters = MutableConcurrentQueue.unbounded[(A, Promise[Nothing, Boolean], Boolean)]
 
-      private def remove(p: Promise[Nothing, Boolean])(implicit unsafe: Unsafe[Any]): Unit = {
+      private def remove(p: Promise[Nothing, Boolean])(implicit unsafe: Unsafe): Unit = {
         Queue.unsafe.offerAll(putters, Queue.unsafe.pollAll(putters).filterNot(_._2 == p))
         ()
       }
@@ -202,7 +202,7 @@ object Queue {
           }
         }
 
-      private def offer(as: Iterable[A], p: Promise[Nothing, Boolean])(implicit unsafe: Unsafe[Any]): Unit =
+      private def offer(as: Iterable[A], p: Promise[Nothing, Boolean])(implicit unsafe: Unsafe): Unit =
         if (as.nonEmpty) {
           val iterator = as.iterator
           var a        = iterator.next()
@@ -217,7 +217,7 @@ object Queue {
       def onQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      )(implicit unsafe: Unsafe[Any]): Unit = {
+      )(implicit unsafe: Unsafe): Unit = {
         val empty       = null.asInstanceOf[(A, Promise[Nothing, Boolean], Boolean)]
         var keepPolling = true
 
@@ -257,7 +257,7 @@ object Queue {
       def onQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      )(implicit unsafe: Unsafe[Any]): Unit = ()
+      )(implicit unsafe: Unsafe): Unit = ()
 
       def surplusSize: Int = 0
 
@@ -271,7 +271,7 @@ object Queue {
         takers: MutableConcurrentQueue[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
-        def slidingOffer(as: Iterable[A])(implicit unsafe: Unsafe[Any]): Unit =
+        def slidingOffer(as: Iterable[A])(implicit unsafe: Unsafe): Unit =
           if (as.nonEmpty && queue.capacity > 0) {
             val iterator = as.iterator
             var a        = iterator.next()
@@ -298,7 +298,7 @@ object Queue {
       def onQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
         takers: MutableConcurrentQueue[Promise[Nothing, A]]
-      )(implicit unsafe: Unsafe[Any]): Unit = ()
+      )(implicit unsafe: Unsafe): Unit = ()
 
       def surplusSize: Int = 0
 
@@ -453,33 +453,33 @@ object Queue {
         }
     }
 
-    def completePromise[A](p: Promise[Nothing, A], a: A)(implicit unsafe: Unsafe[Any]): Unit =
+    def completePromise[A](p: Promise[Nothing, A], a: A)(implicit unsafe: Unsafe): Unit =
       p.unsafe.done(ZIO.succeedNow(a))
 
     /**
      * Offer items to the queue
      */
     def offerAll[A, B <: A](q: MutableConcurrentQueue[A], as: Iterable[B])(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): Chunk[B] =
       q.offerAll(as)
 
     /**
      * Poll all items from the queue
      */
-    def pollAll[A](q: MutableConcurrentQueue[A])(implicit unsafe: Unsafe[Any]): Chunk[A] =
+    def pollAll[A](q: MutableConcurrentQueue[A])(implicit unsafe: Unsafe): Chunk[A] =
       q.pollUpTo(Int.MaxValue)
 
     /**
      * Poll n items from the queue
      */
-    def pollN[A](q: MutableConcurrentQueue[A], max: Int)(implicit unsafe: Unsafe[Any]): Chunk[A] =
+    def pollN[A](q: MutableConcurrentQueue[A], max: Int)(implicit unsafe: Unsafe): Chunk[A] =
       q.pollUpTo(max)
 
     /**
      * Remove an item from the queue
      */
-    def remove[A](q: MutableConcurrentQueue[A], a: A)(implicit unsafe: Unsafe[Any]): Unit = {
+    def remove[A](q: MutableConcurrentQueue[A], a: A)(implicit unsafe: Unsafe): Unit = {
       offerAll(q, pollAll(q).filterNot(_ == a))
       ()
     }

@@ -45,7 +45,7 @@ object ThreadLocalBridge {
 
     override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
-    override def onEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe[Any]): Unit =
+    override def onEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
       ()
 
     override def onStart[R, E, A1](
@@ -53,26 +53,26 @@ object ThreadLocalBridge {
       effect: ZIO[R, E, A1],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A1]
-    )(implicit unsafe: Unsafe[Any]): Unit = ()
+    )(implicit unsafe: Unsafe): Unit = ()
 
-    def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe[Any]): Unit =
+    def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe): Unit =
       trackedRefs.unsafe.update(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
 
-    def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe[Any]): Unit =
+    def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe): Unit =
       trackedRefs.unsafe.update(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
 
-    override def onSuspend[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe[Any]): Unit =
+    override def onSuspend[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
       foreachTrackedRef { (fiberRef, link) =>
         link(fiberRef.initial)
       }
 
-    override def onResume[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe[Any]): Unit =
+    override def onResume[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
       foreachTrackedRef { (fiberRef, link) =>
         val value = fiber.asInstanceOf[FiberRuntime[E, A1]].getFiberRef(fiberRef)
         link(value)
       }
 
-    private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit)(implicit unsafe: Unsafe[Any]): Unit =
+    private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit)(implicit unsafe: Unsafe): Unit =
       trackedRefs.unsafe.get.foreach { case (fiberRef, link) =>
         f(fiberRef, link)
       }

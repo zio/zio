@@ -182,27 +182,27 @@ object TestConsole extends Serializable {
       debugState.locally(false)(zio)
 
     override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def print(line: Any)(implicit unsafe: Unsafe): Unit =
         consoleState.unsafe.update { data =>
           Data(data.input, data.output :+ line.toString, data.errOutput)
         }
 
-      override def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def printError(line: Any)(implicit unsafe: Unsafe): Unit =
         consoleState.unsafe.update { data =>
           Data(data.input, data.output, data.errOutput :+ line.toString)
         }
 
-      override def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def printLine(line: Any)(implicit unsafe: Unsafe): Unit =
         consoleState.unsafe.update { data =>
           Data(data.input, data.output :+ s"$line\n", data.errOutput)
         }
 
-      override def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def printLineError(line: Any)(implicit unsafe: Unsafe): Unit =
         consoleState.unsafe.update { data =>
           Data(data.input, data.output, data.errOutput :+ s"$line\n")
         }
 
-      override def readLine()(implicit unsafe: Unsafe[Any]): String =
+      override def readLine()(implicit unsafe: Unsafe): String =
         consoleState.unsafe.modify { data =>
           data.input match {
             case head :: tail =>

@@ -39,27 +39,27 @@ trait Console extends Serializable { self =>
     print(prompt) *> readLine
 
   private[zio] trait UnsafeAPI {
-    def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit
-    def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit
-    def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit
-    def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit
-    def readLine()(implicit unsafe: Unsafe[Any]): String
+    def print(line: Any)(implicit unsafe: Unsafe): Unit
+    def printError(line: Any)(implicit unsafe: Unsafe): Unit
+    def printLine(line: Any)(implicit unsafe: Unsafe): Unit
+    def printLineError(line: Any)(implicit unsafe: Unsafe): Unit
+    def readLine()(implicit unsafe: Unsafe): String
   }
 
   private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
-    def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    def print(line: Any)(implicit unsafe: Unsafe): Unit =
       Runtime.default.unsafe.run(self.print(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    def printError(line: Any)(implicit unsafe: Unsafe): Unit =
       Runtime.default.unsafe.run(self.printError(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    def printLine(line: Any)(implicit unsafe: Unsafe): Unit =
       Runtime.default.unsafe.run(self.printLine(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+    def printLineError(line: Any)(implicit unsafe: Unsafe): Unit =
       Runtime.default.unsafe.run(self.printLineError(line)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def readLine()(implicit unsafe: Unsafe[Any]): String =
+    def readLine()(implicit unsafe: Unsafe): String =
       Runtime.default.unsafe.run(self.readLine(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
   }
 }
@@ -86,19 +86,19 @@ object Console extends Serializable {
       ZIO.attemptBlockingInterrupt(Unsafe.unsafeCompat(implicit u => unsafe.readLine())).refineToOrDie[IOException]
 
     @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def print(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def print(line: Any)(implicit unsafe: Unsafe): Unit =
         print(SConsole.out)(line)
 
-      override def printError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def printError(line: Any)(implicit unsafe: Unsafe): Unit =
         print(SConsole.err)(line)
 
-      override def printLine(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def printLine(line: Any)(implicit unsafe: Unsafe): Unit =
         printLine(SConsole.out)(line)
 
-      override def printLineError(line: Any)(implicit unsafe: Unsafe[Any]): Unit =
+      override def printLineError(line: Any)(implicit unsafe: Unsafe): Unit =
         printLine(SConsole.err)(line)
 
-      override def readLine()(implicit unsafe: Unsafe[Any]): String = {
+      override def readLine()(implicit unsafe: Unsafe): String = {
         val line = StdIn.readLine()
 
         if (line ne null) line

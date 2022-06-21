@@ -55,15 +55,15 @@ abstract class Supervisor[+A] { self =>
     effect: ZIO[R, E, A],
     parent: Option[Fiber.Runtime[Any, Any]],
     fiber: Fiber.Runtime[E, A]
-  )(implicit unsafe: Unsafe[Any]): Unit
+  )(implicit unsafe: Unsafe): Unit
 
-  def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit
+  def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit
 
-  def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit unsafe: Unsafe[Any]): Unit = ()
+  def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit unsafe: Unsafe): Unit = ()
 
-  def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = ()
+  def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
-  def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = ()
+  def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 }
 object Supervisor {
 
@@ -98,7 +98,7 @@ object Supervisor {
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
-        )(implicit unsafe: Unsafe[Any]): Unit = {
+        )(implicit unsafe: Unsafe): Unit = {
           var loop = true
           while (loop) {
             val set = ref.get
@@ -106,7 +106,7 @@ object Supervisor {
           }
         }
 
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
+        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
           var loop = true
           while (loop) {
             val set = ref.get
@@ -129,13 +129,13 @@ object Supervisor {
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]
-    )(implicit unsafe: Unsafe[Any]): Unit = ()
+    )(implicit unsafe: Unsafe): Unit = ()
 
-    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = ()
+    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
   }
 
   private[zio] object unsafe {
-    def track(weak: Boolean)(implicit unsafe: Unsafe[Any]): Supervisor[Chunk[Fiber.Runtime[Any, Any]]] = {
+    def track(weak: Boolean)(implicit unsafe: Unsafe): Supervisor[Chunk[Fiber.Runtime[Any, Any]]] = {
       val set: java.util.Set[Fiber.Runtime[Any, Any]] =
         if (weak) Platform.newWeakSet[Fiber.Runtime[Any, Any]]()
         else new java.util.HashSet[Fiber.Runtime[Any, Any]]()
@@ -151,12 +151,12 @@ object Supervisor {
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
-        )(implicit unsafe: Unsafe[Any]): Unit = {
+        )(implicit unsafe: Unsafe): Unit = {
           Sync(set)(set.add(fiber))
           ()
         }
 
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
+        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
           Sync(set)(set.remove(fiber))
           ()
         }
@@ -172,18 +172,18 @@ object Supervisor {
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]
-    )(implicit unsafe: Unsafe[Any]): Unit = underlying.onStart(environment, effect, parent, fiber)
+    )(implicit unsafe: Unsafe): Unit = underlying.onStart(environment, effect, parent, fiber)
 
-    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit =
+    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
       underlying.onEnd(value, fiber)
 
-    override def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit unsafe: Unsafe[Any]): Unit =
+    override def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit unsafe: Unsafe): Unit =
       underlying.onEffect(fiber, effect)
 
-    override def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit =
+    override def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
       underlying.onSuspend(fiber)
 
-    override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit =
+    override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
       underlying.onResume(fiber)
   }
 
@@ -253,28 +253,28 @@ object Supervisor {
       effect: ZIO[R, E, A],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A]
-    )(implicit unsafe: Unsafe[Any]): Unit =
+    )(implicit unsafe: Unsafe): Unit =
       try left.onStart(environment, effect, parent, fiber)
       finally right.onStart(environment, effect, parent, fiber)
 
-    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
+    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
       left.onEnd(value, fiber)
       right.onEnd(value, fiber)
     }
 
     override def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): Unit = {
       left.onEffect(fiber, effect)
       right.onEffect(fiber, effect)
     }
 
-    override def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
+    override def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
       left.onSuspend(fiber)
       right.onSuspend(fiber)
     }
 
-    override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
+    override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
       left.onResume(fiber)
       right.onResume(fiber)
     }
