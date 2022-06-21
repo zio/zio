@@ -594,7 +594,6 @@ object Fiber extends FiberPlatformSpecific {
     }
     final case class Running(runtimeFlags: RuntimeFlags, trace: Trace) extends Unfinished
     final case class Suspended(
-      stack: Chunk[ZIO.EvaluationStep],
       runtimeFlags: RuntimeFlags,
       trace: Trace,
       blockingOn: FiberId

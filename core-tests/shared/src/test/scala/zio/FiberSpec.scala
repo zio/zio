@@ -138,7 +138,7 @@ object FiberSpec extends ZIOBaseSpec {
             f1 <- ZIO.never.fork
             f2 <- f1.await.fork
             blockingOn <- f2.status
-                            .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn) =>
+                            .collect(()) { case Fiber.Status.Suspended(_, _, blockingOn) =>
                               blockingOn
                             }
                             .eventually
@@ -148,7 +148,7 @@ object FiberSpec extends ZIOBaseSpec {
           for {
             f <- ZIO.infinity.race(ZIO.infinity).fork
             blockingOn <- f.status
-                            .collect(()) { case Fiber.Status.Suspended(_, _, _, blockingOn) =>
+                            .collect(()) { case Fiber.Status.Suspended(_, _, blockingOn) =>
                               blockingOn
                             }
                             .eventually

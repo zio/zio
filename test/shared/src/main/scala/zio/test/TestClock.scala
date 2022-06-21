@@ -299,9 +299,9 @@ object TestClock extends Serializable {
       supervisedFibers.flatMap { fibers =>
         ZIO.foldLeft(fibers)(Map.empty[FiberId, Fiber.Status]) { (map, fiber) =>
           fiber.status.flatMap {
-            case done @ Fiber.Status.Done                       => ZIO.succeedNow(map + (fiber.id -> done))
-            case suspended @ Fiber.Status.Suspended(_, _, _, _) => ZIO.succeedNow(map + (fiber.id -> suspended))
-            case _                                              => ZIO.fail(())
+            case done @ Fiber.Status.Done                    => ZIO.succeedNow(map + (fiber.id -> done))
+            case suspended @ Fiber.Status.Suspended(_, _, _) => ZIO.succeedNow(map + (fiber.id -> suspended))
+            case _                                           => ZIO.fail(())
           }
         }
       }
