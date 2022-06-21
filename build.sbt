@@ -174,16 +174,6 @@ lazy val coreJVM = core.jvm
 
 lazy val coreJS = core.js
   .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
-  .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3) {
-        List()
-      } else {
-        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
-        List("-P:scalajs:nowarnGlobalExecutionContext")
-      }
-    }
-  )
 
 lazy val coreNative = core.native
   .settings(nativeSettings)
@@ -431,14 +421,6 @@ lazy val testTestsJVM = testTests.jvm
 
 lazy val testTestsJS = testTests.js
   .settings(
-    scalacOptions ++= {
-      if (scalaVersion.value == Scala3) {
-        List()
-      } else {
-        // Temporarily disable warning to use `MacrotaskExecutor` https://github.com/zio/zio/issues/6308
-        List("-P:scalajs:nowarnGlobalExecutionContext")
-      }
-    },
     libraryDependencies ++= List(
       ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
     )

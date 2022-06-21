@@ -16,15 +16,15 @@
 
 package zio
 
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
 
 private[zio] trait RuntimePlatformSpecific {
 
   final val defaultExecutor: Executor =
-    Executor.fromExecutionContext(ExecutionContext.global)
+    Executor.fromExecutionContext(MacrotaskExecutor)
 
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
