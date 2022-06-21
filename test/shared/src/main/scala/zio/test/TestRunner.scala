@@ -28,8 +28,11 @@ import java.util.concurrent.TimeUnit
  * require a test executor, a runtime configuration, and a reporter.
  */
 final case class TestRunner[R, E](
-  executor: TestExecutor[R, E]
+  executor: TestExecutor[R, E],
+  bootstrap: ULayer[TestOutput with ExecutionEventSink] = TestRunner.defaultBootstrap
 ) { self =>
+
+  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.
@@ -80,4 +83,17 @@ final case class TestRunner[R, E](
     trace: Trace
   ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
     bootstrap.toRuntime
+}
+
+object TestRunner {
+  lazy val defaultBootstrap = {
+    implicit val emptyTracer = Trace.empty
+
+    ZLayer.make[TestOutput with ExecutionEventSink](
+      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      TestLogger.fromConsole(Console.ConsoleLive),
+      TestOutput.live,
+      ExecutionEventSink.live
+    )
+  }
 }
