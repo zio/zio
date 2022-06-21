@@ -268,7 +268,7 @@ object Scope {
       /**
        * Creates a new ReleaseMap.
        */
-      def make()(implicit Unsafe: Unsafe[Any]) = {
+      def make()(implicit Unsafe: Unsafe) = {
         // The sorting order of the LongMap uses bit ordering (000, 001, ... 111 but with 64 bits). This
         // works out to be `0 ... Long.MaxValue, Long.MinValue, ... -1`. The order of the map is mainly
         // important for the finalization, in which we want to walk it in reverse order. So we insert

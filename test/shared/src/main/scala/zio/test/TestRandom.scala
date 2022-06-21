@@ -374,57 +374,57 @@ object TestRandom extends Serializable {
       ZIO.succeedUnsafe(implicit u => unsafe.shuffle(list))
 
     override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def nextBoolean()(implicit unsafe: Unsafe[Any]): Boolean =
+      override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
         getOrElse(bufferedBoolean)(randomBoolean)
 
-      override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe[Any]): Chunk[Byte] =
+      override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] =
         getOrElse(bufferedBytes)(randomBytes(length))
 
-      override def nextDouble()(implicit unsafe: Unsafe[Any]): Double =
+      override def nextDouble()(implicit unsafe: Unsafe): Double =
         getOrElse(bufferedDouble)(randomDouble)
 
-      override def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit unsafe: Unsafe[Any]): Double =
+      override def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit unsafe: Unsafe): Double =
         getOrElse(bufferedDouble)(randomDoubleBetween(minInclusive, maxExclusive))
 
-      override def nextFloat()(implicit unsafe: Unsafe[Any]): Float =
+      override def nextFloat()(implicit unsafe: Unsafe): Float =
         getOrElse(bufferedFloat)(randomFloat)
 
-      override def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe[Any]): Float =
+      override def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe): Float =
         getOrElse(bufferedFloat)(randomFloatBetween(minInclusive, maxExclusive))
 
-      override def nextGaussian()(implicit unsafe: Unsafe[Any]): Double =
+      override def nextGaussian()(implicit unsafe: Unsafe): Double =
         getOrElse(bufferedDouble)(randomGaussian)
 
-      override def nextInt()(implicit unsafe: Unsafe[Any]): RuntimeFlags =
+      override def nextInt()(implicit unsafe: Unsafe): RuntimeFlags =
         getOrElse(bufferedInt)(randomInt)
 
       override def nextIntBetween(minInclusive: RuntimeFlags, maxExclusive: RuntimeFlags)(implicit
-        unsafe: Unsafe[Any]
+        unsafe: Unsafe
       ): RuntimeFlags =
         getOrElse(bufferedInt)(randomIntBetween(minInclusive, maxExclusive))
 
-      override def nextIntBounded(n: RuntimeFlags)(implicit unsafe: Unsafe[Any]): RuntimeFlags =
+      override def nextIntBounded(n: RuntimeFlags)(implicit unsafe: Unsafe): RuntimeFlags =
         getOrElse(bufferedInt)(randomIntBounded(n))
 
-      override def nextLong()(implicit unsafe: Unsafe[Any]): Long =
+      override def nextLong()(implicit unsafe: Unsafe): Long =
         getOrElse(bufferedLong)(randomLong)
 
-      override def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe[Any]): Long =
+      override def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe): Long =
         getOrElse(bufferedLong)(randomLongBetween(minInclusive, maxExclusive))
 
-      override def nextLongBounded(n: Long)(implicit unsafe: Unsafe[Any]): Long =
+      override def nextLongBounded(n: Long)(implicit unsafe: Unsafe): Long =
         getOrElse(bufferedLong)(randomLongBounded(n))
 
-      override def nextPrintableChar()(implicit unsafe: Unsafe[Any]): Char =
+      override def nextPrintableChar()(implicit unsafe: Unsafe): Char =
         getOrElse(bufferedChar)(randomPrintableChar)
 
-      override def nextString(length: RuntimeFlags)(implicit unsafe: Unsafe[Any]): String =
+      override def nextString(length: RuntimeFlags)(implicit unsafe: Unsafe): String =
         getOrElse(bufferedString)(randomString(length))
 
-      override def nextUUID()(implicit unsafe: Unsafe[Any]): UUID =
+      override def nextUUID()(implicit unsafe: Unsafe): UUID =
         getOrElse(bufferedUUID)(Random.nextUUIDWith(() => nextLong()))
 
-      override def setSeed(seed: Long)(implicit unsafe: Unsafe[Any]): Unit =
+      override def setSeed(seed: Long)(implicit unsafe: Unsafe): Unit =
         randomState.unsafe.set {
           val newSeed = (seed ^ 0x5deece66dL) & ((1L << 48) - 1)
           val seed1   = (newSeed >>> 24).toInt
@@ -434,13 +434,13 @@ object TestRandom extends Serializable {
 
       override def shuffle[A, Collection[+Element] <: Iterable[Element]](
         collection: Collection[A]
-      )(implicit bf: zio.BuildFrom[Collection[A], A, Collection[A]], unsafe: Unsafe[Any]): Collection[A] =
+      )(implicit bf: zio.BuildFrom[Collection[A], A, Collection[A]], unsafe: Unsafe): Collection[A] =
         Random.shuffleWith(randomIntBounded, collection)
 
-      private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: => A)(implicit unsafe: Unsafe[Any]): A =
+      private def getOrElse[A](buffer: Buffer => (Option[A], Buffer))(random: => A)(implicit unsafe: Unsafe): A =
         bufferState.unsafe.modify(buffer).getOrElse(random)
 
-      private def randomBits(bits: Int)(implicit unsafe: Unsafe[Any]): Int =
+      private def randomBits(bits: Int)(implicit unsafe: Unsafe): Int =
         randomState.unsafe.modify { data =>
           val multiplier  = 0x5deece66dL
           val multiplier1 = (multiplier >>> 24).toInt
@@ -453,10 +453,10 @@ object TestRandom extends Serializable {
           (result >>> (32 - bits), Data(newSeed1, newSeed2, data.nextNextGaussians))
         }
 
-      private def randomBoolean(implicit unsafe: Unsafe[Any]): Boolean =
+      private def randomBoolean(implicit unsafe: Unsafe): Boolean =
         randomBits(1) != 0
 
-      private def randomBytes(length: Int)(implicit unsafe: Unsafe[Any]): Chunk[Byte] = {
+      private def randomBytes(length: Int)(implicit unsafe: Unsafe): Chunk[Byte] = {
         //  Our RNG generates 32 bit integers so to maximize efficiency we want to
         //  pull 8 bit bytes from the current integer until it is exhausted
         //  before generating another random integer
@@ -473,24 +473,24 @@ object TestRandom extends Serializable {
         Chunk.fromIterable(loop(0, () => randomInt, length min 4, List.empty))
       }
 
-      private def randomDouble(implicit unsafe: Unsafe[Any]): Double = {
+      private def randomDouble(implicit unsafe: Unsafe): Double = {
         val i1 = randomBits(26)
         val i2 = randomBits(27)
         ((i1.toDouble * (1L << 27).toDouble) + i2.toDouble) / (1L << 53).toDouble
       }
 
       private def randomDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit
-        unsafe: Unsafe[Any]
+        unsafe: Unsafe
       ): Double =
         Random.nextDoubleBetweenWith(minInclusive, maxExclusive)(() => randomDouble)
 
-      private def randomFloat(implicit unsafe: Unsafe[Any]): Float =
+      private def randomFloat(implicit unsafe: Unsafe): Float =
         (randomBits(24).toDouble / (1 << 24).toDouble).toFloat
 
-      private def randomFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe[Any]): Float =
+      private def randomFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe): Float =
         Random.nextFloatBetweenWith(minInclusive, maxExclusive)(() => randomFloat)
 
-      private def randomGaussian(implicit unsafe: Unsafe[Any]): Double =
+      private def randomGaussian(implicit unsafe: Unsafe): Double =
         //  The Box-Muller transform generates two normally distributed random
         //  doubles, so we store the second double in a queue and check the
         //  queue before computing a new pair of values to avoid wasted work.
@@ -519,10 +519,10 @@ object TestRandom extends Serializable {
             }
         }
 
-      private def randomInt(implicit unsafe: Unsafe[Any]): Int =
+      private def randomInt(implicit unsafe: Unsafe): Int =
         randomBits(32)
 
-      private def randomIntBounded(n: Int)(implicit unsafe: Unsafe[Any]): Int =
+      private def randomIntBounded(n: Int)(implicit unsafe: Unsafe): Int =
         if (n <= 0)
           throw new IllegalArgumentException("n must be positive")
         else if ((n & -n) == n)
@@ -538,25 +538,25 @@ object TestRandom extends Serializable {
           loop
         }
 
-      private def randomIntBetween(minInclusive: Int, maxExclusive: Int)(implicit unsafe: Unsafe[Any]): Int =
+      private def randomIntBetween(minInclusive: Int, maxExclusive: Int)(implicit unsafe: Unsafe): Int =
         Random.nextIntBetweenWith(minInclusive, maxExclusive)(() => randomInt, randomIntBounded)
 
-      private def randomLong(implicit unsafe: Unsafe[Any]): Long = {
+      private def randomLong(implicit unsafe: Unsafe): Long = {
         val i1 = randomBits(32)
         val i2 = randomBits(32)
         (i1.toLong << 32) + i2
       }
 
-      private def randomLongBounded(n: Long)(implicit unsafe: Unsafe[Any]): Long =
+      private def randomLongBounded(n: Long)(implicit unsafe: Unsafe): Long =
         Random.nextLongBoundedWith(n)(() => randomLong)
 
-      private def randomLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe[Any]): Long =
+      private def randomLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe): Long =
         Random.nextLongBetweenWith(minInclusive, maxExclusive)(() => randomLong, randomLongBounded)
 
-      private def randomPrintableChar(implicit unsafe: Unsafe[Any]): Char =
+      private def randomPrintableChar(implicit unsafe: Unsafe): Char =
         (randomIntBounded(127 - 33) + 33).toChar
 
-      private def randomString(length: Int)(implicit unsafe: Unsafe[Any]): String =
+      private def randomString(length: Int)(implicit unsafe: Unsafe): String =
         List.fill(length)((randomIntBounded(0xd800 - 1) + 1).toChar).mkString
     }
 

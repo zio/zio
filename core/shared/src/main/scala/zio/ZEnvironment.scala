@@ -144,20 +144,20 @@ final class ZEnvironment[+R] private (
   }
 
   trait UnsafeAPI {
-    def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe[Any]): A
-    private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe[Any]): ZEnvironment[R with A]
+    def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A
+    private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
     private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): ZEnvironment[R]
   }
 
   val unsafe: UnsafeAPI = new UnsafeAPI {
-    private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe[Any]): ZEnvironment[R with A] = {
+    private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
       val self0 = if (index == Int.MaxValue) self.clean else self
       new ZEnvironment(self0.map + (tag -> (a -> self0.index)), self0.index + 1)
     }
 
-    def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe[Any]): A =
+    def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
       self.cache.get(tag) match {
         case Some(a) => a.asInstanceOf[A]
         case None =>
@@ -179,7 +179,7 @@ final class ZEnvironment[+R] private (
       }
 
     private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): ZEnvironment[R] =
       add[A](tag, f(get(tag)))
   }

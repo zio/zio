@@ -48,9 +48,9 @@ final case class TestRunner[R, E](
     } yield summary.copy(duration = duration)
 
   trait UnsafeAPI {
-    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Unit
-    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe[Any]): Unit
-    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[Nothing, Unit]
+    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit
+    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit]
   }
 
   val unsafe: UnsafeAPI = new UnsafeAPI {
@@ -58,13 +58,13 @@ final case class TestRunner[R, E](
     /**
      * An unsafe, synchronous run of the specified spec.
      */
-    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Unit =
+    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
       runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure
 
     /**
      * An unsafe, asynchronous run of the specified spec.
      */
-    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe[Any]): Unit = {
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
       val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
       fiber.addObserver {
         case Exit.Success(_) => k
@@ -75,7 +75,7 @@ final case class TestRunner[R, E](
     /**
      * An unsafe, synchronous run of the specified spec.
      */
-    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[Nothing, Unit] =
+    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit] =
       runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
   }
 

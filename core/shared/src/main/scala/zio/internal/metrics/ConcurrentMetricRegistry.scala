@@ -12,7 +12,7 @@ private[zio] class ConcurrentMetricRegistry {
   private val map: ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root] =
     new ConcurrentHashMap[MetricKey[MetricKeyType], MetricHook.Root]()
 
-  def snapshot()(implicit unsafe: Unsafe[Any]): Set[MetricPair.Untyped] = {
+  def snapshot()(implicit unsafe: Unsafe): Set[MetricPair.Untyped] = {
     val iterator = map.entrySet().iterator()
     val result   = scala.collection.mutable.Set[MetricPair.Untyped]()
     while (iterator.hasNext) {
@@ -26,7 +26,7 @@ private[zio] class ConcurrentMetricRegistry {
 
   def get[Type <: MetricKeyType](
     key: MetricKey[Type]
-  )(implicit unsafe: Unsafe[Any]): MetricHook[key.keyType.In, key.keyType.Out] = {
+  )(implicit unsafe: Unsafe): MetricHook[key.keyType.In, key.keyType.Out] = {
     type Result = MetricHook[key.keyType.In, key.keyType.Out]
 
     var hook0: MetricHook[_, zio.metrics.MetricState.Untyped] = map.get(key)
@@ -42,7 +42,7 @@ private[zio] class ConcurrentMetricRegistry {
     } else hook0.asInstanceOf[Result]
   }
 
-  private def getCounter(key: MetricKey.Counter)(implicit unsafe: Unsafe[Any]): MetricHook.Counter = {
+  private def getCounter(key: MetricKey.Counter)(implicit unsafe: Unsafe): MetricHook.Counter = {
     var value = map.get(key)
     if (value eq null) {
       val counter = ConcurrentMetricHooks.counter(key)
@@ -52,7 +52,7 @@ private[zio] class ConcurrentMetricRegistry {
     value.asInstanceOf[MetricHook.Counter]
   }
 
-  private def getGauge(key: MetricKey.Gauge)(implicit unsafe: Unsafe[Any]): MetricHook.Gauge = {
+  private def getGauge(key: MetricKey.Gauge)(implicit unsafe: Unsafe): MetricHook.Gauge = {
     var value = map.get(key)
     if (value eq null) {
       val gauge = ConcurrentMetricHooks.gauge(key, 0.0)
@@ -62,7 +62,7 @@ private[zio] class ConcurrentMetricRegistry {
     value.asInstanceOf[MetricHook.Gauge]
   }
 
-  private def getHistogram(key: MetricKey.Histogram)(implicit unsafe: Unsafe[Any]): MetricHook.Histogram = {
+  private def getHistogram(key: MetricKey.Histogram)(implicit unsafe: Unsafe): MetricHook.Histogram = {
     var value = map.get(key)
     if (value eq null) {
       val histogram =
@@ -75,7 +75,7 @@ private[zio] class ConcurrentMetricRegistry {
 
   private def getSummary(
     key: MetricKey.Summary
-  )(implicit unsafe: Unsafe[Any]): MetricHook.Summary = {
+  )(implicit unsafe: Unsafe): MetricHook.Summary = {
     var value = map.get(key)
     if (value eq null) {
       val summary = ConcurrentMetricHooks.summary(key)
@@ -85,7 +85,7 @@ private[zio] class ConcurrentMetricRegistry {
     value.asInstanceOf[MetricHook.Summary]
   }
 
-  private def getSetCount(key: MetricKey.Frequency)(implicit unsafe: Unsafe[Any]): MetricHook.Frequency = {
+  private def getSetCount(key: MetricKey.Frequency)(implicit unsafe: Unsafe): MetricHook.Frequency = {
     var value = map.get(key)
     if (value eq null) {
       val frequency = ConcurrentMetricHooks.frequency(key)

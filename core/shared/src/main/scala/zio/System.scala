@@ -48,50 +48,50 @@ trait System extends Serializable { self =>
   ): IO[Throwable, Option[String]]
 
   private[zio] trait UnsafeAPI {
-    def env(variable: String)(implicit unsafe: Unsafe[Any]): Option[String]
-    def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe[Any]): String
-    def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe[Any]): Option[String]
-    def envs()(implicit unsafe: Unsafe[Any]): Map[String, String]
-    def lineSeparator()(implicit unsafe: Unsafe[Any]): String
-    def properties()(implicit unsafe: Unsafe[Any]): Map[String, String]
-    def property(prop: String)(implicit unsafe: Unsafe[Any]): Option[String]
-    def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe[Any]): String
-    def propertyOrOption(prop: String, alt: => Option[String])(implicit unsafe: Unsafe[Any]): Option[String]
+    def env(variable: String)(implicit unsafe: Unsafe): Option[String]
+    def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String
+    def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String]
+    def envs()(implicit unsafe: Unsafe): Map[String, String]
+    def lineSeparator()(implicit unsafe: Unsafe): String
+    def properties()(implicit unsafe: Unsafe): Map[String, String]
+    def property(prop: String)(implicit unsafe: Unsafe): Option[String]
+    def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe): String
+    def propertyOrOption(prop: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String]
   }
 
   private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
-    def env(variable: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+    def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
       Runtime.default.unsafe.run(self.env(variable)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+    def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String =
       Runtime.default.unsafe.run(self.envOrElse(variable, alt)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
     def envOrOption(variable: String, alt: => Option[String])(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): Option[String] =
       Runtime.default.unsafe
         .run(self.envOrOption(variable, alt)(Trace.empty))(Trace.empty, unsafe)
         .getOrThrowFiberFailure
 
-    def envs()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+    def envs()(implicit unsafe: Unsafe): Map[String, String] =
       Runtime.default.unsafe.run(self.envs(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def lineSeparator()(implicit unsafe: Unsafe[Any]): String =
+    def lineSeparator()(implicit unsafe: Unsafe): String =
       Runtime.default.unsafe.run(self.lineSeparator(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def properties()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+    def properties()(implicit unsafe: Unsafe): Map[String, String] =
       Runtime.default.unsafe.run(self.properties(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def property(prop: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+    def property(prop: String)(implicit unsafe: Unsafe): Option[String] =
       Runtime.default.unsafe.run(self.property(prop)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
 
-    def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+    def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe): String =
       Runtime.default.unsafe
         .run(self.propertyOrElse(prop, alt)(Trace.empty))(Trace.empty, unsafe)
         .getOrThrowFiberFailure
 
     def propertyOrOption(prop: String, alt: => Option[String])(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): Option[String] =
       Runtime.default.unsafe
         .run(self.propertyOrOption(prop, alt)(Trace.empty))(Trace.empty, unsafe)
@@ -136,34 +136,34 @@ object System extends Serializable {
       ZIO.attemptUnsafe(implicit u => unsafe.propertyOrOption(prop, alt))
 
     @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def env(variable: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+      override def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
         Option(JSystem.getenv(variable))
 
-      override def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+      override def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String =
         envOrElseWith(variable, alt)(env)
 
-      override def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe[Any]): Option[String] =
+      override def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String] =
         envOrOptionWith(variable, alt)(env)
 
       @silent("JavaConverters")
-      override def envs()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+      override def envs()(implicit unsafe: Unsafe): Map[String, String] =
         JSystem.getenv.asScala.toMap
 
-      override def lineSeparator()(implicit unsafe: Unsafe[Any]): String =
+      override def lineSeparator()(implicit unsafe: Unsafe): String =
         JSystem.lineSeparator
 
       @silent("JavaConverters")
-      override def properties()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+      override def properties()(implicit unsafe: Unsafe): Map[String, String] =
         JSystem.getProperties.asScala.toMap
 
-      override def property(prop: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+      override def property(prop: String)(implicit unsafe: Unsafe): Option[String] =
         Option(JSystem.getProperty(prop))
 
-      override def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+      override def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe): String =
         propertyOrElseWith(prop, alt)(property)
 
       override def propertyOrOption(prop: String, alt: => Option[String])(implicit
-        unsafe: Unsafe[Any]
+        unsafe: Unsafe
       ): Option[String] =
         propertyOrOptionWith(prop, alt)(property)
     }

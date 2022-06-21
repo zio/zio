@@ -148,32 +148,32 @@ object TestSystem extends Serializable {
       } yield systemState.set(systemData)
 
     override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def env(variable: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+      override def env(variable: String)(implicit unsafe: Unsafe): Option[String] =
         systemState.unsafe.get.envs.get(variable)
 
-      override def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+      override def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String =
         System.envOrElseWith(variable, alt)(env)
 
-      override def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe[Any]): Option[String] =
+      override def envOrOption(variable: String, alt: => Option[String])(implicit unsafe: Unsafe): Option[String] =
         System.envOrOptionWith(variable, alt)(env)
 
-      override def envs()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+      override def envs()(implicit unsafe: Unsafe): Map[String, String] =
         systemState.unsafe.get.envs
 
-      override def lineSeparator()(implicit unsafe: Unsafe[Any]): String =
+      override def lineSeparator()(implicit unsafe: Unsafe): String =
         systemState.unsafe.get.lineSeparator
 
-      override def properties()(implicit unsafe: Unsafe[Any]): Map[String, String] =
+      override def properties()(implicit unsafe: Unsafe): Map[String, String] =
         systemState.unsafe.get.properties
 
-      override def property(prop: String)(implicit unsafe: Unsafe[Any]): Option[String] =
+      override def property(prop: String)(implicit unsafe: Unsafe): Option[String] =
         systemState.unsafe.get.properties.get(prop)
 
-      override def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe[Any]): String =
+      override def propertyOrElse(prop: String, alt: => String)(implicit unsafe: Unsafe): String =
         System.propertyOrElseWith(prop, alt)(property)
 
       override def propertyOrOption(prop: String, alt: => Option[String])(implicit
-        unsafe: Unsafe[Any]
+        unsafe: Unsafe
       ): Option[String] =
         System.propertyOrOptionWith(prop, alt)(property)
     }

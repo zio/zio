@@ -80,7 +80,7 @@ trait Runtime[+R] { self =>
      * This method is effectful and should only be done at the edges of your
      * program.
      */
-    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[E, A]
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
 
     /**
      * Executes the effect asynchronously, eventually passing the exit value to
@@ -90,7 +90,7 @@ trait Runtime[+R] { self =>
      * This method is effectful and should only be invoked at the edges of your
      * program.
      */
-    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Fiber.Runtime[E, A]
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Fiber.Runtime[E, A]
 
     /**
      * Runs the IO, returning a Future that will be completed when the effect
@@ -101,7 +101,7 @@ trait Runtime[+R] { self =>
      */
     def runToFuture[E <: Throwable, A](
       zio: ZIO[R, E, A]
-    )(implicit trace: Trace, unsafe: Unsafe[Any]): CancelableFuture[A]
+    )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A]
   }
 
   val unsafe: UnsafeAPI = new UnsafeAPI {
@@ -114,7 +114,7 @@ trait Runtime[+R] { self =>
      * This method is effectful and should only be done at the edges of your
      * program.
      */
-    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Exit[E, A] = {
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] = {
       import internal.FiberRuntime
 
       val fiberId   = FiberId.make(trace)
@@ -151,7 +151,7 @@ trait Runtime[+R] { self =>
      * This method is effectful and should only be invoked at the edges of your
      * program.
      */
-    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe[Any]): Fiber.Runtime[E, A] = {
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Fiber.Runtime[E, A] = {
       import internal.FiberRuntime
 
       val fiberId   = FiberId.make(trace)
@@ -174,7 +174,7 @@ trait Runtime[+R] { self =>
 
     def runToFuture[E <: Throwable, A](
       zio: ZIO[R, E, A]
-    )(implicit trace: Trace, unsafe: Unsafe[Any]): CancelableFuture[A] = {
+    )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A] = {
       val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       val fiber = fork(zio)
@@ -278,7 +278,7 @@ object Runtime extends RuntimePlatformSpecific {
    * legacy code, but other applications should investigate using
    * [[ZIO.provide]] directly in their application entry points.
    */
-  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe[Any]): Runtime.Scoped[R] = {
+  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
     val (runtime, shutdown) = default.unsafe.run {
       Scope.make.flatMap { scope =>
         scope.extend(layer.toRuntime).flatMap { acquire =>

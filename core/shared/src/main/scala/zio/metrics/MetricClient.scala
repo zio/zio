@@ -41,6 +41,6 @@ private[zio] object MetricClient {
   /**
    * Unsafely captures a snapshot of all metrics recorded by the application.
    */
-  final def snapshot()(implicit unsafe: Unsafe[Any]): Set[MetricPair.Untyped] =
+  final def snapshot()(implicit unsafe: Unsafe): Set[MetricPair.Untyped] =
     metricRegistry.snapshot()
 }

@@ -271,7 +271,7 @@ trait FiberRef[A] extends Serializable { self =>
    * [[Runtime.enableCurrentFiber]], and behave like an ordinary `ThreadLocal`
    * on all other threads.
    */
-  def asThreadLocal(implicit trace: Trace, unsafe: Unsafe[Any]): UIO[ThreadLocal[A]] =
+  def asThreadLocal(implicit trace: Trace, unsafe: Unsafe): UIO[ThreadLocal[A]] =
     ZIO.succeed {
       new ThreadLocal[A] {
         override def get(): A = {
@@ -383,7 +383,7 @@ object FiberRef {
       initial: A,
       fork: A => A = ZIO.identityFn[A],
       join: (A, A) => A = ((_: A, a: A) => a)
-    )(implicit unsafe: Unsafe[Any]): FiberRef.WithPatch[A, A => A] =
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[A, A => A] =
       makePatch[A, A => A](
         initial,
         Differ.update[A],
@@ -393,7 +393,7 @@ object FiberRef {
 
     def makeEnvironment[A](
       initial: ZEnvironment[A]
-    )(implicit unsafe: Unsafe[Any]): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
       makePatch[ZEnvironment[A], ZEnvironment.Patch[A, A]](
         initial,
         Differ.environment,
@@ -405,7 +405,7 @@ object FiberRef {
       differ: Differ[Value0, Patch0],
       fork0: Patch0,
       join0: (Value0, Value0) => Value0 = (_: Value0, newValue: Value0) => newValue
-    )(implicit unsafe: Unsafe[Any]): FiberRef.WithPatch[Value0, Patch0] =
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[Value0, Patch0] =
       new FiberRef[Value0] {
         self =>
         type Patch = Patch0
@@ -457,7 +457,7 @@ object FiberRef {
 
     def makeSet[A](
       initial: Set[A]
-    )(implicit unsafe: Unsafe[Any]): FiberRef.WithPatch[Set[A], SetPatch[A]] =
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[Set[A], SetPatch[A]] =
       makePatch[Set[A], SetPatch[A]](
         initial,
         Differ.set,
@@ -466,7 +466,7 @@ object FiberRef {
 
     def makeSupervisor[A](
       initial: Supervisor[Any]
-    )(implicit unsafe: Unsafe[Any]): FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
       makePatch[Supervisor[Any], Supervisor.Patch](
         initial,
         Differ.supervisor,

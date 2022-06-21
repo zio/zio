@@ -212,11 +212,11 @@ final class Promise[E, A] private (
   }
 
   private[zio] trait UnsafeAPI {
-    def done(io: IO[E, A])(implicit unsafe: Unsafe[Any]): Unit
+    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
   }
 
   @transient private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-    def done(io: IO[E, A])(implicit unsafe: Unsafe[Any]): Unit = {
+    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit = {
       var retry: Boolean                 = true
       var joiners: List[IO[E, A] => Any] = null
 
@@ -258,7 +258,7 @@ object Promise {
     ZIO.succeedUnsafe(implicit u => unsafe.make(fiberId))
 
   private[zio] object unsafe {
-    def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe[Any]): Promise[E, A] =
+    def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] =
       new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
   }
 }
