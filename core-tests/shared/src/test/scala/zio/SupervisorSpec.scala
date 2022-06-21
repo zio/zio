@@ -34,9 +34,9 @@ object SupervisorSpec extends ZIOSpecDefault {
             effect: ZIO[R, E, A],
             parent: Option[Fiber.Runtime[Any, Any]],
             fiber: Fiber.Runtime[E, A]
-          )(implicit unsafe: Unsafe[Any]): Unit =
+          )(implicit unsafe: Unsafe): Unit =
             ()
-          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit =
+          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
             ()
         }
       }
@@ -52,9 +52,9 @@ object SupervisorSpec extends ZIOSpecDefault {
           effect: ZIO[R, E, A],
           parent: Option[Fiber.Runtime[Any, Any]],
           fiber: Fiber.Runtime[E, A]
-        )(implicit unsafe: Unsafe[Any]): Unit =
+        )(implicit unsafe: Unsafe): Unit =
           ref.unsafe.update(_ + 1)
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe[Any]): Unit =
+        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
           ()
       }
     }

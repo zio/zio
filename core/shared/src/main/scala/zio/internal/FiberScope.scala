@@ -33,7 +33,7 @@ private[zio] sealed trait FiberScope {
    */
   private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
     trace: Trace,
-    unsafe: Unsafe[Any]
+    unsafe: Unsafe
   ): Unit
 }
 
@@ -49,7 +49,7 @@ private[zio] object FiberScope {
 
     private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
       trace: Trace,
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): Unit =
       if (RuntimeFlags.fiberRoots(runtimeFlags)) {
         val childRef = Fiber._roots.add(child)
@@ -62,7 +62,7 @@ private[zio] object FiberScope {
 
     private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
       trace: Trace,
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): Unit = {
       val parent = parentRef.get()
 
@@ -72,6 +72,6 @@ private[zio] object FiberScope {
     }
   }
 
-  private[zio] def make(fiber: FiberRuntime[_, _])(implicit unsafe: Unsafe[Any]): FiberScope =
+  private[zio] def make(fiber: FiberRuntime[_, _])(implicit unsafe: Unsafe): FiberScope =
     new Local(fiber.id, new WeakReference(fiber))
 }

@@ -31,12 +31,12 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   /**
    * Current sampled execution metrics, if available.
    */
-  def metrics(implicit unsafe: Unsafe[Any]): Option[ExecutionMetrics]
+  def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics]
 
   /**
    * Submits an effect for execution.
    */
-  def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean
+  def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean
 
   /**
    * Views this `Executor` as a Scala `ExecutionContext`.
@@ -66,29 +66,29 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
    * Submits an effect for execution and signals that the current fiber is ready
    * to yield.
    */
-  def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
+  def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     submit(runnable)
 
   /**
    * Submits an effect for execution and signals that the current fiber is ready
    * to yield or throws.
    */
-  final def submitAndYieldOrThrow(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Unit =
+  final def submitAndYieldOrThrow(runnable: Runnable)(implicit unsafe: Unsafe): Unit =
     if (!submitAndYield(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
 
   /**
    * Submits an effect for execution or throws.
    */
-  final def submitOrThrow(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Unit =
+  final def submitOrThrow(runnable: Runnable)(implicit unsafe: Unsafe): Unit =
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
 }
 
 object Executor extends DefaultExecutors with Serializable {
   def fromJavaExecutor(executor: java.util.concurrent.Executor): Executor =
     new Executor {
-      override def metrics(implicit unsafe: Unsafe[Any]): Option[ExecutionMetrics] = None
+      override def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = None
 
-      override def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
+      override def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
         try {
           executor.execute(runnable)
 
@@ -104,7 +104,7 @@ object Executor extends DefaultExecutors with Serializable {
   def fromExecutionContext(ec: ExecutionContext): Executor =
     new Executor {
 
-      def submit(runnable: Runnable)(implicit unsafe: Unsafe[Any]): Boolean =
+      def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
         try {
           ec.execute(runnable)
 
@@ -113,6 +113,6 @@ object Executor extends DefaultExecutors with Serializable {
           case _: RejectedExecutionException => false
         }
 
-      def metrics(implicit unsafe: Unsafe[Any]) = None
+      def metrics(implicit unsafe: Unsafe) = None
     }
 }

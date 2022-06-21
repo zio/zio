@@ -108,7 +108,7 @@ private[zio] object ZReader {
   def fromPull[R](runtime: Runtime[R], pull: ZIO[R, Option[Throwable], Chunk[Char]])(implicit
     trace: Trace
   ): ZReader = {
-    def unfoldPull(implicit unsafe: Unsafe[Any]): Iterator[Chunk[Char]] =
+    def unfoldPull(implicit unsafe: Unsafe): Iterator[Chunk[Char]] =
       runtime.unsafe.run(pull) match {
         case Exit.Success(chunk) => Iterator.single(chunk) ++ unfoldPull
         case Exit.Failure(cause) =>

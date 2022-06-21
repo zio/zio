@@ -30,7 +30,7 @@ object MetricPair {
   private[zio] def make[Type <: MetricKeyType](
     metricKey: MetricKey[Type],
     metricState: MetricState[_]
-  )(implicit unsafe: Unsafe[Any]): MetricPair.Untyped = {
+  )(implicit unsafe: Unsafe): MetricPair.Untyped = {
     type Out0  = Any
     type Type0 = MetricKeyType { type Out = Out0 }
 

@@ -146,7 +146,7 @@ object Ref extends Serializable {
     ZIO.succeedUnsafe(implicit u => unsafe.make(a))
 
   private[zio] object unsafe {
-    def make[A](a: A)(implicit unsafe: Unsafe[Any]): Ref.Atomic[A] =
+    def make[A](a: A)(implicit unsafe: Unsafe): Ref.Atomic[A] =
       Atomic(new AtomicReference(a))
   }
 
@@ -292,25 +292,25 @@ object Ref extends Serializable {
       s"Ref(${value.get})"
 
     trait UnsafeAPI {
-      def get(implicit unsafe: Unsafe[Any]): A
-      def getAndSet(a: A)(implicit unsafe: Unsafe[Any]): A
-      def getAndUpdate(f: A => A)(implicit unsafe: Unsafe[Any]): A
-      def getAndUpdateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A
-      def modify[B](f: A => (B, A))(implicit unsafe: Unsafe[Any]): B
-      def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit unsafe: Unsafe[Any]): B
-      def set(a: A)(implicit unsafe: Unsafe[Any]): Unit
-      def setAsync(a: A)(implicit unsafe: Unsafe[Any]): Unit
-      def update(f: A => A)(implicit unsafe: Unsafe[Any]): Unit
-      def updateAndGet(f: A => A)(implicit unsafe: Unsafe[Any]): A
-      def updateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): Unit
-      def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A
+      def get(implicit unsafe: Unsafe): A
+      def getAndSet(a: A)(implicit unsafe: Unsafe): A
+      def getAndUpdate(f: A => A)(implicit unsafe: Unsafe): A
+      def getAndUpdateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): A
+      def modify[B](f: A => (B, A))(implicit unsafe: Unsafe): B
+      def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit unsafe: Unsafe): B
+      def set(a: A)(implicit unsafe: Unsafe): Unit
+      def setAsync(a: A)(implicit unsafe: Unsafe): Unit
+      def update(f: A => A)(implicit unsafe: Unsafe): Unit
+      def updateAndGet(f: A => A)(implicit unsafe: Unsafe): A
+      def updateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): Unit
+      def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): A
     }
 
     @transient lazy val unsafe: UnsafeAPI = new UnsafeAPI {
-      def get(implicit unsafe: Unsafe[Any]): A =
+      def get(implicit unsafe: Unsafe): A =
         value.get
 
-      def getAndSet(a: A)(implicit unsafe: Unsafe[Any]): A = {
+      def getAndSet(a: A)(implicit unsafe: Unsafe): A = {
         var loop       = true
         var current: A = null.asInstanceOf[A]
         while (loop) {
@@ -320,7 +320,7 @@ object Ref extends Serializable {
         current
       }
 
-      def getAndUpdate(f: A => A)(implicit unsafe: Unsafe[Any]): A = {
+      def getAndUpdate(f: A => A)(implicit unsafe: Unsafe): A = {
         var loop       = true
         var current: A = null.asInstanceOf[A]
         while (loop) {
@@ -331,7 +331,7 @@ object Ref extends Serializable {
         current
       }
 
-      def getAndUpdateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A = {
+      def getAndUpdateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): A = {
         var loop       = true
         var current: A = null.asInstanceOf[A]
         while (loop) {
@@ -342,7 +342,7 @@ object Ref extends Serializable {
         current
       }
 
-      def modify[B](f: A => (B, A))(implicit unsafe: Unsafe[Any]): B = {
+      def modify[B](f: A => (B, A))(implicit unsafe: Unsafe): B = {
         var loop = true
         var b: B = null.asInstanceOf[B]
         while (loop) {
@@ -354,7 +354,7 @@ object Ref extends Serializable {
         b
       }
 
-      def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit unsafe: Unsafe[Any]): B = {
+      def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit unsafe: Unsafe): B = {
         var loop = true
         var b: B = null.asInstanceOf[B]
         while (loop) {
@@ -366,13 +366,13 @@ object Ref extends Serializable {
         b
       }
 
-      def set(a: A)(implicit unsafe: Unsafe[Any]): Unit =
+      def set(a: A)(implicit unsafe: Unsafe): Unit =
         value.set(a)
 
-      def setAsync(a: A)(implicit unsafe: Unsafe[Any]): Unit =
+      def setAsync(a: A)(implicit unsafe: Unsafe): Unit =
         value.lazySet(a)
 
-      def update(f: A => A)(implicit unsafe: Unsafe[Any]): Unit = {
+      def update(f: A => A)(implicit unsafe: Unsafe): Unit = {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {
@@ -383,7 +383,7 @@ object Ref extends Serializable {
         ()
       }
 
-      def updateAndGet(f: A => A)(implicit unsafe: Unsafe[Any]): A = {
+      def updateAndGet(f: A => A)(implicit unsafe: Unsafe): A = {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {
@@ -394,7 +394,7 @@ object Ref extends Serializable {
         next
       }
 
-      def updateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): Unit = {
+      def updateSome(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): Unit = {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {
@@ -405,7 +405,7 @@ object Ref extends Serializable {
         ()
       }
 
-      def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe[Any]): A = {
+      def updateSomeAndGet(pf: PartialFunction[A, A])(implicit unsafe: Unsafe): A = {
         var loop    = true
         var next: A = null.asInstanceOf[A]
         while (loop) {

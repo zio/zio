@@ -1724,7 +1724,7 @@ object ZSTM {
      * Runs all the todos.
      */
     def completeTodos[E, A](exit: Exit[E, A], journal: Journal, executor: Executor)(implicit
-      unsafe: Unsafe[Any]
+      unsafe: Unsafe
     ): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
@@ -1767,7 +1767,7 @@ object ZSTM {
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: ZEnvironment[R]
-    )(implicit unsafe: Unsafe[Any]): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
@@ -1845,7 +1845,7 @@ object ZSTM {
       r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
-    )(implicit trace: Trace, unsafe: Unsafe[Any]): Unit = {
+    )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
       @tailrec
@@ -1883,7 +1883,7 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
-    )(implicit unsafe: Unsafe[Any]): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
