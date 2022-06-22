@@ -1684,24 +1684,6 @@ object ZChannel {
   )(implicit trace: Trace): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
 
-  def fromInput[Err, Elem, Done](
-    input: => AsyncInputConsumer[Err, Elem, Done]
-  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-    ZChannel.suspend {
-      def fromInput[Err, Elem, Done](
-        input: => AsyncInputConsumer[Err, Elem, Done]
-      ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-        ZChannel.unwrap(
-          input.takeWith(
-            ZChannel.failCause(_),
-            ZChannel.write(_) *> fromInput(input),
-            ZChannel.succeedNow(_)
-          )
-        )
-
-      fromInput(input)
-    }
-
   def fromQueue[Err, Done, Elem](
     queue: => Dequeue[Either[Exit[Err, Done], Elem]]
   )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
@@ -1738,6 +1720,24 @@ object ZChannel {
         )
 
       toQueue(queue)
+    }
+
+  private[zio] def fromInput[Err, Elem, Done](
+    input: => AsyncInputConsumer[Err, Elem, Done]
+  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+    ZChannel.suspend {
+      def fromInput[Err, Elem, Done](
+        input: => AsyncInputConsumer[Err, Elem, Done]
+      ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+        ZChannel.unwrap(
+          input.takeWith(
+            ZChannel.failCause(_),
+            ZChannel.write(_) *> fromInput(input),
+            ZChannel.succeedNow(_)
+          )
+        )
+
+      fromInput(input)
     }
 
   private[zio] sealed trait MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
