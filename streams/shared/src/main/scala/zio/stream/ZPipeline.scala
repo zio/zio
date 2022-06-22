@@ -148,6 +148,9 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    */
   def orDieWith(f: Err => Throwable)(implicit trace: Trace): ZPipeline[Env, Nothing, In, Out] =
     new ZPipeline(self.channel.orDieWith(f))
+
+  def toChannel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+    self.channel
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {

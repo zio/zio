@@ -510,6 +510,9 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     )
   }
 
+  def toChannel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z] =
+    self.channel
+
   /**
    * Creates a sink that produces values until one verifies the predicate `f`.
    */

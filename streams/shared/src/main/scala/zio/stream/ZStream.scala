@@ -3383,6 +3383,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.timeoutFailCause(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout(), _) => that }
   }
 
+  def toChannel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+    self.channel
+
   /**
    * Converts the stream to a scoped hub of chunks. After the scope is closed,
    * the hub will never again produce values and should be discarded.
