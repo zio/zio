@@ -19,7 +19,7 @@ package zio.internal
 import zio.{Chunk, ChunkBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object MutableConcurrentQueue {
+private[zio] object MutableConcurrentQueue {
 
   /**
    * @note
@@ -46,7 +46,7 @@ object MutableConcurrentQueue {
  *   this is declared as `abstract class` since `invokevirtual` is slightly
  *   cheaper than `invokeinterface`.
  */
-protected[zio] abstract class MutableConcurrentQueue[A] {
+private[zio] abstract class MutableConcurrentQueue[A] {
 
   /**
    * The '''maximum''' number of elements that a queue can hold.

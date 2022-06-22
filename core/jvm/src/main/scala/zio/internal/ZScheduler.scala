@@ -426,7 +426,7 @@ private final class ZScheduler extends Executor {
     Blocking.blockingExecutor.submit(runnable)
 }
 
-object ZScheduler {
+private[zio] object ZScheduler {
 
   /**
    * A `Supervisor` is a `Thread` that is responsible for monitoring workers and

@@ -18,7 +18,7 @@ import scala.annotation.tailrec
  * garbage collection occurring during an `add` operation is 1/n, where `n` is
  * the capacity of the table backing the bag.
  */
-class WeakConcurrentBag[A](tableSize: Int) {
+private[zio] class WeakConcurrentBag[A](tableSize: Int) {
   import zio.internal.FastList._
 
   private[this] val contents: AtomicReferenceArray[List[WeakReference[A]]] = new AtomicReferenceArray(tableSize)
@@ -121,6 +121,6 @@ class WeakConcurrentBag[A](tableSize: Int) {
 
   override final def toString(): String = iterator.mkString("WeakConcurrentBag(", ",", ")")
 }
-object WeakConcurrentBag {
+private[zio] object WeakConcurrentBag {
   def apply[A](tableSize: Int): WeakConcurrentBag[A] = new WeakConcurrentBag(tableSize)
 }

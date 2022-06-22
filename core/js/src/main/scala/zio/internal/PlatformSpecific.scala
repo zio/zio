@@ -25,7 +25,7 @@ private[zio] trait PlatformSpecific {
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
    */
-  final def addShutdownHook(action: () => Unit): Unit = {
+  final def addShutdownHook(action: () => Unit)(implicit unsafe: zio.Unsafe): Unit = {
     val _ = action
   }
 
@@ -36,7 +36,7 @@ private[zio] trait PlatformSpecific {
    * On Scala.js, signal handlers are triggered by changing the hash of the URL
    * to include "zio-signal=INFO" (for the "INFO" signal).
    */
-  final def addSignalHandler(signal: String, action: () => Unit): Unit = {
+  final def addSignalHandler(signal: String, action: () => Unit)(implicit unsafe: zio.Unsafe): Unit = {
     import org.scalajs.dom
     import org.scalajs.dom.raw._
 
@@ -54,7 +54,7 @@ private[zio] trait PlatformSpecific {
   /**
    * Exits the application with the specified exit code.
    */
-  final def exit(code: Int): Unit = {
+  final def exit(code: Int)(implicit unsafe: zio.Unsafe): Unit = {
     val _ = code
   }
 
@@ -62,7 +62,7 @@ private[zio] trait PlatformSpecific {
    * Returns the name of the thread group to which this thread belongs. This is
    * a side-effecting method.
    */
-  final val getCurrentThreadGroup: String = ""
+  final def getCurrentThreadGroup()(implicit unsafe: zio.Unsafe): String = ""
 
   /**
    * Returns whether the current platform is ScalaJS.
@@ -79,13 +79,13 @@ private[zio] trait PlatformSpecific {
    */
   final val isNative = false
 
-  final def newWeakSet[A](): JSet[A] = new HashSet[A]()
+  final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 
-  final def newConcurrentSet[A](): JSet[A] = new HashSet[A]()
+  final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 
-  final def newConcurrentWeakSet[A](): JSet[A] = new HashSet[A]()
+  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 
-  final def newWeakHashMap[A, B](): JMap[A, B] = new HashMap[A, B]()
+  final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
 
-  final def newWeakReference[A](value: A): () => A = { () => value }
+  final def newWeakReference[A](value: A)(implicit unsafe: zio.Unsafe): () => A = { () => value }
 }

@@ -6,7 +6,7 @@ import zio.ZIO.EvaluationStep
 import scala.util.control.NoStackTrace
 
 private[zio] sealed abstract class ReifyStack extends Exception with NoStackTrace
-object ReifyStack {
+private[zio] object ReifyStack {
   case object AsyncJump extends ReifyStack
 
   final case class Trampoline(

@@ -18,7 +18,7 @@ package zio.internal
 
 import zio._
 
-class StackTraceBuilder private () { self =>
+private[zio] class StackTraceBuilder private () { self =>
   private var last: Trace                  = null.asInstanceOf[Trace]
   private val builder: ChunkBuilder[Trace] = ChunkBuilder.make()
 
@@ -30,6 +30,6 @@ class StackTraceBuilder private () { self =>
 
   def result(): Chunk[Trace] = builder.result()
 }
-object StackTraceBuilder {
+private[zio] object StackTraceBuilder {
   def unsafeMake(): StackTraceBuilder = new StackTraceBuilder()
 }

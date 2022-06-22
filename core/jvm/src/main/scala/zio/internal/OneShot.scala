@@ -88,7 +88,7 @@ private[zio] final class OneShot[A] private (@volatile var value: A) {
 
 }
 
-object OneShot {
+private[zio] object OneShot {
 
   private final val nanosPerMilli = 1000000L
 

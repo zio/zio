@@ -1,3 +1,19 @@
+/*
+ * Copyright 2022 John A. De Goes and the ZIO Contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package zio.internal
 
 import scala.annotation.tailrec
@@ -6,8 +22,8 @@ import scala.annotation.tailrec
  * A `List` data type that tries to avoid allocating by special-casing the
  * singleton list and preventing pattern matching.
  */
-object FastList {
-  trait ListModule {
+private[zio] object FastList {
+  private[zio] trait ListModule {
     type List[+A]
 
     def empty[A]: List[A]
@@ -45,7 +61,7 @@ object FastList {
         }
     }
   type List[+A] = listModule.List[A]
-  implicit final class ListExtensionMethods[A](val self: List[A]) extends AnyVal {
+  private[zio] implicit final class ListExtensionMethods[A](val self: List[A]) extends AnyVal {
     def ::(a: A): List[A] = listModule.cons(a, self)
 
     def dropWhile(p: A => Boolean): List[A] =
@@ -95,7 +111,7 @@ object FastList {
 
     def tail: List[A] = listModule.tail(self)
   }
-  object List {
+  private[zio] object List {
     def apply[A](as: A*): List[A] =
       as.foldRight(listModule.empty[A]) { case (a, acc) =>
         a :: acc

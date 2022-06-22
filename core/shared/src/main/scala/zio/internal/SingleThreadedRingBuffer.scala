@@ -97,6 +97,6 @@ private[zio] final class SingleThreadedRingBuffer[A](capacity: Int) {
   }
 }
 
-object SingleThreadedRingBuffer {
+private[zio] object SingleThreadedRingBuffer {
   def apply[A](capacity: Int): SingleThreadedRingBuffer[A] = new SingleThreadedRingBuffer[A](capacity)
 }

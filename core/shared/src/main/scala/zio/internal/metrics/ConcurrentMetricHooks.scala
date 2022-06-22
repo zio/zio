@@ -2,7 +2,7 @@ package zio.internal.metrics
 
 import zio.metrics._
 
-trait ConcurrentMetricHooks {
+private[zio] trait ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter
 
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge
@@ -13,4 +13,4 @@ trait ConcurrentMetricHooks {
 
   def frequency(key: MetricKey.Frequency): MetricHook.Frequency
 }
-object ConcurrentMetricHooks extends ConcurrentMetricHooksPlatformSpecific
+private[zio] object ConcurrentMetricHooks extends ConcurrentMetricHooksPlatformSpecific

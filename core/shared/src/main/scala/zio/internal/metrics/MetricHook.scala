@@ -16,12 +16,12 @@
 
 package zio.internal.metrics
 
-final case class MetricHook[-In, +Out](
+private[zio] final case class MetricHook[-In, +Out](
   update: In => Unit,
   get: () => Out
 )
 
-object MetricHook {
+private[zio] object MetricHook {
   import zio.metrics.MetricState
 
   type Root    = MetricHook[_, MetricState.Untyped]
