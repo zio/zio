@@ -1475,7 +1475,7 @@ In the example below, we are partitioning incoming elements into three streams u
 val partitioned: ZIO[Scope, Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
   ZStream
     .iterate(1)(_ + 1)
-    .scheduleFixed(1.seconds)
+    .scheduleElementsFixed(1.seconds)
     .distributedWith(3, 10, x => ZIO.succeed(q => x % 3 == q))
     .flatMap { 
       case q1 :: q2 :: q3 :: Nil =>

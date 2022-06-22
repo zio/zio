@@ -2828,7 +2828,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Emits elements of this stream with a fixed delay in between, regardless of
    * how long it takes to produce a value.
    */
-  final def scheduleFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
+  final def scheduleElementsFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
     scheduleElements(Schedule.fixed(duration))
 
   /**
