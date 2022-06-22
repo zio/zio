@@ -456,7 +456,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   def exposeLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, (Z, Chunk[L])] =
     new ZSink(channel.doneCollect.map { case (chunks, z) => (z, chunks.flatten) })
 
-  def dropLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
+  def ignoreLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
     new ZSink(channel.drain)
 
   /**
@@ -929,7 +929,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that folds its inputs with the provided function and initial state.
    */
   def foldLeft[In, S](z: => S)(f: (S, In) => S)(implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, S] =
-    fold(z)(_ => true)(f).dropLeftover
+    fold(z)(_ => true)(f).ignoreLeftover
 
   /**
    * A sink that folds its input chunks with the provided function and initial
@@ -947,7 +947,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def foldLeftChunksZIO[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   )(implicit trace: Trace): ZSink[R, Err, In, Nothing, S] =
-    foldChunksZIO[R, Err, In, S](z)(_ => true)(f).dropLeftover
+    foldChunksZIO[R, Err, In, S](z)(_ => true)(f).ignoreLeftover
 
   /**
    * A sink that effectfully folds its inputs with the provided function and
