@@ -2970,7 +2970,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               start <- Clock.currentTime(TimeUnit.MILLISECONDS)
               fiber <- ZStream
                          .range(1, 9)
-                         .schedule(Schedule.fixed(100.milliseconds))
+                         .scheduleElements(Schedule.fixed(100.milliseconds))
                          .mapZIO(n => Clock.currentTime(TimeUnit.MILLISECONDS).map(now => (n, now - start)))
                          .runCollect
                          .fork
