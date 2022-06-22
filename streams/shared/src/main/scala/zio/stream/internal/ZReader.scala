@@ -16,7 +16,7 @@
 
 package zio.stream.internal
 
-import zio.{Chunk, Exit, FiberFailure, Runtime, ZIO, Trace}
+import zio.{Chunk, Exit, FiberFailure, Runtime, Trace, Unsafe, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.tailrec
@@ -108,8 +108,8 @@ private[zio] object ZReader {
   def fromPull[R](runtime: Runtime[R], pull: ZIO[R, Option[Throwable], Chunk[Char]])(implicit
     trace: Trace
   ): ZReader = {
-    def unfoldPull: Iterator[Chunk[Char]] =
-      runtime.unsafeRunSync(pull) match {
+    def unfoldPull(implicit unsafe: Unsafe): Iterator[Chunk[Char]] =
+      runtime.unsafe.run(pull) match {
         case Exit.Success(chunk) => Iterator.single(chunk) ++ unfoldPull
         case Exit.Failure(cause) =>
           cause.failureOrCause match {
@@ -118,6 +118,9 @@ private[zio] object ZReader {
             case Right(c)      => throw FiberFailure(c)
           }
       }
-    new ZReader(Iterator.empty ++ unfoldPull)
+
+    Unsafe.unsafeCompat { implicit u =>
+      new ZReader(Iterator.empty ++ unfoldPull)
+    }
   }
 }

@@ -36,36 +36,37 @@ private[zio] trait ClockPlatformSpecific {
     def asScheduledExecutorService: ScheduledExecutorService =
       service
 
-    def unsafeSchedule(task: Runnable, duration: Duration): CancelToken = (duration: @unchecked) match {
-      case Duration.Infinity => ConstFalse
-      case _ =>
-        val millis = duration.toMillis
-        val future =
-          if (millis < maxMillis)
-            service.schedule(
-              new Runnable {
-                def run: Unit =
-                  task.run()
-              },
-              duration.toNanos,
-              TimeUnit.NANOSECONDS
-            )
-          else
-            service.schedule(
-              new Runnable {
-                def run: Unit =
-                  task.run()
-              },
-              millis,
-              TimeUnit.MILLISECONDS
-            )
+    def schedule(task: Runnable, duration: Duration)(implicit unsafe: Unsafe): CancelToken =
+      (duration: @unchecked) match {
+        case Duration.Infinity => ConstFalse
+        case _ =>
+          val millis = duration.toMillis
+          val future =
+            if (millis < maxMillis)
+              service.schedule(
+                new Runnable {
+                  def run: Unit =
+                    task.run()
+                },
+                duration.toNanos,
+                TimeUnit.NANOSECONDS
+              )
+            else
+              service.schedule(
+                new Runnable {
+                  def run: Unit =
+                    task.run()
+                },
+                millis,
+                TimeUnit.MILLISECONDS
+              )
 
-        () => {
-          val canceled = future.cancel(true)
+          () => {
+            val canceled = future.cancel(true)
 
-          canceled
-        }
-    }
+            canceled
+          }
+      }
   }
 
   private[this] def makeService(): ScheduledExecutorService = {

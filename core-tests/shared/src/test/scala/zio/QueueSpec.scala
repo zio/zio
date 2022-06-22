@@ -61,7 +61,7 @@ object QueueSpec extends ZIOBaseSpec {
         _            <- waitForSize(queue, 11)
         isSuspended  <- refSuspended.get
         _            <- f.interrupt
-      } yield assert(isSuspended)(isTrue)
+      } yield assertTrue(isSuspended)
     },
     test("back pressured offers are retrieved") {
       for {

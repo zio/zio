@@ -3632,7 +3632,7 @@ object ZIOSpec extends DefaultRunnableSpec {
       }
     ),
     suite("toFuture")(
-      testM("should fail with ZTrace attached") {
+      testM("should fail with StackTrace attached") {
         for {
           future <- ZIO.fail(new Throwable(new IllegalArgumentException)).toFuture
           result <- ZIO.fromFuture(_ => future).either

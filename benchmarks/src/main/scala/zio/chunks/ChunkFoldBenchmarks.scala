@@ -37,5 +37,7 @@ class ChunkFoldBenchmarks {
 
   @Benchmark
   def foldZIO(): Int =
-    BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    }
 }

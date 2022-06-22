@@ -37,7 +37,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
    * yield a value.
    */
   def fold[Z](end: => Z, error: Cause[E] => Z, value: Chunk[A] => Z): Z =
-    exit.fold(Cause.flipCauseOption(_).fold(end)(error), value)
+    exit.foldExit(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
    * Effectful version of [[Take#fold]].
@@ -50,25 +50,25 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
     error: Cause[E] => ZIO[R, E1, Z],
     value: Chunk[A] => ZIO[R, E1, Z]
   )(implicit trace: Trace): ZIO[R, E1, Z] =
-    exit.foldZIO(Cause.flipCauseOption(_).fold(end)(error), value)
+    exit.foldExitZIO(Cause.flipCauseOption(_).fold(end)(error), value)
 
   /**
    * Checks if this `take` is done (`Take.end`).
    */
   def isDone: Boolean =
-    exit.fold(Cause.flipCauseOption(_).isEmpty, _ => false)
+    exit.foldExit(Cause.flipCauseOption(_).isEmpty, _ => false)
 
   /**
    * Checks if this `take` is a failure.
    */
   def isFailure: Boolean =
-    exit.fold(Cause.flipCauseOption(_).nonEmpty, _ => false)
+    exit.foldExit(Cause.flipCauseOption(_).nonEmpty, _ => false)
 
   /**
    * Checks if this `take` is a success.
    */
   def isSuccess: Boolean =
-    exit.fold(_ => false, _ => true)
+    exit.foldExit(_ => false, _ => true)
 
   /**
    * Transforms `Take[E, A]` to `Take[E, B]` by applying function `f`.
@@ -142,7 +142,7 @@ object Take {
    * Creates a `Take[E, A]` from `Exit[E, A]`.
    */
   def done[E, A](exit: Exit[E, A]): Take[E, A] =
-    Take(exit.mapError[Option[E]](Some(_)).map(Chunk.single))
+    Take(exit.mapError[Option[E]]((e: E) => Some(e)).map(Chunk.single))
 
   /**
    * End-of-stream marker

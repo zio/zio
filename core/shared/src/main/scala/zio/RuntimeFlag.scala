@@ -16,12 +16,111 @@
 
 package zio
 
-sealed trait RuntimeFlag
+/**
+ * A [[RuntimeFlag]] is a flag that can be set to enable or disable a particular
+ * feature of the ZIO runtime.
+ */
+sealed trait RuntimeFlag {
+  def index: Int
+
+  def mask: Int
+
+  def notMask: Int
+}
 
 object RuntimeFlag {
-  case object EnableCurrentFiber  extends RuntimeFlag
-  case object LogRuntime          extends RuntimeFlag
-  case object SuperviseOperations extends RuntimeFlag
-  case object TrackRuntimeMetrics extends RuntimeFlag
-  case object EnableFiberRoots    extends RuntimeFlag
+  lazy val all: Set[RuntimeFlag] =
+    Set(Interruption, CurrentFiber, OpLog, OpSupervision, RuntimeMetrics, FiberRoots, WindDown, CooperativeYielding)
+
+  /**
+   * The interruption flag determines whether or not the ZIO runtime system will
+   * interrupt a fiber.
+   */
+  case object Interruption extends RuntimeFlag {
+    final val index   = 0
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The current fiber flag determines whether or not the ZIO runtime system
+   * will store the current fiber inside a `ThreadLocal` whenever a fiber begins
+   * executing on a thread. Use of this flag will negatively impact performance,
+   * but is essential where interop with ThreadLocal is required.
+   */
+  case object CurrentFiber extends RuntimeFlag {
+    final val index   = 1
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The op log flag determines whether or not the ZIO runtime system will
+   * attempt to log all operations of the ZIO runtime. Use of this flag will
+   * negatively impact performance and generate massive volumes of ultra-fine
+   * debug logs. Only recommended for debugging.
+   */
+  case object OpLog extends RuntimeFlag {
+    final val index   = 2
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The op supervision flag determines whether or not the IO runtime system
+   * will supervise all operations of the ZIO runtime. Use of this flag will
+   * negatively impact performance, but is required for some operations, such as
+   * profiling.
+   */
+  case object OpSupervision extends RuntimeFlag {
+    final val index   = 3
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The runtime metrics flag determines whether or not the ZIO runtime system
+   * will collect metrics about the ZIO runtime. Use of this flag will have a
+   * very small negative impact on performance, but generates very helpful
+   * operational insight into running ZIO applications that can be exported to
+   * Prometheus or other tools via ZIO Metrics.
+   */
+  case object RuntimeMetrics extends RuntimeFlag {
+    final val index   = 4
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The fiber roots flag determines whether or not the ZIO runtime system will
+   * keep track of all fiber roots. Use of this flag will negatively impact
+   * performance, but is required in order for fiber dumps functionality.
+   */
+  case object FiberRoots extends RuntimeFlag {
+    final val index   = 5
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The wind down flag determines whether the ZIO runtime system will execute
+   * effects in wind-down mode. In wind-down mode, even if interruption is
+   * enabled and a fiber has been interrupted, the fiber will continue its
+   * execution uninterrupted.
+   */
+  case object WindDown extends RuntimeFlag {
+    final val index   = 6
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
+
+  /**
+   * The cooperative yielding flag determines whether the ZIO runtime will yield
+   * to another fiber.
+   */
+  case object CooperativeYielding extends RuntimeFlag {
+    final val index   = 7
+    final val mask    = 1 << index
+    final val notMask = ~mask
+  }
 }

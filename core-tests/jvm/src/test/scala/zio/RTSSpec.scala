@@ -33,7 +33,9 @@ object RTSSpec extends ZIOBaseSpec {
       for {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
-        fiber <- ZIO.attemptBlockingInterrupt { start.unsafeDone(ZIO.unit); Thread.sleep(60L * 60L * 1000L) }
+        fiber <- ZIO.attemptBlockingInterrupt {
+                   Unsafe.unsafeCompat { implicit u => start.unsafe.done(ZIO.unit); Thread.sleep(60L * 60L * 1000L) }
+                 }
                    .ensuring(done.set(true))
                    .fork
         _     <- start.await
@@ -46,8 +48,8 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           release <- Promise.make[Nothing, Int]
           latch   <- Promise.make[Nothing, Unit]
-          async = ZIO.asyncInterrupt[Any, Nothing, Unit] { _ =>
-                    latch.unsafeDone(ZIO.unit); Left(release.succeed(42).unit)
+          async = ZIO.asyncInterruptUnsafe[Any, Nothing, Unit] { implicit u => _ =>
+                    latch.unsafe.done(ZIO.unit); Left(release.succeed(42).unit)
                   }
           fiber  <- async.fork
           _      <- latch.await
@@ -71,7 +73,7 @@ object RTSSpec extends ZIOBaseSpec {
         queue    <- Queue.bounded[Int](100)
         producer <- queue.offer(42).forever.fork
         rez      <- producer.interrupt
-        _        <- Console.printLine(rez.fold(_.prettyPrint, _ => ""))
+        _        <- Console.printLine(rez.foldExit(_.prettyPrint, _ => ""))
       } yield assert(rez)(anything)
     } @@ zioTag(interruption) @@ silent,
     test("interruption of unending acquireReleaseWith") {
@@ -98,11 +100,13 @@ object RTSSpec extends ZIOBaseSpec {
       val e   = Executors.newSingleThreadExecutor()
 
       (0 until 1000).foreach { _ =>
-        rts.unsafeRun {
-          ZIO.async[Any, Nothing, Int] { k =>
-            val c: Callable[Unit] = () => k(ZIO.succeed(1))
-            val _                 = e.submit(c)
-          }
+        Unsafe.unsafeCompat { implicit u =>
+          rts.unsafe.run {
+            ZIO.async[Any, Nothing, Int] { k =>
+              val c: Callable[Unit] = () => k(ZIO.succeed(1))
+              val _                 = e.submit(c)
+            }
+          }.getOrThrowFiberFailure
         }
       }
 

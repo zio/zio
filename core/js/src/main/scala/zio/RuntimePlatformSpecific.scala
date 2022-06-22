@@ -16,31 +16,21 @@
 
 package zio
 
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.concurrent.ExecutionContext
 import scala.scalajs.js.Dynamic.{global => jsglobal}
 
 private[zio] trait RuntimePlatformSpecific {
 
-  /**
-   * The default number of operations the ZIO runtime should execute before
-   * yielding to other fibers.
-   */
-  final val defaultYieldOpCount: Int =
-    2048
-
   final val defaultExecutor: Executor =
-    Executor.fromExecutionContext(defaultYieldOpCount)(ExecutionContext.global)
+    Executor.fromExecutionContext(MacrotaskExecutor)
 
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
   final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set.empty
-
-  final val defaultFlags: Set[RuntimeFlag] =
-    Set(RuntimeFlag.EnableFiberRoots)
 
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {
@@ -56,7 +46,7 @@ private[zio] trait RuntimePlatformSpecific {
         level: LogLevel,
         message: () => String,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ) => {
@@ -78,6 +68,6 @@ private[zio] trait RuntimePlatformSpecific {
     Set(logger.filterLogLevel(_ >= LogLevel.Info))
   }
 
-  final val defaultSupervisors: Set[Supervisor[Any]] =
-    Set.empty
+  final val defaultSupervisor: Supervisor[Any] =
+    Supervisor.none
 }

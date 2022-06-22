@@ -40,7 +40,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
           logLevel: zio.LogLevel,
           message: () => Any,
           cause: Cause[Any],
-          context: Map[zio.FiberRef[_], Any],
+          context: FiberRefs,
           spans: List[zio.LogSpan],
           annotations: Map[String, String]
         ): Unit = {

@@ -3,7 +3,7 @@ id: runtime
 title: "Runtime"
 ---
 ```scala mdoc:invisible
-import zio.{FiberRefs, Runtime, Task, UIO, URIO, ZEnvironment, ZIO}
+import zio.{FiberRefs, Runtime, RuntimeFlags, Task, UIO, Unsafe, URIO, ZEnvironment, ZIO}
 ```
 
 A `Runtime[R]` is capable of executing tasks within an environment `R`.
@@ -55,9 +55,11 @@ object RunZIOEffectUsingUnsafeRun extends scala.App {
     _ <- Console.printLine("Hello, " + n + ", good to meet you!")
   } yield ()
 
-  zio.Runtime.default.unsafeRun(
-    myAppLogic
-  )
+  Unsafe.unsafe { implicit u =>
+      zio.Runtime.default.unsafe.run(
+        myAppLogic
+      ).getOrThrowFiberFailure
+  }
 }
 ```
 
@@ -81,7 +83,9 @@ We can easily access the default `Runtime` to run an effect:
 object MainApp extends scala.App {
   val myAppLogic = ZIO.succeed(???)
   val runtime = Runtime.default
-  runtime.unsafeRun(myAppLogic)
+  Unsafe.unsafe { implicit u =>
+    runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure
+  }
 }
 ```
 
@@ -138,7 +142,8 @@ Let's create a custom runtime that contains these two service implementations in
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
   ZEnvironment[Logging, Email](LoggingLive(), EmailMock()),
-  FiberRefs.empty
+  FiberRefs.empty,
+  RuntimeFlags.default
 )
 ```
 
@@ -154,10 +159,12 @@ val testableRuntime: Runtime[Logging with Email] =
 Now we can run our effects using this custom `Runtime`:
 
 ```scala mdoc:silent:nest
-testableRuntime.unsafeRun(
-  for {
-    _ <- Logging.log("sending newsletter")
-    _ <- Email.send("David", "Hi! Here is today's newsletter.")
-  } yield ()
-)
+Unsafe.unsafe { implicit u =>
+    testableRuntime.unsafe.run(
+      for {
+        _ <- Logging.log("sending newsletter")
+        _ <- Email.send("David", "Hi! Here is today's newsletter.")
+      } yield ()
+    ).getOrThrowFiberFailure
+}
 ```

@@ -436,18 +436,18 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   )(f: (Z, Z1) => Z2)(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z2] =
     self.raceWith(that)(
       {
-        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.refailCause(err))
         case Exit.Success(lz) =>
           ZChannel.MergeDecision.await {
-            case Exit.Failure(cause) => ZIO.failCause(cause)
+            case Exit.Failure(cause) => ZIO.refailCause(cause)
             case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
           }
       },
       {
-        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.failCause(err))
+        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.refailCause(err))
         case Exit.Success(rz) =>
           ZChannel.MergeDecision.await {
-            case Exit.Failure(cause) => ZIO.failCause(cause)
+            case Exit.Failure(cause) => ZIO.refailCause(cause)
             case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
           }
       }

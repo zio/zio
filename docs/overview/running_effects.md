@@ -45,7 +45,9 @@ val runtime = Runtime.default
 Once you have a runtime, you can use it to execute effects:
 
 ```scala mdoc:silent
-runtime.unsafeRun(ZIO.attempt(println("Hello World!")))
+Unsafe.unsafe { implicit u =>
+    runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure
+}
 ```
 
 In addition to `unsafeRun`, there are other methods which allow the asynchonous execution of effects or the ability to transform them into `Future`s.
@@ -59,7 +61,7 @@ A custom `Runtime[R]` can be created with an `Environment[R]`. This represents t
 For example, the following creates a `Runtime` that can provide an `Int` to effects :
 
 ```scala mdoc:silent
-val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), FiberRefs.empty)
+val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), FiberRefs.empty, RuntimeFlags.default)
 ```
 
 ## Error Reporting

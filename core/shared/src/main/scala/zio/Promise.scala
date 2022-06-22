@@ -85,7 +85,7 @@ final class Promise[E, A] private (
    * Exits the promise with the specified exit, which will be propagated to all
    * fibers waiting on the value of the promise.
    */
-  def done(e: Exit[E, A])(implicit trace: Trace): UIO[Boolean] = completeWith(ZIO.done(e))
+  def done(e: Exit[E, A])(implicit trace: Trace): UIO[Boolean] = completeWith(e)
 
   /**
    * Completes the promise with the result of the specified effect. If the
@@ -94,8 +94,7 @@ final class Promise[E, A] private (
    * Note that [[Promise.completeWith]] will be much faster, so consider using
    * that if you do not need to memoize the result of the specified effect.
    */
-  def complete(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] =
-    io.intoPromise(this)
+  def complete(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] = io.intoPromise(this)
 
   /**
    * Completes the promise with the specified effect. If the promise has already
@@ -182,6 +181,14 @@ final class Promise[E, A] private (
     }
 
   /**
+   * Fails the promise with the specified cause, which will be propagated to all
+   * fibers waiting on the value of the promise. No new stack trace is attached
+   * to the cause.
+   */
+  def refailCause(e: Cause[E])(implicit trace: Trace): UIO[Boolean] =
+    completeWith(ZIO.refailCause(e))
+
+  /**
    * Completes the promise with the specified value.
    */
   def succeed(a: A)(implicit trace: Trace): UIO[Boolean] = completeWith(ZIO.succeedNow(a))
@@ -204,26 +211,31 @@ final class Promise[E, A] private (
     }
   }
 
-  private[zio] def unsafeDone(io: IO[E, A]): Unit = {
-    var retry: Boolean                 = true
-    var joiners: List[IO[E, A] => Any] = null
-
-    while (retry) {
-      val oldState = state.get
-
-      val newState = oldState match {
-        case Pending(js) =>
-          joiners = js
-          Done(io)
-        case _ => oldState
-      }
-
-      retry = !state.compareAndSet(oldState, newState)
-    }
-
-    if (joiners ne null) joiners.reverse.foreach(_(io))
+  private[zio] trait UnsafeAPI {
+    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
   }
 
+  @transient private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit = {
+      var retry: Boolean                 = true
+      var joiners: List[IO[E, A] => Any] = null
+
+      while (retry) {
+        val oldState = state.get
+
+        val newState = oldState match {
+          case Pending(js) =>
+            joiners = js
+            Done(io)
+          case _ => oldState
+        }
+
+        retry = !state.compareAndSet(oldState, newState)
+      }
+
+      if (joiners ne null) joiners.foreach(_(io))
+    }
+  }
 }
 object Promise {
   private val ConstFalse: () => Boolean = () => false
@@ -237,14 +249,16 @@ object Promise {
   /**
    * Makes a new promise to be completed by the fiber creating the promise.
    */
-  def make[E, A](implicit trace: Trace): UIO[Promise[E, A]] = ZIO.fiberId.flatMap(makeAs(_))
+  def make[E, A](implicit trace: Trace): UIO[Promise[E, A]] = ZIO.fiberIdWith(makeAs(_))
 
   /**
    * Makes a new promise to be completed by the fiber with the specified id.
    */
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =
-    ZIO.succeed(unsafeMake(fiberId))
+    ZIO.succeedUnsafe(implicit u => unsafe.make(fiberId))
 
-  private[zio] def unsafeMake[E, A](fiberId: FiberId): Promise[E, A] =
-    new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
+  private[zio] object unsafe {
+    def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] =
+      new Promise[E, A](new AtomicReference[State[E, A]](new internal.Pending[E, A](Nil)), fiberId)
+  }
 }

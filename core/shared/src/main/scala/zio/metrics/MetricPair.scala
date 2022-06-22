@@ -15,6 +15,8 @@
  */
 package zio.metrics
 
+import zio.Unsafe
+
 final case class MetricPair[Type <: MetricKeyType { type Out = Out0 }, Out0](
   metricKey: MetricKey[Type],
   metricState: MetricState[Out0]
@@ -25,10 +27,10 @@ object MetricPair {
 
   type Untyped = Lossy[Any]
 
-  private[zio] def unsafeMake[Type <: MetricKeyType](
+  private[zio] def make[Type <: MetricKeyType](
     metricKey: MetricKey[Type],
     metricState: MetricState[_]
-  ): MetricPair.Untyped = {
+  )(implicit unsafe: Unsafe): MetricPair.Untyped = {
     type Out0  = Any
     type Type0 = MetricKeyType { type Out = Out0 }
 

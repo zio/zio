@@ -30,9 +30,11 @@ import zio._
 ```scala mdoc:compile-only
 import scala.Predef.assert
 
-val random = Runtime.default.unsafeRun(
-  Random.nextIntBounded(10)
-)
+val random = Unsafe.unsafe { implicit u =>
+  Runtime.default.unsafe.run(
+    Random.nextIntBounded(10)
+  ).getOrThrowFiberFailure
+}
 
 assert(random >= 0)
 ```

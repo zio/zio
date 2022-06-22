@@ -187,19 +187,27 @@ object Differ {
     }
 
   /**
+   * Constructs a differ that knows how to diff `Supervisor` values.
+   */
+  def supervisor: Differ[Supervisor[Any], Supervisor.Patch] =
+    new Differ[Supervisor[Any], Supervisor.Patch] {
+      def combine(first: Supervisor.Patch, second: Supervisor.Patch): Supervisor.Patch =
+        first.combine(second)
+      def diff(oldValue: Supervisor[Any], newValue: Supervisor[Any]): Supervisor.Patch =
+        Supervisor.Patch.diff(oldValue, newValue)
+      def empty: Supervisor.Patch =
+        Supervisor.Patch.empty
+      def patch(patch: Supervisor.Patch)(oldValue: Supervisor[Any]): Supervisor[Any] =
+        patch(oldValue)
+    }
+
+  /**
    * Constructs a differ that just diffs two values by returning a function that
    * sets the value to the new value. This differ does not support combining
    * multiple updates to the value compositionally and should only be used when
    * there is no compositional way to update them.
    */
   def update[A]: Differ[A, A => A] =
-    updateWith((_, a) => a)
-
-  /**
-   * A variant of `update` that allows specifying the function that will be used
-   * to combine old values with new values.
-   */
-  def updateWith[A](f: (A, A) => A): Differ[A, A => A] =
     new Differ[A, A => A] {
       def combine(first: A => A, second: A => A): A => A =
         if (first == empty) second
@@ -210,7 +218,7 @@ object Differ {
       def empty: A => A =
         ZIO.identityFn
       def patch(patch: A => A)(oldValue: A): A =
-        f(oldValue, patch(oldValue))
+        patch(oldValue)
     }
 
   /**

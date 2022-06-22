@@ -8,25 +8,25 @@ object DifferSpec extends ZIOSpecDefault {
 
   def spec = suite("DifferSpec")(
     suite("chunk") {
-      diffLaws(Differ.chunk[Int, Int => Int](Differ.update[Int]))(Gen.chunkOf(smallInt))
+      diffLaws(Differ.chunk[Int, Int => Int](Differ.update[Int]))(Gen.chunkOf(smallInt))(_ == _)
     },
     suite("either") {
-      diffLaws(Differ.update[Int] <+> Differ.update[Int])(Gen.either(smallInt, smallInt))
+      diffLaws(Differ.update[Int] <+> Differ.update[Int])(Gen.either(smallInt, smallInt))(_ == _)
     },
     suite("map") {
-      diffLaws(Differ.map[Int, Int, Int => Int](Differ.update[Int]))(Gen.mapOf(smallInt, smallInt))
+      diffLaws(Differ.map[Int, Int, Int => Int](Differ.update[Int]))(Gen.mapOf(smallInt, smallInt))(_ == _)
     },
     suite("set") {
-      diffLaws(Differ.set[Int])(Gen.setOf(smallInt))
+      diffLaws(Differ.set[Int])(Gen.setOf(smallInt))(_ == _)
     },
     suite("tuple") {
-      diffLaws(Differ.update[Int] <*> Differ.update[Int])(smallInt <*> smallInt)
+      diffLaws(Differ.update[Int] <*> Differ.update[Int])(smallInt <*> smallInt)(_ == _)
     }
   )
 
   def diffLaws[Environment, Value, Patch](differ: Differ[Value, Patch])(
     gen: Gen[Environment, Value]
-  ): Spec[Environment with TestConfig, Nothing] =
+  )(equal: (Value, Value) => Boolean): Spec[Environment with TestConfig, Nothing] =
     suite("differ laws")(
       test("combining patches is associative") {
         check(gen, gen, gen, gen) { (value1, value2, value3, value4) =>
@@ -35,7 +35,7 @@ object DifferSpec extends ZIOSpecDefault {
           val patch3 = differ.diff(value3, value4)
           val left   = differ.combine(differ.combine(patch1, patch2), patch3)
           val right  = differ.combine(patch1, differ.combine(patch2, patch3))
-          assertTrue(differ.patch(left)(value1) == differ.patch(right)(value1))
+          assertTrue(equal(differ.patch(left)(value1), differ.patch(right)(value1)))
         }
       },
       test("combining a patch with an empty patch is an identity") {
@@ -44,8 +44,8 @@ object DifferSpec extends ZIOSpecDefault {
           val left  = differ.combine(patch, differ.empty)
           val right = differ.combine(differ.empty, patch)
           assertTrue(
-            differ.patch(left)(oldValue) == newValue,
-            differ.patch(right)(oldValue) == newValue
+            equal(differ.patch(left)(oldValue), newValue),
+            equal(differ.patch(right)(oldValue), newValue)
           )
         }
       },
@@ -57,12 +57,12 @@ object DifferSpec extends ZIOSpecDefault {
       test("diffing and then patching is an identity") {
         check(gen, gen) { (oldValue, newValue) =>
           val patch = differ.diff(oldValue, newValue)
-          assertTrue(differ.patch(patch)(oldValue) == newValue)
+          assertTrue(equal(differ.patch(patch)(oldValue), newValue))
         }
       },
       test("patching with an empty patch is an identity") {
         check(gen) { value =>
-          assertTrue(differ.patch(differ.empty)(value) == value)
+          assertTrue(equal(differ.patch(differ.empty)(value), value))
         }
       }
     )

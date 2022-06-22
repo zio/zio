@@ -25,13 +25,37 @@ import scala.annotation.tailrec
  * This allows safely propagating `FiberRef` values across fiber boundaries, for
  * example between an asynchronous producer and consumer.
  */
-final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]) { self =>
+final class FiberRefs private (
+  private[zio] val fiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]]
+) { self =>
+
+  /**
+   * Returns a new fiber refs with the specified ref deleted from it.
+   */
+  def delete(fiberRef: FiberRef[_]): FiberRefs =
+    FiberRefs(fiberRefLocals - fiberRef)
 
   /**
    * Returns a set of each `FiberRef` in this collection.
    */
   def fiberRefs: Set[FiberRef[_]] =
     fiberRefLocals.keySet
+
+  /**
+   * Forks this collection of fiber refs as the specified child fiber id. This
+   * will potentially modify the value of the fiber refs, as determined by the
+   * individual fiber refs that make up the collection.
+   */
+  def forkAs(childId: FiberId.Runtime): FiberRefs = {
+    val childFiberRefLocals: Map[FiberRef[_], ::[(FiberId.Runtime, Any)]] =
+      fiberRefLocals.transform { case (fiberRef, stack) =>
+        val oldValue = stack.head._2.asInstanceOf[fiberRef.Value]
+        val newValue = fiberRef.patch(fiberRef.fork)(oldValue)
+        if (oldValue == newValue) stack else ::(childId -> newValue, stack)
+      }
+
+    FiberRefs(childFiberRefLocals)
+  }
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
@@ -48,15 +72,11 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
     get(fiberRef).getOrElse(fiberRef.initial)
 
   /**
-   * Sets the value of each `FiberRef` for the fiber running this effect to the
-   * value in this collection of `FiberRef` values.
+   * Joins this collection of fiber refs to the specified collection, as the
+   * specified fiber id. This will perform diffing and merging to ensure
+   * preservation of maximum information from both child and parent refs.
    */
-  def setAll(implicit trace: Trace): UIO[Unit] =
-    ZIO.foreachDiscard(fiberRefs) { fiberRef =>
-      fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
-    }
-
-  private[zio] def join(fiberId: FiberId.Runtime)(that: FiberRefs): FiberRefs = {
+  def joinAs(fiberId: FiberId.Runtime)(that: FiberRefs): FiberRefs = {
     val parentFiberRefs = self.fiberRefLocals
     val childFiberRefs  = that.fiberRefLocals
 
@@ -72,10 +92,10 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
           .get(ref)
           .fold {
             if (childValue == ref.initial) parentFiberRefs
-            else parentFiberRefs + (ref -> ::((fiberId, childValue), Nil))
+            else parentFiberRefs + (ref -> ::((fiberId, ref.join(ref.initial, childValue)), Nil))
           } { parentStack =>
             def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
-              val compare = left.startTimeSeconds.compare(right.startTimeSeconds)
+              val compare = left.startTimeMillis.compare(right.startTimeMillis)
               if (compare == 0) left.id.compare(right.id) else compare
             }
 
@@ -102,7 +122,7 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
               val patch = ref.diff(ancestor, childValue)
 
               val oldValue = parentStack.head._2
-              val newValue = ref.patch(patch)(oldValue)
+              val newValue = ref.join(oldValue, ref.patch(patch)(oldValue))
 
               if (oldValue == newValue) parentFiberRefs
               else {
@@ -121,7 +141,24 @@ final class FiberRefs private (private[zio] val fiberRefLocals: Map[FiberRef[_],
     FiberRefs(fiberRefLocals)
   }
 
-  private[zio] def update(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
+  def setAll(implicit trace: Trace): UIO[Unit] =
+    ZIO.foreachDiscard(fiberRefs) { fiberRef =>
+      fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
+    }
+
+  override final def toString(): String = fiberRefLocals.mkString("FiberRefLocals(", ",", ")")
+
+  def updatedAs[A](fiberId: FiberId.Runtime)(fiberRef: FiberRef[A], value: A): FiberRefs = {
+    val oldStack = fiberRefLocals.get(fiberRef).getOrElse(List.empty)
+    val newStack =
+      if (oldStack.isEmpty) ::((fiberId, value.asInstanceOf[Any]), Nil)
+      else if (oldStack.head._1 == fiberId) ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
+      else ::((fiberId, value), oldStack)
+
+    FiberRefs(fiberRefLocals + (fiberRef -> newStack))
+  }
+
+  private[zio] def updatedAsAll(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
     FiberRefs(
       fiberRefs.foldLeft(fiberRefLocals) { case (fiberRefLocals, (fiberRef, newValue)) =>
         fiberRefLocals.get(fiberRef) match {

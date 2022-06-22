@@ -33,7 +33,9 @@ final class ZEnvironment[+R] private (
    * Adds a service to the environment.
    */
   def add[A](a: A)(implicit tag: Tag[A]): ZEnvironment[R with A] =
-    unsafeAdd[A](tag.tag, a)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafe.add[A](tag.tag, a)
+    }
 
   override def equals(that: Any): Boolean = that match {
     case that: ZEnvironment[_] => self.map == that.map
@@ -44,14 +46,18 @@ final class ZEnvironment[+R] private (
    * Retrieves a service from the environment.
    */
   def get[A >: R](implicit tag: Tag[A]): A =
-    unsafeGet(tag.tag)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafe.get[A](tag.tag)
+    }
 
   /**
    * Retrieves a service from the environment corresponding to the specified
    * key.
    */
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: EnvironmentTag[Map[K, V]]): Option[V] =
-    unsafeGet[Map[K, V]](taggedTagType(tagged)).get(k)
+    Unsafe.unsafeCompat { implicit u =>
+      unsafe.get[Map[K, V]](taggedTagType(tagged)).get(k)
+    }
 
   override def hashCode: Int =
     map.hashCode
@@ -107,35 +113,6 @@ final class ZEnvironment[+R] private (
     )
   }
 
-  private def unsafeAdd[A](tag: LightTypeTag, a: A): ZEnvironment[R with A] = {
-    val self0 = if (index == Int.MaxValue) self.clean else self
-    new ZEnvironment(self0.map + (tag -> (a -> self0.index)), self0.index + 1)
-  }
-
-  def unsafeGet[A](tag: LightTypeTag): A =
-    self.cache.get(tag) match {
-      case Some(a) => a.asInstanceOf[A]
-      case None =>
-        var index      = -1
-        val iterator   = self.map.iterator
-        var service: A = null.asInstanceOf[A]
-        while (iterator.hasNext) {
-          val (curTag, (curService, curIndex)) = iterator.next()
-          if (taggedIsSubtype(curTag, tag) && curIndex > index) {
-            index = curIndex
-            service = curService.asInstanceOf[A]
-          }
-        }
-        if (service == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
-        else {
-          self.cache = self.cache + (tag -> service)
-          service
-        }
-    }
-
-  private def unsafeUpdate[A >: R](tag: LightTypeTag, f: A => A): ZEnvironment[R] =
-    unsafeAdd[A](tag, f(unsafeGet(tag)))
-
   /**
    * Updates a service in the environment.
    */
@@ -143,10 +120,12 @@ final class ZEnvironment[+R] private (
     self.add[A](f(get[A]))
 
   /**
-   * Updates a service in the environment correponding to the specified key.
+   * Updates a service in the environment corresponding to the specified key.
    */
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
-    self.add[Map[K, V]](unsafeGet[Map[K, V]](taggedTagType(tag)).updated(k, f(getAt(k).get)))
+    Unsafe.unsafeCompat { implicit u =>
+      self.add[Map[K, V]](unsafe.get[Map[K, V]](taggedTagType(tag)).updated(k, f(getAt(k).get)))
+    }
 
   /**
    * Filters a map by retaining only keys satisfying a predicate.
@@ -162,6 +141,47 @@ final class ZEnvironment[+R] private (
         map + (tag -> (service -> index)) -> (index + 1)
     }
     new ZEnvironment(map, index)
+  }
+
+  trait UnsafeAPI {
+    def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A
+    private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
+    private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
+      unsafe: Unsafe
+    ): ZEnvironment[R]
+  }
+
+  val unsafe: UnsafeAPI = new UnsafeAPI {
+    private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
+      val self0 = if (index == Int.MaxValue) self.clean else self
+      new ZEnvironment(self0.map + (tag -> (a -> self0.index)), self0.index + 1)
+    }
+
+    def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
+      self.cache.get(tag) match {
+        case Some(a) => a.asInstanceOf[A]
+        case None =>
+          var index      = -1
+          val iterator   = self.map.iterator
+          var service: A = null.asInstanceOf[A]
+          while (iterator.hasNext) {
+            val (curTag, (curService, curIndex)) = iterator.next()
+            if (taggedIsSubtype(curTag, tag) && curIndex > index) {
+              index = curIndex
+              service = curService.asInstanceOf[A]
+            }
+          }
+          if (service == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
+          else {
+            self.cache = self.cache + (tag -> service)
+            service
+          }
+      }
+
+    private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit
+      unsafe: Unsafe
+    ): ZEnvironment[R] =
+      add[A](tag, f(get(tag)))
   }
 }
 
@@ -239,21 +259,21 @@ object ZEnvironment {
     /**
      * Applies an update to the environment to produce a new environment.
      */
-    def apply(environment: ZEnvironment[In]): ZEnvironment[Out] = {
+    def apply(environment: ZEnvironment[In]): ZEnvironment[Out] =
+      Unsafe.unsafeCompat { implicit u =>
+        @tailrec
+        def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
+          patches match {
+            case AddService(service, tag) :: patches   => loop(environment.unsafe.add(tag, service), patches)
+            case AndThen(first, second) :: patches     => loop(environment, erase(first) :: erase(second) :: patches)
+            case Empty() :: patches                    => loop(environment, patches)
+            case RemoveService(tag) :: patches         => loop(environment, patches)
+            case UpdateService(update, tag) :: patches => loop(environment.unsafe.update(tag, update), patches)
+            case Nil                                   => environment
+          }
 
-      @tailrec
-      def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
-        patches match {
-          case AddService(service, tag) :: patches   => loop(environment.unsafeAdd(tag, service), patches)
-          case AndThen(first, second) :: patches     => loop(environment, erase(first) :: erase(second) :: patches)
-          case Empty() :: patches                    => loop(environment, patches)
-          case RemoveService(tag) :: patches         => loop(environment, patches)
-          case UpdateService(update, tag) :: patches => loop(environment.unsafeUpdate(tag, update), patches)
-          case Nil                                   => environment
-        }
-
-      loop(environment, List(self.asInstanceOf[Patch[Any, Any]])).asInstanceOf[ZEnvironment[Out]]
-    }
+        loop(environment, List(self.asInstanceOf[Patch[Any, Any]])).asInstanceOf[ZEnvironment[Out]]
+      }
 
     /**
      * Combines two patches to produce a new patch that describes applying the

@@ -28,12 +28,34 @@ final case class StackTrace(
   def ++(that: StackTrace): StackTrace =
     StackTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
+  def size: Int = stackTrace.length
+
   /**
    * Converts the ZIO trace into a Java stack trace, by converting each trace
    * element into a Java stack trace element.
    */
   def toJava: Chunk[StackTraceElement] =
     stackTrace.flatMap(Trace.toJava)
+
+  def prettyPrint(prefix: String): String = prettyPrint(Some(prefix))
+
+  def prettyPrint: String = prettyPrint(None)
+
+  private def prettyPrint(prefix: Option[String]): String = {
+    def renderElements(indent: Int, elements: Chunk[StackTraceElement]) = {
+      val baseIndent  = "\t" * indent
+      val traceIndent = baseIndent + "\t"
+
+      val suffix = elements.map(trace => s"${traceIndent}at ${trace}").mkString("\n")
+
+      prefix.map(prefix => s"${baseIndent}${prefix}\n").getOrElse("") + suffix
+    }
+
+    renderElements(0, toJava)
+  }
+
+  override def toString(): String =
+    prettyPrint("Stack trace for thread \"" + fiberId.threadName + "\":")
 }
 
 object StackTrace {

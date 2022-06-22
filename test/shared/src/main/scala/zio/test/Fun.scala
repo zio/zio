@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{Executor, Runtime, URIO, ZIO, Trace}
+import zio.{Executor, Runtime, RuntimeFlag, RuntimeFlags, Trace, URIO, Unsafe, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext
@@ -62,8 +62,14 @@ private[test] object Fun {
       } { _ =>
         ZIO.shift(executor) *> ZIO.unshift
       } { _ =>
-        ZIO.runtime[R].map { runtime =>
-          Fun(a => runtime.unsafeRun(f(a)), hash)
+        funRuntime[R].map { runtime =>
+          Fun(
+            a =>
+              Unsafe.unsafeCompat { implicit u =>
+                runtime.unsafe.run(f(a)).getOrThrowFiberFailure
+              },
+            hash
+          )
         }
       }
     }
@@ -78,12 +84,21 @@ private[test] object Fun {
    * Constructs a new runtime that synchronously executes effects.
    */
   private val funExecutor: Executor =
-    Executor.fromExecutionContext(Int.MaxValue) {
+    Executor.fromExecutionContext {
       new ExecutionContext {
         def execute(runnable: Runnable): Unit =
           runnable.run()
         def reportFailure(cause: Throwable): Unit =
           cause.printStackTrace()
       }
+    }
+
+  private def funRuntime[R](implicit trace: Trace): ZIO[R, Nothing, Runtime[R]] =
+    ZIO.runtime[R].map { runtime =>
+      Runtime(
+        runtime.environment,
+        runtime.fiberRefs,
+        RuntimeFlags.disable(runtime.runtimeFlags)(RuntimeFlag.CooperativeYielding)
+      )
     }
 }

@@ -31,9 +31,10 @@ private[zio] sealed trait FiberScope {
    * Adds the specified child fiber to the scope, returning `true` if the scope
    * is still open, and `false` if it has been closed already.
    */
-  private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: FiberContext[_, _])(implicit
-    trace: Trace
-  ): Boolean
+  private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
+    trace: Trace,
+    unsafe: Unsafe
+  ): Unit
 }
 
 private[zio] object FiberScope {
@@ -46,29 +47,31 @@ private[zio] object FiberScope {
   object global extends FiberScope {
     def fiberId: FiberId = FiberId.None
 
-    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: FiberContext[_, _])(implicit
-      trace: Trace
-    ): Boolean = {
-      if (enableFiberRoots) {
+    private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
+      trace: Trace,
+      unsafe: Unsafe
+    ): Unit =
+      if (RuntimeFlags.fiberRoots(runtimeFlags)) {
         val childRef = Fiber._roots.add(child)
 
-        child.unsafeOnDone((_, _) => childRef.clear())
+        child.addObserver(_ => childRef.clear())
       }
-
-      true
-    }
   }
 
-  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberContext[_, _]]) extends FiberScope {
-    private[zio] def unsafeAdd(enableFiberRoots: Boolean, child: FiberContext[_, _])(implicit
-      trace: Trace
-    ): Boolean = {
+  private final class Local(val fiberId: FiberId, parentRef: WeakReference[FiberRuntime[_, _]]) extends FiberScope {
+
+    private[zio] def add(runtimeFlags: RuntimeFlags, child: FiberRuntime[_, _])(implicit
+      trace: Trace,
+      unsafe: Unsafe
+    ): Unit = {
       val parent = parentRef.get()
 
-      (parent ne null) && parent.unsafeAddChild(child)
+      if (parent ne null) {
+        parent.tell(FiberMessage.Stateful((parentFiber, _) => parentFiber.addChild(child)))
+      }
     }
   }
 
-  private[zio] def unsafeMake(fiber: FiberContext[_, _]): FiberScope =
-    new Local(fiber.fiberId, new WeakReference(fiber))
+  private[zio] def make(fiber: FiberRuntime[_, _])(implicit unsafe: Unsafe): FiberScope =
+    new Local(fiber.id, new WeakReference(fiber))
 }

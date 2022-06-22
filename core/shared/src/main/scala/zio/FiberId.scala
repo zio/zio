@@ -31,38 +31,31 @@ sealed trait FiberId extends Serializable { self =>
 
   final def combine(that: FiberId): FiberId =
     (self, that) match {
-      case (None, that)                                       => that
-      case (that, None)                                       => that
-      case (Composite(self), Composite(that))                 => Composite(self | that)
-      case (Composite(self), that @ Runtime(_, _, _))         => Composite(self + that)
-      case (self @ Runtime(_, _, _), Composite(that))         => Composite(that + self)
-      case (self @ Runtime(_, _, _), that @ Runtime(_, _, _)) => Composite(Set(self, that))
+      case (None, that) => that
+      case (that, None) => that
+      case (self, that) => FiberId.Composite(self, that)
     }
 
   final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
 
   final def ids: Set[Int] =
     self match {
-      case None                => Set.empty
-      case Runtime(id, _, _)   => Set(id)
-      case Composite(fiberIds) => fiberIds.map(_.id)
+      case None              => Set.empty
+      case Runtime(id, _, _) => Set(id)
+      case Composite(l, r)   => l.ids ++ r.ids
     }
 
-  final def isNone: Boolean =
-    self match {
-      case None           => true
-      case Composite(set) => set.forall(_.isNone)
-      case _              => false
-    }
+  final def isNone: Boolean = toSet.forall(_.isNone)
 
   final def threadName: String = s"zio-fiber-${self.ids.mkString(",")}"
 
-  final def toOption: Option[FiberId] =
-    self match {
-      case None           => Option.empty[FiberId]
-      case Composite(set) => set.map(_.toOption).collect { case Some(fiberId) => fiberId }.reduceOption(_.combine(_))
-      case other          => Some(other)
-    }
+  final def toOption: Option[FiberId] = toSet.asInstanceOf[Set[FiberId]].reduceOption(_.combine(_))
+
+  final def toSet: Set[FiberId.Runtime] = self match {
+    case None                          => Set.empty[FiberId.Runtime]
+    case Composite(l, r)               => l.toSet ++ r.toSet
+    case id @ FiberId.Runtime(_, _, _) => Set(id)
+  }
 }
 
 object FiberId {
@@ -70,15 +63,12 @@ object FiberId {
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
     Runtime(id, startTimeSeconds, location)
 
-  def combineAll(fiberIds: Set[FiberId]): FiberId =
-    fiberIds.foldLeft[FiberId](FiberId.None)(_ combine _)
-
-  private[zio] def unsafeMake(location: Trace): FiberId.Runtime =
-    FiberId.Runtime(_fiberCounter.getAndIncrement(), (java.lang.System.currentTimeMillis / 1000).toInt, location)
+  private[zio] def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
+    FiberId.Runtime(_fiberCounter.getAndIncrement(), java.lang.System.currentTimeMillis(), location)
 
   private[zio] val _fiberCounter = new java.util.concurrent.atomic.AtomicInteger(0)
 
   case object None                                                          extends FiberId
-  final case class Runtime(id: Int, startTimeSeconds: Int, location: Trace) extends FiberId
-  final case class Composite(fiberIds: Set[FiberId.Runtime])                extends FiberId
+  final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId
+  final case class Composite(left: FiberId, right: FiberId)                 extends FiberId
 }

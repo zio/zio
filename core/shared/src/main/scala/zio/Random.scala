@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.UUID
 import scala.annotation.tailrec
 
-trait Random extends Serializable {
+trait Random extends Serializable { self =>
   def nextBoolean(implicit trace: Trace): UIO[Boolean]
   def nextBytes(length: => Int)(implicit trace: Trace): UIO[Chunk[Byte]]
   def nextDouble(implicit trace: Trace): UIO[Double]
@@ -44,44 +44,100 @@ trait Random extends Serializable {
     bf: BuildFrom[Collection[A], A, Collection[A]],
     trace: Trace
   ): UIO[Collection[A]]
-  private[zio] def unsafeNextBoolean(): Boolean =
-    Runtime.default.unsafeRun(nextBoolean(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextBytes(length: Int): Chunk[Byte] =
-    Runtime.default.unsafeRun(nextBytes(length)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextDouble(): Double =
-    Runtime.default.unsafeRun(nextDouble(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextDoubleBetween(minInclusive: Double, maxExclusive: Double): Double =
-    Runtime.default.unsafeRun(nextDoubleBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextFloat(): Float =
-    Runtime.default.unsafeRun(nextFloat(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextFloatBetween(minInclusive: Float, maxExclusive: Float): Float =
-    Runtime.default.unsafeRun(nextFloatBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextGaussian(): Double =
-    Runtime.default.unsafeRun(nextGaussian(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextInt(): Int =
-    Runtime.default.unsafeRun(nextInt(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextIntBetween(minInclusive: Int, maxExclusive: Int): Int =
-    Runtime.default.unsafeRun(nextIntBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextIntBounded(n: Int): Int =
-    Runtime.default.unsafeRun(nextIntBounded(n)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextLong(): Long =
-    Runtime.default.unsafeRun(nextLong(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextLongBetween(minInclusive: Long, maxExclusive: Long): Long =
-    Runtime.default.unsafeRun(nextLongBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextLongBounded(n: Long): Long =
-    Runtime.default.unsafeRun(nextLongBounded(n)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextPrintableChar(): Char =
-    Runtime.default.unsafeRun(nextPrintableChar(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextString(length: Int): String =
-    Runtime.default.unsafeRun(nextString(length)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeNextUUID(): UUID =
-    Runtime.default.unsafeRun(nextUUID(Trace.empty))(Trace.empty)
-  private[zio] def unsafeSetSeed(seed: Long): Unit =
-    Runtime.default.unsafeRun(setSeed(seed)(Trace.empty))(Trace.empty)
-  private[zio] def unsafeShuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
-    bf: BuildFrom[Collection[A], A, Collection[A]]
-  ): Collection[A] =
-    Runtime.default.unsafeRun(shuffle(collection)(bf, Trace.empty))(Trace.empty)
+
+  trait UnsafeAPI {
+    def nextBoolean()(implicit unsafe: Unsafe): Boolean
+    def nextBytes(length: Int)(implicit unsafe: Unsafe): Chunk[Byte]
+    def nextDouble()(implicit unsafe: Unsafe): Double
+    def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit unsafe: Unsafe): Double
+    def nextFloat()(implicit unsafe: Unsafe): Float
+    def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe): Float
+    def nextGaussian()(implicit unsafe: Unsafe): Double
+    def nextInt()(implicit unsafe: Unsafe): Int
+    def nextIntBetween(minInclusive: Int, maxExclusive: Int)(implicit unsafe: Unsafe): Int
+    def nextIntBounded(n: Int)(implicit unsafe: Unsafe): Int
+    def nextLong()(implicit unsafe: Unsafe): Long
+    def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe): Long
+    def nextLongBounded(n: Long)(implicit unsafe: Unsafe): Long
+    def nextPrintableChar()(implicit unsafe: Unsafe): Char
+    def nextString(length: Int)(implicit unsafe: Unsafe): String
+    def nextUUID()(implicit unsafe: Unsafe): UUID
+    def setSeed(seed: Long)(implicit unsafe: Unsafe): Unit
+    def shuffle[A, Collection[+Element] <: Iterable[Element]](
+      collection: Collection[A]
+    )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], unsafe: Unsafe): Collection[A]
+  }
+
+  private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
+    def nextBoolean()(implicit unsafe: Unsafe): Boolean =
+      Runtime.default.unsafe.run(self.nextBoolean(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextBytes(length: Int)(implicit unsafe: Unsafe): Chunk[Byte] =
+      Runtime.default.unsafe.run(self.nextBytes(length)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextDouble()(implicit unsafe: Unsafe): Double =
+      Runtime.default.unsafe.run(self.nextDouble(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit
+      unsafe: Unsafe
+    ): Double =
+      Runtime.default.unsafe
+        .run(self.nextDoubleBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
+
+    def nextFloat()(implicit unsafe: Unsafe): Float =
+      Runtime.default.unsafe.run(self.nextFloat(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit
+      unsafe: Unsafe
+    ): Float =
+      Runtime.default.unsafe
+        .run(self.nextFloatBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
+
+    def nextGaussian()(implicit unsafe: Unsafe): Double =
+      Runtime.default.unsafe.run(self.nextGaussian(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextInt()(implicit unsafe: Unsafe): Int =
+      Runtime.default.unsafe.run(self.nextInt(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextIntBetween(minInclusive: Int, maxExclusive: Int)(implicit unsafe: Unsafe): Int =
+      Runtime.default.unsafe
+        .run(self.nextIntBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
+
+    def nextIntBounded(n: Int)(implicit unsafe: Unsafe): Int =
+      Runtime.default.unsafe.run(self.nextIntBounded(n)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextLong()(implicit unsafe: Unsafe): Long =
+      Runtime.default.unsafe.run(self.nextLong(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe): Long =
+      Runtime.default.unsafe
+        .run(self.nextLongBetween(minInclusive, maxExclusive)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure
+
+    def nextLongBounded(n: Long)(implicit unsafe: Unsafe): Long =
+      Runtime.default.unsafe.run(self.nextLongBounded(n)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextPrintableChar()(implicit unsafe: Unsafe): Char =
+      Runtime.default.unsafe.run(self.nextPrintableChar(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextString(length: Int)(implicit unsafe: Unsafe): String =
+      Runtime.default.unsafe.run(self.nextString(length)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def nextUUID()(implicit unsafe: Unsafe): UUID =
+      Runtime.default.unsafe.run(self.nextUUID(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def setSeed(seed: Long)(implicit unsafe: Unsafe): Unit =
+      Runtime.default.unsafe.run(self.setSeed(seed)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+
+    def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
+      bf: BuildFrom[Collection[A], A, Collection[A]],
+      unsafe: Unsafe
+    ): Collection[A] =
+      Runtime.default.unsafe.run(self.shuffle(collection)(bf, Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure
+  }
 }
 
 object Random extends Serializable {
@@ -91,177 +147,252 @@ object Random extends Serializable {
   object RandomLive extends Random {
 
     def nextBoolean(implicit trace: Trace): UIO[Boolean] =
-      ZIO.succeed(unsafeNextBoolean())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextBoolean())
+
     def nextBytes(length: => Int)(implicit trace: Trace): UIO[Chunk[Byte]] =
-      ZIO.succeed(unsafeNextBytes(length))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextBytes(length))
+
     def nextDouble(implicit trace: Trace): UIO[Double] =
-      ZIO.succeed(unsafeNextDouble())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextDouble())
+
     def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
       trace: Trace
     ): UIO[Double] =
-      ZIO.succeed(unsafeNextDoubleBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextDoubleBetween(minInclusive, maxExclusive))
+
     def nextFloat(implicit trace: Trace): UIO[Float] =
-      ZIO.succeed(unsafeNextFloat())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextFloat())
+
     def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: Trace): UIO[Float] =
-      ZIO.succeed(unsafeNextFloatBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextFloatBetween(minInclusive, maxExclusive))
+
     def nextGaussian(implicit trace: Trace): UIO[Double] =
-      ZIO.succeed(unsafeNextGaussian())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextGaussian())
+
     def nextInt(implicit trace: Trace): UIO[Int] =
-      ZIO.succeed(unsafeNextInt())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextInt())
+
     def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: Trace): UIO[Int] =
-      ZIO.succeed(unsafeNextIntBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextIntBetween(minInclusive, maxExclusive))
+
     def nextIntBounded(n: => Int)(implicit trace: Trace): UIO[Int] =
-      ZIO.succeed(unsafeNextIntBounded(n))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextIntBounded(n))
+
     def nextLong(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafeNextLong())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextLong())
+
     def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafeNextLongBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextLongBetween(minInclusive, maxExclusive))
+
     def nextLongBounded(n: => Long)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafeNextLongBounded(n))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextLongBounded(n))
+
     def nextPrintableChar(implicit trace: Trace): UIO[Char] =
-      ZIO.succeed(unsafeNextPrintableChar())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextPrintableChar())
+
     def nextString(length: => Int)(implicit trace: Trace): UIO[String] =
-      ZIO.succeed(unsafeNextString(length))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextString(length))
+
     def nextUUID(implicit trace: Trace): UIO[UUID] =
-      ZIO.succeed(unsafeNextUUID())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextUUID())
+
     def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(unsafeSetSeed(seed))
+      ZIO.succeedUnsafe(implicit u => unsafe.setSeed(seed))
+
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       collection: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
-      ZIO.succeed(unsafeShuffle(collection))
-    override private[zio] def unsafeNextBoolean(): Boolean =
-      scala.util.Random.nextBoolean()
-    override private[zio] def unsafeNextBytes(length: Int): Chunk[Byte] = {
-      val array = Array.ofDim[Byte](length)
-      scala.util.Random.nextBytes(array)
-      Chunk.fromArray(array)
+      ZIO.succeedUnsafe(implicit u => unsafe.shuffle(collection))
+
+    @transient private[zio] override val unsafe: UnsafeAPI = new UnsafeAPI {
+      override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
+        scala.util.Random.nextBoolean()
+
+      override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] = {
+        val array = Array.ofDim[Byte](length)
+        scala.util.Random.nextBytes(array)
+        Chunk.fromArray(array)
+      }
+
+      override def nextDouble()(implicit unsafe: Unsafe): Double =
+        scala.util.Random.nextDouble()
+
+      override def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit unsafe: Unsafe): Double =
+        nextDoubleBetweenWith(minInclusive, maxExclusive)(() => nextDouble())
+
+      override def nextFloat()(implicit unsafe: Unsafe): Float =
+        scala.util.Random.nextFloat()
+
+      override def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe): Float =
+        nextFloatBetweenWith(minInclusive, maxExclusive)(() => nextFloat())
+
+      override def nextGaussian()(implicit unsafe: Unsafe): Double =
+        scala.util.Random.nextGaussian()
+
+      override def nextInt()(implicit unsafe: Unsafe): RuntimeFlags =
+        scala.util.Random.nextInt()
+
+      override def nextIntBetween(minInclusive: RuntimeFlags, maxExclusive: RuntimeFlags)(implicit
+        unsafe: Unsafe
+      ): RuntimeFlags =
+        nextIntBetweenWith(minInclusive, maxExclusive)(() => nextInt(), nextIntBounded(_))
+
+      override def nextIntBounded(n: RuntimeFlags)(implicit unsafe: Unsafe): RuntimeFlags =
+        scala.util.Random.nextInt(n)
+
+      override def nextLong()(implicit unsafe: Unsafe): Long =
+        scala.util.Random.nextLong()
+
+      override def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe): Long =
+        nextLongBetweenWith(minInclusive, maxExclusive)(() => nextLong(), nextLongBounded(_))
+
+      override def nextLongBounded(n: Long)(implicit unsafe: Unsafe): Long =
+        Random.nextLongBoundedWith(n)(() => nextLong())
+
+      override def nextPrintableChar()(implicit unsafe: Unsafe): Char =
+        scala.util.Random.nextPrintableChar()
+
+      override def nextString(length: RuntimeFlags)(implicit unsafe: Unsafe): String =
+        scala.util.Random.nextString(length)
+
+      override def nextUUID()(implicit unsafe: Unsafe): UUID =
+        Random.nextUUIDWith(() => nextLong())
+
+      override def setSeed(seed: Long)(implicit unsafe: Unsafe): Unit =
+        scala.util.Random.setSeed(seed)
+
+      override def shuffle[A, Collection[+Element] <: Iterable[Element]](
+        collection: Collection[A]
+      )(implicit bf: zio.BuildFrom[Collection[A], A, Collection[A]], unsafe: Unsafe): Collection[A] =
+        Random.shuffleWith(nextIntBounded(_), collection)
     }
-    override private[zio] def unsafeNextDouble(): Double =
-      scala.util.Random.nextDouble()
-    override private[zio] def unsafeNextDoubleBetween(minInclusive: Double, maxExclusive: Double): Double =
-      nextDoubleBetweenWith(minInclusive, maxExclusive)(() => unsafeNextDouble())
-    override private[zio] def unsafeNextFloat(): Float =
-      scala.util.Random.nextFloat()
-    override private[zio] def unsafeNextFloatBetween(minInclusive: Float, maxExclusive: Float): Float =
-      nextFloatBetweenWith(minInclusive, maxExclusive)(() => unsafeNextFloat())
-    override private[zio] def unsafeNextGaussian(): Double =
-      scala.util.Random.nextGaussian()
-    override private[zio] def unsafeNextInt(): Int =
-      scala.util.Random.nextInt()
-    override private[zio] def unsafeNextIntBetween(minInclusive: Int, maxExclusive: Int): Int =
-      nextIntBetweenWith(minInclusive, maxExclusive)(() => unsafeNextInt(), unsafeNextIntBounded(_))
-    override private[zio] def unsafeNextIntBounded(n: Int): Int =
-      scala.util.Random.nextInt(n)
-    override private[zio] def unsafeNextLong(): Long =
-      scala.util.Random.nextLong()
-    override private[zio] def unsafeNextLongBetween(minInclusive: Long, maxExclusive: Long): Long =
-      nextLongBetweenWith(minInclusive, maxExclusive)(() => unsafeNextLong(), unsafeNextLongBounded(_))
-    override private[zio] def unsafeNextLongBounded(n: Long): Long =
-      Random.nextLongBoundedWith(n)(() => unsafeNextLong())
-    override private[zio] def unsafeNextPrintableChar(): Char =
-      scala.util.Random.nextPrintableChar()
-    override private[zio] def unsafeNextString(length: Int): String =
-      scala.util.Random.nextString(length)
-    override private[zio] def unsafeNextUUID(): UUID =
-      Random.nextUUIDWith(() => unsafeNextLong())
-    override private[zio] def unsafeSetSeed(seed: Long): Unit =
-      scala.util.Random.setSeed(seed)
-    override private[zio] def unsafeShuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(
-      implicit bf: BuildFrom[Collection[A], A, Collection[A]]
-    ): Collection[A] =
-      Random.shuffleWith(unsafeNextIntBounded(_), collection)
   }
 
   /**
    * An implementation of the `Random` service backed by a `scala.util.Random`.
    */
   final case class RandomScala(random: scala.util.Random) extends Random {
+
     def nextBoolean(implicit trace: Trace): UIO[Boolean] =
-      ZIO.succeed(unsafeNextBoolean())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextBoolean())
+
     def nextBytes(length: => Int)(implicit trace: Trace): UIO[Chunk[Byte]] =
-      ZIO.succeed(unsafeNextBytes(length))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextBytes(length))
+
     def nextDouble(implicit trace: Trace): UIO[Double] =
-      ZIO.succeed(unsafeNextDouble())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextDouble())
+
     def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
       trace: Trace
     ): UIO[Double] =
-      ZIO.succeed(unsafeNextDoubleBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextDoubleBetween(minInclusive, maxExclusive))
+
     def nextFloat(implicit trace: Trace): UIO[Float] =
-      ZIO.succeed(unsafeNextFloat())
-    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit
-      trace: Trace
-    ): UIO[Float] =
-      ZIO.succeed(unsafeNextFloatBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextFloat())
+
+    def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: Trace): UIO[Float] =
+      ZIO.succeedUnsafe(implicit u => unsafe.nextFloatBetween(minInclusive, maxExclusive))
+
     def nextGaussian(implicit trace: Trace): UIO[Double] =
-      ZIO.succeed(unsafeNextGaussian())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextGaussian())
+
     def nextInt(implicit trace: Trace): UIO[Int] =
-      ZIO.succeed(unsafeNextInt())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextInt())
+
     def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: Trace): UIO[Int] =
-      ZIO.succeed(unsafeNextIntBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextIntBetween(minInclusive, maxExclusive))
+
     def nextIntBounded(n: => Int)(implicit trace: Trace): UIO[Int] =
-      ZIO.succeed(unsafeNextIntBounded(n))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextIntBounded(n))
+
     def nextLong(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafeNextLong())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextLong())
+
     def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafeNextLongBetween(minInclusive, maxExclusive))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextLongBetween(minInclusive, maxExclusive))
+
     def nextLongBounded(n: => Long)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafeNextLongBounded(n))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextLongBounded(n))
+
     def nextPrintableChar(implicit trace: Trace): UIO[Char] =
-      ZIO.succeed(unsafeNextPrintableChar())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextPrintableChar())
+
     def nextString(length: => Int)(implicit trace: Trace): UIO[String] =
-      ZIO.succeed(unsafeNextString(length))
+      ZIO.succeedUnsafe(implicit u => unsafe.nextString(length))
+
     def nextUUID(implicit trace: Trace): UIO[UUID] =
-      ZIO.succeed(unsafeNextUUID())
+      ZIO.succeedUnsafe(implicit u => unsafe.nextUUID())
+
     def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit] =
-      ZIO.succeed(unsafeSetSeed(seed))
+      ZIO.succeedUnsafe(implicit u => unsafe.setSeed(seed))
+
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       collection: => Collection[A]
     )(implicit bf: BuildFrom[Collection[A], A, Collection[A]], trace: Trace): UIO[Collection[A]] =
-      ZIO.succeed(unsafeShuffle(collection))
-    override private[zio] def unsafeNextBoolean(): Boolean =
-      random.nextBoolean()
-    override private[zio] def unsafeNextBytes(length: Int): Chunk[Byte] = {
-      val array = Array.ofDim[Byte](length)
-      random.nextBytes(array)
-      Chunk.fromArray(array)
+      ZIO.succeedUnsafe(implicit u => unsafe.shuffle(collection))
+
+    @transient private[zio] override val unsafe: UnsafeAPI = new UnsafeAPI {
+      override def nextBoolean()(implicit unsafe: Unsafe): Boolean =
+        random.nextBoolean()
+
+      override def nextBytes(length: RuntimeFlags)(implicit unsafe: Unsafe): Chunk[Byte] = {
+        val array = Array.ofDim[Byte](length)
+        random.nextBytes(array)
+        Chunk.fromArray(array)
+      }
+
+      override def nextDouble()(implicit unsafe: Unsafe): Double =
+        random.nextDouble()
+
+      override def nextDoubleBetween(minInclusive: Double, maxExclusive: Double)(implicit unsafe: Unsafe): Double =
+        nextDoubleBetweenWith(minInclusive, maxExclusive)(() => nextDouble())
+
+      override def nextFloat()(implicit unsafe: Unsafe): Float =
+        random.nextFloat()
+
+      override def nextFloatBetween(minInclusive: Float, maxExclusive: Float)(implicit unsafe: Unsafe): Float =
+        nextFloatBetweenWith(minInclusive, maxExclusive)(() => nextFloat())
+
+      override def nextGaussian()(implicit unsafe: Unsafe): Double =
+        random.nextGaussian()
+
+      override def nextInt()(implicit unsafe: Unsafe): RuntimeFlags =
+        random.nextInt()
+
+      override def nextIntBetween(minInclusive: RuntimeFlags, maxExclusive: RuntimeFlags)(implicit
+        unsafe: Unsafe
+      ): RuntimeFlags =
+        nextIntBetweenWith(minInclusive, maxExclusive)(() => nextInt(), nextIntBounded(_))
+
+      override def nextIntBounded(n: RuntimeFlags)(implicit unsafe: Unsafe): RuntimeFlags =
+        random.nextInt(n)
+
+      override def nextLong()(implicit unsafe: Unsafe): Long =
+        random.nextLong()
+
+      override def nextLongBetween(minInclusive: Long, maxExclusive: Long)(implicit unsafe: Unsafe): Long =
+        nextLongBetweenWith(minInclusive, maxExclusive)(() => nextLong(), nextLongBounded(_))
+
+      override def nextLongBounded(n: Long)(implicit unsafe: Unsafe): Long =
+        Random.nextLongBoundedWith(n)(() => nextLong())
+
+      override def nextPrintableChar()(implicit unsafe: Unsafe): Char =
+        random.nextPrintableChar()
+
+      override def nextString(length: RuntimeFlags)(implicit unsafe: Unsafe): String =
+        random.nextString(length)
+
+      override def nextUUID()(implicit unsafe: Unsafe): UUID =
+        Random.nextUUIDWith(() => nextLong())
+
+      override def setSeed(seed: Long)(implicit unsafe: Unsafe): Unit =
+        random.setSeed(seed)
+
+      override def shuffle[A, Collection[+Element] <: Iterable[Element]](
+        collection: Collection[A]
+      )(implicit bf: zio.BuildFrom[Collection[A], A, Collection[A]], unsafe: Unsafe): Collection[A] =
+        Random.shuffleWith(nextIntBounded(_), collection)
     }
-    override private[zio] def unsafeNextDouble(): Double =
-      random.nextDouble()
-    override private[zio] def unsafeNextDoubleBetween(minInclusive: Double, maxExclusive: Double): Double =
-      nextDoubleBetweenWith(minInclusive, maxExclusive)(() => unsafeNextDouble())
-    override private[zio] def unsafeNextFloat(): Float =
-      random.nextFloat()
-    override private[zio] def unsafeNextFloatBetween(minInclusive: Float, maxExclusive: Float): Float =
-      nextFloatBetweenWith(minInclusive, maxExclusive)(() => unsafeNextFloat())
-    override private[zio] def unsafeNextGaussian(): Double =
-      random.nextGaussian()
-    override private[zio] def unsafeNextInt(): Int =
-      random.nextInt()
-    override private[zio] def unsafeNextIntBetween(minInclusive: Int, maxExclusive: Int): Int =
-      nextIntBetweenWith(minInclusive, maxExclusive)(() => unsafeNextInt(), unsafeNextIntBounded(_))
-    override private[zio] def unsafeNextIntBounded(n: Int): Int =
-      random.nextInt(n)
-    override private[zio] def unsafeNextLong(): Long =
-      random.nextLong()
-    override private[zio] def unsafeNextLongBetween(minInclusive: Long, maxExclusive: Long): Long =
-      nextLongBetweenWith(minInclusive, maxExclusive)(() => unsafeNextLong(), unsafeNextLongBounded(_))
-    override private[zio] def unsafeNextLongBounded(n: Long): Long =
-      Random.nextLongBoundedWith(n)(() => unsafeNextLong())
-    override private[zio] def unsafeNextPrintableChar(): Char =
-      random.nextPrintableChar()
-    override private[zio] def unsafeNextString(length: Int): String =
-      random.nextString(length)
-    override private[zio] def unsafeNextUUID(): UUID =
-      Random.nextUUIDWith(() => unsafeNextLong())
-    override private[zio] def unsafeSetSeed(seed: Long): Unit =
-      random.setSeed(seed)
-    override private[zio] def unsafeShuffle[A, Collection[+Element] <: Iterable[Element]](
-      collection: Collection[A]
-    )(implicit
-      bf: BuildFrom[Collection[A], A, Collection[A]]
-    ): Collection[A] =
-      Random.shuffleWith(unsafeNextIntBounded(_), collection)
   }
 
   private[zio] def nextDoubleBetweenWith(minInclusive: Double, maxExclusive: Double)(nextDouble: () => Double): Double =

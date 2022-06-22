@@ -7,6 +7,11 @@ object RefSpec extends ZIOBaseSpec {
 
   def spec = suite("RefSpec")(
     suite("Atomic")(
+      test("race") {
+        for {
+          _ <- ZIO.unit.race(ZIO.unit)
+        } yield assertCompletes
+      } @@ TestAspect.nonFlaky,
       test("get") {
         for {
           ref   <- Ref.make(current)

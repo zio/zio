@@ -10,6 +10,9 @@ import scala.concurrent.Await
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
+@Warmup(iterations = 10, time = 1)
+@Measurement(iterations = 10, time = 1)
+@Fork(1)
 class BroadFlatMapBenchmark {
   @Param(Array("20"))
   var depth: Int = _
@@ -87,7 +90,9 @@ class BroadFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => ZIO.succeed(a + b)))
 
-    runtime.unsafeRun(fib(depth))
+    Unsafe.unsafeCompat { implicit u =>
+      runtime.unsafe.run(fib(depth)).getOrThrowFiberFailure
+    }
   }
 
   @Benchmark

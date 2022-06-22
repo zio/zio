@@ -120,8 +120,8 @@ for {
 
 `join` has higher-level semantics than `await` because it will fail if the child fiber failed, it will interrupt if the child is interrupted, and it will also merge back its value to its parent.
 
-### inheritRefs
-We can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritRefs` method:
+### inheritAll
+We can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritAll` method:
 
 ```scala mdoc:silent
 for {
@@ -129,12 +129,12 @@ for {
   latch    <- Promise.make[Nothing, Unit]
   fiber    <- (fiberRef.set(10) *> latch.succeed(())).fork
   _        <- latch.await
-  _        <- fiber.inheritRefs
+  _        <- fiber.inheritAll
   v        <- fiberRef.get
 } yield v == 10
 ```
 
-Note that `inheritRefs` is automatically called on `join`. However, `join` will wait for merging the *final* values, while `inheritRefs` will merge the *current* values and then continue:
+Note that `inheritAll` is automatically called on `join`. However, `join` will wait for merging the *final* values, while `inheritAll` will merge the *current* values and then continue:
 
 ```scala mdoc:silent
 val withJoin =
@@ -151,7 +151,7 @@ val withoutJoin =
     for {
         fiberRef <- FiberRef.make[Int](0)
         fiber    <- (fiberRef.set(10) *> fiberRef.set(20).delay(2.seconds)).fork
-        _        <- fiber.inheritRefs.delay(1.second) // copy intermediate result 10 into fiberRef and continue
+        _        <- fiber.inheritAll.delay(1.second) // copy intermediate result 10 into fiberRef and continue
         v        <- fiberRef.get
     } yield assert(v == 10)
 ```

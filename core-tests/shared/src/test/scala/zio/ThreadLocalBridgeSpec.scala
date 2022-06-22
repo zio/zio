@@ -4,13 +4,14 @@ import zio.test._
 
 object ThreadLocalBridgeSpec extends ZIOBaseSpec {
 
-  def spec = suite("SupervisorSpec")(
+  def spec = suite("ThreadLocalBridgeSpec")(
     suite("fiberRefTrackingSupervisor")(
       test("track initial value") {
         val tag          = "tiv"
         val initialValue = s"initial-value-$tag"
         tracking(initialValue) { (_, threadLocalGet) =>
           for {
+            _     <- FiberRef.currentSupervisor.get.debug("currentSupervisor")
             ab    <- threadLocalGet zipPar threadLocalGet
             (a, b) = ab
           } yield {

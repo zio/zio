@@ -45,7 +45,7 @@ val logger: ZLogger[String, Unit] =
       logLevel: LogLevel,
       message: () => String,
       cause: Cause[Any],
-      context: Map[FiberRef[_], Any],
+      context: FiberRefs,
       spans: List[LogSpan],
       annotations: Map[String, String]
     ): Unit =
@@ -68,7 +68,7 @@ object MainApp extends ZIOAppDefault {
         logLevel: LogLevel,
         message: () => String,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ): Unit =

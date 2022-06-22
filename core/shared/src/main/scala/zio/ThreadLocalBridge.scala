@@ -1,6 +1,6 @@
 package zio
 
-import zio.internal.FiberContext
+import zio.internal.FiberRuntime
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicReference
@@ -24,9 +24,9 @@ object ThreadLocalBridge {
           for {
             fiberRef <- FiberRef.make(initialValue)
             _         = link(initialValue)
-            _         = supervisor.trackFiberRef(fiberRef, link)
+            _         = Unsafe.unsafeCompat(implicit u => supervisor.trackFiberRef(fiberRef, link))
             _ <- Scope.addFinalizer(
-                   ZIO.succeed {
+                   ZIO.succeedUnsafe { implicit u =>
                      link(initialValue)
                      supervisor.forgetFiberRef(fiberRef, link)
                    }
@@ -36,7 +36,7 @@ object ThreadLocalBridge {
           }
       }
     }
-    supervisorLayer ++ bridgeLayer ++ Runtime.superviseOperations
+    supervisorLayer ++ bridgeLayer
   }
 
   private class FiberRefTrackingSupervisor extends Supervisor[Unit] {
@@ -45,34 +45,35 @@ object ThreadLocalBridge {
 
     override def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
-    override def unsafeOnEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1]): Unit = ()
+    override def onEnd[R, E, A1](value: Exit[E, A1], fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
+      ()
 
-    override def unsafeOnStart[R, E, A1](
+    override def onStart[R, E, A1](
       environment: ZEnvironment[R],
       effect: ZIO[R, E, A1],
       parent: Option[Fiber.Runtime[Any, Any]],
       fiber: Fiber.Runtime[E, A1]
-    ): Unit = ()
+    )(implicit unsafe: Unsafe): Unit = ()
 
-    def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
-      trackedRefs.unsafeUpdate(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
+    def trackFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe): Unit =
+      trackedRefs.unsafe.update(old => old + ((fiberRef, link.asInstanceOf[Any => Unit])))
 
-    def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit): Unit =
-      trackedRefs.unsafeUpdate(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
+    def forgetFiberRef[B](fiberRef: FiberRef[B], link: B => Unit)(implicit unsafe: Unsafe): Unit =
+      trackedRefs.unsafe.update(old => old - ((fiberRef, link.asInstanceOf[Any => Unit])))
 
-    override def unsafeOnSuspend[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
+    override def onSuspend[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
       foreachTrackedRef { (fiberRef, link) =>
         link(fiberRef.initial)
       }
 
-    override def unsafeOnResume[E, A1](fiber: Fiber.Runtime[E, A1]): Unit =
+    override def onResume[E, A1](fiber: Fiber.Runtime[E, A1])(implicit unsafe: Unsafe): Unit =
       foreachTrackedRef { (fiberRef, link) =>
-        val value = fiber.asInstanceOf[FiberContext[E, A1]].unsafeGetRef(fiberRef)
+        val value = fiber.asInstanceOf[FiberRuntime[E, A1]].getFiberRef(fiberRef)
         link(value)
       }
 
-    private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit): Unit =
-      trackedRefs.unsafeGet.foreach { case (fiberRef, link) =>
+    private def foreachTrackedRef(f: (FiberRef[_], Any => Unit) => Unit)(implicit unsafe: Unsafe): Unit =
+      trackedRefs.unsafe.get.foreach { case (fiberRef, link) =>
         f(fiberRef, link)
       }
   }

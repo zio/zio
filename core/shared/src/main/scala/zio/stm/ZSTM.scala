@@ -846,30 +846,50 @@ object ZSTM {
     z.flatMap(fromEither(_))
 
   /**
+   * Treats the specified `acquire` transaction as the acquisition of a
+   * resource. The `acquire` transaction will be executed interruptibly. If it
+   * is a success and is committed the specified `release` workflow will be
+   * executed uninterruptibly as soon as the `use` workflow completes execution.
+   */
+  def acquireReleaseWith[R, E, A](acquire: ZSTM[R, E, A]): ZSTM.Acquire[R, E, A] =
+    new ZSTM.Acquire[R, E, A](() => acquire)
+
+  /**
    * Atomically performs a batch of operations in a single transaction.
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.environmentWithZIO[R] { r =>
-      ZIO.executorWith { executor =>
-        ZIO.fiberIdWith { fiberId =>
-          tryCommitSync(executor, fiberId, stm, r) match {
-            case TryCommit.Done(exit) => throw new ZIO.ZioError(exit, trace)
-            case TryCommit.Suspend(journal) =>
-              val txnId = makeTxnId()
-              val state = new AtomicReference[State[E, A]](State.Running)
-              val async = ZIO.async(tryCommitAsync(journal, executor, fiberId, stm, txnId, state, r))
+    unsafeAtomically(stm)(_ => (), () => ())
 
-              ZIO.uninterruptibleMask { restore =>
-                restore(async).catchAllCause { cause =>
-                  state.compareAndSet(State.Running, State.Interrupted)
-                  state.get match {
-                    case State.Done(exit) => ZIO.done(exit)
-                    case _                => ZIO.failCause(cause)
-                  }
-                }
+  private def unsafeAtomically[R, E, A](
+    stm: ZSTM[R, E, A]
+  )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.unsafeStateful[R, E, A] { implicit u => (fiberState, _) =>
+      val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
+      val fiberId  = fiberState.id
+      val executor = fiberState.getCurrentExecutor()
+
+      tryCommitSync(executor, fiberId, stm, r) match {
+        case TryCommit.Done(exit) =>
+          onDone(exit)
+          ZIO.done(exit)(trace)
+        case TryCommit.Suspend(journal) =>
+          val txnId = makeTxnId()
+          val state = new AtomicReference[State[E, A]](State.Running)
+          val async = ZIO.async(tryCommitAsync(journal, executor, fiberId, stm, txnId, state, r))
+
+          ZIO.uninterruptibleMask { restore =>
+            restore(async).catchAllCause { cause =>
+              state.compareAndSet(State.Running, State.Interrupted)
+              state.get match {
+                case State.Done(exit) =>
+                  onDone(exit)
+                  ZIO.done(exit)
+                case _ =>
+                  onInterrupt()
+                  ZIO.refailCause(cause)
               }
+            }
           }
-        }
       }
     }
 
@@ -1399,6 +1419,40 @@ object ZSTM {
   def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
     new ZSTM.WhenSTM(b)
 
+  final class Acquire[-R, +E, +A](private val acquire: () => ZSTM[R, E, A]) extends AnyVal {
+    def apply[R1](release: A => URIO[R1, Any]): Release[R with R1, E, A] =
+      new Release[R with R1, E, A](acquire, release)
+  }
+  final class Release[-R, +E, +A](acquire: () => ZSTM[R, E, A], release: A => URIO[R, Any]) {
+    def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
+      ZIO.uninterruptibleMask { restore =>
+        var state: State[E, A] = State.Running
+
+        restore(unsafeAtomically(acquire())(exit => state = State.Done(exit), () => state = State.Interrupted))
+          .foldCauseZIO(
+            cause => {
+              state match {
+                case State.Done(Exit.Success(a)) =>
+                  release(a).foldCauseZIO(
+                    cause2 => ZIO.refailCause(cause ++ cause2),
+                    _ => ZIO.refailCause(cause)
+                  )
+                case _ => ZIO.refailCause(cause)
+              }
+            },
+            a =>
+              restore(use(a)).foldCauseZIO(
+                cause =>
+                  release(a).foldCauseZIO(
+                    cause2 => ZIO.refailCause(cause ++ cause2),
+                    _ => ZIO.refailCause(cause)
+                  ),
+                b => release(a) *> ZIO.succeed(b)
+              )
+          )
+      }
+  }
+
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
     def apply[A](f: ZEnvironment[R] => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
@@ -1669,10 +1723,12 @@ object ZSTM {
     /**
      * Runs all the todos.
      */
-    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, executor: Executor): TryCommit[E, A] = {
+    def completeTodos[E, A](exit: Exit[E, A], journal: Journal, executor: Executor)(implicit
+      unsafe: Unsafe
+    ): TryCommit[E, A] = {
       val todos = collectTodos(journal)
 
-      if (todos.size > 0) executor.unsafeSubmitOrThrow(() => execTodos(todos))
+      if (todos.size > 0) executor.submitOrThrow(() => execTodos(todos))
 
       TryCommit.Done(exit)
     }
@@ -1711,7 +1767,7 @@ object ZSTM {
       fiberId: FiberId,
       stm: ZSTM[R, E, A],
       r: ZEnvironment[R]
-    ): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 
@@ -1789,7 +1845,7 @@ object ZSTM {
       r: ZEnvironment[R]
     )(
       k: ZIO[R, E, A] => Any
-    )(implicit trace: Trace): Unit = {
+    )(implicit trace: Trace, unsafe: Unsafe): Unit = {
       def complete(exit: Exit[E, A]): Unit = { k(ZIO.done(exit)); () }
 
       @tailrec
@@ -1827,7 +1883,7 @@ object ZSTM {
       stm: ZSTM[R, E, A],
       state: AtomicReference[State[E, A]],
       r: ZEnvironment[R]
-    ): TryCommit[E, A] = {
+    )(implicit unsafe: Unsafe): TryCommit[E, A] = {
       var journal = null.asInstanceOf[MutableMap[TRef[_], Entry]]
       var value   = null.asInstanceOf[TExit[E, A]]
 

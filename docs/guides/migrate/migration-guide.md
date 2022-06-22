@@ -756,9 +756,13 @@ object MainApp extends zio.App {
     ZIO
       .runtime[ZEnv]
       .map { runtime =>
-        runtime
-          .mapPlatform(_.withExecutor(customExecutor))
-          .unsafeRun(myApp)
+        Unsafe.unsafe { implicit u =>
+          runtime
+            .mapPlatform(_.withExecutor(customExecutor))
+            .unsafe
+            .run(myApp)
+            .getOrThrowFiberFailure
+        }
       }
       .exitCode
 }
@@ -767,8 +771,8 @@ object MainApp extends zio.App {
 In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of-the-box layers for runtime customization, defined in the companion object of the `Runtime` trait. Here are some of them:
 - `Runtime.addLogger` to add a logger
 - `Runtime.setExecutor` to provide a custom `Executor`
-- `Runtime.logRuntime` to log runtime information
-- `Runtime.trackRuntimeMetrics` to track runtime metrics
+- `Runtime.enableOpLog` to log runtime information
+- `Runtime.enableRuntimeMetrics` to track runtime metrics
 - etc.
 
 Let's see how a previous example can be rewritten in ZIO 2.x:
@@ -835,16 +839,20 @@ object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
 
   def zioApplication(): Int =
-    Runtime
-      .unsafeFromLayer(
-        Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
-      )
-      .unsafeRun(zioWorkflow)
+      Unsafe.unsafe { implicit u =>
+        Runtime
+          .unsafeFromLayer(
+            Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+          )
+          .unsafe
+          .run(zioWorkflow)
+          .getOrThrowFiberFailure
+      }
 
   def main(args: Array[String]): Unit = {
     val result = zioApplication()
     legacyApplication(result)
-  }
+  }  
 
 }
 ```

@@ -22,24 +22,14 @@ import scala.concurrent.ExecutionContext
 
 private[zio] trait RuntimePlatformSpecific {
 
-  /**
-   * The default number of operations the ZIO runtime should execute before
-   * yielding to other fibers.
-   */
-  final val defaultYieldOpCount: Int =
-    2048
-
   final val defaultExecutor: Executor =
-    Executor.fromExecutionContext(defaultYieldOpCount)(ExecutionContext.global)
+    Executor.fromExecutionContext(ExecutionContext.global)
 
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
   final val defaultFatal: Set[Class[_ <: Throwable]] =
     Set.empty
-
-  final val defaultFlags: Set[RuntimeFlag] =
-    Set(RuntimeFlag.EnableFiberRoots)
 
   final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))
@@ -50,6 +40,6 @@ private[zio] trait RuntimePlatformSpecific {
       throw t
     }
 
-  final val defaultSupervisors: Set[Supervisor[Any]] =
-    Set.empty
+  final val defaultSupervisor: Supervisor[Any] =
+    Supervisor.none
 }

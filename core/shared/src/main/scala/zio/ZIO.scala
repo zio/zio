@@ -25,7 +25,6 @@ import scala.collection.mutable.Builder
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
-import scala.util.{Failure, Success}
 import izumi.reflect.macrortti.LightTypeTag
 
 /**
@@ -50,7 +49,11 @@ import izumi.reflect.macrortti.LightTypeTag
  * effects. Runtimes bundle a thread pool together with the environment that
  * effects need.
  */
-sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E, A] with ZIOVersionSpecific[R, E, A] {
+sealed trait ZIO[-R, +E, +A]
+    extends Product
+    with Serializable
+    with ZIOPlatformSpecific[R, E, A]
+    with ZIOVersionSpecific[R, E, A] {
   self =>
 
   /**
@@ -171,7 +174,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def absorbWith(f: E => Throwable)(implicit trace: Trace): RIO[R, A] =
     self.sandbox
       .foldZIO(
-        cause => ZIO.fail(cause.squashWith(f)),
+        cause => ZIO.refailCause(Cause.fail(cause.squashWith(f))),
         ZIO.succeedNow
       )
 
@@ -302,7 +305,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1])(implicit
     trace: Trace
   ): ZIO[R1, E2, A1] =
-    self.foldCauseZIO[R1, E2, A1](h, a => ZIO.succeedNow(a))
+    ZIO.OnFailure(trace, self, h)
 
   /**
    * Recovers from all defects with provided function.
@@ -350,7 +353,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     pf: PartialFunction[E, ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.failCause(c)), ZIO.failCause(_))
+      c.failureOrCause.fold(t => pf.applyOrElse(t, (_: E) => ZIO.refailCause(c)), ZIO.refailCause(_))
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, a => ZIO.succeedNow(a))
   }
@@ -362,7 +365,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     pf: PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, StackTrace)) => ZIO.failCause(c)), ZIO.failCause(_))
+      c.failureTraceOrCause.fold(t => pf.applyOrElse(t, (_: (E, StackTrace)) => ZIO.refailCause(c)), ZIO.refailCause(_))
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, a => ZIO.succeedNow(a))
   }
@@ -380,7 +383,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]
   )(implicit trace: Trace): ZIO[R1, E1, A1] = {
     def tryRescue(c: Cause[E]): ZIO[R1, E1, A1] =
-      pf.applyOrElse(c, (_: Cause[E]) => ZIO.failCause(c))
+      pf.applyOrElse(c, (_: Cause[E]) => ZIO.refailCause(c))
 
     self.foldCauseZIO[R1, E1, A1](tryRescue, a => ZIO.succeedNow(a))
   }
@@ -432,15 +435,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * effect.
    */
   final def daemonChildren(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(new ZIO.OverrideForkScope(self, Some(FiberScope.global), trace))
+    FiberRef.forkScopeOverride.locally(Some(FiberScope.global))(self)
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeed(println(value)))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $error")))
+      .tap(value => ZIO.succeedNow(println(value)))
+      .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $error")))
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
@@ -448,8 +451,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def debug(prefix: => String)(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeed(println(s"$prefix: $value")))
-      .tapErrorCause(error => ZIO.succeed(println(s"<FAIL> $prefix: $error")))
+      .tap(value => ZIO.succeedNow(println(s"$prefix: $value")))
+      .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $prefix: $error")))
 
   /**
    * Returns an effect that is delayed from this effect by the specified
@@ -459,9 +462,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     Clock.sleep(duration) *> self
 
   /**
-   * Returns an effect whose interruption will be disconnected from the fiber's
-   * own interruption, being performed in the background without slowing down
-   * the fiber's interruption.
+   * Returns an effect that is always interruptible, but whose interruption will
+   * be performed in the background.
    *
    * This method is useful to create "fast interrupting" effects. For example,
    * if you call this on an acquire release effect, then even if the effect is
@@ -472,11 +474,12 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def disconnect(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore =>
-      for {
-        id    <- ZIO.fiberId
-        fiber <- restore(self).forkDaemon
-        a     <- restore(fiber.join).onInterrupt(fiber.interruptAs(id).forkDaemon)
-      } yield a
+      ZIO.fiberIdWith(fiberId =>
+        for {
+          fiber <- restore(self).forkDaemon
+          a     <- fiber.join.interruptible.onInterrupt(fiber.interruptAsFork(fiberId))
+        } yield a
+      )
     )
 
   /**
@@ -504,7 +507,14 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * logic built on `ensuring`, see `ZIO#acquireReleaseWith`.
    */
   final def ensuring[R1 <: R](finalizer: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.suspendSucceed(new ZIO.Ensuring(self, finalizer, trace))
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).foldCauseZIO(
+        cause1 =>
+          finalizer
+            .foldCauseZIO(cause2 => ZIO.refailCause(cause1 ++ cause2), _ => ZIO.refailCause(cause1)),
+        a => finalizer.map(_ => a)
+      )
+    } // FIXME: This has to be interned to avoid this overhead
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
@@ -539,12 +549,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * an [[zio.Exit]] for the completion value of the fiber.
    */
   final def exit(implicit trace: Trace): URIO[R, Exit[E, A]] =
-    new ZIO.Fold[R, E, Nothing, A, Exit[E, A]](
-      self,
-      cause => ZIO.succeedNow(Exit.failCause(cause)),
-      success => ZIO.succeedNow(Exit.succeed(success)),
-      trace
-    )
+    self.foldCause(Exit.failCause(_), Exit.succeed(_))
 
   /**
    * Maps this effect to the default exit codes.
@@ -618,7 +623,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   def flatMap[R1 <: R, E1 >: E, B](k: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
-    new ZIO.FlatMap(self, k, trace)
+    ZIO.OnSuccess(trace, self, k)
 
   /**
    * Creates a composite effect that represents this effect followed by another
@@ -682,7 +687,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     failure: Cause[E] => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit trace: Trace): ZIO[R1, E2, B] =
-    new ZIO.Fold(self, failure, success, trace)
+    ZIO.OnSuccessAndFailure(trace, self, success, failure)
 
   /**
    * A version of `foldZIO` that gives you the trace of the error.
@@ -694,7 +699,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, ZIO.failCause(_)), success)
+    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, ZIO.refailCause(_)), success)
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -711,7 +716,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, ZIO.failCause(_)), success)
+    foldCauseZIO(c => c.failureOrCause.fold(failure, ZIO.refailCause(_)), success)
 
   /**
    * Returns a new effect that will pass the success value of this effect to the
@@ -720,10 +725,6 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def forEachZIO[R1 <: R, E2, B](f: A => ZIO[R1, E2, B])(implicit trace: Trace): ZIO[R1, E2, Option[B]] =
     self.foldCauseZIO(_ => ZIO.none, a => f(a).map(Some(_)))
 
-  /**
-   * Repeats this effect forever (until the first error). For more sophisticated
-   * schedules, see the `repeat` method.
-   */
   final def forever(implicit trace: Trace): ZIO[R, E, Nothing] = {
     lazy val loop: ZIO[R, E, Nothing] = self *> ZIO.yieldNow *> loop
 
@@ -761,7 +762,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * }}}
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    new ZIO.Fork(self, None, trace)
+    ZIO.unsafeStateful[R, Nothing, Fiber.Runtime[E, A]] { implicit u => (fiberState, status) =>
+      ZIO.succeedNow(ZIO.unsafe.fork(trace, self, fiberState, status.runtimeFlags))
+    }
 
   /**
    * Forks the effect in the specified scope. The fiber will be interrupted when
@@ -778,7 +781,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * returned effect terminates, the forked fiber will continue running.
    */
   final def forkDaemon(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    new ZIO.Fork(self, Some(FiberScope.global), trace)
+    self.fork.daemonChildren
 
   /**
    * Forks the fiber in a [[Scope]], interrupting it when the scope is closed.
@@ -794,7 +797,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
   ): URIO[R1, Fiber.Runtime[E, A]] =
-    onError(c => c.failureOrCause.fold(handler, ZIO.failCause(_))).fork
+    onError(c => c.failureOrCause.fold(handler, ZIO.refailCause(_))).fork
 
   /**
    * Unwraps the optional error, defaulting to the provided value.
@@ -855,7 +858,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * [[ZIO.uninterruptibleMask]].
    */
   final def interruptible(implicit trace: Trace): ZIO[R, E, A] =
-    interruptStatus(InterruptStatus.Interruptible)
+    ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, self)
 
   /**
    * Switches the interrupt status for this effect. If `true` is used, then the
@@ -864,7 +867,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * they only affect regions of the effect.
    */
   final def interruptStatus(flag: => InterruptStatus)(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.InterruptStatus(self, flag, trace)
+    ZIO.suspendSucceed {
+      if (flag.isInterruptible) self.interruptible
+      else self.uninterruptible
+    }
 
   /**
    * Returns an effect that keeps or breaks a promise based on the result of
@@ -939,7 +945,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * function. This can be used to lift a "smaller" error into a "larger" error.
    */
   final def mapError[E2](f: E => E2)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, A] =
-    self.foldCauseZIO(c => c.failureOrCause.fold(e => ZIO.fail(f(e)), ZIO.failCause(_)), a => ZIO.succeedNow(a))
+    self.foldCauseZIO(c => c.failureOrCause.fold(e => ZIO.fail(f(e)), ZIO.refailCause(_)), a => ZIO.succeedNow(a))
 
   /**
    * Returns an effect with its full cause of failure mapped using the specified
@@ -951,7 +957,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *   with defects
    */
   final def mapErrorCause[E2](h: Cause[E] => Cause[E2])(implicit trace: Trace): ZIO[R, E2, A] =
-    self.foldCauseZIO(c => ZIO.failCause(h(c)), a => ZIO.succeedNow(a))
+    self.foldCauseZIO(c => ZIO.refailCause(h(c)), a => ZIO.succeedNow(a))
 
   /**
    * Returns an effect that, if evaluated, will return the lazily computed
@@ -1040,7 +1046,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * back to the default one.
    */
   final def onExecutionContext(ec: => ExecutionContext)(implicit trace: Trace): ZIO[R, E, A] =
-    self.onExecutor(Executor.fromExecutionContext(Int.MaxValue)(ec))
+    self.onExecutor(Executor.fromExecutionContext(ec))
 
   /**
    * Ensures that a cleanup functions runs, whether this effect succeeds, fails,
@@ -1062,7 +1068,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def onInterrupt[R1 <: R](cleanup: Set[FiberId] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseZIO(
-        cause => if (cause.isInterrupted) cleanup(cause.interruptors) *> ZIO.failCause(cause) else ZIO.failCause(cause),
+        cause =>
+          if (cause.isInterrupted) cleanup(cause.interruptors) *> ZIO.refailCause(cause) else ZIO.refailCause(cause),
         a => ZIO.succeedNow(a)
       )
     }
@@ -1162,8 +1169,8 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.foldCauseZIO(
       cause =>
         cause.failures match {
-          case Nil            => ZIO.failCause(cause.asInstanceOf[Cause[Nothing]])
-          case ::(head, tail) => ZIO.fail(::(head, tail))
+          case Nil            => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
+          case ::(head, tail) => ZIO.refailCause(Cause.fail(::[E1](head, tail)).traced(cause.trace))
         },
       ZIO.succeedNow
     )
@@ -1223,31 +1230,27 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * succeeds, the other will be interrupted. If neither succeeds, then the
    * effect will fail with some error.
    *
-   * WARNING: The raced effect will safely interrupt the "loser", but will not
-   * resume until the loser has been cleanly terminated. If early return is
-   * desired, then instead of performing `l race r`, perform `l.disconnect race
-   * r.disconnect`, which disconnects left and right interruption signals,
-   * allowing a fast return, with interruption performed in the background.
-   *
-   * Note that if the `race` is embedded into an uninterruptible region, then
-   * because the loser cannot be interrupted, it will be allowed to continue
-   * executing in the background, without delaying the return of the race.
+   * Note that both effects are disconnected before being raced. This means that
+   * interruption of the loser will always be performed in the background. This
+   * is a change in behavior compared to ZIO 2.0. If this behavior is not
+   * desired, you can use [[ZIO#raceWith]], which will not disconnect or
+   * interrupt losers.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
-    ZIO.descriptorWith { descriptor =>
-      val parentFiberId = descriptor.id
-      def maybeDisconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-        ZIO.uninterruptibleMask(interruptible => interruptible.force(zio))
-      (maybeDisconnect(self) raceWith maybeDisconnect(that))(
+    self.disconnect.raceAwait(that.disconnect)
+
+  final def raceAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
+    ZIO.fiberIdWith { parentFiberId =>
+      (self.raceWith(that))(
         (exit, right) =>
-          exit.foldZIO[Any, E1, A1](
-            cause => right.join mapErrorCause (cause && _),
-            a => (right interruptAs parentFiberId) as a
+          exit.foldExitZIO[Any, E1, A1](
+            cause => right.join.mapErrorCause(cause && _),
+            a => right.interruptAs(parentFiberId).as(a)
           ),
         (exit, left) =>
-          exit.foldZIO[Any, E1, A1](
-            cause => left.join mapErrorCause (_ && cause),
-            a => (left interruptAs parentFiberId) as a
+          exit.foldExitZIO[Any, E1, A1](
+            cause => left.join.mapErrorCause(_ && cause),
+            a => left.interruptAs(parentFiberId).as(a)
           )
       )
     }
@@ -1266,7 +1269,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       promise: Promise[E1, (A1, Fiber[E1, A1])],
       fails: Ref[Int]
     )(res: Exit[E1, A1]): URIO[R1, Any] =
-      res.foldZIO[R1, Nothing, Unit](
+      res.foldExitZIO[R1, Nothing, Unit](
         e => ZIO.flatten(fails.modify((c: Int) => (if (c == 0) promise.failCause(e).unit else ZIO.unit) -> (c - 1))),
         a =>
           promise
@@ -1289,9 +1292,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
                       io *> f.await.flatMap(arbiter(fs, f, done, fails)).fork
                     }
 
-               inheritRefs = { (res: (A1, Fiber[E1, A1])) => res._2.inheritRefs.as(res._1) }
+               inheritAll = { (res: (A1, Fiber[E1, A1])) => res._2.inheritAll.as(res._1) }
 
-               c <- restore(done.await.flatMap(inheritRefs))
+               c <- restore(done.await.flatMap(inheritAll))
                       .onInterrupt(fs.foldLeft(ZIO.unit)((io, f) => io <* f.interrupt))
              } yield c
            }
@@ -1331,6 +1334,61 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     self.map(Left(_)) race that.map(Right(_))
 
   /**
+   * Forks this effect and the specified effect into their own fibers, and races
+   * them, calling one of two specified callbacks depending on which fiber wins
+   * the race. This method does not interrupt, join, or otherwise do anything
+   * with the fibers. It can be considered a low-level building block for
+   * higher-level operators like `race`.
+   */
+  private final def raceFibersWith[R1 <: R, ER, E2, B, C](right: ZIO[R1, ER, B])(
+    leftWins: (Fiber.Runtime[E, A], Fiber.Runtime[ER, B]) => ZIO[R1, E2, C],
+    rightWins: (Fiber.Runtime[ER, B], Fiber.Runtime[E, A]) => ZIO[R1, E2, C]
+  )(implicit trace: Trace): ZIO[R1, E2, C] =
+    ZIO.unsafeStateful[R1, E2, C] { implicit u => (parentState, parentStatus) =>
+      import java.util.concurrent.atomic.AtomicBoolean
+
+      val parentRuntimeFlags = parentStatus.runtimeFlags
+
+      @inline def complete[E0, E1, A, B](
+        winner: Fiber.Runtime[E0, A],
+        loser: Fiber.Runtime[E1, B],
+        cont: (Fiber.Runtime[E0, A], Fiber.Runtime[E1, B]) => ZIO[R1, E2, C],
+        ab: AtomicBoolean,
+        cb: ZIO[R1, E2, C] => Any
+      ): Any =
+        if (ab.compareAndSet(true, false)) {
+          cb(cont(winner, loser))
+        }
+
+      val raceIndicator = new AtomicBoolean(true)
+
+      val leftFiber  = ZIO.unsafe.forkUnstarted(trace, self, parentState, parentRuntimeFlags)
+      val rightFiber = ZIO.unsafe.forkUnstarted(trace, right, parentState, parentRuntimeFlags)
+
+      leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))
+      rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))
+
+      ZIO
+        .async[R1, E2, C](
+          { cb =>
+            leftFiber.addObserver {
+              _ => // TODO: Thread this exit value up, so higher-levels don't need to await on left side
+                complete(leftFiber, rightFiber, leftWins, raceIndicator, cb)
+            }
+
+            rightFiber.addObserver {
+              _ => // TODO: Thread this exit value up, so higher-levels don't need to await on right side
+                complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
+            }
+
+            leftFiber.startBackground(self)
+            rightFiber.startBackground(right)
+          },
+          leftFiber.id <> rightFiber.id
+        )
+    }
+
+  /**
    * Returns an effect that races this effect with the specified effect, calling
    * the specified finisher as soon as one result or the other has been
    * computed.
@@ -1339,27 +1397,22 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     leftDone: (Exit[E, A], Fiber[E1, B]) => ZIO[R1, E2, C],
     rightDone: (Exit[E1, B], Fiber[E, A]) => ZIO[R1, E2, C]
   )(implicit trace: Trace): ZIO[R1, E2, C] =
-    ZIO.suspendSucceed {
-      new ZIO.RaceWith[R1, E, E1, E2, A, B, C](
-        self,
-        that,
-        (winner, loser) =>
-          winner.await.flatMap {
-            case exit: Exit.Success[_] =>
-              winner.inheritRefs.flatMap(_ => leftDone(exit, loser))
-            case exit: Exit.Failure[_] =>
-              leftDone(exit, loser)
-          },
-        (winner, loser) =>
-          winner.await.flatMap {
-            case exit: Exit.Success[B] =>
-              winner.inheritRefs.flatMap(_ => rightDone(exit, loser))
-            case exit: Exit.Failure[E1] =>
-              rightDone(exit, loser)
-          },
-        trace
-      )
-    }
+    self.raceFibersWith(that)(
+      (winner, loser) =>
+        winner.await.flatMap {
+          case exit: Exit.Success[_] =>
+            winner.inheritAll.flatMap(_ => leftDone(exit, loser))
+          case exit: Exit.Failure[_] =>
+            leftDone(exit, loser)
+        },
+      (winner, loser) =>
+        winner.await.flatMap {
+          case exit: Exit.Success[B] =>
+            winner.inheritAll.flatMap(_ => rightDone(exit, loser))
+          case exit: Exit.Failure[E1] =>
+            rightDone(exit, loser)
+        }
+    )
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest
@@ -1674,7 +1727,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    *       ZIO.unit
    *     case cause =>
    *       // Caught unknown defects, shouldn't recover!
-   *       ZIO.failCause(cause)
+   *       ZIO.refailCause(cause)
    *   }
    * }}}
    */
@@ -1845,13 +1898,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * forked in the effect are reported to the specified supervisor.
    */
   final def supervised(supervisor: => Supervisor[Any])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(new ZIO.Supervise(self, supervisor, trace))
-
-  /**
-   * An integer that identifies the term in the `ZIO` sum type to which this
-   * instance belongs (e.g. `IO.Tags.Succeed`).
-   */
-  def tag: Int
+    FiberRef.currentSupervisor.locallyWith(_ ++ supervisor)(self)
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
@@ -1874,7 +1921,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.failCause(c), _ => ZIO.failCause(c)), a => g(a).as(a))
+    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)), a => g(a).as(a))
 
   /**
    * Returns an effect that effectually "peeks" at the defect of this effect.
@@ -1882,7 +1929,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any])(implicit
     trace: Trace
   ): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => f(c.stripFailures) *> ZIO.failCause(c), ZIO.succeedNow)
+    self.foldCauseZIO(c => f(c.stripFailures) *> ZIO.refailCause(c), ZIO.succeedNow)
 
   /**
    * Returns an effect that effectfully "peeks" at the result of this effect.
@@ -1895,7 +1942,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     trace: Trace
   ): ZIO[R1, E1, A] =
     self.foldCauseZIO(
-      c => c.failureOrCause.fold(e => f(Left(e)) *> ZIO.failCause(c), _ => ZIO.failCause(c)),
+      c => c.failureOrCause.fold(e => f(Left(e)) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)),
       a => f(Right(a)).as(a)
     )
 
@@ -1908,7 +1955,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def tapError[R1 <: R, E1 >: E](
     f: E => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.failCause(c), _ => ZIO.failCause(c)), ZIO.succeedNow)
+    self.foldCauseZIO(c => c.failureOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)), ZIO.succeedNow)
 
   /**
    * Returns an effect that effectually "peeks" at the cause of the failure of
@@ -1920,7 +1967,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any])(implicit
     trace: Trace
   ): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => f(c) *> ZIO.failCause(c), ZIO.succeedNow)
+    self.foldCauseZIO(c => f(c) *> ZIO.refailCause(c), ZIO.succeedNow)
 
   /**
    * A version of `tapError` that gives you the trace of the error.
@@ -1928,7 +1975,10 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def tapErrorTrace[R1 <: R, E1 >: E](
     f: ((E, StackTrace)) => ZIO[R1, E1, Any]
   )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
-    self.foldCauseZIO(c => c.failureTraceOrCause.fold(f(_) *> ZIO.failCause(c), _ => ZIO.failCause(c)), ZIO.succeedNow)
+    self.foldCauseZIO(
+      c => c.failureTraceOrCause.fold(f(_) *> ZIO.refailCause(c), _ => ZIO.refailCause(c)),
+      ZIO.succeedNow
+    )
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this effect.
@@ -1996,7 +2046,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
   final def timeoutFailCause[E1 >: E](cause: => Cause[E1])(d: => Duration)(implicit
     trace: Trace
   ): ZIO[R, E1, A] =
-    ZIO.flatten(timeoutTo(ZIO.failCause(cause))(ZIO.succeedNow)(d))
+    ZIO.flatten(timeoutTo(ZIO.refailCause(cause))(ZIO.succeedNow)(d))
 
   /**
    * Returns an effect that will timeout this effect, returning either the
@@ -2038,7 +2088,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       val cause = ev(a)
 
       if (cause.isEmpty) ZIO.unit
-      else ZIO.failCause(cause)
+      else ZIO.refailCause(cause)
     }
 
   /**
@@ -2050,7 +2100,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    * interruption of an inner effect that has been made interruptible).
    */
   final def uninterruptible(implicit trace: Trace): ZIO[R, E, A] =
-    interruptStatus(InterruptStatus.Uninterruptible)
+    ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, self)
 
   /**
    * Returns the effect resulting from mapping the success of this effect to
@@ -2108,7 +2158,7 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     catchAllCause { cause =>
       cause.find {
         case Cause.Die(t, _) if pf.isDefinedAt(t) => pf(t)
-      }.fold(ZIO.failCause(cause.map(f)))(ZIO.fail(_))
+      }.fold(ZIO.refailCause(cause.map(f)))(ZIO.fail(_))
     }
 
   /**
@@ -2144,6 +2194,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
    */
   final def updateServiceAt[Service]: ZIO.UpdateServiceAt[R, E, A, Service] =
     new ZIO.UpdateServiceAt[R, E, A, Service](self)
+
+  final def unexit[E1 >: E, A2](implicit ev: A <:< Exit[E1, A2], trace: Trace): ZIO[R, E1, A2] =
+    self.flatMap(exit => exit)
 
   /**
    * The inverse operation to `sandbox`. Submerges the full cause of failure.
@@ -2270,6 +2323,13 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.withRandom(random)(self)
 
   /**
+   * Returns a new ZIO effect that will update the runtime flags according to
+   * the specified patch within the scope of this ZIO effect.
+   */
+  final def withRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.UpdateRuntimeFlagsWithin.Dynamic(trace, patch, _ => self)
+
+  /**
    * Executes this workflow with the specified implementation of the system
    * service.
    */
@@ -2343,15 +2403,15 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
       winner.await.flatMap {
         case Exit.Success(a) =>
           loser.await.flatMap {
-            case Exit.Success(b)     => winner.inheritRefs *> loser.inheritRefs *> ZIO.succeed(f(a, b))
-            case Exit.Failure(cause) => ZIO.failCause(cause)
+            case Exit.Success(b)     => winner.inheritAll *> loser.inheritAll *> ZIO.succeed(f(a, b))
+            case Exit.Failure(cause) => ZIO.refailCause(cause)
           }
         case Exit.Failure(cause) =>
           loser.interruptAs(fiberId).flatMap {
-            case Exit.Success(_) => ZIO.failCause(cause)
+            case Exit.Success(_) => ZIO.refailCause(cause)
             case Exit.Failure(loserCause) =>
-              if (leftWinner) ZIO.failCause(cause && loserCause)
-              else ZIO.failCause(loserCause && cause)
+              if (leftWinner) ZIO.refailCause(cause && loserCause)
+              else ZIO.refailCause(loserCause && cause)
           }
       }
 
@@ -2360,12 +2420,9 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     ZIO.uninterruptibleMask { restore =>
       ZIO.transplant { graft =>
         ZIO.fiberIdWith { fiberId =>
-          new ZIO.RaceWith(
-            graft(restore(self)),
-            graft(restore(that)),
+          graft(restore(self)).raceFibersWith(graft(restore(that)))(
             coordinate(fiberId, f, true),
-            coordinate(fiberId, g, false),
-            trace
+            coordinate(fiberId, g, false)
           )
         }
       }
@@ -2376,29 +2433,72 @@ sealed trait ZIO[-R, +E, +A] extends Serializable with ZIOPlatformSpecific[R, E,
     that: => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit trace: Trace): ZIO[R1, E2, B] =
-    new ZIO.Fold[R1, E, E2, A, B](
-      self,
-      { cause =>
+    self.foldCauseZIO(
+      cause =>
         cause.keepDefects match {
           case None    => that
-          case Some(c) => ZIO.failCause(c)
-        }
-      },
-      success,
-      trace
+          case Some(c) => ZIO.refailCause(c)
+        },
+      success
     )
 
   private[zio] def trace: Trace
-  private[zio] def unsafeLog: () => String
 }
 
-object ZIO extends ZIOCompanionPlatformSpecific {
+object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific {
+  private object unsafe {
+    def fork[R, E1, E2, A, B](
+      trace: Trace,
+      effect: ZIO[R, E1, A],
+      parentFiber: internal.FiberRuntime[E2, B],
+      parentRuntimeFlags: RuntimeFlags
+    )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
+      val childFiber = ZIO.unsafe.forkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
+
+      childFiber.startBackground(effect)
+
+      childFiber
+    }
+
+    def forkUnstarted[R, E1, E2, A, B](
+      trace: Trace,
+      effect: ZIO[R, E1, A],
+      parentFiber: internal.FiberRuntime[E2, B],
+      parentRuntimeFlags: RuntimeFlags
+    )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
+      val childId         = FiberId.make(trace)
+      val parentFiberRefs = parentFiber.getFiberRefs()
+      val childFiberRefs  = parentFiberRefs.forkAs(childId)
+
+      val childFiber = internal.FiberRuntime[E1, A](childId, childFiberRefs, parentRuntimeFlags)
+
+      // Call the supervisor who can observe the fork of the child fiber
+      val childEnvironment = childFiberRefs.getOrDefault(FiberRef.currentEnvironment)
+
+      val supervisor = childFiber.getSupervisor()
+
+      supervisor.onStart(
+        childEnvironment,
+        effect.asInstanceOf[ZIO[Any, Any, Any]],
+        Some(parentFiber),
+        childFiber
+      )
+
+      childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
+
+      val parentScope = parentFiber.getFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
+
+      parentScope.add(parentRuntimeFlags, childFiber)(trace, unsafe)
+
+      childFiber
+    }
+  }
 
   /**
    * The level of parallelism for parallel operators.
    */
   final lazy val Parallelism: FiberRef[Option[Int]] =
-    FiberRef.unsafeMake(None)
+    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(None))
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -2524,53 +2624,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def allowInterrupt(implicit trace: Trace): UIO[Unit] =
     descriptorWith(d => if (d.interrupters.nonEmpty) interrupt else ZIO.unit)
 
-  /**
-   * Imports an asynchronous side-effect into a pure `ZIO` value. See
-   * `asyncMaybe` for the more expressive variant of this function that can
-   * return a value synchronously.
-   *
-   * The callback function `ZIO[R, E, A] => Any` must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
-   */
-  def async[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Any,
+  def asyncInterruptUnsafe[R, E, A](
+    register: Unsafe => (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    asyncMaybe(
-      { (callback: ZIO[R, E, A] => Unit) =>
-        register(callback)
-
-        None
-      },
-      blockingOn
-    )
+    asyncInterrupt(cb => Unsafe.unsafeCompat(implicit u => register(u)(cb)), blockingOn)
 
   /**
-   * Imports an asynchronous side-effect into a ZIO effect. The side-effect has
-   * the option of returning the value synchronously, which is useful in cases
-   * where it cannot be determined if the effect is synchronous or asynchronous
-   * until the side-effect is actually executed. The effect also has the option
-   * of returning a canceler, which will be used by the runtime to cancel the
-   * asynchronous effect if the fiber executing the effect is interrupted.
+   * Converts an asynchronous, callback-style API into a ZIO effect, which will
+   * be executed asynchronously.
    *
-   * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
-   * function must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
-   */
-  def asyncInterrupt[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
-    blockingOn: => FiberId = FiberId.None
-  )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(new Async(register, blockingOn, trace))
-
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value. This formulation is
-   * necessary when the effect is itself expressed in terms of `ZIO`.
+   * With this variant, the registration function may return a ZIO effect.
    */
   def asyncZIO[R, E, A](
     register: (ZIO[R, E, A] => Unit) => ZIO[R, E, Any]
@@ -2579,78 +2643,25 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-             val f = register(k => r.unsafeRunAsync(k.intoPromise(p)))
+             val f = register(k =>
+               Unsafe.unsafeCompat { implicit u =>
+                 r.unsafe.fork(k.intoPromise(p))
+               }
+             )
 
-             restore(f.catchAllCause(p.failCause)).fork *> restore(p.await)
+             restore(f.catchAllCause(p.refailCause)).fork *> restore(p.await)
            }
     } yield a
 
-  /**
-   * Imports an asynchronous effect into a pure `ZIO` value, possibly returning
-   * the value synchronously.
-   *
-   * If the register function returns a value synchronously, then the callback
-   * function `ZIO[R, E, A] => Any` must not be called. Otherwise the callback
-   * function must be called at most once.
-   *
-   * The list of fibers, that may complete the async callback, is used to
-   * provide better diagnostics.
-   */
-  def asyncMaybe[R, E, A](
-    register: (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
-    blockingOn: => FiberId = FiberId.None
-  )(implicit trace: Trace): ZIO[R, E, A] =
-    asyncInterrupt(
-      register(_) match {
-        case None      => Left(ZIO.unit)
-        case Some(now) => Right(now)
-      },
-      blockingOn
-    )
+  def attemptUnsafe[A](a: Unsafe => A)(implicit trace: Trace): Task[A] =
+    ZIO.attempt(Unsafe.unsafeCompat(a))
+
+  def attemptBlockingIOUnsafe[A](effect: Unsafe => A)(implicit trace: Trace): IO[IOException, A] =
+    attemptBlockingIO(Unsafe.unsafeCompat(implicit u => effect(u)))
 
   /**
-   * Imports a synchronous side-effect into a pure `ZIO` value, translating any
-   * thrown exceptions into typed failed effects creating with `ZIO.fail`.
-   *
-   * {{{
-   * def printLine(line: String): Task[Unit] = ZIO.attempt(println(line))
-   * }}}
-   */
-  def attempt[A](effect: => A)(implicit trace: Trace): Task[A] =
-    isFatalWith { isFatal =>
-      ZIO.succeedNow {
-        try effect
-        catch {
-          case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
-        }
-      }
-    }
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value.
-   */
-  def attemptBlocking[A](effect: => A)(implicit trace: Trace): Task[A] =
-    blocking(ZIO.attempt(effect))
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value, with
-   * a custom cancel effect.
-   *
-   * If the returned `ZIO` is interrupted, the blocked thread running the
-   * synchronous effect will be interrupted via the cancel effect.
-   */
-  def attemptBlockingCancelable[R, A](effect: => A)(cancel: => URIO[R, Any])(implicit trace: Trace): RIO[R, A] =
-    blocking(ZIO.attempt(effect)).fork.flatMap(_.join).onInterrupt(cancel)
-
-  /**
-   * Imports a synchronous effect that does blocking IO into a pure value,
-   * refining the error type to `[[java.io.IOException]]`.
-   */
-  def attemptBlockingIO[A](effect: => A)(implicit trace: Trace): IO[IOException, A] =
-    attemptBlocking(effect).refineToOrDie[IOException]
-
-  /**
-   * Locks the specified effect to the blocking thread pool.
+   * Returns a new effect that, when executed, will execute the original effect
+   * on the blocking thread pool.
    */
   def blocking[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.blockingExecutor.flatMap(zio.onExecutor(_))
@@ -2666,7 +2677,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * specified callback.
    */
   def checkInterruptible[R, E, A](f: zio.InterruptStatus => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.CheckInterrupt(f, trace)
+    ZIO.unsafeStateful[R, E, A] { implicit u => (_, status) =>
+      f(InterruptStatus.fromBoolean(RuntimeFlags.interruption(status.runtimeFlags)))
+    }
 
   /**
    * Retrieves the `Clock` service for this workflow.
@@ -2907,7 +2920,18 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * its identity.
    */
   def descriptorWith[R, E, A](f: Fiber.Descriptor => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.Descriptor(f, trace)
+    ZIO.unsafeStateful[R, E, A] { implicit u => (fiberState, status) =>
+      val descriptor =
+        Fiber.Descriptor(
+          fiberState.id,
+          status,
+          fiberState.getFiberRef(FiberRef.interruptedCause).interruptors,
+          fiberState.getCurrentExecutor(),
+          fiberState.getFiberRef(FiberRef.overrideExecutor).isDefined
+        )
+
+      f(descriptor)
+    }
 
   /**
    * Returns an effect that dies with the specified `Throwable`. This method can
@@ -2929,12 +2953,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Returns an effect from a [[zio.Exit]] value.
    */
   def done[E, A](r: => Exit[E, A])(implicit trace: Trace): IO[E, A] =
-    ZIO.suspendSucceed {
-      r match {
-        case Exit.Success(b)     => succeedNow(b)
-        case Exit.Failure(cause) => failCause(cause)
-      }
-    }
+    ZIO.suspendSucceed(r)
 
   /**
    * Accesses the whole environment of the effect.
@@ -2985,26 +3004,26 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * equivalent of `throw` for pure code.
    */
   def fail[E](error: => E)(implicit trace: Trace): IO[E, Nothing] =
-    failCause(Cause.Fail(error, StackTrace.none))
+    failCause(Cause.fail(error))
 
   /**
    * Returns an effect that models failure with the specified `Cause`.
    */
-  def failCause[E](cause: => Cause[E])(implicit trace: Trace): IO[E, Nothing] =
-    ZIO.suspendSucceed(new ZIO.Fail(cause, trace))
+  def failCause[E](cause: => Cause[E])(implicit trace0: Trace): IO[E, Nothing] =
+    ZIO.stackTrace(trace0).flatMap(trace => refailCause(cause.traced(trace)))
 
   /**
    * Returns the `FiberId` of the fiber executing the effect that calls this
    * method.
    */
-  def fiberId(implicit trace: Trace): UIO[FiberId] =
+  def fiberId(implicit trace: Trace): UIO[FiberId.Runtime] =
     fiberIdWith(fiberId => ZIO.succeedNow(fiberId))
 
   /**
    * Constructs an effect based on the `FiberId` of the fiber executing the
    * effect that calls this method.
    */
-  def fiberIdWith[R, E, A](f: FiberId => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def fiberIdWith[R, E, A](f: FiberId.Runtime => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith(descriptor => f(descriptor.id))
 
   /**
@@ -3152,16 +3171,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       val iterator = in.iterator
       val builder  = bf.newBuilder(in)
 
-      lazy val recurse: B => ZIO[R, E, Collection[B]] = { b =>
-        builder += b
-        loop()
-      }
-
-      def loop(): ZIO[R, E, Collection[B]] =
-        if (iterator.hasNext) f(iterator.next()).flatMap(recurse)
-        else ZIO.succeedNow(builder.result())
-
-      loop()
+      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(builder += _).as(builder.result())
     }
 
   /**
@@ -3229,14 +3239,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def foreachDiscard[R, E, A](
     as: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
-    ZIO.succeed(as.iterator).flatMap { i =>
-      lazy val recurse: Any => ZIO[R, E, Unit] = _ => loop()
+    ZIO.suspendSucceed {
+      val iterator = as.iterator
 
-      def loop(): ZIO[R, E, Unit] =
-        if (i.hasNext) f(i.next()).flatMap(recurse)
-        else ZIO.unit
-
-      loop()
+      ZIO.whileLoop(iterator.hasNext)(f(iterator.next()))(_ => ())
     }
 
   /**
@@ -3402,11 +3408,13 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.suspendSucceed(fiber.flatMap(_.join))
 
   /**
-   * Imports a function that creates a [[scala.concurrent.Future]] from an
-   * [[scala.concurrent.ExecutionContext]] into a `ZIO`.
+   * Returns an effect that, when executed, will both create and launch a
+   * [[scala.concurrent.Future]], feeding it an
+   * [[scala.concurrent.ExecutionContext]] that is backed by ZIO's own executor.
    */
   def fromFuture[A](make: ExecutionContext => scala.concurrent.Future[A])(implicit trace: Trace): Task[A] =
     ZIO.descriptorWith { d =>
+      import scala.util.{Failure, Success}
       val ec = d.executor.asExecutionContext
       ZIO.attempt(make(ec)).flatMap { f =>
         val canceler: UIO[Unit] = f match {
@@ -3449,6 +3457,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     make: ExecutionContext => scala.concurrent.Future[A]
   )(implicit trace: Trace): Task[A] =
     ZIO.descriptorWith { d =>
+      import scala.util.{Failure, Success}
       val ec          = d.executor.asExecutionContext
       val interrupted = new java.util.concurrent.atomic.AtomicBoolean(false)
       val latch       = scala.concurrent.Promise[Unit]()
@@ -3497,7 +3506,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effect.
    */
   def getFiberRefs(implicit trace: Trace): UIO[FiberRefs] =
-    new ZIO.FiberRefModifyAll((_, fiberRefs) => (fiberRefs, fiberRefs), trace)
+    ZIO.unsafeStateful[Any, Nothing, FiberRefs] { implicit u => (fiberState, _) =>
+      ZIO.succeedNow(fiberState.getFiberRefs())
+    }
 
   /**
    * Lifts an Option into a ZIO, if the option is not defined it fails with
@@ -3573,9 +3584,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effect is composed into.
    */
   def interruptibleMask[R, E, A](
-    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+    k: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    checkInterruptible(flag => k(ZIO.InterruptStatusRestore(flag)).interruptible)
+    checkInterruptible(flag => k(ZIO.InterruptibilityRestorer(flag)).interruptible)
 
   /**
    * Retrieves the definition of a fatal error.
@@ -3606,13 +3617,24 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     initial: => S
   )(cont: S => Boolean)(body: S => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.suspendSucceed {
+      var result = initial
 
-      def loop(initial: S): ZIO[R, E, S] =
-        if (cont(initial)) body(initial).flatMap(loop)
-        else ZIO.succeedNow(initial)
-
-      loop(initial)
+      ZIO
+        .whileLoop(cont(result))(body(result))(result = _)
+        .as(result)
     }
+
+  /**
+   * A low-level while-loop with direct support in the ZIO runtime. The only
+   * reason to use this constructor is performance.
+   *
+   * See [[ZIO.iterate]] for a user-friendly version of this operator that is
+   * compatible with purely functional code.
+   */
+  def whileLoop[R, E, A](check: => Boolean)(body: => ZIO[R, E, A])(process: A => Any)(implicit
+    trace: Trace
+  ): ZIO[R, E, Unit] =
+    ZIO.WhileLoop(trace, () => check, () => body, process)
 
   /**
    * Returns an effect with the value on the left part.
@@ -3697,19 +3719,27 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the current log level.
    */
   def log(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, None, trace)
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, Cause.empty, None, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the current log level.
    */
   def logCause(cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => "An error occurred", cause, None, trace)
+    logCause("An error occurred", cause)
 
   /**
    * Logs the specified message and cause at the current log level.
    */
   def logCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, None, trace)
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, None, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Annotates each log in this effect with the specified log annotation.
@@ -3739,13 +3769,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the debug log level.
    */
   def logDebug(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someDebug, trace)
+    logDebugCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the debug log level.
    */
-  def logDebugCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someDebug, trace)
+  def logDebugCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, someDebug, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the debug log level..
@@ -3757,13 +3791,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the error log level.
    */
   def logError(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someError, trace)
+    logErrorCause(message, Cause.empty)
 
   /**
    * Logs the specified cause as an error.
    */
-  def logErrorCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someError, trace)
+  def logErrorCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, someError, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause as an error.
@@ -3775,13 +3813,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the fatal log level.
    */
   def logFatal(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someFatal, trace)
+    logFatalCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the fatal log level.
    */
-  def logFatalCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someFatal, trace)
+  def logFatalCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, someFatal, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the fatal log level.
@@ -3793,13 +3835,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the informational log level.
    */
   def logInfo(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someInfo, trace)
+    logInfoCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the informational log level.
    */
-  def logInfoCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someInfo, trace)
+  def logInfoCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, someInfo, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the informational log level..
@@ -3830,13 +3876,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the trace log level.
    */
   def logTrace(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someTrace, trace)
+    logTraceCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the trace log level.
    */
-  def logTraceCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someTrace, trace)
+  def logTraceCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, someTrace, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the trace log level..
@@ -3848,13 +3898,17 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * Logs the specified message at the warning log level.
    */
   def logWarning(message: => String)(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, Cause.empty, someWarning, trace)
+    logWarningCause(message, Cause.empty)
 
   /**
    * Logs the specified cause at the warning log level.
    */
-  def logWarningCause(message: String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
-    new Logged(() => message, cause, someWarning, trace)
+  def logWarningCause(message: => String, cause: => Cause[Any])(implicit trace: Trace): UIO[Unit] =
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
+      fiberState.log(() => message, cause, someWarning, trace)
+
+      ZIO.unit
+    }
 
   /**
    * Logs the specified cause at the warning log level..
@@ -3907,15 +3961,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Returns a effect that will never produce anything. The moral equivalent of
-   * `while(true) {}`, only without the wasted CPU cycles. Fibers that suspended
-   * running this effect are automatically garbage collected on the JVM, because
-   * they cannot be reactivated.
+   * `while(true) {}`, only without the wasted CPU cycles. Fibers that execute
+   * this effect will be automatically garbage collected on the JVM when no
+   * explicit references to them are held, because they cannot be reactivated.
    */
   def never(implicit trace: Trace): UIO[Nothing] =
     async[Any, Nothing, Nothing](_ => ())
 
   /**
-   * Returns an effect with the empty value.
+   * Returns an effect that succeeds with the `None` value.
    */
   lazy val none: UIO[Option[Nothing]] = succeedNow(None)
 
@@ -3935,14 +3989,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   /**
    * Returns an effect that will execute the specified effect fully on the
-   * provided executor, before returning to the default executor. See
-   * [[ZIO!.onExecutor]].
+   * provided executor, before potentially returning to the previous executor.
+   * See [[ZIO!.onExecutor]].
    */
-  def onExecutor[R, E, A](executor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def onExecutor[R, E, A](newExecutor: => Executor)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.descriptorWith { descriptor =>
-      if (descriptor.isLocked)
-        ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.shift(descriptor.executor))(_ => zio)
-      else ZIO.acquireReleaseWith(ZIO.shift(executor))(_ => ZIO.unshift)(_ => zio)
+      val oldExecutor = descriptor.executor
+
+      if (descriptor.isLocked) ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.shift(oldExecutor))(_ => zio)
+      else ZIO.acquireReleaseWith(ZIO.shift(newExecutor))(_ => ZIO.unshift)(_ => zio)
     }
 
   /**
@@ -4068,6 +4123,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       mergeAllPar(all)(Option.empty[A])((acc, elem) => Some(acc.fold(elem)(f(_, elem)))).map(_.get)
     }
 
+  def refailCause[E](cause: Cause[E])(implicit trace: Trace): ZIO[Any, E, Nothing] = Exit.Failure(cause)
+
   /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
    * an empty `Iterable` will be returned. This method is more efficient than
@@ -4105,9 +4162,19 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    */
   def runtime[R](implicit trace: Trace): URIO[R, Runtime[R]] =
     for {
-      environment <- environment[R]
-      fiberRefs   <- ZIO.getFiberRefs
-    } yield Runtime(environment, fiberRefs)
+      environment  <- ZIO.environment[R]
+      fiberRefs    <- ZIO.getFiberRefs
+      runtimeFlags <- ZIO.runtimeFlags
+    } yield Runtime(environment, fiberRefs, runtimeFlags)
+
+  /**
+   * Retrieves an effect that succeeds with the current runtime flags, which
+   * govern behavior and features of the runtime system.
+   */
+  def runtimeFlags(implicit trace: Trace): ZIO[Any, Nothing, RuntimeFlags] =
+    ZIO.unsafeStateful[Any, Nothing, RuntimeFlags] { implicit u => (_, status) =>
+      ZIO.succeedNow(status.runtimeFlags)
+    }
 
   /**
    * Returns the current scope.
@@ -4205,7 +4272,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * as [[ZIO!.onExecutor]] and [[ZIO!.onExecutionContext]].
    */
   def shift(executor: => Executor)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed(new ZIO.Shift(executor, trace))
+    (FiberRef.overrideExecutor.set(Some(executor)) *> ZIO.yieldNow)
 
   /**
    * Returns an effect that suspends for the specified duration. This method is
@@ -4236,18 +4303,11 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def stateful[R]: StatefulPartiallyApplied[R] =
     new StatefulPartiallyApplied[R]
 
-  /**
-   * Returns an effect that models success with the specified value.
-   */
-  def succeed[A](a: => A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    new ZIO.Succeed(() => a, trace)
+  def succeedBlockingUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
+    ZIO.blocking(ZIO.succeedUnsafe(a))
 
-  /**
-   * Returns a synchronous effect that does blocking and succeeds with the
-   * specified value.
-   */
-  def succeedBlocking[A](a: => A)(implicit trace: Trace): UIO[A] =
-    blocking(ZIO.succeed(a))
+  def succeedUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
+    ZIO.succeed(Unsafe.unsafeCompat(a))
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
@@ -4258,7 +4318,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     ZIO.isFatalWith { isFatal =>
       try rio
       catch {
-        case t: Throwable if !isFatal(t) => throw new ZioError(Exit.fail(t), trace)
+        case t: Throwable if !isFatal(t) => throw ZIOError.Traced(Cause.fail(t))
       }
     }
 
@@ -4270,7 +4330,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * not use this method, use [[ZIO.suspend]] or [[ZIO.suspend]].
    */
   def suspendSucceed[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.Suspend(() => zio, trace)
+    ZIO.succeed(zio).flatMap(identityFn)
+
+  def suspendSucceedUnsafe[R, E, A](zio: Unsafe => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZIO.succeedUnsafe(zio).flatMap(identityFn)
 
   /**
    * Retrieves the `System` service for this workflow.
@@ -4286,10 +4349,10 @@ object ZIO extends ZIOCompanionPlatformSpecific {
     DefaultServices.currentServices.getWith(services => f(services.get(System.tag)))
 
   /**
-   * Capture ZIO trace at the current point
+   * Capture ZIO stack trace at the current point.
    */
-  def trace(implicit trace: Trace): UIO[StackTrace] =
-    new ZIO.CaptureTrace(trace)
+  def stackTrace(implicit trace: Trace): UIO[StackTrace] =
+    GenerateStackTrace(trace)
 
   /**
    * Transplants specified effects so that when those effects fork other
@@ -4300,7 +4363,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effectively extending their lifespans into the parent scope.
    */
   def transplant[R, E, A](f: Grafter => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    new ZIO.GetForkScope(scope => f(new Grafter(scope)), trace)
+    ZIO.unsafeStateful[R, E, A] { implicit u => (fiberState, _) =>
+      val scopeOverride = fiberState.getFiberRef(FiberRef.forkScopeOverride)
+      val scope         = scopeOverride.getOrElse(fiberState.scope)
+
+      f(new Grafter(scope))
+    }
 
   /**
    * An effect that succeeds with a unit value.
@@ -4320,9 +4388,15 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * effect is composed into.
    */
   def uninterruptibleMask[R, E, A](
-    k: ZIO.InterruptStatusRestore => ZIO[R, E, A]
+    f: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    checkInterruptible(flag => k(ZIO.InterruptStatusRestore(flag)).uninterruptible)
+    ZIO.UpdateRuntimeFlagsWithin.Dynamic(
+      trace,
+      RuntimeFlags.disable(RuntimeFlag.Interruption),
+      oldFlags =>
+        if (RuntimeFlags.interruption(oldFlags)) f(InterruptibilityRestorer.MakeInterruptible)
+        else f(InterruptibilityRestorer.MakeUninterruptible)
+    )
 
   /**
    * The moral equivalent of `if (!p) exp`
@@ -4352,14 +4426,25 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * after completing an effect on another executor.
    */
   def unshift(implicit trace: Trace): UIO[Unit] =
-    new ZIO.Shift(null, trace)
+    FiberRef.overrideExecutor.set(None)
 
   /**
    * Updates the `FiberRef` values for the fiber running this effect using the
    * specified function.
    */
   def updateFiberRefs(f: (FiberId.Runtime, FiberRefs) => FiberRefs)(implicit trace: Trace): UIO[Unit] =
-    new ZIO.FiberRefModifyAll((fiberId, fiberRefs) => ((), f(fiberId, fiberRefs)), trace)
+    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (state, _) =>
+      state.setFiberRefs(f(state.id, state.getFiberRefs()))
+
+      ZIO.unit
+    }
+
+  /**
+   * Updates the runtime flags. This may have a performance impact. For a
+   * higher-performance variant, see `ZIO#withRuntimeFlags`.
+   */
+  def updateRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
+    ZIO.UpdateRuntimeFlags(trace, patch)
 
   /**
    * Updates a state in the environment with the specified function.
@@ -4601,6 +4686,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   def withRandomScoped[A <: Random](random: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
     DefaultServices.currentServices.locallyScopedWith(_.add(random))
 
+  def withRuntimeFlagsScoped(update: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+    ZIO.uninterruptible {
+      ZIO.updateRuntimeFlags(update) *>
+        ZIO.addFinalizer(ZIO.updateRuntimeFlags(RuntimeFlags.Patch.inverse(update))).unit
+    }
+
   /**
    * Executes the specified workflow with the specified implementation of the
    * system service.
@@ -4622,8 +4713,12 @@ object ZIO extends ZIOCompanionPlatformSpecific {
    * stack. Manual use of this method can improve fairness, at the cost of
    * overhead.
    */
-  def yieldNow(implicit trace: Trace): UIO[Unit] =
-    new ZIO.Yield(trace)
+  def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace)
+
+  private[zio] def unsafeStateful[R, E, A](
+    onState: Unsafe => (internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
+  )(implicit trace: Trace): ZIO[R, E, A] =
+    Stateful(trace, Unsafe.unsafeCompat(onState))
 
   private lazy val _IdentityFn: Any => Any = (a: Any) => a
 
@@ -4735,31 +4830,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
 
   final class Grafter(private val scope: FiberScope) extends AnyVal {
     def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      ZIO.suspendSucceed(new ZIO.OverrideForkScope(zio, Some(scope), trace))
-  }
-
-  final class InterruptStatusRestore private (private val flag: zio.InterruptStatus) extends AnyVal {
-    def apply[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      ZIO.suspendSucceed(zio).interruptStatus(flag)
-
-    /**
-     * Returns a new effect that, if the parent region is uninterruptible, can
-     * be interrupted in the background instantaneously. If the parent region is
-     * interruptible, then the effect can be interrupted normally, in the
-     * foreground.
-     */
-    def force[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-      ZIO.suspendSucceed {
-        if (flag == _root_.zio.InterruptStatus.Uninterruptible) zio.uninterruptible.disconnect.interruptible
-        else zio.interruptStatus(flag)
-      }
-  }
-  object InterruptStatusRestore {
-    val restoreInterruptible   = new InterruptStatusRestore(zio.InterruptStatus.Interruptible)
-    val restoreUninterruptible = new InterruptStatusRestore(zio.InterruptStatus.Uninterruptible)
-
-    def apply(flag: zio.InterruptStatus): InterruptStatusRestore =
-      if (flag eq zio.InterruptStatus.Interruptible) restoreInterruptible else restoreUninterruptible
+      FiberRef.forkScopeOverride.locally(Some(scope))(zio)
   }
 
   final class IfZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
@@ -4817,7 +4888,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
               ZIO
                 .suspendSucceed(release(a, e))
                 .foldCauseZIO(
-                  cause2 => ZIO.failCause(e.fold(_ ++ cause2, _ => cause2)),
+                  cause2 => ZIO.refailCause(e.foldExit(_ ++ cause2, _ => cause2)),
                   _ => ZIO.done(e)
                 )
             })
@@ -4875,8 +4946,8 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       trace: Trace
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
-      ZIO.suspendSucceed {
-        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafeGet(tag)))
+      ZIO.suspendSucceedUnsafe { implicit u =>
+        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafe.get(tag)))
       }
     }
   }
@@ -5260,308 +5331,158 @@ object ZIO extends ZIOCompanionPlatformSpecific {
       }
   }
 
-  private[zio] object Tags {
-    final val FlatMap                = 0
-    final val Fold                   = 1
-    final val Ensuring               = 2
-    final val ExecutionTracingCutoff = 3
-    final val SucceedNow             = 4
-    final val Fail                   = 5
-    final val Succeed                = 6
-    final val Suspend                = 7
-    final val Async                  = 8
-    final val InterruptStatus        = 9
-    final val CheckInterrupt         = 10
-    final val Fork                   = 11
-    final val Descriptor             = 12
-    final val Shift                  = 13
-    final val Yield                  = 14
-    final val FiberRefNew            = 15
-    final val FiberRefModify         = 16
-    final val CaptureTrace           = 17
-    final val RaceWith               = 18
-    final val Supervise              = 19
-    final val GetForkScope           = 20
-    final val OverrideForkScope      = 21
-    final val Logged                 = 22
-    final val FiberRefModifyAll      = 23
-    final val FiberRefLocally        = 24
-    final val FiberRefDelete         = 25
-    final val FiberRefWith           = 26
+  private[zio] sealed abstract class ZIOError extends Exception with NoStackTrace {
+    def cause: Cause[Any]
+
+    def isTraced: Boolean
+
+    final def isUntraced: Boolean = !isTraced
+  }
+  private[zio] object ZIOError {
+    def apply(cause: Cause[Any]): ZIOError = Untraced(cause)
+
+    final case class Untraced(cause: Cause[Any]) extends ZIOError {
+      def isTraced: Boolean = false
+    }
+    final case class Traced(cause: Cause[Any]) extends ZIOError {
+      def isTraced: Boolean = true
+    }
   }
 
-  private[zio] final case class ZioError[E, A](exit: Exit[E, A], trace: Trace) extends Throwable with NoStackTrace
-
-  private[zio] trait TracedCont[-A0, -R, +E, +A] extends (A0 => ZIO[R, E, A]) {
-    val trace: Trace
+  private[zio] sealed trait EvaluationStep { self =>
+    def trace: Trace
   }
+  private[zio] object EvaluationStep {
+    sealed trait UpdateRuntimeFlags extends EvaluationStep {
+      final def trace = Trace.empty
 
-  private[zio] object TracedCont {
-    def apply[A0, R, E, A](k: (A0 => ZIO[R, E, A]))(implicit trace0: Trace): TracedCont[A0, R, E, A] =
-      new TracedCont[A0, R, E, A] {
-        override val trace: Trace                = trace0
-        override def apply(v1: A0): ZIO[R, E, A] = k(v1)
+      def update: RuntimeFlags.Patch
+    }
+    object UpdateRuntimeFlags {
+      def apply(patch: RuntimeFlags.Patch): UpdateRuntimeFlags =
+        new UpdateRuntimeFlags {
+          override def update: RuntimeFlags.Patch = patch
+        }
+
+      case object MakeInterruptible extends UpdateRuntimeFlags {
+        val update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
       }
+      case object MakeUninterruptible extends UpdateRuntimeFlags {
+        val update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
+      }
+    }
+    final case class UpdateTrace(trace: Trace) extends EvaluationStep
+    object Continuation {
+      def fromSuccess[R, E, A, B](
+        f: A => ZIO[R, E, B]
+      )(implicit trace0: Trace): EvaluationStep = ZIO.OnSuccess(trace0, null.asInstanceOf[ZIO[R, E, A]], f)
+
+      def fromFailure[R, E1, E2, A](
+        f: Cause[E1] => ZIO[R, E2, A]
+      )(implicit trace0: Trace): EvaluationStep = ZIO.OnFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], f)
+    }
   }
 
-  private[zio] final class FlatMap[R, E, A0, A](
-    val zio: ZIO[R, E, A0],
-    val k: A0 => ZIO[R, E, A],
-    val trace: Trace
+  private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
+  private[zio] final case class Async[R, E, A](
+    trace: Trace,
+    registerCallback: (ZIO[R, E, A] => Unit) => Any,
+    blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
-      with TracedCont[A0, R, E, A] {
-    def unsafeLog: () => String =
-      () => s"FlatMap at ${trace}"
-
-    override def tag = Tags.FlatMap
-
-    override def apply(v1: A0): ZIO[R, E, A] = k(v1)
-  }
-
-  private[zio] final class SucceedNow[A](val value: A) extends UIO[A] {
-    def unsafeLog: () => String =
-      () => s"SucceedNow at ${trace}"
-
-    override def tag   = Tags.SucceedNow
-    override def trace = Trace.empty
-  }
-
-  private[zio] final class Succeed[A](val effect: () => A, val trace: Trace) extends UIO[A] {
-    def unsafeLog: () => String =
-      () => s"Succeed at ${trace}"
-
-    override def tag = Tags.Succeed
-  }
-
-  private[zio] final class Suspend[R, E, A](val make: () => ZIO[R, E, A], val trace: Trace) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"Suspend at ${trace}"
-
-    override def tag = Tags.Suspend
-  }
-
-  private[zio] final class Async[R, E, A](
-    val register: (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
-    val blockingOn: FiberId,
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"Async at ${trace}"
-
-    override def tag = Tags.Async
-  }
-
-  private[zio] final class Fold[R, E, E2, A, B](
-    val zio: ZIO[R, E, A],
-    val failure: Cause[E] => ZIO[R, E2, B],
-    val success: A => ZIO[R, E2, B],
-    val trace: Trace
+  private[zio] final case class OnSuccessAndFailure[R, E1, E2, A, B](
+    trace: Trace,
+    first: ZIO[R, E1, A],
+    successK: A => ZIO[R, E2, B],
+    failureK: Cause[E1] => ZIO[R, E2, B]
   ) extends ZIO[R, E2, B]
-      with TracedCont[A, R, E2, B] {
-    def unsafeLog: () => String =
-      () => s"Fold at ${trace}"
+      with EvaluationStep {
+    def onFailure(c: Cause[E1]): ZIO[R, E2, B] = failureK(c)
 
-    override def tag = Tags.Fold
-
-    def apply(v: A): ZIO[R, E2, B] = success(v)
+    def onSuccess(a: A): ZIO[R, E2, B] = successK(a.asInstanceOf[A])
   }
+  private[zio] final case class OnSuccess[R, A, E, B](trace: Trace, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
+      extends ZIO[R, E, B]
+      with EvaluationStep {
+    def onFailure(c: Cause[E]): ZIO[R, E, B] = Exit.Failure(c)
 
-  private[zio] final class Fork[R, E, A](
-    val zio: ZIO[R, E, A],
-    val scope: Option[FiberScope],
-    val trace: Trace
-  ) extends URIO[R, Fiber.Runtime[E, A]] {
-    def unsafeLog: () => String =
-      () => s"Fork at ${trace}"
-
-    override def tag = Tags.Fork
+    def onSuccess(a: A): ZIO[R, E, B] = successK(a.asInstanceOf[A])
   }
+  private[zio] final case class OnFailure[R, E1, E2, A](
+    trace: Trace,
+    first: ZIO[R, E1, A],
+    failureK: Cause[E1] => ZIO[R, E2, A]
+  ) extends ZIO[R, E2, A]
+      with EvaluationStep {
+    def onFailure(c: Cause[E1]): ZIO[R, E2, A] = failureK(c)
 
-  private[zio] final class InterruptStatus[R, E, A](
-    val zio: ZIO[R, E, A],
-    val flag: _root_.zio.InterruptStatus,
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"InterruptStatus at ${trace}"
-
-    override def tag = Tags.InterruptStatus
+    def onSuccess(a: A): ZIO[R, E2, A] = Exit.Success(a)
   }
+  private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
+      extends ZIO[Any, Nothing, Unit]
+  private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
+    def update: RuntimeFlags.Patch
 
-  private[zio] final class CheckInterrupt[R, E, A](val k: zio.InterruptStatus => ZIO[R, E, A], val trace: Trace)
-      extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"CheckInterrupt at ${trace}"
-
-    override def tag = Tags.CheckInterrupt
+    def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]
   }
+  private[zio] object UpdateRuntimeFlagsWithin {
+    final case class Interruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
 
-  private[zio] final class Fail[E](val cause: Cause[E], val trace: Trace) extends IO[E, Nothing] { self =>
-    def unsafeLog: () => String =
-      () => s"Fail ${cause} at ${trace}"
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
+    }
+    final case class Uninterruptible[R, E, A](trace: Trace, effect: ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
 
-    override def tag = Tags.Fail
-
-    override def map[B](f: Nothing => B)(implicit trace: Trace): IO[E, Nothing] =
-      self
-
-    override def flatMap[R1 <: Any, E1 >: E, B](k: Nothing => ZIO[R1, E1, B])(implicit
-      trace: Trace
-    ): ZIO[R1, E1, Nothing] =
-      self
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
+    }
+    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
+    }
   }
-
-  private[zio] final class Descriptor[R, E, A](val k: Fiber.Descriptor => ZIO[R, E, A], val trace: Trace)
-      extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"Descriptor at ${trace}"
-
-    override def tag = Tags.Descriptor
+  private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
+  private[zio] final case class Stateful[R, E, A](
+    trace: Trace,
+    onState: (zio.internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
+  ) extends ZIO[R, E, A] { self =>
+    def erase: Stateful[Any, Any, Any] = self.asInstanceOf[Stateful[Any, Any, Any]]
   }
+  private[zio] final case class WhileLoop[R, E, A](
+    trace: Trace,
+    check: () => Boolean,
+    body: () => ZIO[R, E, A],
+    process: A => Any
+  ) extends ZIO[R, E, Unit]
+  private[zio] final case class YieldNow(trace: Trace) extends ZIO[Any, Nothing, Unit]
 
-  private[zio] final class Shift(val executor: Executor, val trace: Trace) extends UIO[Unit] {
-    def unsafeLog: () => String =
-      () => s"Shift at ${trace}"
+  sealed trait InterruptibilityRestorer {
+    def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
-    override def tag = Tags.Shift
+    def isParentRegionInterruptible: Boolean
+
+    final def isParentRegionUninterruptible: Boolean = !isParentRegionInterruptible
+
+    final def parentInterruptStatus: InterruptStatus = InterruptStatus.fromBoolean(isParentRegionInterruptible)
   }
+  object InterruptibilityRestorer {
+    def apply(status: InterruptStatus): InterruptibilityRestorer =
+      if (status.isInterruptible) MakeInterruptible
+      else MakeUninterruptible
 
-  private[zio] final class Yield(val trace: Trace) extends UIO[Unit] {
-    def unsafeLog: () => String =
-      () => s"Yield at ${trace}"
+    case object MakeInterruptible extends InterruptibilityRestorer {
+      def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.UpdateRuntimeFlagsWithin.Interruptible(trace, effect)
 
-    override def tag = Tags.Yield
-  }
+      def isParentRegionInterruptible: Boolean = true
+    }
+    case object MakeUninterruptible extends InterruptibilityRestorer {
+      def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        ZIO.UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect)
 
-  private[zio] final class FiberRefModifyAll[A](
-    val f: (FiberId.Runtime, FiberRefs) => (A, FiberRefs),
-    val trace: Trace
-  ) extends UIO[A] {
-    def unsafeLog: () => String =
-      () => s"FiberRefModifyAll at ${trace}"
-
-    override def tag = Tags.FiberRefModifyAll
-  }
-
-  private[zio] final class FiberRefModify[A, B](
-    val fiberRef: FiberRef[A],
-    val f: A => (B, A),
-    val trace: Trace
-  ) extends UIO[B] {
-    def unsafeLog: () => String =
-      () => s"FiberRefModify at ${trace}"
-
-    override def tag = Tags.FiberRefModify
-  }
-
-  private[zio] final class FiberRefLocally[V, R, E, A](
-    val localValue: V,
-    val fiberRef: FiberRef[V],
-    val zio: ZIO[R, E, A],
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"FiberRefLocally at ${trace}"
-
-    override def tag = Tags.FiberRefLocally
-  }
-
-  private[zio] final class FiberRefDelete(
-    val fiberRef: FiberRef[_],
-    val trace: Trace
-  ) extends UIO[Unit] {
-    def unsafeLog: () => String =
-      () => s"FiberRefDelete at ${trace}"
-
-    override def tag = Tags.FiberRefDelete
-  }
-
-  private[zio] final class FiberRefWith[R, E, A, B](
-    val fiberRef: FiberRef[A],
-    val f: A => ZIO[R, E, B],
-    val trace: Trace
-  ) extends ZIO[R, E, B] {
-    def unsafeLog: () => String =
-      () => s"FiberRefWith at ${trace}"
-
-    override def tag = Tags.FiberRefWith
-  }
-
-  private[zio] final class CaptureTrace(val trace: Trace) extends UIO[StackTrace] {
-    def unsafeLog: () => String =
-      () => s"CaptureTrace at ${trace}"
-
-    override def tag = Tags.CaptureTrace
-  }
-
-  private[zio] final class RaceWith[R, EL, ER, E, A, B, C](
-    val left: ZIO[R, EL, A],
-    val right: ZIO[R, ER, B],
-    val leftWins: (Fiber[EL, A], Fiber[ER, B]) => ZIO[R, E, C],
-    val rightWins: (Fiber[ER, B], Fiber[EL, A]) => ZIO[R, E, C],
-    val trace: Trace
-  ) extends ZIO[R, E, C] {
-    def unsafeLog: () => String =
-      () => s"RaceWith at ${trace}"
-
-    override def tag: Int = Tags.RaceWith
-  }
-
-  private[zio] final class Supervise[R, E, A](
-    val zio: ZIO[R, E, A],
-    val supervisor: Supervisor[Any],
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"Supervise at ${trace}"
-
-    override def tag = Tags.Supervise
-  }
-
-  private[zio] final class GetForkScope[R, E, A](
-    val f: FiberScope => ZIO[R, E, A],
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"GetForkScope at ${trace}"
-
-    override def tag = Tags.GetForkScope
-  }
-
-  private[zio] final class OverrideForkScope[R, E, A](
-    val zio: ZIO[R, E, A],
-    val forkScope: Option[FiberScope],
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"OverrideForkScope at ${trace}"
-
-    override def tag = Tags.OverrideForkScope
-  }
-
-  private[zio] final class Ensuring[R, E, A](
-    val zio: ZIO[R, E, A],
-    val finalizer: ZIO[R, Nothing, Any],
-    val trace: Trace
-  ) extends ZIO[R, E, A] {
-    def unsafeLog: () => String =
-      () => s"Ensuring at ${trace}"
-
-    override def tag = Tags.Ensuring
-  }
-
-  private[zio] final class Logged(
-    val message: () => String,
-    val cause: Cause[Any],
-    val overrideLogLevel: Option[LogLevel],
-    val trace: Trace,
-    val overrideRef1: FiberRef[_] = null,
-    val overrideValue1: AnyRef = null
-  ) extends ZIO[Any, Nothing, Unit] {
-    def unsafeLog: () => String =
-      () => s"Logged at ${trace}"
-
-    override def tag = Tags.Logged
+      def isParentRegionInterruptible: Boolean = false
+    }
   }
 
   private[zio] val someFatal   = Some(LogLevel.Fatal)
@@ -5571,7 +5492,7 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private[zio] val someDebug   = Some(LogLevel.Debug)
   private[zio] val someTrace   = Some(LogLevel.Trace)
 
-  private[zio] def succeedNow[A](a: A): UIO[A] = new ZIO.SucceedNow(a)
+  private[zio] def succeedNow[A](a: A): UIO[A] = Exit.Success(a)
 
   private def collectAllParUnboundedDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit
     trace: Trace
@@ -5598,8 +5519,9 @@ object ZIO extends ZIOCompanionPlatformSpecific {
               case None => ZIO.unit
             }
 
+          val array = Array.ofDim[AnyRef](size)
+
           for {
-            array <- ZIO.succeed(Array.ofDim[AnyRef](size))
             queue <- Queue.bounded[(A, Int)](size)
             _     <- queue.offerAll(as.zipWithIndex)
             _     <- ZIO.collectAllParUnboundedDiscard(ZIO.replicate(n)(worker(queue, array)))
@@ -5648,22 +5570,22 @@ object ZIO extends ZIOCompanionPlatformSpecific {
   private def foreachParUnboundedDiscard[R, E, A](
     as0: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
-    ZIO.suspendSucceed {
+    ZIO.suspendSucceedUnsafe { implicit u =>
       val as = as0
       if (as.isEmpty) ZIO.unit
       else {
         val size = as.size
         ZIO.uninterruptibleMask { restore =>
-          val promise = Promise.unsafeMake[Unit, Unit](FiberId.None)
+          val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)
           val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
           ZIO.transplant { graft =>
             ZIO.foreach(as) { a =>
               graft {
                 restore(ZIO.suspendSucceed(f(a))).foldCauseZIO(
-                  cause => promise.fail(()) *> ZIO.failCause(cause),
+                  cause => promise.fail(()) *> ZIO.refailCause(cause),
                   _ =>
                     if (ref.incrementAndGet == size) {
-                      promise.unsafeDone(ZIO.unit)
+                      promise.unsafe.done(ZIO.unit)
                       ZIO.unit
                     } else {
                       ZIO.unit
@@ -5677,13 +5599,340 @@ object ZIO extends ZIOCompanionPlatformSpecific {
                 ZIO
                   .foreachParUnbounded(fibers)(_.interrupt)
                   .flatMap(Exit.collectAllPar(_) match {
-                    case Some(Exit.Failure(causes)) => ZIO.failCause(cause.stripFailures && causes)
-                    case _                          => ZIO.failCause(cause.stripFailures)
+                    case Some(Exit.Failure(causes)) => ZIO.refailCause(cause.stripFailures && causes)
+                    case _                          => ZIO.refailCause(cause.stripFailures)
                   }),
-              _ => ZIO.foreachDiscard(fibers)(_.inheritRefs)
+              _ => ZIO.foreachDiscard(fibers)(_.inheritAll)
             )
           }
         }
       }
     }
+}
+
+/**
+ * An `Exit[E, A]` describes the result of executing an `IO` value. The result
+ * is either succeeded with a value `A`, or failed with a `Cause[E]`.
+ */
+sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
+  import Exit._
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the
+   * first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ && _)
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the
+   * first element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipWith(that)((_, b) => b, _ ++ _)
+
+  /**
+   * Parallelly zips the this result with the specified result discarding the
+   * second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ && _)
+
+  /**
+   * Parallelly zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
+   */
+  final def <&>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ && _)
+
+  /**
+   * Sequentially zips the this result with the specified result discarding the
+   * second element of the tuple or else returns the failed `Cause[E1]`
+   */
+  final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipWith(that)((a, _) => a, _ ++ _)
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
+   */
+  final def <*>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    zipWith(that)(zippable.zip(_, _), _ ++ _)
+
+  /**
+   * Replaces the success value with the one provided.
+   */
+  final def as[B](b: B): Exit[E, B] = map(_ => b)
+
+  /**
+   * Returns an option of the cause of failure.
+   */
+  final def causeOption: Option[Cause[E]] =
+    self match {
+      case Failure(cause) => Some(cause)
+      case _              => None
+    }
+
+  final def exists(p: A => Boolean): Boolean =
+    foldExit(_ => false, p)
+
+  /**
+   * Flat maps over the value type.
+   */
+  final def flatMap[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
+    self match {
+      case Success(a)     => f(a)
+      case e @ Failure(_) => e
+    }
+
+  /**
+   * Flat maps over the value type.
+   */
+  final def flatMapZIO[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
+    self match {
+      case Success(a)     => f(a)
+      case e @ Failure(_) => ZIO.succeedNow(e)
+    }
+
+  /**
+   * Flattens an Exit of an Exit into a single Exit value.
+   */
+  final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
+    Exit.flatten(self.map(ev))
+
+  /**
+   * Folds over the value or cause.
+   */
+  final def foldExit[Z](failed: Cause[E] => Z, completed: A => Z): Z =
+    self match {
+      case Success(v)     => completed(v)
+      case Failure(cause) => failed(cause)
+    }
+
+  /**
+   * Sequentially zips the this result with the specified result or else returns
+   * the failed `Cause[E1]`
+   */
+  final def foldExitZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
+    trace: Trace
+  ): ZIO[R, E1, B] =
+    self match {
+      case Failure(cause) => failed(cause)
+      case Success(v)     => completed(v)
+    }
+
+  /**
+   * Applies the function `f` to the successful result of the `Exit` and returns
+   * the result in a new `Exit`.
+   */
+  final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, Nothing, Exit[E1, B]] =
+    foldExit(c => ZIO.succeedNow(failCause(c)), a => f(a).exit)
+
+  /**
+   * Retrieves the `A` if succeeded, or else returns the specified default `A`.
+   */
+  final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
+    case Success(value) => value
+    case Failure(cause) => orElse(cause)
+  }
+
+  final def getOrThrow(implicit ev: E <:< Throwable): A =
+    getOrElse(cause => throw cause.squashTrace)
+
+  final def getOrThrowFiberFailure: A =
+    getOrElse(c => throw FiberFailure(c))
+
+  /**
+   * Determines if the result is a failure.
+   */
+  final def isFailure: Boolean = !isSuccess
+
+  /**
+   * Determines if the result is interrupted.
+   */
+  final def isInterrupted: Boolean = self match {
+    case Success(_) => false
+    case Failure(c) => c.isInterrupted
+  }
+
+  /**
+   * Determines if the result is a success.
+   */
+  final def isSuccess: Boolean = self match {
+    case Success(_) => true
+    case _          => false
+  }
+
+  /**
+   * Maps over the value type.
+   */
+  final def map[A1](f: A => A1): Exit[E, A1] =
+    self match {
+      case Success(v)     => Exit.succeed(f(v))
+      case e @ Failure(_) => e
+    }
+
+  /**
+   * Maps over both the error and value type.
+   */
+  final def mapBoth[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
+    mapError(f).map(g)
+
+  /**
+   * Maps over the error type.
+   */
+  final def mapError[E1](f: E => E1): Exit[E1, A] =
+    self match {
+      case e @ Success(_) => e
+      case Failure(c)     => failCause(c.map(f))
+    }
+
+  /**
+   * Maps over the cause type.
+   */
+  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): Exit[E1, A] =
+    self match {
+      case e @ Success(_) => e
+      case Failure(c)     => Failure(f(c))
+    }
+
+  /**
+   * Replaces the error value with the one provided.
+   */
+  final def orElseFail[E1](e1: => E1): Exit[E1, A] =
+    mapError(_ => e1)
+
+  /**
+   * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the cause in
+   * `FiberFailure` (if the result is failed).
+   */
+  final def toEither: Either[Throwable, A] = self match {
+    case Success(value) => Right(value)
+    case Failure(cause) => Left(FiberFailure(cause))
+  }
+
+  final def toTry(implicit ev: E <:< Throwable): scala.util.Try[A] =
+    self match {
+      case Success(value) => scala.util.Try(value)
+      case Failure(cause) => scala.util.Failure(cause.squash)
+    }
+
+  /**
+   * Converts the `Exit` to a `ZIO` effect.
+   */
+  final def toZIO(implicit trace: Trace): IO[E, A] =
+    self match {
+      case Exit.Failure(cause) => ZIO.refailCause(cause)
+      case Exit.Success(value) => ZIO.succeedNow(value)
+    }
+
+  final def trace: Trace = Trace.empty
+
+  /**
+   * Discards the value.
+   */
+  final def unit: Exit[E, Unit] = as(())
+
+  /**
+   * Returns an untraced exit value.
+   */
+  final def untraced: Exit[E, A] = mapErrorCause(_.untraced)
+
+  /**
+   * Named alias for `<*>`.
+   */
+  final def zip[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <*> that
+
+  /**
+   * Named alias for `<*`.
+   */
+  final def zipLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <* that
+
+  /**
+   * Named alias for `<&>`.
+   */
+  final def zipPar[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
+    self <&> that
+
+  /**
+   * Named alias for `<&`.
+   */
+  final def zipParLeft[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = self <& that
+
+  /**
+   * Named alias for `&>`.
+   */
+  final def zipParRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self &> that
+
+  /**
+   * Named alias for `*>`.
+   */
+  final def zipRight[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = self *> that
+
+  /**
+   * Zips this together with the specified result using the combination
+   * functions.
+   */
+  final def zipWith[E1 >: E, B, C](that: Exit[E1, B])(
+    f: (A, B) => C,
+    g: (Cause[E], Cause[E1]) => Cause[E1]
+  ): Exit[E1, C] =
+    (self, that) match {
+      case (Success(a), Success(b)) => Exit.succeed(f(a, b))
+      case (Failure(l), Failure(r)) => Exit.failCause(g(l, r))
+      case (e @ Failure(_), _)      => e
+      case (_, e @ Failure(_))      => e
+    }
+}
+
+object Exit extends Serializable {
+
+  final case class Success[+A](value: A)        extends Exit[Nothing, A]
+  final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
+
+  def interrupt(id: FiberId): Exit[Nothing, Nothing] =
+    failCause(Cause.interrupt(id))
+
+  def collectAll[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .map(_.reverse)
+    }
+
+  def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
+    exits.headOption.map { head =>
+      exits
+        .drop(1)
+        .foldLeft(head.map((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
+        .map(_.reverse)
+    }
+
+  def die(t: Throwable): Exit[Nothing, Nothing] =
+    failCause(Cause.die(t))
+
+  def fail[E](error: E): Exit[E, Nothing] =
+    failCause(Cause.fail(error))
+
+  def failCause[E](cause: Cause[E]): Exit[E, Nothing] =
+    Failure(cause)
+
+  def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
+    exit.flatMap(identity)
+
+  def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
+    e.fold(fail, succeed)
+
+  def fromOption[A](o: Option[A]): Exit[Unit, A] =
+    o.fold[Exit[Unit, A]](fail(()))(succeed)
+
+  def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
+    t match {
+      case scala.util.Success(a) => succeed(a)
+      case scala.util.Failure(t) => fail(t)
+    }
+
+  def succeed[A](a: A): Exit[Nothing, A] = Success(a)
+
+  val unit: Exit[Nothing, Unit] = succeed(())
+
+  private[zio] val empty: Exit[Nothing, Nothing] = Exit.failCause[Nothing](Cause.empty)
 }

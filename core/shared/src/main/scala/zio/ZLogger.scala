@@ -10,7 +10,7 @@ trait ZLogger[-Message, +Output] { self =>
     logLevel: LogLevel,
     message: () => Message,
     cause: Cause[Any],
-    context: Map[FiberRef[_], Any],
+    context: FiberRefs,
     spans: List[LogSpan],
     annotations: Map[String, String]
   ): Output
@@ -29,7 +29,7 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => M,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ): zippable.Out =
@@ -51,7 +51,7 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => Message1,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ): Output = self(trace, fiberId, logLevel, () => f(message()), cause, context, spans, annotations)
@@ -69,7 +69,7 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => Message,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ): Option[Output] =
@@ -86,7 +86,7 @@ trait ZLogger[-Message, +Output] { self =>
         logLevel: LogLevel,
         message: () => Message,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ): B = f(self(trace, fiberId, logLevel, message, cause, context, spans, annotations))
@@ -99,7 +99,7 @@ trait ZLogger[-Message, +Output] { self =>
       LogLevel.Info,
       () => input,
       Cause.empty,
-      Map(),
+      FiberRefs.empty,
       Nil,
       Map.empty
     )
@@ -116,7 +116,7 @@ object ZLogger {
     logLevel: LogLevel,
     message0: () => String,
     cause: Cause[Any],
-    context: Map[FiberRef[_], Any],
+    context: FiberRefs,
     spans0: List[LogSpan],
     annotations: Map[String, String]
   ) => {
@@ -211,7 +211,7 @@ object ZLogger {
       logLevel: LogLevel,
       message: () => Any,
       cause: Cause[Any],
-      context: Map[FiberRef[_], Any],
+      context: FiberRefs,
       spans: List[LogSpan],
       annotations: Map[String, String]
     ): Unit =
@@ -226,7 +226,7 @@ object ZLogger {
         logLevel: LogLevel,
         message: () => A,
         cause: Cause[Any],
-        context: Map[FiberRef[_], Any],
+        context: FiberRefs,
         spans: List[LogSpan],
         annotations: Map[String, String]
       ): B =

@@ -58,11 +58,15 @@ class MixedChunkBenchmarks {
 
   @Benchmark
   def filterZIO(): Chunk[Int] =
-    BenchmarkUtil.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+    }
 
   @Benchmark
   def filterMaterializedZIO(): Chunk[Int] =
-    BenchmarkUtil.unsafeRun(chunkMaterialized.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunkMaterialized.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
+    }
 
   @Benchmark
   def map(): Chunk[Int] = chunk.map(_ * 2)
@@ -84,18 +88,26 @@ class MixedChunkBenchmarks {
 
   @Benchmark
   def mapZIO(): Unit =
-    BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
+    }
 
   @Benchmark
   def mapZIOMaterialized(): Unit =
-    BenchmarkUtil.unsafeRun(chunkMaterialized.mapZIODiscard(_ => ZIO.unit))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunkMaterialized.mapZIODiscard(_ => ZIO.unit))
+    }
 
   @Benchmark
   def foldZIO(): Int =
-    BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    }
 
   @Benchmark
   def foldZIOMaterialized(): Int =
-    BenchmarkUtil.unsafeRun(chunkMaterialized.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    Unsafe.unsafeCompat { implicit u =>
+      BenchmarkUtil.unsafeRun(chunkMaterialized.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
+    }
 
 }

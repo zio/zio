@@ -28,7 +28,7 @@ import java.util.concurrent.locks.LockSupport
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(val yieldOpCount: Int) extends Executor {
+private final class ZScheduler extends Executor {
   private[this] val poolSize    = java.lang.Runtime.getRuntime.availableProcessors
   private[this] val cache       = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
   private[this] val globalQueue = MutableConcurrentQueue.unbounded[Runnable]
@@ -51,7 +51,7 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
   supervisor.setDaemon(true)
   supervisor.start()
 
-  def unsafeMetrics: Option[ExecutionMetrics] = {
+  def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
         Int.MaxValue
@@ -100,9 +100,9 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
     Some(metrics)
   }
 
-  def unsafeSubmit(runnable: Runnable): Boolean =
+  def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     if (isBlocking(runnable)) {
-      unsafeSubmitBlocking(runnable)
+      submitBlocking(runnable)
     } else {
       val currentThread = Thread.currentThread
       if (currentThread.isInstanceOf[ZScheduler.Worker]) {
@@ -142,9 +142,9 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
       true
     }
 
-  override def unsafeSubmitAndYield(runnable: Runnable): Boolean =
+  override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     if (isBlocking(runnable)) {
-      unsafeSubmitBlocking(runnable)
+      submitBlocking(runnable)
     } else {
       val currentThread = Thread.currentThread
       var notify        = false
@@ -422,8 +422,8 @@ private final class ZScheduler(val yieldOpCount: Int) extends Executor {
       }
     }
 
-  private[this] def unsafeSubmitBlocking(runnable: Runnable): Boolean =
-    Blocking.blockingExecutor.unsafeSubmit(runnable)
+  private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
+    Blocking.blockingExecutor.submit(runnable)
 }
 
 object ZScheduler {

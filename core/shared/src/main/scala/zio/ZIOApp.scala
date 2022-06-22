@@ -93,7 +93,8 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
   protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
       if (!ZIOApp.installedSignals.getAndSet(true)) {
-        val dumpFibers = () => runtime.unsafeRun(Fiber.dumpAll)
+        val dumpFibers =
+          () => Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(Fiber.dumpAll).getOrThrowFiberFailure)
 
         if (System.os.isWindows) {
           Platform.addSignalHandler("INT", dumpFibers)

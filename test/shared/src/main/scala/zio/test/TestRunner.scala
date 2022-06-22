@@ -28,8 +28,11 @@ import java.util.concurrent.TimeUnit
  * require a test executor, a runtime configuration, and a reporter.
  */
 final case class TestRunner[R, E](
-  executor: TestExecutor[R, E]
+  executor: TestExecutor[R, E],
+  bootstrap: ULayer[TestOutput with ExecutionEventSink] = TestRunner.defaultBootstrap
 ) { self =>
+
+  val runtime: Runtime[Any] = Runtime.default
 
   /**
    * Runs the spec, producing the execution results.
@@ -43,4 +46,54 @@ final case class TestRunner[R, E](
       finished <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
       duration  = Duration.fromMillis(finished - start)
     } yield summary.copy(duration = duration)
+
+  trait UnsafeAPI {
+    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit
+    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit]
+  }
+
+  val unsafe: UnsafeAPI = new UnsafeAPI {
+
+    /**
+     * An unsafe, synchronous run of the specified spec.
+     */
+    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
+      runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure
+
+    /**
+     * An unsafe, asynchronous run of the specified spec.
+     */
+    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+      val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
+      fiber.addObserver {
+        case Exit.Success(_) => k
+        case Exit.Failure(c) => throw FiberFailure(c)
+      }
+    }
+
+    /**
+     * An unsafe, synchronous run of the specified spec.
+     */
+    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit] =
+      runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
+  }
+
+  private[test] def buildRuntime(implicit
+    trace: Trace
+  ): ZIO[Scope, Nothing, Runtime[TestOutput with ExecutionEventSink]] =
+    bootstrap.toRuntime
+}
+
+object TestRunner {
+  lazy val defaultBootstrap = {
+    implicit val emptyTracer = Trace.empty
+
+    ZLayer.make[TestOutput with ExecutionEventSink](
+      ExecutionEventPrinter.live(ConsoleEventRenderer),
+      TestLogger.fromConsole(Console.ConsoleLive),
+      TestOutput.live,
+      ExecutionEventSink.live
+    )
+  }
 }
