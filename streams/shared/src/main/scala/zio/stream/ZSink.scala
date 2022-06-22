@@ -92,6 +92,9 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   def as[Z2](z: => Z2)(implicit trace: Trace): ZSink[R, E, In, L, Z2] =
     map(_ => z)
 
+  def collectAll(implicit ev: L <:< In, trace: Trace): ZSink[R, E, In, L, Chunk[Z]] =
+    collectAllWhileWith[Chunk[Z]](Chunk.empty)(_ => true)((s, z) => s :+ z)
+
   /**
    * Repeatedly runs the sink for as long as its results satisfy the predicate
    * `p`. The sink's results will be accumulated using the stepping function
@@ -337,9 +340,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    */
   final def timed(implicit trace: Trace): ZSink[R, E, In, L, (Z, Duration)] =
     summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
-
-  def repeat(implicit ev: L <:< In, trace: Trace): ZSink[R, E, In, L, Chunk[Z]] =
-    collectAllWhileWith[Chunk[Z]](Chunk.empty)(_ => true)((s, z) => s :+ z)
 
   /**
    * Summarize a sink by running an effect when the sink starts and again when

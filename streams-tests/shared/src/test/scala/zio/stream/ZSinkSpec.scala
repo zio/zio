@@ -854,7 +854,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(
               ZStream
                 .fromChunks(Chunk(1, 2), Chunk(3, 4, 5), Chunk(), Chunk(6, 7), Chunk(8, 9))
-                .run(ZSink.take[Int](3).repeat)
+                .run(ZSink.take[Int](3).collectAll)
             )(
               equalTo(Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6), Chunk(7, 8, 9), Chunk.empty))
             )
@@ -863,7 +863,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(
               ZStream
                 .fromChunks(Chunk(1, 2), Chunk(3, 4, 5), Chunk.empty, Chunk(6, 7), Chunk(8, 9))
-                .run(ZSink.sum[Int].repeat.map(_.sum))
+                .run(ZSink.sum[Int].collectAll.map(_.sum))
             )(
               equalTo(45)
             )
@@ -872,7 +872,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(
               (ZStream
                 .fromChunks(Chunk(1, 2)))
-                .run(ZSink.fail(()).repeat)
+                .run(ZSink.fail(()).collectAll)
                 .either
             )(
               isLeft
