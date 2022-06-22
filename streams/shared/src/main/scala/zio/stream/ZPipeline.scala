@@ -390,7 +390,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           )
 
         lazy val transducer: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Unit] =
-          sink.channel.doneCollect.flatMap { case (leftover, z) =>
+          sink.channel.collectElements.flatMap { case (leftover, z) =>
             ZChannel
               .succeed((upstreamDone.get, concatAndGet(leftover)))
               .flatMap { case (done, newLeftovers) =>

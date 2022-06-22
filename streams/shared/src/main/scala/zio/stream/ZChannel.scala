@@ -292,7 +292,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * output into an in- memory chunk, it is not safe to call this method on
    * channels that output a large or unbounded number of values.
    */
-  def doneCollect(implicit
+  def collectElements(implicit
     trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, (Chunk[OutElem], OutDone)] =
     ZChannel.suspend {
@@ -368,7 +368,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def emitCollect(implicit
     trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, (Chunk[OutElem], OutDone), Unit] =
-    doneCollect.flatMap(t => ZChannel.write(t))
+    collectElements.flatMap(t => ZChannel.write(t))
 
   /**
    * Returns a new channel with an attached finalizer. The finalizer is
@@ -886,7 +886,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZIO.scoped[Env](runScoped)
 
   def runCollect(implicit ev1: Any <:< InElem, trace: Trace): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
-    doneCollect.run
+    collectElements.run
 
   def runDrain(implicit ev1: Any <:< InElem, trace: Trace): ZIO[Env, OutErr, OutDone] =
     self.drain.run

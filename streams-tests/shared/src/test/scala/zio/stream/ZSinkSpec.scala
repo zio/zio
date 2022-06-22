@@ -838,7 +838,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 } yield (inputs, takeSizes, expectedTakes, expectedLeftovers)
 
               check(gen) { case (inputs, takeSizes, expectedTakes, expectedLeftovers) =>
-                val takingSinks = takeSizes.map(takeN(_)).reduce(_ *> _).channel.doneCollect
+                val takingSinks = takeSizes.map(takeN(_)).reduce(_ *> _).channel.collectElements
                 val channel     = ZChannel.writeAll(inputs: _*) >>> takingSinks
 
                 (channel.run <*> readData.getAndSet(Chunk())).map { case (leftovers, _, takenChunks) =>

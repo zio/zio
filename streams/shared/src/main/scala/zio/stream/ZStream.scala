@@ -238,7 +238,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
           val forkSink =
             consumed.set(false) *> endAfterEmit
-              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).doneCollect.runScoped.forkScoped
+              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.runScoped.forkScoped
 
           def handleSide(leftovers: Chunk[Chunk[A1]], b: B, c: Option[C]) =
             ZChannel.unwrap(
@@ -299,7 +299,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         ZStream.unwrapScoped[R1] {
           for {
             _             <- (self.channel >>> handoffProducer).runScoped.forkScoped
-            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).doneCollect.runScoped.forkScoped
+            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.runScoped.forkScoped
             scheduleFiber <- timeout(None).forkScoped
           } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber))
         }

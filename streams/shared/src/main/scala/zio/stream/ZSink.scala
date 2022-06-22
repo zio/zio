@@ -116,7 +116,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
             )
 
           def loop(currentResult: S): ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], S] =
-            channel.doneCollect
+            channel.collectElements
               .foldChannel(
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
@@ -241,7 +241,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     success: Z => ZSink[R1, E2, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink(
-      channel.doneCollect.foldChannel(
+      channel.collectElements.foldChannel(
         failure(_).channel,
         { case (leftovers, z) =>
           ZChannel.suspend {
@@ -256,7 +256,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
             val passthrough      = ZChannel.identity[ZNothing, Chunk[In1], Any]
             val continuationSink = (refReader *> passthrough) >>> success(z).channel
 
-            continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
+            continuationSink.collectElements.flatMap { case (newLeftovers, z1) =>
               ZChannel.succeed(leftoversRef.get).flatMap(ZChannel.writeChunk(_)) *>
                 ZChannel.writeChunk(newLeftovers).as(z1)
             }
@@ -454,7 +454,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     )
 
   def collectLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, (Z, Chunk[L])] =
-    new ZSink(channel.doneCollect.map { case (chunks, z) => (z, chunks.flatten) })
+    new ZSink(channel.collectElements.map { case (chunks, z) => (z, chunks.flatten) })
 
   def ignoreLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
     new ZSink(channel.drain)
@@ -500,7 +500,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
       ZChannel.fromZIO(Ref.make[Chunk[In1]](Chunk.empty)).flatMap { ref =>
         splitter(false, ref)
           .pipeToOrFail(self.channel)
-          .doneCollect
+          .collectElements
           .flatMap { case (leftovers, z) =>
             ZChannel.fromZIO(ref.get).flatMap { leftover =>
               ZChannel.write(leftover ++ leftovers.flatten.map(ev)) *> ZChannel.succeed(z)
@@ -531,7 +531,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
             )
 
           lazy val loop: ZChannel[R1, ZNothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] =
-            channel.doneCollect
+            channel.collectElements
               .foldChannel(
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
