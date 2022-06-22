@@ -1511,8 +1511,8 @@ We spaced 5 seconds between each emission to show the lag between producing and 
 Based on the type of underlying queue we can use one the buffering operators:
 - **Bounded Queue** — `ZStream#buffer(capacity: Int)`
 - **Unbounded Queue** — `ZStream#bufferUnbounded`
-- **Sliding Queue** — `ZStream#bufferDropping(capacity: Int)`
-- **Dropping Queue** `ZStream#bufferSliding(capacity: Int)`
+- **Sliding Queue** — `ZStream#bufferSliding(capacity: Int)`
+- **Dropping Queue** `ZStream#bufferDropping(capacity: Int)`
 
 ### Debouncing
 
