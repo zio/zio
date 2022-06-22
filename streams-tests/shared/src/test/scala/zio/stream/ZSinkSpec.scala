@@ -742,30 +742,30 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           }
         ),
-        test("untilOutputZIO with head sink") {
+        test("findZIO with head sink") {
           val sink: ZSink[Any, Nothing, Int, Int, Option[Option[Int]]] =
-            ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+            ZSink.head[Int].findZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
           val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
             assertZIO(ZStream.fromIterable(1 to 100).rechunk(n).run(sink))(equalTo(Some(Some(10))))
           }
           assertions.map(tst => tst.reduce(_ && _))
         },
-        test("untilOutputZIO take sink across multiple chunks") {
+        test("findZIO take sink across multiple chunks") {
           val sink: ZSink[Any, Nothing, Int, Int, Option[Chunk[Int]]] =
-            ZSink.take[Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
+            ZSink.take[Int](4).findZIO(s => ZIO.succeed(s.sum > 10))
 
           assertZIO(ZStream.fromIterable(1 to 8).rechunk(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
         },
-        test("untilOutputZIO empty stream terminates with none") {
+        test("findZIO empty stream terminates with none") {
           assertZIO(
-            ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Int].untilOutputZIO(s => ZIO.succeed(s > 0)))
+            ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Int].findZIO(s => ZIO.succeed(s > 0)))
           )(equalTo(None))
         },
-        test("untilOutputZIO unsatisfied condition terminates with none") {
+        test("findZIO unsatisfied condition terminates with none") {
           assertZIO(
             ZStream
               .fromIterable(List(1, 2))
-              .run(ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 3))))
+              .run(ZSink.head[Int].findZIO(h => ZIO.succeed(h.fold(false)(_ >= 3))))
           )(equalTo(None))
         },
         suite("flatMap")(

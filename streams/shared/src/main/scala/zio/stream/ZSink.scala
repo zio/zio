@@ -516,7 +516,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Creates a sink that produces values until one verifies the predicate `f`.
    */
-  def untilOutputZIO[R1 <: R, E1 >: E](
+  def findZIO[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
   )(implicit ev: L <:< In, trace: Trace): ZSink[R1, E1, In, L, Option[Z]] =
     new ZSink(
