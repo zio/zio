@@ -75,15 +75,15 @@ at zio.examples.MainApp.run(MainApp.scala:10)" location=zio.examples.MainApp.run
 
 To distinguish importance of log messages from each other, ZIO supports the following log levels. The default log level is `Info`, so when we use the `ZIO.log` or `ZIO.logCause` methods, the log message will be logged at the `Info` level. For other log levels, we can use any of the `ZIO.log*` or `ZIO.log*Cause` methods:
 
-| LogLevel |        Value | Log Message    | Log with Cause
+| LogLevel | Value        | Log Message    | Log with Cause      |
 |----------|--------------|----------------|---------------------|
 | All      | Int.MinValue |                |                     |
-| Fatal    |        50000 | ZIO.logFatal   | ZIO.logFatalCause   |
-| Error    |        40000 | ZIO.logError   | ZIO.logErrorCause   |
-| Warning  |        30000 | ZIO.logWarning | ZIO.logWarningCause |
-| Info     |        20000 | ZIO.logInfo    | ZIO.logInfoCause    |
-| Debug    |        10000 | ZIO.logDebug   | ZIO.logDebugCause   |
-| Trace    |            0 | ZIO.logTrace   | ZIO.logTraceCause   |
+| Fatal    | 50000        | ZIO.logFatal   | ZIO.logFatalCause   |
+| Error    | 40000        | ZIO.logError   | ZIO.logErrorCause   |
+| Warning  | 30000        | ZIO.logWarning | ZIO.logWarningCause |
+| Info     | 20000        | ZIO.logInfo    | ZIO.logInfoCause    |
+| Debug    | 10000        | ZIO.logDebug   | ZIO.logDebugCause   |
+| Trace    | 0            | ZIO.logTrace   | ZIO.logTraceCause   |
 | None     | Int.MaxValue |                |                     |
 
 As we said earlier, the default logger prints log messages equal or above the `Info` level. So, if we run the following code, only the `Info`, `Warning`, and `Error` and the `Fatal` log messages will be printed:

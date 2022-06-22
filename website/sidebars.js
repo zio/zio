@@ -222,6 +222,7 @@ module.exports = {
         "guides/tutorials/encode-and-decode-json-data", 
         "guides/tutorials/enable-logging-in-a-zio-application", 
         "guides/tutorials/create-custom-logger-for-a-zio-application",
+        "guides/tutorials/deploy-a-zio-application-using-docker",
         "guides/handle-errors"
       ],
       "Integration Guides": [
