@@ -501,9 +501,6 @@ object FiberRef {
   private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
     Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor))
 
-  private[zio] val interruptors: FiberRef[Set[ZIO[Any, Nothing, Nothing] => Unit]] =
-    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(Set.empty, identity(_), (parent, _) => parent))
-
   private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
     Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(Some(LogLevel.Debug), identity(_), (_, child) => child))
 

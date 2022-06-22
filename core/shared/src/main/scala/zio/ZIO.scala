@@ -1381,8 +1381,8 @@ sealed trait ZIO[-R, +E, +A]
                 complete(rightFiber, leftFiber, rightWins, raceIndicator, cb)
             }
 
-            leftFiber.startBackground(self)
-            rightFiber.startBackground(right)
+            leftFiber.startFork(self)
+            rightFiber.startFork(right)
           },
           leftFiber.id <> rightFiber.id
         )
@@ -2455,7 +2455,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childFiber = ZIO.unsafe.forkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
 
-      childFiber.startBackground(effect)
+      childFiber.startFork(effect)
 
       childFiber
     }
@@ -5331,12 +5331,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       }
   }
 
-  private[zio] sealed abstract class ZIOError extends Exception with NoStackTrace {
+  private[zio] sealed abstract class ZIOError extends Exception with NoStackTrace { self =>
     def cause: Cause[Any]
 
     def isTraced: Boolean
 
     final def isUntraced: Boolean = !isTraced
+
+    final def toEffect(implicit trace: Trace): ZIO[Any, Any, Any] =
+      if (self.isUntraced) Exit.Failure(self.cause)
+      else ZIO.failCause(self.cause)(trace)
   }
   private[zio] object ZIOError {
     def apply(cause: Cause[Any]): ZIOError = Untraced(cause)

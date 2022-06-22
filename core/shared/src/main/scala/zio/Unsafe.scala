@@ -31,7 +31,7 @@ package zio
 sealed trait Unsafe extends Serializable
 
 object Unsafe extends UnsafeVersionSpecific {
-  protected val unsafe: Unsafe = new Unsafe {}
+  private[zio] val unsafe: Unsafe = new Unsafe {}
 
   def unsafeCompat[A](f: Unsafe => A): A = f(unsafe)
 }
