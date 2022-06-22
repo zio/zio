@@ -2123,6 +2123,20 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   /**
    * Maps over elements of the stream with the specified effectful function,
+   * partitioned by `p` executing invocations of `f` concurrently. The number of
+   * concurrent invocations of `f` is determined by the number of different
+   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
+   * Transformed elements may be reordered but the order within a partition is
+   * maintained.
+   */
+  final def mapZIOParByKey[R1 <: R, E1 >: E, A2, K](
+    keyBy: A => K,
+    buffer: => Int = 16
+  )(f: A => ZIO[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
+    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapZIO(f) }
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
    */
@@ -2130,20 +2144,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     trace: Trace
   ): ZStream[R1, E1, A2] =
     flatMapPar[R1, E1, A2](n)(a => ZStream.fromZIO(f(a)))
-
-  /**
-   * Maps over elements of the stream with the specified effectful function,
-   * partitioned by `p` executing invocations of `f` concurrently. The number of
-   * concurrent invocations of `f` is determined by the number of different
-   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
-   * Transformed elements may be reordered but the order within a partition is
-   * maintained.
-   */
-  final def mapZIOPartitioned[R1 <: R, E1 >: E, A2, K](
-    keyBy: A => K,
-    buffer: => Int = 16
-  )(f: A => ZIO[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
-    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapZIO(f) }
 
   /**
    * Merges this stream and the specified stream together.
