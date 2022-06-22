@@ -381,10 +381,12 @@ object ZStreamSpec extends ZIOBaseSpec {
               val test =
                 ZStream
                   .fromChunk(0 +: data)
-                  .branchAfter(1) { values =>
-                    values.toList match {
-                      case 0 :: Nil => ZPipeline.identity
-                      case _        => ???
+                  .via {
+                    ZPipeline.branchAfter(1) { values =>
+                      values.toList match {
+                        case 0 :: Nil => ZPipeline.identity
+                        case _        => ???
+                      }
                     }
                   }
                   .runCollect
@@ -454,7 +456,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               val test =
                 ZStream
                   .fromChunk(data)
-                  .branchAfter(n)(ZPipeline.prepend(_))
+                  .via(ZPipeline.branchAfter(n)(ZPipeline.prepend(_)))
                   .runCollect
               assertZIO(test.exit)(succeeds(equalTo(data)))
             }

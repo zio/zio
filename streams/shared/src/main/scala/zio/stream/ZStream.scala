@@ -313,15 +313,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     map(_ => A2)
 
   /**
-   * Reads the first n values from the stream and uses them to choose the
-   * pipeline that will be used for the remainder of the stream.
-   */
-  def branchAfter[R1 <: R, E1 >: E, B](
-    n: Int
-  )(f: Chunk[A] => ZPipeline[R1, E1, A, B])(implicit trace: Trace): ZStream[R1, E1, B] =
-    self >>> ZPipeline.branchAfter(n)(f)
-
-  /**
    * Fan out the stream, producing a list of streams that have the same elements
    * as this stream. The driver stream will only ever advance the `maximumLag`
    * chunks before the slowest downstream stream.
