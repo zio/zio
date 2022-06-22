@@ -572,7 +572,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         test("handles leftovers") {
           val leftover = ZStream
             .fromIterable(1 to 5)
-            .run(ZSink.foreachWhile((n: Int) => ZIO.succeed(n <= 3)).exposeLeftover)
+            .run(ZSink.foreachWhile((n: Int) => ZIO.succeed(n <= 3)).collectLeftover)
             .map(_._2)
           assertZIO(leftover)(equalTo(Chunk(4, 5)))
         }

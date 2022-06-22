@@ -2408,7 +2408,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       p       <- Promise.make[E1, Z]
       handoff <- ZStream.Handoff.make[Signal]
     } yield {
-      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.exposeLeftover
+      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.collectLeftover
         .foldSink(
           e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
