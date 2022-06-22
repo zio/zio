@@ -31,7 +31,7 @@ import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
-  import ZStream.TerminationStrategy
+  import ZStream.HaltStrategy
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -2153,7 +2153,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def merge[R1 <: R, E1 >: E, A1 >: A](
     that: => ZStream[R1, E1, A1],
-    strategy: => TerminationStrategy = TerminationStrategy.Both
+    strategy: => HaltStrategy = HaltStrategy.Both
   )(implicit trace: Trace): ZStream[R1, E1, A1] =
     self.mergeWith[R1, E1, A1, A1](that, strategy)(identity, identity) // TODO: Dotty doesn't infer this properly
 
@@ -2161,28 +2161,28 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Merges this stream and the specified stream together. New produced stream
    * will terminate when either stream terminates.
    */
-  final def mergeTerminateEither[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
+  final def mergeHaltEither[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
     trace: Trace
   ): ZStream[R1, E1, A1] =
-    self.merge[R1, E1, A1](that, TerminationStrategy.Either)
+    self.merge[R1, E1, A1](that, HaltStrategy.Either)
 
   /**
    * Merges this stream and the specified stream together. New produced stream
    * will terminate when this stream terminates.
    */
-  final def mergeTerminateLeft[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
+  final def mergeHaltLeft[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
     trace: Trace
   ): ZStream[R1, E1, A1] =
-    self.merge[R1, E1, A1](that, TerminationStrategy.Left)
+    self.merge[R1, E1, A1](that, HaltStrategy.Left)
 
   /**
    * Merges this stream and the specified stream together. New produced stream
    * will terminate when the specified stream terminates.
    */
-  final def mergeTerminateRight[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
+  final def mergeHaltRight[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
     trace: Trace
   ): ZStream[R1, E1, A1] =
-    self.merge[R1, E1, A1](that, TerminationStrategy.Right)
+    self.merge[R1, E1, A1](that, HaltStrategy.Right)
 
   /**
    * Merges this stream and the specified stream together to produce a stream of
@@ -2199,7 +2199,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def mergeLeft[R1 <: R, E1 >: E, A2](
     that: => ZStream[R1, E1, A2],
-    strategy: TerminationStrategy = TerminationStrategy.Both
+    strategy: HaltStrategy = HaltStrategy.Both
   )(implicit
     trace: Trace
   ): ZStream[R1, E1, A] =
@@ -2211,7 +2211,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def mergeRight[R1 <: R, E1 >: E, A2](
     that: => ZStream[R1, E1, A2],
-    strategy: TerminationStrategy = TerminationStrategy.Both
+    strategy: HaltStrategy = HaltStrategy.Both
   )(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
@@ -2226,9 +2226,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def mergeWith[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2],
-    strategy: => TerminationStrategy = TerminationStrategy.Both
+    strategy: => HaltStrategy = HaltStrategy.Both
   )(l: A => A3, r: A2 => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
-    import TerminationStrategy.{Either, Left, Right}
+    import HaltStrategy.{Either, Left, Right}
 
     def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
       if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
@@ -3126,7 +3126,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           _ => ZChannel.fromZIO(queue.shutdown)
         )
       new ZStream(self.channel >>> loop)
-        .merge(ZStream.execute(right.run(sink)), TerminationStrategy.Both)
+        .merge(ZStream.execute(right.run(sink)), HaltStrategy.Both)
     }
 
   /**
@@ -5463,12 +5463,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       fromZIO(a()).flatMap(pf.applyOrElse(_, (_: A) => ZStream.empty))
   }
 
-  sealed trait TerminationStrategy
-  object TerminationStrategy {
-    case object Left   extends TerminationStrategy
-    case object Right  extends TerminationStrategy
-    case object Both   extends TerminationStrategy
-    case object Either extends TerminationStrategy
+  sealed trait HaltStrategy
+  object HaltStrategy {
+    case object Left   extends HaltStrategy
+    case object Right  extends HaltStrategy
+    case object Both   extends HaltStrategy
+    case object Either extends HaltStrategy
   }
 
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {

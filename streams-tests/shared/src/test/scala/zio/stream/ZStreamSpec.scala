@@ -2586,14 +2586,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(stream.runDrain.exit)(fails(equalTo("fail")))
           } @@ nonFlaky @@ TestAspect.diagnose(10.seconds)
         ),
-        suite("mergeTerminateLeft")(
+        suite("mergeHaltLeft")(
           test("terminates as soon as the first stream terminates") {
             for {
               queue1 <- Queue.unbounded[Int]
               queue2 <- Queue.unbounded[Int]
               stream1 = ZStream.fromQueue(queue1)
               stream2 = ZStream.fromQueue(queue2)
-              fiber  <- stream1.mergeTerminateLeft(stream2).runCollect.fork
+              fiber  <- stream1.mergeHaltLeft(stream2).runCollect.fork
               _      <- queue1.offer(1) *> TestClock.adjust(1.second)
               _      <- queue1.offer(2) *> TestClock.adjust(1.second)
               _      <- queue1.shutdown *> TestClock.adjust(1.second)
@@ -2604,17 +2604,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("interrupts pulling on finish") {
             val s1 = ZStream(1, 2, 3)
             val s2 = ZStream.fromZIO(Clock.sleep(5.seconds).as(4))
-            assertZIO(s1.mergeTerminateLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
+            assertZIO(s1.mergeHaltLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
           }
         ),
-        suite("mergeTerminateRight")(
+        suite("mergeHaltRight")(
           test("terminates as soon as the second stream terminates") {
             for {
               queue1 <- Queue.unbounded[Int]
               queue2 <- Queue.unbounded[Int]
               stream1 = ZStream.fromQueue(queue1)
               stream2 = ZStream.fromQueue(queue2)
-              fiber  <- stream1.mergeTerminateRight(stream2).runCollect.fork
+              fiber  <- stream1.mergeHaltRight(stream2).runCollect.fork
               _      <- queue2.offer(2) *> TestClock.adjust(1.second)
               _      <- queue2.offer(3) *> TestClock.adjust(1.second)
               _      <- queue2.shutdown *> TestClock.adjust(1.second)
@@ -2623,14 +2623,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(Chunk(2, 3)))
           } @@ exceptJS
         ),
-        suite("mergeTerminateEither")(
+        suite("mergeHaltEither")(
           test("terminates as soon as either stream terminates") {
             for {
               queue1 <- Queue.unbounded[Int]
               queue2 <- Queue.unbounded[Int]
               stream1 = ZStream.fromQueue(queue1)
               stream2 = ZStream.fromQueue(queue2)
-              fiber  <- stream1.mergeTerminateEither(stream2).runCollect.fork
+              fiber  <- stream1.mergeHaltEither(stream2).runCollect.fork
               _      <- queue1.shutdown
               _      <- TestClock.adjust(1.second)
               _      <- queue2.offer(1)

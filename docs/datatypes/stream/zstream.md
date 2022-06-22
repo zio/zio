@@ -1307,11 +1307,11 @@ By default, when we merge two streams using `ZStream#merge` operation, the newly
 Here is an example of specifying termination strategy when merging two streams:
 
 ```scala mdoc:silent:nest
-import zio.stream.ZStream.TerminationStrategy
+import zio.stream.ZStream.HaltStrategy
 val s1 = ZStream.iterate(1)(_+1).take(5).rechunk(1)
 val s2 = ZStream.repeat(0).rechunk(1)
 
-val merged = s1.merge(s2, TerminationStrategy.Left)
+val merged = s1.merge(s2, HaltStrategy.Left)
 ```
 
 We can also use `ZStream#mergeTerminateLeft`, `ZStream#mergeTerminateRight` or `ZStream#mergeTerminateEither` operations instead of specifying manually the termination strategy.
