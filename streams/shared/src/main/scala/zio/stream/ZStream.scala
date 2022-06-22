@@ -1424,13 +1424,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def filterNot(pred: A => Boolean)(implicit trace: Trace): ZStream[R, E, A] = filter(a => !pred(a))
 
   /**
-   * Emits elements of this stream with a fixed delay in between, regardless of
-   * how long it takes to produce a value.
-   */
-  final def fixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
-    schedule(Schedule.fixed(duration))
-
-  /**
    * Returns a stream made of the concatenation in strict order of all the
    * streams produced by passing each element of this stream to `f0`
    */
@@ -2827,6 +2820,13 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     schedule: => Schedule[R1, A, B]
   )(implicit trace: Trace): ZStream[R1, E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Emits elements of this stream with a fixed delay in between, regardless of
+   * how long it takes to produce a value.
+   */
+  final def scheduleFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
+    schedule(Schedule.fixed(duration))
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits

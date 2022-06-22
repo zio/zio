@@ -81,7 +81,7 @@ val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 ```scala mdoc:silent
 val timed: ZSink[Any, Nothing, Any, Nothing, Duration] = ZSink.timed
 val stream: ZIO[Any, Nothing, Long] =
-  ZStream(1, 2, 3, 4, 5).fixed(2.seconds).run(timed).map(_.getSeconds)
+  ZStream(1, 2, 3, 4, 5).scheduleFixed(2.seconds).run(timed).map(_.getSeconds)
 // Result: 10
 ```
 
@@ -339,7 +339,7 @@ val myApp: IO[IOException, Unit] =
     queue    <- Queue.bounded[Int](32)
     producer <- ZStream
       .iterate(1)(_ + 1)
-      .fixed(200.millis)
+      .scheduleFixed(200.millis)
       .run(ZSink.fromQueue(queue))
       .fork
     consumer <- queue.take.flatMap(printLine(_)).forever
@@ -359,7 +359,7 @@ val myApp: ZIO[Any, IOException, Unit] =
     promise <- Promise.make[Nothing, Unit]
     hub <- Hub.bounded[Int](1)
     sink <- ZIO.succeed(ZSink.fromHub(hub))
-    producer <- ZStream.iterate(0)(_ + 1).fixed(1.seconds).run(sink).fork
+    producer <- ZStream.iterate(0)(_ + 1).scheduleFixed(1.seconds).run(sink).fork
     consumers <- ZIO.scoped {
       hub.subscribe.zip(hub.subscribe).flatMap { case (left, right) =>
         for {
