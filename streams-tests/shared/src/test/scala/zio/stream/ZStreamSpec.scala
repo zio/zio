@@ -1069,20 +1069,6 @@ object ZStreamSpec extends ZIOBaseSpec {
             }
           }
         ),
-        suite("defaultIfEmpty")(
-          test("produce default value if stream is empty")(
-            assertZIO(ZStream().defaultIfEmpty(0).runCollect)(equalTo(Chunk(0)))
-          ),
-          test("consume default stream if stream is empty")(
-            assertZIO(ZStream().defaultIfEmpty(ZStream.range(0, 5)).runCollect)(equalTo(Chunk(0, 1, 2, 3, 4)))
-          ),
-          test("ignore default value when stream is not empty")(
-            assertZIO(ZStream(1).defaultIfEmpty(0).runCollect)(equalTo(Chunk(1)))
-          ),
-          test("should throw correct error from default stream")(
-            assertZIO(ZStream().defaultIfEmpty(ZStream.fail("Ouch")).runCollect.either)(isLeft(equalTo("Ouch")))
-          )
-        ),
         suite("drain")(
           test("drain")(
             for {
@@ -2678,6 +2664,20 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             assertZIO(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
           }
+        ),
+        suite("orElseIfEmpty")(
+          test("produce default value if stream is empty")(
+            assertZIO(ZStream().orElseIfEmpty(0).runCollect)(equalTo(Chunk(0)))
+          ),
+          test("consume default stream if stream is empty")(
+            assertZIO(ZStream().orElseIfEmpty(ZStream.range(0, 5)).runCollect)(equalTo(Chunk(0, 1, 2, 3, 4)))
+          ),
+          test("ignore default value when stream is not empty")(
+            assertZIO(ZStream(1).orElseIfEmpty(0).runCollect)(equalTo(Chunk(1)))
+          ),
+          test("should throw correct error from default stream")(
+            assertZIO(ZStream().orElseIfEmpty(ZStream.fail("Ouch")).runCollect.either)(isLeft(equalTo("Ouch")))
+          )
         ),
         suite("partitionEither")(
           test("allows repeated runs without hanging") {
