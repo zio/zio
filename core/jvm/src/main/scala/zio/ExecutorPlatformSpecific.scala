@@ -22,7 +22,7 @@ import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 import java.{util => ju}
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 
-trait ExecutorPlatformSpecific { this: Executor =>
+private[zio] trait ExecutorPlatformSpecific { this: Executor =>
 
   /**
    * Views this `Executor` as a Scala `ExecutionContextExecutorService`.

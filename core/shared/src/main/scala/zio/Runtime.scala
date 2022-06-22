@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberScope, Platform, FiberRuntime, StackBool, StackTraceBuilder}
+import zio.internal.{FiberScope, Platform, FiberRuntime, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future

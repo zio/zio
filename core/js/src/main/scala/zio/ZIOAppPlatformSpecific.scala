@@ -3,7 +3,7 @@ package zio
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-trait ZIOAppPlatformSpecific { self: ZIOApp =>
+private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.

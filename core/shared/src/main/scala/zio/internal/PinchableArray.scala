@@ -19,7 +19,7 @@ import scala.reflect.ClassTag
 
 import zio.Chunk
 
-final class PinchableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
+private[zio] final class PinchableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
   import java.lang.System
 
   private var array  = if (hint < 0) null else new Array[A](hint)
@@ -108,6 +108,6 @@ final class PinchableArray[A: ClassTag](hint: Int) extends Iterable[A] { self =>
 
   override def toString(): String = self.mkString("PinchableArray(", ",", ")")
 }
-object PinchableArray {
+private[zio] object PinchableArray {
   def make[A: ClassTag](hint: Int): PinchableArray[A] = new PinchableArray[A](hint)
 }

@@ -3494,7 +3494,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val executor = Executor.fromExecutionContext {
           scala.concurrent.ExecutionContext.Implicits.global
         }
-        val pool = ZIO.succeed(Platform.getCurrentThreadGroup)
+        val pool = ZIO.succeed(Unsafe.unsafeCompat(implicit u => Platform.getCurrentThreadGroup()))
         val io = for {
           parentPool <- pool
           childPool  <- pool.fork.flatMap(_.join)

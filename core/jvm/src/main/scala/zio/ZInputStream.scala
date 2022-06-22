@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
-abstract class ZInputStream {
+trait ZInputStream {
   def readN(n: Int)(implicit trace: Trace): IO[Option[IOException], Chunk[Byte]]
   def skip(n: Long)(implicit trace: Trace): IO[IOException, Long]
   def readAll(bufferSize: Int)(implicit trace: Trace): IO[Option[IOException], Chunk[Byte]]

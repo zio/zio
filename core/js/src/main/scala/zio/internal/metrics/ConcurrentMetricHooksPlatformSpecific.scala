@@ -19,7 +19,7 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 
-class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
+private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     var sum = 0.0
 
