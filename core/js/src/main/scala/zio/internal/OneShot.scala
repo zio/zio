@@ -48,7 +48,7 @@ private[zio] final class OneShot[A] private (var value: A) {
   }
 }
 
-object OneShot {
+private[zio] object OneShot {
 
   /**
    * Makes a new (unset) variable.

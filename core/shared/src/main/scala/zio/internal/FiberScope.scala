@@ -72,6 +72,6 @@ private[zio] object FiberScope {
     }
   }
 
-  private[zio] def make(fiber: FiberRuntime[_, _])(implicit unsafe: Unsafe): FiberScope =
+  private[zio] def make(fiber: FiberRuntime[_, _]): FiberScope =
     new Local(fiber.id, new WeakReference(fiber))
 }

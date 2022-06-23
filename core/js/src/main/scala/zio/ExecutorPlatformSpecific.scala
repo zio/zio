@@ -18,4 +18,4 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-trait ExecutorPlatformSpecific
+private[zio] trait ExecutorPlatformSpecific

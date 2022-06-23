@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-object RingBuffer {
+private[zio] object RingBuffer {
 
   /**
    * @note
@@ -40,7 +40,7 @@ object RingBuffer {
 /**
  * See [[zio.internal.RingBuffer]] for details on design, tradeoffs, etc.
  */
-abstract class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
+private[zio] abstract class RingBuffer[A](override final val capacity: Int) extends MutableConcurrentQueue[A] {
   private[this] val buf: Array[AnyRef] = new Array[AnyRef](capacity)
 
   private[this] var head: Long = 0L

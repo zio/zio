@@ -18,11 +18,11 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-final class RingBufferArb[A] private (capacity: Int) extends RingBuffer[A](capacity) {
+private[zio] final class RingBufferArb[A] private (capacity: Int) extends RingBuffer[A](capacity) {
   protected def posToIdx(pos: Long, capacity: Int): Int = (pos % capacity.toLong).toInt
 }
 
-object RingBufferArb {
+private[zio] object RingBufferArb {
   final def apply[A](capacity: Int): RingBufferArb[A] = {
     assert(capacity >= 2)
 

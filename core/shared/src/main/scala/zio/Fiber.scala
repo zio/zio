@@ -509,12 +509,16 @@ object Fiber extends FiberPlatformSpecific {
      */
     def trace(implicit trace: Trace): UIO[StackTrace]
 
-    /**
-     * Adds an observer to the list of observers.
-     */
-    def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
+    def unsafe: UnsafeAPI
+    trait UnsafeAPI {
+      def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
 
-    def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs
+      def deleteFiberRef(ref: FiberRef[_])(implicit unsafe: Unsafe): Unit
+
+      def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs
+
+      def removeObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
+    }
   }
 
   private[zio] object Runtime {

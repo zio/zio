@@ -3,7 +3,7 @@ package zio
 import zio.internal._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-trait ZIOAppPlatformSpecific { self: ZIOApp =>
+private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
 
   /**
    * The Scala main function, intended to be called only by the Scala runtime.
@@ -43,9 +43,8 @@ trait ZIOAppPlatformSpecific { self: ZIOApp =>
                 ()
               }
             })
-          result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_)).exitCode
-          _      <- exit(result)
-        } yield ()).provideLayer(newLayer)
+          result <- fiber.join
+        } yield result).provideLayer(newLayer).tapErrorCause(ZIO.logErrorCause(_)).exitCode.tap(exit)
       }.getOrThrowFiberFailure
     }
   }

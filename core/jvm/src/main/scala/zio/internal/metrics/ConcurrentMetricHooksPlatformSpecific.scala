@@ -22,7 +22,7 @@ import java.util.concurrent.atomic._
 import java.util.concurrent.ConcurrentHashMap
 import java.lang.{Double => JDouble}
 
-class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
+private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     val adder = new DoubleAdder
 
