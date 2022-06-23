@@ -27,7 +27,7 @@ for {
 
 The environment does not have to be a primitive value like an integer. It can be much more complex, for example, a `trait` or `case class`.
 
-When the environment is a type with fields, the `ZIO.access` method can be used to access a given part of the environment in a single method call:
+When the environment is a type with fields, the `ZIO.service` method can be used to access a given part of the environment in a single method call:
 
 ```scala mdoc:silent:nest
 final case class Config(server: String, port: Int)
