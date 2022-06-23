@@ -65,7 +65,7 @@ trait Runtime[+R] { self =>
     ZIO.fiberId.flatMap { fiberId =>
       ZIO.asyncInterruptUnsafe[Any, E, A] { implicit u => callback =>
         val fiber = unsafe.fork(zio)
-        fiber.addObserver(exit => callback(ZIO.done(exit)))
+        fiber.unsafe.addObserver(exit => callback(ZIO.done(exit)))
         Left(ZIO.blocking(fiber.interruptAs(fiberId)))
       }
     }
@@ -151,7 +151,7 @@ trait Runtime[+R] { self =>
      * This method is effectful and should only be invoked at the edges of your
      * program.
      */
-    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Fiber.Runtime[E, A] = {
+    def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       import internal.FiberRuntime
 
       val fiberId   = FiberId.make(trace)

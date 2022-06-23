@@ -105,7 +105,7 @@ sealed class ZTestTask(
         } yield ()
 
       }
-      fiber.addObserver { exit =>
+      fiber.unsafe.addObserver { exit =>
         exit match {
           case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
           case _                   =>

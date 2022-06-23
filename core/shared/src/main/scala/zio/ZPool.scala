@@ -1,5 +1,3 @@
-package zio
-
 /*
  * Copyright 2021-2022 John A. De Goes and the ZIO Contributors
  *
@@ -15,6 +13,8 @@ package zio
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
