@@ -2819,17 +2819,10 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   /**
    * Schedules the output of the stream using the provided `schedule`.
    */
-  final def scheduleElements[R1 <: R](schedule: => Schedule[R1, A, Any])(implicit
+  final def schedule[R1 <: R](schedule: => Schedule[R1, A, Any])(implicit
     trace: Trace
   ): ZStream[R1, E, A] =
     scheduleEither(schedule).collect { case Right(a) => a }
-
-  /**
-   * Emits elements of this stream with a fixed delay in between, regardless of
-   * how long it takes to produce a value.
-   */
-  final def scheduleElementsFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
-    scheduleElements(Schedule.fixed(duration))
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits
