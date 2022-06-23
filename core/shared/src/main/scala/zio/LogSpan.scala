@@ -18,7 +18,7 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 final case class LogSpan(label: String, startTime: Long) {
-  private[zio] def unsafeRender(sb: StringBuilder, now: Long): Unit = {
+  private[zio] def renderInto(sb: StringBuilder, now: Long)(implicit unsafe: Unsafe): Unit = {
     if (label.indexOf(" ") < 0) sb.append(label)
     else {
       sb.append("\"")
@@ -36,7 +36,7 @@ final case class LogSpan(label: String, startTime: Long) {
   def render(now: Long): String = {
     val sb = new StringBuilder()
 
-    unsafeRender(sb, now)
+    renderInto(sb, now)(Unsafe.unsafe)
 
     sb.toString()
   }

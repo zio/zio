@@ -157,7 +157,7 @@ object ZLogger {
           sb.append(" ")
         }
 
-        it.next().unsafeRender(sb, nowMillis)
+        it.next().renderInto(sb, nowMillis)(Unsafe.unsafe)
       }
     }
 

@@ -40,22 +40,9 @@ trait Runtime[+R] { self =>
     FiberRefs.empty
 
   /**
-   * The [[zio.RuntimeFlags]] that will be used for all effects executed by this
-   * [[zio.Runtime]].
-   */
-  def runtimeFlags: RuntimeFlags =
-    RuntimeFlags.default
-
-  /**
-   * Constructs a new `Runtime` with the specified new environment.
-   */
-  def as[R1](r1: ZEnvironment[R1]): Runtime[R1] =
-    map(_ => r1)
-
-  /**
    * Constructs a new `Runtime` by mapping the environment.
    */
-  def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
+  def mapEnvironment[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime[R1] =
     Runtime(f(environment), fiberRefs, runtimeFlags)
 
   /**
@@ -70,34 +57,47 @@ trait Runtime[+R] { self =>
       }
     }
 
+  /**
+   * The [[zio.RuntimeFlags]] that will be used for all effects executed by this
+   * [[zio.Runtime]].
+   */
+  def runtimeFlags: RuntimeFlags =
+    RuntimeFlags.default
+
+  /**
+   * Constructs a new `Runtime` with the specified new environment.
+   */
+  def withEnvironment[R1](r1: ZEnvironment[R1]): Runtime[R1] =
+    mapEnvironment(_ => r1)
+
   trait UnsafeAPI {
 
     /**
-     * Executes the effect synchronously and returns it's results as an Exit
-     * value. May fail on Scala.js if the effect cannot be entirely run
-     * synchronously.
+     * Executes the effect synchronously and returns its result as a
+     * [[zio.Exit]] value. May fail on Scala.js if the effect cannot be entirely
+     * run synchronously.
      *
-     * This method is effectful and should only be done at the edges of your
-     * program.
+     * This method is effectful and should only be used at the edges of your
+     * application.
      */
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
 
     /**
-     * Executes the effect asynchronously, eventually passing the exit value to
-     * the specified callback. It returns an interface, which can be used to
-     * query and manipulate the running execution.
+     * Executes the effect asynchronously, returning a fiber whose methods can
+     * await the exit value of the fiber or interrupt the fiber.
      *
-     * This method is effectful and should only be invoked at the edges of your
-     * program.
+     * This method is effectful and should only be used at the edges of your
+     * application.
      */
     def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Fiber.Runtime[E, A]
 
     /**
-     * Runs the IO, returning a Future that will be completed when the effect
-     * has been executed.
+     * Executes the effect asynchronously, returning a Future that will be
+     * completed when the effect has been fully executed. The Future can be
+     * canceled, which will be translated into ZIO's interruption model.
      *
      * This method is effectful and should only be used at the edges of your
-     * program.
+     * application.
      */
     def runToFuture[E <: Throwable, A](
       zio: ZIO[R, E, A]
@@ -105,15 +105,6 @@ trait Runtime[+R] { self =>
   }
 
   val unsafe: UnsafeAPI = new UnsafeAPI {
-
-    /**
-     * Executes the effect synchronously and returns it's results as an Exit
-     * value. May fail on Scala.js if the effect cannot be entirely run
-     * synchronously.
-     *
-     * This method is effectful and should only be done at the edges of your
-     * program.
-     */
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] = {
       import internal.FiberRuntime
 
@@ -143,14 +134,6 @@ trait Runtime[+R] { self =>
       }
     }
 
-    /**
-     * Executes the effect asynchronously, eventually passing the exit value to
-     * the specified callback. It returns an interface, which can be used to
-     * query and manipulate the running execution.
-     *
-     * This method is effectful and should only be invoked at the edges of your
-     * program.
-     */
     def fork[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): internal.FiberRuntime[E, A] = {
       import internal.FiberRuntime
 
@@ -162,7 +145,7 @@ trait Runtime[+R] { self =>
 
       val supervisor = fiber.getSupervisor()
 
-      if (supervisor != Supervisor.none) {
+      if (supervisor ne Supervisor.none) {
         supervisor.onStart(environment, zio, None, fiber)
 
         fiber.addObserver(exit => supervisor.onEnd(exit, fiber))
@@ -178,6 +161,7 @@ trait Runtime[+R] { self =>
       val p: scala.concurrent.Promise[A] = scala.concurrent.Promise[A]()
 
       val fiber = fork(zio)
+
       fiber.addObserver(_.foldExit(cause => p.failure(cause.squashTraceWith(identity)), p.success))
 
       new CancelableFuture[A](p.future) {
@@ -278,7 +262,7 @@ object Runtime extends RuntimePlatformSpecific {
    * legacy code, but other applications should investigate using
    * [[ZIO.provide]] directly in their application entry points.
    */
-  def unsafeFromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
+  def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
     val (runtime, shutdown) = default.unsafe.run {
       Scope.make.flatMap { scope =>
         scope.extend(layer.toRuntime).flatMap { acquire =>
@@ -304,19 +288,15 @@ object Runtime extends RuntimePlatformSpecific {
    * A runtime that can be shutdown to release resources allocated to it.
    */
   abstract class Scoped[+R] extends Runtime[R] {
+    override final def mapEnvironment[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
+      Scoped(f(environment), fiberRefs, () => shutdown()(Unsafe.unsafe))
 
     /**
      * Shuts down this runtime and releases resources allocated to it. Once this
      * runtime has been shut down the behavior of methods on it is undefined and
      * it should be discarded.
      */
-    def shutdown(): Unit
-
-    override final def as[R1](r1: ZEnvironment[R1]): Runtime.Scoped[R1] =
-      map(_ => r1)
-
-    override final def map[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
-      Scoped(f(environment), fiberRefs, () => shutdown())
+    def shutdown()(implicit unsafe: Unsafe): Unit
   }
 
   object Scoped {
@@ -331,9 +311,9 @@ object Runtime extends RuntimePlatformSpecific {
       shutdown0: () => Unit
     ): Runtime.Scoped[R] =
       new Runtime.Scoped[R] {
-        val environment        = r
-        def shutdown()         = shutdown0()
-        override val fiberRefs = fiberRefs0
+        val environment                         = r
+        def shutdown()(implicit unsafe: Unsafe) = shutdown0()
+        override val fiberRefs                  = fiberRefs0
       }
   }
 }

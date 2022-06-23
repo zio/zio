@@ -94,7 +94,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def id: FiberId.Runtime = fiberId
 
   def inheritAll(implicit trace: Trace): UIO[Unit] =
-    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (parentFiber, parentStatus) =>
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (parentFiber, parentStatus) =>
+      implicit val unsafe = Unsafe.unsafe
+
       val parentFiberId      = parentFiber.id
       val parentFiberRefs    = parentFiber.getFiberRefs()
       val parentRuntimeFlags = parentStatus.runtimeFlags

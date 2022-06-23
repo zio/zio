@@ -100,7 +100,7 @@ trait ZIOCompanionVersionSpecific {
    * }}}
    */
   def attempt[A](code: Unsafe ?=> A)(implicit trace: Trace): Task[A] =
-    ZIO.unsafeStateful[Any, Throwable, A] { implicit u => (fiberState, _) =>
+    ZIO.withFiberRuntime[Any, Throwable, A] { implicit u => (fiberState, _) =>
       try {
         val result = code
 

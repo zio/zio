@@ -102,8 +102,8 @@ trait FiberRef[A] extends Serializable { self =>
   def join(oldValue: Value, newValue: Value): Value
 
   def delete(implicit trace: Trace): UIO[Unit] =
-    ZIO.unsafeStateful[Any, Nothing, Unit] { implicit u => (fiberState, _) =>
-      fiberState.deleteFiberRef(self)
+    ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
+      fiberState.deleteFiberRef(self)(Unsafe.unsafe)
       ZIO.unit
     }
 
@@ -191,10 +191,10 @@ trait FiberRef[A] extends Serializable { self =>
    * version of `update`.
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
-    ZIO.unsafeStateful[Any, Nothing, B] { implicit u => (fiberState, _) =>
-      val (b, a) = f(fiberState.getFiberRef(self))
+    ZIO.withFiberRuntime[Any, Nothing, B] { (fiberState, _) =>
+      val (b, a) = f(fiberState.getFiberRef(self)(Unsafe.unsafe))
 
-      fiberState.setFiberRef(self, a)
+      fiberState.setFiberRef(self, a)(Unsafe.unsafe)
 
       ZIO.succeedNow(b)
     }
@@ -429,27 +429,27 @@ object FiberRef {
           join0(oldValue, newValue)
 
         override def get(implicit trace: Trace): UIO[Value] =
-          ZIO.unsafeStateful[Any, Nothing, Value] { implicit unsafe => (fiberState, _) =>
-            ZIO.succeedNow(fiberState.getFiberRef(self))
+          ZIO.withFiberRuntime[Any, Nothing, Value] { (fiberState, _) =>
+            ZIO.succeedNow(fiberState.getFiberRef(self)(Unsafe.unsafe))
           }
 
         override def getWith[R, E, A](f: Value => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.unsafeStateful[R, E, A] { implicit unsafe => (fiberState, _) =>
-            f(fiberState.getFiberRef(self))
+          ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
+            f(fiberState.getFiberRef(self)(Unsafe.unsafe))
           }
 
         override def locally[R, E, A](newValue: Value)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.unsafeStateful[R, E, A] { implicit unsafe => (fiberState, _) =>
+          ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
             val oldValue = fiberState.getFiberRef(self)
 
             fiberState.setFiberRef(self, newValue)
 
-            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)))
+            zio.ensuring(ZIO.succeed(fiberState.setFiberRef(self, oldValue)(Unsafe.unsafe)))
           }
 
         override def set(value: Value)(implicit trace: Trace): UIO[Unit] =
-          ZIO.unsafeStateful[Any, Nothing, Unit] { implicit unsafe => (fiberState, _) =>
-            fiberState.setFiberRef(self, value)
+          ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
+            fiberState.setFiberRef(self, value)(Unsafe.unsafe)
 
             ZIO.unit
           }
