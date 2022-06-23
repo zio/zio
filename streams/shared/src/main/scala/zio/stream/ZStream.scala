@@ -2825,13 +2825,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     scheduleEither(schedule).collect { case Right(a) => a }
 
   /**
-   * Emits elements of this stream with a fixed delay in between, regardless of
-   * how long it takes to produce a value.
-   */
-  final def scheduleFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
-    schedule(Schedule.fixed(duration))
-
-  /**
    * Schedules the output of the stream using the provided `schedule` and emits
    * its output at the end (if `schedule` is finite). Uses the provided function
    * to align the stream and schedule outputs on the same type.
