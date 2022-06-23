@@ -5119,6 +5119,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   object ZStreamConstructor extends ZStreamConstructorPlatformSpecific {
 
     /**
+     * Constructs a `ZStream[R, E, A]` from a [[zio.stream.ZChannel]]
+     */
+    implicit def ChannelConstructor[R, E, A]: WithOut[ZChannel[R, Any, Any, Any, E, Chunk[A], Any], ZStream[R, E, A]] =
+      new ZStreamConstructor[ZChannel[R, Any, Any, Any, E, Chunk[A], Any]] {
+        type Out = ZStream[R, E, A]
+        def make(input: => ZChannel[R, Any, Any, Any, E, Chunk[A], Any])(implicit trace: Trace): ZStream[R, E, A] =
+          ZStream.fromChannel(input)
+      }
+
+    /**
      * Constructs a `ZStream[Any, Nothing, A]` from a `Hub[Chunk[A]]`.
      */
     implicit def ChunkHubConstructor[A]: WithOut[Hub[Chunk[A]], ZStream[Any, Nothing, A]] =
