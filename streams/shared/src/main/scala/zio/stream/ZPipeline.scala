@@ -61,10 +61,13 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
  * However, the companion object has lots of other pipeline constructors based
  * on the methods of stream.
  */
-class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
+final class ZPipeline[-Env, +Err, -In, +Out] private (
+  val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]
+) {
   self =>
 
-  final def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
+  /** Attach this pipeline to the given stream */
+  def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
     trace: Trace
   ): ZStream[Env1, Err1, Out] =
     ZStream.suspend(stream).pipeThroughChannelOrFail(channel)
@@ -74,7 +77,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    * transformation of this pipeline, and then applying the transformation of
    * the specified pipeline.
    */
-  final def >>>[Env1 <: Env, Err1 >: Err, Out2](
+  def >>>[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
   )(implicit trace: Trace): ZPipeline[Env1, Err1, In, Out2] =
     new ZPipeline(self.channel.pipeToOrFail(that.channel))
@@ -84,17 +87,17 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    * elements by piping them through this transducer and piping the results into
    * the sink.
    */
-  final def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
+  def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
     trace: Trace
   ): ZSink[Env1, Err1, In, Leftover, Out2] =
-    new ZSink(self.channel.pipeToOrFail(that.channel))
+    ZSink.fromChannel(self.channel.pipeToOrFail(that.channel))
 
   /**
    * Composes two pipelines into one pipeline, by first applying the
    * transformation of the specified pipeline, and then applying the
    * transformation of this pipeline.
    */
-  final def <<<[Env1 <: Env, Err1 >: Err, In2](
+  def <<<[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: Trace): ZPipeline[Env1, Err1, In2, Out] =
     ZPipeline.suspend(new ZPipeline(that.channel.pipeToOrFail(self.channel)))
@@ -102,7 +105,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
   /**
    * A named version of the `>>>` operator.
    */
-  final def andThen[Env1 <: Env, Err1 >: Err, Out2](
+  def andThen[Env1 <: Env, Err1 >: Err, Out2](
     that: => ZPipeline[Env1, Err1, Out, Out2]
   )(implicit trace: Trace): ZPipeline[Env1, Err1, In, Out2] =
     self >>> that
@@ -110,7 +113,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
   /**
    * A named version of the `<<<` operator.
    */
-  final def compose[Env1 <: Env, Err1 >: Err, In2](
+  def compose[Env1 <: Env, Err1 >: Err, In2](
     that: => ZPipeline[Env1, Err1, In2, In]
   )(implicit trace: Trace): ZPipeline[Env1, Err1, In2, Out] =
     self <<< that
@@ -127,7 +130,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    * A more powerful version of [[mapError]] which also surfaces the [[Cause]]
    * of the channel failure
    */
-  final def mapErrorCause[Err2](
+  def mapErrorCause[Err2](
     f: Cause[Err] => Cause[Err2]
   )(implicit trace: Trace): ZPipeline[Env, Err2, In, Out] =
     new ZPipeline(self.channel.mapErrorCause(f))
@@ -149,6 +152,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
   def orDieWith(f: Err => Throwable)(implicit trace: Trace): ZPipeline[Env, Nothing, In, Out] =
     new ZPipeline(self.channel.orDieWith(f))
 
+  /** Converts this pipeline to its underlying channel */
   def toChannel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
     self.channel
 }
@@ -166,6 +170,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def apply[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     identity[In]
 
+  /**
+   * A dynamic pipeline that first collects `n` elements from the stream, then
+   * creates another pipeline with the function `f` and sends all the following
+   * elements through that.
+   */
   def branchAfter[Env, Err, In, Out](
     n: => Int
   )(f: Chunk[In] => ZPipeline[Env, Err, In, Out])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
@@ -212,6 +221,101 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def collect[In, Out](f: PartialFunction[In, Out])(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.collect(f)))
+
+  /**
+   * Creates a pipeline that decodes a stream of bytes into a stream of strings
+   * using the given charset
+   */
+  def decodeStringWith(
+    charset: => Charset
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
+    decodeCharsWith(charset) >>> ZPipeline.mapChunks((chars: Chunk[Char]) => Chunk.single(new String(chars.toArray)))
+
+  /**
+   * Creates a pipeline that decodes a stream of bytes into a stream of
+   * characters using the given charset
+   */
+  def decodeCharsWith(
+    charset: => Charset,
+    bufSize: => Int = 4096
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
+    ZPipeline.suspend {
+      val decoder    = charset.newDecoder()
+      val byteBuffer = ByteBuffer.allocate(bufSize)
+      val charBuffer = CharBuffer.allocate((bufSize.toFloat * decoder.averageCharsPerByte).round)
+
+      def handleCoderResult(coderResult: CoderResult) =
+        if (coderResult.isUnderflow || coderResult.isOverflow) {
+          ZIO.succeed {
+            byteBuffer.compact()
+            charBuffer.flip()
+            val array = new Array[Char](charBuffer.remaining)
+            charBuffer.get(array)
+            charBuffer.clear()
+            Chunk.fromArray(array)
+          }
+        } else if (coderResult.isMalformed) {
+          ZIO.fail(new MalformedInputException(coderResult.length()))
+        } else if (coderResult.isUnmappable) {
+          ZIO.fail(new UnmappableCharacterException(coderResult.length()))
+        } else {
+          ZIO.dieMessage(s"Unexpected coder result: $coderResult")
+        }
+
+      def decodeChunk(inBytes: Chunk[Byte]): IO[CharacterCodingException, Chunk[Char]] =
+        for {
+          remainingBytes <- ZIO.succeed {
+                              val bufRemaining = byteBuffer.remaining
+                              val (decodeBytes, remainingBytes) =
+                                if (inBytes.length > bufRemaining)
+                                  inBytes.splitAt(bufRemaining)
+                                else
+                                  (inBytes, Chunk.empty)
+                              byteBuffer.put(decodeBytes.toArray)
+                              byteBuffer.flip()
+                              remainingBytes
+                            }
+          result         <- ZIO.succeed(decoder.decode(byteBuffer, charBuffer, false))
+          decodedChars   <- handleCoderResult(result)
+          remainderChars <- if (remainingBytes.isEmpty) ZIO.succeed(Chunk.empty) else decodeChunk(remainingBytes)
+        } yield decodedChars ++ remainderChars
+
+      def endOfInput: IO[CharacterCodingException, Chunk[Char]] =
+        for {
+          result         <- ZIO.succeed(decoder.decode(byteBuffer, charBuffer, true))
+          decodedChars   <- handleCoderResult(result)
+          remainderChars <- if (result.isOverflow) endOfInput else ZIO.succeed(Chunk.empty)
+        } yield decodedChars ++ remainderChars
+
+      def flushRemaining: IO[CharacterCodingException, Chunk[Char]] =
+        for {
+          result         <- ZIO.succeed(decoder.flush(charBuffer))
+          decodedChars   <- handleCoderResult(result)
+          remainderChars <- if (result.isOverflow) flushRemaining else ZIO.succeed(Chunk.empty)
+        } yield decodedChars ++ remainderChars
+
+      val push: Option[Chunk[Byte]] => IO[CharacterCodingException, Chunk[Char]] = {
+        case Some(inChunk) => decodeChunk(inChunk)
+        case None =>
+          for {
+            _              <- ZIO.succeed(byteBuffer.flip())
+            decodedChars   <- endOfInput
+            remainingBytes <- flushRemaining
+            result          = decodedChars ++ remainingBytes
+            _ <- ZIO.succeed {
+                   byteBuffer.clear()
+                   charBuffer.clear()
+                 }
+          } yield result
+      }
+
+      val createPush: ZIO[Any, Nothing, Option[Chunk[Byte]] => IO[CharacterCodingException, Chunk[Char]]] =
+        for {
+          _ <- ZIO.succeed(decoder.reset)
+        } yield push
+
+      ZPipeline.fromPush(createPush)
+    }
 
   /**
    * Creates a pipeline that drops n elements.
@@ -270,6 +374,115 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
     new ZPipeline(dropWhile(f))
   }
+
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the given charset
+   */
+  def encodeStringWith(
+    charset: => Charset,
+    bom: => Chunk[Byte] = Chunk.empty
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] = {
+    val withoutBOM =
+      ZPipeline.mapChunks((s: Chunk[String]) =>
+        s.foldLeft[Chunk[Char]](Chunk.empty)((acc, str) => acc ++ Chunk.fromArray(str.toCharArray))
+      ) >>> encodeCharsWith(charset)
+
+    if (bom.isEmpty) withoutBOM
+    else {
+      ZPipeline.fromChannel(ZChannel.write(bom) *> withoutBOM.channel)
+    }
+  }
+
+  /**
+   * Creates a pipeline that converts a stream of characters into a stream of
+   * bytes using the given charset
+   */
+  def encodeCharsWith(
+    charset: => Charset,
+    bufferSize: => Int = 4096
+  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Char, Byte] =
+    ZPipeline.suspend {
+      val encoder    = charset.newEncoder()
+      val charBuffer = CharBuffer.allocate((bufferSize.toFloat / encoder.averageBytesPerChar).round)
+      val byteBuffer = ByteBuffer.allocate(bufferSize)
+
+      def handleCoderResult(coderResult: CoderResult): ZIO[Any, CharacterCodingException, Chunk[Byte]] =
+        if (coderResult.isUnderflow || coderResult.isOverflow) {
+          ZIO.succeed {
+            charBuffer.compact()
+            byteBuffer.flip()
+            val array = new Array[Byte](byteBuffer.remaining())
+            byteBuffer.get(array)
+            byteBuffer.clear()
+            Chunk.fromArray(array)
+          }
+        } else if (coderResult.isMalformed) {
+          ZIO.fail(new MalformedInputException(coderResult.length()))
+        } else if (coderResult.isUnmappable) {
+          ZIO.fail(new UnmappableCharacterException(coderResult.length()))
+        } else {
+          ZIO.dieMessage(s"Invalid CoderResult state")
+        }
+
+      def encodeChunk(inChars: Chunk[Char]): IO[CharacterCodingException, Chunk[Byte]] =
+        for {
+          remainingChars <- ZIO.succeed {
+                              val bufRemaining = charBuffer.remaining()
+                              val (decodeChars, remainingChars) = {
+                                if (inChars.length > bufRemaining) {
+                                  inChars.splitAt(bufRemaining)
+                                } else
+                                  (inChars, Chunk.empty)
+                              }
+                              charBuffer.put(decodeChars.toArray)
+                              charBuffer.flip()
+                              remainingChars
+                            }
+          result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, false))
+          encodedBytes   <- handleCoderResult(result)
+          remainderBytes <- if (remainingChars.isEmpty) ZIO.succeed(Chunk.empty) else encodeChunk(remainingChars)
+
+        } yield encodedBytes ++ remainderBytes
+
+      def endOfInput: IO[CharacterCodingException, Chunk[Byte]] =
+        for {
+          result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, true))
+          encodedBytes   <- handleCoderResult(result)
+          remainderBytes <- if (result.isOverflow) endOfInput else ZIO.succeed(Chunk.empty)
+        } yield encodedBytes ++ remainderBytes
+
+      def flushRemaining: IO[CharacterCodingException, Chunk[Byte]] =
+        for {
+          result         <- ZIO.succeed(encoder.flush(byteBuffer))
+          encodedBytes   <- handleCoderResult(result)
+          remainderBytes <- if (result.isOverflow) flushRemaining else ZIO.succeed(Chunk.empty)
+        } yield encodedBytes ++ remainderBytes
+
+      val push: Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]] = {
+        case Some(inChunk: Chunk[Char]) =>
+          encodeChunk(inChunk)
+        case None =>
+          for {
+            _              <- ZIO.succeed(charBuffer.flip())
+            encodedBytes   <- endOfInput
+            remainingBytes <- flushRemaining
+            result          = encodedBytes ++ remainingBytes
+            _ <- ZIO.succeed {
+                   charBuffer.clear()
+                   byteBuffer.clear()
+                 }
+          } yield result
+      }
+
+      val createPush: ZIO[Any, Nothing, Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]]] = {
+        for {
+          _ <- ZIO.succeed(encoder.reset)
+        } yield push
+      }
+
+      ZPipeline.fromPush(createPush)
+    }
 
   /**
    * Creates a pipeline that filters elements according to the specified
@@ -414,9 +627,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def identity[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity)
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the ISO_8859_1 charset
+   */
   def iso_8859_1Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.ISO_8859_1)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the ISO_8859_1 charset
+   */
   def iso_8859_1Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.ISO_8859_1)
 
@@ -763,6 +984,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(loop)
   }
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the US ASCII charset
+   */
   def usASCIIDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.US_ASCII)
 
@@ -791,6 +1016,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_8 charset
+   */
   def utf8Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 3,
@@ -802,6 +1031,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_16 charset
+   */
   def utf16Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 2,
@@ -815,12 +1048,24 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_16BE charset
+   */
   def utf16BEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_16BE)
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_16LE charset
+   */
   def utf16LEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_16LE)
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_32 charset
+   */
   def utf32Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
       bomSize = 4,
@@ -832,156 +1077,136 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_32BE charset
+   */
   def utf32BEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(CharsetUtf32BE)
 
+  /**
+   * Creates a pipeline that converts a stream of bytes into a stream of strings
+   * using the UTF_32LE charset
+   */
   def utf32LEDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(CharsetUtf32LE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the US ASCII charset
+   */
   def usASCIIEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.US_ASCII)
 
+//    `utf*Encode` pipelines adhere to the same behavior of Java's
+//    String#getBytes(charset)`, that is:
+//      - utf8: No BOM
+//      - utf16: Has BOM (the outlier)
+//      - utf16BE & utf16LE: No BOM
+//      - All utf32 variants: No BOM
+//
+//    If BOM is required, users can use the `*WithBomEncode` variants. (As
+//    alluded above, `utf16Encode` always prepends BOM, just like
+//    `getBytes("UTF-16")` in Java. In fact, it is an alias to both
+//    `utf16BEWithBomEncode` and `utf16WithBomEncode`.
+
   /**
-   * `utf*Encode` pipelines adhere to the same behavior of Java's
-   * String#getBytes(charset)`, that is:
-   *   - utf8: No BOM
-   *   - utf16: Has BOM (the outlier)
-   *   - utf16BE & utf16LE: No BOM
-   *   - All utf32 variants: No BOM
-   *
-   * If BOM is required, users can use the `*WithBomEncode` variants. (As
-   * alluded above, `utf16Encode` always prepends BOM, just like
-   * `getBytes("UTF-16")` in Java. In fact, it is an alias to both
-   * `utf16BEWithBomEncode` and `utf16WithBomEncode`.
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_8 charset, without adding a BOM
    */
   def utf8Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_8)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_8 charset prefixing it with a BOM
+   */
   def utf8WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_8, bom = BOM.Utf8)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_16BE charset, without adding a BOM
+   */
   def utf16BEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16BE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_16BE charset prefixing it with a BOM
+   */
   def utf16BEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16BE, bom = BOM.Utf16BE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_16LE charset, without adding a BOM
+   */
   def utf16LEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16LE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_16LE charset prefixing it with a BOM
+   */
   def utf16LEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(StandardCharsets.UTF_16LE, bom = BOM.Utf16LE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_16BE charset prefixing it with a BOM
+   */
   def utf16Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf16BEWithBomEncode
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_16 charset prefixing it with a BOM
+   */
   def utf16WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf16BEWithBomEncode
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_32BE charset, without adding a BOM
+   */
   def utf32BEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32BE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_32BE charset prefixing it with a BOM
+   */
   def utf32BEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32BE, bom = BOM.Utf32BE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_32LE charset, without adding a BOM
+   */
   def utf32LEEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32LE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_32LE charset prefixing it with a BOM
+   */
   def utf32LEWithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     encodeStringWith(CharsetUtf32LE, bom = BOM.Utf32LE)
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_32BE charset, without adding a BOM
+   */
   def utf32Encode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf32BEEncode
 
+  /**
+   * Creates a pipeline that converts a stream of strings into a stream of bytes
+   * using the UTF_32BE charset prefixing it with a BOM
+   */
   def utf32WithBomEncode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] =
     utf32BEWithBomEncode
-
-  def decodeStringWith(
-    charset: => Charset
-  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
-    decodeCharsWith(charset) >>> ZPipeline.mapChunks((chars: Chunk[Char]) => Chunk.single(new String(chars.toArray)))
-
-  def decodeCharsWith(
-    charset: => Charset,
-    bufSize: => Int = 4096
-  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, Char] =
-    ZPipeline.suspend {
-      val decoder    = charset.newDecoder()
-      val byteBuffer = ByteBuffer.allocate(bufSize)
-      val charBuffer = CharBuffer.allocate((bufSize.toFloat * decoder.averageCharsPerByte).round)
-
-      def handleCoderResult(coderResult: CoderResult) =
-        if (coderResult.isUnderflow || coderResult.isOverflow) {
-          ZIO.succeed {
-            byteBuffer.compact()
-            charBuffer.flip()
-            val array = new Array[Char](charBuffer.remaining)
-            charBuffer.get(array)
-            charBuffer.clear()
-            Chunk.fromArray(array)
-          }
-        } else if (coderResult.isMalformed) {
-          ZIO.fail(new MalformedInputException(coderResult.length()))
-        } else if (coderResult.isUnmappable) {
-          ZIO.fail(new UnmappableCharacterException(coderResult.length()))
-        } else {
-          ZIO.dieMessage(s"Unexpected coder result: $coderResult")
-        }
-
-      def decodeChunk(inBytes: Chunk[Byte]): IO[CharacterCodingException, Chunk[Char]] =
-        for {
-          remainingBytes <- ZIO.succeed {
-                              val bufRemaining = byteBuffer.remaining
-                              val (decodeBytes, remainingBytes) =
-                                if (inBytes.length > bufRemaining)
-                                  inBytes.splitAt(bufRemaining)
-                                else
-                                  (inBytes, Chunk.empty)
-                              byteBuffer.put(decodeBytes.toArray)
-                              byteBuffer.flip()
-                              remainingBytes
-                            }
-          result         <- ZIO.succeed(decoder.decode(byteBuffer, charBuffer, false))
-          decodedChars   <- handleCoderResult(result)
-          remainderChars <- if (remainingBytes.isEmpty) ZIO.succeed(Chunk.empty) else decodeChunk(remainingBytes)
-        } yield decodedChars ++ remainderChars
-
-      def endOfInput: IO[CharacterCodingException, Chunk[Char]] =
-        for {
-          result         <- ZIO.succeed(decoder.decode(byteBuffer, charBuffer, true))
-          decodedChars   <- handleCoderResult(result)
-          remainderChars <- if (result.isOverflow) endOfInput else ZIO.succeed(Chunk.empty)
-        } yield decodedChars ++ remainderChars
-
-      def flushRemaining: IO[CharacterCodingException, Chunk[Char]] =
-        for {
-          result         <- ZIO.succeed(decoder.flush(charBuffer))
-          decodedChars   <- handleCoderResult(result)
-          remainderChars <- if (result.isOverflow) flushRemaining else ZIO.succeed(Chunk.empty)
-        } yield decodedChars ++ remainderChars
-
-      val push: Option[Chunk[Byte]] => IO[CharacterCodingException, Chunk[Char]] = {
-        case Some(inChunk) => decodeChunk(inChunk)
-        case None =>
-          for {
-            _              <- ZIO.succeed(byteBuffer.flip())
-            decodedChars   <- endOfInput
-            remainingBytes <- flushRemaining
-            result          = decodedChars ++ remainingBytes
-            _ <- ZIO.succeed {
-                   byteBuffer.clear()
-                   charBuffer.clear()
-                 }
-          } yield result
-      }
-
-      val createPush: ZIO[Any, Nothing, Option[Chunk[Byte]] => IO[CharacterCodingException, Chunk[Char]]] =
-        for {
-          _ <- ZIO.succeed(decoder.reset)
-        } yield push
-
-      ZPipeline.fromPush(createPush)
-    }
 
   private def utfDecodeDetectingBom(
     bomSize: => Int,
@@ -1024,105 +1249,4 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   private def utf8DecodeNoBom(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_8)
-
-  def encodeStringWith(
-    charset: => Charset,
-    bom: => Chunk[Byte] = Chunk.empty
-  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, String, Byte] = {
-    val withoutBOM =
-      ZPipeline.mapChunks((s: Chunk[String]) =>
-        s.foldLeft[Chunk[Char]](Chunk.empty)((acc, str) => acc ++ Chunk.fromArray(str.toCharArray))
-      ) >>> encodeCharsWith(charset)
-
-    if (bom.isEmpty) withoutBOM
-    else {
-      ZPipeline.fromChannel(ZChannel.write(bom) *> withoutBOM.channel)
-    }
-  }
-
-  def encodeCharsWith(
-    charset: => Charset,
-    bufferSize: => Int = 4096
-  )(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Char, Byte] =
-    ZPipeline.suspend {
-      val encoder    = charset.newEncoder()
-      val charBuffer = CharBuffer.allocate((bufferSize.toFloat / encoder.averageBytesPerChar).round)
-      val byteBuffer = ByteBuffer.allocate(bufferSize)
-
-      def handleCoderResult(coderResult: CoderResult): ZIO[Any, CharacterCodingException, Chunk[Byte]] =
-        if (coderResult.isUnderflow || coderResult.isOverflow) {
-          ZIO.succeed {
-            charBuffer.compact()
-            byteBuffer.flip()
-            val array = new Array[Byte](byteBuffer.remaining())
-            byteBuffer.get(array)
-            byteBuffer.clear()
-            Chunk.fromArray(array)
-          }
-        } else if (coderResult.isMalformed) {
-          ZIO.fail(new MalformedInputException(coderResult.length()))
-        } else if (coderResult.isUnmappable) {
-          ZIO.fail(new UnmappableCharacterException(coderResult.length()))
-        } else {
-          ZIO.dieMessage(s"Invalid CoderResult state")
-        }
-
-      def encodeChunk(inChars: Chunk[Char]): IO[CharacterCodingException, Chunk[Byte]] =
-        for {
-          remainingChars <- ZIO.succeed {
-                              val bufRemaining = charBuffer.remaining()
-                              val (decodeChars, remainingChars) = {
-                                if (inChars.length > bufRemaining) {
-                                  inChars.splitAt(bufRemaining)
-                                } else
-                                  (inChars, Chunk.empty)
-                              }
-                              charBuffer.put(decodeChars.toArray)
-                              charBuffer.flip()
-                              remainingChars
-                            }
-          result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, false))
-          encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (remainingChars.isEmpty) ZIO.succeed(Chunk.empty) else encodeChunk(remainingChars)
-
-        } yield encodedBytes ++ remainderBytes
-
-      def endOfInput: IO[CharacterCodingException, Chunk[Byte]] =
-        for {
-          result         <- ZIO.succeed(encoder.encode(charBuffer, byteBuffer, true))
-          encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (result.isOverflow) endOfInput else ZIO.succeed(Chunk.empty)
-        } yield encodedBytes ++ remainderBytes
-
-      def flushRemaining: IO[CharacterCodingException, Chunk[Byte]] =
-        for {
-          result         <- ZIO.succeed(encoder.flush(byteBuffer))
-          encodedBytes   <- handleCoderResult(result)
-          remainderBytes <- if (result.isOverflow) flushRemaining else ZIO.succeed(Chunk.empty)
-        } yield encodedBytes ++ remainderBytes
-
-      val push: Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]] = {
-        case Some(inChunk: Chunk[Char]) =>
-          encodeChunk(inChunk)
-        case None =>
-          for {
-            _              <- ZIO.succeed(charBuffer.flip())
-            encodedBytes   <- endOfInput
-            remainingBytes <- flushRemaining
-            result          = encodedBytes ++ remainingBytes
-            _ <- ZIO.succeed {
-                   charBuffer.clear()
-                   byteBuffer.clear()
-                 }
-          } yield result
-      }
-
-      val createPush: ZIO[Any, Nothing, Option[Chunk[Char]] => IO[CharacterCodingException, Chunk[Byte]]] = {
-        for {
-          _ <- ZIO.succeed(encoder.reset)
-        } yield push
-      }
-
-      ZPipeline.fromPush(createPush)
-    }
 }

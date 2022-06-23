@@ -23,13 +23,14 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
 
-class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]) extends AnyVal {
+final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z])
+    extends AnyVal {
   self =>
 
   /**
    * Operator alias for [[race]].
    */
-  final def |[R1 <: R, E1 >: E, In1 <: In, L1 >: L, Z1 >: Z](
+  def |[R1 <: R, E1 >: E, In1 <: In, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
     race(that)
@@ -37,7 +38,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Operator alias for [[zip]].
    */
-  final def <*>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
+  def <*>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit
     zippable: Zippable[Z, Z1],
@@ -49,7 +50,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Operator alias for [[zipPar]].
    */
-  final def <&>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
+  def <&>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit zippable: Zippable[Z, Z1], trace: Trace): ZSink[R1, E1, In1, L1, zippable.Out] =
     zipPar(that)
@@ -57,7 +58,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Operator alias for [[zipRight]].
    */
-  final def *>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
+  def *>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
     zipRight(that)
@@ -65,7 +66,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Operator alias for [[zipParRight]].
    */
-  final def &>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
+  def &>[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
     zipParRight(that)
@@ -73,7 +74,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Operator alias for [[zipLeft]].
    */
-  final def <*[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
+  def <*[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z] =
     zipLeft(that)
@@ -81,7 +82,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Operator alias for [[zipParLeft]].
    */
-  final def <&[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
+  def <&[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z] =
     zipParLeft(that)
@@ -92,6 +93,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   def as[Z2](z: => Z2)(implicit trace: Trace): ZSink[R, E, In, L, Z2] =
     map(_ => z)
 
+  /** Repeatedly runs the sink and accumulates its results into a chunk */
   def collectAll(implicit ev: L <:< In, trace: Trace): ZSink[R, E, In, L, Chunk[Z]] =
     collectAllWhileWith[Chunk[Z]](Chunk.empty)(_ => true)((s, z) => s :+ z)
 
@@ -134,6 +136,13 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
           upstreamMarker >>> ZChannel.bufferChunk(leftoversRef) >>> loop(z)
         }
     )
+
+  /**
+   * Collects the leftovers from the stream when the sink succeeds and returns
+   * them as part of the sink's result
+   */
+  def collectLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, (Z, Chunk[L])] =
+    new ZSink(channel.collectElements.map { case (chunks, z) => (z, chunks.flatten) })
 
   /**
    * Transforms this sink's input elements.
@@ -216,13 +225,55 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   )(implicit trace: Trace): ZSink[R1, E1, In1, L, Z1] =
     contramapZIO(f).mapZIO(g)
 
+  /** Filters the sink's input with the given predicate */
   def filterInput[In1 <: In](p: In1 => Boolean)(implicit trace: Trace): ZSink[R, E, In1, L, Z] =
     contramapChunks(_.filter(p))
 
+  /** Filters the sink's input with the given ZIO predicate */
   def filterInputZIO[R1 <: R, E1 >: E, In1 <: In](
     p: In1 => ZIO[R1, E1, Boolean]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L, Z] =
     contramapChunksZIO(_.filterZIO(p))
+
+  /**
+   * Creates a sink that produces values until one verifies the predicate `f`.
+   */
+  def findZIO[R1 <: R, E1 >: E](
+    f: Z => ZIO[R1, E1, Boolean]
+  )(implicit ev: L <:< In, trace: Trace): ZSink[R1, E1, In, L, Option[Z]] =
+    new ZSink(
+      ZChannel
+        .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
+        .flatMap { case (leftoversRef, upstreamDoneRef) =>
+          lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
+            ZChannel.readWith(
+              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
+              ZChannel.fail(_: ZNothing),
+              (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
+            )
+
+          lazy val loop: ZChannel[R1, ZNothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] =
+            channel.collectElements
+              .foldChannel(
+                ZChannel.fail(_),
+                { case (leftovers, doneValue) =>
+                  ZChannel.fromZIO(f(doneValue)).flatMap { satisfied =>
+                    ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]])) *>
+                      ZChannel
+                        .fromZIO(upstreamDoneRef.get)
+                        .flatMap { upstreamDone =>
+                          if (satisfied) ZChannel.write(leftovers.flatten).as(Some(doneValue))
+                          else if (upstreamDone)
+                            ZChannel.write(leftovers.flatten).as(None)
+                          else loop
+                        }
+                  }
+                }
+              )
+
+          upstreamMarker >>> ZChannel.bufferChunk(leftoversRef) >>> loop
+        }
+    )
 
   /**
    * Runs this sink until it yields a result, then uses that result to create
@@ -236,6 +287,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
     foldSink(ZSink.fail(_), f)
 
+  /** Folds over the result of the sink */
   def foldSink[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
     failure: E => ZSink[R1, E2, In1, L1, Z1],
     success: Z => ZSink[R1, E2, In1, L1, Z1]
@@ -265,6 +317,10 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
       )
     )
 
+  /** Drains the remaining elements from the stream after the sink finishes */
+  def ignoreLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
+    new ZSink(channel.drain)
+
   /**
    * Transforms this sink's result.
    */
@@ -284,11 +340,26 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   ): ZSink[R1, E1, In, L, Z1] =
     new ZSink(channel.mapZIO(f))
 
+  /** Switch to another sink in case of failure */
+  def orElse[R1 <: R, In1 <: In, E2 >: E, L1 >: L, Z1 >: Z](
+    that: => ZSink[R1, E2, In1, L1, Z1]
+  )(implicit trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
+    new ZSink[R1, E2, In1, L1, Z1](self.channel.orElse(that.channel))
+
+  /**
+   * Provides the sink with its required environment, which eliminates its
+   * dependency on `R`.
+   */
+  def provideEnvironment(
+    r: => ZEnvironment[R]
+  )(implicit trace: Trace): ZSink[Any, E, In, L, Z] =
+    new ZSink(channel.provideEnvironment(r))
+
   /**
    * Runs both sinks in parallel on the input, , returning the result or the
    * error from the one that finishes first.
    */
-  final def race[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1 >: Z](
+  def race[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E1, In1, L1, Z1]
   )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
     self.raceBoth(that).map(_.merge)
@@ -297,7 +368,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    * Runs both sinks in parallel on the input, returning the result or the error
    * from the one that finishes first.
    */
-  final def raceBoth[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z2](
+  def raceBoth[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z2](
     that: => ZSink[R1, E1, In1, L1, Z2],
     capacity: => Int = 16
   )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Either[Z, Z2]] =
@@ -310,7 +381,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    * Runs both sinks in parallel on the input, using the specified merge
    * function as soon as one result or the other has been computed.
    */
-  final def raceWith[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1, Z2](
+  def raceWith[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1, Z2](
     that: => ZSink[R1, E1, In1, L1, Z1],
     capacity: => Int = 16
   )(
@@ -338,126 +409,8 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   /**
    * Returns the sink that executes this one and times its execution.
    */
-  final def timed(implicit trace: Trace): ZSink[R, E, In, L, (Z, Duration)] =
+  def timed(implicit trace: Trace): ZSink[R, E, In, L, (Z, Duration)] =
     summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
-
-  /**
-   * Summarize a sink by running an effect when the sink starts and again when
-   * it completes
-   */
-  final def summarized[R1 <: R, E1 >: E, B, C](
-    summary: => ZIO[R1, E1, B]
-  )(f: (B, B) => C)(implicit trace: Trace): ZSink[R1, E1, In, L, (Z, C)] =
-    new ZSink[R1, E1, In, L, (Z, C)](
-      ZChannel.unwrap {
-        ZIO.succeed(summary).map { summary =>
-          ZChannel.fromZIO(summary).flatMap { start =>
-            self.channel.flatMap { done =>
-              ZChannel.fromZIO(summary).map { end =>
-                (done, f(start, end))
-              }
-            }
-          }
-        }
-      }
-    )
-
-  def orElse[R1 <: R, In1 <: In, E2 >: E, L1 >: L, Z1 >: Z](
-    that: => ZSink[R1, E2, In1, L1, Z1]
-  )(implicit trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
-    new ZSink[R1, E2, In1, L1, Z1](self.channel.orElse(that.channel))
-
-  def zip[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit
-    zippable: Zippable[Z, Z1],
-    ev: L <:< In1,
-    trace: Trace
-  ): ZSink[R1, E1, In1, L1, zippable.Out] =
-    zipWith[R1, E1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
-
-  /**
-   * Like [[zip]], but keeps only the result from the `that` sink.
-   */
-  final def zipLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z] =
-    zipWith[R1, E1, In1, L1, Z1, Z](that)((z, _) => z)
-
-  /**
-   * Runs both sinks in parallel on the input and combines the results in a
-   * tuple.
-   */
-  final def zipPar[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit zippable: Zippable[Z, Z1], trace: Trace): ZSink[R1, E1, In1, L1, zippable.Out] =
-    zipWithPar[R1, E1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
-
-  /**
-   * Like [[zipPar]], but keeps only the result from this sink.
-   */
-  final def zipParLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z] =
-    zipWithPar[R1, E1, In1, L1, Z1, Z](that)((b, _) => b)
-
-  /**
-   * Like [[zipPar]], but keeps only the result from the `that` sink.
-   */
-  final def zipParRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
-    zipWithPar[R1, E1, In1, L1, Z1, Z1](that)((_, c) => c)
-
-  /**
-   * Like [[zip]], but keeps only the result from this sink.
-   */
-  final def zipRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
-    zipWith[R1, E1, In1, L1, Z1, Z1](that)((_, z1) => z1)
-
-  /**
-   * Feeds inputs to this sink until it yields a result, then switches over to
-   * the provided sink until it yields a result, finally combining the two
-   * results with `f`.
-   */
-  final def zipWith[R1 <: R, E1 >: E, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z2] =
-    flatMap(z => that.map(f(z, _)))
-
-  /**
-   * Runs both sinks in parallel on the input and combines the results using the
-   * provided function.
-   */
-  final def zipWithPar[R1 <: R, E1 >: E, In1 <: In, L1 >: L <: In1, Z1, Z2](
-    that: => ZSink[R1, E1, In1, L1, Z1]
-  )(f: (Z, Z1) => Z2)(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z2] =
-    self.raceWith(that)(
-      {
-        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.refailCause(err))
-        case Exit.Success(lz) =>
-          ZChannel.MergeDecision.await {
-            case Exit.Failure(cause) => ZIO.refailCause(cause)
-            case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
-          }
-      },
-      {
-        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.refailCause(err))
-        case Exit.Success(rz) =>
-          ZChannel.MergeDecision.await {
-            case Exit.Failure(cause) => ZIO.refailCause(cause)
-            case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
-          }
-      }
-    )
-
-  def collectLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, (Z, Chunk[L])] =
-    new ZSink(channel.collectElements.map { case (chunks, z) => (z, chunks.flatten) })
-
-  def ignoreLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
-    new ZSink(channel.drain)
 
   /**
    * Splits the sink on the specified predicate, returning a new sink that
@@ -510,84 +463,124 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     )
   }
 
+  /**
+   * Summarize a sink by running an effect when the sink starts and again when
+   * it completes
+   */
+  def summarized[R1 <: R, E1 >: E, B, C](
+    summary: => ZIO[R1, E1, B]
+  )(f: (B, B) => C)(implicit trace: Trace): ZSink[R1, E1, In, L, (Z, C)] =
+    new ZSink[R1, E1, In, L, (Z, C)](
+      ZChannel.unwrap {
+        ZIO.succeed(summary).map { summary =>
+          ZChannel.fromZIO(summary).flatMap { start =>
+            self.channel.flatMap { done =>
+              ZChannel.fromZIO(summary).map { end =>
+                (done, f(start, end))
+              }
+            }
+          }
+        }
+      }
+    )
+
+  /** Converts ths sink to its underlying channel */
   def toChannel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z] =
     self.channel
 
   /**
-   * Creates a sink that produces values until one verifies the predicate `f`.
+   * Feeds inputs to this sink until it yields a result, then switches over to
+   * the provided sink until it yields a result, finally combining the two
+   * results into a tuple.
    */
-  def findZIO[R1 <: R, E1 >: E](
-    f: Z => ZIO[R1, E1, Boolean]
-  )(implicit ev: L <:< In, trace: Trace): ZSink[R1, E1, In, L, Option[Z]] =
-    new ZSink(
-      ZChannel
-        .fromZIO(Ref.make(Chunk[In]()).zip(Ref.make(false)))
-        .flatMap { case (leftoversRef, upstreamDoneRef) =>
-          lazy val upstreamMarker: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
-            ZChannel.readWith(
-              (in: Chunk[In]) => ZChannel.write(in) *> upstreamMarker,
-              ZChannel.fail(_: ZNothing),
-              (x: Any) => ZChannel.fromZIO(upstreamDoneRef.set(true)).as(x)
-            )
-
-          lazy val loop: ZChannel[R1, ZNothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] =
-            channel.collectElements
-              .foldChannel(
-                ZChannel.fail(_),
-                { case (leftovers, doneValue) =>
-                  ZChannel.fromZIO(f(doneValue)).flatMap { satisfied =>
-                    ZChannel.fromZIO(leftoversRef.set(leftovers.flatten.asInstanceOf[Chunk[In]])) *>
-                      ZChannel
-                        .fromZIO(upstreamDoneRef.get)
-                        .flatMap { upstreamDone =>
-                          if (satisfied) ZChannel.write(leftovers.flatten).as(Some(doneValue))
-                          else if (upstreamDone)
-                            ZChannel.write(leftovers.flatten).as(None)
-                          else loop
-                        }
-                  }
-                }
-              )
-
-          upstreamMarker >>> ZChannel.bufferChunk(leftoversRef) >>> loop
-        }
-    )
+  def zip[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(implicit
+    zippable: Zippable[Z, Z1],
+    ev: L <:< In1,
+    trace: Trace
+  ): ZSink[R1, E1, In1, L1, zippable.Out] =
+    zipWith[R1, E1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
-   * Provides the sink with its required environment, which eliminates its
-   * dependency on `R`.
+   * Like [[zip]], but keeps only the result from the `that` sink.
    */
-  def provideEnvironment(
-    r: => ZEnvironment[R]
-  )(implicit trace: Trace): ZSink[Any, E, In, L, Z] =
-    new ZSink(channel.provideEnvironment(r))
+  def zipLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z] =
+    zipWith[R1, E1, In1, L1, Z1, Z](that)((z, _) => z)
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results in a
+   * tuple.
+   */
+  def zipPar[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(implicit zippable: Zippable[Z, Z1], trace: Trace): ZSink[R1, E1, In1, L1, zippable.Out] =
+    zipWithPar[R1, E1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
+
+  /**
+   * Like [[zipPar]], but keeps only the result from this sink.
+   */
+  def zipParLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z] =
+    zipWithPar[R1, E1, In1, L1, Z1, Z](that)((b, _) => b)
+
+  /**
+   * Like [[zipPar]], but keeps only the result from the `that` sink.
+   */
+  def zipParRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
+    zipWithPar[R1, E1, In1, L1, Z1, Z1](that)((_, c) => c)
+
+  /**
+   * Like [[zip]], but keeps only the result from this sink.
+   */
+  def zipRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
+    zipWith[R1, E1, In1, L1, Z1, Z1](that)((_, z1) => z1)
+
+  /**
+   * Feeds inputs to this sink until it yields a result, then switches over to
+   * the provided sink until it yields a result, finally combining the two
+   * results with `f`.
+   */
+  def zipWith[R1 <: R, E1 >: E, In1 <: In, L1 >: L <: In1, Z1, Z2](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(f: (Z, Z1) => Z2)(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z2] =
+    flatMap(z => that.map(f(z, _)))
+
+  /**
+   * Runs both sinks in parallel on the input and combines the results using the
+   * provided function.
+   */
+  def zipWithPar[R1 <: R, E1 >: E, In1 <: In, L1 >: L <: In1, Z1, Z2](
+    that: => ZSink[R1, E1, In1, L1, Z1]
+  )(f: (Z, Z1) => Z2)(implicit trace: Trace): ZSink[R1, E1, In1, L1, Z2] =
+    self.raceWith(that)(
+      {
+        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.refailCause(err))
+        case Exit.Success(lz) =>
+          ZChannel.MergeDecision.await {
+            case Exit.Failure(cause) => ZIO.refailCause(cause)
+            case Exit.Success(rz)    => ZIO.succeedNow(f(lz, rz))
+          }
+      },
+      {
+        case Exit.Failure(err) => ZChannel.MergeDecision.done(ZIO.refailCause(err))
+        case Exit.Success(rz) =>
+          ZChannel.MergeDecision.await {
+            case Exit.Failure(cause) => ZIO.refailCause(cause)
+            case Exit.Success(lz)    => ZIO.succeedNow(f(lz, rz))
+          }
+      }
+    )
 }
 
 object ZSink extends ZSinkPlatformSpecificConstructors {
-
-  /**
-   * Accesses the whole environment of the sink.
-   */
-  def environment[R](implicit trace: Trace): ZSink[R, Nothing, Any, Nothing, ZEnvironment[R]] =
-    fromZIO(ZIO.environment[R])
-
-  /**
-   * Accesses the environment of the sink.
-   */
-  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
-    new EnvironmentWithPartiallyApplied[R]
-
-  /**
-   * Accesses the environment of the sink in the context of an effect.
-   */
-  def environmentWithZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
-    new EnvironmentWithZIOPartiallyApplied[R]
-
-  /**
-   * Accesses the environment of the sink in the context of a sink.
-   */
-  def environmentWithSink[R]: EnvironmentWithSinkPartiallyApplied[R] =
-    new EnvironmentWithSinkPartiallyApplied[R]
 
   def collectAll[In](implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, Chunk[In]] = {
     def loop(acc: Chunk[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Nothing, Chunk[In]] =
@@ -816,6 +809,30 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
     new ZSink(loop)
   }
+
+  /**
+   * Accesses the whole environment of the sink.
+   */
+  def environment[R](implicit trace: Trace): ZSink[R, Nothing, Any, Nothing, ZEnvironment[R]] =
+    fromZIO(ZIO.environment[R])
+
+  /**
+   * Accesses the environment of the sink.
+   */
+  def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
+    new EnvironmentWithPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the sink in the context of an effect.
+   */
+  def environmentWithZIO[R]: EnvironmentWithZIOPartiallyApplied[R] =
+    new EnvironmentWithZIOPartiallyApplied[R]
+
+  /**
+   * Accesses the environment of the sink in the context of a sink.
+   */
+  def environmentWithSink[R]: EnvironmentWithSinkPartiallyApplied[R] =
+    new EnvironmentWithSinkPartiallyApplied[R]
 
   /**
    * A sink that always fails with the specified error.
@@ -1252,7 +1269,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that executes the provided effectful function for every element fed
    * to it until `f` evaluates to `false`.
    */
-  final def foreachWhile[R, Err, In](
+  def foreachWhile[R, Err, In](
     f: In => ZIO[R, Err, Boolean]
   )(implicit trace: Trace): ZSink[R, Err, In, In, Unit] = {
     def go(
@@ -1299,6 +1316,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
     new ZSink(reader)
   }
+
+  /**
+   * Creates a sink from a [[zio.stream.ZChannel]]
+   */
+  def fromChannel[R, E, In, L, Z](
+    channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]
+  ): ZSink[R, E, In, L, Z] =
+    new ZSink(channel)
 
   /**
    * Creates a sink from a chunk processing function.
@@ -1396,6 +1421,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def last[In](implicit trace: Trace): ZSink[Any, Nothing, In, In, Option[In]] =
     foldLeft(None: Option[In])((_, in) => Some(in))
 
+  /**
+   * Creates a sink that does not consume any input but provides the given chunk
+   * as its leftovers
+   */
   def leftover[L](c: => Chunk[L])(implicit trace: Trace): ZSink[Any, Nothing, Any, L, Unit] =
     new ZSink(ZChannel.suspend(ZChannel.write(c)))
 
