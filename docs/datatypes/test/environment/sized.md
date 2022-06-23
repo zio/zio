@@ -69,7 +69,7 @@ The return type require the _Sized_ service. Therefore, to run this effect, we n
 Unsafe.unsafe { implicit u =>
     zio.Runtime.default.unsafe.run(
       samples.provide(Sized.live(100)) 
-    ).getOrThrowFiberFailure
+    ).getOrThrowFiberFailure()
 }
 // Sample Output: List(34, 44, 89, 14, 15)
 ```

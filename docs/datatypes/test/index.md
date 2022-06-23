@@ -33,7 +33,7 @@ import scala.Predef.assert
 val random = Unsafe.unsafe { implicit u =>
   Runtime.default.unsafe.run(
     Random.nextIntBounded(10)
-  ).getOrThrowFiberFailure
+  ).getOrThrowFiberFailure()
 }
 
 assert(random >= 0)

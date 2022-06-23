@@ -59,7 +59,7 @@ final case class TestRunner[R, E](
      * An unsafe, synchronous run of the specified spec.
      */
     def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
-      runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure
+      runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure()
 
     /**
      * An unsafe, asynchronous run of the specified spec.

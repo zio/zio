@@ -61,7 +61,7 @@ zio.Runtime.default.unsafe.run(
     )
     .runCollect
     .flatMap(x => putStrLn(s"Encoded data with protobuf codec: ${toHex(x)}"))
-).getOrThrowFiberFailure
+).getOrThrowFiberFailure()
 ```
 
 ## Resources

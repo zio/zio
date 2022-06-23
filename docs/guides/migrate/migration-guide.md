@@ -761,7 +761,7 @@ object MainApp extends zio.App {
             .mapPlatform(_.withExecutor(customExecutor))
             .unsafe
             .run(myApp)
-            .getOrThrowFiberFailure
+            .getOrThrowFiberFailure()
         }
       }
       .exitCode
@@ -846,7 +846,7 @@ object MainApp {
           )
           .unsafe
           .run(zioWorkflow)
-          .getOrThrowFiberFailure
+          .getOrThrowFiberFailure()
       }
 
   def main(args: Array[String]): Unit = {

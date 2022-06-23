@@ -58,7 +58,7 @@ object RunZIOEffectUsingUnsafeRun extends scala.App {
   Unsafe.unsafe { implicit u =>
       zio.Runtime.default.unsafe.run(
         myAppLogic
-      ).getOrThrowFiberFailure
+      ).getOrThrowFiberFailure()
   }
 }
 ```
@@ -84,7 +84,7 @@ object MainApp extends scala.App {
   val myAppLogic = ZIO.succeed(???)
   val runtime = Runtime.default
   Unsafe.unsafe { implicit u =>
-    runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure
+    runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure()
   }
 }
 ```
@@ -165,6 +165,6 @@ Unsafe.unsafe { implicit u =>
         _ <- Logging.log("sending newsletter")
         _ <- Email.send("David", "Hi! Here is today's newsletter.")
       } yield ()
-    ).getOrThrowFiberFailure
+    ).getOrThrowFiberFailure()
 }
 ```
