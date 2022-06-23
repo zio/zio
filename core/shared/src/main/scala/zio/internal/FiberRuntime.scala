@@ -1178,7 +1178,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val endTimeMillis   = java.lang.System.currentTimeMillis()
       val lifetime        = (endTimeMillis - startTimeMillis) / 1000.0
 
-      Metric.runtime.fiberLifetimes.unsafe.update(lifetime.toDouble)
+      Metric.runtime.fiberLifetimes.unsafe.update(lifetime)
     }
 
     reportExitValue(e)
