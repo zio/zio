@@ -253,30 +253,33 @@ object Runtime extends RuntimePlatformSpecific {
       ZIO.withRuntimeFlagsScoped(RuntimeFlags.enable(RuntimeFlag.RuntimeMetrics))
     }
 
-  /**
-   * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
-   * allocated immediately, and not released until the `Runtime` is shut down or
-   * the end of the application.
-   *
-   * This method is useful for small applications and integrating ZIO with
-   * legacy code, but other applications should investigate using
-   * [[ZIO.provide]] directly in their application entry points.
-   */
-  def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
-    val (runtime, shutdown) = default.unsafe.run {
-      Scope.make.flatMap { scope =>
-        scope.extend(layer.toRuntime).flatMap { acquire =>
-          val finalizer = () =>
-            default.unsafe.run {
-              scope.close(Exit.unit).uninterruptible.unit
-            }.getOrThrowFiberFailure()
+  object unsafe {
 
-          ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+    /**
+     * Unsafely creates a `Runtime` from a `ZLayer` whose resources will be
+     * allocated immediately, and not released until the `Runtime` is shut down
+     * or the end of the application.
+     *
+     * This method is useful for small applications and integrating ZIO with
+     * legacy code, but other applications should investigate using
+     * [[ZIO.provide]] directly in their application entry points.
+     */
+    def fromLayer[R](layer: Layer[Any, R])(implicit trace: Trace, unsafe: Unsafe): Runtime.Scoped[R] = {
+      val (runtime, shutdown) = default.unsafe.run {
+        Scope.make.flatMap { scope =>
+          scope.extend(layer.toRuntime).flatMap { acquire =>
+            val finalizer = () =>
+              default.unsafe.run {
+                scope.close(Exit.unit).uninterruptible.unit
+              }.getOrThrowFiberFailure()
+
+            ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
+          }
         }
-      }
-    }.getOrThrowFiberFailure()
+      }.getOrThrowFiberFailure()
 
-    Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
+      Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
+    }
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
