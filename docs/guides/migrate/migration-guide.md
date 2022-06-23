@@ -103,7 +103,7 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:10)"
 ```
 
-2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as a lazy val in our implementation to prevent _double evaluation_. 
+2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as values suspended in a ZIO constructor such as `suspendSucceed` to prevent _double evaluation_. 
     
     The overall pattern in implementing such methods will be:
 
@@ -113,8 +113,8 @@ object MainApp extends ZIOAppDefault {
     - }
     + def foreachParN[A](n0: => Int)(a0: => Iterable[A]) = 
     +   ZIO.suspendSucceed {
-    +    val n = n0 
-    +    val a = a0
+    +     val n = n0 
+    +     val a = a0
           ... // The function body
     +   }
     ```
