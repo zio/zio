@@ -87,7 +87,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
               spec.bootstrap
             )
         )
-        .getOrThrowFiberFailure
+        .getOrThrowFiberFailure()
       description
     }
   }
@@ -103,7 +103,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
           .provide(
             Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope])
           )
-      }.getOrThrowFiberFailure
+      }.getOrThrowFiberFailure()
     }
   }
 

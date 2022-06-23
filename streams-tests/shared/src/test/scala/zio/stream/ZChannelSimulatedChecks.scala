@@ -20,7 +20,7 @@ object ZChannelSimulatedChecks extends ZIOBaseSpec {
         check(gen) { sim =>
           for {
             channelResult <- sim.asOutChannel.runCollect.map(_._1).exit
-            effectResult  <- sim.asEffect.exit.map(_.map((int: Int) => Chunk.single(int)))
+            effectResult  <- sim.asEffect.exit.map(_.mapExit((int: Int) => Chunk.single(int)))
           } yield assert(channelResult)(equalTo(effectResult))
         }
       )

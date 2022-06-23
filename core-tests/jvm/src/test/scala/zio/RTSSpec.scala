@@ -106,7 +106,7 @@ object RTSSpec extends ZIOBaseSpec {
               val c: Callable[Unit] = () => k(ZIO.succeed(1))
               val _                 = e.submit(c)
             }
-          }.getOrThrowFiberFailure
+          }.getOrThrowFiberFailure()
         }
       }
 

@@ -13,7 +13,7 @@ object REPLSpec extends ZIOSpecDefault {
       implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
         def unsafeRun: A =
           Unsafe.unsafeCompat { implicit u =>
-            Runtime.default.unsafe.run(io).getOrThrowFiberFailure
+            Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
           }
       }
       assertCompletes

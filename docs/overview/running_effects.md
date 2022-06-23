@@ -46,7 +46,7 @@ Once you have a runtime, you can use it to execute effects:
 
 ```scala mdoc:silent
 Unsafe.unsafe { implicit u =>
-    runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure
+    runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure()
 }
 ```
 

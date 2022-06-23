@@ -32,7 +32,7 @@ final case class FiberFailure(cause: Cause[Any]) extends Throwable(null, null, t
   override def getStackTrace(): Array[StackTraceElement] =
     cause.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
 
-  def unsafeInitSuppressed(): Unit =
+  def fillSuppressed()(implicit unsafe: Unsafe): Unit =
     if (getSuppressed().length == 0) {
       cause.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
     }

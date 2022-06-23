@@ -1538,7 +1538,7 @@ object ZIOSpec extends ZIOBaseSpec {
           latch <- Promise.make[Nothing, Unit]
           fiber <- (latch.succeed(()) *> ZIO.die(new Error)).zipPar(ZIO.never).fork
           _     <- latch.await
-          exit  <- fiber.interrupt.map(_.mapErrorCause((cause: Cause[Nothing]) => cause.untraced))
+          exit  <- fiber.interrupt.map(_.mapErrorCauseExit((cause: Cause[Nothing]) => cause.untraced))
         } yield assert(exit)(isInterrupted)
       } @@ jvm(nonFlaky)
     ),
@@ -2295,7 +2295,7 @@ object ZIOSpec extends ZIOBaseSpec {
           f    <- (p.succeed(()) *> ZIO.never).fork
           _    <- p.await
           exit <- f.interrupt
-        } yield assert(exit.mapErrorCause((cause: Cause[Nothing]) => cause.untraced))(isJustInterrupted)
+        } yield assert(exit.mapErrorCauseExit((cause: Cause[Nothing]) => cause.untraced))(isJustInterrupted)
       } @@ zioTag(interruption),
       test("run swallows inner interruption") {
         for {
@@ -3225,7 +3225,7 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("interrupted cause persists after catching") {
         def process(list: List[Exit[Nothing, Any]]): List[Exit[Nothing, Any]] =
-          list.map(_.mapErrorCause((cause: Cause[Nothing]) => cause.untraced))
+          list.map(_.mapErrorCauseExit((cause: Cause[Nothing]) => cause.untraced))
 
         for {
           latch1 <- Promise.make[Nothing, Unit]

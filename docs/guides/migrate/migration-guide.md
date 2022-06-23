@@ -761,7 +761,7 @@ object MainApp extends zio.App {
             .mapPlatform(_.withExecutor(customExecutor))
             .unsafe
             .run(myApp)
-            .getOrThrowFiberFailure
+            .getOrThrowFiberFailure()
         }
       }
       .exitCode
@@ -826,7 +826,7 @@ object MainApp extends ZIOAppDefault {
 
 ### Custom Runtime for Mixed Applications
 
-In ZIO 2.x, to create a custom runtime in mixed applications we combine all the layers that do our customization and then perform the `Runtime.unsafeFromLayer` operation:
+In ZIO 2.x, to create a custom runtime in mixed applications we combine all the layers that do our customization and then perform the `Runtime.unsafe.fromLayer` operation:
 
 ```scala mdoc:compile-only
 import zio._
@@ -841,12 +841,13 @@ object MainApp {
   def zioApplication(): Int =
       Unsafe.unsafe { implicit u =>
         Runtime
-          .unsafeFromLayer(
+          .unsafe
+          .fromLayer(
             Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
           )
           .unsafe
           .run(zioWorkflow)
-          .getOrThrowFiberFailure
+          .getOrThrowFiberFailure()
       }
 
   def main(args: Array[String]): Unit = {

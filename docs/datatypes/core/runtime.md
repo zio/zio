@@ -58,7 +58,7 @@ object RunZIOEffectUsingUnsafeRun extends scala.App {
   Unsafe.unsafe { implicit u =>
       zio.Runtime.default.unsafe.run(
         myAppLogic
-      ).getOrThrowFiberFailure
+      ).getOrThrowFiberFailure()
   }
 }
 ```
@@ -84,7 +84,7 @@ object MainApp extends scala.App {
   val myAppLogic = ZIO.succeed(???)
   val runtime = Runtime.default
   Unsafe.unsafe { implicit u =>
-    runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure
+    runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure()
   }
 }
 ```
@@ -147,11 +147,11 @@ val testableRuntime = Runtime(
 )
 ```
 
-Also, we can map the default runtime to the new runtime, so we can append new services to the ZIO environment:
+Also, we can replace the environment of the default runtime with our own custom environment, which allows us to add new services to the ZIO environment:
 
 ```scala mdoc:silent:nest
 val testableRuntime: Runtime[Logging with Email] =
-  Runtime.default.map { _ =>
+  Runtime.default.withEnvironment {
     ZEnvironment[Logging, Email](LoggingLive(), EmailMock())
   }
 ```
@@ -165,6 +165,6 @@ Unsafe.unsafe { implicit u =>
         _ <- Logging.log("sending newsletter")
         _ <- Email.send("David", "Hi! Here is today's newsletter.")
       } yield ()
-    ).getOrThrowFiberFailure
+    ).getOrThrowFiberFailure()
 }
 ```

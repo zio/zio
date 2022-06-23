@@ -68,7 +68,7 @@ class FiberRefBenchmarks {
       for {
         _ <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
       } yield ()
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createFiberRefsAndYield(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -81,7 +81,7 @@ class FiberRefBenchmarks {
           _         <- verify(values == 1.to(n))(s"Got $values")
         } yield ()
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createUpdateAndRead(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -96,7 +96,7 @@ class FiberRefBenchmarks {
                )
         } yield ()
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createAndJoin(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -108,7 +108,7 @@ class FiberRefBenchmarks {
           _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.unit))
         } yield ()
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createAndJoinExpensive(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -120,7 +120,7 @@ class FiberRefBenchmarks {
           _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.unit))
         } yield ()
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createAndJoinInitialValue(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -131,7 +131,7 @@ class FiberRefBenchmarks {
           _ <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.unit))
         } yield ()
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createAndJoinUpdatesWide(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -143,7 +143,7 @@ class FiberRefBenchmarks {
           _         <- ZIO.collectAllParDiscard(List.fill(m)(ZIO.foreachDiscard(fiberRefs)(_.update(_ + 1))))
         } yield ()
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def createAndJoinUpdatesDeep(runtime: Runtime[Any]) = Unsafe.unsafeCompat { implicit u =>
@@ -162,7 +162,7 @@ class FiberRefBenchmarks {
           go(m)
         }
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private val addDiffer = new Differ[Int, Int] {

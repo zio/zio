@@ -66,7 +66,7 @@ private[test] object Fun {
           Fun(
             a =>
               Unsafe.unsafeCompat { implicit u =>
-                runtime.unsafe.run(f(a)).getOrThrowFiberFailure
+                runtime.unsafe.run(f(a)).getOrThrowFiberFailure()
               },
             hash
           )

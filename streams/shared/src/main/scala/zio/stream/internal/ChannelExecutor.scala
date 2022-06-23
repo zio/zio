@@ -606,7 +606,7 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
         } else {
           val lastClose = this.closeLastSubstream
           finishSubexecutorWithCloseEffect(
-            exit.map(self.combineWithChildResult(self.lastDone, _)),
+            exit.mapExit(self.combineWithChildResult(self.lastDone, _)),
             _ => lastClose,
             self.upstreamExecutor.close
           ).effectOrNullIgnored // NOTE: assuming finalizers cannot fail

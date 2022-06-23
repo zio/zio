@@ -1594,7 +1594,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
                            out.offer(
                              Exit.succeed(
                                k -> ZStream.mapDequeue(q)(exit =>
-                                 Take(exit.map { case (_, value) => Chunk.single(value) })
+                                 Take(exit.mapExit { case (_, value) => Chunk.single(value) })
                                )
                              )
                            )).as(_ == idx)
@@ -5568,7 +5568,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * terminates with the specified cause if this `Exit` is a `Failure`.
      */
     def done(exit: Exit[E, A])(implicit trace: Trace): B =
-      apply(ZIO.done(exit.mapBoth(e => Some(e), a => Chunk(a))))
+      apply(ZIO.done(exit.mapBothExit(e => Some(e), a => Chunk(a))))
 
     /**
      * Terminates with an end of stream signal.

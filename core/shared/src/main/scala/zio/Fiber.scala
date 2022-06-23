@@ -368,7 +368,7 @@ sealed abstract class Fiber[+E, +A] { self =>
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] =
           Unsafe.unsafeCompat { implicit u =>
-            runtime.unsafe.runToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapError(f)))
+            runtime.unsafe.runToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapErrorExit(f)))
           }
       }
     }.uninterruptible
@@ -642,7 +642,7 @@ object Fiber extends FiberPlatformSpecific {
             case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)(_ :: _, _ && _))
             case _                    => None
           })
-          .map(_.map(_.map(bf.fromSpecific(fibers))))
+          .map(_.map(_.mapExit(bf.fromSpecific(fibers))))
     }
 
   /**

@@ -19,12 +19,12 @@ object HubConcurrencyTests {
   @State
   class ManyToManyTest {
     val hub: Hub[Int] =
-      Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(Hub.bounded[Int](2)).getOrThrowFiberFailure)
+      Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(Hub.bounded[Int](2)).getOrThrowFiberFailure())
     val left: Dequeue[Int] = Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafe.run(Scope.global.extend[Any](hub.subscribe)).getOrThrowFiberFailure
+      runtime.unsafe.run(Scope.global.extend[Any](hub.subscribe)).getOrThrowFiberFailure()
     }
     val right: Dequeue[Int] = Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafe.run(Scope.global.extend[Any](hub.subscribe)).getOrThrowFiberFailure
+      runtime.unsafe.run(Scope.global.extend[Any](hub.subscribe)).getOrThrowFiberFailure()
     }
     var p1 = 0
     var p2 = 0
@@ -33,13 +33,13 @@ object HubConcurrencyTests {
 
     @Actor
     def actor1(): Unit = Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafe.run(hub.publish(1)).getOrThrowFiberFailure
+      runtime.unsafe.run(hub.publish(1)).getOrThrowFiberFailure()
       ()
     }
 
     @Actor
     def actor2(): Unit = Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafe.run(hub.publish(2)).getOrThrowFiberFailure
+      runtime.unsafe.run(hub.publish(2)).getOrThrowFiberFailure()
       ()
     }
 
@@ -51,7 +51,7 @@ object HubConcurrencyTests {
             p1 = first
             p2 = last
           }
-        }.getOrThrowFiberFailure
+        }.getOrThrowFiberFailure()
       }
 
     @Actor
@@ -62,7 +62,7 @@ object HubConcurrencyTests {
             p3 = first
             p4 = last
           }
-        }.getOrThrowFiberFailure
+        }.getOrThrowFiberFailure()
       }
 
     @Arbiter

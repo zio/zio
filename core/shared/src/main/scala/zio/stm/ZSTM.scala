@@ -863,7 +863,9 @@ object ZSTM {
   private def unsafeAtomically[R, E, A](
     stm: ZSTM[R, E, A]
   )(onDone: Exit[E, A] => Any, onInterrupt: () => Any)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.unsafeStateful[R, E, A] { implicit u => (fiberState, _) =>
+    ZIO.withFiberRuntime[R, E, A] { (fiberState, _) =>
+      implicit val u = Unsafe.unsafe
+
       val r        = fiberState.getFiberRef(FiberRef.currentEnvironment).asInstanceOf[ZEnvironment[R]]
       val fiberId  = fiberState.id
       val executor = fiberState.getCurrentExecutor()
