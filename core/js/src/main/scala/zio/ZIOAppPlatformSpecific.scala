@@ -20,8 +20,8 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
         (for {
           runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
           _       <- installSignalHandlers(runtime)
-          _       <- runtime.run(run).tapErrorCause(ZIO.logErrorCause(_)).exitCode.tap(exit)
-        } yield ()).provideLayer(newLayer)
+          _       <- runtime.run(run)
+        } yield ()).provideLayer(newLayer).tapErrorCause(ZIO.logErrorCause(_)).exitCode.tap(exit)
       }
     }
   }
