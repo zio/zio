@@ -120,14 +120,14 @@ object ZPoolSpec extends ZIOBaseSpec {
         } +
         test("shutdown robustness") {
           for {
-            count  <- Ref.make(0)
-            get     = ZIO.acquireRelease(count.updateAndGet(_ + 1))(_ => count.update(_ - 1))
-            scope  <- Scope.make
-            pool   <- scope.extend(ZPool.make(get, 10))
-            _      <- ZIO.scoped(pool.get).fork.repeatN(99)
-            _      <- scope.close(Exit.succeed(()))
-            result <- count.get
-          } yield assertTrue(result == 0)
+            count <- Ref.make(0)
+            get    = ZIO.acquireRelease(count.updateAndGet(_ + 1))(_ => count.update(_ - 1))
+            scope <- Scope.make
+            pool  <- scope.extend(ZPool.make(get, 10))
+            _     <- ZIO.scoped(pool.get).fork.repeatN(99)
+            _     <- scope.close(Exit.succeed(()))
+            _     <- count.get.repeatUntil(_ == 0)
+          } yield assertCompletes
         } @@ nonFlaky +
         test("get is interruptible") {
           for {
