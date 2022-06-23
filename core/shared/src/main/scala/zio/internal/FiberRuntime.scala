@@ -967,7 +967,7 @@ class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtim
     getFiberRef(FiberRef.currentSupervisor)
 
   final def isFatal(t: Throwable)(implicit unsafe: Unsafe): Boolean =
-    getFiberRef(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
+    getFiberRef(FiberRef.currentFatal).apply(t)
 
   final def isInterrupted()(implicit unsafe: Unsafe): Boolean = !getFiberRef(FiberRef.interruptedCause).isEmpty
 

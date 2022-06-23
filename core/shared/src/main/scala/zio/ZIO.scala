@@ -3598,7 +3598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Constructs an effect based on the definition of a fatal error.
    */
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentFatal.getWith(fatal => f(t => fatal.exists(_.isAssignableFrom(t.getClass))))
+    FiberRef.currentFatal.getWith(f)
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:

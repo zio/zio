@@ -4280,9 +4280,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
             FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
               .succeed(ChunkBuilder.make[A](maxChunkSize))
           )
-          .flatMap { case (fatals, it, rt, builder) =>
-            def isFatal(t: Throwable): Boolean = fatals.exists(_.isAssignableFrom(t.getClass))
-
+          .flatMap { case (isFatal, it, rt, builder) =>
             ZStream.repeatZIOChunkOption {
               ZIO.attempt {
                 builder.clear()
@@ -4318,10 +4316,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     object StreamEnd extends Throwable
 
     ZStream.fromZIO(FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap {
-      case (fatals, it, rt) =>
+      case (isFatal, it, rt) =>
         ZStream.repeatZIOOption {
           ZIO.attempt {
-            def isFatal(t: Throwable): Boolean = fatals.exists(_.isAssignableFrom(t.getClass))
 
             val hasNext: Boolean =
               try it.hasNext

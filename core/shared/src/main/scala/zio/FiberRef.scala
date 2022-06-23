@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.FiberScope
+import zio.internal.{FiberScope, IsFatal}
 
 /**
  * A `FiberRef` is ZIO's equivalent of Java's `ThreadLocal`. The value of a
@@ -400,6 +400,15 @@ object FiberRef {
         ZEnvironment.Patch.empty
       )
 
+    def makeIsFatal[A](
+      initial: IsFatal
+    )(implicit unsafe: Unsafe): FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
+      makePatch[IsFatal, IsFatal.Patch](
+        initial,
+        Differ.isFatal,
+        IsFatal.Patch.empty
+      )
+
     def makePatch[Value0, Patch0](
       initialValue0: Value0,
       differ: Differ[Value0, Patch0],
@@ -489,8 +498,8 @@ object FiberRef {
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(Runtime.defaultBlockingExecutor))
 
-  private[zio] val currentFatal: FiberRef.WithPatch[Set[Class[_ <: Throwable]], SetPatch[Class[_ <: Throwable]]] =
-    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.makeSet(Runtime.defaultFatal))
+  private[zio] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
+    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal))
 
   private[zio] val currentLoggers: FiberRef.WithPatch[Set[ZLogger[String, Any]], SetPatch[ZLogger[String, Any]]] =
     Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.makeSet(Runtime.defaultLoggers))

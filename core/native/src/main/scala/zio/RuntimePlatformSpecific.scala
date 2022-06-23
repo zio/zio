@@ -28,8 +28,8 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
-  final val defaultFatal: Set[Class[_ <: Throwable]] =
-    Set.empty
+  final val defaultFatal: IsFatal =
+    IsFatal.empty
 
   final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))
