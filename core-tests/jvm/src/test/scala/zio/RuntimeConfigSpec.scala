@@ -3,7 +3,7 @@ package zio
 import zio.test._
 
 object RuntimeSpecJVM extends ZIOBaseSpec {
-  def isFatal(t: Throwable): Boolean = FiberRef.currentFatal.initial.exists(_.isAssignableFrom(t.getClass))
+  def isFatal(t: Throwable): Boolean = FiberRef.currentFatal.initial.apply(t)
 
   def spec = suite("RuntimeSpecJVM")(
     suite("Runtime.default isFatal:")(

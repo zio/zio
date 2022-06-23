@@ -1,5 +1,7 @@
 package zio
 
+import zio.internal.IsFatal
+
 import scala.annotation.tailrec
 
 /**
@@ -149,6 +151,21 @@ object Differ {
       def empty: ZEnvironment.Patch[A, A] =
         ZEnvironment.Patch.empty
       def patch(patch: ZEnvironment.Patch[A, A])(oldValue: ZEnvironment[A]): ZEnvironment[A] =
+        patch(oldValue)
+    }
+
+  /**
+   * Constructs a differ that knows how to diff `IsFatal` values.
+   */
+  def isFatal: Differ[IsFatal, IsFatal.Patch] =
+    new Differ[IsFatal, IsFatal.Patch] {
+      def combine(first: IsFatal.Patch, second: IsFatal.Patch): IsFatal.Patch =
+        first.combine(second)
+      def diff(oldValue: IsFatal, newValue: IsFatal): IsFatal.Patch =
+        IsFatal.Patch.diff(oldValue, newValue)
+      def empty: IsFatal.Patch =
+        IsFatal.Patch.empty
+      def patch(patch: IsFatal.Patch)(oldValue: IsFatal): IsFatal =
         patch(oldValue)
     }
 

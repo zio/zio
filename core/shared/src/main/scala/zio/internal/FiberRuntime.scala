@@ -651,7 +651,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * log annotations and log level) may not be up-to-date.
    */
   private[zio] def isFatal(t: Throwable)(implicit unsafe: Unsafe): Boolean =
-    getFiberRef(FiberRef.currentFatal).exists(_.isAssignableFrom(t.getClass))
+    getFiberRef(FiberRef.currentFatal).apply(t)
 
   /**
    * Determines if the fiber is interrupted.
