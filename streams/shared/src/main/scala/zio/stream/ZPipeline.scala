@@ -61,7 +61,9 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
  * However, the companion object has lots of other pipeline constructors based
  * on the methods of stream.
  */
-class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]) {
+class ZPipeline[-Env, +Err, -In, +Out] private (
+  val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]
+) {
   self =>
 
   final def apply[Env1 <: Env, Err1 >: Err](stream: => ZStream[Env1, Err1, In])(implicit
@@ -87,7 +89,7 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
   final def >>>[Env1 <: Env, Err1 >: Err, Leftover, Out2](that: => ZSink[Env1, Err1, Out, Leftover, Out2])(implicit
     trace: Trace
   ): ZSink[Env1, Err1, In, Leftover, Out2] =
-    new ZSink(self.channel.pipeToOrFail(that.channel))
+    ZSink.fromChannel(self.channel.pipeToOrFail(that.channel))
 
   /**
    * Composes two pipelines into one pipeline, by first applying the

@@ -7,10 +7,12 @@ import ChannelExecutor.ChannelState
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
 
 /**
- * A `ZChannel[In, Env, Err, Out, Z]` is a nexus of I/O operations, which
- * supports both reading and writing. A channel may read values of type `In` and
- * write values of type `Out`. When the channel finishes, it yields a value of
- * type `Z`. A channel may fail with a value of type `Err`.
+ * A `ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]` is a nexus
+ * of I/O operations, which supports both reading and writing. A channel may
+ * read values of type `InElem` or process upstream failures of type `InErr`,
+ * while it may write values of type `OutElem`. When the channel finishes, it
+ * yields a value of type `OutDone`. A channel may fail with a value of type
+ * `OutErr`.
  *
  * Channels are the foundation of ZIO Streams: both streams and sinks are built
  * on channels. Most users shouldn't have to use channels directly, as streams
@@ -953,7 +955,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     InDone: Any <:< InDone,
     trace: Trace
   ): ZPipeline[Env, OutErr, In, Out] =
-    new ZPipeline[Env, OutErr, In, Out](
+    ZPipeline.fromChannel[Env, OutErr, In, Out](
       self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], Any]]
     )
 
@@ -963,7 +965,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     InDone: Any <:< InDone,
     trace: Trace
   ): ZSink[Env, OutErr, In, Out, OutDone] =
-    new ZSink[Env, OutErr, In, Out, OutDone](
+    ZSink.fromChannel[Env, OutErr, In, Out, OutDone](
       self.asInstanceOf[ZChannel[Env, Nothing, Chunk[In], Any, OutErr, Chunk[Out], OutDone]]
     )
 
@@ -974,7 +976,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     InDone: Any <:< InDone,
     trace: Trace
   ): ZStream[Env, OutErr, Out] =
-    new ZStream[Env, OutErr, Out](
+    ZStream.fromChannel[Env, OutErr, Out](
       self.asInstanceOf[ZChannel[Env, Any, Any, Any, OutErr, Chunk[Out], Any]]
     )
 
@@ -1203,16 +1205,6 @@ object ZChannel {
     environment: () => ZEnvironment[Env],
     inner: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ) extends ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone]
-
-  sealed abstract class MergeDecision[-R, -E0, -Z0, +E, +Z]
-  object MergeDecision {
-    case class Done[R, E, Z](zio: ZIO[R, E, Z])                        extends MergeDecision[R, Any, Any, E, Z]
-    case class Await[R, E0, Z0, E, Z](f: Exit[E0, Z0] => ZIO[R, E, Z]) extends MergeDecision[R, E0, Z0, E, Z]
-
-    def done[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z]                      = Done(zio)
-    def await[R, E0, Z0, E, Z](f: Exit[E0, Z0] => ZIO[R, E, Z]): MergeDecision[R, E0, Z0, E, Z] = Await(f)
-    def awaitConst[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z]                = Await(_ => zio)
-  }
 
   def acquireReleaseOutWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: Acquired => URIO[Env, Any]
@@ -1752,6 +1744,16 @@ object ZChannel {
     case class RightDone[Env, Err, Err1, Err2, Elem, Done, Done1, Done2](
       f: Exit[Err, Done] => ZIO[Env, Err2, Done2]
     ) extends MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]
+  }
+
+  sealed abstract class MergeDecision[-R, -E0, -Z0, +E, +Z]
+  object MergeDecision {
+    case class Done[R, E, Z](zio: ZIO[R, E, Z])                        extends MergeDecision[R, Any, Any, E, Z]
+    case class Await[R, E0, Z0, E, Z](f: Exit[E0, Z0] => ZIO[R, E, Z]) extends MergeDecision[R, E0, Z0, E, Z]
+
+    def done[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z]                      = Done(zio)
+    def await[R, E0, Z0, E, Z](f: Exit[E0, Z0] => ZIO[R, E, Z]): MergeDecision[R, E0, Z0, E, Z] = Await(f)
+    def awaitConst[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z]                = Await(_ => zio)
   }
 
   sealed trait MergeStrategy

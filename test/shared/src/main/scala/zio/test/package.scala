@@ -743,7 +743,7 @@ package object test extends CompileVariants {
   private[test] def flatMapStream[R, R1 <: R, A, B](
     stream: ZStream[R, Nothing, Option[A]]
   )(f: A => ZStream[R1, Nothing, Option[B]])(implicit trace: Trace): ZStream[R1, Nothing, Option[B]] =
-    new ZStream(
+    ZStream.fromChannel(
       stream
         .rechunk(1)
         .channel

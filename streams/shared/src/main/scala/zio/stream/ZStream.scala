@@ -27,7 +27,7 @@ import java.io.{IOException, InputStream}
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
+class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
   import ZStream.HaltStrategy
 
@@ -2416,7 +2416,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
               (_: Any) => ZChannel.fromZIO(handoff.offer(Signal.End)) *> ZChannel.unit
             )
 
-            new ZSink(
+            ZSink.fromChannel(
               ZChannel.fromZIO(p.succeed(z1)) *>
                 ZChannel.fromZIO(handoff.offer(Signal.Emit(leftovers))) *>
                 loop
@@ -3949,10 +3949,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 }
 
 object ZStream extends ZStreamPlatformSpecificConstructors {
-  def fromPull[R, E, A](zio: ZIO[Scope with R, Nothing, ZIO[R, Option[E], Chunk[A]]])(implicit
-    trace: Trace
-  ): ZStream[R, E, A] =
-    ZStream.unwrapScoped[R](zio.map(pull => repeatZIOChunkOption(pull)))
 
   /**
    * The default chunk size used by the various combinators and constructors of
@@ -4086,6 +4082,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     input: => Input
   )(implicit constructor: ZStreamConstructor[Input], trace: Trace): constructor.Out =
     constructor.make(input)
+
+  /**
+   * Creates a stream from a [[zio.stream.ZChannel]]
+   */
+  def fromChannel[R, E, A](channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]): ZStream[R, E, A] =
+    new ZStream(channel)
 
   /**
    * Creates a stream from a [[zio.Chunk]] of values
@@ -4445,6 +4447,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     iterator: => ZIO[R, Throwable, java.util.Iterator[A]]
   )(implicit trace: Trace): ZStream[R, Throwable, A] =
     fromZIO(iterator).flatMap(fromJavaIterator(_))
+
+  def fromPull[R, E, A](zio: ZIO[Scope with R, Nothing, ZIO[R, Option[E], Chunk[A]]])(implicit
+    trace: Trace
+  ): ZStream[R, E, A] =
+    ZStream.unwrapScoped[R](zio.map(pull => repeatZIOChunkOption(pull)))
 
   /**
    * Creates a stream from a queue of values

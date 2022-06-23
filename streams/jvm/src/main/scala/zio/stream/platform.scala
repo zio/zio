@@ -92,7 +92,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
                 )
             )
 
-          new ZStream(loop).ensuring(canceler)
+          ZStream.fromChannel(loop).ensuring(canceler)
       }
     })
 
@@ -140,7 +140,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
     outputBuffer: => Int = 16
   )(implicit trace: Trace): ZStream[R, E, A] =
-    new ZStream(ZChannel.unwrapScoped[R](for {
+    ZStream.fromChannel(ZChannel.unwrapScoped[R](for {
       output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
@@ -550,7 +550,7 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
           _ => ZChannel.succeedNow(Chunk.fromArray(digest.digest))
         )
 
-      new ZSink(loop(digest))
+      ZSink.fromChannel(loop(digest))
     }
 
   /**
