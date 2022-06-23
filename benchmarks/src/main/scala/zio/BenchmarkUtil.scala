@@ -8,6 +8,10 @@ import scala.concurrent.ExecutionContext
 object BenchmarkUtil extends Runtime[Any] {
   val environment = Runtime.default.environment
 
+  val fiberRefs = Runtime.default.fiberRefs
+
+  val runtimeFlags = Runtime.default.runtimeFlags
+
   implicit val futureExecutionContext: ExecutionContext =
     ExecutionContext.global
 

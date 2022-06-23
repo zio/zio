@@ -36,8 +36,7 @@ trait Runtime[+R] { self =>
    * The [[zio.FiberRefs]] that will be used for all effects executed by this
    * runtime.
    */
-  def fiberRefs: FiberRefs =
-    FiberRefs.empty
+  def fiberRefs: FiberRefs
 
   /**
    * Constructs a new `Runtime` by mapping the environment.
@@ -61,8 +60,7 @@ trait Runtime[+R] { self =>
    * The [[zio.RuntimeFlags]] that will be used for all effects executed by this
    * [[zio.Runtime]].
    */
-  def runtimeFlags: RuntimeFlags =
-    RuntimeFlags.default
+  def runtimeFlags: RuntimeFlags
 
   /**
    * Constructs a new `Runtime` with the specified new environment.
@@ -104,7 +102,9 @@ trait Runtime[+R] { self =>
     )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A]
   }
 
-  val unsafe: UnsafeAPI = new UnsafeAPI {
+  def unsafe: UnsafeAPI = new UnsafeAPIV1 {}
+
+  protected abstract class UnsafeAPIV1 extends UnsafeAPI {
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] = {
       import internal.FiberRuntime
 
@@ -278,45 +278,44 @@ object Runtime extends RuntimePlatformSpecific {
         }
       }.getOrThrowFiberFailure()
 
-      Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
+      Runtime.Scoped(runtime.environment, runtime.fiberRefs, runtime.runtimeFlags, () => shutdown())
     }
   }
 
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
-    def environment        = underlying.environment
-    override def fiberRefs = underlying.fiberRefs
+    def environment = underlying.environment
+    def fiberRefs   = underlying.fiberRefs
+
+    def runtimeFlags = underlying.runtimeFlags
   }
 
   /**
    * A runtime that can be shutdown to release resources allocated to it.
    */
-  abstract class Scoped[+R] extends Runtime[R] {
+  final case class Scoped[+R](
+    environment: ZEnvironment[R],
+    fiberRefs: FiberRefs,
+    runtimeFlags: RuntimeFlags,
+    shutdown0: () => Unit
+  ) extends Runtime[R] { self =>
     override final def mapEnvironment[R1](f: ZEnvironment[R] => ZEnvironment[R1]): Runtime.Scoped[R1] =
-      Scoped(f(environment), fiberRefs, () => shutdown()(Unsafe.unsafe))
+      Scoped(f(environment), fiberRefs, runtimeFlags, shutdown0)
 
-    /**
-     * Shuts down this runtime and releases resources allocated to it. Once this
-     * runtime has been shut down the behavior of methods on it is undefined and
-     * it should be discarded.
-     */
-    def shutdown()(implicit unsafe: Unsafe): Unit
-  }
+    trait UnsafeAPI2 {
 
-  object Scoped {
+      /**
+       * Shuts down this runtime and releases resources allocated to it. Once
+       * this runtime has been shut down the behavior of methods on it is
+       * undefined and it should be discarded.
+       */
+      def shutdown()(implicit unsafe: Unsafe): Unit
+    }
 
-    /**
-     * Builds a new scoped runtime given an environment `R`, a
-     * [[zio.FiberRefs]], and a shut down action.
-     */
-    def apply[R](
-      r: ZEnvironment[R],
-      fiberRefs0: FiberRefs = FiberRefs.empty,
-      shutdown0: () => Unit
-    ): Runtime.Scoped[R] =
-      new Runtime.Scoped[R] {
-        val environment                         = r
-        def shutdown()(implicit unsafe: Unsafe) = shutdown0()
-        override val fiberRefs                  = fiberRefs0
-      }
+    override def unsafe: UnsafeAPI with UnsafeAPI2 = new UnsafeAPIV2 {}
+
+    protected abstract class UnsafeAPIV2 extends UnsafeAPIV1 with UnsafeAPI2 {
+      def shutdown()(implicit unsafe: Unsafe) = shutdown0()
+    }
+
   }
 }
