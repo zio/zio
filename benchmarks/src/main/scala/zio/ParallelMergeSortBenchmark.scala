@@ -60,7 +60,7 @@ class ParallelMergeSortBenchmark {
         sortOutput <- ZIO.foreach(sortInput)(mergeSort)
         _          <- ZIO.foreach(sortInput.zip(sortOutput))(verifySorted)
       } yield ()
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
   }
 
   private def verifySorted(inOut: (Iterable[Int], Iterable[Int])): IO[AssertionError, Unit] = {

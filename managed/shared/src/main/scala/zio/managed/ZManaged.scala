@@ -544,7 +544,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
           outerReleaseMap <- ZManaged.currentReleaseMap.get
           innerReleaseMap <- ReleaseMap.make
           exitEA <- ZManaged.currentReleaseMap.locally(innerReleaseMap)(
-                      restore(zio).exit.map(_.map((t: (ZManaged.Finalizer, A)) => t._2))
+                      restore(zio).exit.map(_.mapExit((t: (ZManaged.Finalizer, A)) => t._2))
                     )
           releaseMapEntry <- outerReleaseMap.add { e =>
                                cleanup(exitEA)
@@ -960,7 +960,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
                           ZManaged.currentReleaseMap
                             .locally(innerReleaseMap)(zio)
                             .raceWith(ZIO.sleep(d).as(None))(
-                              (result, sleeper) => sleeper.interrupt *> ZIO.done(result.map(tp => Right(tp._2))),
+                              (result, sleeper) => sleeper.interrupt *> result.map(tp => Right(tp._2)),
                               (_, resultFiber) => ZIO.succeed(Left(resultFiber))
                             )
                         }

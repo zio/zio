@@ -25,7 +25,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                            runtime.unsafe.run {
                              clock.sleep(2.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                           }.getOrThrowFiberFailure
+                           }.getOrThrowFiberFailure()
                          }
                      },
                      3,
@@ -52,7 +52,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                            runtime.unsafe.run {
                              clock.sleep(5.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                           }.getOrThrowFiberFailure
+                           }.getOrThrowFiberFailure()
                          }
                      },
                      3,
@@ -79,7 +79,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                            runtime.unsafe.run {
                              clock.sleep(2.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                           }.getOrThrowFiberFailure
+                           }.getOrThrowFiberFailure()
                          }
                      },
                      3,
@@ -106,7 +106,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                                 runtime.unsafe.run {
                                   clock.sleep(2.seconds) *>
                                     clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
-                                }.getOrThrowFiberFailure
+                                }.getOrThrowFiberFailure()
                               }
                           },
                           3,

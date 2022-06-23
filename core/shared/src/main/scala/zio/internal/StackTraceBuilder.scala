@@ -31,5 +31,5 @@ private[zio] class StackTraceBuilder private () { self =>
   def result(): Chunk[Trace] = builder.result()
 }
 private[zio] object StackTraceBuilder {
-  def unsafeMake(): StackTraceBuilder = new StackTraceBuilder()
+  def make()(unsafe: Unsafe): StackTraceBuilder = new StackTraceBuilder()
 }

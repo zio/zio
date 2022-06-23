@@ -468,7 +468,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def generateStackTrace(): StackTrace = {
-    val builder = StackTraceBuilder.unsafeMake()
+    val builder = StackTraceBuilder.make()(Unsafe.unsafe)
 
     self.reifiedStack.foreach(k => builder += k.trace)
 

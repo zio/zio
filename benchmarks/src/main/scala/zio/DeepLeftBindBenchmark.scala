@@ -24,7 +24,7 @@ class DeepLeftBindBenchmark {
     }
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafe.run(io).getOrThrowFiberFailure
+      runtime.unsafe.run(io).getOrThrowFiberFailure()
     }
   }
 

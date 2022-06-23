@@ -36,7 +36,7 @@ class EmptyRaceBenchmark {
       else ZIO.succeedNow(i)
 
     Unsafe.unsafeCompat { implicit u =>
-      runtime.unsafe.run(loop(0)).getOrThrowFiberFailure
+      runtime.unsafe.run(loop(0)).getOrThrowFiberFailure()
     }
   }
 }
