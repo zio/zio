@@ -64,7 +64,9 @@ trait System extends Serializable { self =>
       Runtime.default.unsafe.run(self.env(variable)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
 
     def envOrElse(variable: String, alt: => String)(implicit unsafe: Unsafe): String =
-      Runtime.default.unsafe.run(self.envOrElse(variable, alt)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+      Runtime.default.unsafe
+        .run(self.envOrElse(variable, alt)(Trace.empty))(Trace.empty, unsafe)
+        .getOrThrowFiberFailure()
 
     def envOrOption(variable: String, alt: => Option[String])(implicit
       unsafe: Unsafe
