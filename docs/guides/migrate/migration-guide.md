@@ -113,8 +113,8 @@ object MainApp extends ZIOAppDefault {
     - }
     + def foreachParN[A](n0: => Int)(a0: => Iterable[A]) = 
     +   ZIO.suspendSucceed {
-    +    val n = n0 
-    +    val a = a0
+    +    lazy val n = n0 
+    +    lazy val a = a0
           ... // The function body
     +   }
     ```
