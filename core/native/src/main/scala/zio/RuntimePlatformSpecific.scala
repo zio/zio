@@ -16,6 +16,7 @@
 
 package zio
 
+import zio.internal.IsFatal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.ExecutionContext

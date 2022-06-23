@@ -17,6 +17,7 @@
 package zio
 
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
+import zio.internal.IsFatal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.scalajs.js.Dynamic.{global => jsglobal}
