@@ -28,5 +28,5 @@ object BenchmarkUtil extends Runtime[Any] {
     else io.flatMap(_ => catsRepeat(n - 1)(io))
 
   def unsafeRun[E, A](zio: ZIO[Any, E, A]): A =
-    Unsafe.unsafeCompat(implicit u => unsafe.run(zio).getOrThrowFiberFailure)
+    Unsafe.unsafeCompat(implicit u => unsafe.run(zio).getOrThrowFiberFailure())
 }

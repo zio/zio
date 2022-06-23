@@ -269,12 +269,12 @@ object Runtime extends RuntimePlatformSpecific {
           val finalizer = () =>
             default.unsafe.run {
               scope.close(Exit.unit).uninterruptible.unit
-            }.getOrThrowFiberFailure
+            }.getOrThrowFiberFailure()
 
           ZIO.succeed(Platform.addShutdownHook(finalizer)).as((acquire, finalizer))
         }
       }
-    }.getOrThrowFiberFailure
+    }.getOrThrowFiberFailure()
 
     Runtime.Scoped(runtime.environment, runtime.fiberRefs, () => shutdown())
   }

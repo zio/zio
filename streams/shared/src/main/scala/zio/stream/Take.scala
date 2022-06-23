@@ -74,7 +74,7 @@ case class Take[+E, +A](exit: Exit[Option[E], Chunk[A]]) extends AnyVal {
    * Transforms `Take[E, A]` to `Take[E, B]` by applying function `f`.
    */
   def map[B](f: A => B): Take[E, B] =
-    Take(exit.map(_.map(f)))
+    Take(exit.mapExit(_.map(f)))
 
   /**
    * Returns an effect that effectfully "peeks" at the success of this take.
@@ -142,7 +142,7 @@ object Take {
    * Creates a `Take[E, A]` from `Exit[E, A]`.
    */
   def done[E, A](exit: Exit[E, A]): Take[E, A] =
-    Take(exit.mapError[Option[E]]((e: E) => Some(e)).map(Chunk.single))
+    Take(exit.mapErrorExit[Option[E]]((e: E) => Some(e)).mapExit(Chunk.single))
 
   /**
    * End-of-stream marker

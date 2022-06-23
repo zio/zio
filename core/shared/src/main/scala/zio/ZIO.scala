@@ -5662,7 +5662,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Replaces the success value with the one provided.
    */
-  final def as[B](b: B): Exit[E, B] = map(_ => b)
+  final def asExit[B](b: B): Exit[E, B] = mapExit(_ => b)
 
   /**
    * Returns an option of the cause of failure.
@@ -5679,7 +5679,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Flat maps over the value type.
    */
-  final def flatMap[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
+  final def flatMapExit[E1 >: E, A1](f: A => Exit[E1, A1]): Exit[E1, A1] =
     self match {
       case Success(a)     => f(a)
       case e @ Failure(_) => e
@@ -5688,7 +5688,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Flat maps over the value type.
    */
-  final def flatMapZIO[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
+  final def flatMapExitZIO[E1 >: E, R, E2, A1](f: A => ZIO[R, E2, Exit[E1, A1]]): ZIO[R, E2, Exit[E1, A1]] =
     self match {
       case Success(a)     => f(a)
       case e @ Failure(_) => ZIO.succeedNow(e)
@@ -5697,8 +5697,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Flattens an Exit of an Exit into a single Exit value.
    */
-  final def flatten[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
-    Exit.flatten(self.map(ev))
+  final def flattenExit[E1 >: E, B](implicit ev: A <:< Exit[E1, B]): Exit[E1, B] =
+    Exit.flatten(self.mapExit(ev))
 
   /**
    * Folds over the value or cause.
@@ -5736,10 +5736,10 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     case Failure(cause) => orElse(cause)
   }
 
-  final def getOrThrow(implicit ev: E <:< Throwable): A =
+  final def getOrThrow()(implicit ev: E <:< Throwable, unsafe: Unsafe): A =
     getOrElse(cause => throw cause.squashTrace)
 
-  final def getOrThrowFiberFailure: A =
+  final def getOrThrowFiberFailure()(implicit unsafe: Unsafe): A =
     getOrElse(c => throw FiberFailure(c))
 
   /**
@@ -5766,7 +5766,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Maps over the value type.
    */
-  final def map[A1](f: A => A1): Exit[E, A1] =
+  final def mapExit[A1](f: A => A1): Exit[E, A1] =
     self match {
       case Success(v)     => Exit.succeed(f(v))
       case e @ Failure(_) => e
@@ -5775,13 +5775,13 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Maps over both the error and value type.
    */
-  final def mapBoth[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
-    mapError(f).map(g)
+  final def mapBothExit[E1, A1](f: E => E1, g: A => A1): Exit[E1, A1] =
+    mapErrorExit(f).mapExit(g)
 
   /**
    * Maps over the error type.
    */
-  final def mapError[E1](f: E => E1): Exit[E1, A] =
+  final def mapErrorExit[E1](f: E => E1): Exit[E1, A] =
     self match {
       case e @ Success(_) => e
       case Failure(c)     => failCause(c.map(f))
@@ -5790,7 +5790,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Maps over the cause type.
    */
-  final def mapErrorCause[E1](f: Cause[E] => Cause[E1]): Exit[E1, A] =
+  final def mapErrorCauseExit[E1](f: Cause[E] => Cause[E1]): Exit[E1, A] =
     self match {
       case e @ Success(_) => e
       case Failure(c)     => Failure(f(c))
@@ -5799,8 +5799,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   /**
    * Replaces the error value with the one provided.
    */
-  final def orElseFail[E1](e1: => E1): Exit[E1, A] =
-    mapError(_ => e1)
+  final def orElseFailExit[E1](e1: => E1): Exit[E1, A] =
+    mapErrorExit(_ => e1)
 
   /**
    * Converts the `Exit` to an `Either[Throwable, A]`, by wrapping the cause in
@@ -5817,26 +5817,17 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
       case Failure(cause) => scala.util.Failure(cause.squash)
     }
 
-  /**
-   * Converts the `Exit` to a `ZIO` effect.
-   */
-  final def toZIO(implicit trace: Trace): IO[E, A] =
-    self match {
-      case Exit.Failure(cause) => ZIO.refailCause(cause)
-      case Exit.Success(value) => ZIO.succeedNow(value)
-    }
-
   final def trace: Trace = Trace.empty
 
   /**
    * Discards the value.
    */
-  final def unit: Exit[E, Unit] = as(())
+  final def unitExit: Exit[E, Unit] = asExit(())
 
   /**
    * Returns an untraced exit value.
    */
-  final def untraced: Exit[E, A] = mapErrorCause(_.untraced)
+  final def untraced: Exit[E, A] = mapErrorCauseExit(_.untraced)
 
   /**
    * Named alias for `<*>`.
@@ -5898,16 +5889,16 @@ object Exit extends Serializable {
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.map((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
-        .map(_.reverse)
+        .foldLeft(head.mapExit((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ ++ _))
+        .mapExit(_.reverse)
     }
 
   def collectAllPar[E, A](exits: Iterable[Exit[E, A]]): Option[Exit[E, List[A]]] =
     exits.headOption.map { head =>
       exits
         .drop(1)
-        .foldLeft(head.map((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
-        .map(_.reverse)
+        .foldLeft(head.mapExit((a: A) => List(a)))((acc, el) => acc.zipWith(el)((acc, el) => el :: acc, _ && _))
+        .mapExit(_.reverse)
     }
 
   def die(t: Throwable): Exit[Nothing, Nothing] =
@@ -5920,7 +5911,7 @@ object Exit extends Serializable {
     Failure(cause)
 
   def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
-    exit.flatMap(identity)
+    exit.flatMapExit(identity)
 
   def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
     e.fold(fail, succeed)

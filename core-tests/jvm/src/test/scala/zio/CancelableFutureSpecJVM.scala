@@ -32,7 +32,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
         ZIO
           .runtime[Any]
           .map(runtime =>
-            Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(tst.onExecutor(executor)).getOrThrowFiberFailure)
+            Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(tst.onExecutor(executor)).getOrThrowFiberFailure())
           )
       } @@ nonFlaky
     ) @@ zioTag(future)
