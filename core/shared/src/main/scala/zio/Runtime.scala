@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberScope, Platform, FiberRuntime, StackTraceBuilder}
+import zio.internal.{FiberRuntime, FiberScope, IsFatal, Platform, StackTraceBuilder}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.concurrent.Future
@@ -195,7 +195,7 @@ trait Runtime[+R] { self =>
 object Runtime extends RuntimePlatformSpecific {
 
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
-    ZLayer.scoped(FiberRef.currentFatal.locallyScopedWith(_ + fatal))
+    ZLayer.scoped(FiberRef.currentFatal.locallyScopedWith(_ | IsFatal(fatal)))
 
   def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentLoggers.locallyScopedWith(_ + logger))

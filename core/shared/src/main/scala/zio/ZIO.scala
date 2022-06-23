@@ -3162,7 +3162,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results in a new `Collection[B]`.
    *
    * For a parallel version of this method, see `foreachPar`. If you do not need
-   * the results, see `foreach_` for a more efficient implementation.
+   * the results, see `foreachDiscard` for a more efficient implementation.
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
@@ -3598,7 +3598,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Constructs an effect based on the definition of a fatal error.
    */
   def isFatalWith[R, E, A](f: (Throwable => Boolean) => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    FiberRef.currentFatal.getWith(fatal => f(t => fatal.exists(_.isAssignableFrom(t.getClass))))
+    FiberRef.currentFatal.getWith(f)
 
   /**
    * Iterates with the specified effectual function. The moral equivalent of:

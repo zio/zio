@@ -17,6 +17,7 @@
 package zio
 
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor
+import zio.internal.IsFatal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.scalajs.js.Dynamic.{global => jsglobal}
@@ -29,8 +30,8 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
-  final val defaultFatal: Set[Class[_ <: Throwable]] =
-    Set.empty
+  final val defaultFatal: IsFatal =
+    IsFatal.empty
 
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {

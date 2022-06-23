@@ -2817,17 +2817,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   /**
    * Schedules the output of the stream using the provided `schedule`.
    */
-  def scheduleElements[R1 <: R](schedule: => Schedule[R1, A, Any])(implicit
+  def schedule[R1 <: R](schedule: => Schedule[R1, A, Any])(implicit
     trace: Trace
   ): ZStream[R1, E, A] =
     scheduleEither(schedule).collect { case Right(a) => a }
-
-  /**
-   * Emits elements of this stream with a fixed delay in between, regardless of
-   * how long it takes to produce a value.
-   */
-  def scheduleElementsFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
-    scheduleElements(Schedule.fixed(duration))
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits
@@ -4287,9 +4280,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
             FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any] <*> ZIO
               .succeed(ChunkBuilder.make[A](maxChunkSize))
           )
-          .flatMap { case (fatals, it, rt, builder) =>
-            def isFatal(t: Throwable): Boolean = fatals.exists(_.isAssignableFrom(t.getClass))
-
+          .flatMap { case (isFatal, it, rt, builder) =>
             ZStream.repeatZIOChunkOption {
               ZIO.attempt {
                 builder.clear()
@@ -4325,10 +4316,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     object StreamEnd extends Throwable
 
     ZStream.fromZIO(FiberRef.currentFatal.get <*> ZIO.attempt(iterator) <*> ZIO.runtime[Any]).flatMap {
-      case (fatals, it, rt) =>
+      case (isFatal, it, rt) =>
         ZStream.repeatZIOOption {
           ZIO.attempt {
-            def isFatal(t: Throwable): Boolean = fatals.exists(_.isAssignableFrom(t.getClass))
 
             val hasNext: Boolean =
               try it.hasNext

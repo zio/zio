@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.Blocking
+import zio.internal.{Blocking, IsFatal}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
@@ -27,8 +27,8 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor
 
-  final val defaultFatal: Set[Class[_ <: Throwable]] =
-    Set(classOf[VirtualMachineError])
+  final val defaultFatal: IsFatal =
+    IsFatal(classOf[VirtualMachineError])
 
   final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))

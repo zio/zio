@@ -2970,7 +2970,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               start <- Clock.currentTime(TimeUnit.MILLISECONDS)
               fiber <- ZStream
                          .range(1, 9)
-                         .scheduleElements(Schedule.fixed(100.milliseconds))
+                         .schedule(Schedule.fixed(100.milliseconds))
                          .mapZIO(n => Clock.currentTime(TimeUnit.MILLISECONDS).map(now => (n, now - start)))
                          .runCollect
                          .fork
@@ -3612,7 +3612,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("should handle empty chunks properly") {
             for {
-              fiber  <- ZStream(1, 2, 3).scheduleElementsFixed(500.millis).debounce(1.second).runCollect.fork
+              fiber  <- ZStream(1, 2, 3).schedule(Schedule.fixed(500.millis)).debounce(1.second).runCollect.fork
               _      <- TestClock.adjust(3.seconds)
               result <- fiber.join
             } yield assert(result)(equalTo(Chunk(3)))
