@@ -20,12 +20,10 @@ import zio._
 import zio.internal.{SingleThreadedRingBuffer, UniqueKey}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm._
-import zio.stream.ZStream.{DebounceState, HandoffSignal, SinkEndReason}
-import zio.stream.internal.Utils.{zipChunks, zipLeftChunks, zipRightChunks}
+import zio.stream.ZStream.{DebounceState, HandoffSignal, zipChunks}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -3583,7 +3581,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A] =
-    zipWithChunks(that)(zipLeftChunks)
+    zipWithChunks(that)((cl, cr) =>
+      if (cl.size > cr.size)
+        (cl.take(cr.size), Left(cl.drop(cr.size)))
+      else
+        (cl, Right(cr.drop(cl.size)))
+    )
 
   /**
    * Zips this stream with another point-wise, but keeps only the outputs of the
@@ -3592,7 +3595,12 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * The new stream will end when one of the sides ends.
    */
   def zipRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
-    zipWithChunks(that)(zipRightChunks)
+    zipWithChunks(that)((cl, cr) =>
+      if (cl.size > cr.size)
+        (cr, Left(cl.drop(cr.size)))
+      else
+        (cr.take(cl.size), Right(cr.drop(cl.size)))
+    )
 
   /**
    * Zips this stream with another point-wise and emits tuples of elements from
@@ -5876,4 +5884,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
     groupedBuilder.result()
   }
+
+  private def zipChunks[A, B, C](cl: Chunk[A], cr: Chunk[B], f: (A, B) => C): (Chunk[C], Either[Chunk[A], Chunk[B]]) =
+    if (cl.size > cr.size)
+      (cl.take(cr.size).zipWith(cr)(f), Left(cl.drop(cr.size)))
+    else
+      (cl.zipWith(cr.take(cl.size))(f), Right(cr.drop(cl.size)))
 }
