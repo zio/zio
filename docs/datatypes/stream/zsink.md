@@ -82,7 +82,7 @@ val drain: ZSink[Any, Nothing, Any, Nothing, Unit] = ZSink.drain
 val timed: ZSink[Any, Nothing, Any, Nothing, Duration] = ZSink.timed
 val stream: ZIO[Any, Nothing, Long] =
   ZStream(1, 2, 3, 4, 5)
-    .scheduleElementsFixed(2.seconds)
+    .scheduleFixed(2.seconds)
     .run(timed)
     .map(_.getSeconds)
 // Result: 10
@@ -342,7 +342,7 @@ val myApp: IO[IOException, Unit] =
     queue    <- Queue.bounded[Int](32)
     producer <- ZStream
       .iterate(1)(_ + 1)
-      .scheduleElementsFixed(200.millis)
+      .scheduleFixed(200.millis)
       .run(ZSink.fromQueue(queue))
       .fork
     consumer <- queue.take.flatMap(printLine(_)).forever
@@ -364,7 +364,7 @@ val myApp: ZIO[Any, IOException, Unit] =
     sink <- ZIO.succeed(ZSink.fromHub(hub))
     producer <- ZStream
       .iterate(0)(_ + 1)
-      .scheduleElementsFixed(1.seconds)
+      .scheduleFixed(1.seconds)
       .run(sink)
       .fork
     consumers <- ZIO.scoped {
