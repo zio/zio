@@ -18,12 +18,10 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import scala.concurrent._
 import scala.annotation.tailrec
-import scala.util.control.NoStackTrace
 
 import java.util.{Set => JavaSet}
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicReference}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import zio._
 import zio.metrics.Metric
@@ -52,7 +50,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   if (RuntimeFlags.runtimeMetrics(_runtimeFlags)) {
     Metric.runtime.fibersStarted.unsafe.update(1)(Unsafe.unsafe)
-    Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString())(Unsafe.unsafe)
+    Metric.runtime.fiberForkLocations.unsafe.update(fiberId.location.toString)(Unsafe.unsafe)
   }
 
   @volatile private var _exitValue = null.asInstanceOf[Exit[E, A]]
@@ -204,7 +202,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   @tailrec
   private def drainQueueOnCurrentThread()(implicit unsafe: Unsafe): Unit = {
-    assert(running.get == true)
+    assert(running.get)
 
     var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
 
@@ -213,7 +211,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     try {
       while (evaluationSignal == EvaluationSignal.Continue) {
         evaluationSignal =
-          if (queue.isEmpty()) EvaluationSignal.Done
+          if (queue.isEmpty) EvaluationSignal.Done
           else evaluateMessageWhileSuspended(queue.poll())
       }
     } finally {
@@ -225,7 +223,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Maybe someone added something to the queue between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!queue.isEmpty() && running.compareAndSet(false, true)) {
+    if (!queue.isEmpty && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor()
       else drainQueueOnCurrentThread()
     }
@@ -240,7 +238,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def drainQueueLaterOnExecutor()(implicit unsafe: Unsafe): Unit = {
-    assert(running.get == true)
+    assert(running.get)
 
     self.getCurrentExecutor().submitOrThrow(self)
   }
@@ -259,7 +257,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   )(implicit unsafe: Unsafe): ZIO[Any, Any, Any] = {
     var cur = cur0
 
-    while (!queue.isEmpty()) {
+    while (!queue.isEmpty) {
       val message = queue.poll()
 
       message match {
@@ -302,7 +300,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def evaluateEffect(
     effect0: ZIO[Any, Any, Any]
   )(implicit unsafe: Unsafe): Exit[E, A] = {
-    assert(running.get == true)
+    assert(running.get)
 
     getSupervisor().onResume(self)
 
@@ -408,7 +406,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def evaluateMessageWhileSuspended(fiberMessage: FiberMessage)(implicit unsafe: Unsafe): EvaluationSignal = {
-    assert(running.get == true)
+    assert(running.get)
 
     fiberMessage match {
       case FiberMessage.InterruptSignal(cause) =>
@@ -731,7 +729,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   /**
-   * Processes a new incoming interrupt singal.
+   * Processes a new incoming interrupt signal.
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
@@ -761,7 +759,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     observers = observers.filter(_ ne observer)
 
   /**
-   * The main runloop for evaluating effects. This method is recursive,
+   * The main run-loop for evaluating effects. This method is recursive,
    * utilizing JVM stack space.
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
@@ -772,7 +770,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     localStack: Chunk[ZIO.EvaluationStep],
     runtimeFlags0: RuntimeFlags
   )(implicit unsafe: Unsafe): AnyRef = {
-    assert(running.get == true)
+    assert(running.get)
 
     type Erased         = ZIO[Any, Any, Any]
     type ErasedSuccessK = Any => ZIO[Any, Any, Any]
@@ -1119,7 +1117,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val iterator = _children.iterator()
       var told     = false
 
-      while (iterator.hasNext()) {
+      while (iterator.hasNext) {
         val next = iterator.next()
 
         if (next ne null) {
@@ -1162,7 +1160,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               handleFatalError(throwable)
             } else {
               println("An exception was thrown by a logger:")
-              throwable.printStackTrace
+              throwable.printStackTrace()
             }
         }
       case _ =>
@@ -1305,10 +1303,10 @@ object FiberRuntime {
     new Cause.Folder[Unit, Any, Unit] {
       def empty(context: Unit): Unit = ()
       def failCase(context: Unit, error: Any, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName())(Unsafe.unsafe)
+        Metric.runtime.fiberFailureCauses.unsafe.update(error.getClass.getName)(Unsafe.unsafe)
 
       def dieCase(context: Unit, t: Throwable, stackTrace: StackTrace): Unit =
-        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName())(Unsafe.unsafe)
+        Metric.runtime.fiberFailureCauses.unsafe.update(t.getClass.getName)(Unsafe.unsafe)
 
       def interruptCase(context: Unit, fiberId: FiberId, stackTrace: StackTrace): Unit = ()
       def bothCase(context: Unit, left: Unit, right: Unit): Unit                       = ()
