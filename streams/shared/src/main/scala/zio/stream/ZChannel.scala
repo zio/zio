@@ -199,33 +199,6 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   * Returns a new channel whose outputs are fed to the specified factory
-   * function, which creates new channels in response. These new channels are
-   * sequentially concatenated together, and all their outputs appear as outputs
-   * of the newly returned channel. The provided merging function is used to
-   * merge the terminal values of all channels into the single terminal value of
-   * the returned channel.
-   */
-  final def concatMapWithCustom[
-    Env1 <: Env,
-    InErr1 <: InErr,
-    InElem1 <: InElem,
-    InDone1 <: InDone,
-    OutErr1 >: OutErr,
-    OutElem2,
-    OutDone2,
-    OutDone3
-  ](
-    f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone2]
-  )(
-    g: (OutDone2, OutDone2) => OutDone2,
-    h: (OutDone2, OutDone) => OutDone3,
-    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
-    onEmit: OutElem2 => ChildExecutorDecision
-  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
-    ZChannel.ConcatAll(g, h, onPull, onEmit, () => self, f)
-
-  /**
    * Returns a new channel, which is the same as this one, except its outputs
    * are filtered and transformed by the specified partial function.
    */
@@ -319,7 +292,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * output into an in- memory chunk, it is not safe to call this method on
    * channels that output a large or unbounded number of values.
    */
-  def doneCollect(implicit
+  def collectElements(implicit
     trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, (Chunk[OutElem], OutDone)] =
     ZChannel.suspend {
@@ -395,7 +368,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def emitCollect(implicit
     trace: Trace
   ): ZChannel[Env, InErr, InElem, InDone, OutErr, (Chunk[OutElem], OutDone), Unit] =
-    doneCollect.flatMap(t => ZChannel.write(t))
+    collectElements.flatMap(t => ZChannel.write(t))
 
   /**
    * Returns a new channel with an attached finalizer. The finalizer is
@@ -913,7 +886,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZIO.scoped[Env](runScoped)
 
   def runCollect(implicit ev1: Any <:< InElem, trace: Trace): ZIO[Env, OutErr, (Chunk[OutElem], OutDone)] =
-    doneCollect.run
+    collectElements.run
 
   def runDrain(implicit ev1: Any <:< InElem, trace: Trace): ZIO[Env, OutErr, OutDone] =
     self.drain.run
@@ -1095,6 +1068,33 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     that: => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem1, OutDone2] =
     (self zip that).map(_._2)
+
+  /**
+   * Returns a new channel whose outputs are fed to the specified factory
+   * function, which creates new channels in response. These new channels are
+   * sequentially concatenated together, and all their outputs appear as outputs
+   * of the newly returned channel. The provided merging function is used to
+   * merge the terminal values of all channels into the single terminal value of
+   * the returned channel.
+   */
+  private[zio] final def concatMapWithCustom[
+    Env1 <: Env,
+    InErr1 <: InErr,
+    InElem1 <: InElem,
+    InDone1 <: InDone,
+    OutErr1 >: OutErr,
+    OutElem2,
+    OutDone2,
+    OutDone3
+  ](
+    f: OutElem => ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone2]
+  )(
+    g: (OutDone2, OutDone2) => OutDone2,
+    h: (OutDone2, OutDone) => OutDone3,
+    onPull: UpstreamPullRequest[OutElem] => UpstreamPullStrategy[OutElem2],
+    onEmit: OutElem2 => ChildExecutorDecision
+  )(implicit trace: Trace): ZChannel[Env1, InErr1, InElem1, InDone1, OutErr1, OutElem2, OutDone3] =
+    ZChannel.ConcatAll(g, h, onPull, onEmit, () => self, f)
 }
 
 object ZChannel {
@@ -1684,24 +1684,6 @@ object ZChannel {
   )(implicit trace: Trace): ZIO[Scope, Nothing, ZChannel[Any, Any, Any, Any, Err, Elem, Done]] =
     hub.subscribe.map(fromQueue(_))
 
-  def fromInput[Err, Elem, Done](
-    input: => AsyncInputConsumer[Err, Elem, Done]
-  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-    ZChannel.suspend {
-      def fromInput[Err, Elem, Done](
-        input: => AsyncInputConsumer[Err, Elem, Done]
-      ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
-        ZChannel.unwrap(
-          input.takeWith(
-            ZChannel.failCause(_),
-            ZChannel.write(_) *> fromInput(input),
-            ZChannel.succeedNow(_)
-          )
-        )
-
-      fromInput(input)
-    }
-
   def fromQueue[Err, Done, Elem](
     queue: => Dequeue[Either[Exit[Err, Done], Elem]]
   )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
@@ -1738,6 +1720,24 @@ object ZChannel {
         )
 
       toQueue(queue)
+    }
+
+  private[zio] def fromInput[Err, Elem, Done](
+    input: => AsyncInputConsumer[Err, Elem, Done]
+  )(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+    ZChannel.suspend {
+      def fromInput[Err, Elem, Done](
+        input: => AsyncInputConsumer[Err, Elem, Done]
+      ): ZChannel[Any, Any, Any, Any, Err, Elem, Done] =
+        ZChannel.unwrap(
+          input.takeWith(
+            ZChannel.failCause(_),
+            ZChannel.write(_) *> fromInput(input),
+            ZChannel.succeedNow(_)
+          )
+        )
+
+      fromInput(input)
     }
 
   private[zio] sealed trait MergeState[Env, Err, Err1, Err2, Elem, Done, Done1, Done2]

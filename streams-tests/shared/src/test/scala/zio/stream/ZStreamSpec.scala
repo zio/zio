@@ -381,10 +381,12 @@ object ZStreamSpec extends ZIOBaseSpec {
               val test =
                 ZStream
                   .fromChunk(0 +: data)
-                  .branchAfter(1) { values =>
-                    values.toList match {
-                      case 0 :: Nil => ZPipeline.identity
-                      case _        => ???
+                  .via {
+                    ZPipeline.branchAfter(1) { values =>
+                      values.toList match {
+                        case 0 :: Nil => ZPipeline.identity
+                        case _        => ???
+                      }
                     }
                   }
                   .runCollect
@@ -454,7 +456,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               val test =
                 ZStream
                   .fromChunk(data)
-                  .branchAfter(n)(ZPipeline.prepend(_))
+                  .via(ZPipeline.branchAfter(n)(ZPipeline.prepend(_)))
                   .runCollect
               assertZIO(test.exit)(succeeds(equalTo(data)))
             }
@@ -1066,20 +1068,6 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
             }
           }
-        ),
-        suite("defaultIfEmpty")(
-          test("produce default value if stream is empty")(
-            assertZIO(ZStream().defaultIfEmpty(0).runCollect)(equalTo(Chunk(0)))
-          ),
-          test("consume default stream if stream is empty")(
-            assertZIO(ZStream().defaultIfEmpty(ZStream.range(0, 5)).runCollect)(equalTo(Chunk(0, 1, 2, 3, 4)))
-          ),
-          test("ignore default value when stream is not empty")(
-            assertZIO(ZStream(1).defaultIfEmpty(0).runCollect)(equalTo(Chunk(1)))
-          ),
-          test("should throw correct error from default stream")(
-            assertZIO(ZStream().defaultIfEmpty(ZStream.fail("Ouch")).runCollect.either)(isLeft(equalTo("Ouch")))
-          )
         ),
         suite("drain")(
           test("drain")(
@@ -2598,14 +2586,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(stream.runDrain.exit)(fails(equalTo("fail")))
           } @@ nonFlaky @@ TestAspect.diagnose(10.seconds)
         ),
-        suite("mergeTerminateLeft")(
+        suite("mergeHaltLeft")(
           test("terminates as soon as the first stream terminates") {
             for {
               queue1 <- Queue.unbounded[Int]
               queue2 <- Queue.unbounded[Int]
               stream1 = ZStream.fromQueue(queue1)
               stream2 = ZStream.fromQueue(queue2)
-              fiber  <- stream1.mergeTerminateLeft(stream2).runCollect.fork
+              fiber  <- stream1.mergeHaltLeft(stream2).runCollect.fork
               _      <- queue1.offer(1) *> TestClock.adjust(1.second)
               _      <- queue1.offer(2) *> TestClock.adjust(1.second)
               _      <- queue1.shutdown *> TestClock.adjust(1.second)
@@ -2616,17 +2604,17 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("interrupts pulling on finish") {
             val s1 = ZStream(1, 2, 3)
             val s2 = ZStream.fromZIO(Clock.sleep(5.seconds).as(4))
-            assertZIO(s1.mergeTerminateLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
+            assertZIO(s1.mergeHaltLeft(s2).runCollect)(equalTo(Chunk(1, 2, 3)))
           }
         ),
-        suite("mergeTerminateRight")(
+        suite("mergeHaltRight")(
           test("terminates as soon as the second stream terminates") {
             for {
               queue1 <- Queue.unbounded[Int]
               queue2 <- Queue.unbounded[Int]
               stream1 = ZStream.fromQueue(queue1)
               stream2 = ZStream.fromQueue(queue2)
-              fiber  <- stream1.mergeTerminateRight(stream2).runCollect.fork
+              fiber  <- stream1.mergeHaltRight(stream2).runCollect.fork
               _      <- queue2.offer(2) *> TestClock.adjust(1.second)
               _      <- queue2.offer(3) *> TestClock.adjust(1.second)
               _      <- queue2.shutdown *> TestClock.adjust(1.second)
@@ -2635,14 +2623,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assert(result)(equalTo(Chunk(2, 3)))
           } @@ exceptJS
         ),
-        suite("mergeTerminateEither")(
+        suite("mergeHaltEither")(
           test("terminates as soon as either stream terminates") {
             for {
               queue1 <- Queue.unbounded[Int]
               queue2 <- Queue.unbounded[Int]
               stream1 = ZStream.fromQueue(queue1)
               stream2 = ZStream.fromQueue(queue2)
-              fiber  <- stream1.mergeTerminateEither(stream2).runCollect.fork
+              fiber  <- stream1.mergeHaltEither(stream2).runCollect.fork
               _      <- queue1.shutdown
               _      <- TestClock.adjust(1.second)
               _      <- queue2.offer(1)
@@ -2676,6 +2664,20 @@ object ZStreamSpec extends ZIOBaseSpec {
 
             assertZIO(s1.mergeWith(s2)(_ => (), _ => ()).runCollect.either)(isLeft(equalTo("Ouch")))
           }
+        ),
+        suite("orElseIfEmpty")(
+          test("produce default value if stream is empty")(
+            assertZIO(ZStream().orElseIfEmpty(0).runCollect)(equalTo(Chunk(0)))
+          ),
+          test("consume default stream if stream is empty")(
+            assertZIO(ZStream().orElseIfEmpty(ZStream.range(0, 5)).runCollect)(equalTo(Chunk(0, 1, 2, 3, 4)))
+          ),
+          test("ignore default value when stream is not empty")(
+            assertZIO(ZStream(1).orElseIfEmpty(0).runCollect)(equalTo(Chunk(1)))
+          ),
+          test("should throw correct error from default stream")(
+            assertZIO(ZStream().orElseIfEmpty(ZStream.fail("Ouch")).runCollect.either)(isLeft(equalTo("Ouch")))
+          )
         ),
         suite("partitionEither")(
           test("allows repeated runs without hanging") {
@@ -2968,7 +2970,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               start <- Clock.currentTime(TimeUnit.MILLISECONDS)
               fiber <- ZStream
                          .range(1, 9)
-                         .schedule(Schedule.fixed(100.milliseconds))
+                         .scheduleElements(Schedule.fixed(100.milliseconds))
                          .mapZIO(n => Clock.currentTime(TimeUnit.MILLISECONDS).map(now => (n, now - start)))
                          .runCollect
                          .fork
@@ -3610,7 +3612,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("should handle empty chunks properly") {
             for {
-              fiber  <- ZStream(1, 2, 3).fixed(500.millis).debounce(1.second).runCollect.fork
+              fiber  <- ZStream(1, 2, 3).scheduleElementsFixed(500.millis).debounce(1.second).runCollect.fork
               _      <- TestClock.adjust(3.seconds)
               result <- fiber.join
             } yield assert(result)(equalTo(Chunk(3)))

@@ -148,6 +148,9 @@ class ZPipeline[-Env, +Err, -In, +Out](val channel: ZChannel[Env, ZNothing, Chun
    */
   def orDieWith(f: Err => Throwable)(implicit trace: Trace): ZPipeline[Env, Nothing, In, Out] =
     new ZPipeline(self.channel.orDieWith(f))
+
+  def toChannel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any] =
+    self.channel
 }
 
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
@@ -387,7 +390,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
           )
 
         lazy val transducer: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Unit] =
-          sink.channel.doneCollect.flatMap { case (leftover, z) =>
+          sink.channel.collectElements.flatMap { case (leftover, z) =>
             ZChannel
               .succeed((upstreamDone.get, concatAndGet(leftover)))
               .flatMap { case (done, newLeftovers) =>

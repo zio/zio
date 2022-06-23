@@ -163,8 +163,8 @@ import zio.stream._
 import zio.test.Assertion.equalTo
 
 test("zipWithLatest") {
-  val s1 = ZStream.iterate(0)(_ + 1).fixed(100.milliseconds)
-  val s2 = ZStream.iterate(0)(_ + 1).fixed(70.milliseconds)
+  val s1 = ZStream.iterate(0)(_ + 1).scheduleElementsFixed(100.milliseconds)
+  val s2 = ZStream.iterate(0)(_ + 1).scheduleElementsFixed(70.milliseconds)
   val s3 = s1.zipWithLatest(s2)((_, _))
 
   for {

@@ -92,6 +92,9 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
   def as[Z2](z: => Z2)(implicit trace: Trace): ZSink[R, E, In, L, Z2] =
     map(_ => z)
 
+  def collectAll(implicit ev: L <:< In, trace: Trace): ZSink[R, E, In, L, Chunk[Z]] =
+    collectAllWhileWith[Chunk[Z]](Chunk.empty)(_ => true)((s, z) => s :+ z)
+
   /**
    * Repeatedly runs the sink for as long as its results satisfy the predicate
    * `p`. The sink's results will be accumulated using the stepping function
@@ -113,7 +116,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
             )
 
           def loop(currentResult: S): ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], S] =
-            channel.doneCollect
+            channel.collectElements
               .foldChannel(
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
@@ -238,7 +241,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     success: Z => ZSink[R1, E2, In1, L1, Z1]
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
     new ZSink(
-      channel.doneCollect.foldChannel(
+      channel.collectElements.foldChannel(
         failure(_).channel,
         { case (leftovers, z) =>
           ZChannel.suspend {
@@ -253,7 +256,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
             val passthrough      = ZChannel.identity[ZNothing, Chunk[In1], Any]
             val continuationSink = (refReader *> passthrough) >>> success(z).channel
 
-            continuationSink.doneCollect.flatMap { case (newLeftovers, z1) =>
+            continuationSink.collectElements.flatMap { case (newLeftovers, z1) =>
               ZChannel.succeed(leftoversRef.get).flatMap(ZChannel.writeChunk(_)) *>
                 ZChannel.writeChunk(newLeftovers).as(z1)
             }
@@ -337,9 +340,6 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
    */
   final def timed(implicit trace: Trace): ZSink[R, E, In, L, (Z, Duration)] =
     summarized(Clock.nanoTime)((start, end) => Duration.fromNanos(end - start))
-
-  def repeat(implicit ev: L <:< In, trace: Trace): ZSink[R, E, In, L, Chunk[Z]] =
-    collectAllWhileWith[Chunk[Z]](Chunk.empty)(_ => true)((s, z) => s :+ z)
 
   /**
    * Summarize a sink by running an effect when the sink starts and again when
@@ -453,10 +453,10 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
       }
     )
 
-  def exposeLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, (Z, Chunk[L])] =
-    new ZSink(channel.doneCollect.map { case (chunks, z) => (z, chunks.flatten) })
+  def collectLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, (Z, Chunk[L])] =
+    new ZSink(channel.collectElements.map { case (chunks, z) => (z, chunks.flatten) })
 
-  def dropLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
+  def ignoreLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
     new ZSink(channel.drain)
 
   /**
@@ -500,7 +500,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
       ZChannel.fromZIO(Ref.make[Chunk[In1]](Chunk.empty)).flatMap { ref =>
         splitter(false, ref)
           .pipeToOrFail(self.channel)
-          .doneCollect
+          .collectElements
           .flatMap { case (leftovers, z) =>
             ZChannel.fromZIO(ref.get).flatMap { leftover =>
               ZChannel.write(leftover ++ leftovers.flatten.map(ev)) *> ZChannel.succeed(z)
@@ -510,10 +510,13 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
     )
   }
 
+  def toChannel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z] =
+    self.channel
+
   /**
    * Creates a sink that produces values until one verifies the predicate `f`.
    */
-  def untilOutputZIO[R1 <: R, E1 >: E](
+  def findZIO[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
   )(implicit ev: L <:< In, trace: Trace): ZSink[R1, E1, In, L, Option[Z]] =
     new ZSink(
@@ -528,7 +531,7 @@ class ZSink[-R, +E, -In, +L, +Z](val channel: ZChannel[R, ZNothing, Chunk[In], A
             )
 
           lazy val loop: ZChannel[R1, ZNothing, Chunk[In], Any, E1, Chunk[L], Option[Z]] =
-            channel.doneCollect
+            channel.collectElements
               .foldChannel(
                 ZChannel.fail(_),
                 { case (leftovers, doneValue) =>
@@ -926,7 +929,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * A sink that folds its inputs with the provided function and initial state.
    */
   def foldLeft[In, S](z: => S)(f: (S, In) => S)(implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, S] =
-    fold(z)(_ => true)(f).dropLeftover
+    fold(z)(_ => true)(f).ignoreLeftover
 
   /**
    * A sink that folds its input chunks with the provided function and initial
@@ -944,7 +947,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def foldLeftChunksZIO[R, Err, In, S](z: => S)(
     f: (S, Chunk[In]) => ZIO[R, Err, S]
   )(implicit trace: Trace): ZSink[R, Err, In, Nothing, S] =
-    foldChunksZIO[R, Err, In, S](z)(_ => true)(f).dropLeftover
+    foldChunksZIO[R, Err, In, S](z)(_ => true)(f).ignoreLeftover
 
   /**
    * A sink that effectfully folds its inputs with the provided function and

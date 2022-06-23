@@ -999,10 +999,10 @@ Sometimes we want to zip streams, but do not want to zip two elements one by one
 
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3)
-  .schedule(Schedule.spaced(1.second))
+  .scheduleElements(Schedule.spaced(1.second))
 
 val s2 = ZStream("a", "b", "c", "d")
-  .schedule(Schedule.spaced(500.milliseconds))
+  .scheduleElements(Schedule.spaced(500.milliseconds))
   .rechunk(3)
 
 s1.zipWithLatest(s2)((a, b) => (a, b))
@@ -1307,11 +1307,11 @@ By default, when we merge two streams using `ZStream#merge` operation, the newly
 Here is an example of specifying termination strategy when merging two streams:
 
 ```scala mdoc:silent:nest
-import zio.stream.ZStream.TerminationStrategy
+import zio.stream.ZStream.HaltStrategy
 val s1 = ZStream.iterate(1)(_+1).take(5).rechunk(1)
 val s2 = ZStream.repeat(0).rechunk(1)
 
-val merged = s1.merge(s2, TerminationStrategy.Left)
+val merged = s1.merge(s2, HaltStrategy.Left)
 ```
 
 We can also use `ZStream#mergeTerminateLeft`, `ZStream#mergeTerminateRight` or `ZStream#mergeTerminateEither` operations instead of specifying manually the termination strategy.
@@ -1447,7 +1447,7 @@ val stream: ZIO[Any, IOException, Unit] =
             out1 <- streams(0).runFold(0)((acc, e) => Math.max(acc, e))
                       .flatMap(x => printLine(s"Maximum: $x"))
                       .fork
-            out2 <- streams(1).schedule(Schedule.spaced(1.second))
+            out2 <- streams(1).scheduleElements(Schedule.spaced(1.second))
                       .foreach(x => printLine(s"Logging to the Console: $x"))
                       .fork
             _    <- out1.join.zipPar(out2.join)
@@ -1475,7 +1475,7 @@ In the example below, we are partitioning incoming elements into three streams u
 val partitioned: ZIO[Scope, Nothing, (UStream[Int], UStream[Int], UStream[Int])] =
   ZStream
     .iterate(1)(_ + 1)
-    .fixed(1.seconds)
+    .scheduleElementsFixed(1.seconds)
     .distributedWith(3, 10, x => ZIO.succeed(q => x % 3 == q))
     .flatMap { 
       case q1 :: q2 :: q3 :: Nil =>
@@ -1503,7 +1503,7 @@ ZStream
   .tap(x => Console.printLine(s"before buffering: $x"))
   .buffer(4)
   .tap(x => Console.printLine(s"after buffering: $x"))
-  .schedule(Schedule.spaced(5.second))  
+  .scheduleElements(Schedule.spaced(5.second))  
 ```
 
 We spaced 5 seconds between each emission to show the lag between producing and consuming messages.
@@ -1672,7 +1672,7 @@ To schedule the output of a stream we use `ZStream#schedule` combinator.
 Let's space between each emission of the given stream:
 
 ```scala mdoc:silent:nest
-val stream = ZStream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
+val stream = ZStream(1, 2, 3, 4, 5).scheduleElements(Schedule.spaced(1.second))
 ```
 
 ## Consuming a Stream

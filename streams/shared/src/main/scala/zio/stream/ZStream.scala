@@ -31,7 +31,7 @@ import scala.reflect.ClassTag
 
 class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]) { self =>
 
-  import ZStream.TerminationStrategy
+  import ZStream.HaltStrategy
 
   /**
    * Symbolic alias for [[ZStream#cross]].
@@ -238,7 +238,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
           val forkSink =
             consumed.set(false) *> endAfterEmit
-              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).doneCollect.runScoped.forkScoped
+              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.runScoped.forkScoped
 
           def handleSide(leftovers: Chunk[Chunk[A1]], b: B, c: Option[C]) =
             ZChannel.unwrap(
@@ -299,7 +299,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
         ZStream.unwrapScoped[R1] {
           for {
             _             <- (self.channel >>> handoffProducer).runScoped.forkScoped
-            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).doneCollect.runScoped.forkScoped
+            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.runScoped.forkScoped
             scheduleFiber <- timeout(None).forkScoped
           } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber))
         }
@@ -311,15 +311,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   def as[A2](A2: => A2)(implicit trace: Trace): ZStream[R, E, A2] =
     map(_ => A2)
-
-  /**
-   * Reads the first n values from the stream and uses them to choose the
-   * pipeline that will be used for the remainder of the stream.
-   */
-  def branchAfter[R1 <: R, E1 >: E, B](
-    n: Int
-  )(f: Chunk[A] => ZPipeline[R1, E1, A, B])(implicit trace: Trace): ZStream[R1, E1, B] =
-    self >>> ZPipeline.branchAfter(n)(f)
 
   /**
    * Fan out the stream, producing a list of streams that have the same elements
@@ -995,34 +986,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self.flatMap(l => that.map(r => f(l, r)))
 
   /**
-   * Produces the specified element if this stream is empty.
-   */
-  final def defaultIfEmpty[A1 >: A](a: A1)(implicit trace: Trace): ZStream[R, E, A1] =
-    defaultIfEmpty(Chunk.single(a))
-
-  /**
-   * Produces the specified chunk if this stream is empty.
-   */
-  final def defaultIfEmpty[A1 >: A](chunk: Chunk[A1])(implicit trace: Trace): ZStream[R, E, A1] =
-    defaultIfEmpty(new ZStream(ZChannel.write(chunk)))
-
-  /**
-   * Switches to the provided stream in case this one is empty.
-   */
-  final def defaultIfEmpty[R1 <: R, E1 >: E, A1 >: A](
-    stream: ZStream[R1, E1, A1]
-  )(implicit trace: Trace): ZStream[R1, E1, A1] = {
-    lazy val writer: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
-      ZChannel.readWith(
-        (in: Chunk[A]) => if (in.isEmpty) writer else ZChannel.write(in) *> ZChannel.identity[E, Chunk[A], Any],
-        (e: E) => ZChannel.fail(e),
-        (_: Any) => stream.channel
-      )
-
-    new ZStream(self.channel >>> writer)
-  }
-
-  /**
    * More powerful version of `ZStream#broadcast`. Allows to provide a function
    * that determines what queues should receive which elements. The decide
    * function will receive the indices of the queues in the resulting list.
@@ -1461,13 +1424,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
   final def filterNot(pred: A => Boolean)(implicit trace: Trace): ZStream[R, E, A] = filter(a => !pred(a))
 
   /**
-   * Emits elements of this stream with a fixed delay in between, regardless of
-   * how long it takes to produce a value.
-   */
-  final def fixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
-    schedule(Schedule.fixed(duration))
-
-  /**
    * Returns a stream made of the concatenation in strict order of all the
    * streams produced by passing each element of this stream to `f0`
    */
@@ -1603,6 +1559,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def flattenTake[E1 >: E, A1](implicit ev: A <:< Take[E1, A1], trace: Trace): ZStream[R, E1, A1] =
     map(_.exit).flattenExitOption[E1, Chunk[A1]].flattenChunks
+
+  final def flattenZIO[R1 <: R, E1 >: E, A1](implicit ev: A <:< ZIO[R1, E1, A1], trace: Trace): ZStream[R1, E1, A1] =
+    mapZIO(ev)
 
   /**
    * More powerful version of [[ZStream.groupByKey]]
@@ -2167,6 +2126,20 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
 
   /**
    * Maps over elements of the stream with the specified effectful function,
+   * partitioned by `p` executing invocations of `f` concurrently. The number of
+   * concurrent invocations of `f` is determined by the number of different
+   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
+   * Transformed elements may be reordered but the order within a partition is
+   * maintained.
+   */
+  final def mapZIOParByKey[R1 <: R, E1 >: E, A2, K](
+    keyBy: A => K,
+    buffer: => Int = 16
+  )(f: A => ZIO[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
+    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapZIO(f) }
+
+  /**
+   * Maps over elements of the stream with the specified effectful function,
    * executing up to `n` invocations of `f` concurrently. The element order is
    * not enforced by this combinator, and elements may be reordered.
    */
@@ -2176,20 +2149,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     flatMapPar[R1, E1, A2](n)(a => ZStream.fromZIO(f(a)))
 
   /**
-   * Maps over elements of the stream with the specified effectful function,
-   * partitioned by `p` executing invocations of `f` concurrently. The number of
-   * concurrent invocations of `f` is determined by the number of different
-   * outputs of type `K`. Up to `buffer` elements may be buffered per partition.
-   * Transformed elements may be reordered but the order within a partition is
-   * maintained.
-   */
-  final def mapZIOPartitioned[R1 <: R, E1 >: E, A2, K](
-    keyBy: A => K,
-    buffer: => Int = 16
-  )(f: A => ZIO[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
-    groupByKey(keyBy, buffer).apply { case (_, s) => s.mapZIO(f) }
-
-  /**
    * Merges this stream and the specified stream together.
    *
    * New produced stream will terminate when both specified stream terminate if
@@ -2197,7 +2156,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def merge[R1 <: R, E1 >: E, A1 >: A](
     that: => ZStream[R1, E1, A1],
-    strategy: => TerminationStrategy = TerminationStrategy.Both
+    strategy: => HaltStrategy = HaltStrategy.Both
   )(implicit trace: Trace): ZStream[R1, E1, A1] =
     self.mergeWith[R1, E1, A1, A1](that, strategy)(identity, identity) // TODO: Dotty doesn't infer this properly
 
@@ -2205,28 +2164,28 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    * Merges this stream and the specified stream together. New produced stream
    * will terminate when either stream terminates.
    */
-  final def mergeTerminateEither[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
+  final def mergeHaltEither[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
     trace: Trace
   ): ZStream[R1, E1, A1] =
-    self.merge[R1, E1, A1](that, TerminationStrategy.Either)
+    self.merge[R1, E1, A1](that, HaltStrategy.Either)
 
   /**
    * Merges this stream and the specified stream together. New produced stream
    * will terminate when this stream terminates.
    */
-  final def mergeTerminateLeft[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
+  final def mergeHaltLeft[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
     trace: Trace
   ): ZStream[R1, E1, A1] =
-    self.merge[R1, E1, A1](that, TerminationStrategy.Left)
+    self.merge[R1, E1, A1](that, HaltStrategy.Left)
 
   /**
    * Merges this stream and the specified stream together. New produced stream
    * will terminate when the specified stream terminates.
    */
-  final def mergeTerminateRight[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
+  final def mergeHaltRight[R1 <: R, E1 >: E, A1 >: A](that: => ZStream[R1, E1, A1])(implicit
     trace: Trace
   ): ZStream[R1, E1, A1] =
-    self.merge[R1, E1, A1](that, TerminationStrategy.Right)
+    self.merge[R1, E1, A1](that, HaltStrategy.Right)
 
   /**
    * Merges this stream and the specified stream together to produce a stream of
@@ -2243,7 +2202,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def mergeLeft[R1 <: R, E1 >: E, A2](
     that: => ZStream[R1, E1, A2],
-    strategy: TerminationStrategy = TerminationStrategy.Both
+    strategy: HaltStrategy = HaltStrategy.Both
   )(implicit
     trace: Trace
   ): ZStream[R1, E1, A] =
@@ -2255,7 +2214,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def mergeRight[R1 <: R, E1 >: E, A2](
     that: => ZStream[R1, E1, A2],
-    strategy: TerminationStrategy = TerminationStrategy.Both
+    strategy: HaltStrategy = HaltStrategy.Both
   )(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
@@ -2270,9 +2229,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def mergeWith[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2],
-    strategy: => TerminationStrategy = TerminationStrategy.Both
+    strategy: => HaltStrategy = HaltStrategy.Both
   )(l: A => A3, r: A2 => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
-    import TerminationStrategy.{Either, Left, Right}
+    import HaltStrategy.{Either, Left, Right}
 
     def handler(terminate: Boolean)(exit: Exit[E1, Any]): ZChannel.MergeDecision[R1, E1, Any, E1, Any] =
       if (terminate || !exit.isSuccess) ZChannel.MergeDecision.done(ZIO.done(exit))
@@ -2343,6 +2302,34 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
    */
   final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: Trace): ZStream[R, E1, A] =
     orElse(ZStream.fail(e1))
+
+  /**
+   * Produces the specified element if this stream is empty.
+   */
+  final def orElseIfEmpty[A1 >: A](a: A1)(implicit trace: Trace): ZStream[R, E, A1] =
+    orElseIfEmpty(Chunk.single(a))
+
+  /**
+   * Produces the specified chunk if this stream is empty.
+   */
+  final def orElseIfEmpty[A1 >: A](chunk: Chunk[A1])(implicit trace: Trace): ZStream[R, E, A1] =
+    orElseIfEmpty(new ZStream(ZChannel.write(chunk)))
+
+  /**
+   * Switches to the provided stream in case this one is empty.
+   */
+  final def orElseIfEmpty[R1 <: R, E1 >: E, A1 >: A](
+    stream: ZStream[R1, E1, A1]
+  )(implicit trace: Trace): ZStream[R1, E1, A1] = {
+    lazy val writer: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A1], Any] =
+      ZChannel.readWith(
+        (in: Chunk[A]) => if (in.isEmpty) writer else ZChannel.write(in) *> ZChannel.identity[E, Chunk[A], Any],
+        (e: E) => ZChannel.fail(e),
+        (_: Any) => stream.channel
+      )
+
+    new ZStream(self.channel >>> writer)
+  }
 
   /**
    * Switches to the provided stream in case this one fails with the `None`
@@ -2421,7 +2408,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
       p       <- Promise.make[E1, Z]
       handoff <- ZStream.Handoff.make[Signal]
     } yield {
-      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.exposeLeftover
+      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.collectLeftover
         .foldSink(
           e => ZSink.fromZIO(p.fail(e)) *> ZSink.fail(e),
           { case (z1, leftovers) =>
@@ -2821,14 +2808,6 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     self >>> ZPipeline.scanZIO(s)(f)
 
   /**
-   * Schedules the output of the stream using the provided `schedule`.
-   */
-  final def schedule[R1 <: R](schedule: => Schedule[R1, A, Any])(implicit
-    trace: Trace
-  ): ZStream[R1, E, A] =
-    scheduleEither(schedule).collect { case Right(a) => a }
-
-  /**
    * Schedules the output of the stream using the provided `schedule` and emits
    * its output at the end (if `schedule` is finite).
    */
@@ -2836,6 +2815,21 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     schedule: => Schedule[R1, A, B]
   )(implicit trace: Trace): ZStream[R1, E1, Either[B, A]] =
     scheduleWith(schedule)(Right.apply, Left.apply)
+
+  /**
+   * Schedules the output of the stream using the provided `schedule`.
+   */
+  final def scheduleElements[R1 <: R](schedule: => Schedule[R1, A, Any])(implicit
+    trace: Trace
+  ): ZStream[R1, E, A] =
+    scheduleEither(schedule).collect { case Right(a) => a }
+
+  /**
+   * Emits elements of this stream with a fixed delay in between, regardless of
+   * how long it takes to produce a value.
+   */
+  final def scheduleElementsFixed(duration: => Duration)(implicit trace: Trace): ZStream[R, E, A] =
+    scheduleElements(Schedule.fixed(duration))
 
   /**
    * Schedules the output of the stream using the provided `schedule` and emits
@@ -3135,7 +3129,7 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
           _ => ZChannel.fromZIO(queue.shutdown)
         )
       new ZStream(self.channel >>> loop)
-        .merge(ZStream.execute(right.run(sink)), TerminationStrategy.Both)
+        .merge(ZStream.execute(right.run(sink)), HaltStrategy.Both)
     }
 
   /**
@@ -3388,6 +3382,9 @@ class ZStream[-R, +E, +A](val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], A
     final case class StreamTimeout() extends Throwable
     self.timeoutFailCause(Cause.die(StreamTimeout()))(d).catchSomeCause { case Cause.Die(StreamTimeout(), _) => that }
   }
+
+  def toChannel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any] =
+    self.channel
 
   /**
    * Converts the stream to a scoped hub of chunks. After the scope is closed,
@@ -5472,12 +5469,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       fromZIO(a()).flatMap(pf.applyOrElse(_, (_: A) => ZStream.empty))
   }
 
-  sealed trait TerminationStrategy
-  object TerminationStrategy {
-    case object Left   extends TerminationStrategy
-    case object Right  extends TerminationStrategy
-    case object Both   extends TerminationStrategy
-    case object Either extends TerminationStrategy
+  sealed trait HaltStrategy
+  object HaltStrategy {
+    case object Left   extends HaltStrategy
+    case object Right  extends HaltStrategy
+    case object Both   extends HaltStrategy
+    case object Either extends HaltStrategy
   }
 
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {

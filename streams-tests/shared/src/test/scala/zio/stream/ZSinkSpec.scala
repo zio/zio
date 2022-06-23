@@ -572,7 +572,7 @@ object ZSinkSpec extends ZIOBaseSpec {
         test("handles leftovers") {
           val leftover = ZStream
             .fromIterable(1 to 5)
-            .run(ZSink.foreachWhile((n: Int) => ZIO.succeed(n <= 3)).exposeLeftover)
+            .run(ZSink.foreachWhile((n: Int) => ZIO.succeed(n <= 3)).collectLeftover)
             .map(_._2)
           assertZIO(leftover)(equalTo(Chunk(4, 5)))
         }
@@ -742,30 +742,30 @@ object ZSinkSpec extends ZIOBaseSpec {
             }
           }
         ),
-        test("untilOutputZIO with head sink") {
+        test("findZIO with head sink") {
           val sink: ZSink[Any, Nothing, Int, Int, Option[Option[Int]]] =
-            ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
+            ZSink.head[Int].findZIO(h => ZIO.succeed(h.fold(false)(_ >= 10)))
           val assertions = ZIO.foreach(Chunk(1, 3, 7, 20)) { n =>
             assertZIO(ZStream.fromIterable(1 to 100).rechunk(n).run(sink))(equalTo(Some(Some(10))))
           }
           assertions.map(tst => tst.reduce(_ && _))
         },
-        test("untilOutputZIO take sink across multiple chunks") {
+        test("findZIO take sink across multiple chunks") {
           val sink: ZSink[Any, Nothing, Int, Int, Option[Chunk[Int]]] =
-            ZSink.take[Int](4).untilOutputZIO(s => ZIO.succeed(s.sum > 10))
+            ZSink.take[Int](4).findZIO(s => ZIO.succeed(s.sum > 10))
 
           assertZIO(ZStream.fromIterable(1 to 8).rechunk(2).run(sink))(equalTo(Some(Chunk(5, 6, 7, 8))))
         },
-        test("untilOutputZIO empty stream terminates with none") {
+        test("findZIO empty stream terminates with none") {
           assertZIO(
-            ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Int].untilOutputZIO(s => ZIO.succeed(s > 0)))
+            ZStream.fromIterable(List.empty[Int]).run(ZSink.sum[Int].findZIO(s => ZIO.succeed(s > 0)))
           )(equalTo(None))
         },
-        test("untilOutputZIO unsatisfied condition terminates with none") {
+        test("findZIO unsatisfied condition terminates with none") {
           assertZIO(
             ZStream
               .fromIterable(List(1, 2))
-              .run(ZSink.head[Int].untilOutputZIO(h => ZIO.succeed(h.fold(false)(_ >= 3))))
+              .run(ZSink.head[Int].findZIO(h => ZIO.succeed(h.fold(false)(_ >= 3))))
           )(equalTo(None))
         },
         suite("flatMap")(
@@ -838,7 +838,7 @@ object ZSinkSpec extends ZIOBaseSpec {
                 } yield (inputs, takeSizes, expectedTakes, expectedLeftovers)
 
               check(gen) { case (inputs, takeSizes, expectedTakes, expectedLeftovers) =>
-                val takingSinks = takeSizes.map(takeN(_)).reduce(_ *> _).channel.doneCollect
+                val takingSinks = takeSizes.map(takeN(_)).reduce(_ *> _).channel.collectElements
                 val channel     = ZChannel.writeAll(inputs: _*) >>> takingSinks
 
                 (channel.run <*> readData.getAndSet(Chunk())).map { case (leftovers, _, takenChunks) =>
@@ -854,7 +854,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(
               ZStream
                 .fromChunks(Chunk(1, 2), Chunk(3, 4, 5), Chunk(), Chunk(6, 7), Chunk(8, 9))
-                .run(ZSink.take[Int](3).repeat)
+                .run(ZSink.take[Int](3).collectAll)
             )(
               equalTo(Chunk(Chunk(1, 2, 3), Chunk(4, 5, 6), Chunk(7, 8, 9), Chunk.empty))
             )
@@ -863,7 +863,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(
               ZStream
                 .fromChunks(Chunk(1, 2), Chunk(3, 4, 5), Chunk.empty, Chunk(6, 7), Chunk(8, 9))
-                .run(ZSink.sum[Int].repeat.map(_.sum))
+                .run(ZSink.sum[Int].collectAll.map(_.sum))
             )(
               equalTo(45)
             )
@@ -872,7 +872,7 @@ object ZSinkSpec extends ZIOBaseSpec {
             assertZIO(
               (ZStream
                 .fromChunks(Chunk(1, 2)))
-                .run(ZSink.fail(()).repeat)
+                .run(ZSink.fail(()).collectAll)
                 .either
             )(
               isLeft
