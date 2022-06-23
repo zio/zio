@@ -3162,7 +3162,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * the results in a new `Collection[B]`.
    *
    * For a parallel version of this method, see `foreachPar`. If you do not need
-   * the results, see `foreach_` for a more efficient implementation.
+   * the results, see `foreachDiscard` for a more efficient implementation.
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZIO[R, E, B]
