@@ -147,11 +147,11 @@ val testableRuntime = Runtime(
 )
 ```
 
-Also, we can map the default runtime to the new runtime, so we can append new services to the ZIO environment:
+Also, we can replace the environment of the default runtime with our own custom environment, which allows us to add new services to the ZIO environment:
 
 ```scala mdoc:silent:nest
 val testableRuntime: Runtime[Logging with Email] =
-  Runtime.default.map { _ =>
+  Runtime.default.withEnvironment {
     ZEnvironment[Logging, Email](LoggingLive(), EmailMock())
   }
 ```
