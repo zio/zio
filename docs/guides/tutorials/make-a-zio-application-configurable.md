@@ -317,4 +317,4 @@ Server started on port: 8081
 
 This tutorial covered how to use ZIO Config to read configuration data from HOCON files and configure our application. We haven't covered all the features of the ZIO Config library. To learn more about this library please visit the [ZIO Config documentation](https://zio.github.io/zio-config/).
 
-The complete working example of this tutorial is available on the `configurable-app` branch of our [Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/configurable-app) quickstart on GitHub.
+The complete working example of this tutorial is available on the `configurable-app` branch of our [ZIO Quickstart: Building RESTful Web Service](https://github.com/zio/zio-quickstart-restful-webservice/tree/configurable-app) quickstart on GitHub.
