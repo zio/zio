@@ -24,6 +24,7 @@ module.exports = {
             label: "ZIO Effects",
             items: [
                 "datatypes/core/zio/zio",
+                "datatypes/core/zio/error-management",
                 "datatypes/core/zio/uio",
                 "datatypes/core/zio/urio",
                 "datatypes/core/zio/task",

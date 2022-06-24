@@ -26,7 +26,8 @@
     "prismjs": "^1.26.0",
     "react": "17.0.0",
     "react-dom": "17.0.0",
-    "remark-kroki-plugin": "0.1.1"
+    "remark-kroki-plugin": "0.1.1",
+    "tslib": "^2.3.1"
   },
   "browserslist": {
     "production": [

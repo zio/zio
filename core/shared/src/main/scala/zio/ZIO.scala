@@ -1858,8 +1858,8 @@ sealed trait ZIO[-R, +E, +A]
    *   ZIO.succeed(5 / 0) *> ZIO.fail(DomainError())
    *
    * val caught: IO[DomainError, Unit] =
-   *   veryBadIO.sandboxWith(_.catchSome {
-   *     case Cause.Die(_: ArithmeticException)=>
+   *   veryBadIO.sandboxWith[Any, DomainError, Unit](_.catchSome {
+   *     case Cause.Die(_: ArithmeticException, _)=>
    *       // Caught defect: divided by zero!
    *       ZIO.succeed(0)
    *   })
