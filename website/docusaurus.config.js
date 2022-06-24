@@ -29,7 +29,7 @@ const config = {
       items: [
         { type: 'docsVersion', label: 'Overview', position: 'right' },
         { type: 'doc', docId: 'datatypes/index', label: 'Data Types', position: 'right' },
-        { type: 'doc', docId: 'usecases/usecases_index', label: 'Use Cases', position: 'right' },
+        { type: 'doc', docId: 'guides/index', label: 'Guides', position: 'right' },
         { type: 'doc', docId: 'howto/index', label: 'How to', position: 'right' },
         { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'right' },
         { type: 'doc', docId: 'about/about_index', label: 'About', position: 'right' },
@@ -39,11 +39,6 @@ const config = {
           dropdownActiveClassDisabled: true,
         },
       ],
-    },
-    algolia: {
-      apiKey: '0c94b59071da7001757d08ab43d9e033',
-      appId: 'zio',
-      indexName: 'zio'
     },
     footer: {
       style: 'dark',     links: [
