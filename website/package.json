@@ -16,7 +16,7 @@
     "@docusaurus/preset-classic": "^2.0.0-beta.20",
     "@docusaurus/theme-search-algolia": "^2.0.0-beta.20",
     "@material-ui/core": "4.12.4",
-    "@mdx-js/react": "1.6.22",
+    "@mdx-js/react": "2.1.2",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
     "clsx": "1.1.1",
