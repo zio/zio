@@ -12,8 +12,9 @@ We should consider three types of errors when writing ZIO applications:
 1. **Failures** are expected errors. We use `ZIO.fail` to model failures. As they are expected, we know how to handle them. We should handle these errors and prevent them from propagating throughout the call stack.
 
 2. **Defects** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
-    - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
-    - None of the upper layers won't catch these errors, so it will finally crash the whole application.
+
+   - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
+   - None of the upper layers won't catch these errors, so it will finally crash the whole application.
 
 3. **Fatals** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
 
@@ -55,8 +56,8 @@ timestamp=2022-03-08T17:55:50.002161369Z level=ERROR thread=#zio-fiber-0 message
 
 We can also model a failure using `Exception`:
 
-```  
-val f2: ZIO[Any, Exception, Nothing] = 
+```
+val f2: ZIO[Any, Exception, Nothing] =
   ZIO.fail(new Exception("Oh uh!"))
 ```
 
@@ -91,7 +92,7 @@ Here is an example of such effect, which will die because of encountering _divid
 ```scala mdoc:compile-only
 import zio._
 
-val dyingEffect: ZIO[Any, Nothing, Nothing] = 
+val dyingEffect: ZIO[Any, Nothing, Nothing] =
   ZIO.die(new ArithmeticException("divide by zero"))
 ```
 
@@ -169,7 +170,7 @@ Note that to create an effect that will die, we shouldn't throw an exception ins
 import zio._
 
 val defect1 = ZIO.die(new ArithmeticException("divide by zero"))       // recommended
-val defect2 = ZIO.die(throw new ArithmeticException("divide by zero")) // not recommended 
+val defect2 = ZIO.die(throw new ArithmeticException("divide by zero")) // not recommended
 ```
 
 Also, if we import a code that may throw an exception, all the exceptions will be translated to the ZIO defect:
@@ -180,14 +181,14 @@ import zio._
 val defect3 = ZIO.succeed(throw new Exception("boom!"))
 ```
 
-Therefore, in the second approach of the `divide` function, we do not require to manually die the effect in case of the _dividing by zero_, because the JVM itself throws an `ArithmeticException` when the denominator is zero. 
+Therefore, in the second approach of the `divide` function, we do not require to manually die the effect in case of the _dividing by zero_, because the JVM itself throws an `ArithmeticException` when the denominator is zero.
 
 When we import any code into the `ZIO` effect, any exception is thrown inside that code will be translated to _ZIO defects_ by default. So the following program is the same as the previous example:
 
 ```scala mdoc:compile-only
 import zio._
 
-def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] = 
+def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
   ZIO.succeed(a / b)
 ```
 
@@ -254,7 +255,7 @@ case class IllegalAgeException(age: Int)  extends AgeValidationException
 def validate(age: Int): Int = {
   if (age < 0)
     throw NegativeAgeException(age)
-  else if (age < 18) 
+  else if (age < 18)
     throw IllegalAgeException(age)
   else age
 }
@@ -342,9 +343,9 @@ In the following example, we are going to show this behavior:
     try throw new Error("e1")
     finally throw new Error("e2")
  } catch {
-   case e: Error => println(e) 
+   case e: Error => println(e)
  }
- 
+
 // Output:
 // e2
 ```
@@ -410,18 +411,21 @@ So for ZIO, expected errors are reflected in the type of the ZIO effect, whereas
 That is the best practice. It helps us write better code. The code that we can reason about its error properties and potential expected errors. We can look at the ZIO effect and know how it is supposed to fail.
 
 So to summarize
+
 1. Unexpected errors are impossible to recover and they will eventually shut down the application but expected errors can be recovered by handling them.
 2. We do not type unexpected errors, but we type expected errors either explicitly or using general `Throwable` error type.
 3. Unexpected errors mostly is a sign of programming errors, but expected errors part of domain errors.
 4. Even though we haven't any clue on how to handle defects, we might still need to do some operation, before letting them crash the application. So in such a situation, we can [catch defects](#catching-defects) do following operations, and then rethrow them again:
-  - logging the defect to a log aggregator
-  - sending an email to alert developers
-  - displaying a nice "unexpected error" message to the user
-  - etc.
+
+- logging the defect to a log aggregator
+- sending an email to alert developers
+- displaying a nice "unexpected error" message to the user
+- etc.
 
 ## Exceptional and Unexceptional Effects
 
 Besides the `IO` type alias, ZIO has four different type aliases which can be categorized into two different categories:
+
 - **Exceptional Effect** — `Task` and `RIO` are two effects whose error parameter is fixed to `Throwable`, so we call them exceptional effects.
 - **Unexceptional Effect** - `UIO` and `URIO` have error parameters that are fixed to `Nothing`, indicating that they are unexceptional effects. So they can't fail, and the compiler knows about it.
 
@@ -525,7 +529,7 @@ ZIO has a combinator called `ZIO#parallelErrors` that exposes all parallel failu
 ```scala mdoc:compile-only
 import zio._
 
-val result: ZIO[Any, ::[String], Nothing] = 
+val result: ZIO[Any, ::[String], Nothing] =
   (ZIO.fail("Oh uh!") <&> ZIO.fail("Oh Error!")).parallelErrors
 ```
 
@@ -569,15 +573,15 @@ We can recover from all errors while reading a file and then fallback to another
 ```scala mdoc:invisible
 import java.io.{ FileNotFoundException, IOException }
 
-def readFile(s: String): ZIO[Any, IOException, Array[Byte]] = 
+def readFile(s: String): ZIO[Any, IOException, Array[Byte]] =
   ZIO.attempt(???).refineToOrDie[IOException]
 ```
 
 ```scala mdoc:silent
 import zio._
 
-val z: ZIO[Any, IOException, Array[Byte]] = 
-  readFile("primary.json").catchAll(_ => 
+val z: ZIO[Any, IOException, Array[Byte]] =
+  readFile("primary.json").catchAll(_ =>
     readFile("backup.json"))
 ```
 
@@ -629,9 +633,9 @@ Let's try what happens if we `catchAll` on a dying effect:
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  val die: ZIO[Any, String, Nothing] = 
-    ZIO.dieMessage("Boom!") *> ZIO.fail("Oh uh!") 
-  
+  val die: ZIO[Any, String, Nothing] =
+    ZIO.dieMessage("Boom!") *> ZIO.fail("Oh uh!")
+
   def run = die.catchAll(_ => ZIO.unit)
 }
 
@@ -663,7 +667,7 @@ If we want to catch and recover from only some types of exceptions and effectful
 
 ```scala mdoc:compile-only
 trait ZIO[-R, +E, +A] {
-  def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1] 
+  def catchSome[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[E, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1]
 }
 ```
 
@@ -672,9 +676,9 @@ In the following example, we are only catching failure of type `FileNotFoundExce
 ```scala mdoc:compile-only
 import zio._
 
-val data: ZIO[Any, IOException, Array[Byte]] = 
+val data: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").catchSome {
-    case _ : FileNotFoundException => 
+    case _ : FileNotFoundException =>
       readFile("backup.data")
   }
 ```
@@ -686,7 +690,7 @@ Like catching failures, ZIO has two operators to catch _defects_:
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAllDefect[R1 <: R, E1 >: E, A1 >: A](h: Throwable => ZIO[R1, E1, A1]): ZIO[R1, E1, A1]
-  
+
   def catchSomeDefect[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[Throwable, ZIO[R1, E1, A1]]): ZIO[R1, E1, A1]
 }
 ```
@@ -704,12 +708,12 @@ ZIO.dieMessage("Boom!")
       ZIO.debug("NumberFormatException defect caught.")
     case _ =>
       ZIO.debug("Unknown defect caught.")
-  } 
+  }
 ```
 
 We should note that using these operators, we can only recover from a dying effect, and it cannot recover from a failure or fiber interruption.
 
-A defect is an error that cannot be anticipated in advance, and there is no way to respond to it. Our rule of thumb is to not recover defects since we don't know about them. We let them crash the application. Although, in some cases, we might need to reload a part of the application instead of killing the entire application. 
+A defect is an error that cannot be anticipated in advance, and there is no way to respond to it. Our rule of thumb is to not recover defects since we don't know about them. We let them crash the application. Although, in some cases, we might need to reload a part of the application instead of killing the entire application.
 
 Assume we have written an application that can load plugins at runtime. During the runtime of the plugins, if a defect occurs, we don't want to crash the entire application; rather, we log all defects and then reload the plugin.
 
@@ -722,7 +726,7 @@ There are two ZIO operators useful for catching causes:
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAllCause[R1 <: R, E2, A1 >: A](h: Cause[E] => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]
-  
+
   def catchSomeCause[R1 <: R, E1 >: E, A1 >: A](pf: PartialFunction[Cause[E], ZIO[R1, E1, A1]]): ZIO[R1, E1, A1]
 }
 ```
@@ -763,11 +767,11 @@ The two `ZIO#catchAllTrace` and `ZIO#catchSomeTrace` operators are useful to cat
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAllTrace[R1 <: R, E2, A1 >: A](
-    h: ((E, ZTrace)) => ZIO[R1, E2, A1]
+    h: ((E, Trace)) => ZIO[R1, E2, A1]
   ): ZIO[R1, E2, A1]
-  
+
   def catchSomeTrace[R1 <: R, E1 >: E, A1 >: A](
-    pf: PartialFunction[(E, ZTrace), ZIO[R1, E1, A1]]
+    pf: PartialFunction[(E, Trace), ZIO[R1, E1, A1]]
   ): ZIO[R1, E1, A1]
 }
 ```
@@ -822,7 +826,7 @@ trait ZIO[-R, +E, +A] {
 Let's try an example:
 
 ```scala mdoc:compile-only
-val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] = 
+val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").orElse(readFile("backup.data"))
 ```
 
@@ -854,7 +858,7 @@ val result: ZIO[Any, Throwable, Either[LocalConfig, RemoteConfig]] =
 ```scala
 trait ZIO[-R, +R, +E] {
   def orElseFail[E1](e1: => E1): ZIO[R, E1, A]
-  
+
   def orElseSucceed[A1 >: A](a1: => A1): ZIO[R, Nothing, A1]
 }
 ```
@@ -959,10 +963,10 @@ Scala's `Option` and `Either` data types have `fold`, which let us handle both f
 ```scala
 trait ZIO[-R, +E, +A] {
   def fold[B](
-    failure: E => B, 
+    failure: E => B,
     success: A => B
   ): ZIO[R, Nothing, B]
-  
+
   def foldZIO[R1 <: R, E2, B](
     failure: E => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
@@ -977,7 +981,7 @@ import zio._
 
 lazy val DefaultData: Array[Byte] = Array(0, 0)
 
-val primaryOrDefaultData: UIO[Array[Byte]] = 
+val primaryOrDefaultData: UIO[Array[Byte]] =
   readFile("primary.data").fold(_ => DefaultData, data => data)
 ```
 
@@ -1004,7 +1008,7 @@ val result: ZIO[Any, Nothing, Unit] = ZIO.fail("Uh oh!").as(5).ignore
 Now let's try the effectful version of the fold operation. In this example, in case of failure on reading from the primary file, we will fallback to another effectful operation which will read data from the secondary file:
 
 ```scala mdoc:compile-only
-val primaryOrSecondaryData: IO[IOException, Array[Byte]] = 
+val primaryOrSecondaryData: IO[IOException, Array[Byte]] =
   readFile("primary.data").foldZIO(
     failure = _    => readFile("secondary.data"),
     success = data => ZIO.succeed(data)
@@ -1026,7 +1030,7 @@ def fetchContent(urls: List[String]): UIO[Content] = ZIO.succeed(OkContent("Roge
 ```scala mdoc:silent
 val urls: UIO[Content] =
   readUrls("urls.json").foldZIO(
-    error   => ZIO.succeed(NoContent(error)), 
+    error   => ZIO.succeed(NoContent(error)),
     success => fetchContent(success)
   )
 ```
@@ -1107,12 +1111,12 @@ object MainApp extends ZIOAppDefault {
 
   def run = myApp
 }
-``` 
+```
 
 The output:
 
 ```scala
-timestamp=2022-02-24T11:05:40.241436257Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" scala.MatchError: Interrupt(Runtime(2,1645700739),ZTrace(Runtime(2,1645700739),Chunk(<empty>.MainApp.exceptionalEffect(MainApp.scala:6),<empty>.MainApp.myApp(MainApp.scala:9)))) (of class zio.Cause$Interrupt)
+timestamp=2022-02-24T11:05:40.241436257Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" scala.MatchError: Interrupt(Runtime(2,1645700739),Trace(Runtime(2,1645700739),Chunk(<empty>.MainApp.exceptionalEffect(MainApp.scala:6),<empty>.MainApp.myApp(MainApp.scala:9)))) (of class zio.Cause$Interrupt)
 	at MainApp$.$anonfun$myApp$1(MainApp.scala:10)
 	at zio.ZIO$TracedCont$$anon$33.apply(ZIO.scala:6167)
 	at zio.ZIO$TracedCont$$anon$33.apply(ZIO.scala:6165)
@@ -1127,7 +1131,7 @@ timestamp=2022-02-24T11:05:40.241436257Z level=ERROR thread=#zio-fiber-0 message
 ```scala
 trait ZIO[-R, +E, +A] {
   def foldTraceZIO[R1 <: R, E2, B](
-    failure: ((E, ZTrace)) => ZIO[R1, E2, B],
+    failure: ((E, Trace)) => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit ev: CanFail[E]): ZIO[R1, E2, B]
 }
@@ -1175,7 +1179,7 @@ In this example, we try to read from a file. If we fail to do that, it will try 
 ```scala mdoc:compile-only
 import zio._
 
-val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] = 
+val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").retry(Schedule.recurs(5))
 ```
 
@@ -1199,6 +1203,7 @@ trait ZIO[-R, +E, +A] {
 ```
 
 The `orElse` is the recovery function that has two inputs:
+
 1. The last error message
 2. Schedule output
 
@@ -1320,6 +1325,7 @@ val myApp =
 ```
 
 We should note that when we use the `ZIO#timeout` operator on the `myApp`, it doesn't return until one of the following situations happens:
+
 1. The original effect returns before the timeout elapses so the output will be `Some` of the produced value by the original effect:
 
 ```scala mdoc:compile-only
@@ -1344,51 +1350,51 @@ object MainApp extends ZIOAppDefault {
 
 2. The original effect interrupted after the timeout elapses:
 
-    - If the effect is interruptible it will be immediately interrupted, and finally, the timeout operation produces `None` value.
+   - If the effect is interruptible it will be immediately interrupted, and finally, the timeout operation produces `None` value.
 
-    ```scala mdoc:compile-only
-    import zio._
-    
-    object MainApp extends ZIOAppDefault {
-      def run =
-        myApp
-          .timeout(1.second)
-          .debug("output")
-          .timed
-          .map(_._1.toSeconds)
-          .debug("execution time of the whole program in second")
-    }
-    
-    // Output:
-    // start doing something.
-    // output: None
-    // execution time of the whole program in second: 1
-    ```
-   
-    - If the effect is uninterruptible it will be blocked until the original effect safely finished its work, and then the timeout operator produces the `None` value:
-    
-    ```scala mdoc:compile-only
-    import zio._
-    
-    object MainApp extends ZIOAppDefault {
-      def run =
-        myApp
-          .uninterruptible
-          .timeout(1.second)
-          .debug("output")
-          .timed
-          .map(_._1.toSeconds)
-          .debug("execution time of the whole program in second")
-    }
-    
-    // Output:
-    // start doing something.
-    // my job is finished!
-    // output: None
-    // execution time of the whole program in second: 2
-    ```
+   ```scala mdoc:compile-only
+   import zio._
 
-Instead of waiting for the original effect to be interrupted, we can use `effect.disconnect.timeout` which first disconnects the effect's interruption signal before performing the timeout. By using this technique, we can return early after the timeout has passed and before an underlying effect has been interrupted. 
+   object MainApp extends ZIOAppDefault {
+     def run =
+       myApp
+         .timeout(1.second)
+         .debug("output")
+         .timed
+         .map(_._1.toSeconds)
+         .debug("execution time of the whole program in second")
+   }
+
+   // Output:
+   // start doing something.
+   // output: None
+   // execution time of the whole program in second: 1
+   ```
+
+   - If the effect is uninterruptible it will be blocked until the original effect safely finished its work, and then the timeout operator produces the `None` value:
+
+   ```scala mdoc:compile-only
+   import zio._
+
+   object MainApp extends ZIOAppDefault {
+     def run =
+       myApp
+         .uninterruptible
+         .timeout(1.second)
+         .debug("output")
+         .timed
+         .map(_._1.toSeconds)
+         .debug("execution time of the whole program in second")
+   }
+
+   // Output:
+   // start doing something.
+   // my job is finished!
+   // output: None
+   // execution time of the whole program in second: 2
+   ```
+
+Instead of waiting for the original effect to be interrupted, we can use `effect.disconnect.timeout` which first disconnects the effect's interruption signal before performing the timeout. By using this technique, we can return early after the timeout has passed and before an underlying effect has been interrupted.
 
 ```scala mdoc:compile-only
 object MainApp extends ZIOAppDefault {
@@ -1421,10 +1427,10 @@ val delayedNextInt: ZIO[Any, Nothing, Int] =
 
 val r1: ZIO[Any, Nothing, Option[Int]] =
   delayedNextInt.timeoutTo(None)(Some(_))(1.seconds)
-  
+
 val r2: ZIO[Any, Nothing, Either[String, Int]] =
   delayedNextInt.timeoutTo(Left("timeout"))(Right(_))(1.seconds)
-  
+
 val r3: ZIO[Any, Nothing, Int] =
   delayedNextInt.timeoutTo(-1)(identity)(1.seconds)
 ```
@@ -1491,7 +1497,7 @@ import zio._
 
 val effect: ZIO[Any, String, String] =
   ZIO.succeed("primary result") *> ZIO.fail("Oh uh!")
-    
+
 effect            // ZIO[Any, String, String]
   .sandbox        // ZIO[Any, Cause[String], String]
   .catchSome(???) // ZIO[Any, Cause[String], String]
@@ -1608,7 +1614,7 @@ If any of effecful operations doesn't fail, it results like the `zip` operator. 
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  val f1 = ZIO.succeed(1).debug 
+  val f1 = ZIO.succeed(1).debug
   val f2 = ZIO.succeed(2) *> ZIO.fail("Oh uh!")
   val f3 = ZIO.succeed(3).debug
   val f4 = ZIO.succeed(4) *> ZIO.fail("Oh error!")
@@ -1624,7 +1630,7 @@ object MainApp extends ZIOAppDefault {
 // 1
 // 3
 // 5
-// Then(Fail(Oh uh!,ZTrace(None,Chunk())),Fail(Oh error!,ZTrace(None,Chunk())))
+// Then(Fail(Oh uh!,Trace(None,Chunk())),Fail(Oh error!,Trace(None,Chunk())))
 // timestamp=2022-03-14T08:53:42.389942626Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
 // 	at <empty>.MainApp.run(MainApp.scala:13)
 // 	Suppressed: java.lang.String: Oh error!
@@ -1653,7 +1659,7 @@ object MainApp extends ZIOAppDefault {
 // 3
 // 1
 // 5
-// Both(Fail(Oh uh!,ZTrace(None,Chunk())),Fail(Oh error!,ZTrace(None,Chunk())))
+// Both(Fail(Oh uh!,Trace(None,Chunk())),Fail(Oh error!,Trace(None,Chunk())))
 // timestamp=2022-03-14T09:16:00.670444190Z level=ERROR thread=#zio-fiber-0 message="Exception in thread "zio-fiber-2" java.lang.String: Oh uh!
 //  	at <empty>.MainApp.run(MainApp.scala:13)
 // Exception in thread "zio-fiber-2" java.lang.String: Oh error!
@@ -1673,7 +1679,7 @@ object ZIO {
   def validate[R, E, A, B](in: Collection[A])(
     f: A => ZIO[R, E, B]
   ): ZIO[R, ::[E], Collection[B]]
-  
+
   def validate[R, E, A, B](in: NonEmptyChunk[A])(
     f: A => ZIO[R, E, B]
   ): ZIO[R, ::[E], NonEmptyChunk[B]]
@@ -1831,20 +1837,20 @@ trait ZIO[-R, +E, +A] {
 
 Here are two simple examples for these operators:
 
-````scala mdoc:compile-only
+```scala mdoc:compile-only
 import zio._
 
 def parseInt(input: String): ZIO[Any, NumberFormatException, Int] = ???
-  
+
 // mapping the error of the original effect to its message
 val r1: ZIO[Any, String, Int] =
   parseInt("five")                // ZIO[Any, NumberFormatException, Int]
     .mapError(e => e.getMessage)  // ZIO[Any, String, Int]
 
-// mapping the cause of the original effect to be untraced    
+// mapping the cause of the original effect to be untraced
 val r2 = parseInt("five")         // ZIO[Any, NumberFormatException, Int]
   .mapErrorCause(_.untraced)      // ZIO[Any, NumberFormatException, Int]
-````
+```
 
 > _**Note:**_
 >
@@ -2023,6 +2029,7 @@ object MainApp extends ZIOAppDefault {
 ### Filtering the Success Channel Values
 
 ZIO has a variety of operators that can filter values on the success channel based on a given predicate, and if the predicate fails, we can use different strategies:
+
 - Failing the original effect (`ZIO#filterOrFail`)
 - Dying the original effect (`ZIO#filterOrDie` and `ZIO#filterOrDieMessage`)
 - Running an alternative ZIO effect (`ZIO#filterOrElse` and `ZIO#filterOrElseWith`)
@@ -2037,18 +2044,18 @@ def getNumber: ZIO[Any, Nothing, Int] =
 
 val r1: ZIO[Any, String, Int] =
   Random.nextInt.filterOrFail(_ >= 0)("random number is negative")
-  
+
 val r2: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrDie(_ >= 0)(
     new IllegalArgumentException("random number is negative")
   )
-  
+
 val r3: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrDieMessage(_ >= 0)("random number is negative")
-  
+
 val r4: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrElse(_ >= 0)(getNumber)
-  
+
 val r5: ZIO[Any, Nothing, Int] =
   Random.nextInt.filterOrElseWith(_ >= 0)(x => ZIO.succeed(-x))
 ```
@@ -2061,7 +2068,7 @@ Like [tapping for success values](zio.md#tapping) ZIO has several operators for 
 trait ZIO[-R, +E, +A] {
   def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
-  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, ZTrace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, Trace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any], g: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
@@ -2104,7 +2111,7 @@ import zio._
 
 val age: Int = ???
 
-val res: URIO[Any, Either[AgeValidationException, Int]] = validate(age).either 
+val res: URIO[Any, Either[AgeValidationException, Int]] = validate(age).either
 ```
 
 The resulting effect is an unexceptional effect and cannot fail, because the failure case has been exposed as part of the `Either` success case. The error parameter of the returned `ZIO` is `Nothing`, since it is guaranteed the `ZIO` effect does not model failure.
@@ -2148,7 +2155,7 @@ def sqrt(input: ZIO[Any, Nothing, Double]): ZIO[Any, String, Double] =
     input.map { value =>
       if (value < 0.0)
         Left("Value must be >= 0.0")
-      else 
+      else
         Right(Math.sqrt(value))
     }
   )
@@ -2176,7 +2183,7 @@ val effect1 =
     .orDie                                                  // ZIO[Any, Nothing, Nothing]
     .absorb                                                 // ZIO[Any, Throwable, Nothing]
     .refineToOrDie[IllegalArgumentException]                // ZIO[Any, IllegalArgumentException, Nothing]
-    
+
 val effect2 =
   ZIO.fail(new IllegalArgumentException("wrong argument"))  // ZIO[Any, IllegalArgumentException , Nothing]
     .orDie                                                  // ZIO[Any, Nothing, Nothing]
@@ -2246,11 +2253,12 @@ timestamp=2022-02-18T14:21:52.559872464Z level=ERROR thread=#zio-fiber-0 message
 	at <empty>.MainApp.run(MainApp.scala:16)"
 ```
 
-### Error Refinement 
+### Error Refinement
 
 ZIO has some operators useful for converting defects into failures. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.
 
 Note that both `ZIO#refine*` and `ZIO#unrefine*` do not alter the error behavior, but only change the error model. That is to say, if an effect fails or die, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still fail or die; and if an effect succeeds, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still succeed; only the manner in which it signals the error will be altered by these two methods:
+
 1. The `ZIO#refine*` pinches off a piece of _failure_ of type `E`, and converts it into a _defect_.
 2. The `ZIO#unrefine*` pinches off a piece of a _defect_, and converts it into a _failure_ of type `E`.
 
@@ -2443,7 +2451,7 @@ object MainApp extends ZIOAppDefault {
       .unrefineWith {
         case e: Bar => e.getMessage
       }(e => e.getMessage)
-  
+
   def run = unrefined.cause.debug
 }
 ```
@@ -2490,7 +2498,7 @@ With `ZIO#merge` we can merge the error channel into the success channel:
 ```scala mdoc:compile-only
 import zio._
 
-val merged : ZIO[Any, Nothing, String] = 
+val merged : ZIO[Any, Nothing, String] =
   ZIO.fail("Oh uh!") // ZIO[Any, String, Nothing]
     .merge           // ZIO[Any, Nothing, String]
 ```
@@ -2539,7 +2547,7 @@ We can reject some success values using the `ZIO#reject` operator:
 ```scala
 trait ZIO[-R, +E, +A] {
   def reject[E1 >: E](pf: PartialFunction[A, E1]): ZIO[R, E1, A]
-  
+
   def rejectZIO[R1 <: R, E1 >: E](
     pf: PartialFunction[A, ZIO[R1, E1, E1]]
   ): ZIO[R1, E1, A]
@@ -2561,7 +2569,7 @@ val myApp: ZIO[Any, String, Int] =
     .debug
 ```
 
-### Zoom in/out on Left or Right Side of An Either Value 
+### Zoom in/out on Left or Right Side of An Either Value
 
 With `Either` ZIO values, we can zoom in or out on the left or right side of an `Either`, as well as we can do the inverse and zoom out.
 
@@ -2600,8 +2608,8 @@ val nextRandomEven: ZIO[Any, String, Option[Int]] =
 Now we can convert this effect which is optional on the success channel to an effect that is optional on the error channel using the `ZIO#some` operator and also the `ZIO#unsome` to reverse this conversion.
 
 ```scala mdoc:compile-only
-nextRandomEven // ZIO[Any, String, Option[Int]] 
-  .some        // ZIO[Any, Option[String], Int] 
+nextRandomEven // ZIO[Any, String, Option[Int]]
+  .some        // ZIO[Any, Option[String], Int]
   .unsome      // ZIO[Any, String, Option[Int]]
 ```
 
@@ -2668,10 +2676,10 @@ In the following example, we expose and then untrace the underlying cause:
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  val f1: ZIO[Any, String, Int] = 
+  val f1: ZIO[Any, String, Int] =
     ZIO.fail("Oh uh!").as(1)
-    
-  val f2: ZIO[Any, String, Int] = 
+
+  val f2: ZIO[Any, String, Int] =
     ZIO.fail("Oh error!").as(2)
 
   val myApp: ZIO[Any, String, (Int, Int)] = f1 zipPar f2
@@ -2697,7 +2705,6 @@ case class InvalidUserId(id: ID) extends UserServiceError
 case class ExpiredAuth(id: ID)   extends UserServiceError
 ```
 
-
 In this case, the super error type is `UserServiceError`. We sealed that trait, and we extend it by two cases, `InvalidUserId` and `ExpiredAuth`. Because it is sealed, if we have a reference to a `UserServiceError` we can match against it and the Scala compiler knows there are two possibilities for a `UserServiceError`:
 
 ```scala
@@ -2714,18 +2721,17 @@ Also extending all of our errors from a common supertype helps the ZIO's combina
 Let's say we have this for-comprehension here that calls the `userAuth` function, and it can fail with `ExpiredAuth`, and then we call `userProfile` that fails with `InvalidUserID`, and then we call `generateEmail` that can't fail at all, and finally we call `sendEmail` which can fail with `EmailDeliveryError`. We have got a lot of different errors here:
 
 ```scala
-val myApp: IO[Exception, Receipt] = 
+val myApp: IO[Exception, Receipt] =
   for {
     service <- userAuth(token)                // IO[ExpiredAuth, UserService]
     profile <- service.userProfile(userId)    // IO[InvalidUserId, Profile]
     body    <- generateEmail(orderDetails)    // IO[Nothing, String]
-    receipt <- sendEmail("Your order detail", 
+    receipt <- sendEmail("Your order detail",
        body, profile.email)                   // IO[EmailDeliveryError, Unit]
   } yield receipt
 ```
 
 In this example, the flatMap operations auto widens the error type to the most specific error type possible. As a result, the inferred error type of this for-comprehension will be `Exception` which gives us the best information we could hope to get out of this. We have lost information about the particulars of this. We no longer know which of these error types it is. We know it is some type of `Exception` which is more information than nothing.
-
 
 ### Use Union Types to Be More Specific About Error Types
 
@@ -2851,9 +2857,9 @@ case class StorageLimitExceeded(limit: Int) extends UploadError
 
 /**
  * This API fail with `FileExist` failure when the provided file name exist.
- */ 
+ */
 def upload(name: String): Task[Unit] = {
-    if (...)  
+    if (...)
       ZIO.fail(FileExist(name))
     else if (...)
       ZIO.fail(StorageLimitExceeded(limit)) // This error is undocumented unintentionally
@@ -2878,9 +2884,9 @@ We don't want to lose any errors. So if we do not use typed errors, it makes us 
 When we are programming with typed errors, that allows us to never lose any errors. Even if we don't handle all, the error channel of our effect type demonstrate the type of remaining errors:
 
 ```scala
-val myApp: ZIO[Any, UploadError, Unit] = 
+val myApp: ZIO[Any, UploadError, Unit] =
   upload("contacts.csv")
-    .catchSome { 
+    .catchSome {
       case FileExist(name) => delete(name) *> upload(name)
     }
 ```
@@ -2890,7 +2896,7 @@ It is still going to be sent an unhandled error type as a result. Therefore, the
 If we handle all errors using `ZIO#catchAll` the type of error channel become `Nothing` which means there is no expected error remaining to handle:
 
 ```scala
-val myApp: ZIO[Any, Nothing, Unit] = 
+val myApp: ZIO[Any, Nothing, Unit] =
   upload("contacts.csv")
     .catchAll {
       case FileExist(name) =>
@@ -2919,7 +2925,7 @@ ZIO.ifZIO(
   onTrue = ZIO.succeed("Success"),
   onFalse = ZIO.succeed("Failure")
 ).debug.repeatWhile(_ != "Success")
-``` 
+```
 
 The following could be one of the results of this program:
 
@@ -2934,9 +2940,10 @@ random number: 2
 remainder: 0
 Success
 ```
+
 ## Logging
 
-ZIO has built-in logging functionality. This allows us to log within our application without adding new dependencies. ZIO logging doesn't require any services from the environment. 
+ZIO has built-in logging functionality. This allows us to log within our application without adding new dependencies. ZIO logging doesn't require any services from the environment.
 
 We can easily log inside our application using the `ZIO.log` function:
 
@@ -2957,13 +2964,14 @@ ZIO.logLevel(LogLevel.Warning) {
   ZIO.log("The response time exceeded its threshold!")
 }
 ```
+
 Or we can use the following functions directly:
 
-* `ZIO.logDebug`
-* `ZIO.logError`
-* `ZIO.logFatal`
-* `ZIO.logInfo`
-* `ZIO.logWarning`
+- `ZIO.logDebug`
+- `ZIO.logError`
+- `ZIO.logFatal`
+- `ZIO.logInfo`
+- `ZIO.logWarning`
 
 ```scala mdoc:silent:nest
 ZIO.logError("File does not exist: ~/var/www/favicon.ico")
@@ -2999,7 +3007,7 @@ object MainApp extends ZIOAppDefault {
       r <- divide(a, b)
       _ <- Console.printLine(s"a / b: $r")
     } yield ()
-    
+
   def readNumber(msg: String): ZIO[Any, IOException, Int] =
     Console.print(msg) *> Console.readLine.map(_.toInt)
 
@@ -3071,7 +3079,7 @@ timestamp=2022-02-18T06:36:25.984665171Z level=ERROR thread=#zio-fiber-0 message
 The cause of this defect is also a programming error, which means we haven't validated input when parsing it. So let's try to validate the input, and make sure that it is a number. We know that if the entered input does not contain a parsable `Int` the `String#toInt` throws the `NumberFormatException` exception. As we want this exception to be typed, we import the `String#toInt` function using the `ZIO.attempt` constructor. Using this constructor the function signature would be as follows:
 
 ```scala mdoc:compile-only
-import zio._ 
+import zio._
 
 def parseInput(input: String): ZIO[Any, Throwable, Int] =
   ZIO.attempt(input.toInt)
@@ -3113,7 +3121,7 @@ object MainApp extends ZIOAppDefault {
       r <- divide(a, b)
       _ <- Console.printLine(s"a / b: $r")
     } yield ()
-    
+
   def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
     ZIO.attempt(input.toInt).refineToOrDie[NumberFormatException]
 

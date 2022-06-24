@@ -17,7 +17,7 @@ In [this quickstart](../quickstarts/restful-webservice.md), we developed a web s
 To run the code, clone the repository and checkout the `logging` branch:
 
 ```bash
-$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git 
+$ git clone git@github.com:zio/zio-quickstart-restful-webservice.git
 $ cd zio-quickstart-restful-webservice
 $ git checkout logging
 ```
@@ -76,7 +76,7 @@ at zio.examples.MainApp.run(MainApp.scala:10)" location=zio.examples.MainApp.run
 To distinguish importance of log messages from each other, ZIO supports the following log levels. The default log level is `Info`, so when we use the `ZIO.log` or `ZIO.logCause` methods, the log message will be logged at the `Info` level. For other log levels, we can use any of the `ZIO.log*` or `ZIO.log*Cause` methods:
 
 | LogLevel | Value        | Log Message    | Log with Cause      |
-|----------|--------------|----------------|---------------------|
+| -------- | ------------ | -------------- | ------------------- |
 | All      | Int.MinValue |                |                     |
 | Fatal    | 50000        | ZIO.logFatal   | ZIO.logFatalCause   |
 | Error    | 40000        | ZIO.logError   | ZIO.logErrorCause   |
@@ -234,11 +234,10 @@ ZIO.logSpan("span1") {
 
 To measure the time taken to process the request at different points of the code, we can wrap any workflow with `ZIO.logSpan`. In the `UserApp` example, we wrote a workflow that handles the registration of a new user. We can wrap the workflow in a span and log inside the span:
 
-
 ```scala
 Http.collectZIO[Request] {
   // POST /users -d '{"name": "John", "age": 35}'
-  case req@(Method.POST -> !! / "users") => 
+  case req@(Method.POST -> !! / "users") =>
     ZIO.logSpan("register-user") {
       // registration workflow
     }
@@ -256,7 +255,7 @@ object LogAspect {
   ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       override def apply[R, E, A](zio: ZIO[R, E, A])(
-        implicit trace: ZTraceElement
+        implicit trace: TraceElement
       ): ZIO[R, E, A] =
         ZIO.logSpan(label)(zio)
     }
@@ -278,7 +277,7 @@ $ curl -i http://localhost:8080/users -d '{"name": "John", "age": 42}'
 And the logs:
 
 ```scala
-timestamp=2022-06-03T09:42:15.590135Z level=INFO thread=#zio-fiber-16 message="POST /users -d {"name": "John", "age": 42}" register-user=16ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22 
+timestamp=2022-06-03T09:42:15.590135Z level=INFO thread=#zio-fiber-16 message="POST /users -d {"name": "John", "age": 42}" register-user=16ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22
 timestamp=2022-06-03T09:42:15.748359Z level=INFO thread=#zio-fiber-16 message="User registered: 24c4ed63-ecc2-41fb-ac0e-5cbf22f187f6" register-user=174ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35
 ```
 
@@ -292,6 +291,7 @@ register-user=174ms
 ## Annotating Logs
 
 The default log message is a string, containing a series of key-value pairs. It contains the following information:
+
 - `timestamp`: the time when the log is created
 - `level`: the log level
 - `thread`: the thread name (fiber name)
@@ -336,7 +336,7 @@ timestamp=2022-06-01T16:31:00.830572Z level=INFO thread=#zio-fiber-7 message="do
 timestamp=2022-06-01T16:31:00.839411Z level=INFO thread=#zio-fiber-8 message="downloading user's profile picture" location=zio.examples.MainApp.run file=MainApp.scala line=16 user-id=UserB
 ```
 
-As we can see, the `user-id` with its value is annotated to each log message. 
+As we can see, the `user-id` with its value is annotated to each log message.
 
 ## UserApp: Logging Correlation Ids
 
@@ -355,7 +355,7 @@ object LogAspect {
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       override def apply[R, E, A](
           zio: ZIO[R, E, A]
-      )(implicit trace: ZTraceElement): ZIO[R, E, A] =
+      )(implicit trace: TraceElement): ZIO[R, E, A] =
         correlationId(req).flatMap(id => ZIO.logAnnotate("correlation-id", id)(zio))
 
       def correlationId(req: Request): UIO[String] =
