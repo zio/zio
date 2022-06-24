@@ -640,8 +640,6 @@ object AccountObserverMock extends Mock[AccountObserver] {
 }
 ```
 
-> **Note:** ZIO provides some useful macros to help you generate repetitive code, see [Scrapping the boilerplate with macros][doc-macros].
-
 ## More examples
 
 We can find more examples in the `examples` and `test-tests` subproject:
@@ -653,7 +651,6 @@ We can find more examples in the `examples` and `test-tests` subproject:
 - [PolyMockSpec][link-gh-poly-mock-spec]
 
 [doc-contextual-types]: ../../../datatypes/contextual/index.md
-[doc-macros]: ../../../guides/howto-macros.md
 [link-sls-6.26.1]: https://scala-lang.org/files/archive/spec/2.13/06-expressions.html#value-conversions
 [link-test-doubles]: https://martinfowler.com/articles/mocksArentStubs.html
 [link-gh-mock-example-spec]: https://github.com/zio/zio/blob/master/examples/shared/src/test/scala/zio/examples/test/MockExampleSpec.scala

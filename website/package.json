@@ -12,9 +12,9 @@
   },
   "dependencies": {
     "@babel/plugin-transform-parameters": "^7.16.7",
-    "@docusaurus/core": "2.0.0-beta.15",
-    "@docusaurus/preset-classic": "2.0.0-beta.15",
-    "@docusaurus/theme-search-algolia": "2.0.0-beta.15",
+    "@docusaurus/core": "^2.0.0-beta.20",
+    "@docusaurus/preset-classic": "^2.0.0-beta.20",
+    "@docusaurus/theme-search-algolia": "^2.0.0-beta.20",
     "@material-ui/core": "4.11.2",
     "@mdx-js/react": "1.6.22",
     "babel": "^6.23.0",
@@ -26,7 +26,8 @@
     "prismjs": "^1.26.0",
     "react": "17.0.0",
     "react-dom": "17.0.0",
-    "remark-kroki-plugin": "0.1.1"
+    "remark-kroki-plugin": "0.1.1",
+    "tslib": "^2.3.1"
   },
   "browserslist": {
     "production": [

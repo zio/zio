@@ -24,6 +24,7 @@ module.exports = {
             label: "ZIO Effects",
             items: [
                 "datatypes/core/zio/zio",
+                "datatypes/core/zio/error-management",
                 "datatypes/core/zio/uio",
                 "datatypes/core/zio/urio",
                 "datatypes/core/zio/task",
@@ -223,7 +224,9 @@ module.exports = {
         "guides/tutorials/enable-logging-in-a-zio-application", 
         "guides/tutorials/create-custom-logger-for-a-zio-application",
         "guides/tutorials/run-our-first-zio-project-with-vscode",
-        "guides/handle-errors"
+        "guides/tutorials/deploy-a-zio-application-using-docker",
+        "guides/tutorials/producing-consuming-data-from-kafka-topics",
+        "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
@@ -318,7 +321,7 @@ module.exports = {
   },
   "about-sidebar": {
     "About": [
-      "about/index",
+      "about/about_index",
       "about/faq",
       "about/coding-guidelines",
       "about/contributing",
