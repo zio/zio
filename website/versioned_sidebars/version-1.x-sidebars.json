@@ -108,19 +108,6 @@
       "version-1.x/services/system"
     ]
   },
-  "usecases-sidebar": {
-    "Use Cases": [
-      "version-1.x/usecases/usecases_index",
-      "version-1.x/usecases/usecases_asynchronous",
-      "version-1.x/usecases/usecases_concurrency",
-      "version-1.x/usecases/usecases_parallelism",
-      "version-1.x/usecases/usecases_queueing",
-      "version-1.x/usecases/usecases_retrying",
-      "version-1.x/usecases/usecases_scheduling",
-      "version-1.x/usecases/usecases_streaming",
-      "version-1.x/usecases/usecases_testing"
-    ]
-  },
   "resources-sidebar": {
     "Overview": [
       "version-1.x/resources/index"
