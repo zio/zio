@@ -7,7 +7,7 @@ rm -Rf website/docs
 rm -Rf website/versioned_docs
 
 # Checkout latest version of the website from the 1.x series
-git checkout master
+git checkout series/1.x
 git clean -df
 sbt docs/mdoc docs/unidoc
 
