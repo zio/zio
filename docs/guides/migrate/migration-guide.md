@@ -1262,7 +1262,7 @@ val app: ZIO[Any, Nothing, Unit] =
 
 > Note:
 > 
-> In ZIO 2.x, the `ZIO#provide` method—and all its variants `ZIO#provideSome`, `ZIO#provideCustom`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and all its variants `ZIO#provideSomeLayer`, `ZIO#provideCustomLayer`—is useful for low-level and custom cases like.
+> In ZIO 2.x, the `ZIO#provide` method—together with its variant `ZIO#provideSome`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and its variant `ZIO#provideSomeLayer`—is useful for low-level and custom cases like.
 
 ### ZLayer Debugging
 
