@@ -39,10 +39,6 @@ module.exports = {
         },
       ],
     },
-    algolia: {
-      apiKey: '0c94b59071da7001757d08ab43d9e033',
-      indexName: 'zio'
-    },
     footer: {
       style: 'dark',
       links: [
