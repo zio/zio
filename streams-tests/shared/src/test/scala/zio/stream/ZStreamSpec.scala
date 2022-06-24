@@ -146,8 +146,8 @@ object ZStreamSpec extends ZIOBaseSpec {
                 _ <- queue.offer(Take.end)
 
                 result <- fiber.join
-              } yield result
-            )(equalTo(Chunk(List(5, 4, 3, 2, 1), List(10, 9, 8, 7, 6), List(15, 14, 13, 12, 11), List())))
+              } yield result.filter(_.nonEmpty)
+            )(equalTo(Chunk(List(5, 4, 3, 2, 1), List(10, 9, 8, 7, 6), List(15, 14, 13, 12, 11))))
           } @@ withLiveClock
         ),
         suite("transduce")(
