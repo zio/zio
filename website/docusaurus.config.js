@@ -30,7 +30,6 @@ const config = {
         { type: 'docsVersion', label: 'Overview', position: 'right' },
         { type: 'doc', docId: 'datatypes/index', label: 'Data Types', position: 'right' },
         { type: 'doc', docId: 'guides/index', label: 'Guides', position: 'right' },
-        { type: 'doc', docId: 'howto/index', label: 'How to', position: 'right' },
         { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'right' },
         { type: 'doc', docId: 'about/about_index', label: 'About', position: 'right' },
         {

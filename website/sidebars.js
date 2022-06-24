@@ -224,8 +224,7 @@ module.exports = {
         "guides/tutorials/enable-logging-in-a-zio-application", 
         "guides/tutorials/create-custom-logger-for-a-zio-application",
         "guides/tutorials/run-our-first-zio-project-with-vscode",
-        "guides/tutorials/deploy-a-zio-application-using-docker",
-        "guides/handle-errors"
+        "guides/tutorials/deploy-a-zio-application-using-docker"
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
