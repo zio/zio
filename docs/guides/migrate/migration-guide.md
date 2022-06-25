@@ -729,6 +729,49 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ## Runtime, Platform and Executor
 
+## Unsafe Marker
+
+To run a ZIO workflow, we usually use `ZIOAppDefault` or `ZIOApp` traits. These traits provide the `run` method which will run the workflow using their default `Runtime` system. But when we want to work with a low-level API or want to integrate with a legacy code, we need to unsafely run the workflow.
+
+In ZIO 1.x, we used the `zio.Runtime.unsafeRun` method to run a ZIO workflow:
+
+```scala
+trait Runtime[+R] {
+  def unsafeRun[E, A](zio: => ZIO[R, E, A]): A
+}
+```
+
+For example, if we wanted to integrate a ZIO workflow with a legacy unsafe code, we used to write something like this:
+
+```scala
+import zio._
+
+object MainApp {
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+  
+  def legacyApplication(input: Int): Unit = ???
+  
+  def zioApplication: Int = 
+    Runtime.default.unsafeRun(zioWorkflow)
+  
+
+  def main(args: Array[String]): Unit = {
+    legacyApplication(zioApplication)
+  }
+
+}
+```
+
+In ZIO 2.x, we added the `Unsafe` data type to help developers to differentiate lower-level codes that are not purely functional from the higher-level codes which are always pure, total, and type safe. So the `Unsafe` is just a marker capability to indicate that something is unsafe:
+
+```scala
+object Unsafe {
+  def unsafe[A](f: Unsafe => A): A = ???
+}
+```
+
+So to migrate the previous code to ZIO 2.x, we need to use the `Unsafe` data type like below:
+
 ### Runtime Customization using Layers
 
 In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
