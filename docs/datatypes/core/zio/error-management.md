@@ -906,7 +906,7 @@ def parseInt(input: String): ZIO[Any, Option[String], Int] =
   input.toIntOption match {
     case Some(value) => ZIO.succeed(value)
     case None =>
-      if (input.isBlank)
+      if (input.trim.isEmpty)
         ZIO.fail(None)
       else
         ZIO.fail(Some(s"invalid non-integer input: $input"))
@@ -1337,7 +1337,7 @@ object MainApp extends ZIOAppDefault {
       .timeout(3.second)
       .debug("output")
       .timed
-      .map(_._1.toSeconds)
+      .map(_._1.toMillis / 1000)
       .debug("execution time of the whole program in second")
 }
 
@@ -1361,7 +1361,11 @@ object MainApp extends ZIOAppDefault {
          .timeout(1.second)
          .debug("output")
          .timed
+   <<<<<<< HEAD
          .map(_._1.toSeconds)
+   =======
+         .map(_._1.toMillis / 1000)
+   >>>>>>> zio/series/2.x
          .debug("execution time of the whole program in second")
    }
 
