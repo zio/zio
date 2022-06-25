@@ -112,10 +112,10 @@ const config = {
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          lastVersion: '1.x',
+          lastVersion: 'current',
           versions: {
             'current': {
-              label: 'ZIO 2.x (WIP)'
+              label: 'ZIO 2.x'
             },
             '1.x': {
               label: 'ZIO 1.x',
