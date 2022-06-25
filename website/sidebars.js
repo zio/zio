@@ -15,7 +15,7 @@ module.exports = {
     ]
   },
   "datatypes-sidebar": {
-    "Overview": [
+    "Data Types": [
       "datatypes/index"
     ],
     "Core Data Types": [
@@ -211,8 +211,10 @@ module.exports = {
     ]
   },
   "guides-sidebar": [
-    "guides/index",
     {
+      "Guides" : [
+        "guides/index",
+      ],
       "Quickstart Guides": [
         "guides/quickstarts/hello-world",
         "guides/quickstarts/restful-webservice", 
@@ -247,7 +249,7 @@ module.exports = {
     }
   ],
   "resources-sidebar": {
-    "Overview": [
+    "Resources": [
       "resources/index"
     ],
     "Learning": [
