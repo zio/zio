@@ -768,6 +768,14 @@ In ZIO 2.x, we added the `Unsafe` data type to help developers to differentiate 
 object Unsafe {
   def unsafe[A](f: Unsafe => A): A = ???
 }
+
+trait Runtime[+R] { self =>
+  def unsafe: UnsafeAPI
+  
+  trait UnsafeAPI {
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
+  }
+}
 ```
 
 So to migrate the previous code to ZIO 2.x, we need to use the `Unsafe` data type like below:
@@ -790,6 +798,26 @@ object MainApp {
     legacyApplication(zioApplication)
   }
 
+}
+```
+
+This way it is easy to distinguish between _safe_ and _unsafe_ variants of the same operator. 
+
+To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafe` operator to create a block of code in which we can freely call unsafe operators:
+
+```scala
+Unsafe.unsafe {
+  Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
+}
+```
+
+If we are writing cross-version code, for example for a library, we can use the `unsafeCompat` operator, which works on all Scala versions but requires a slightly more verbose syntax:
+
+```scala mdoc:compile-only
+import zio._
+
+Unsafe.unsafeCompat { implicit unsafe =>
+  Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
 }
 ```
 
