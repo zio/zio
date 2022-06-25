@@ -1361,11 +1361,7 @@ object MainApp extends ZIOAppDefault {
          .timeout(1.second)
          .debug("output")
          .timed
-   <<<<<<< HEAD
-         .map(_._1.toSeconds)
-   =======
          .map(_._1.toMillis / 1000)
-   >>>>>>> zio/series/2.x
          .debug("execution time of the whole program in second")
    }
 
