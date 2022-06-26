@@ -237,8 +237,6 @@ For example, we can write counter with pipelines. We take strings and then split
 
 Another common use case of pipelines is **writing codecs**. We can use them to decode the bytes into strings. We have a bunch of bytes, and we want to end up with a JSON and then once we are in JSON land we want to go from JSON to our user-defined data type. So, by writing a pipeline we can convert that JSON to our user-defined data type.
 
-**Pipelines are very efficient**. They only exist for efficiency reasons because we can do everything we need actually with Sinks. Pipelines exist only to make transformations faster. Sinks are not super fast to change from one sink to another. So pipelines were invented to make it possible to transform element types in a compositional way without any of the performance overhead associated with changing over a Sink. 
-
 Pipelines can be thought of as **element transformers**. They transform elements of a stream:
 
 1. We can take a pipeline, and we can stack it onto a stream to change the element type. For example, we have a Stream of `A`s, and a pipeline that goes from `A` to `B`, so we can take that pipeline from `A` to `B` and stack it on the stream to get back a stream of `B`s. 
