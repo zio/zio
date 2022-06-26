@@ -772,6 +772,27 @@ object Unsafe {
 
 So to migrate the previous code to ZIO 2.x, we need to use the `Unsafe` data type like below:
 
+```diff
+import zio._
+
+object MainApp {
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  def zioApplication: Int =
+-    Runtime.default.unsafeRun(zioWorkflow)
++    Unsafe.unsafe { implicit u =>
++      Runtime.default.unsafe.run(zioWorkflow).getOrThrowFiberFailure()
++    }
+
+  def main(args: Array[String]): Unit = {
+    legacyApplication(zioApplication)
+  }
+
+}
+```
+
 ### Runtime Customization using Layers
 
 In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
