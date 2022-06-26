@@ -729,6 +729,105 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ## Runtime, Platform and Executor
 
+## Unsafe Marker
+
+To run a ZIO workflow, we usually use `ZIOAppDefault` or `ZIOApp` traits. These traits provide the `run` method which will run the workflow using their default `Runtime` system. But when we want to work with a low-level API or want to integrate with a legacy code, we need to unsafely run the workflow.
+
+In ZIO 1.x, we used the `zio.Runtime.unsafeRun` method to run a ZIO workflow:
+
+```scala
+trait Runtime[+R] {
+  def unsafeRun[E, A](zio: => ZIO[R, E, A]): A
+}
+```
+
+For example, if we wanted to integrate a ZIO workflow with a legacy unsafe code, we used to write something like this:
+
+```scala
+import zio._
+
+object MainApp {
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+  
+  def legacyApplication(input: Int): Unit = ???
+  
+  def zioApplication: Int = 
+    Runtime.default.unsafeRun(zioWorkflow)
+  
+
+  def main(args: Array[String]): Unit = {
+    legacyApplication(zioApplication)
+  }
+
+}
+```
+
+In ZIO 2.x, we added the `Unsafe` data type to help developers to differentiate lower-level codes that are not purely functional from the higher-level codes which are always pure, total, and type safe. So the `Unsafe` is just a marker capability to indicate that something is unsafe:
+
+```scala
+object Unsafe {
+  def unsafe[A](f: Unsafe => A): A = ???
+}
+
+trait Runtime[+R] { self =>
+  def unsafe: UnsafeAPI
+  
+  trait UnsafeAPI {
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
+  }
+}
+```
+
+So to migrate the previous code to ZIO 2.x, we need to use the `Unsafe` data type like below:
+
+```diff
+import zio._
+
+object MainApp {
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  def zioApplication: Int =
+-    Runtime.default.unsafeRun(zioWorkflow)
++    Unsafe.unsafe { implicit u =>
++      Runtime.default.unsafe.run(zioWorkflow).getOrThrowFiberFailure()
++    }
+
+  def main(args: Array[String]): Unit = {
+    legacyApplication(zioApplication)
+  }
+
+}
+```
+
+This way it is easy to distinguish between _safe_ and _unsafe_ variants of the same operator. 
+
+To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafe` operator to create a block of code in which we can freely call unsafe operators:
+
+```scala
+Unsafe.unsafe {
+  Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
+}
+```
+
+If we are writing cross-version code, for example for a library, we can use the `unsafeCompat` operator, which works on all Scala versions but requires a slightly more verbose syntax:
+
+```scala mdoc:compile-only
+import zio._
+
+Unsafe.unsafeCompat { implicit unsafe =>
+  Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
+}
+```
+
+In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x corresponding to the unsafe operators:
+
+|         | ZIO 1.0                    | ZIO 2.x                                                     |
+|---------|----------------------------|-------------------------------------------------------------|
+| Scala 2 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ implicit u => zio.Runtime.unsafe.run(x) }`  |
+| Scala 3 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ zio.Runtime.unsafe.run(x) }`                |
+
 ### Runtime Customization using Layers
 
 In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
