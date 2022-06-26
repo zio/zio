@@ -601,7 +601,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val callback = (effect: ZIO[Any, Any, Any]) => {
       if (alreadyCalled.compareAndSet(false, true)) {
         self.asyncEffect = effect
-        getSupervisor().onAsyncEnd(self)
         tell(FiberMessage.Resume)
       } else {
         val msg = s"An async callback was invoked more than once, which could be a sign of a defect: ${effect}"
@@ -611,8 +610,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     if (RuntimeFlags.interruptible(runtimeFlags)) self.asyncInterruptor = callback
-
-    getSupervisor().onAsyncStart(self)
 
     try {
       asyncRegister(callback)
@@ -1185,7 +1182,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     reportExitValue(e)
-    getSupervisor().onObserverNotify(e, self)
 
     val iterator = observers.iterator
 
