@@ -64,6 +64,12 @@ abstract class Supervisor[+A] { self =>
   def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
   def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+
+  def onAsyncStart[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+
+  def onAsyncEnd[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+
+  def onObserverNotify[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 }
 object Supervisor {
 
@@ -185,6 +191,15 @@ object Supervisor {
 
     override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
       underlying.onResume(fiber)
+
+    override def onAsyncStart[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+      underlying.onAsyncStart(fiber)
+
+    override def onAsyncEnd[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+      underlying.onAsyncEnd(fiber)
+
+    override def onObserverNotify[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+      underlying.onObserverNotify(value, fiber)
   }
 
   sealed trait Patch { self =>
@@ -277,6 +292,23 @@ object Supervisor {
     override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
       left.onResume(fiber)
       right.onResume(fiber)
+    }
+
+    override def onAsyncStart[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
+      left.onAsyncStart(fiber)
+      right.onAsyncStart(fiber)
+    }
+
+    override def onAsyncEnd[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
+      left.onAsyncEnd(fiber)
+      right.onAsyncEnd(fiber)
+    }
+
+    override def onObserverNotify[E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit
+      unsafe: Unsafe
+    ): Unit = {
+      left.onObserverNotify(value, fiber)
+      right.onObserverNotify(value, fiber)
     }
   }
 
