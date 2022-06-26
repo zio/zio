@@ -821,6 +821,13 @@ Unsafe.unsafeCompat { implicit unsafe =>
 }
 ```
 
+In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x corresponding to the unsafe operators:
+
+|         | ZIO 1.0                    | ZIO 2.x                                                     |
+|---------|----------------------------|-------------------------------------------------------------|
+| Scala 2 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ implicit u => zio.Runtime.unsafe.run(x) }`  |
+| Scala 3 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ zio.Runtime.unsafe.run(x) }`                |
+
 ### Runtime Customization using Layers
 
 In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
