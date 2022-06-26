@@ -81,10 +81,8 @@ object SupervisorSpec extends ZIOSpecDefault {
           fiber: Fiber.Runtime[E, A]
         )(implicit unsafe: Unsafe): Unit = ()
 
-        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
-          Thread.sleep(10)
+        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
           ref.unsafe.update(_ + 1)
-        }
       }
     }
 
