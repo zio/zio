@@ -16,6 +16,16 @@ object SupervisorSpec extends ZIOSpecDefault {
         value     <- ref.get
       } yield assertTrue(value == 2)
     },
+    test("Supervisor#onEnd is invoked before awaiting fibers are resumed") {
+      for {
+        ref         <- ZIO.succeedUnsafe(implicit u => Ref.unsafe.make(0))
+        onEndSup    <- makeOnEndSupervisor(ref)
+        onResumeSup <- makeOnResumeSupervisor(ref)
+        f           <- ZIO.sleep(10.millis).fork.supervised(onEndSup)
+        _           <- (f.await).supervised(onResumeSup)
+        value       <- onResumeSup.value
+      } yield assertTrue(value == 1)
+    } @@ TestAspect.nonFlaky @@ TestAspect.withLiveClock,
     suite("laws") {
       DifferSpec.diffLaws(Differ.supervisor)(genSupervisor)((left, right) =>
         Supervisor.toSet(left) == Supervisor.toSet(right)
@@ -56,6 +66,44 @@ object SupervisorSpec extends ZIOSpecDefault {
           ref.unsafe.update(_ + 1)
         def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
           ()
+      }
+    }
+
+  def makeOnEndSupervisor(ref: Ref.Atomic[Int]): UIO[Supervisor[Any]] =
+    ZIO.succeed {
+      new Supervisor[Any] {
+        def value(implicit trace: zio.Trace): UIO[Any] =
+          ZIO.unit
+        def onStart[R, E, A](
+          environment: ZEnvironment[R],
+          effect: ZIO[R, E, A],
+          parent: Option[Fiber.Runtime[Any, Any]],
+          fiber: Fiber.Runtime[E, A]
+        )(implicit unsafe: Unsafe): Unit = ()
+
+        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
+          Thread.sleep(10)
+          ref.unsafe.update(_ + 1)
+        }
+      }
+    }
+
+  def makeOnResumeSupervisor(ref: Ref.Atomic[Int]): UIO[Supervisor[Int]] =
+    Promise.make[Nothing, Int].map { promise =>
+      new Supervisor[Int] {
+        def value(implicit trace: zio.Trace): UIO[Int] =
+          promise.await
+        def onStart[R, E, A](
+          environment: ZEnvironment[R],
+          effect: ZIO[R, E, A],
+          parent: Option[Fiber.Runtime[Any, Any]],
+          fiber: Fiber.Runtime[E, A]
+        )(implicit unsafe: Unsafe): Unit = ()
+
+        def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+
+        override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
+          promise.unsafe.done(ZIO.succeedNow(ref.unsafe.get))
       }
     }
 }
