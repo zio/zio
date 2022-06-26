@@ -191,7 +191,7 @@ private[zio] trait ZIOCompanionPlatformSpecific {
       is         <- if (isAbsolute) readURLInputStream(uri.toURL) else readFileInputStream(uri.toString)
     } yield is
 
-  def writeFile(path: => String, content: => String)(implicit trace: Trace): ZIO[Scope, IOException, Unit] =
+  def writeFile(path: => String, content: => String)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
     ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path)))(f =>
       ZIO.attemptBlocking(f.close()).orDie
     ) { f =>
@@ -201,7 +201,7 @@ private[zio] trait ZIOCompanionPlatformSpecific {
   def writeFile(path: => Path, content: => String)(implicit
     trace: Trace,
     d: DummyImplicit
-  ): ZIO[Scope, IOException, Unit] =
+  ): ZIO[Any, IOException, Unit] =
     writeFile(path.toString, content)
 
   def writeFileOutputStream(
