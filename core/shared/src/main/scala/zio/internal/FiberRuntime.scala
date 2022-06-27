@@ -864,6 +864,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               } catch {
                 case zioError: ZIOError =>
                   cur = zioError.toEffect(effect.trace)
+                case throwable =>
+                  cur = ZIO.failCause(Cause.die(throwable))(effect.trace)
               }
 
             case effect0: OnFailure[_, _, _, _] =>
