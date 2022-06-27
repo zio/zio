@@ -1,5 +1,6 @@
 ---
-id: concurrentSet title: "ConcurrentSet"
+id: concurrentSet 
+title: "ConcurrentSet"
 ---
 
 A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
