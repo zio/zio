@@ -1,5 +1,6 @@
 ---
-id: concurrentmap title: "ConcurrentMap"
+id: concurrentmap 
+title: "ConcurrentMap"
 ---
 
 A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.

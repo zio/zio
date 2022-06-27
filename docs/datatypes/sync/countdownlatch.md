@@ -1,5 +1,6 @@
 ---
-id: countdownlatch title: "CountdownLatch"
+id: countdownlatch 
+title: "CountdownLatch"
 ---
 A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers
 completes.

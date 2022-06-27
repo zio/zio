@@ -22,12 +22,10 @@ object SupervisorSpec extends ZIOBaseSpec {
             assertTrue(
               recorded.toSet == (Set(
                 s"unsafeOnResume($fiber1)",
-                s"unsafeOnResume($fiber2)"
-              ).filter(_ => superviseOperations) ++
-                Set(
-                  s"unsafeOnSuspend($fiber1)",
-                  s"unsafeOnSuspend($fiber2)"
-                ))
+                s"unsafeOnResume($fiber2)",
+                s"unsafeOnSuspend($fiber1)",
+                s"unsafeOnSuspend($fiber2)"
+              ))
             )
           }
         }

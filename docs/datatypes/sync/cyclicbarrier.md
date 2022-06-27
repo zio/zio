@@ -1,5 +1,6 @@
 ---
-id: cyclicbarrier title: "CyclicBarrier"
+id: cyclicbarrier 
+title: "CyclicBarrier"
 ---
 
 A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
