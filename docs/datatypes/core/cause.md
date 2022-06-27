@@ -21,8 +21,8 @@ title: "Cause"
 5. `Meta(cause, data)`
 
 6. `Both(left, right)` & `Then(left, right)` store composition of two parallel and sequential causes. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
-  + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`.
-  + If we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`.
+    + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`.
+    + If we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`.
 
 Let's try to create some of these causes:
 
