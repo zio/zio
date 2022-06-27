@@ -729,7 +729,7 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ## Runtime, Platform and Executor
 
-## Unsafe Marker
+### Unsafe Marker
 
 To run a ZIO workflow, we usually use `ZIOAppDefault` or `ZIOApp` traits. These traits provide the `run` method which will run the workflow using their default `Runtime` system. But when we want to work with a low-level API or want to integrate with a legacy code, we need to unsafely run the workflow.
 
@@ -823,10 +823,108 @@ Unsafe.unsafeCompat { implicit unsafe =>
 
 In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x corresponding to the unsafe operators:
 
-|         | ZIO 1.0                    | ZIO 2.x                                                     |
-|---------|----------------------------|-------------------------------------------------------------|
-| Scala 2 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ implicit u => zio.Runtime.unsafe.run(x) }`  |
-| Scala 3 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ zio.Runtime.unsafe.run(x) }`                |
+|         | ZIO 1.0                | ZIO 2.x                                                 |
+|---------|------------------------|---------------------------------------------------------|
+| Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }` |
+| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { runtime.unsafe.run(x) }`               |
+
+### Unsafe Variants
+
+In ZIO 1.x, the `Runtime` had several methods for running ZIO workflows unsafely:
+
+```scala
+trait Runtime[+R] {
+  def unsafeRun[E, A](zio: => ZIO[R, E, A]): A
+  def unsafeRunTask[A](task: => RIO[R, A]): A
+  def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A]
+  def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit
+  def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A]
+  def unsafeRunAsync_[E, A](zio: ZIO[R, E, A]): Unit
+  def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A]
+}
+```
+
+We can group these unsafe methods into two categories: synchronous and asynchronous. The synchronous operators are the ones that are used when we want to wait for the result of the workflow to be available. The asynchronous operators are used when we want to execute the workflow asynchronously by providing a callback function that will be called when the workflow is completed.
+
+In the previous section, we described the new `run` method inside the `unsafe` object of the `Runtime` trait. We can use this method to unsafely run workflows synchronously. There is another method, called `fork`, that can be used to unsafely run workflows asynchronously:
+
+```scala
+trait Runtime {
+  def unsafe: UnsafeAPI
+  
+  trait UnsafeAPI {
+    def run[E, A](zio: ZIO[R, E, A])(implicit unsafe: Unsafe): Exit[E, A]
+
+    def fork[E, A](zio: ZIO[R, E, A])(implicit unsafe: Unsafe): Fiber.Runtime[E, A]
+  }
+}
+```
+
+The `fork` method returns a `Fiber.Runtime` that can be used to control the execution of the workflow. We have added a new `unsafe` object to the `Fiber.Runtime` class that has several unsafe methods including the `addObserver`:
+
+
+```scala
+object Fiber {
+  sealed abstract class Runtime[+E, +A] extends Fiber[E, A] {
+    def unsafe: UnsafeAPI
+
+    trait UnsafeAPI {
+      def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
+    }
+  }
+}
+```
+
+Using the `addObserver` method, we can add a callback function of type `Exit[E, A] => Unit` to the underlying fiber. This callback function will be called when the fiber completes. Using these new functionalities, we can implement asynchronous unsafe operators like before. For example, assume we have the following code in ZIO 1.x:
+
+```scala
+// ZIO 1.x
+import zio._
+import zio.console._
+import zio.duration._
+
+Runtime.default.unsafeRunAsync(
+  console.putStrLn("After 3 seconds I will return 5").delay(3.seconds).as(5)
+)(
+  _.fold(
+    e => println(s"Failure: $e"),
+    v => println(s"Success: $v")
+  )
+)
+```
+
+We can rewrite it in ZIO 2.x as follows:
+
+```scala mdoc:compile-only
+// ZIO 2.x
+import zio._
+
+Unsafe.unsafe { implicit u =>
+  Runtime.default.unsafe
+    .fork(
+      Console
+        .printLine("After 3 seconds I will return 5")
+        .delay(3.second)
+        .as(5)
+    )
+    .unsafe
+    .addObserver(
+      _.fold(
+        e => println(s"Failure: $e"),
+        v => println(s"Success: $v")
+      )
+    )
+}
+```
+
+Similarly, we can do the same for other unsafe operators. Here are some of them:
+
+| ZIO 1.0                        | ZIO 2.x                                                                                                    |
+|--------------------------------|------------------------------------------------------------------------------------------------------------|
+| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }`                                                    |
+| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).foldExit(cause => throw cause.squashTrace, identity)` |
+| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit u => runtime.unsafe.fork(x).unsafe.addObserver(_fold(identity, identity))`       |
+| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.runToFuture(x) }`                                            |
 
 ### Runtime Customization using Layers
 
