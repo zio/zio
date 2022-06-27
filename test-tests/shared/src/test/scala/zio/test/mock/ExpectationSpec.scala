@@ -12,7 +12,7 @@ object ExpectationSpec extends ZIOBaseSpec {
 
   lazy val A: Expectation[PureModule] = SingleParam(equalTo(1), value("foo"))
   lazy val B: Expectation[PureModule] = Static(value("bar"))
-  lazy val C: Expectation[PureModule] = Looped(equalTo(1), never)
+  lazy val C: Expectation[PureModule] = Looped(equalTo(1: Int), never)
 
   private def isAnd[R <: Has[_]](children: List[Expectation[_]]) =
     isSubtype[And[R]](
