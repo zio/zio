@@ -1,8 +1,8 @@
 package zio.test.magnolia
 
 import zio.test._
-import DeriveDiff.gen
 
+import zio.test.magnolia.diff.gen
 import java.time.Instant
 
 object DeriveDiffSpec extends DefaultRunnableSpec {
@@ -27,13 +27,29 @@ object DeriveDiffSpec extends DefaultRunnableSpec {
             "Boboo",
             Some("Babbo\nThe\nBibber"),
             300,
-            Pet("The Beautiful Crumb", false, l1, Instant.MIN)
+            Pet("The Beautiful Crumb", false, l1, Instant.MIN),
+            Some(
+              Person(
+                "Boboo",
+                Some("Babbo\nThe\nBibber"),
+                300,
+                Pet("The Beautiful Crumb", false, l1, Instant.MIN)
+              )
+            )
           )
         val p2 = Person(
           "Bibi",
           Some("Bibbo\nThe\nBibber\nBobber"),
           300,
-          Pet("The Beautiful Destroyer", false, l2, Instant.now)
+          Pet("The Beautiful Destroyer", false, l2, Instant.now),
+          Some(
+            Person(
+              "Bibi",
+              Some("Bibbo\nThe\nBibber\nBobber"),
+              300,
+              Pet("The Beautiful Destroyer", false, l2, Instant.now)
+            )
+          )
         )
         assertTrue(p1 == p2)
       } @@ TestAspect.failing,
