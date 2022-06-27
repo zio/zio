@@ -10,9 +10,9 @@ object ExpectationSpec extends ZIOBaseSpec {
   import Expectation._
   import PureModuleMock._
 
-  lazy val A: Expectation[PureModule] = SingleParam(equalTo(1), value("foo"))
-  lazy val B: Expectation[PureModule] = Static(value("bar"))
-  lazy val C: Expectation[PureModule] = Looped(equalTo(1: Int), never)
+  lazy val A: Expectation[Has[PureModule.Service]] = SingleParam(equalTo(1), value("foo"))
+  lazy val B: Expectation[PureModule]              = Static(value("bar"))
+  lazy val C: Expectation[PureModule]              = Looped(equalTo(1), never)
 
   private def isAnd[R <: Has[_]](children: List[Expectation[_]]) =
     isSubtype[And[R]](
@@ -55,16 +55,18 @@ object ExpectationSpec extends ZIOBaseSpec {
       test("A || B")(assert(A || B)(isOr(A :: B :: Nil)))
     ),
     suite("repeats")(
-      test("A repeats (2 to 5)")(assert(A repeats (2 to 5))(equalTo(Repeated(A, 2 to 5)))),
-      test("nested repeats")(assert(A.repeats(2 to 3).repeats(1 to 2))(equalTo(Repeated(Repeated(A, 2 to 3), 1 to 2))))
+      test("A repeats (2 to 5)")(assert(A repeats (2 to 5))(equalTo(Repeated[PureModule](A, 2 to 5)))),
+      test("nested repeats")(
+        assert(A.repeats(2 to 3).repeats(1 to 2))(equalTo(Repeated(Repeated[PureModule](A, 2 to 3), 1 to 2)))
+      )
     ),
     suite("optional")(
-      test("A optional")(assert(A.optional)(equalTo(Repeated(A, 0 to 1))))
+      test("A optional")(assert(A.optional)(equalTo(Repeated[PureModule](A, 0 to 1))))
     ),
     suite("exactly and derived")(
-      test("A exactly 5")(assert(A exactly 5)(equalTo(Exactly(A, 5)))),
-      test("A twice")(assert(A.twice)(equalTo(Exactly(A, 2)))),
-      test("A thrice")(assert(A.thrice)(equalTo(Exactly(A, 3))))
+      test("A exactly 5")(assert(A exactly 5)(equalTo(Exactly[PureModule](A, 5)))),
+      test("A twice")(assert(A.twice)(equalTo(Exactly[PureModule](A, 2)))),
+      test("A thrice")(assert(A.thrice)(equalTo(Exactly[PureModule](A, 3))))
     )
   )
 }
