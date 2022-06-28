@@ -159,7 +159,7 @@ suite("a test suite with shared kafka layer")(
 
 ### Sharing Layers Between Multiple Specs
 
-We can also share layers between multiple suites using the `Spec#provide**Shared` methods. When we provide a shared layer, the test framework will acquire that layer for once and share it between all suites, and release it when execution of all suites are executed.
+We can also share layers between multiple suites using the `Spec#provide**Shared` methods. When we provide a shared layer, the test framework will acquire that layer for once and share it between all suites, and release it when all suites are done.
 
 To demonstrate this, let's create a `Counter` service. We use this service to count the number of times the tests are executed, by calling the `Counter.inc` operator after each test:
 
