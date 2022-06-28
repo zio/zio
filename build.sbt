@@ -275,6 +275,7 @@ lazy val streamsTestsJS = streamsTests.js
   )
 
 lazy val streamsTestsNative = streamsTests.native
+  .settings(nativeSettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -329,6 +330,7 @@ lazy val testTestsJS = testTests.js
     )
   )
 lazy val testTestsNative = testTests.native
+  .settings(nativeSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -407,9 +409,10 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     )
   )
 
-lazy val testScalaCheckJVM    = testScalaCheck.jvm
-lazy val testScalaCheckJS     = testScalaCheck.js
-lazy val testScalaCheckNative = testScalaCheck.native.settings(nativeSettings)
+lazy val testScalaCheckJVM = testScalaCheck.jvm
+lazy val testScalaCheckJS  = testScalaCheck.js
+lazy val testScalaCheckNative = testScalaCheck.native
+  .settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
