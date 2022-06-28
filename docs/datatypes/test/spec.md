@@ -157,6 +157,66 @@ suite("a test suite with shared kafka layer")(
 ).provideCustomShared(EmbeddedKafka.layer)
 ```
 
+### Sharing Layers Between Multiple Specs
+
+We can also share layers between multiple suites using the `Spec#provide**Shared` methods. When we provide a shared layer, the test framework will acquire that layer for once and share it between all suites, and release it when execution of all suites are executed.
+
+To demonstrate this, let's create a `Counter` service. We use this service to count the number of times the tests are executed, by calling the `Counter.inc` operator after each test:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+object MySpecs extends ZIOSpecDefault {
+
+  case class Counter(value: Ref[Int]) {
+    def inc: UIO[Unit] = value.update(_ + 1)
+    def get: UIO[Int] = value.get
+    def reset: UIO[Unit] = value.set(0)
+  }
+
+  object Counter {
+    def layer =
+      ZLayer.scoped(
+        ZIO.acquireRelease(
+          Ref.make(0).map(Counter(_)) <* ZIO.debug("Counter initialized!")
+        )(c => c.get.debug("Number of tests executed") *> c.reset)
+      )
+    def inc = ZIO.service[Counter].flatMap(_.inc)
+  }
+
+  def spec = {
+    suite("Spec1")(
+      test("test1") {
+        assertTrue(true)
+      } @@ TestAspect.after(Counter.inc),
+      test("test2") { assertTrue(true)
+      } @@ TestAspect.after(Counter.inc)
+    ) +
+      suite("Spec2") {
+        test("test1") {
+          assertTrue(true)
+        } @@ TestAspect.after(Counter.inc)
+      }
+  }.provideShared(Counter.layer)
+}
+```
+
+If we execute all specs, we will see an output like this:
+
+```
+Counter initialized!
++ Spec1
+  + test2
+  + test1
++ Spec2
+  + test1
+Number of tests executed: 3
+3 tests passed. 0 tests failed. 0 tests ignored.
+```
+
+In the above example, the `Counter.layer` is shared between all specs, and only acquired and released once.
+
 ## Operations
 
 In ZIO Test, specs are just values like other data types in ZIO. So we can filter, map or manipulate these data types. In this section, we are going to learn some of the most important operations on the `Spec` data type:
