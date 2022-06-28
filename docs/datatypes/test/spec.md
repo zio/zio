@@ -129,7 +129,7 @@ object EmbeddedKafka {
 }
 ```
 
-```mdoc:compile-only
+```scala mdoc:compile-only
 val testA =
   test("producing an element to the kafka service") {
     for {
