@@ -919,12 +919,12 @@ Unsafe.unsafe { implicit u =>
 
 Similarly, we can do the same for other unsafe operators. Here are some of them:
 
-| ZIO 1.0                        | ZIO 2.x                                                                                                |
-|--------------------------------|--------------------------------------------------------------------------------------------------------|
-| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }`                                                |
-| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).getOrThrow() }`                                   |
-| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit u => runtime.unsafe.fork(x).unsafe.addObserver(_fold(identity, identity)) }` |
-| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.runToFuture(x) }`                                        |
+| ZIO 1.0                        | ZIO 2.x                                                              |
+|--------------------------------|----------------------------------------------------------------------|
+| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }`              |
+| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).getOrThrow() }` |
+| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit u => runtime.unsafe.fork(x) }`             |
+| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.runToFuture(x) }`      |
 
 ### Runtime Customization using Layers
 
