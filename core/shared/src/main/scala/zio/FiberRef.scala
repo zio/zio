@@ -26,12 +26,13 @@ import zio.internal.{FiberScope, IsFatal}
  * {{{
  * for {
  *   fiberRef <- FiberRef.make("Hello world!")
- *   child    <- fiberRef.set("Hi!).fork
- *   result   <- child.join
+ *   child    <- fiberRef.set("Hi!").fork
+ *   _        <- child.join
+ *   result   <- fiberRef.get
  * } yield result
  * }}}
  *
- * Here `result` will be equal to "Hi!" since changed made by a child fiber are
+ * Here `result` will be equal to "Hi!" since changes made by a child fiber are
  * merged back in to the value of the parent fiber on join.
  *
  * By default the value of the child fiber will replace the value of the parent
@@ -40,7 +41,7 @@ import zio.internal.{FiberScope, IsFatal}
  *
  * {{{
  * for {
- *   fiberRef <- FiberRef.make(0, math.max)
+ *   fiberRef <- FiberRef.make(0, identity[Int], math.max)
  *   child    <- fiberRef.update(_ + 1).fork
  *   _        <- fiberRef.update(_ + 2)
  *   _        <- child.join
