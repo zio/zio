@@ -715,7 +715,7 @@ lazy val scalafixRules = project.module
     libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.34"
   )
 
-val zio1Version = "1.0.12"
+val zio1Version = "1.0.15"
 
 lazy val scalafixInput = project
   .in(file("scalafix/input"))
@@ -796,15 +796,15 @@ lazy val docs = project.module
       "dev.zio"            %% "zio-json"                  % "0.3.0-RC8",
 //      "dev.zio"               %% "zio-kafka"                   % "2.0.0-RC5",
       "dev.zio"               %% "zio-logging"                 % "0.5.12",
-      "dev.zio"               %% "zio-metrics-prometheus"      % "1.0.12",
+      "dev.zio"               %% "zio-metrics-prometheus"      % "1.0.14",
       "dev.zio"               %% "zio-nio"                     % "1.0.0-RC11",
       "dev.zio"               %% "zio-optics"                  % "0.1.0",
-      "dev.zio"               %% "zio-prelude"                 % "1.0.0-RC6",
+      "dev.zio"               %% "zio-prelude"                 % "1.0.0-RC9",
       "dev.zio"               %% "zio-process"                 % "0.5.0",
-      "dev.zio"               %% "zio-rocksdb"                 % "0.3.0",
+      "dev.zio"               %% "zio-rocksdb"                 % "0.3.2",
       "dev.zio"               %% "zio-s3"                      % "0.3.7",
       "dev.zio"               %% "zio-schema"                  % "0.1.1",
-      "dev.zio"               %% "zio-sqs"                     % "0.4.2",
+      "dev.zio"               %% "zio-sqs"                     % "0.4.3",
       "dev.zio"               %% "zio-opentracing"             % "0.8.2",
       "io.laserdisc"          %% "tamer-db"                    % "0.16.1",
       "io.jaegertracing"       % "jaeger-core"                 % "1.6.0",
@@ -816,7 +816,7 @@ lazy val docs = project.module
       "dev.zio"               %% "zio-interop-scalaz7x"        % "7.3.3.0",
       "dev.zio"               %% "zio-interop-reactivestreams" % "1.3.7",
       "dev.zio"               %% "zio-interop-twitter"         % "20.10.0.0",
-      "dev.zio"               %% "zio-zmx"                     % "0.0.9",
+      "dev.zio"               %% "zio-zmx"                     % "0.0.13",
       "dev.zio"               %% "zio-query"                   % "0.2.10",
       "org.polynote"          %% "uzhttp"                      % "0.2.8",
       "org.tpolecat"          %% "doobie-core"                 % doobieV,
