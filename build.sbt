@@ -71,8 +71,8 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
-val catsEffectVersion = "3.2.5"
-val fs2Version        = "3.1.1"
+val catsEffectVersion = "3.3.12"
+val fs2Version        = "3.2.8"
 
 lazy val root = project
   .in(file("."))
@@ -149,7 +149,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.0")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.1")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
@@ -448,7 +448,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
         )
       else
         Seq(
-          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.1")
+          ("com.softwaremill.magnolia1_2" %%% "magnolia" % "1.1.2")
             .exclude("org.scala-lang", "scala-compiler")
         )
     }
@@ -485,7 +485,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.27").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.10.0").cross(CrossVersion.for3Use2_13)
       )
   )
 
@@ -657,9 +657,9 @@ lazy val benchmarks = project.module
       Seq(
         "co.fs2"                    %% "fs2-core"        % fs2Version,
         "com.google.code.findbugs"   % "jsr305"          % "3.0.2",
-        "com.twitter"               %% "util-core"       % "21.9.0",
+        "com.twitter"               %% "util-core"       % "22.4.0",
         "com.typesafe.akka"         %% "akka-stream"     % "2.6.19",
-        "io.github.timwspence"      %% "cats-stm"        % "0.10.3",
+        "io.github.timwspence"      %% "cats-stm"        % "0.10.4",
         "io.projectreactor"          % "reactor-core"    % "3.4.11",
         "io.reactivex.rxjava2"       % "rxjava"          % "2.2.21",
         "org.jctools"                % "jctools-core"    % "3.3.0",
@@ -669,7 +669,7 @@ lazy val benchmarks = project.module
         "org.typelevel"             %% "cats-effect"     % catsEffectVersion,
         "org.typelevel"             %% "cats-effect-std" % catsEffectVersion,
         "org.scalacheck"            %% "scalacheck"      % "1.16.0",
-        "qa.hedgehog"               %% "hedgehog-core"   % "0.7.0",
+        "qa.hedgehog"               %% "hedgehog-core"   % "0.9.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"       % "0.10.0"
       ),
     unusedCompileDependenciesFilter -= libraryDependencies.value
@@ -693,8 +693,8 @@ lazy val jsdocs = project
   .enablePlugins(ScalaJSPlugin)
 
 val http4sV     = "0.23.6"
-val doobieV     = "1.0.0-RC1"
-val catsEffectV = "3.2.9"
+val doobieV     = "1.0.0-RC2"
+val catsEffectV = "3.3.12"
 val zioActorsV  = "0.0.9"
 
 lazy val scalafixSettings = List(
@@ -712,7 +712,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.34"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.1"
   )
 
 val zio1Version = "1.0.15"
@@ -788,10 +788,10 @@ lazy val docs = project.module
       "org.typelevel"      %% "cats-effect"               % catsEffectV,
       "dev.zio"            %% "zio-actors"                % zioActorsV,
       "dev.zio"            %% "zio-akka-cluster"          % "0.2.0",
-      "dev.zio"            %% "zio-cache"                 % "0.2.0-RC6",
-      "dev.zio"            %% "zio-config-magnolia"       % "3.0.0-RC9",
-      "dev.zio"            %% "zio-config-typesafe"       % "3.0.0-RC9",
-      "dev.zio"            %% "zio-config-refined"        % "3.0.0-RC9",
+      "dev.zio"            %% "zio-cache"                 % "0.2.0",
+      "dev.zio"            %% "zio-config-magnolia"       % "3.0.1",
+      "dev.zio"            %% "zio-config-typesafe"       % "3.0.1",
+      "dev.zio"            %% "zio-config-refined"        % "3.0.1",
       "dev.zio"            %% "zio-ftp"                   % "0.3.3",
       "dev.zio"            %% "zio-json"                  % "0.3.0-RC8",
 //      "dev.zio"               %% "zio-kafka"                   % "2.0.0-RC5",
@@ -806,7 +806,7 @@ lazy val docs = project.module
       "dev.zio"               %% "zio-schema"                  % "0.1.1",
       "dev.zio"               %% "zio-sqs"                     % "0.4.3",
       "dev.zio"               %% "zio-opentracing"             % "0.8.2",
-      "io.laserdisc"          %% "tamer-db"                    % "0.16.1",
+      "io.laserdisc"          %% "tamer-db"                    % "0.18.1",
       "io.jaegertracing"       % "jaeger-core"                 % "1.6.0",
       "io.jaegertracing"       % "jaeger-client"               % "1.6.0",
       "io.jaegertracing"       % "jaeger-zipkin"               % "1.6.0",
@@ -825,11 +825,11 @@ lazy val docs = project.module
       "org.http4s"            %% "http4s-blaze-server"         % http4sV,
       "org.http4s"            %% "http4s-blaze-client"         % http4sV,
       "org.http4s"            %% "http4s-dsl"                  % http4sV,
-      "com.github.ghostdogpr" %% "caliban"                     % "1.2.0",
-      "com.github.ghostdogpr" %% "caliban-zio-http"            % "1.2.0",
+      "com.github.ghostdogpr" %% "caliban"                     % "1.4.1",
+      "com.github.ghostdogpr" %% "caliban-zio-http"            % "1.4.1",
       "org.scalameta"         %% "munit"                       % "0.7.29",
       "com.github.poslegm"    %% "munit-zio"                   % "0.0.3",
-      "nl.vroste"             %% "rezilience"                  % "0.7.0",
+      "nl.vroste"             %% "rezilience"                  % "0.8.2",
       "io.github.gaelrenoux"  %% "tranzactio"                  % "2.1.0",
       "io.github.neurodyne"   %% "zio-arrow"                   % "0.2.1",
       "nl.vroste"             %% "zio-amqp"                    % "0.2.2",
@@ -838,9 +838,9 @@ lazy val docs = project.module
 //      "dev.zio"                       %% "zio-aws-elasticbeanstalk"      % "5.17.102.7",
 //      "dev.zio"                       %% "zio-aws-netty"                 % "5.17.102.7",
       "io.github.neurodyne"           %% "zio-aws-s3"                    % "0.4.13",
-      "io.d11"                        %% "zhttp"                         % "2.0.0-RC7",
+      "io.d11"                        %% "zhttp"                         % "2.0.0-RC9",
       "com.coralogix"                 %% "zio-k8s-client"                % "1.3.4",
-      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.3.14",
+      "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % "3.6.2",
       "nl.vroste"                     %% "zio-kinesis"                   % "0.20.0",
       "com.vladkopanev"               %% "zio-saga-core"                 % "0.4.0",
       "io.scalac"                     %% "zio-slick-interop"             % "0.4",
