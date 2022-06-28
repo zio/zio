@@ -7,36 +7,38 @@ title: "ZIO 2.x Migration Guide"
 import zio._
 ```
 
-In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you. 
+In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2.x, this article is for you.
 
 ## Automatic Migration
 
 Before you migrate your own codebase, confirm that all of your ZIO-related dependencies have been migrated to ZIO 2.x with our [ZIO Ecosystem Tool](https://zio-ecosystem.herokuapp.com/).
 
-ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code. 
+ZIO uses the [Scalafix](https://scalacenter.github.io/scalafix/) for automatic migration. Scalafix is a code migration tool that takes a rewrite rule and reads the source code, converting deprecated features to newer ones, and then writing the result back to the source code.
 
 ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base to ZIO 2.x. This migration rule covers most of the changes. Therefore, to migrate a ZIO project to 2.x, we prefer to apply the `Zio2Upgrade` rule to the existing code. After that, we can go to the source code and fix the remaining compilation issues:
 
 1. First, we should ensure that all of our direct and transitive dependencies [have released their compatible versions with ZIO 2.x](https://zio-ecosystem.herokuapp.com/). Note that we shouldn't update our dependencies to the 2.x compatible versions, before running scalafix.
 
 2. Next, we need to install the [Scalafix SBT Plugin](https://github.com/scalacenter/sbt-scalafix), by adding the following line into `project/plugins.sbt` file:
-    ```scala
-    // project/plugins.sbt
-    addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "<version>")
-    ```
+
+   ```scala
+   // project/plugins.sbt
+   addSbtPlugin("ch.epfl.scala" % "sbt-scalafix" % "<version>")
+   ```
 
 3. We are ready to apply the migration rule:
-    ```bash
-    sbt "scalafixEnable; scalafixAll github:zio/zio/Zio2Upgrade?sha=series/2.x" 
-    ```
+
+   ```bash
+   sbt "scalafixEnable; scalafixAll github:zio/zio/Zio2Upgrade?sha=series/2.x"
+   ```
 
 4. After running scalafix, it's time to upgrade ZIO dependencies. If we are using one of the following dependencies, we need to bump them into the `2.x` version:
 
-    ```scala
-    libraryDependencies += "dev.zio" %% "zio"         % "2.0.0"
-    libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0"
-    libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0"
-    ```
+   ```scala
+   libraryDependencies += "dev.zio" %% "zio"         % "2.0.0"
+   libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0"
+   libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0"
+   ```
 
    Other than ZIO, we should upgrade all other (official or community) ZIO libraries we are using in our `build.sbt` file.
 
@@ -46,7 +48,7 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 
 As a contributor to ZIO ecosystem libraries, we also should cover these guidelines:
 
-1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace. 
+1. We should add _implicit trace parameter_ to all our codebase, this prevents the guts of our library from messing up the user's execution trace.
 
 Let's see an example of that in the ZIO source code:
 
@@ -54,7 +56,7 @@ Let's see an example of that in the ZIO source code:
 trait ZIO[-R, +E, +A] {
 -  def map[B](f: A => B): ZIO[R, E, B] =
      flatMap(a => ZIO.succeedNow(f(a)))
-+  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] = 
++  def map[B](f: A => B)(implicit trace: Trace): ZIO[R, E, B] =
      flatMap(a => ZIO.succeedNow(f(a)))
 }
 ```
@@ -103,23 +105,23 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:10)"
 ```
 
-2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as values suspended in a ZIO constructor such as `suspendSucceed` to prevent _double evaluation_. 
-    
-    The overall pattern in implementing such methods will be:
+2. All parameters to operators returning an effect [should be by-name](#lazy-evaluation-of-parameters). Also, we should be sure to capture any parameters that are referenced more than once as values suspended in a ZIO constructor such as `suspendSucceed` to prevent _double evaluation_.
 
-    ```diff
-    - def foreachParN[A](n: Int)(a: Iterable[A]) = {
-        ... // The function body
-    - }
-    + def foreachParN[A](n0: => Int)(a0: => Iterable[A]) = 
-    +   ZIO.suspendSucceed {
-    +     val n = n0 
-    +     val a = a0
-          ... // The function body
-    +   }
-    ```
-   
-    As a result, the code will be robust to _double evaluation_ as well as to _side-effects embedded within parameters_.
+   The overall pattern in implementing such methods will be:
+
+   ```diff
+   - def foreachParN[A](n: Int)(a: Iterable[A]) = {
+       ... // The function body
+   - }
+   + def foreachParN[A](n0: => Int)(a0: => Iterable[A]) =
+   +   ZIO.suspendSucceed {
+   +     val n = n0
+   +     val a = a0
+         ... // The function body
+   +   }
+   ```
+
+   As a result, the code will be robust to _double evaluation_ as well as to _side-effects embedded within parameters_.
 
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
 
@@ -127,7 +129,7 @@ object MainApp extends ZIOAppDefault {
 
 5. If we are exposing [unsafe operators](#unsafe-marker) in one of our interfaces we should use the `Unsafe` data type to indicate this. By convention we define these operators in an `UnsafeAPI` trait in our interface that can be accessed using as `unsafe` operator.
 
-```diff
+````diff
 def MyInterface {
 -  def unsafeDoSomething(): Unit
 +  def unsafe: UnsafeAPI
@@ -151,7 +153,7 @@ In ZIO 2.x, we removed companion objects for type aliases. We still can use type
 // another examp:
 - val stream: UStream[Int] = UStream.succeed(1)
 + val stream: UStream[Int] = ZStream.succeed(1)
-```
+````
 
 The [migration script](#automatic-migration) will automatically convert all the usages of type aliases to the corresponding objects.
 
@@ -213,8 +215,8 @@ object ConfigExample extends ZIOAppDefault {
     config <- ZIO.service[Config]
     _      <- Console.printLine(s"application config: $config").orDie
   } yield ()
-    
-  def run = 
+
+  def run =
     app.provideEnvironment(ZEnvironment(Config("localhost", 8080)))
 }
 ```
@@ -234,9 +236,10 @@ In ZIO 2.0, the name of constructors and operators becomes more ergonomic and si
 Here are some of the most important changes:
 
 - **Multiple ways of doing the same thing are removed** — For example:
-    - Both `ZIO.succeed` and `ZIO.effectTotal` do the same thing. So in ZIO 2.0 we just have one version of these constructors which is `ZIO.succeed`.
-    - The bind operator `>>=` is removed. So we just have one way to flatMap which is the `flatMap` method. Therefore, the `>>=` method doesn't surprise the non-Haskellers.
-    - The `ZIO#get` method was essentially a more constrained version of `ZIO#some`. So the `get` method is deprecated.
+
+  - Both `ZIO.succeed` and `ZIO.effectTotal` do the same thing. So in ZIO 2.0 we just have one version of these constructors which is `ZIO.succeed`.
+  - The bind operator `>>=` is removed. So we just have one way to flatMap which is the `flatMap` method. Therefore, the `>>=` method doesn't surprise the non-Haskellers.
+  - The `ZIO#get` method was essentially a more constrained version of `ZIO#some`. So the `get` method is deprecated.
 
 - **`ZIO.attempt` instead of `ZIO.effect`** — In ZIO 2.0 all ZIO constructors like `ZIO.effect*` that create a ZIO from a side effect are deprecated and renamed to the `ZIO.attempt*` version. For example, when we are reading from a file, it's more meaning full to say we are attempting to read from a file instead of saying we have an effect of reading from a file.
 
@@ -245,12 +248,12 @@ Here are some of the most important changes:
 - **`Discard` instead of the underscore `_` suffix** — The underscore suffix is another legacy naming convention from Haskell's world. In ZIO 1.x, the underscore suffix means we are going to discard the result. The underscore version works exactly like the one without the underscore, but it discards the result and returns `Unit` in the ZIO context. For example, the `collectAll_` operator renamed to `collectAllDiscard`.
 
 - **`as`, `to`, `into` prefixes** — The `ZIO#to` is renamed to the `ZIO#intoPromise`. So now we have three categories of conversion:
-    1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
-    2. **to** — The `ZIO#to` method and its variants like `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
-    3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, and `ZStream#intoQueue`)
+  1. **as** — The `ZIO#as` method and its variants like `ZIO#asSome`, `ZIO#asSomeError` and `ZIO#asService` are used when transforming the `A` inside of a `ZIO`, generally as shortcuts for `map(aToFoo(_))`.
+  2. **to** — The `ZIO#to` method and its variants like `ZIO#toFuture` are used when the `ZIO` is transformed into something else other than the `ZIO` data-type.
+  3. **into** — All `into*` methods, accept secondary data-type, modify it with the result of the current effect (e.g. `ZIO#intoPromise`, `ZStream#intoHub`, and `ZStream#intoQueue`)
 
 | ZIO 1.x                        | ZIO 2.x                           |
-|--------------------------------|-----------------------------------|
+| ------------------------------ | --------------------------------- |
 | `ZIO#>>=`                      | `ZIO#flatMap`                     |
 | `ZIO#bimap`                    | `ZIO#mapBoth`                     |
 | `ZIO#mapEffect`                | `ZIO#mapAttempt`                  |
@@ -393,6 +396,7 @@ The output would be something like this:
 ### Composable Zips
 
 In ZIO 2.x, when we are zipping together different effects:
+
 - `Tuple`s are not nested.
 - `Unit`s do not contribute to the output.
 
@@ -425,7 +429,7 @@ As we have compositional zips, we no longer need higher arity zips in ZIO 1.x li
 Here is the list of `zip` variants that are deprecated:
 
 | ZIO 1.x         | ZIO 2.x      |
-|-----------------|--------------|
+| --------------- | ------------ |
 | `ZIO#&&&`       | `ZIO#zip`    |
 | `ZIO.tupled`    | `ZIO.zip`    |
 | `ZIO.tupledPar` | `ZIO.zipPar` |
@@ -437,7 +441,7 @@ Here is the list of `zip` variants that are deprecated:
 We introduced two operations that modify the parallel factor of a concurrent ZIO effect, `ZIO#withParallelism` and `ZIO#withParallelismUnbounded`. This makes the maximum number of fibers for parallel operators as a regional setting. Therefore, all parallelism operators ending in `N`, such as `foreachParN` and `collectAllParN`, have been deprecated:
 
 | ZIO 1.x                   | ZIO 2.x                  |
-|---------------------------|--------------------------|
+| ------------------------- | ------------------------ |
 | `foreachParN`             | `foreachPar`             |
 | `foreachParN_`            | `foreachParDiscard`      |
 | `collectAllParN`          | `collectAllPar`          |
@@ -490,7 +494,7 @@ In ZIO 2.x, the `ZIO#left` and `ZIO#right`, contains all type information so the
 ```scala mdoc:nest
 val effect         = ZIO.attempt(Left[Int, String](5))
 val leftProjection = effect.left
-val unlefted       = leftProjection.map(_ * 2).unleft 
+val unlefted       = leftProjection.map(_ * 2).unleft
 ```
 
 So the error channel of the output of `left` and `right` operators is changed from `Option` to `Either`.
@@ -555,8 +559,8 @@ object MainApp extends App {
       _   <- clock.sleep(1.second)
     } yield ()
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.forever.exitCode  
-    // or we can provide our own implementation 
+    myApp.forever.exitCode
+    // or we can provide our own implementation
     // myApp.forever.provideLayer(Console.live ++ Clock.live ++ Random.live).exitCode
 }
 ```
@@ -587,6 +591,7 @@ object MainApp extends App {
 In nutshell, to migrate from ZIO 1.x to ZIO 2.x, we need follow these steps:
 
 1. We aren't required to obtain default services from the environment using functions like `ZIO.service[Console]`, instead we should obtain the `Console` service using `ZIO.console`. So there is no need to access these services from the environment anymore, they are built into the ZIO Runtime. If we want to access them, we can use these functions instead:
+
 - `ZIO.console`/`ZIO.consoleWith`
 - `ZIO.clock`/`ZIO.clockWith`
 - `ZIO.random`/`ZIO.randomWith`
@@ -621,22 +626,24 @@ For example:
 ```
 
 4. In ZIO 1.x, whenever we wanted to provide our own versions of ZIO default services, we could do that using one of the `ZIO#provide*` operators. In ZIO 2.x if we need to modify the implementation of one of these services on a more fine-grained basis we can use of the following combinators:
-  - `ZIO.withConsole`/`ZIO.withConsoleScoped`
-  - `ZIO.withClock`/`ZIO.withClockScoped`
-  - `ZIO.withRandom`/`ZIO.withRandomScoped`
-  - `ZIO.withSystem`/`ZIO.withSystemScoped`
+
+- `ZIO.withConsole`/`ZIO.withConsoleScoped`
+- `ZIO.withClock`/`ZIO.withClockScoped`
+- `ZIO.withRandom`/`ZIO.withRandomScoped`
+- `ZIO.withSystem`/`ZIO.withSystemScoped`
 
 ```scala
 import zio._
 
 object MyClockLive extends Clock {
-  ... 
+  ...
 }
 
 ZIO.withClock(MyClockLive)(effect)
 ```
 
 5. According to the removal of default services from the ZIO environment we no longer need layers defined in the ZIO library which produce default ZIO services. So all these layers were removed, such as the following layers:
+
 - `Console.live`, `Clock.any`
 - `Clock.live`, `Clock.javaClock`, `Clock.any`
 - `Random.live`, `Random.scalaRandom`, `Random.any`
@@ -678,7 +685,7 @@ object MainApp extends ZIOAppDefault {
 The same approach applies to the `Random` service:
 
 | ZIO 1.x (ZLayer)     | ZIO 2.x              |
-|----------------------|----------------------|
+| -------------------- | -------------------- |
 | `Clock.javaClock`    | `Clock.ClockJava`    |
 | `Random.scalaRandom` | `Random.RandomScala` |
 
@@ -699,7 +706,7 @@ import zio.App
 import zio.Console._
 
 object MyApp extends zio.App {
-  def run(args: List[String]) = 
+  def run(args: List[String]) =
     startMyApp(args).exitCode
 }
 ```
@@ -714,7 +721,7 @@ object MyApp extends ZIOAppDefault {
   def run =
     for {
       arguments <- getArgs
-      _         <- startMyApp(arguments) 
+      _         <- startMyApp(arguments)
     } yield ()
 }
 ```
@@ -738,7 +745,7 @@ trait ZIOApp { self =>
 We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the `FiberId`:
 
 | ZIO 1.0        | ZIO 2.x       |
-|----------------|---------------|
+| -------------- | ------------- |
 | `zio.Fiber.ID` | `zio.FiberID` |
 
 ## Runtime, Platform and Executor
@@ -762,12 +769,12 @@ import zio._
 
 object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
-  
+
   def legacyApplication(input: Int): Unit = ???
-  
-  def zioApplication: Int = 
+
+  def zioApplication: Int =
     Runtime.default.unsafeRun(zioWorkflow)
-  
+
 
   def main(args: Array[String]): Unit = {
     legacyApplication(zioApplication)
@@ -785,7 +792,7 @@ object Unsafe {
 
 trait Runtime[+R] { self =>
   def unsafe: UnsafeAPI
-  
+
   trait UnsafeAPI {
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
   }
@@ -815,7 +822,7 @@ object MainApp {
 }
 ```
 
-This way it is easy to distinguish between _safe_ and _unsafe_ variants of the same operator. 
+This way it is easy to distinguish between _safe_ and _unsafe_ variants of the same operator.
 
 To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafe` operator to create a block of code in which we can freely call unsafe operators:
 
@@ -837,16 +844,17 @@ Unsafe.unsafeCompat { implicit unsafe =>
 
 In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x corresponding to the unsafe operators:
 
-|         | ZIO 1.0                    | ZIO 2.x                                                     |
-|---------|----------------------------|-------------------------------------------------------------|
-| Scala 2 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ implicit u => zio.Runtime.unsafe.run(x) }`  |
-| Scala 3 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ zio.Runtime.unsafe.run(x) }`                |
+|         | ZIO 1.0                    | ZIO 2.x                                                    |
+| ------- | -------------------------- | ---------------------------------------------------------- |
+| Scala 2 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ implicit u => zio.Runtime.unsafe.run(x) }` |
+| Scala 3 | `zio.Runtime.unsafeRun(x)` | `Unsafe.unsafe{ zio.Runtime.unsafe.run(x) }`               |
 
 ### Runtime Customization using Layers
 
 In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
 
 In ZIO 1.x, we had the `Platform` data type useful for providing custom execution configurations to the runtime:
+
 - `Platform#withExecutor`— To provide a custom `Executor`
 - `Platform#withTracing` to config tracing functionality
 - `Platform#withSupervisor` to provide a `Supervisor`
@@ -882,6 +890,7 @@ object MainApp extends zio.App {
 ```
 
 In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of-the-box layers for runtime customization, defined in the companion object of the `Runtime` trait. Here are some of them:
+
 - `Runtime.addLogger` to add a logger
 - `Runtime.setExecutor` to provide a custom `Executor`
 - `Runtime.enableOpLog` to log runtime information
@@ -896,7 +905,7 @@ import zio._
 object MainApp extends ZIOAppDefault {
   val customExecutor: zio.Executor = ???
 
-  val myApp = 
+  val myApp =
     ZIO.debug("Application started")
 
   def run =
@@ -911,6 +920,7 @@ Note that ZIO ecosystem libraries like ZMX may have their own layers that instal
 ### Runtime Customization Using ZIO Data Type
 
 To access information about the configuration of our ZIO program as we are running, there are some more specific operators that we can use, such as:
+
 - `ZIO.executor`/`ZIO.executorWith`
 - `ZIO.logger`/`ZIO.loggerWith`
 - `ZIO.isFatal`/`ZIO.isFatalWith`
@@ -966,7 +976,7 @@ object MainApp {
   def main(args: Array[String]): Unit = {
     val result = zioApplication()
     legacyApplication(result)
-  }  
+  }
 
 }
 ```
@@ -976,7 +986,7 @@ object MainApp {
 We moved the `Executor` from `zio.internal` to the `zio` package:
 
 | ZIO 1.0                 | ZIO 2.x        |
-|-------------------------|----------------|
+| ----------------------- | -------------- |
 | `zio.internal.Executor` | `zio.Executor` |
 
 ### Auto-Blocking
@@ -1017,7 +1027,7 @@ object MainApp extends App {
       ZIO.foreachPar_(1 to 100)(i => ZIO.effect(fib(i))) *>
       ZIO.debug("Finished CPU bound workflow")
 
-  // the delay for the CPU bound workflow is not needed but we want to take 
+  // the delay for the CPU bound workflow is not needed but we want to take
   // a chance that all threads in the asynchronous thread pool will be blocked
   def run(args: List[String]) =
     (ioBoundWorkflow <&> cpuBoundWorkflow.delay(1.second)).exitCode
@@ -1181,8 +1191,8 @@ Assume we have the following dependency graph with two top-level dependencies:
  Logging  Database  BlobStorage          Logging   Database
     |                    |                  |
  Console              Logging            Console
-                         |       
-                      Console    
+                         |
+                      Console
 ```
 
 In ZIO 1.x, we had to compose these different layers together to create the whole application dependency graph:
@@ -1248,7 +1258,7 @@ object DocRepo {
       } yield DocRepoImpl(logging, database, blobStorage)
     }
 }
-  
+
 val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
 ```
 
@@ -1256,7 +1266,7 @@ val myApp: ZIO[DocRepo with UserRepo, Nothing, Unit] = ZIO.succeed(???)
 val appLayer: URLayer[Any, DocRepo with UserRepo] =
   (((Console.live >>> Logging.live) ++ Database.live ++ (Console.live >>> Logging.live >>> BlobStorage.live)) >>> DocRepo.live) ++
     (((Console.live >>> Logging.live) ++ Database.live) >>> UserRepo.live)
-    
+
 val res: ZIO[Any, Nothing, Unit] = myApp.provideLayer(appLayer)
 ```
 
@@ -1319,7 +1329,7 @@ val app: ZIO[Any, Nothing, Unit] =
 ```
 
 ```
-  ZLayer Wiring Error  
+  ZLayer Wiring Error
 
 ❯ missing Logging
 ❯     for DocRepo.live
@@ -1374,7 +1384,7 @@ val app: ZIO[Any, Nothing, Unit] =
 ```
 
 > Note:
-> 
+>
 > In ZIO 2.x, the `ZIO#provide` method—together with its variant `ZIO#provideSome`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and its variant `ZIO#provideSomeLayer`—is useful for low-level and custom cases like.
 
 ### ZLayer Debugging
@@ -1393,18 +1403,18 @@ val layer = ZLayer.make[DocRepo with UserRepo](
 ```
 
 ```scala
-[info]   ZLayer Wiring Graph  
-[info] 
+[info]   ZLayer Wiring Graph
+[info]
 [info] ◉ DocRepo.live
 [info] ├─◑ Logging.live
 [info] ├─◑ Database.live
 [info] ╰─◑ BlobStorage.live
 [info]   ╰─◑ Logging.live
-[info] 
+[info]
 [info] ◉ UserRepo.live
 [info] ├─◑ Logging.live
 [info] ╰─◑ Database.live
-[info] 
+[info]
 [info] Mermaid Live Editor Link
 [info] https://mermaid-js.github.io/mermaid-live-editor/edit/#eyJjb2RlIjoiZ3JhcGhcbiAgICBDb25zb2xlLmxpdmVcbiAgICBCbG9iU3RvcmFnZS5saXZlIC0tPiBMb2dnaW5nLmxpdmVcbiAgICBMb2dnaW5nLmxpdmUgLS0+IENvbnNvbGUubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IExvZ2dpbmcubGl2ZVxuICAgIFVzZXJSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IERhdGFiYXNlLmxpdmVcbiAgICBEb2NSZXBvLmxpdmUgLS0+IEJsb2JTdG9yYWdlLmxpdmVcbiAgICBEYXRhYmFzZS5saXZlXG4gICAgIiwibWVybWFpZCI6ICJ7XG4gIFwidGhlbWVcIjogXCJkZWZhdWx0XCJcbn0iLCAidXBkYXRlRWRpdG9yIjogdHJ1ZSwgImF1dG9TeW5jIjogdHJ1ZSwgInVwZGF0ZURpYWdyYW0iOiB0cnVlfQ==
 ```
@@ -1472,21 +1482,21 @@ This will print the following error message:
 
 ```
 [error] ──── ZIO APP ERROR ───────────────────────────────────────────────────
-[error] 
+[error]
 [error]  Your effect requires a service that is not in the environment.
 [error]  Please provide a layer for the following type:
-[error] 
-[error] 
+[error]
+[error]
 [error]    1. Logger
-[error] 
-[error] 
+[error]
+[error]
 [error]  Call your effect's provide method with the layers you need.
 [error]  You can read more about layers and providing services here:
-[error]  
+[error]
 [error]    https://zio.dev/version-1.x/datatypes/contextual/index
-[error] 
+[error]
 [error] ──────────────────────────────────────────────────────────────────────
-[error] 
+[error]
 [error]       logger <- ZIO.service[Logger]
 [error]              ^
 [error] one error found
@@ -1536,16 +1546,16 @@ It will print the following warning message:
 
 ```
 [error] ──── ZLAYER WARNING ──────────────────────────────────────────────────
-[error] 
+[error]
 [error]  You have provided more than is required.
 [error]  You may remove the following 2 layers:
-[error]    
+[error]
 [error]    1. Random.live
 [error]    2. LoggerLive.layer
-[error] 
-[error]   
+[error]
+[error]
 [error] ──────────────────────────────────────────────────────────────────────
-[error] 
+[error]
 [error]     myApp.provide(
 [error]                  ^
 [error] one error found
@@ -1586,7 +1596,7 @@ object MainApp extends ZIOAppDefault {
     clockAndRandom(needsClockAndRandomAndConsole)
 
   def run = needsConsole
-  
+
 }
 ```
 
@@ -1614,7 +1624,7 @@ object logging {
     trait Service {
       def log(line: String): UIO[Unit]
     }
-    
+
     // Live implementation of the Logging service
     val live: ZLayer[Clock with Console, Nothing, Logging] =
       ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
@@ -1680,25 +1690,25 @@ As we see, we have the following changes:
 
 1. **Deprecation of Type Alias for `Has` Wrappers** — In _Service Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Service Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`.
 
-2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
+2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use.
 
-    In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we use a for comprehension.
+   In _Service Pattern 2.0_ we don't worry about all these different `ZLayer` constructors. It recommends **providing dependencies as interfaces through the case class constructor**, and then we have direct access to all of these dependencies to implement the service. Finally, to create the `ZLayer` we use a for comprehension.
 
 3. **Separated Interface** — In the _Service Pattern 2.0_, ZIO supports the _Separated Interface_ pattern which encourages keeping the implementation of an interface decoupled from the client and its definition.
 
-    As our application grows, where we define our layers matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components. 
+   As our application grows, where we define our layers matters more. _Separated Interface_ is a very useful pattern while we are developing a complex application. It helps us to reduce the coupling between application components.
 
-    Following two changes in _Service Pattern_ we can define the service definition in one package but its implementations in other packages:
-    
+   Following two changes in _Service Pattern_ we can define the service definition in one package but its implementations in other packages:
+
    1. **Flattened Structure** — In the new pattern, everything is at the top level in a file. So the developer is not limited to package service definition and service implementation in one package.
-   
+
       > **_Note_**:
-      > 
+      >
       > Service Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
-   
+
    2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
-   
-    In Service Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+
+   In Service Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
 
 4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
 
@@ -1709,7 +1719,7 @@ The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The
 Here is list of other deprecated methods:
 
 | ZIO 1.x                    | ZIO 2.x                      |
-|----------------------------|------------------------------|
+| -------------------------- | ---------------------------- |
 | `ZLayer.fromEffect`        | `ZLayer.fromZIO`             |
 | `ZLayer.fromEffectMany`    | `ZLayer.fromZIOMany`         |
 | `ZLayer.fromFunctionM`     | `ZLayer.fromFunctionZIO`     |
@@ -1788,6 +1798,7 @@ In addition to providing simpler, more powerful, and faster resource management,
 ### Migration from `ZManaged` to `Scope`
 
 #### Deferred Migration
+
 For reasons of backward compatibility, `ZManaged` won't actually be deleted, but rather, moved to a separate library called `zio-managed` that our ZIO 2.0 application can depend on. However, ZIO Core, including ZIO Streams and ZIO Test, will no longer use `ZManaged`.
 
 So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
@@ -1795,6 +1806,7 @@ So, if we have a lot of code that used `ZManaged` and we are not ready to deal w
 ```scala
 libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
 ```
+
 And then by adding `import zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.
 
 #### Immediate Migration
@@ -1803,7 +1815,7 @@ Migration to `Scope` is easy and straightforward. As the `ZManaged` data type is
 
 1. Replace all references to `ZManaged[R, E, A]` with `ZIO[R with Scope, E, A]`.
 
-Example: 
+Example:
 
 ```diff
 object HttpClient {
@@ -1817,7 +1829,7 @@ object HttpClient {
 ```diff
 - resource.use(f)
 + ZIO.scoped {
-+  resource.flatMap(f) 
++  resource.flatMap(f)
 + }
 ```
 
@@ -1841,14 +1853,14 @@ Example:
 + ZIO.acquireRelease(acqurie)(release)
 ```
 
-Example: 
+Example:
 
 ```diff
 - ZManaged.fromAutoCloseable(
--   zio.blocking.effectBlockingIO(new FileInputStream("file.txt")) 
+-   zio.blocking.effectBlockingIO(new FileInputStream("file.txt"))
 - )
 + ZIO.fromAutoCloseable(
-+   ZIO.attemptBlockingIO(new FileInputStream("file.txt")) 
++   ZIO.attemptBlockingIO(new FileInputStream("file.txt"))
 + )
 ```
 
@@ -1873,7 +1885,7 @@ Example:
 
 ```diff
 - effect.toManaged_
-+ effect 
++ effect
 ```
 
 6. Replace all uses of `toManaged(finalizer)` with `withFinalizer(finalizer)`:
@@ -1973,28 +1985,28 @@ Even though highly polymorphic versions of ZIO concurrent data structures (e.g. 
 
 Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
 
-| ZIO 1.x (removed)                   | ZIO 2.x              |
-|-------------------------------------|----------------------|
-|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
-|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
-|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
-|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
-|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
+| ZIO 1.x (removed)                    | ZIO 2.x               |
+| ------------------------------------ | --------------------- |
+| `ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`              |
+| `ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`             |
+| `ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]` |
+| `ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`            |
+| `ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`              |
 
 ## Ref
 
 ZIO 2.x unifies `Ref` and `RefM`. `RefM` becomes a subtype of `Ref` that has additional capabilities (i.e. the ability to perform effects within the operations) at some cost to performance:
 
-| ZIO 1.x | ZIO 2.x             |
-|---------|---------------------|
-| `RefM`  | `Ref.Synchronized`  |
+| ZIO 1.x | ZIO 2.x            |
+| ------- | ------------------ |
+| `RefM`  | `Ref.Synchronized` |
 
 As the `RefM` is renamed to `Ref.Synchronized`; now the `Synchronized` is a subtype of `Ref`. This change allows a `Ref.Synchronized` to be used anywhere a `Ref` is currently being used.
 
 To perform the migration, after renaming these types to the newer ones (e.g. `RefM` renamed to `Ref.Synchronized`) we should perform the following method renames:
 
 | ZIO 1.x                 | ZIO 2.x                                |
-|-------------------------|----------------------------------------|
+| ----------------------- | -------------------------------------- |
 | `RefM#dequeueRef`       | `zio.stream.SubscriptionRef#changes`   |
 | `RefM#getAndUpdate`     | `Ref.Synchronized#getAndUpdateZIO`     |
 | `RefM#getAndUpdateSome` | `Ref.Synchronized#getAndUpdateSomeZIO` |
@@ -2010,7 +2022,7 @@ To perform the migration, after renaming these types to the newer ones (e.g. `Re
 There is a slight change on `TSemaphore#withPermit` method. In ZIO 2.x, instead of accepting `STM` values, it accepts only `ZIO` values and returns the `ZIO` value.
 
 | `withPermit` | Input          | Output         |
-|--------------|----------------|----------------|
+| ------------ | -------------- | -------------- |
 | ZIO 1.x      | `STM[E, B]`    | `STM[E, B]`    |
 | ZIO 2.x      | `ZIO[R, E, A]` | `ZIO[R, E, A]` |
 
@@ -2126,7 +2138,7 @@ We can extract effectful operations from the effectful assertion and then perfor
 ```scala
 test("Effectful Assertion ZIO 2.x") {
   def myAssertion[Int](reference: Int): Assertion[Int] = ???
-  
+
   val res = for {
     sut <- ZIO.effect(???)
     res <- extractedOperations(sut)
@@ -2165,6 +2177,7 @@ suite("ZIO 2.x SmartAssertions")(
 ```
 
 Smart Assertions are extremely expressive, so when a test fails:
+
 - They highlight the exact section of the syntax with the path leading up to the left-hand side of the assertion that causes the failure.
 - They have the strong and nice diffing capability which shows where our expectation varies.
 - When using partial functions in test cases there is no problem with the happy path, but if something goes wrong, it is a little annoying to find what went wrong. But smart assertions are descriptive, e.g., when we call `Option#get` to an optional value that is `None` the test fails with a related error message: `Option was None`
@@ -2200,6 +2213,7 @@ val bigSuite = fooSuite + barSuite + bazSuite
 ZIO Streams 2.x, does not include any significant API changes. Almost the same code we have for ZIO Stream 1.x, this will continue working and doesn't break our code. So we don't need to relearn any APIs. So we have maintained a quite good source compatibility, but have to forget some API elements.
 
 So far, before ZIO 2.0, ZIO Stream has included three main abstractions:
+
 1. **`ZStream`** — represents the source of elements
 2. **`ZSink`** — represents consumers of elements that can be composed together to create composite consumers
 3. **`ZTransducer`** — represents generalized stateful and effectful stream processing
@@ -2222,15 +2236,14 @@ In ZIO 2.x, we removed the transducers, and they were deprecated. Instead, we re
 
 ![ZIO Streams 2.x](/img/assets/zio-streams-2.x.svg)
 
-Pipelines are basically an abstraction for composing a bunch of operations together that can be later applied to a stream. For example, we can create a pipeline that reads bytes, decodes them to the UTF-8 and splits the lines, and then splits on commas. So this is a very simple CSV parsing pipeline which we can later use with another stream to pipe into. 
+Pipelines are basically an abstraction for composing a bunch of operations together that can be later applied to a stream. For example, we can create a pipeline that reads bytes, decodes them to the UTF-8 and splits the lines, and then splits on commas. So this is a very simple CSV parsing pipeline which we can later use with another stream to pipe into.
 
 | ZIO Streams 1.x | ZIO Streams 2.x                  |
-|-----------------|----------------------------------|
+| --------------- | -------------------------------- |
 |                 | `ZChannel`                       |
 | `ZStream`       | `ZStream` (backed by `ZChannel`) |
 | `ZSink`         | `ZSink` (backed by `ZChannel`)   |
 | `ZTransducer`   | `ZPipeline`                      |
-
 
 ## ZIO Schedules
 
@@ -2244,23 +2257,22 @@ There are two significant changes in ZIO Services:
 
 1. All ZIO services moved to the `zio` package:
 
-    | ZIO 1.x                 | ZIO 2.x                      |
-    |-------------------------|------------------------------|
-    | `zio.blocking.Blocking` | [Removed](#blocking-service) |
-    | `zio.clock.Clock`       | `zio.Clock`                  |
-    | `zio.console.Console`   | `zio.Console`                |
-    | `zio.random.Random`     | `zio.Random`                 |
-    | `zio.system.System`     | `zio.System`                 |
+   | ZIO 1.x                 | ZIO 2.x                      |
+   | ----------------------- | ---------------------------- |
+   | `zio.blocking.Blocking` | [Removed](#blocking-service) |
+   | `zio.clock.Clock`       | `zio.Clock`                  |
+   | `zio.console.Console`   | `zio.Console`                |
+   | `zio.random.Random`     | `zio.Random`                 |
+   | `zio.system.System`     | `zio.System`                 |
 
-    And their live implementations renamed and moved to a new path:
+   And their live implementations renamed and moved to a new path:
 
-    | ZIO 1.x                    | ZIO 2.x                   |
-    |----------------------------|---------------------------|
-    | `zio.Clock.Service.live`   | `zio.Clock.ClockLive`     |
-    | `zio.Console.Service.live` | `zio.Console.ConsoleLive` |
-    | `zio.System.Service.live`  | `zio.System.SystemLive`   |
-    | `zio.Random.Service.live`  | `zio.Random.RandomLive`   |
-
+   | ZIO 1.x                    | ZIO 2.x                   |
+   | -------------------------- | ------------------------- |
+   | `zio.Clock.Service.live`   | `zio.Clock.ClockLive`     |
+   | `zio.Console.Service.live` | `zio.Console.ConsoleLive` |
+   | `zio.System.Service.live`  | `zio.System.SystemLive`   |
+   | `zio.Random.Service.live`  | `zio.Random.RandomLive`   |
 
 2. In ZIO 2.0 all type aliases like `type Logging = Has[Logging.Service]` removed.
 
@@ -2273,19 +2285,20 @@ Since there is rarely a need to use a separate blocking thread pool, ZIO 2.0 cre
 All blocking operations were moved to the `ZIO` data type:
 
 | ZIO 1.x                   | ZIO 2.x |
-|---------------------------|---------|
+| ------------------------- | ------- |
 | `zio.blocking.Blocking.*` | `ZIO.*` |
 
 With some renaming stuffs:
 
 | ZIO 1.x (`zio.blocking.Blocking.*`) | ZIO 2.x (`ZIO.*`)               |
-|-------------------------------------|---------------------------------|
+| ----------------------------------- | ------------------------------- |
 | `effectBlocking`                    | `ZIO.attemptBlocking`           |
 | `effectBlockingCancelable`          | `ZIO.attemptBlockingCancelable` |
 | `effectBlockingIO`                  | `ZIO.attemptBlockingIO`         |
 | `effectBlockingInterrupt`           | `ZIO.attemptBlockingInterrupt`  |
 
 Now we have all the blocking operations under the `ZIO` data type as below:
+
 - `ZIO.attemptBlocking`
 - `ZIO.attemptBlockingCancelable`
 - `ZIO.attemptBlockingIO`
@@ -2300,7 +2313,7 @@ We can also provide a user-defined blocking executor in ZIO 2.x with the `Runtim
 There is a slight change in the Clock service; the return value of the `currentDateTime`, and `localDateTime` methods changed from `IO` to `UIO`, so they do not longer throw `DateTimeException`:
 
 | Method Name       | Return Type (ZIO 1.x) | Return Type (ZIO 2.x) |
-|-------------------|-----------------------|-----------------------|
+| ----------------- | --------------------- | --------------------- |
 | `currentDateTime` | `IO[OffsetDateTime]`  | `UIO[OffsetDateTime]` |
 | `localDateTime`   | `IO[LocalDateTime]`   | `UIO[LocalDateTime]`  |
 
@@ -2350,7 +2363,7 @@ Note that the ZIO API didn't change, but the `Clock` trait became a bigger one, 
 Method names in the _Console_ service were renamed to the more readable names:
 
 | ZIO 1.x       | ZIO 2.x          |
-|---------------|------------------|
+| ------------- | ---------------- |
 | `putStr`      | `print`          |
 | `putStrErr`   | `printError`     |
 | `putStrLn`    | `printLine`      |
@@ -2368,6 +2381,7 @@ While these are precise, ZIO 2.0 provides the `ZIO.from` constructor which can i
 ```scala mdoc:invisible
 import zio.stream.ZStream
 ```
+
 ```scala mdoc:nest
 ZIO.fromOption(Some("Ok!"))
 ZIO.from(Some("Ok!"))
@@ -2378,7 +2392,7 @@ ZIO.from(Right(3))
 ZIO.fromFiber(Fiber.succeed("Ok!"))
 ZIO.from(Fiber.succeed("Ok!"))
 
-ZStream.fromIterable(List(1,2,3)) 
+ZStream.fromIterable(List(1,2,3))
 ZStream.from(List(1,1,3))
 
 ZStream.fromChunk(Chunk(1,2,3))
@@ -2443,7 +2457,7 @@ for {
 } yield ()
 ```
 
-Visit the [Hub](../../datatypes/concurrency/hub.md) page to learn more about it.
+Visit the [Hub](../../datatypes/concurrency/hub) page to learn more about it.
 
 ### ZIO Aspects
 
@@ -2455,8 +2469,8 @@ val myApp: ZIO[Random, Nothing, String] =
     Random.nextIntBounded(10) @@ ZIOAspect.debug map (_ % 2 == 0)
   )(onTrue = ZIO.succeed("Hello!"), onFalse = ZIO.succeed("Good Bye!")) @@
     ZIOAspect.debug @@ ZIOAspect.logged("result")
-    
-// Sample Output:     
+
+// Sample Output:
 // 2
 // Hello!
 // timestamp=2021-09-05T15:32:56.705901Z level=INFO thread=#2 message="result: Hello!" file=ZIOAspect.scala line=74 class=zio.ZIOAspect$$anon$4 method=apply
@@ -2479,7 +2493,7 @@ val myApp: ZIO[Random, Nothing, String] =
 // Sample Output
 // random: 2
 // result: Hello!
-``` 
+```
 
 ### Logging
 
@@ -2498,13 +2512,14 @@ ZIO.logLevel(LogLevel.Warning) {
   ZIO.log("The response time exceeded its threshold!")
 }
 ```
+
 Or we can use the following functions directly:
 
-* `ZIO.logDebug`
-* `ZIO.logError`
-* `ZIO.logFatal`
-* `ZIO.logInfo`
-* `ZIO.logWarning`
+- `ZIO.logDebug`
+- `ZIO.logError`
+- `ZIO.logFatal`
+- `ZIO.logInfo`
+- `ZIO.logWarning`
 
 ```scala mdoc:silent:nest
 ZIO.logError("File does not exist: ~/var/www/favicon.ico")
@@ -2587,7 +2602,7 @@ Fiber:Id(1634884059516,0) ZIO Execution trace: <empty trace>
 Fiber:Id(1634884059516,0) was spawned by: <empty trace>
 ```
 
-The execution trace, is somehow at a good degree informative, but it doesn't lead us to the exact point where the failure happened. It's a little hard to see what is going here. 
+The execution trace, is somehow at a good degree informative, but it doesn't lead us to the exact point where the failure happened. It's a little hard to see what is going here.
 
 Let's rewrite the previous example in ZIO 2.0:
 
