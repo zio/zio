@@ -823,10 +823,10 @@ Unsafe.unsafeCompat { implicit unsafe =>
 
 In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x corresponding to the unsafe operators:
 
-|         | ZIO 1.0                | ZIO 2.x                                                 |
-|---------|------------------------|---------------------------------------------------------|
-| Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }` |
-| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { runtime.unsafe.run(x) }`               |
+|         | ZIO 1.0                | ZIO 2.x                                                                          |
+|---------|------------------------|----------------------------------------------------------------------------------|
+| Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).getOrThrowFiberFailure() }` |
+| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { runtime.unsafe.run(x).getOrThrowFiberFailure() }`               |
 
 ### Unsafe Variants
 
@@ -919,12 +919,12 @@ Unsafe.unsafe { implicit u =>
 
 Similarly, we can do the same for other unsafe operators. Here are some of them:
 
-| ZIO 1.0                        | ZIO 2.x                                                                                                    |
-|--------------------------------|------------------------------------------------------------------------------------------------------------|
-| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }`                                                    |
-| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).foldExit(cause => throw cause.squashTrace, identity)` |
-| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit u => runtime.unsafe.fork(x).unsafe.addObserver(_fold(identity, identity))`       |
-| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.runToFuture(x) }`                                            |
+| ZIO 1.0                        | ZIO 2.x                                                                                              |
+|--------------------------------|------------------------------------------------------------------------------------------------------|
+| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }`                                              |
+| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).getOrThrow()`                                   |
+| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit u => runtime.unsafe.fork(x).unsafe.addObserver(_fold(identity, identity))` |
+| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.runToFuture(x) }`                                      |
 
 ### Runtime Customization using Layers
 
