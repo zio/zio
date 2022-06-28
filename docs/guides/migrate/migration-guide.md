@@ -382,7 +382,7 @@ In ZIO 2.x, when we are zipping together different effects:
 - `Tuple`s are not nested.
 - `Unit`s do not contribute to the output.
 
-Assume we have these effects
+Assume we have these effects:
 
 ```scala mdoc:silent:nest
 val x1: UIO[Int]     = ZIO.succeed(???)
@@ -393,15 +393,16 @@ val x4: UIO[Boolean] = ZIO.succeed(???)
 
 In ZIO 1.x, the output of zipping together these effects are nested:
 
-```scala
+```scala mdoc:compile-only
 val zipped = x1 <*> x2 <*> x3 <*> x4
-// zipped: ZIO[Any, Nothing, (((Int, Unit), String), Boolean)] = zio.ZIO$FlatMap@3ed3c202
+// zipped: ZIO[Any, Nothing, (((Int, Unit), String), Boolean)] = ...
 ```
 
 While in ZIO 2.x, we have more ergonomics result type and also the `Unit` data-type doesn't contribute to the output:
 
-```scala mdoc:nest
+```scala mdoc:compile-only
 val zipped = x1 <*> x2 <*> x3 <*> x4
+// zipped: ZIO[Any, Nothing, (Int, String, Boolean)] = ...
 ```
 
 This change is not only for the `ZIO` data type but also for all other data types like `ZStream`, `ZSTM`, etc.
@@ -473,7 +474,7 @@ The error channel of `leftProjection` doesn't contain type information of the ot
 
 In ZIO 2.x, the `ZIO#left` and `ZIO#right`, contains all type information so then we can `unleft` or `unright` to inverse that projection:
 
-```scala mdoc:nest
+```scala mdoc:compile-only
 val effect         = ZIO.attempt(Left[Int, String](5))
 val leftProjection = effect.left
 val unlefted       = leftProjection.map(_ * 2).unleft 
@@ -588,8 +589,8 @@ for {
 2. By removing these services from the environment, all usage of `ZEnv`, `Console`, `Clock`, `Random`, or `System` in the environment type of `ZIO`, `ZStream` and `ZLayer` should be generally deleted:
 
 ```diff
-val myApp: ZIO[Clock with Console with Random with UserRepo with Logging, IOException, Unit] = ???
-val myApp: ZIO[UserRepo with Logging, IOException, Unit] = ???
+- val myApp: ZIO[Clock with Console with Random with UserRepo with Logging, IOException, Unit] = ???
++ val myApp: ZIO[UserRepo with Logging, IOException, Unit] = ???
 ```
 
 3. If we want to use the live version in tests we can use these test aspects instead of providing them as layers:
@@ -2057,13 +2058,13 @@ Even though highly polymorphic versions of ZIO concurrent data structures (e.g. 
 
 Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
 
-| ZIO 1.x (removed)                   | ZIO 2.x              |
-|-------------------------------------|----------------------|
-|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
-|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
-|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
-|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
-|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
+| ZIO 1.x (removed)                    | ZIO 2.x               |
+|--------------------------------------|-----------------------|
+| `ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`              |
+| `ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`             |
+| `ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]` |
+| `ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`            |
+| `ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`              |
 
 ## Ref
 
@@ -2449,10 +2450,9 @@ Every data type in ZIO (`ZIO`, `ZStream`, etc.) has a variety of constructor fun
 
 While these are precise, ZIO 2.0 provides the `ZIO.from` constructor which can intelligently choose the most likely constructor based on the input type. So instead of writing `ZIO.fromEither(Right(3))` we can easily write `ZIO.from(Right(3))`. Let's try some of them:
 
-```scala mdoc:invisible
+```scala mdoc:compile-only
 import zio.stream.ZStream
-```
-```scala mdoc:nest
+
 ZIO.fromOption(Some("Ok!"))
 ZIO.from(Some("Ok!"))
 
