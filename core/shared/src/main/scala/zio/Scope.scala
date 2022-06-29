@@ -261,7 +261,7 @@ object Scope {
      * Creates a new ReleaseMap.
      */
     def make(implicit trace: Trace): UIO[ReleaseMap] =
-      ZIO.succeedUnsafe(implicit u => unsafe.make())
+      ZIO.succeed(unsafe.make()(Unsafe.unsafe))
 
     private object unsafe {
 

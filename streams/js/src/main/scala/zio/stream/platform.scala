@@ -54,18 +54,17 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     ZStream.unwrapScoped[R](for {
       output  <- ZIO.acquireRelease(Queue.bounded[stream.Take[E, A]](outputBuffer))(_.shutdown)
       runtime <- ZIO.runtime[R]
-      eitherStream <- ZIO.succeed {
-                        register { k =>
-                          try {
-                            Unsafe.unsafeCompat { implicit u =>
-                              runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))
-                            }
-                          } catch {
-                            case FiberFailure(c) if c.isInterrupted =>
-                              Future.successful(false)
-                          }
-                        }
-                      }
+      eitherStream <-
+        ZIO.succeed {
+          register { k =>
+            try {
+              runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+            } catch {
+              case FiberFailure(c) if c.isInterrupted =>
+                Future.successful(false)
+            }
+          }
+        }
     } yield {
       eitherStream match {
         case Right(value) => ZStream.unwrap(output.shutdown as value)
@@ -103,9 +102,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
-                 Unsafe.unsafeCompat { implicit u =>
-                   runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))
-                 }
+                 runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
                } catch {
                  case FiberFailure(c) if c.isInterrupted =>
                    Future.successful(false)
@@ -136,9 +133,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
-               Unsafe.unsafeCompat { implicit u =>
-                 runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))
-               }
+               runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
              } catch {
                case FiberFailure(c) if c.isInterrupted =>
                  Future.successful(false)

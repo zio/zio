@@ -5,7 +5,7 @@ import cats.effect.{Fiber => CFiber, IO => CIO}
 
 import scala.concurrent.ExecutionContext
 
-object BenchmarkUtil extends Runtime[Any] {
+object BenchmarkUtil extends Runtime[Any] { self =>
   val environment = Runtime.default.environment
 
   val fiberRefs = Runtime.default.fiberRefs
@@ -32,5 +32,5 @@ object BenchmarkUtil extends Runtime[Any] {
     else io.flatMap(_ => catsRepeat(n - 1)(io))
 
   def unsafeRun[E, A](zio: ZIO[Any, E, A]): A =
-    Unsafe.unsafeCompat(implicit u => unsafe.run(zio).getOrThrowFiberFailure())
+    Unsafe.unsafe(implicit unsafe => self.unsafe.run(zio).getOrThrowFiberFailure())
 }

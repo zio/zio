@@ -170,7 +170,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val coreJVM = core.jvm
   .settings(replSettings)
-  .settings(mimaSettings(failOnProblem = false))
+  .settings(mimaSettings(failOnProblem = true))
 
 lazy val coreJS = core.js
   .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
@@ -328,7 +328,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val streamsJVM = streams.jvm
   // No bincompat on streams yet
-  .settings(mimaSettings(failOnProblem = false))
+  .settings(mimaSettings(failOnProblem = true))
 
 lazy val streamsJS = streams.js
 
