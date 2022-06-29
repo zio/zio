@@ -33,12 +33,12 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   def bootstrap: ZLayer[Scope, Any, Environment]
 
-  final def run: ZIO[ZIOAppArgs with Scope, Any, Summary] = {
+  final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = Trace.empty
 
-    runSpec.provideSomeLayer[ZIOAppArgs with Scope](
-      ZLayer.environment[ZIOAppArgs with Scope] +!+
-        (liveEnvironment >>> TestEnvironment.live +!+ bootstrap +!+ TestLogger.fromConsole(Console.ConsoleLive))
+    runSpec.provideSomeLayer[Environment with ZIOAppArgs with Scope](
+      ZLayer.environment[Environment with ZIOAppArgs with Scope] +!+
+        (liveEnvironment >>> TestEnvironment.live +!+ TestLogger.fromConsole(Console.ConsoleLive))
     )
   }
 
@@ -96,30 +96,29 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   )(implicit
     trace: Trace
   ): URIO[
-    TestEnvironment with Scope,
+    Environment with TestEnvironment with Scope,
     Summary
   ] = {
-    val filteredSpec = FilteredSpec(spec, testArgs)
+    val filteredSpec: Spec[Environment with TestEnvironment with Scope, Any] = FilteredSpec(spec, testArgs)
 
     for {
       runtime <-
         ZIO.runtime[
           TestEnvironment with Scope
         ]
-      environment0: ZEnvironment[Scope] = runtime.environment
-      environment1: ZEnvironment[Scope] = runtime.environment
-      sharedLayer: ZLayer[Any, Any, Environment] =
-        ZLayer.succeedEnvironment(environment0) >>> bootstrap
-      perTestLayer = (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
-                       .environment[Scope])
+
+      scopeEnv: ZEnvironment[Scope] = runtime.environment
+      perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) ++ liveEnvironment) >>>
+                       (TestEnvironment.live ++ ZLayer.environment[Scope])
 
       eventRenderer           = getTestEventRenderer(testArgs)
       executionEventSinkLayer = sinkLayer(console, eventRenderer)
+      environment            <- ZIO.environment[Environment]
       runner =
         TestRunner(
           TestExecutor
             .default[Environment, Any](
-              sharedLayer,
+              ZLayer.succeedEnvironment(environment),
               perTestLayer,
               executionEventSinkLayer,
               testEventHandler
