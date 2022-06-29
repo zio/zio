@@ -35,5 +35,5 @@ object DefaultServices {
   private[zio] val currentServices: FiberRef.WithPatch[ZEnvironment[
     Clock with Console with System with Random
   ], ZEnvironment.Patch[Clock with Console with System with Random, Clock with Console with System with Random]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.makeEnvironment(live))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.makeEnvironment(live))
 }

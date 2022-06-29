@@ -66,7 +66,7 @@ val samples: URIO[Sized, List[Int]] =
 The return type require the _Sized_ service. Therefore, to run this effect, we need to provide this service:
 
 ```scala mdoc:silent:nest
-Unsafe.unsafely { implicit u =>
+Unsafe.unsafe { implicit u =>
     zio.Runtime.default.unsafe.run(
       samples.provide(Sized.live(100)) 
     ).getOrThrowFiberFailure()

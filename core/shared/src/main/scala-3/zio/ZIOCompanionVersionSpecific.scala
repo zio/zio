@@ -21,7 +21,7 @@ trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Any,
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, Unsafe.unsafely(register), () => blockingOn)
+    Async(trace, Unsafe.unsafe(register), () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -157,7 +157,7 @@ trait ZIOCompanionVersionSpecific {
    * Returns an effect that models success with the specified value.
    */
   def succeed[A](a: Unsafe ?=> A)(implicit trace: Trace): ZIO[Any, Nothing, A] =
-    ZIO.Sync(trace, () => Unsafe.unsafely(a))
+    ZIO.Sync(trace, () => Unsafe.unsafe(a))
 
   /**
    * Returns a synchronous effect that does blocking and succeeds with the

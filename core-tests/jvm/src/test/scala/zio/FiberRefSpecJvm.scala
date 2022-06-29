@@ -12,7 +12,7 @@ object FiberRefSpecJvm extends ZIOBaseSpec {
     test("unsafe handles behave properly if fiber specific data cannot be accessed") {
       for {
         fiberRef <- FiberRef.make(initial)
-        handle   <- Unsafe.unsafely(implicit u => fiberRef.asThreadLocal)
+        handle   <- Unsafe.unsafe(implicit u => fiberRef.asThreadLocal)
         resRef   <- ZIO.succeed(new AtomicReference(("", "", "")))
 
         unsafelyGetSetGet = new Runnable {

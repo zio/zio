@@ -87,7 +87,7 @@ object Standard {
 
   val live: ZLayer[JvmMetricsSchedule, Throwable, Standard] =
     ZLayer.scoped {
-      Unsafe.unsafely { implicit u =>
+      Unsafe.unsafe { implicit u =>
         for {
           runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean)
           operatingSystemMXBean <- ZIO.attempt(ManagementFactory.getOperatingSystemMXBean)

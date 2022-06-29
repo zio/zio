@@ -5,9 +5,9 @@ import zio.test._
 object UnsafeSpec extends ZIOSpecDefault {
 
   def spec = suite("UnsafeSpec") {
-    suite("unsafely")(
+    suite("unsafe")(
       test("provides capability to function") {
-        Unsafe.unsafely { implicit unsafe =>
+        Unsafe.unsafe { implicit unsafe =>
           doSomethingUnsafe()
         }
         assertCompletes

@@ -21,7 +21,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
-                         Unsafe.unsafely { implicit u =>
+                         Unsafe.unsafe { implicit u =>
                            runtime.unsafe.run {
                              clock.sleep(2.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
@@ -48,7 +48,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    scheduledExecutorService.scheduleAtFixedRate(
                      new Runnable {
                        def run(): Unit =
-                         Unsafe.unsafely { implicit u =>
+                         Unsafe.unsafe { implicit u =>
                            runtime.unsafe.run {
                              clock.sleep(5.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
@@ -75,7 +75,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    scheduledExecutorService.scheduleWithFixedDelay(
                      new Runnable {
                        def run(): Unit =
-                         Unsafe.unsafely { implicit u =>
+                         Unsafe.unsafe { implicit u =>
                            runtime.unsafe.run {
                              clock.sleep(2.seconds) *>
                                clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))
@@ -102,7 +102,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                         scheduledExecutorService.scheduleAtFixedRate(
                           new Runnable {
                             def run(): Unit =
-                              Unsafe.unsafely { implicit u =>
+                              Unsafe.unsafe { implicit u =>
                                 runtime.unsafe.run {
                                   clock.sleep(2.seconds) *>
                                     clock.currentTime(TimeUnit.SECONDS).flatMap(now => ref.update(now :: _))

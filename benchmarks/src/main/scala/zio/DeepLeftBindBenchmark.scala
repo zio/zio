@@ -23,7 +23,7 @@ class DeepLeftBindBenchmark {
       i += 1
     }
 
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       runtime.unsafe.run(io).getOrThrowFiberFailure()
     }
   }

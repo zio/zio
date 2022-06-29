@@ -1213,7 +1213,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
 object ZManaged extends ZManagedPlatformSpecific {
 
   lazy val currentReleaseMap: FiberRef[ReleaseMap] =
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       FiberRef.unsafe.make(ReleaseMap.unsafe.make())
     }
 
@@ -2343,7 +2343,7 @@ object ZManaged extends ZManagedPlatformSpecific {
         map.get(a) match {
           case Some(promise) => (promise.await, map)
           case None =>
-            Unsafe.unsafely { implicit u =>
+            Unsafe.unsafe { implicit u =>
               val promise = Promise.unsafe.make[E, B](fiberId)
               (scope(f(a)).map(_._2).intoPromise(promise) *> promise.await, map + (a -> promise))
             }

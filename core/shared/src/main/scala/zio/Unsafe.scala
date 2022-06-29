@@ -23,7 +23,7 @@ package zio
  * always pure, total, and type-safe.
  *
  * {{{
- * import Unsafe.unsafely
+ * import Unsafe.unsafe
  *
  * unsafely { ... }
  * }}}
@@ -33,9 +33,10 @@ sealed trait Unsafe extends Serializable
 object Unsafe extends UnsafeVersionSpecific {
   private[zio] val unsafe: Unsafe = new Unsafe {}
 
-  def unsafely[A](f: Unsafe => A): A =
+  def unsafe[A](f: Unsafe => A): A =
     f(unsafe)
 
-  @deprecated("use unsafely", "3.0.0")
-  def unsafeCompat[A](f: Unsafe => A): A = f(unsafe)
+  @deprecated("use unsafe", "3.0.0")
+  def unsafeCompat[A](f: Unsafe => A): A =
+    f(unsafe)
 }

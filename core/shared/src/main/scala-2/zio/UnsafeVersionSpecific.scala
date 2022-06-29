@@ -15,9 +15,4 @@
  */
 package zio
 
-private[zio] trait UnsafeVersionSpecific {
-  private[zio] def unsafe: Unsafe
-
-  @deprecated("use unsafely", "3.0.0")
-  def unsafe[A](f: Unsafe => A): A = f(unsafe)
-}
+private[zio] trait UnsafeVersionSpecific

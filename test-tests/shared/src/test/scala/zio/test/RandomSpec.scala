@@ -59,9 +59,9 @@ object RandomSpec extends ZIOBaseSpec {
         .runtime[Any]
         .map { rt =>
           val x = Unsafe
-            .unsafely(implicit u => rt.unsafe.run(test.flatMap[Any, Nothing, Int](_.nextInt)).getOrThrowFiberFailure())
+            .unsafe(implicit u => rt.unsafe.run(test.flatMap[Any, Nothing, Int](_.nextInt)).getOrThrowFiberFailure())
           val y = Unsafe
-            .unsafely(implicit u => rt.unsafe.run(test.flatMap[Any, Nothing, Int](_.nextInt)).getOrThrowFiberFailure())
+            .unsafe(implicit u => rt.unsafe.run(test.flatMap[Any, Nothing, Int](_.nextInt)).getOrThrowFiberFailure())
           assert(x)(equalTo(y))
         }
     },

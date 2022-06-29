@@ -35,7 +35,7 @@ class ForkInterruptBenchmark {
       if (i < size) ZIO.never.fork.flatMap(_.interrupt *> loop(i + 1))
       else ZIO.unit
 
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       runtime.unsafe.run(loop(0)).getOrThrowFiberFailure()
     }
   }

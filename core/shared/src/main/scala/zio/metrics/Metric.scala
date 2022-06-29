@@ -176,7 +176,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.map { a =>
-          Unsafe.unsafely { implicit u =>
+          Unsafe.unsafe { implicit u =>
             unsafe.update(in)
             a
           }
@@ -199,7 +199,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
   final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
       val updater: Throwable => Unit = defect =>
-        Unsafe.unsafely { implicit u =>
+        Unsafe.unsafe { implicit u =>
           unsafe.update(f(defect))
         }
 
@@ -227,7 +227,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           val startTime = java.lang.System.nanoTime()
 
           zio.map { a =>
-            Unsafe.unsafely { implicit u =>
+            Unsafe.unsafe { implicit u =>
               val endTime  = java.lang.System.nanoTime()
               val duration = Duration.fromNanos(endTime - startTime)
 
@@ -400,7 +400,7 @@ object Metric {
       def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
         val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
 
-        Unsafe.unsafely { implicit u =>
+        Unsafe.unsafe { implicit u =>
           metricRegistry.get(fullKey)
         }
       }

@@ -55,7 +55,7 @@ object RunZIOEffectUsingUnsafeRun extends scala.App {
     _ <- Console.printLine("Hello, " + n + ", good to meet you!")
   } yield ()
 
-  Unsafe.unsafely { implicit u =>
+  Unsafe.unsafe { implicit u =>
       zio.Runtime.default.unsafe.run(
         myAppLogic
       ).getOrThrowFiberFailure()
@@ -83,7 +83,7 @@ We can easily access the default `Runtime` to run an effect:
 object MainApp extends scala.App {
   val myAppLogic = ZIO.succeed(???)
   val runtime = Runtime.default
-  Unsafe.unsafely { implicit u =>
+  Unsafe.unsafe { implicit u =>
     runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure()
   }
 }
@@ -159,7 +159,7 @@ val testableRuntime: Runtime[Logging with Email] =
 Now we can run our effects using this custom `Runtime`:
 
 ```scala mdoc:silent:nest
-Unsafe.unsafely { implicit u =>
+Unsafe.unsafe { implicit u =>
     testableRuntime.unsafe.run(
       for {
         _ <- Logging.log("sending newsletter")

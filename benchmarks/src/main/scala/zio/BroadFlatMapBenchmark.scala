@@ -90,7 +90,7 @@ class BroadFlatMapBenchmark {
       else
         fib(n - 1).flatMap(a => fib(n - 2).flatMap(b => ZIO.succeed(a + b)))
 
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       runtime.unsafe.run(fib(depth)).getOrThrowFiberFailure()
     }
   }

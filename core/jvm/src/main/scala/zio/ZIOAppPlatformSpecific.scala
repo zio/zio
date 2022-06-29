@@ -15,7 +15,7 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
       Scope.default +!+ ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
         bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
 
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       runtime.unsafe.run {
         (for {
           runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]

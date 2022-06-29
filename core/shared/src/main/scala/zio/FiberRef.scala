@@ -330,13 +330,13 @@ object FiberRef {
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
   lazy val currentLogLevel: FiberRef[LogLevel] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(LogLevel.Info))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(LogLevel.Info))
 
   lazy val currentLogSpan: FiberRef[List[LogSpan]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(Nil))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(Nil))
 
   lazy val currentLogAnnotations: FiberRef[Map[String, String]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(Map.empty))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(Map.empty))
 
   /**
    * Creates a new `FiberRef` with given initial value.
@@ -346,7 +346,7 @@ object FiberRef {
     fork: A => A = (a: A) => a,
     join: (A, A) => A = ((_: A, a: A) => a)
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef[A]] =
-    makeWith(Unsafe.unsafely { implicit u =>
+    makeWith(Unsafe.unsafe { implicit u =>
       unsafe.make(initial, fork, join)
     })
 
@@ -358,7 +358,7 @@ object FiberRef {
   def makeEnvironment[A](initial: => ZEnvironment[A])(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]]] =
-    makeWith(Unsafe.unsafely { implicit u =>
+    makeWith(Unsafe.unsafe { implicit u =>
       unsafe.makeEnvironment(initial)
     })
 
@@ -372,12 +372,12 @@ object FiberRef {
     differ: Differ[Value, Patch],
     fork: Patch
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
-    makeWith(Unsafe.unsafely(implicit u => unsafe.makePatch(initial, differ, fork)))
+    makeWith(Unsafe.unsafe(implicit u => unsafe.makePatch(initial, differ, fork)))
 
   def makeSet[A](initial: => Set[A])(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
-    makeWith(Unsafe.unsafely(implicit u => unsafe.makeSet(initial)))
+    makeWith(Unsafe.unsafe(implicit u => unsafe.makeSet(initial)))
 
   private[zio] object unsafe {
     def make[A](
@@ -485,34 +485,34 @@ object FiberRef {
   }
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(None, _ => None)) // Do not inherit on `fork`
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(None, _ => None)) // Do not inherit on `fork`
 
   private[zio] val overrideExecutor: FiberRef[Option[Executor]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(None))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(None))
 
   private[zio] val currentEnvironment: FiberRef.WithPatch[ZEnvironment[Any], ZEnvironment.Patch[Any, Any]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.makeEnvironment(ZEnvironment.empty))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.makeEnvironment(ZEnvironment.empty))
 
   private[zio] val interruptedCause: FiberRef[Cause[Nothing]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(Cause.empty, identity(_), (parent, _) => parent))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(Cause.empty, identity(_), (parent, _) => parent))
 
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(Runtime.defaultBlockingExecutor))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(Runtime.defaultBlockingExecutor))
 
   private[zio] val currentFatal: FiberRef.WithPatch[IsFatal, IsFatal.Patch] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.makeIsFatal(Runtime.defaultFatal))
 
   private[zio] val currentLoggers: FiberRef.WithPatch[Set[ZLogger[String, Any]], SetPatch[ZLogger[String, Any]]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.makeSet(Runtime.defaultLoggers))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.makeSet(Runtime.defaultLoggers))
 
   private[zio] val currentReportFatal: FiberRef[Throwable => Nothing] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(Runtime.defaultReportFatal))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(Runtime.defaultReportFatal))
 
   private[zio] val currentSupervisor: FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.makeSupervisor(Runtime.defaultSupervisor))
 
   private[zio] val unhandledErrorLogLevel: FiberRef[Option[LogLevel]] =
-    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(Some(LogLevel.Debug), identity(_), (_, child) => child))
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(Some(LogLevel.Debug), identity(_), (_, child) => child))
 
   private def makeWith[Value, Patch](
     ref: => FiberRef.WithPatch[Value, Patch]

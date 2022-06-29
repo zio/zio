@@ -33,7 +33,7 @@ final class ZEnvironment[+R] private (
    * Adds a service to the environment.
    */
   def add[A](a: A)(implicit tag: Tag[A]): ZEnvironment[R with A] =
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       unsafe.add[A](tag.tag, a)
     }
 
@@ -46,7 +46,7 @@ final class ZEnvironment[+R] private (
    * Retrieves a service from the environment.
    */
   def get[A >: R](implicit tag: Tag[A]): A =
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       unsafe.get[A](tag.tag)
     }
 
@@ -55,7 +55,7 @@ final class ZEnvironment[+R] private (
    * key.
    */
   def getAt[K, V](k: K)(implicit ev: R <:< Map[K, V], tagged: EnvironmentTag[Map[K, V]]): Option[V] =
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       unsafe.get[Map[K, V]](taggedTagType(tagged)).get(k)
     }
 
@@ -123,7 +123,7 @@ final class ZEnvironment[+R] private (
    * Updates a service in the environment corresponding to the specified key.
    */
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       self.add[Map[K, V]](unsafe.get[Map[K, V]](taggedTagType(tag)).updated(k, f(getAt(k).get)))
     }
 
@@ -260,7 +260,7 @@ object ZEnvironment {
      * Applies an update to the environment to produce a new environment.
      */
     def apply(environment: ZEnvironment[In]): ZEnvironment[Out] =
-      Unsafe.unsafely { implicit u =>
+      Unsafe.unsafe { implicit u =>
         @tailrec
         def loop(environment: ZEnvironment[Any], patches: List[Patch[Any, Any]]): ZEnvironment[Any] =
           patches match {

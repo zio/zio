@@ -48,7 +48,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             }
 
           def now(): Instant =
-            Unsafe.unsafely { implicit u =>
+            Unsafe.unsafe { implicit u =>
               clockState.unsafe.get.instant
             }
 
@@ -73,7 +73,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
               if (updatedState == Scheduling(end)) {
                 val start    = now()
                 val interval = Duration.fromInterval(start, end)
-                val cancelToken = Unsafe.unsafely { implicit u =>
+                val cancelToken = Unsafe.unsafe { implicit u =>
                   schedule(
                     () =>
                       executor.submitOrThrow { () =>
@@ -160,7 +160,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             def awaitTermination(timeout: Long, unit: TimeUnit): Boolean =
               false
             def execute(command: Runnable): Unit =
-              Unsafe.unsafely { implicit u =>
+              Unsafe.unsafe { implicit u =>
                 executor.submit(command)
                 ()
               }

@@ -61,7 +61,7 @@ import zio._
 object IntegrationExample {
   val runtime = Runtime.default
 
-  Unsafe.unsafely { implicit u =>
+  Unsafe.unsafe { implicit u =>
     runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure()
   }
 }

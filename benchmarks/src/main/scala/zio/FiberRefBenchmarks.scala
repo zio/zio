@@ -63,7 +63,7 @@ class FiberRefBenchmarks {
   def createAndJoinUpdatesDeep(): Unit =
     createAndJoinUpdatesDeep(BenchmarkUtil)
 
-  private def justYield(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def justYield(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       for {
         _ <- ZIO.foreachDiscard(1.to(n))(_ => ZIO.yieldNow)
@@ -71,7 +71,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createFiberRefsAndYield(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createFiberRefsAndYield(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         for {
@@ -84,7 +84,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createUpdateAndRead(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createUpdateAndRead(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         for {
@@ -99,7 +99,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createAndJoin(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createAndJoin(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         for {
@@ -111,7 +111,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createAndJoinExpensive(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createAndJoinExpensive(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         for {
@@ -123,7 +123,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createAndJoinInitialValue(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createAndJoinInitialValue(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         for {
@@ -134,7 +134,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createAndJoinUpdatesWide(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createAndJoinUpdatesWide(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         for {
@@ -146,7 +146,7 @@ class FiberRefBenchmarks {
     }.getOrThrowFiberFailure()
   }
 
-  private def createAndJoinUpdatesDeep(runtime: Runtime[Any]) = Unsafe.unsafely { implicit u =>
+  private def createAndJoinUpdatesDeep(runtime: Runtime[Any]) = Unsafe.unsafe { implicit u =>
     runtime.unsafe.run {
       ZIO.scoped {
         ZIO.foreach(1.to(n))(i => FiberRef.makePatch(i, addDiffer, 0)).flatMap { fiberRefs =>

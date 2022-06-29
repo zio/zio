@@ -119,7 +119,7 @@ private[zio] object ZReader {
           }
       }
 
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       new ZReader(Iterator.empty ++ unfoldPull)
     }
   }

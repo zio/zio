@@ -78,7 +78,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         traverse(filteredSpec, description)
       )
 
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       zio.Runtime.default.unsafe
         .run(
           scoped
@@ -93,7 +93,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   }
 
   override def run(notifier: RunNotifier): Unit = {
-    val _ = Unsafe.unsafely { implicit u =>
+    val _ = Unsafe.unsafe { implicit u =>
       zio.Runtime.default.unsafe.run {
 
         val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =

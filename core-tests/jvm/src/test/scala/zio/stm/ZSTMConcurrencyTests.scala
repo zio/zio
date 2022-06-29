@@ -20,15 +20,15 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermit {
-    val promise: Promise[Nothing, Unit] = Unsafe.unsafely { implicit u =>
+    val promise: Promise[Nothing, Unit] = Unsafe.unsafe { implicit u =>
       Promise.unsafe.make[Nothing, Unit](FiberId.None)
     }
     val semaphore: TSemaphore =
-      Unsafe.unsafely(implicit u => runtime.unsafe.run(TSemaphore.makeCommit(1L)).getOrThrowFiberFailure())
+      Unsafe.unsafe(implicit u => runtime.unsafe.run(TSemaphore.makeCommit(1L)).getOrThrowFiberFailure())
     var fiber: Fiber[Nothing, Unit] = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
-    def actor1(): Unit = Unsafe.unsafely { implicit u =>
+    def actor1(): Unit = Unsafe.unsafe { implicit u =>
       val zio = semaphore.withPermit(ZIO.unit)
       fiber = runtime.unsafe.run(zio.fork).getOrThrowFiberFailure()
       runtime.unsafe.run(promise.succeed(())).getOrThrowFiberFailure()
@@ -37,14 +37,14 @@ object ZSTMConcurrencyTests {
     }
 
     @Actor
-    def actor2(): Unit = Unsafe.unsafely { implicit u =>
+    def actor2(): Unit = Unsafe.unsafe { implicit u =>
       val zio = promise.await *> fiber.interrupt
       runtime.unsafe.run(zio).getOrThrowFiberFailure()
       ()
     }
 
     @Arbiter
-    def arbiter(r: I_Result): Unit = Unsafe.unsafely { implicit u =>
+    def arbiter(r: I_Result): Unit = Unsafe.unsafe { implicit u =>
       val zio     = semaphore.permits.get.commit
       val permits = runtime.unsafe.run(zio).getOrThrowFiberFailure()
       r.r1 = permits.toInt
@@ -63,15 +63,15 @@ object ZSTMConcurrencyTests {
   )
   @State
   class ConcurrentWithPermitScoped {
-    val promise: Promise[Nothing, Unit] = Unsafe.unsafely { implicit u =>
+    val promise: Promise[Nothing, Unit] = Unsafe.unsafe { implicit u =>
       Promise.unsafe.make[Nothing, Unit](FiberId.None)
     }
     val semaphore: TSemaphore =
-      Unsafe.unsafely(implicit u => runtime.unsafe.run(TSemaphore.makeCommit(1L)).getOrThrowFiberFailure())
+      Unsafe.unsafe(implicit u => runtime.unsafe.run(TSemaphore.makeCommit(1L)).getOrThrowFiberFailure())
     var fiber: Fiber[Nothing, Unit] = null.asInstanceOf[Fiber[Nothing, Unit]]
 
     @Actor
-    def actor1(): Unit = Unsafe.unsafely { implicit u =>
+    def actor1(): Unit = Unsafe.unsafe { implicit u =>
       val zio = ZIO.scoped(semaphore.withPermitScoped)
       fiber = runtime.unsafe.run(zio.fork).getOrThrowFiberFailure()
       runtime.unsafe.run(promise.succeed(())).getOrThrowFiberFailure()
@@ -80,14 +80,14 @@ object ZSTMConcurrencyTests {
     }
 
     @Actor
-    def actor2(): Unit = Unsafe.unsafely { implicit u =>
+    def actor2(): Unit = Unsafe.unsafe { implicit u =>
       val zio = promise.await *> fiber.interrupt
       runtime.unsafe.run(zio).getOrThrowFiberFailure()
       ()
     }
 
     @Arbiter
-    def arbiter(r: I_Result): Unit = Unsafe.unsafely { implicit u =>
+    def arbiter(r: I_Result): Unit = Unsafe.unsafe { implicit u =>
       val zio     = semaphore.permits.get.commit
       val permits = runtime.unsafe.run(zio).getOrThrowFiberFailure()
       r.r1 = permits.toInt
@@ -108,9 +108,9 @@ object ZSTMConcurrencyTests {
   @State
   class ConcurrentGetAndSet {
     val inner: TRef[Boolean] =
-      Unsafe.unsafely(implicit u => runtime.unsafe.run(TRef.makeCommit(false)).getOrThrowFiberFailure())
+      Unsafe.unsafe(implicit u => runtime.unsafe.run(TRef.makeCommit(false)).getOrThrowFiberFailure())
     val outer: TRef[TRef[Boolean]] =
-      Unsafe.unsafely(implicit u => runtime.unsafe.run(TRef.makeCommit(inner)).getOrThrowFiberFailure())
+      Unsafe.unsafe(implicit u => runtime.unsafe.run(TRef.makeCommit(inner)).getOrThrowFiberFailure())
 
     @Actor
     def actor1(): Unit = {
@@ -122,7 +122,7 @@ object ZSTMConcurrencyTests {
              else inner.set(true) *> outer.set(fresh)
       } yield value
       val zio = ZIO.foreachParDiscard(1 to 1000)(_ => stm.commit)
-      Unsafe.unsafely { implicit u =>
+      Unsafe.unsafe { implicit u =>
         runtime.unsafe.run(zio).getOrThrowFiberFailure()
         ()
       }

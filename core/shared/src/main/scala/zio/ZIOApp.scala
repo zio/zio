@@ -66,7 +66,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    */
   final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
-      Unsafe.unsafely { implicit u =>
+      Unsafe.unsafe { implicit u =>
         if (!shuttingDown.getAndSet(true)) {
           try Platform.exit(code.code)
           catch { case _: SecurityException => }
@@ -94,10 +94,10 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
 
   protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
-      Unsafe.unsafely { implicit u =>
+      Unsafe.unsafe { implicit u =>
         if (!ZIOApp.installedSignals.getAndSet(true)) {
           val dumpFibers =
-            () => Unsafe.unsafely(implicit u => runtime.unsafe.run(Fiber.dumpAll).getOrThrowFiberFailure())
+            () => Unsafe.unsafe(implicit u => runtime.unsafe.run(Fiber.dumpAll).getOrThrowFiberFailure())
 
           if (System.os.isWindows) {
             Platform.addSignalHandler("INT", dumpFibers)

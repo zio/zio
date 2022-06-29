@@ -16,8 +16,8 @@ object FiberRefsSpec extends ZIOBaseSpec {
       } yield assertTrue(value)
     } +
       test("interruptedCause") {
-        val parent = Unsafe.unsafely(implicit u => FiberId.make(Trace.empty))
-        val child  = Unsafe.unsafely(implicit u => FiberId.make(Trace.empty))
+        val parent = Unsafe.unsafe(implicit u => FiberId.make(Trace.empty))
+        val child  = Unsafe.unsafe(implicit u => FiberId.make(Trace.empty))
 
         val parentFiberRefs = FiberRefs.empty
         val childFiberRefs  = parentFiberRefs.updatedAs(child)(FiberRef.interruptedCause, Cause.interrupt(parent))

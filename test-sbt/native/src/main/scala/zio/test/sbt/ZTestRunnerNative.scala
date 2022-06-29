@@ -90,7 +90,7 @@ sealed class ZTestTask(
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
   def execute(continuation: Array[Task] => Unit): Unit =
-    Unsafe.unsafely { implicit u =>
+    Unsafe.unsafe { implicit u =>
       val fiber = Runtime.default.unsafe.fork {
         for {
           summary <- ZIO.scoped {
