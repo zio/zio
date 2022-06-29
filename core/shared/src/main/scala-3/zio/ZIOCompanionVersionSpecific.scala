@@ -153,7 +153,6 @@ trait ZIOCompanionVersionSpecific {
   def attemptBlockingIO[A](effect: Unsafe ?=> A)(implicit trace: Trace): IO[IOException, A] =
     attemptBlocking(effect).refineToOrDie[IOException]
 
-
   /**
    * Returns an effect that models success with the specified value.
    */

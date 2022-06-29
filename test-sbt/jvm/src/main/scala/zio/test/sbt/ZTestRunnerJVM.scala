@@ -74,7 +74,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
       sharedLayerFromSpecs +!+ sharedSinkLayer
 
     val runtime: zio.Runtime[ExecutionEventSink] =
-      Unsafe.unsafe { implicit u =>
+      Unsafe.unsafely { implicit u =>
         zio.Runtime.unsafe.fromLayer(sharedLayer)
       }
 
