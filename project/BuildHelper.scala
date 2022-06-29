@@ -69,7 +69,7 @@ object BuildHelper {
     """|import zio._
        |implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
        |  def unsafeRun: A =
-       |    Unsafe.unsafeCompat { implicit unsafe =>
+       |    Unsafe.unsafe { implicit unsafe =>
        |      Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
        |    }
        |}
@@ -81,7 +81,7 @@ object BuildHelper {
     """|import zio._
        |implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
        |  def unsafeRun: A =
-       |    Unsafe.unsafeCompat { implicit u =>
+       |    Unsafe.unsafe { implicit unsafe =>
        |      Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
        |    }
        |}
