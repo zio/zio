@@ -215,27 +215,28 @@ final class Promise[E, A] private (
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
   }
 
-  @transient private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit = {
-      var retry: Boolean                 = true
-      var joiners: List[IO[E, A] => Any] = null
+  @transient private[zio] val unsafe: UnsafeAPI =
+    new UnsafeAPI {
+      def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit = {
+        var retry: Boolean                 = true
+        var joiners: List[IO[E, A] => Any] = null
 
-      while (retry) {
-        val oldState = state.get
+        while (retry) {
+          val oldState = state.get
 
-        val newState = oldState match {
-          case Pending(js) =>
-            joiners = js
-            Done(io)
-          case _ => oldState
+          val newState = oldState match {
+            case Pending(js) =>
+              joiners = js
+              Done(io)
+            case _ => oldState
+          }
+
+          retry = !state.compareAndSet(oldState, newState)
         }
 
-        retry = !state.compareAndSet(oldState, newState)
+        if (joiners ne null) joiners.foreach(_(io))
       }
-
-      if (joiners ne null) joiners.foreach(_(io))
     }
-  }
 }
 object Promise {
   private val ConstFalse: () => Boolean = () => false
@@ -255,7 +256,7 @@ object Promise {
    * Makes a new promise to be completed by the fiber with the specified id.
    */
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =
-    ZIO.succeedUnsafe(implicit u => unsafe.make(fiberId))
+    ZIO.succeed(unsafe.make(fiberId)(Unsafe.unsafe))
 
   private[zio] object unsafe {
     def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] =

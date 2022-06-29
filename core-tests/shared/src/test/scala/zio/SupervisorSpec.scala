@@ -7,7 +7,7 @@ object SupervisorSpec extends ZIOSpecDefault {
   def spec = suite("SupervisorSpec")(
     test("++") {
       for {
-        ref       <- ZIO.succeedUnsafe(implicit u => Ref.unsafe.make(0))
+        ref       <- ZIO.succeedUnsafe(implicit unsafe => Ref.unsafe.make(0))
         left      <- makeSupervisor(ref)
         right     <- makeSupervisor(ref)
         supervisor = left ++ right

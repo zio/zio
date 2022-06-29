@@ -1213,9 +1213,7 @@ sealed abstract class ZManaged[-R, +E, +A] extends ZManagedVersionSpecific[R, E,
 object ZManaged extends ZManagedPlatformSpecific {
 
   lazy val currentReleaseMap: FiberRef[ReleaseMap] =
-    Unsafe.unsafeCompat { implicit u =>
-      FiberRef.unsafe.make(ReleaseMap.unsafe.make())
-    }
+    FiberRef.unsafe.make[ReleaseMap](ReleaseMap.unsafe.make()(Unsafe.unsafe))(Unsafe.unsafe)
 
   private sealed abstract class State
   private final case class Exited(nextKey: Long, exit: Exit[Any, Any], update: Finalizer => Finalizer) extends State
@@ -1437,7 +1435,7 @@ object ZManaged extends ZManagedPlatformSpecific {
      * Creates a new ReleaseMap.
      */
     def make(implicit trace: Trace): UIO[ReleaseMap] =
-      ZIO.succeedUnsafe(implicit u => unsafe.make())
+      ZIO.succeed(unsafe.make()(Unsafe.unsafe))
 
     private[zio] object unsafe {
 
@@ -2343,10 +2341,8 @@ object ZManaged extends ZManagedPlatformSpecific {
         map.get(a) match {
           case Some(promise) => (promise.await, map)
           case None =>
-            Unsafe.unsafeCompat { implicit u =>
-              val promise = Promise.unsafe.make[E, B](fiberId)
-              (scope(f(a)).map(_._2).intoPromise(promise) *> promise.await, map + (a -> promise))
-            }
+            val promise = Promise.unsafe.make[E, B](fiberId)(Unsafe.unsafe)
+            (scope(f(a)).map(_._2).intoPromise(promise) *> promise.await, map + (a -> promise))
         }
       }.flatten
 

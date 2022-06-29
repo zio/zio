@@ -24,11 +24,11 @@ object ThreadLocalBridge {
           for {
             fiberRef <- FiberRef.make(initialValue)
             _         = link(initialValue)
-            _         = Unsafe.unsafeCompat(implicit u => supervisor.trackFiberRef(fiberRef, link))
+            _         = supervisor.trackFiberRef(fiberRef, link)(Unsafe.unsafe)
             _ <- Scope.addFinalizer(
-                   ZIO.succeedUnsafe { implicit u =>
+                   ZIO.succeed {
                      link(initialValue)
-                     supervisor.forgetFiberRef(fiberRef, link)
+                     supervisor.forgetFiberRef(fiberRef, link)(Unsafe.unsafe)
                    }
                  )
           } yield {
