@@ -327,7 +327,6 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val streamsJVM = streams.jvm
-  // No bincompat on streams yet
   .settings(mimaSettings(failOnProblem = true))
 
 lazy val streamsJS = streams.js
