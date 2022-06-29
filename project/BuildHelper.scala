@@ -67,20 +67,24 @@ object BuildHelper {
   // Keep this consistent with the version in .core-tests/shared/src/test/scala/REPLSpec.scala
   val replSettings = makeReplSettings {
     """|import zio._
-       |import zio.Console._
-       |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[Any, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io) }
+       |implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
+       |  def unsafeRun: A =
+       |    Unsafe.unsafe { implicit unsafe =>
+       |      Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
+       |    }
+       |}
     """.stripMargin
   }
 
   // Keep this consistent with the version in .streams-tests/shared/src/test/scala/StreamREPLSpec.scala
   val streamReplSettings = makeReplSettings {
     """|import zio._
-       |import zio.Console._
-       |import 
-       |import zio.stream._
-       |import zio.Runtime.default._
-       |implicit class RunSyntax[A](io: ZIO[Any, Any, A]){ def unsafeRun: A = Runtime.default.unsafeRun(io) }
+       |implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
+       |  def unsafeRun: A =
+       |    Unsafe.unsafe { implicit unsafe =>
+       |      Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
+       |    }
+       |}
     """.stripMargin
   }
 
