@@ -18,7 +18,7 @@ We will use the [ZIO Quickstart: Restful Web Service](../quickstarts/restful-web
 
 We have a web service that does not allow us to configure the host and port of the service:
 
-```scala
+```bash
 git clone git@github.com:khajavi/zio-quickstart-restful-webservice.git
 cd zio-quickstart-restful-webservice
 sbt run
