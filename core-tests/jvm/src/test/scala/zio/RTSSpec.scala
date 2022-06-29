@@ -34,7 +34,7 @@ object RTSSpec extends ZIOBaseSpec {
         done  <- Ref.make(false)
         start <- Promise.make[Nothing, Unit]
         fiber <- ZIO.attemptBlockingInterrupt {
-                   Unsafe.unsafe { implicit u => start.unsafe.done(ZIO.unit); Thread.sleep(60L * 60L * 1000L) }
+                   Unsafe.unsafe { implicit unsafe => start.unsafe.done(ZIO.unit); Thread.sleep(60L * 60L * 1000L) }
                  }
                    .ensuring(done.set(true))
                    .fork
@@ -48,7 +48,7 @@ object RTSSpec extends ZIOBaseSpec {
         for {
           release <- Promise.make[Nothing, Int]
           latch   <- Promise.make[Nothing, Unit]
-          async = ZIO.asyncInterruptUnsafe[Any, Nothing, Unit] { implicit u => _ =>
+          async = ZIO.asyncInterruptUnsafe[Any, Nothing, Unit] { implicit unsafe => _ =>
                     latch.unsafe.done(ZIO.unit); Left(release.succeed(42).unit)
                   }
           fiber  <- async.fork
@@ -100,7 +100,7 @@ object RTSSpec extends ZIOBaseSpec {
       val e   = Executors.newSingleThreadExecutor()
 
       (0 until 1000).foreach { _ =>
-        Unsafe.unsafe { implicit u =>
+        Unsafe.unsafe { implicit unsafe =>
           rts.unsafe.run {
             ZIO.async[Any, Nothing, Int] { k =>
               val c: Callable[Unit] = () => k(ZIO.succeed(1))

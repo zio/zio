@@ -49,9 +49,9 @@ trait Runtime[+R] { self =>
    */
   final def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): IO[E, A] =
     ZIO.fiberId.flatMap { fiberId =>
-      ZIO.asyncInterruptUnsafe[Any, E, A] { implicit u => callback =>
-        val fiber = unsafe.fork(zio)
-        fiber.unsafe.addObserver(exit => callback(ZIO.done(exit)))
+      ZIO.asyncInterrupt[Any, E, A] { callback =>
+        val fiber = unsafe.fork(zio)(trace, Unsafe.unsafe)
+        fiber.unsafe.addObserver(exit => callback(ZIO.done(exit)))(Unsafe.unsafe)
         Left(ZIO.blocking(fiber.interruptAs(fiberId)))
       }
     }
@@ -102,7 +102,8 @@ trait Runtime[+R] { self =>
     )(implicit trace: Trace, unsafe: Unsafe): CancelableFuture[A]
   }
 
-  def unsafe: UnsafeAPI = new UnsafeAPIV1 {}
+  def unsafe: UnsafeAPI =
+    new UnsafeAPIV1 {}
 
   protected abstract class UnsafeAPIV1 extends UnsafeAPI {
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A] = {
@@ -311,7 +312,8 @@ object Runtime extends RuntimePlatformSpecific {
       def shutdown()(implicit unsafe: Unsafe): Unit
     }
 
-    override def unsafe: UnsafeAPI with UnsafeAPI2 = new UnsafeAPIV2 {}
+    override def unsafe: UnsafeAPI with UnsafeAPI2 =
+      new UnsafeAPIV2 {}
 
     protected abstract class UnsafeAPIV2 extends UnsafeAPIV1 with UnsafeAPI2 {
       def shutdown()(implicit unsafe: Unsafe) = shutdown0()

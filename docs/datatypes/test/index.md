@@ -30,7 +30,7 @@ import zio._
 ```scala mdoc:compile-only
 import scala.Predef.assert
 
-val random = Unsafe.unsafe { implicit u =>
+val random = Unsafe.unsafe { implicit unsafe =>
   Runtime.default.unsafe.run(
     Random.nextIntBounded(10)
   ).getOrThrowFiberFailure()

@@ -66,10 +66,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       eitherStream <- ZIO.succeed {
                         register { k =>
                           try {
-                            Unsafe.unsafe { implicit u =>
-                              runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer)).getOrThrowFiberFailure()
-                              ()
-                            }
+                            runtime.unsafe
+                              .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+                              .getOrThrowFiberFailure()(Unsafe.unsafe)
                           } catch {
                             case FiberFailure(c) if c.isInterrupted =>
                           }
@@ -112,10 +111,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
-                 Unsafe.unsafe { implicit u =>
-                   runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer)).getOrThrowFiberFailure()
-                   ()
-                 }
+                 runtime.unsafe
+                   .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+                   .getOrThrowFiberFailure()(Unsafe.unsafe)
                } catch {
                  case FiberFailure(c) if c.isInterrupted =>
                }
@@ -145,10 +143,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
-               Unsafe.unsafe { implicit u =>
-                 runtime.unsafe.run(stream.Take.fromPull(k).flatMap(output.offer)).getOrThrowFiberFailure()
-                 ()
-               }
+               runtime.unsafe
+                 .run(stream.Take.fromPull(k).flatMap(output.offer))(trace, Unsafe.unsafe)
+                 .getOrThrowFiberFailure()(Unsafe.unsafe)
              } catch {
                case FiberFailure(c) if c.isInterrupted =>
              }

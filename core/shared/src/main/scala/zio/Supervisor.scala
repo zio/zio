@@ -77,7 +77,7 @@ object Supervisor {
    *   (platform-dependent).
    */
   def track(weak: Boolean)(implicit trace: Trace): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] =
-    ZIO.succeedUnsafe(implicit u => unsafe.track(weak))
+    ZIO.succeed(unsafe.track(weak)(Unsafe.unsafe))
 
   def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
 

@@ -42,11 +42,7 @@ abstract class BaseTestTask[T](
     var resOutter: CancelableFuture[Unit] = null
     try {
       val res: CancelableFuture[Unit] =
-        Unsafe.unsafe { implicit u =>
-          runtime.unsafe.runToFuture {
-            run(zTestHandler)
-          }
-        }
+        runtime.unsafe.runToFuture(run(zTestHandler))(trace, Unsafe.unsafe)
 
       resOutter = res
       Await.result(res, Duration.Inf)

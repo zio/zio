@@ -67,13 +67,14 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new Metric[Type, In2, Out] {
       val keyType = self.keyType
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        override def update(in: In2, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
-          self.unsafe.update(f(in), extraTags)
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          override def update(in: In2, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.update(f(in), extraTags)
 
-        override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
-          self.unsafe.value(extraTags)
-      }
+          override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
+            self.unsafe.value(extraTags)
+        }
     }
 
   /**
@@ -93,26 +94,28 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new Metric[Type, In, Out2] {
       val keyType = self.keyType
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
-          self.unsafe.update(in, extraTags)
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.update(in, extraTags)
 
-        override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out2 =
-          f(self.unsafe.value(extraTags))
-      }
+          override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out2 =
+            f(self.unsafe.value(extraTags))
+        }
     }
 
   final def mapType[Type2](f: Type => Type2): Metric[Type2, In, Out] =
     new Metric[Type2, In, Out] {
       val keyType = f(self.keyType)
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
-          self.unsafe.update(in, extraTags)
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.update(in, extraTags)
 
-        override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
-          self.unsafe.value(extraTags)
-      }
+          override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
+            self.unsafe.value(extraTags)
+        }
     }
 
   /**
@@ -137,13 +140,14 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new Metric[Type, In, Out] {
       val keyType = self.keyType
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
-          self.unsafe.update(in, extraTags0 ++ extraTags)
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          override def update(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.update(in, extraTags0 ++ extraTags)
 
-        override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
-          self.unsafe.value(extraTags0 ++ extraTags)
-      }
+          override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
+            self.unsafe.value(extraTags0 ++ extraTags)
+        }
     }
 
   /**
@@ -158,13 +162,14 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new Metric[Type, In1, Out] {
       val keyType = self.keyType
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        override def update(in: In1, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
-          self.unsafe.update(in, f(in) ++ extraTags)
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          override def update(in: In1, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.update(in, f(in) ++ extraTags)
 
-        override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
-          self.unsafe.value(extraTags)
-      }
+          override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
+            self.unsafe.value(extraTags)
+        }
     }.map(_ => ())
 
   /**
@@ -176,10 +181,8 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.map { a =>
-          Unsafe.unsafe { implicit u =>
-            unsafe.update(in)
-            a
-          }
+          unsafe.update(in)(Unsafe.unsafe)
+          a
         }
     }
 
@@ -198,10 +201,8 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    */
   final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
-      val updater: Throwable => Unit = defect =>
-        Unsafe.unsafe { implicit u =>
-          unsafe.update(f(defect))
-        }
+      val updater: Throwable => Unit =
+        defect => unsafe.update(f(defect))(Unsafe.unsafe)
 
       def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(updater)))
@@ -227,13 +228,11 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           val startTime = java.lang.System.nanoTime()
 
           zio.map { a =>
-            Unsafe.unsafe { implicit u =>
-              val endTime  = java.lang.System.nanoTime()
-              val duration = Duration.fromNanos(endTime - startTime)
+            val endTime  = java.lang.System.nanoTime()
+            val duration = Duration.fromNanos(endTime - startTime)
 
-              unsafe.update(f(duration))
-              a
-            }
+            unsafe.update(f(duration))(Unsafe.unsafe)
+            a
           }
         }
     }
@@ -282,12 +281,13 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * provided amount.
    */
   final def update(in: => In)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeedUnsafe(implicit u => unsafe.update(in, Set.empty))
+    ZIO.succeed(unsafe.update(in, Set.empty)(Unsafe.unsafe))
 
   /**
    * Retrieves a snapshot of the value of the metric at this moment in time.
    */
-  final def value(implicit trace: Trace): UIO[Out] = ZIO.succeedUnsafe(implicit u => unsafe.value(Set.empty))
+  final def value(implicit trace: Trace): UIO[Out] =
+    ZIO.succeed(unsafe.value(Set.empty)(Unsafe.unsafe))
 
   final def withNow[In2](implicit ev: (In2, java.time.Instant) <:< In): Metric[Type, In2, Out] =
     contramap[In2](in2 => ev((in2, java.time.Instant.now())))
@@ -315,16 +315,17 @@ object Metric {
       new Metric[z1.Out, uz.In, z2.Out] {
         val keyType = z1.zip(self.keyType, that.keyType)
 
-        override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-          def update(in: uz.In, extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Unit = {
-            val (l, r) = uz.unzip(in)
-            self.unsafe.update(l, extraTags)
-            that.unsafe.update(r, extraTags)
-          }
+        override private[zio] val unsafe: UnsafeAPI =
+          new UnsafeAPI {
+            def update(in: uz.In, extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Unit = {
+              val (l, r) = uz.unzip(in)
+              self.unsafe.update(l, extraTags)
+              that.unsafe.update(r, extraTags)
+            }
 
-          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): z2.Out =
-            z2.zip(self.unsafe.value(extraTags), that.unsafe.value(extraTags))
-        }
+            def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): z2.Out =
+              z2.zip(self.unsafe.value(extraTags), that.unsafe.value(extraTags))
+          }
       }
   }
 
@@ -387,22 +388,21 @@ object Metric {
     new Metric[Type, key.keyType.In, key.keyType.Out] {
       val keyType = key.keyType
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        def update(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
-          unsafe: Unsafe
-        ): Unit =
-          hook(extraTags).update(in)
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          def update(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
+            unsafe: Unsafe
+          ): Unit =
+            hook(extraTags).update(in)
 
-        def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out =
-          hook(extraTags).get()
-      }
+          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out =
+            hook(extraTags).get()
+        }
 
       def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
         val fullKey = key.tagged(extraTags).asInstanceOf[MetricKey[key.keyType.type]]
 
-        Unsafe.unsafe { implicit u =>
-          metricRegistry.get(fullKey)
-        }
+        metricRegistry.get(fullKey)(Unsafe.unsafe)
       }
     }
 
@@ -426,14 +426,15 @@ object Metric {
     new Metric[Unit, Any, Out] {
       val keyType = ()
 
-      override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-        def update(in: Any, extraTags: Set[MetricLabel] = Set.empty)(implicit
-          unsafe: Unsafe
-        ): Unit = ()
+      override private[zio] val unsafe: UnsafeAPI =
+        new UnsafeAPI {
+          def update(in: Any, extraTags: Set[MetricLabel] = Set.empty)(implicit
+            unsafe: Unsafe
+          ): Unit = ()
 
-        def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Out =
-          out
-      }
+          def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Out =
+            out
+        }
     }
 
   /**

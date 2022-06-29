@@ -66,11 +66,9 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    */
   final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
-      Unsafe.unsafe { implicit u =>
-        if (!shuttingDown.getAndSet(true)) {
-          try Platform.exit(code.code)
-          catch { case _: SecurityException => }
-        }
+      if (!shuttingDown.getAndSet(true)) {
+        try Platform.exit(code.code)(Unsafe.unsafe)
+        catch { case _: SecurityException => }
       }
     }
 
@@ -94,17 +92,15 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
 
   protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
-      Unsafe.unsafe { implicit u =>
-        if (!ZIOApp.installedSignals.getAndSet(true)) {
-          val dumpFibers =
-            () => Unsafe.unsafe(implicit u => runtime.unsafe.run(Fiber.dumpAll).getOrThrowFiberFailure())
+      if (!ZIOApp.installedSignals.getAndSet(true)) {
+        val dumpFibers =
+          () => runtime.unsafe.run(Fiber.dumpAll)(trace, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe)
 
-          if (System.os.isWindows) {
-            Platform.addSignalHandler("INT", dumpFibers)
-          } else {
-            Platform.addSignalHandler("INFO", dumpFibers)
-            Platform.addSignalHandler("USR1", dumpFibers)
-          }
+        if (System.os.isWindows) {
+          Platform.addSignalHandler("INT", dumpFibers)(Unsafe.unsafe)
+        } else {
+          Platform.addSignalHandler("INFO", dumpFibers)(Unsafe.unsafe)
+          Platform.addSignalHandler("USR1", dumpFibers)(Unsafe.unsafe)
         }
       }
     }.ignore

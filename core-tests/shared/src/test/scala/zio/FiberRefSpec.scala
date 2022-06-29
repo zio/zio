@@ -313,7 +313,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("an unsafe handle is initialized and updated properly") {
         for {
           fiberRef <- FiberRef.make(initial)
-          handle   <- Unsafe.unsafe(implicit u => fiberRef.asThreadLocal)
+          handle   <- Unsafe.unsafe(implicit unsafe => fiberRef.asThreadLocal)
           value1   <- ZIO.succeed(handle.get())
           _        <- fiberRef.set(update1)
           value2   <- ZIO.succeed(handle.get())
@@ -324,7 +324,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("unsafe handles work properly when initialized in a race") {
         for {
           fiberRef  <- FiberRef.make(initial)
-          initHandle = Unsafe.unsafe(implicit u => fiberRef.asThreadLocal)
+          initHandle = Unsafe.unsafe(implicit unsafe => fiberRef.asThreadLocal)
           handle    <- ZIO.raceAll(initHandle, Iterable.fill(64)(initHandle))
           value1    <- ZIO.succeed(handle.get())
           doUpdate   = fiberRef.set(update)
@@ -337,7 +337,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           fiberRef <- FiberRef.make(0)
           setAndGet =
             (value: Int) =>
-              setRefOrHandle(fiberRef, value) *> Unsafe.unsafe { implicit u =>
+              setRefOrHandle(fiberRef, value) *> Unsafe.unsafe { implicit unsafe =>
                 fiberRef.asThreadLocal.flatMap(h => ZIO.succeed(h.get()))
               }
           n       = 64
@@ -348,7 +348,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       test("unsafe handles don't see updates from other fibers") {
         for {
           fiberRef <- FiberRef.make(initial)
-          handle   <- Unsafe.unsafe(implicit u => fiberRef.asThreadLocal)
+          handle   <- Unsafe.unsafe(implicit unsafe => fiberRef.asThreadLocal)
           value1   <- ZIO.succeed(handle.get())
           n         = 64
           fiber    <- ZIO.forkAll(Iterable.fill(n)(fiberRef.set(update).race(ZIO.succeed(handle.set(update)))))
@@ -362,7 +362,7 @@ object FiberRefSpec extends ZIOBaseSpec {
 
           test = (i: Int) =>
                    for {
-                     handle <- Unsafe.unsafe(implicit u => fiberRef.asThreadLocal)
+                     handle <- Unsafe.unsafe(implicit unsafe => fiberRef.asThreadLocal)
                      _      <- setRefOrHandle(fiberRef, handle, i)
                      _      <- ZIO.yieldNow
                      value  <- ZIO.succeed(handle.get())
@@ -376,7 +376,7 @@ object FiberRefSpec extends ZIOBaseSpec {
         for {
           fiberRef <- FiberRef.make(initial)
           _        <- fiberRef.set(update)
-          handle   <- Unsafe.unsafe(implicit u => fiberRef.asThreadLocal)
+          handle   <- Unsafe.unsafe(implicit unsafe => fiberRef.asThreadLocal)
           _        <- ZIO.succeed(handle.remove())
           value1   <- fiberRef.get
           value2   <- ZIO.succeed(handle.get())
@@ -412,7 +412,7 @@ object FiberRefSpec extends ZIOBaseSpec {
       for {
         expected <- ZIO.clock
         runtime  <- ZIO.runtime[Any]
-        actual   <- ZIO.succeedBlockingUnsafe(implicit u => runtime.unsafe.run(ZIO.clock).getOrThrowFiberFailure())
+        actual   <- ZIO.succeedBlockingUnsafe(implicit unsafe => runtime.unsafe.run(ZIO.clock).getOrThrowFiberFailure())
       } yield assertTrue(actual == expected)
     }
   ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
@@ -423,7 +423,7 @@ object FiberRefSpecUtil {
 
   def setRefOrHandle(fiberRef: FiberRef[Int], value: Int): UIO[Unit] =
     if (value % 2 == 0) fiberRef.set(value)
-    else Unsafe.unsafe(implicit u => fiberRef.asThreadLocal.flatMap(h => ZIO.succeed(h.set(value))))
+    else Unsafe.unsafe(implicit unsafe => fiberRef.asThreadLocal.flatMap(h => ZIO.succeed(h.set(value))))
 
   def setRefOrHandle(fiberRef: FiberRef[Int], handle: ThreadLocal[Int], value: Int): UIO[Unit] =
     if (value % 2 == 0) fiberRef.set(value)

@@ -35,7 +35,7 @@ class EmptyRaceBenchmark {
       if (i < size) ZIO.never.raceFirst(ZIO.succeed(i + 1)).flatMap(loop)
       else ZIO.succeedNow(i)
 
-    Unsafe.unsafe { implicit u =>
+    Unsafe.unsafe { implicit unsafe =>
       runtime.unsafe.run(loop(0)).getOrThrowFiberFailure()
     }
   }

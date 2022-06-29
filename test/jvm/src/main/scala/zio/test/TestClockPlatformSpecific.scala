@@ -48,9 +48,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
             }
 
           def now(): Instant =
-            Unsafe.unsafe { implicit u =>
-              clockState.unsafe.get.instant
-            }
+            clockState.unsafe.get(Unsafe.unsafe).instant
 
           def scheduleFuture[S, A](initial: Instant, s: S)(
             f: (Instant, S) => Option[(Instant, S)]
@@ -73,7 +71,7 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
               if (updatedState == Scheduling(end)) {
                 val start    = now()
                 val interval = Duration.fromInterval(start, end)
-                val cancelToken = Unsafe.unsafe { implicit u =>
+                val cancelToken =
                   schedule(
                     () =>
                       executor.submitOrThrow { () =>
@@ -91,11 +89,9 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
                                 latch.countDown()
                             }
                         }
-
-                      },
+                      }(Unsafe.unsafe),
                     interval
-                  )
-                }
+                  )(Unsafe.unsafe)
                 val currentState = state.getAndUpdate {
                   case Scheduling(end) => Running(cancelToken, end)
                   case state           => state
@@ -159,11 +155,10 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
           new AbstractExecutorService with ScheduledExecutorService {
             def awaitTermination(timeout: Long, unit: TimeUnit): Boolean =
               false
-            def execute(command: Runnable): Unit =
-              Unsafe.unsafe { implicit u =>
-                executor.submit(command)
-                ()
-              }
+            def execute(command: Runnable): Unit = {
+              executor.submit(command)(Unsafe.unsafe)
+              ()
+            }
             def isShutdown(): Boolean =
               false
             def isTerminated(): Boolean =

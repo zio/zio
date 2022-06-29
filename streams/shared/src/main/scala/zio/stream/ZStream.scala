@@ -3414,8 +3414,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       runtime <- ZIO.runtime[R]
       pull    <- toPull
     } yield {
-      def unfoldPull(implicit unsafe: Unsafe): Iterator[Either[E, A]] =
-        runtime.unsafe.run(pull) match {
+      def unfoldPull: Iterator[Either[E, A]] =
+        runtime.unsafe.run(pull)(trace, Unsafe.unsafe) match {
           case Exit.Success(chunk) => chunk.iterator.map(Right(_)) ++ unfoldPull
           case Exit.Failure(cause) =>
             cause.failureOrCause match {
@@ -3425,9 +3425,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             }
         }
 
-      Unsafe.unsafe { implicit u =>
-        unfoldPull
-      }
+      unfoldPull
     }
 
   /**

@@ -13,7 +13,7 @@ object StreamREPLSpec extends ZIOSpecDefault {
       @silent("never used")
       implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
         def unsafeRun: A =
-          Unsafe.unsafe { implicit u =>
+          Unsafe.unsafe { implicit unsafe =>
             Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
           }
       }

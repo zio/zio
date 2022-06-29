@@ -2,7 +2,7 @@ package zio.test
 
 import org.openjdk.jmh.annotations._
 import zio.BenchmarkUtil._
-import zio.{Trace, Unsafe, ZIO}
+import zio.{Trace, ZIO}
 
 import java.util.concurrent.TimeUnit
 
@@ -36,13 +36,9 @@ class GenBenchmark {
 
   @Benchmark
   def listOfN(): Unit =
-    Unsafe.unsafe { implicit u =>
-      unsafeRun(listOfNEffect)
-    }
+    unsafeRun(listOfNEffect)
 
   @Benchmark
   def causes(): Unit =
-    Unsafe.unsafe { implicit u =>
-      unsafeRun(causesEffect)
-    }
+    unsafeRun(causesEffect)
 }

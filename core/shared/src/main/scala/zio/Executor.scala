@@ -44,9 +44,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   lazy val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
-        Unsafe.unsafe { implicit u =>
-          if (!submit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)
-        }
+        if (!submit(r)(Unsafe.unsafe)) throw new RejectedExecutionException("Rejected: " + r.toString)
 
       override def reportFailure(cause: Throwable): Unit =
         cause.printStackTrace
@@ -57,10 +55,8 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
    */
   lazy val asJava: java.util.concurrent.Executor =
     command =>
-      Unsafe.unsafe { implicit u =>
-        if (submit(command)) ()
-        else throw new java.util.concurrent.RejectedExecutionException
-      }
+      if (submit(command)(Unsafe.unsafe)) ()
+      else throw new java.util.concurrent.RejectedExecutionException
 
   /**
    * Submits an effect for execution and signals that the current fiber is ready

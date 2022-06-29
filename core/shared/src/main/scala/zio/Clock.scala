@@ -56,27 +56,28 @@ trait Clock extends Serializable { self =>
     def nanoTime()(implicit unsafe: Unsafe): Long
   }
 
-  private[zio] def unsafe: UnsafeAPI = new UnsafeAPI {
-    def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
-      Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+  private[zio] def unsafe: UnsafeAPI =
+    new UnsafeAPI {
+      def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long =
+        Runtime.default.unsafe.run(self.currentTime(unit)(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
 
-    def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
-      Runtime.default.unsafe
-        .run(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
-        .getOrThrowFiberFailure()
+      def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
+        Runtime.default.unsafe
+          .run(self.currentTime(unit)(Trace.empty, DummyImplicit.dummyImplicit))(Trace.empty, unsafe)
+          .getOrThrowFiberFailure()
 
-    def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
-      Runtime.default.unsafe.run(self.currentDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+      def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
+        Runtime.default.unsafe.run(self.currentDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
 
-    def instant()(implicit unsafe: Unsafe): Instant =
-      Runtime.default.unsafe.run(self.instant(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+      def instant()(implicit unsafe: Unsafe): Instant =
+        Runtime.default.unsafe.run(self.instant(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
 
-    def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
-      Runtime.default.unsafe.run(self.localDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+      def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
+        Runtime.default.unsafe.run(self.localDateTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
 
-    def nanoTime()(implicit unsafe: Unsafe): Long =
-      Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
-  }
+      def nanoTime()(implicit unsafe: Unsafe): Long =
+        Runtime.default.unsafe.run(self.nanoTime(Trace.empty))(Trace.empty, unsafe).getOrThrowFiberFailure()
+    }
 }
 
 object Clock extends ClockPlatformSpecific with Serializable {
@@ -88,80 +89,81 @@ object Clock extends ClockPlatformSpecific with Serializable {
    */
   final case class ClockJava(clock: java.time.Clock) extends Clock {
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
-      ZIO.succeedUnsafe(implicit u => unsafe.currentDateTime())
+      ZIO.succeed(unsafe.currentDateTime()(Unsafe.unsafe))
     def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeedUnsafe(implicit u => unsafe.currentTime(unit))
+      ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
     def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
-      ZIO.succeedUnsafe(implicit u => unsafe.currentTime(unit))
+      ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
     def instant(implicit trace: Trace): UIO[Instant] =
-      ZIO.succeedUnsafe(implicit u => unsafe.instant())
+      ZIO.succeed(unsafe.instant()(Unsafe.unsafe))
     def javaClock(implicit trace: Trace): UIO[java.time.Clock] =
       ZIO.succeed(clock)
     def localDateTime(implicit trace: Trace): UIO[LocalDateTime] =
-      ZIO.succeedUnsafe(implicit u => unsafe.localDateTime())
+      ZIO.succeed(unsafe.localDateTime()(Unsafe.unsafe))
     def nanoTime(implicit trace: Trace): UIO[Long] =
-      ZIO.succeedUnsafe(implicit u => unsafe.nanoTime())
+      ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.asyncInterruptUnsafe { implicit u => cb =>
-        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
         Left(ZIO.succeed(canceler()))
       }
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
 
-    @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
-        val inst = instant()
-        unit match {
-          case TimeUnit.NANOSECONDS =>
-            inst.getEpochSecond * 1000000000 + inst.getNano
-          case TimeUnit.MICROSECONDS =>
-            inst.getEpochSecond * 1000000 + inst.getNano / 1000
-          case _ => unit.convert(inst.toEpochMilli, TimeUnit.MILLISECONDS)
+    @transient override private[zio] val unsafe: UnsafeAPI =
+      new UnsafeAPI {
+        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
+          val inst = instant()
+          unit match {
+            case TimeUnit.NANOSECONDS =>
+              inst.getEpochSecond * 1000000000 + inst.getNano
+            case TimeUnit.MICROSECONDS =>
+              inst.getEpochSecond * 1000000 + inst.getNano / 1000
+            case _ => unit.convert(inst.toEpochMilli, TimeUnit.MILLISECONDS)
+          }
         }
+
+        override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
+          unit.between(Instant.EPOCH, instant())
+
+        override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
+          OffsetDateTime.now(clock)
+
+        override def instant()(implicit unsafe: Unsafe): Instant =
+          clock.instant()
+
+        override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
+          LocalDateTime.now(clock)
+
+        override def nanoTime()(implicit unsafe: Unsafe): Long =
+          currentTime(TimeUnit.NANOSECONDS)
       }
-
-      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
-        unit.between(Instant.EPOCH, instant())
-
-      override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
-        OffsetDateTime.now(clock)
-
-      override def instant()(implicit unsafe: Unsafe): Instant =
-        clock.instant()
-
-      override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
-        LocalDateTime.now(clock)
-
-      override def nanoTime()(implicit unsafe: Unsafe): Long =
-        currentTime(TimeUnit.NANOSECONDS)
-    }
   }
 
   object ClockLive extends Clock {
     def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeedUnsafe(implicit u => unsafe.currentTime(unit))
+      ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
 
     def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
-      ZIO.succeedUnsafe(implicit u => unsafe.currentTime(unit))
+      ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
 
     def nanoTime(implicit trace: Trace): UIO[Long] =
-      ZIO.succeedUnsafe(implicit u => unsafe.nanoTime())
+      ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
 
     def sleep(duration: => Duration)(implicit trace: Trace): UIO[Unit] =
-      ZIO.asyncInterruptUnsafe { implicit u => cb =>
-        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)
+      ZIO.asyncInterrupt { cb =>
+        val canceler = globalScheduler.schedule(() => cb(ZIO.unit), duration)(Unsafe.unsafe)
         Left(ZIO.succeed(canceler()))
       }
 
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
-      ZIO.succeedUnsafe(implicit u => unsafe.currentDateTime())
+      ZIO.succeed(unsafe.currentDateTime()(Unsafe.unsafe))
 
     override def instant(implicit trace: Trace): UIO[Instant] =
-      ZIO.succeedUnsafe(implicit u => unsafe.instant())
+      ZIO.succeed(unsafe.instant()(Unsafe.unsafe))
 
     override def localDateTime(implicit trace: Trace): UIO[LocalDateTime] =
-      ZIO.succeedUnsafe(implicit u => unsafe.localDateTime())
+      ZIO.succeed(unsafe.localDateTime()(Unsafe.unsafe))
 
     def scheduler(implicit trace: Trace): UIO[Scheduler] =
       ZIO.succeed(globalScheduler)
@@ -180,36 +182,37 @@ object Clock extends ClockPlatformSpecific with Serializable {
       ZIO.succeed(JavaClock(ZoneId.systemDefault))
     }
 
-    @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
-      override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
-        val inst = instant()
-        // A nicer solution without loss of precision or range would be
-        // unit.toChronoUnit.between(Instant.EPOCH, inst)
-        // However, ChronoUnit is not available on all platforms
-        unit match {
-          case TimeUnit.NANOSECONDS =>
-            inst.getEpochSecond() * 1000000000 + inst.getNano()
-          case TimeUnit.MICROSECONDS =>
-            inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
-          case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+    @transient override private[zio] val unsafe: UnsafeAPI =
+      new UnsafeAPI {
+        override def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long = {
+          val inst = instant()
+          // A nicer solution without loss of precision or range would be
+          // unit.toChronoUnit.between(Instant.EPOCH, inst)
+          // However, ChronoUnit is not available on all platforms
+          unit match {
+            case TimeUnit.NANOSECONDS =>
+              inst.getEpochSecond() * 1000000000 + inst.getNano()
+            case TimeUnit.MICROSECONDS =>
+              inst.getEpochSecond() * 1000000 + inst.getNano() / 1000
+            case _ => unit.convert(inst.toEpochMilli(), TimeUnit.MILLISECONDS)
+          }
         }
+
+        override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
+          unit.between(Instant.EPOCH, instant())
+
+        override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
+          OffsetDateTime.now()
+
+        override def instant()(implicit unsafe: Unsafe): Instant =
+          Instant.now()
+
+        override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
+          LocalDateTime.now()
+
+        override def nanoTime()(implicit unsafe: Unsafe): Long =
+          JSystem.nanoTime
       }
-
-      override def currentTime(unit: ChronoUnit)(implicit unsafe: Unsafe): Long =
-        unit.between(Instant.EPOCH, instant())
-
-      override def currentDateTime()(implicit unsafe: Unsafe): OffsetDateTime =
-        OffsetDateTime.now()
-
-      override def instant()(implicit unsafe: Unsafe): Instant =
-        Instant.now()
-
-      override def localDateTime()(implicit unsafe: Unsafe): LocalDateTime =
-        LocalDateTime.now()
-
-      override def nanoTime()(implicit unsafe: Unsafe): Long =
-        JSystem.nanoTime
-    }
   }
 
   /**

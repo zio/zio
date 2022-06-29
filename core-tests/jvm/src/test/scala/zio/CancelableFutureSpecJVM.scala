@@ -19,7 +19,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
           for {
             runtime <- ZIO.runtime[Any]
             r <- ZIO.fromFuture { _ =>
-                   Unsafe.unsafe { implicit u =>
+                   Unsafe.unsafe { implicit unsafe =>
                      runtime.unsafe.runToFuture(ZIO.succeedNow(0))
                    }
                  }
@@ -32,7 +32,7 @@ object CancelableFutureSpecJVM extends ZIOBaseSpec {
         ZIO
           .runtime[Any]
           .map(runtime =>
-            Unsafe.unsafe(implicit u => runtime.unsafe.run(tst.onExecutor(executor)).getOrThrowFiberFailure())
+            Unsafe.unsafe(implicit unsafe => runtime.unsafe.run(tst.onExecutor(executor)).getOrThrowFiberFailure())
           )
       } @@ nonFlaky
     ) @@ zioTag(future)
