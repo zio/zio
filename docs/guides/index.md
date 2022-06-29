@@ -23,7 +23,7 @@ The following guides have been written to help you get started with ZIO with min
 3. [How to Enable Logging in a ZIO Application?](tutorials/enable-logging-in-a-zio-application.md)
 4. [How to Create a Custom Logger for a ZIO Application?](tutorials/create-custom-logger-for-a-zio-application.md)
 5. [How to Run Our First ZIO Project With VSCode?](tutorials/run-our-first-zio-project-with-vscode.md)
-6. How to Setup the IntelliJ IDEA to Use ZIO?
+6. [How to Run Our First ZIO Project With IntelliJ IDEA?](tutorials/running-our-first-zio-project-with-intellij-idea.md) 
 7. Building a RESTful Web Service
 8. Building a Web Service Client
 9. Building a gRPC Service with its Client
