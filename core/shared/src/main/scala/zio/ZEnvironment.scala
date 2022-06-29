@@ -181,6 +181,12 @@ final class ZEnvironment[+R] private (
 object ZEnvironment {
 
   /**
+   * Constructs a new environment holding no services.
+   */
+  def apply(): ZEnvironment[Any] =
+    empty
+
+  /**
    * Constructs a new environment holding the single service.
    */
   def apply[A: Tag](a: A): ZEnvironment[A] =
