@@ -119,7 +119,7 @@ sealed class ZTestTask(
                  }
           } yield ())
             .provideLayer(
-              sharedFilledTestLayer
+              sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
             )
         }
       logic
