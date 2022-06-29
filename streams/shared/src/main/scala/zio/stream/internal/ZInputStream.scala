@@ -122,7 +122,7 @@ private[zio] object ZInputStream {
           }
       }
 
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       new ZInputStream(Iterator.empty ++ unfoldPull)
     }
   }

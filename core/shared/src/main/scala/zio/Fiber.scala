@@ -367,7 +367,7 @@ sealed abstract class Fiber[+E, +A] { self =>
         _ <- completeFuture.forkDaemon // Cannot afford to NOT complete the promise, no matter what, so we fork daemon
       } yield new CancelableFuture[A](p.future) {
         def cancel(): Future[Exit[Throwable, A]] =
-          Unsafe.unsafeCompat { implicit u =>
+          Unsafe.unsafely { implicit u =>
             runtime.unsafe.runToFuture[Nothing, Exit[Throwable, A]](self.interrupt.map(_.mapErrorExit(f)))
           }
       }

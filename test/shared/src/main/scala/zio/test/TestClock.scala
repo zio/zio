@@ -157,7 +157,7 @@ object TestClock extends Serializable {
         def getZone(): ZoneId =
           zoneId
         def instant(): Instant =
-          Unsafe.unsafeCompat { implicit u =>
+          Unsafe.unsafely { implicit u =>
             clockState.unsafe.get.instant
           }
         override def withZone(zoneId: ZoneId): JavaClock =
@@ -393,7 +393,7 @@ object TestClock extends Serializable {
       for {
         live                  <- ZIO.service[Live]
         annotations           <- ZIO.service[Annotations]
-        clockState            <- ZIO.succeedNow(Unsafe.unsafeCompat(implicit u => Ref.unsafe.make(data)))
+        clockState            <- ZIO.succeedNow(Unsafe.unsafely(implicit u => Ref.unsafe.make(data)))
         warningState          <- Ref.Synchronized.make(WarningData.start)
         suspendedWarningState <- Ref.Synchronized.make(SuspendedWarningData.start)
         test                   = Test(clockState, live, annotations, warningState, suspendedWarningState)

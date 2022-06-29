@@ -54,7 +54,7 @@ class ParallelMergeSortBenchmark {
     sortInput.zip(sortOutput).foreach(verifySorted)
   }
 
-  private def benchMergeSort(runtime: Runtime[Any]): Unit = Unsafe.unsafeCompat { implicit u =>
+  private def benchMergeSort(runtime: Runtime[Any]): Unit = Unsafe.unsafely { implicit u =>
     runtime.unsafe.run {
       for {
         sortOutput <- ZIO.foreach(sortInput)(mergeSort)

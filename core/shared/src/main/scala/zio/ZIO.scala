@@ -2498,7 +2498,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * The level of parallelism for parallel operators.
    */
   final lazy val Parallelism: FiberRef[Option[Int]] =
-    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(None))
+    Unsafe.unsafely(implicit u => FiberRef.unsafe.make(None))
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -2628,7 +2628,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     register: Unsafe => (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    asyncInterrupt(cb => Unsafe.unsafeCompat(implicit u => register(u)(cb)), blockingOn)
+    asyncInterrupt(cb => Unsafe.unsafely(implicit u => register(u)(cb)), blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -2644,7 +2644,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
              val f = register(k =>
-               Unsafe.unsafeCompat { implicit u =>
+               Unsafe.unsafely { implicit u =>
                  r.unsafe.fork(k.intoPromise(p))
                }
              )
@@ -2654,10 +2654,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     } yield a
 
   def attemptUnsafe[A](a: Unsafe => A)(implicit trace: Trace): Task[A] =
-    ZIO.attempt(Unsafe.unsafeCompat(a))
+    ZIO.attempt(Unsafe.unsafely(a))
 
   def attemptBlockingIOUnsafe[A](effect: Unsafe => A)(implicit trace: Trace): IO[IOException, A] =
-    attemptBlockingIO(Unsafe.unsafeCompat(implicit u => effect(u)))
+    attemptBlockingIO(Unsafe.unsafely(implicit u => effect(u)))
 
   /**
    * Returns a new effect that, when executed, will execute the original effect
@@ -4307,7 +4307,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.blocking(ZIO.succeedUnsafe(a))
 
   def succeedUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
-    ZIO.succeed(Unsafe.unsafeCompat(a))
+    ZIO.succeed(Unsafe.unsafely(a))
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require

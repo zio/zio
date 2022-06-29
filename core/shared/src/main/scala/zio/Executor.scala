@@ -44,7 +44,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   lazy val asExecutionContext: ExecutionContext =
     new ExecutionContext {
       override def execute(r: Runnable): Unit =
-        Unsafe.unsafeCompat { implicit u =>
+        Unsafe.unsafely { implicit u =>
           if (!submit(r)) throw new RejectedExecutionException("Rejected: " + r.toString)
         }
 
@@ -57,7 +57,7 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
    */
   lazy val asJava: java.util.concurrent.Executor =
     command =>
-      Unsafe.unsafeCompat { implicit u =>
+      Unsafe.unsafely { implicit u =>
         if (submit(command)) ()
         else throw new java.util.concurrent.RejectedExecutionException
       }

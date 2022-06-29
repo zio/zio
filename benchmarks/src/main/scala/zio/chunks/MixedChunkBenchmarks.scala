@@ -58,13 +58,13 @@ class MixedChunkBenchmarks {
 
   @Benchmark
   def filterZIO(): Chunk[Int] =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       BenchmarkUtil.unsafeRun(chunk.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
     }
 
   @Benchmark
   def filterMaterializedZIO(): Chunk[Int] =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       BenchmarkUtil.unsafeRun(chunkMaterialized.filterZIO[Any, Nothing](n => ZIO.succeed(n % 2 == 0)))
     }
 
@@ -88,25 +88,25 @@ class MixedChunkBenchmarks {
 
   @Benchmark
   def mapZIO(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       BenchmarkUtil.unsafeRun(chunk.mapZIODiscard(_ => ZIO.unit))
     }
 
   @Benchmark
   def mapZIOMaterialized(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       BenchmarkUtil.unsafeRun(chunkMaterialized.mapZIODiscard(_ => ZIO.unit))
     }
 
   @Benchmark
   def foldZIO(): Int =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
     }
 
   @Benchmark
   def foldZIOMaterialized(): Int =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       BenchmarkUtil.unsafeRun(chunkMaterialized.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
     }
 

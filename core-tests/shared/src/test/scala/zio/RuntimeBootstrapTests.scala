@@ -9,7 +9,7 @@ object RuntimeBootstrapTests {
   implicit class RunSyntax[A](
     task: Task[A]
   ) {
-    def run(): A = Unsafe.unsafeCompat(implicit u => Runtime.default.unsafe.run(task).getOrThrowFiberFailure())
+    def run(): A = Unsafe.unsafely(implicit u => Runtime.default.unsafe.run(task).getOrThrowFiberFailure())
   }
 
   def test(name: String)(task: => Task[Any]): Unit = {

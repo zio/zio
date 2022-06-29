@@ -3425,7 +3425,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
             }
         }
 
-      Unsafe.unsafeCompat { implicit u =>
+      Unsafe.unsafe { implicit u =>
         unfoldPull
       }
     }

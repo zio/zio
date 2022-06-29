@@ -767,7 +767,7 @@ In ZIO 2.x, we added the `Unsafe` data type to help developers to differentiate 
 
 ```scala
 object Unsafe {
-  def unsafe[A](f: Unsafe => A): A = ???
+  def unsafely[A](f: Unsafe => A): A = ???
 }
 
 trait Runtime[+R] { self =>
@@ -791,7 +791,7 @@ object MainApp {
 
   def zioApplication: Int =
 -    Runtime.default.unsafeRun(zioWorkflow)
-+    Unsafe.unsafe { implicit u =>
++    Unsafe.unsafely { implicit u =>
 +      Runtime.default.unsafe.run(zioWorkflow).getOrThrowFiberFailure()
 +    }
 
@@ -807,17 +807,17 @@ This way it is easy to distinguish between _safe_ and _unsafe_ variants of the s
 To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafe` operator to create a block of code in which we can freely call unsafe operators:
 
 ```scala
-Unsafe.unsafe {
+Unsafe.unsafely {
   Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
 }
 ```
 
-If we are writing cross-version code, for example for a library, we can use the `unsafeCompat` operator, which works on all Scala versions but requires a slightly more verbose syntax:
+If we want to support Scala 2 we need to use a slightly more verbose syntax:
 
 ```scala mdoc:compile-only
 import zio._
 
-Unsafe.unsafeCompat { implicit unsafe =>
+Unsafe.unsafely { implicit unsafe =>
   Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
 }
 ```
@@ -826,8 +826,8 @@ In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x correspondi
 
 |         | ZIO 1.0                | ZIO 2.x                                                                          |
 |---------|------------------------|----------------------------------------------------------------------------------|
-| Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).getOrThrowFiberFailure() }` |
-| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { runtime.unsafe.run(x).getOrThrowFiberFailure() }`               |
+| Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafely { implicit u => runtime.unsafe.run(x).getOrThrowFiberFailure() }` |
+| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafely { runtime.unsafe.run(x).getOrThrowFiberFailure() }`               |
 
 ### Unsafe Variants
 
@@ -900,7 +900,7 @@ We can rewrite it in ZIO 2.x as follows:
 // ZIO 2.x
 import zio._
 
-Unsafe.unsafe { implicit u =>
+Unsafe.unsafely { implicit u =>
   Runtime.default.unsafe
     .fork(
       Console
@@ -922,10 +922,10 @@ Similarly, we can do the same for other unsafe operators. Here are some of them:
 
 | ZIO 1.0                        | ZIO 2.x                                                              |
 |--------------------------------|----------------------------------------------------------------------|
-| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x) }`              |
-| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit u => runtime.unsafe.run(x).getOrThrow() }` |
-| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit u => runtime.unsafe.fork(x) }`             |
-| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit u => runtime.unsafe.runToFuture(x) }`      |
+| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafely { implicit u => runtime.unsafe.run(x) }`              |
+| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafely { implicit u => runtime.unsafe.run(x).getOrThrow() }` |
+| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafely { implicit u => runtime.unsafe.fork(x) }`             |
+| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafely { implicit u => runtime.unsafe.runToFuture(x) }`      |
 
 ### Runtime Customization using Layers
 
@@ -954,7 +954,7 @@ object MainApp extends zio.App {
     ZIO
       .runtime[ZEnv]
       .map { runtime =>
-        Unsafe.unsafe { implicit u =>
+        Unsafe.unsafely { implicit u =>
           runtime
             .mapPlatform(_.withExecutor(customExecutor))
             .unsafe
@@ -1037,7 +1037,7 @@ object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
 
   def zioApplication(): Int =
-      Unsafe.unsafe { implicit u =>
+      Unsafe.unsafely { implicit u =>
         Runtime
           .unsafe
           .fromLayer(

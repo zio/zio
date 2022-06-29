@@ -1,5 +1,7 @@
 package zio.stm
 
+package zio.stm
+
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio._
 
@@ -28,7 +30,7 @@ class TArrayOpsBenchmarks {
   def setup(): Unit = {
     val data = (1 to size).toList
     idx = size / 2
-    array = Unsafe.unsafeCompat(implicit u => unsafeRun(TArray.fromIterable(data).commit))
+    array = Unsafe.unsafe(implicit u => unsafeRun(TArray.fromIterable(data).commit))
   }
 
   @Benchmark

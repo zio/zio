@@ -1,5 +1,7 @@
 package zio.chunks
 
+package zio.chunks
+
 import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio._
 
@@ -37,7 +39,7 @@ class ChunkFoldBenchmarks {
 
   @Benchmark
   def foldZIO(): Int =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafe { implicit u =>
       BenchmarkUtil.unsafeRun(chunk.foldZIO[Any, Nothing, Int](0)((s, a) => ZIO.succeed(s + a)))
     }
 }

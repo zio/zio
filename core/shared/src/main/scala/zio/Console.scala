@@ -83,7 +83,7 @@ object Console extends Serializable {
       ZIO.attemptBlockingIOUnsafe(implicit u => unsafe.printLineError(line))
 
     def readLine(implicit trace: Trace): IO[IOException, String] =
-      ZIO.attemptBlockingInterrupt(Unsafe.unsafeCompat(implicit u => unsafe.readLine())).refineToOrDie[IOException]
+      ZIO.attemptBlockingInterrupt(Unsafe.unsafely(implicit u => unsafe.readLine())).refineToOrDie[IOException]
 
     @transient override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
       override def print(line: Any)(implicit unsafe: Unsafe): Unit =

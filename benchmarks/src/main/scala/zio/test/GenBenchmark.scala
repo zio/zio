@@ -36,13 +36,13 @@ class GenBenchmark {
 
   @Benchmark
   def listOfN(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       unsafeRun(listOfNEffect)
     }
 
   @Benchmark
   def causes(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafely { implicit u =>
       unsafeRun(causesEffect)
     }
 }

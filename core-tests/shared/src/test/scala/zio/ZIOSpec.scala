@@ -2570,14 +2570,14 @@ object ZIOSpec extends ZIOBaseSpec {
           runtime         <- ZIO.runtime[Live]
           fork <- ZIO
                     .async[Any, Nothing, Unit] { k =>
-                      Unsafe.unsafeCompat { implicit u =>
+                      Unsafe.unsafely { implicit u =>
                         runtime.unsafe.fork {
                           step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                         }
                       }
                     }
                     .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
-                      Unsafe.unsafeCompat { implicit u =>
+                      Unsafe.unsafely { implicit u =>
                         runtime.unsafe.fork {
                           step.succeed(())
                         }
@@ -3494,7 +3494,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val executor = Executor.fromExecutionContext {
           scala.concurrent.ExecutionContext.Implicits.global
         }
-        val pool = ZIO.succeed(Unsafe.unsafeCompat(implicit u => Platform.getCurrentThreadGroup()))
+        val pool = ZIO.succeed(Unsafe.unsafely(implicit u => Platform.getCurrentThreadGroup()))
         val io = for {
           parentPool <- pool
           childPool  <- pool.fork.flatMap(_.join)

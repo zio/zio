@@ -57,7 +57,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       eitherStream <- ZIO.succeed {
                         register { k =>
                           try {
-                            Unsafe.unsafeCompat { implicit u =>
+                            Unsafe.unsafely { implicit u =>
                               runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                             }
                           } catch {
@@ -103,7 +103,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
         runtime <- ZIO.runtime[R]
         _ <- register { k =>
                try {
-                 Unsafe.unsafeCompat { implicit u =>
+                 Unsafe.unsafely { implicit u =>
                    runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                  }
                } catch {
@@ -136,7 +136,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       runtime <- ZIO.runtime[R]
       _ <- register { k =>
              try {
-               Unsafe.unsafeCompat { implicit u =>
+               Unsafe.unsafely { implicit u =>
                  runtime.unsafe.runToFuture(stream.Take.fromPull(k).flatMap(output.offer))
                }
              } catch {
