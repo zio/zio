@@ -193,13 +193,13 @@ By using ZIO streams, we do not care how big is a file, we just concentrate on t
 
 ## Core Abstractions
 
-To define a stream workflow there are three core abstraction in ZIO stream; _Streams_, _Sinks_, and _Transducers_:
+To define a stream workflow there are three core abstraction in ZIO stream; _Streams_, _Sinks_, and _Pipelines_:
 
 1. **[ZStream](zstream.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
 
 2. **[ZSink](zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
 
-3. **[Transducer](zpipeline.md)** — Transducers act as _transformers_ of values. They take individual values, and they transform or decode them. 
+3. **[ZPipeline](zpipeline.md)** — Pipelines act as _transformers_ of values. They take individual values, and they transform or decode them. 
 
 ### Stream
 
@@ -227,22 +227,20 @@ Just like Streams, sinks are super compositional. Sink's operators allow us to c
 
 Streams and Sinks are duals in category theory. One produces value, and the other one consumes them. They are mere images of each other. They both have to exist. A streaming library cannot be complete unless it has streams and sinks. That is why ZIO has a sort of better design than FS2 because FS2 has a stream, but it doesn't have a sink. Its Sink is just faked. It doesn't actually have a real sink. ZIO has a real sink, and we can compose them to generate new sinks.
 
-### Transducer
+### Pipeline
 
-With `Transducer`s, we can transform streams from one type to another, in a **stateful fashion**, which is sometimes necessary when we are doing encoding and decoding. 
+With `Pipeline`s, we can transform streams from one type to another, in a **stateful fashion**, which is sometimes necessary when we are doing encoding and decoding. 
 
-Transducer is a transformer of element types. Transducer accepts some element of type `A` and produces some element of type `B`, and it may fail along the way or use the environment. It just transforms elements from one type to another type in a stateful way. 
+Pipeline is a transformer of element types. Pipeline accepts some element of type `A` and produces some element of type `B`, and it may fail along the way or use the environment. It just transforms elements from one type to another type in a stateful way. 
 
-For example, we can write counter with transducers. We take strings and then split them into lines, and then we take the lines, and we split them into words, and then we count them. 
+For example, we can write counter with pipelines. We take strings and then split them into lines, and then we take the lines, and we split them into words, and then we count them. 
 
-Another common use case of transducers is **writing codecs**. We can use them to decode the bytes into strings. We have a bunch of bytes, and we want to end up with a JSON and then once we are in JSON land we want to go from JSON to our user-defined data type. So, by writing a transducer we can convert that JSON to our user-defined data type.
+Another common use case of pipelines is **writing codecs**. We can use them to decode the bytes into strings. We have a bunch of bytes, and we want to end up with a JSON and then once we are in JSON land we want to go from JSON to our user-defined data type. So, by writing a pipeline we can convert that JSON to our user-defined data type.
 
-**Transducers are very efficient**. They only exist for efficiency reasons because we can do everything we need actually with Sinks. Transducers exist only to make transformations faster. Sinks are not super fast to change from one sink to another. So transducers were invented to make it possible to transform element types in a compositional way without any of the performance overhead associated with changing over a Sink. 
+Pipelines can be thought of as **element transformers**. They transform elements of a stream:
 
-Transducers can be thought of as **element transformers**. They transform elements of a stream:
+1. We can take a pipeline, and we can stack it onto a stream to change the element type. For example, we have a Stream of `A`s, and a pipeline that goes from `A` to `B`, so we can take that pipeline from `A` to `B` and stack it on the stream to get back a stream of `B`s. 
 
-1. We can take a transducer, and we can stack it onto a stream to change the element type. For example, we have a Stream of `A`s, and a transducer that goes from `A` to `B`, so we can take that transducer from `A` to `B` and stack it on the stream to get back a stream of `B`s. 
+2. Also, we can stack a pipeline onto the front of a sink to change the input element type. If some sink consumes `B`s, and we have a pipeline from `A` to `B` we can take that pipeline stack it onto the front of the sink and get back a new sink that consumes `A`s. 
 
-2. Also, we can stack a transducer onto the front of a sink to change the input element type. If some sink consumes `B`s, and we have a transducer from `A` to `B` we can take that transducer stack it onto the front of the sink and get back a new sink that consumes `A`s. 
-
-Assume we are building the data pipeline, the elements come from the far left, and they end up on the far right. Events come from the stream, they end up on the sink, along the way they're transformed by transducers. **Transducers are the middle section of the pipe that keep on transforming those elements in a stateful way**. 
+Assume we are building the data pipeline, the elements come from the far left, and they end up on the far right. Events come from the stream, they end up on the sink, along the way they're transformed by pipelines. **Pipelines are the middle section of the pipe that keep on transforming those elements in a stateful way**. 

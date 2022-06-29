@@ -78,33 +78,29 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
         traverse(filteredSpec, description)
       )
 
-    Unsafe.unsafeCompat { implicit u =>
-      zio.Runtime.default.unsafe
-        .run(
-          scoped
-            .provide(
-              Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
-              spec.bootstrap
-            )
-        )
-        .getOrThrowFiberFailure()
-      description
-    }
+    zio.Runtime.default.unsafe
+      .run(
+        scoped
+          .provide(
+            Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+            spec.bootstrap
+          )
+      )(Trace.empty, Unsafe.unsafe)
+      .getOrThrowFiberFailure()(Unsafe.unsafe)
+    description
   }
 
   override def run(notifier: RunNotifier): Unit = {
-    val _ = Unsafe.unsafeCompat { implicit u =>
-      zio.Runtime.default.unsafe.run {
+    val _ = zio.Runtime.default.unsafe.run {
 
-        val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =
-          instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
-        spec
-          .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
-          .provide(
-            Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope])
-          )
-      }.getOrThrowFiberFailure()
-    }
+      val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =
+        instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
+      spec
+        .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
+        .provide(
+          Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope])
+        )
+    }(Trace.empty, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe)
   }
 
   private def reportRuntimeFailure[E](

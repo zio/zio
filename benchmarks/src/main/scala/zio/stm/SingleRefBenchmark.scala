@@ -29,7 +29,7 @@ class SingleRefBenchmark {
 
   @Benchmark
   def trefContention(): Unit =
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafe { implicit unsafe =>
       unsafeRun(for {
         tref  <- TRef.make(0).commit
         fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(tref.update(_ + 1).commit)))

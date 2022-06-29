@@ -382,7 +382,7 @@ In ZIO 2.x, when we are zipping together different effects:
 - `Tuple`s are not nested.
 - `Unit`s do not contribute to the output.
 
-Assume we have these effects
+Assume we have these effects:
 
 ```scala mdoc:silent:nest
 val x1: UIO[Int]     = ZIO.succeed(???)
@@ -393,15 +393,16 @@ val x4: UIO[Boolean] = ZIO.succeed(???)
 
 In ZIO 1.x, the output of zipping together these effects are nested:
 
-```scala
+```scala mdoc:compile-only
 val zipped = x1 <*> x2 <*> x3 <*> x4
-// zipped: ZIO[Any, Nothing, (((Int, Unit), String), Boolean)] = zio.ZIO$FlatMap@3ed3c202
+// zipped: ZIO[Any, Nothing, (((Int, Unit), String), Boolean)] = ...
 ```
 
 While in ZIO 2.x, we have more ergonomics result type and also the `Unit` data-type doesn't contribute to the output:
 
-```scala mdoc:nest
+```scala mdoc:compile-only
 val zipped = x1 <*> x2 <*> x3 <*> x4
+// zipped: ZIO[Any, Nothing, (Int, String, Boolean)] = ...
 ```
 
 This change is not only for the `ZIO` data type but also for all other data types like `ZStream`, `ZSTM`, etc.
@@ -473,7 +474,7 @@ The error channel of `leftProjection` doesn't contain type information of the ot
 
 In ZIO 2.x, the `ZIO#left` and `ZIO#right`, contains all type information so then we can `unleft` or `unright` to inverse that projection:
 
-```scala mdoc:nest
+```scala mdoc:compile-only
 val effect         = ZIO.attempt(Left[Int, String](5))
 val leftProjection = effect.left
 val unlefted       = leftProjection.map(_ * 2).unleft 
@@ -588,8 +589,8 @@ for {
 2. By removing these services from the environment, all usage of `ZEnv`, `Console`, `Clock`, `Random`, or `System` in the environment type of `ZIO`, `ZStream` and `ZLayer` should be generally deleted:
 
 ```diff
-val myApp: ZIO[Clock with Console with Random with UserRepo with Logging, IOException, Unit] = ???
-val myApp: ZIO[UserRepo with Logging, IOException, Unit] = ???
+- val myApp: ZIO[Clock with Console with Random with UserRepo with Logging, IOException, Unit] = ???
++ val myApp: ZIO[UserRepo with Logging, IOException, Unit] = ???
 ```
 
 3. If we want to use the live version in tests we can use these test aspects instead of providing them as layers:
@@ -729,6 +730,203 @@ We deprecated the `Fiber.ID` and moved it to the `zio` package and called it the
 
 ## Runtime, Platform and Executor
 
+### Unsafe Marker
+
+To run a ZIO workflow, we usually use `ZIOAppDefault` or `ZIOApp` traits. These traits provide the `run` method which will run the workflow using their default `Runtime` system. But when we want to work with a low-level API or want to integrate with a legacy code, we need to unsafely run the workflow.
+
+In ZIO 1.x, we used the `zio.Runtime.unsafeRun` method to run a ZIO workflow:
+
+```scala
+trait Runtime[+R] {
+  def unsafeRun[E, A](zio: => ZIO[R, E, A]): A
+}
+```
+
+For example, if we wanted to integrate a ZIO workflow with a legacy unsafe code, we used to write something like this:
+
+```scala
+import zio._
+
+object MainApp {
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+  
+  def legacyApplication(input: Int): Unit = ???
+  
+  def zioApplication: Int = 
+    Runtime.default.unsafeRun(zioWorkflow)
+  
+
+  def main(args: Array[String]): Unit = {
+    legacyApplication(zioApplication)
+  }
+
+}
+```
+
+In ZIO 2.x, we added the `Unsafe` data type to help developers to differentiate lower-level codes that are not purely functional from the higher-level codes which are always pure, total, and type safe. So the `Unsafe` is just a marker capability to indicate that something is unsafe:
+
+```scala
+object Unsafe {
+  def unsafe[A](f: Unsafe => A): A = ???
+}
+
+trait Runtime[+R] { self =>
+  def unsafe: UnsafeAPI
+  
+  trait UnsafeAPI {
+    def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
+  }
+}
+```
+
+So to migrate the previous code to ZIO 2.x, we need to use the `Unsafe` data type like below:
+
+```diff
+import zio._
+
+object MainApp {
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  def zioApplication: Int =
+-    Runtime.default.unsafeRun(zioWorkflow)
++    Unsafe.unsafe { implicit unsafe =>
++      Runtime.default.unsafe.run(zioWorkflow).getOrThrowFiberFailure()
++    }
+
+  def main(args: Array[String]): Unit = {
+    legacyApplication(zioApplication)
+  }
+
+}
+```
+
+This way it is easy to distinguish between _safe_ and _unsafe_ variants of the same operator. 
+
+To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafe` operator to create a block of code in which we can freely call unsafe operators:
+
+```scala
+Unsafe.unsafe {
+  Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
+}
+```
+
+If we want to support Scala 2 we need to use a slightly more verbose syntax:
+
+```scala mdoc:compile-only
+import zio._
+
+Unsafe.unsafe { implicit unsafe =>
+  Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
+}
+```
+
+In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x corresponding to the unsafe operators:
+
+|         | ZIO 1.0                | ZIO 2.x                                                                               |
+|---------|------------------------|---------------------------------------------------------------------------------------|
+| Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { implicit unsafe => runtime.unsafe.run(x).getOrThrowFiberFailure() }` |
+| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { runtime.unsafe.run(x).getOrThrowFiberFailure() }`                    |
+
+### Unsafe Variants
+
+In ZIO 1.x, the `Runtime` had several methods for running ZIO workflows unsafely:
+
+```scala
+trait Runtime[+R] {
+  def unsafeRun[E, A](zio: => ZIO[R, E, A]): A
+  def unsafeRunTask[A](task: => RIO[R, A]): A
+  def unsafeRunSync[E, A](zio: => ZIO[R, E, A]): Exit[E, A]
+  def unsafeRunAsync[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Unit
+  def unsafeRunAsyncCancelable[E, A](zio: => ZIO[R, E, A])(k: Exit[E, A] => Any): Fiber.Id => Exit[E, A]
+  def unsafeRunAsync_[E, A](zio: ZIO[R, E, A]): Unit
+  def unsafeRunToFuture[E <: Throwable, A](zio: ZIO[R, E, A]): CancelableFuture[A]
+}
+```
+
+We can group these unsafe methods into two categories: synchronous and asynchronous. The synchronous operators are the ones that are used when we want to wait for the result of the workflow to be available. The asynchronous operators are used when we want to execute the workflow asynchronously by providing a callback function that will be called when the workflow is completed.
+
+In the previous section, we described the new `run` method inside the `unsafe` object of the `Runtime` trait. We can use this method to unsafely run workflows synchronously. There is another method, called `fork`, that can be used to unsafely run workflows asynchronously:
+
+```scala
+trait Runtime {
+  def unsafe: UnsafeAPI
+  
+  trait UnsafeAPI {
+    def run[E, A](zio: ZIO[R, E, A])(implicit unsafe: Unsafe): Exit[E, A]
+
+    def fork[E, A](zio: ZIO[R, E, A])(implicit unsafe: Unsafe): Fiber.Runtime[E, A]
+  }
+}
+```
+
+The `fork` method returns a `Fiber.Runtime` that can be used to control the execution of the workflow. We have added a new `unsafe` object to the `Fiber.Runtime` class that has several unsafe methods including the `addObserver`:
+
+
+```scala
+object Fiber {
+  sealed abstract class Runtime[+E, +A] extends Fiber[E, A] {
+    def unsafe: UnsafeAPI
+
+    trait UnsafeAPI {
+      def addObserver(observer: Exit[E, A] => Unit)(implicit unsafe: Unsafe): Unit
+    }
+  }
+}
+```
+
+Using the `addObserver` method, we can add a callback function of type `Exit[E, A] => Unit` to the underlying fiber. This callback function will be called when the fiber completes. Using these new functionalities, we can implement asynchronous unsafe operators like before. For example, assume we have the following code in ZIO 1.x:
+
+```scala
+// ZIO 1.x
+import zio._
+import zio.console._
+import zio.duration._
+
+Runtime.default.unsafeRunAsync(
+  console.putStrLn("After 3 seconds I will return 5").delay(3.seconds).as(5)
+)(
+  _.fold(
+    e => println(s"Failure: $e"),
+    v => println(s"Success: $v")
+  )
+)
+```
+
+We can rewrite it in ZIO 2.x as follows:
+
+```scala mdoc:compile-only
+// ZIO 2.x
+import zio._
+
+Unsafe.unsafe { implicit unsafe =>
+  Runtime.default.unsafe
+    .fork(
+      Console
+        .printLine("After 3 seconds I will return 5")
+        .delay(3.second)
+        .as(5)
+    )
+    .unsafe
+    .addObserver(
+      _.fold(
+        e => println(s"Failure: $e"),
+        v => println(s"Success: $v")
+      )
+    )
+}
+```
+
+Similarly, we can do the same for other unsafe operators. Here are some of them:
+
+| ZIO 1.0                        | ZIO 2.x                                                                   |
+|--------------------------------|---------------------------------------------------------------------------|
+| `runtime.unsafeRunSync(x)`     | `Unsafe.unsafe { implicit unsafe => runtime.unsafe.run(x) }`              |
+| `runtime.unsafeRunTask(x)`     | `Unsafe.unsafe { implicit unsafe => runtime.unsafe.run(x).getOrThrow() }` |
+| `runtime.unsafeRunAsync_(x)`   | `Unsafe.unsafe { implicit unsafe => runtime.unsafe.fork(x) }`             |
+| `runtime.unsafeRunToFuture(x)` | `Unsafe.unsafe { implicit unsafe => runtime.unsafe.runToFuture(x) }`      |
+
 ### Runtime Customization using Layers
 
 In ZIO 2.x we deleted the `zio.internal.Platform` data type, and instead, we use layers to customize the runtime. This allows us to use ZIO workflows in customizing our runtime (e.g. loading some configuration information to set up logging).
@@ -756,7 +954,7 @@ object MainApp extends zio.App {
     ZIO
       .runtime[ZEnv]
       .map { runtime =>
-        Unsafe.unsafe { implicit u =>
+        Unsafe.unsafe { implicit unsafe =>
           runtime
             .mapPlatform(_.withExecutor(customExecutor))
             .unsafe
@@ -839,7 +1037,7 @@ object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
 
   def zioApplication(): Int =
-      Unsafe.unsafe { implicit u =>
+      Unsafe.unsafe { implicit unsafe =>
         Runtime
           .unsafe
           .fromLayer(
@@ -1860,13 +2058,13 @@ Even though highly polymorphic versions of ZIO concurrent data structures (e.g. 
 
 Therefore, we simplified these data structures by specializing them in their more monomorphic versions without significant loss of features:
 
-| ZIO 1.x (removed)                   | ZIO 2.x              |
-|-------------------------------------|----------------------|
-|`ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`             |
-|`ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`            |
-|`ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]`|
-|`ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`           |
-|`ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`             |
+| ZIO 1.x (removed)                    | ZIO 2.x               |
+|--------------------------------------|-----------------------|
+| `ZRef[+EA, +EB, -A, +B]`             | `Ref[A]`              |
+| `ZTRef[+EA, +EB, -A, +B]`            | `TRef[A]`             |
+| `ZRefM[-RA, -RB, +EA, +EB, -A, +B]`  | `Ref.Synchronized[A]` |
+| `ZQueue[-RA, -RB, +EA, +EB, -A, +B]` | `Queue[A]`            |
+| `ZHub[-RA, -RB, +EA, +EB, -A, +B]`   | `Hub[A]`              |
 
 ## Ref
 
@@ -2252,10 +2450,9 @@ Every data type in ZIO (`ZIO`, `ZStream`, etc.) has a variety of constructor fun
 
 While these are precise, ZIO 2.0 provides the `ZIO.from` constructor which can intelligently choose the most likely constructor based on the input type. So instead of writing `ZIO.fromEither(Right(3))` we can easily write `ZIO.from(Right(3))`. Let's try some of them:
 
-```scala mdoc:invisible
+```scala mdoc:compile-only
 import zio.stream.ZStream
-```
-```scala mdoc:nest
+
 ZIO.fromOption(Some("Ok!"))
 ZIO.from(Some("Ok!"))
 

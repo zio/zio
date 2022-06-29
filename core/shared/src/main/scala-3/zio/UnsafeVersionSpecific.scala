@@ -16,11 +16,10 @@
 package zio 
 
 private[zio] trait UnsafeVersionSpecific { self =>
-  private[zio] def unsafe: Unsafe
-
-  def unsafe[A](f: Unsafe ?=> A): A = {
-    given Unsafe = self.unsafe
-    
-    f
-  }
+  implicit def implicitFunctionIsFunction[A](f: Unsafe ?=> A): Unsafe => A =
+    unsafe => {
+      given Unsafe = unsafe
+      
+      f
+    }
 }

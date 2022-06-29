@@ -53,11 +53,18 @@ private[zio] trait PlatformSpecific {
     }
   }
 
+  // Check the classpath to see if we're running in an unforked sbt environment.
+  private val isUnforkedInSbt =
+    Option(java.lang.System.getProperty("java.class.path")).getOrElse("").contains("/sbt-launch.jar")
+
   /**
    * Exits the application with the specified exit code.
    */
   final def exit(code: Int)(implicit unsafe: zio.Unsafe): Unit =
-    java.lang.System.exit(code)
+    // We do NOT want to exit if we're running in an unforked sbt environment.
+    // as that will cause sbt to exit.
+    if (!isUnforkedInSbt)
+      java.lang.System.exit(code)
 
   /**
    * Returns the name of the thread group to which this thread belongs. This is
