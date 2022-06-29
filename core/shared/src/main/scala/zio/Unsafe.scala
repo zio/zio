@@ -25,7 +25,7 @@ package zio
  * {{{
  * import Unsafe.unsafe
  *
- * unsafely { ... }
+ * unsafe { ... }
  * }}}
  */
 sealed trait Unsafe extends Serializable

@@ -767,7 +767,7 @@ In ZIO 2.x, we added the `Unsafe` data type to help developers to differentiate 
 
 ```scala
 object Unsafe {
-  def unsafely[A](f: Unsafe => A): A = ???
+  def unsafe[A](f: Unsafe => A): A = ???
 }
 
 trait Runtime[+R] { self =>
