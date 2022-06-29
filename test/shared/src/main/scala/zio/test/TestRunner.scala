@@ -53,31 +53,32 @@ final case class TestRunner[R, E](
     def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit]
   }
 
-  val unsafe: UnsafeAPI = new UnsafeAPI {
+  val unsafe: UnsafeAPI =
+    new UnsafeAPI {
 
-    /**
-     * An unsafe, synchronous run of the specified spec.
-     */
-    def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
-      runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure()
+      /**
+       * An unsafe, synchronous run of the specified spec.
+       */
+      def run(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Unit =
+        runtime.unsafe.run(self.run(spec).provideLayer(bootstrap)).getOrThrowFiberFailure()
 
-    /**
-     * An unsafe, asynchronous run of the specified spec.
-     */
-    def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
-      val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
-      fiber.unsafe.addObserver {
-        case Exit.Success(_) => k
-        case Exit.Failure(c) => throw FiberFailure(c)
+      /**
+       * An unsafe, asynchronous run of the specified spec.
+       */
+      def runAsync(spec: Spec[R, E])(k: => Unit)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+        val fiber = runtime.unsafe.fork(self.run(spec).provideLayer(bootstrap))
+        fiber.unsafe.addObserver {
+          case Exit.Success(_) => k
+          case Exit.Failure(c) => throw FiberFailure(c)
+        }
       }
-    }
 
-    /**
-     * An unsafe, synchronous run of the specified spec.
-     */
-    def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit] =
-      runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
-  }
+      /**
+       * An unsafe, synchronous run of the specified spec.
+       */
+      def runSync(spec: Spec[R, E])(implicit trace: Trace, unsafe: Unsafe): Exit[Nothing, Unit] =
+        runtime.unsafe.run(self.run(spec).unit.provideLayer(bootstrap))
+    }
 
   private[test] def buildRuntime(implicit
     trace: Trace

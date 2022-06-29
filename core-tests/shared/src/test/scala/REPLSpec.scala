@@ -12,7 +12,7 @@ object REPLSpec extends ZIOSpecDefault {
       @silent("never used")
       implicit class RunSyntax[A](io: ZIO[Any, Any, A]) {
         def unsafeRun: A =
-          Unsafe.unsafeCompat { implicit u =>
+          Unsafe.unsafe { implicit unsafe =>
             Runtime.default.unsafe.run(io).getOrThrowFiberFailure()
           }
       }

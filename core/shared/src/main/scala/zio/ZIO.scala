@@ -2498,7 +2498,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * The level of parallelism for parallel operators.
    */
   final lazy val Parallelism: FiberRef[Option[Int]] =
-    Unsafe.unsafeCompat(implicit u => FiberRef.unsafe.make(None))
+    FiberRef.unsafe.make[Option[Int]](None)(Unsafe.unsafe)
 
   /**
    * Submerges the error case of an `Either` into the `ZIO`. The inverse
@@ -2628,7 +2628,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     register: Unsafe => (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    asyncInterrupt(cb => Unsafe.unsafeCompat(implicit u => register(u)(cb)), blockingOn)
+    asyncInterrupt(cb => register(Unsafe.unsafe)(cb), blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -2643,21 +2643,17 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       p <- Promise.make[E, A]
       r <- ZIO.runtime[R]
       a <- ZIO.uninterruptibleMask { restore =>
-             val f = register(k =>
-               Unsafe.unsafeCompat { implicit u =>
-                 r.unsafe.fork(k.intoPromise(p))
-               }
-             )
+             val f = register(k => r.unsafe.fork(k.intoPromise(p))(trace, Unsafe.unsafe))
 
              restore(f.catchAllCause(p.refailCause)).fork *> restore(p.await)
            }
     } yield a
 
   def attemptUnsafe[A](a: Unsafe => A)(implicit trace: Trace): Task[A] =
-    ZIO.attempt(Unsafe.unsafeCompat(a))
+    ZIO.attempt(a(Unsafe.unsafe))
 
   def attemptBlockingIOUnsafe[A](effect: Unsafe => A)(implicit trace: Trace): IO[IOException, A] =
-    attemptBlockingIO(Unsafe.unsafeCompat(implicit u => effect(u)))
+    attemptBlockingIO(effect(Unsafe.unsafe))
 
   /**
    * Returns a new effect that, when executed, will execute the original effect
@@ -4307,7 +4303,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.blocking(ZIO.succeedUnsafe(a))
 
   def succeedUnsafe[A](a: Unsafe => A)(implicit trace: Trace): UIO[A] =
-    ZIO.succeed(Unsafe.unsafeCompat(a))
+    ZIO.succeed(Unsafe.unsafe(a))
 
   /**
    * Returns a lazily constructed effect, whose construction may itself require
@@ -4946,8 +4942,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       trace: Trace
     ): ZIO[R with Service, E, A] = {
       implicit val tag = tagged.tag
-      ZIO.suspendSucceedUnsafe { implicit u =>
-        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafe.get(tag)))
+      ZIO.suspendSucceed {
+        FiberRef.currentEnvironment.get.flatMap(environment => f(environment.unsafe.get(tag)(Unsafe.unsafe)))
       }
     }
   }
@@ -5574,13 +5570,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private def foreachParUnboundedDiscard[R, E, A](
     as0: => Iterable[A]
   )(f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
-    ZIO.suspendSucceedUnsafe { implicit u =>
+    ZIO.suspendSucceed {
       val as = as0
       if (as.isEmpty) ZIO.unit
       else {
         val size = as.size
         ZIO.uninterruptibleMask { restore =>
-          val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)
+          val promise = Promise.unsafe.make[Unit, Unit](FiberId.None)(Unsafe.unsafe)
           val ref     = new java.util.concurrent.atomic.AtomicInteger(0)
           ZIO.transplant { graft =>
             ZIO.foreach(as) { a =>
@@ -5589,7 +5585,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   cause => promise.fail(()) *> ZIO.refailCause(cause),
                   _ =>
                     if (ref.incrementAndGet == size) {
-                      promise.unsafe.done(ZIO.unit)
+                      promise.unsafe.done(ZIO.unit)(Unsafe.unsafe)
                       ZIO.unit
                     } else {
                       ZIO.unit
