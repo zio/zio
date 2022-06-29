@@ -232,7 +232,7 @@ The `bootstrap` layer is responsible for creating and managing any services that
 
 Let's assume we have two specs in different files, and we want to share the `Counter` service between them. First, we need to create a base class that contains the shared bootstrap layer:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 
 abstract class SharedCounterSpec extends ZIOSpec[Counter] {
@@ -294,6 +294,10 @@ Number of tests executed: 4
 ```
 
 The ZIO test runner will execute all specs with the shared bootstrap layer. This means that the `Counter` service will be created and managed only once, and will be shared between all specs.
+
+```scala mdoc:invisible:reset
+
+```
 
 ## Operations
 
