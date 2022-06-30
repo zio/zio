@@ -199,6 +199,7 @@ Let's assume we have two specs in different files, and we want to share the `Cou
 
 ```scala mdoc:silent
 import zio._
+import zio.test._
 
 abstract class SharedCounterSpec extends ZIOSpec[Counter] {
   override val bootstrap: ZLayer[Any, Nothing, Counter] = Counter.layer
