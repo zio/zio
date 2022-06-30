@@ -94,7 +94,7 @@ sealed class ZTestTask(
       for {
         summary <- ZIO.scoped {
                      spec.run
-                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
+                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope] ++ spec.bootstrap)
                        .onError(e => ZIO.succeed(println(e.prettyPrint)))
                    }
         _ <- sendSummary.provide(ZLayer.succeed(summary))
