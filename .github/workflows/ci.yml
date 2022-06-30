@@ -49,7 +49,7 @@ jobs:
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check generation of ScalaDoc
-        run: ./sbt +Test/compile
+        run: ./sbt +Test/doc
 
   publishLocal:
     runs-on: ubuntu-20.04
