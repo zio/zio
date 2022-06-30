@@ -7,15 +7,12 @@ Clock service contains some functionality related to time and scheduling.
 
 To get the current time in a specific time unit, the `currentTime` function takes a unit as `TimeUnit` and returns `UIO[Long]`:
 
-```scala mdoc:invisible
+```scala compile-only
 import zio._
 import java.util.concurrent.TimeUnit
-import java.time.DateTimeException
-```
 
-```scala mdoc:silent
 val inMilliseconds: UIO[Long] = Clock.currentTime(TimeUnit.MILLISECONDS)
-val inDays:        UIO[Long] = Clock.currentTime(TimeUnit.DAYS)
+val inDays        : UIO[Long] = Clock.currentTime(TimeUnit.DAYS)
 ```
 
 To get current date time in the current timezone the `currentDateTime` function returns a ZIO effect containing `OffsetDateTime`.
@@ -24,7 +21,9 @@ Also, the Clock service has a very useful functionality for sleeping and creatin
 
 In the following example we are going to print the current time periodically by placing a one second `sleep` between each print call:
 
-```scala mdoc:silent
+```scala compile-only
+import zio._
+
 def printTimeForever: ZIO[Any, Throwable, Nothing] =
   Clock.currentDateTime.flatMap(Console.printLine(_)) *>
     ZIO.sleep(1.seconds) *> printTimeForever
