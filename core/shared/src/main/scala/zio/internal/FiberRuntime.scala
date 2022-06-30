@@ -584,8 +584,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def handleFatalError(throwable: Throwable): Nothing = {
     FiberRuntime.catastrophicFailure.set(true)
-    throwable.printStackTrace()
-    throw throwable
+    val reportFatal = getReportFatal()(Unsafe.unsafe)
+    reportFatal(throwable)
   }
 
   /**
