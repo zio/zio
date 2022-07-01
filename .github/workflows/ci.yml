@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx6G -Xss8M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx6G -Xss8M # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx8G -Xss8M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java, uses G1 by default
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx8G -Xss8M -XX:+UseG1GC # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
 
 on:
   pull_request:
