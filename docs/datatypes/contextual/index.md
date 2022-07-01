@@ -212,7 +212,7 @@ In the example above, the compiler can infer the environment type of the `myApp`
 
 ### Accessing ZIO Environment
 
-We have two types of accessors for the ZIO environment:
+We have two types of accessors for the ZIO environment:DocRepo
 1. **Service Accessor (`ZIO.service`)** is used to access a specific service from the environment.
 2. **Service Member Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
 
@@ -407,8 +407,6 @@ Sometimes, as the number of dependent services grows and the dependency graph of
 
 A service is a group of functions that deals with only one concern. Keeping the scope of each service limited to a single responsibility improves our ability to understand code, in that we need to focus only on one topic at a time without juggling too many concepts together in our head.
 
-`ZIO` itself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
-
 In functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
 
 * Allowing the client to hold an interface as a contract and don't worry about the implementation. The interface signature determines all operations that should be done.
@@ -459,10 +457,10 @@ trait DocRepo {
 }
 ```
 
-2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
+2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class:
 
 ```scala mdoc:compile-only
-case class DocRepoLive() extends DocRepo {
+case class DocRepoImpl() extends DocRepo {
   override def get(id: String): ZIO[Any, Throwable, Doc] = ???
 
   override def save(document: Doc): ZIO[Any, Throwable, String] = ???
@@ -636,7 +634,7 @@ object InmemoryMetadataRepo {
 }
 ```
 
-This is how ZIO services are created. Let's use the `DocRepo` service in our application. We should provide the live layer of the `DocRepo` service to be able to run the application:
+This is how ZIO services are created. Let's use the `DocRepo` service in our application. We should provide `DocRepo` layer to be able to run the application:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1199,16 +1197,16 @@ object MainApp extends ZIOAppDefault {
   val app =
     for {
       id <-
-      ZIO.serviceWithZIO[DocRepo](_.save(
+        ZIO.serviceWithZIO[DocRepo](_.save(
           Doc(
-            "title",
-            "description",
-            "en",
-            "text/plain",
-            "content".getBytes()
+              "How to write a ZIO application?",
+              "In this tutorial we will learn how to write a ZIO application.",
+              "en",
+              "text/plain",
+              "content".getBytes()
+            )
           )
         )
-      )
       doc <- ZIO.serviceWithZIO[DocRepo](_.get(id))
       _ <- Console.printLine(
         s"""
