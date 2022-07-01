@@ -259,7 +259,6 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
-    Test / test := (Test / compile).value
   )
 
   def jsSettings: List[Def.Setting[_]] = List(
