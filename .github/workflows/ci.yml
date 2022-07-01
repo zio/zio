@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx5G -Xss8M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java, uses G1 by default
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx5G -Xss8M -XX:+UseG1GC # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx4G # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx4G # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
 
 on:
   pull_request:
@@ -49,7 +49,7 @@ jobs:
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check generation of ScalaDoc
-        run: ./sbt +Test/doc
+        run: ./sbt +Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
