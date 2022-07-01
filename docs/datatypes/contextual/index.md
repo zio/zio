@@ -319,7 +319,7 @@ object Logging {
     ZIO.serviceWithZIO(_.log(line))
 }
 
-val myApp: ZIO[Logging & Console, Throwable, Unit] =
+val myApp: ZIO[Logging, Throwable, Unit] =
   for {
     _    <- Logging.log("Application Started!")
     _    <- Console.print("Please enter your name: ")
@@ -682,10 +682,6 @@ object MainApp extends ZIOAppDefault {
 During writing the application, we don't care which implementation version of the `Logging`, `BlobStorage` and `MetadataRepo` services will be injected into our `app`. Later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
-
-```scala mdoc:invisible:reset
-
-```
 
 ### Defining Polymorphic Services in ZIO
 
@@ -1126,35 +1122,47 @@ Using ZIO environment follows three laws:
 
 For example, if the implementation of service `X` depends on service `Y` and `Z` then these should never be reflected in the trait that defines service `X`. It's leaking implementation details.
 
-So the following service definition is wrong because the `Console` and `Clock` service are dependencies of the  `Logging` service's implementation, not the `Logging` interface itself:
+So the following service definition is wrong because the `BlobStorage`, `MetadataRepo` and `Logging` services are dependencies of the  `DocRepo` service's implementation, not the `DocRepo` interface itself:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
-trait Logging {
-  def log(line: String): ZIO[Any, Nothing, Unit]
+
+trait DocRepo {
+  def save(document: Doc): ZIO[BlobStorage & MetadataRepo & Logging, Throwable, String]
 }
 ```
 
 2. **Service Implementation (Class)** — When implementing service interfaces, we should accept all dependencies in the class constructor.
 
-Again, let's see how `LoggingLive` accepts `Console` and `Clock` dependencies from the class constructor:
+Again, let's see how `DocRepoImpl` accepts `BlobStorage`, `MetadataRepo` and `Logging` dependencies from the class constructor:
 
-```scala mdoc:silent
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] =
+```scala mdoc:compile-only
+case class DocRepoImpl(
+    metadataRepo: MetadataRepo,
+    blobStorage: BlobStorage,
+    logger: Logging
+) extends DocRepo {
+  override def delete(id: String): ZIO[Any, Throwable, Unit] =
     for {
-      current <- clock.currentDateTime
-      _       <- console.printLine(s"$current--$line").orDie
+      _ <- blobStorage.delete(id)
+      _ <- metadataRepo.delete(id)
     } yield ()
+
+  override def get(id: String): ZIO[Any, Throwable, Doc] = ???
+
+  override def save(document: Doc): ZIO[Any, Throwable, String] = ???
+
+  override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] = ???
 }
 
-object LoggingLive {
-  val layer =
+object DocRepoImpl {
+  val layer: ZLayer[Logging with BlobStorage with MetadataRepo, Nothing, DocRepo] =
     ZLayer {
       for {
-        console <- ZIO.console
-        clock   <- ZIO.clock
-      } yield LoggingLive(console, clock)
+        metadataRepo <- ZIO.service[MetadataRepo]
+        blobStorage  <- ZIO.service[BlobStorage]
+        logging      <- ZIO.service[Logging]
+      } yield DocRepoImpl(metadataRepo, blobStorage, logging)
     }
 }
 ```
@@ -1162,22 +1170,21 @@ object LoggingLive {
 So keep in mind, we can't do something like this:
 
 ```scala mdoc:fail:silent
-case class LoggingLive() extends Logging {
-  override def log(line: String) =
+case class DocRepoImpl() extends DocRepo {
+  override def delete(id: String): ZIO[Any, Throwable, Unit] =
     for {
-      clock   <- ZIO.service[Clock]
-      console <- ZIO.service[Console]
-      current <- clock.currentDateTime
-      _       <- console.printLine(s"$current--$line").orDie
+      blobStorage  <- ZIO.service[BlobStorage]
+      metadataRepo <- ZIO.service[MetadataRepo]
+      _            <- blobStorage.delete(id)
+      _            <- metadataRepo.delete(id)
     } yield ()
-}
 
-// error: type mismatch;
-//  found   : zio.ZIO[zio.Console & zio.Clock,Nothing,Unit]
-//     (which expands to)  zio.ZIO[zio.Console with zio.Clock,Nothing,Unit]
-//  required: zio.ZIO[Logging,Nothing,Unit]
-//   def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO[Logging](_.log(line))
-//                                                                            ^^^^^^^^^^^
+  override def get(id: String): ZIO[Any, Throwable, Doc] = ???
+
+  override def save(document: Doc): ZIO[Any, Throwable, String] = ???
+
+  override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] = ???
+}
 ```
 
 3. **Business Logic** — Finally, in the business logic we should use the ZIO environment to consume services.
@@ -1189,16 +1196,40 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging, IOException, Unit] =
+  val app =
     for {
-      _    <- ZIO.serviceWithZIO[Logging](_.log("Application Started!"))
-      _    <- Console.print("Enter your name: ")
-      name <- Console.readLine
-      _    <- Console.printLine(s"Hello, $name!")
-      _    <- ZIO.serviceWithZIO[Logging](_.log("Application Exited!"))
+      id <-
+      ZIO.serviceWithZIO[DocRepo](_.save(
+          Doc(
+            "title",
+            "description",
+            "en",
+            "text/plain",
+            "content".getBytes()
+          )
+        )
+      )
+      doc <- ZIO.serviceWithZIO[DocRepo](_.get(id))
+      _ <- Console.printLine(
+        s"""
+          |Downloaded the document with $id id:
+          |  title: ${doc.title}
+          |  description: ${doc.description}
+          |  language: ${doc.language}
+          |  format: ${doc.format}
+          |""".stripMargin
+      )
+      _ <- ZIO.serviceWithZIO[DocRepo](_.delete(id))
+      _ <- Console.printLine(s"Deleted the document with $id id")
     } yield ()
 
-  def run = app.provide(LoggingLive.layer)
+  def run =
+    app.provide(
+      DocRepoImpl.layer,
+      ConsoleLogger.layer,
+      InmemoryBlobStorage.layer,
+      InmemoryMetadataRepo.layer
+    )
 }
 ```
 
