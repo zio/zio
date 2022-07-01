@@ -51,8 +51,12 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
    */
-  final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)
+  final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp = {
+    def combine[A: EnvironmentTag, B: EnvironmentTag]: EnvironmentTag[A with B] = EnvironmentTag[A with B]
+    ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)(
+      combine[this.Environment, that.Environment](this.environmentTag, that.environmentTag)
+    )
+  }
 
   /**
    * A helper function to obtain access to the command-line arguments of the
