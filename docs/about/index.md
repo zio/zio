@@ -1,5 +1,5 @@
 ---
-id: index
+id: about_index
 title: "About ZIO"
 ---
 

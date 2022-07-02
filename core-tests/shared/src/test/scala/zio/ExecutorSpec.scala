@@ -53,7 +53,7 @@ object ExecutorSpec extends ZIOBaseSpec {
     ),
     suite("Create an executor that cannot have tasks submitted to and check that:")(
       test("It throws an exception upon submission") {
-        assert(Unsafe.unsafeCompat(implicit u => TestExecutor.failing.submitOrThrow(TestExecutor.runnable)))(
+        assert(Unsafe.unsafe(implicit unsafe => TestExecutor.failing.submitOrThrow(TestExecutor.runnable)))(
           throwsA[RejectedExecutionException]
         )
       },
@@ -63,7 +63,7 @@ object ExecutorSpec extends ZIOBaseSpec {
     ),
     suite("Create a yielding executor and check that:")(
       test("Runnables can be submitted ") {
-        assert(Unsafe.unsafeCompat(implicit u => TestExecutor.y.submitOrThrow(TestExecutor.runnable)))(
+        assert(Unsafe.unsafe(implicit unsafe => TestExecutor.y.submitOrThrow(TestExecutor.runnable)))(
           not(throwsA[RejectedExecutionException])
         )
       },
@@ -73,7 +73,7 @@ object ExecutorSpec extends ZIOBaseSpec {
         )
       },
       test("When created from an EC, must not throw when fed an effect ") {
-        assert(Unsafe.unsafeCompat { implicit u =>
+        assert(Unsafe.unsafe { implicit unsafe =>
           Executor.fromExecutionContext(TestExecutor.ec).submit(TestExecutor.runnable)
         })(
           not(throwsA[RejectedExecutionException])
@@ -85,7 +85,7 @@ object ExecutorSpec extends ZIOBaseSpec {
     ),
     suite("Create an unyielding executor and check that:")(
       test("Runnables can be submitted") {
-        assert(Unsafe.unsafeCompat(implicit u => TestExecutor.u.submitOrThrow(TestExecutor.runnable)))(
+        assert(Unsafe.unsafe(implicit unsafe => TestExecutor.u.submitOrThrow(TestExecutor.runnable)))(
           not(throwsA[RejectedExecutionException])
         )
       },

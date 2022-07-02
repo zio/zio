@@ -18,16 +18,19 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{Summary, TestArgs, ZIOSpecAbstract}
-import zio.{Exit, Runtime, Scope, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Exit, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
 sealed abstract class ZTestRunnerNative(
   val args: Array[String],
-  val remoteArgs: Array[String],
+  remoteArgs0: Array[String],
   testClassLoader: ClassLoader,
   runnerType: String
 ) extends Runner {
+
+  def remoteArgs(): Array[String] = remoteArgs0
+
   def sendSummary: SendSummary
 
   val summaries: mutable.Buffer[Summary] = mutable.Buffer.empty
@@ -89,30 +92,29 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, zio.Runtime.default) {
 
-  def execute(continuation: Array[Task] => Unit): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      val fiber = Runtime.default.unsafe.fork {
-        for {
-          summary <- ZIO.scoped {
-                       spec.run
-                         .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
-                         .onError(e => ZIO.succeed(println(e.prettyPrint)))
-                     }
-          _ <- sendSummary.provide(ZLayer.succeed(summary))
-          _ <- ZIO.when(summary.status == Summary.Failure)(
-                 ZIO.fail(new Exception("Failed tests."))
-               )
-        } yield ()
+  def execute(continuation: Array[Task] => Unit): Unit = {
+    val fiber = Runtime.default.unsafe.fork {
+      for {
+        summary <- ZIO.scoped {
+                     spec.run
+                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope] ++ spec.bootstrap)
+                       .onError(e => ZIO.succeed(println(e.prettyPrint)))
+                   }
+        _ <- sendSummary.provide(ZLayer.succeed(summary))
+        _ <- ZIO.when(summary.status == Summary.Failure)(
+               ZIO.fail(new Exception("Failed tests."))
+             )
+      } yield ()
 
+    }(Trace.empty, Unsafe.unsafe)
+    fiber.unsafe.addObserver { exit =>
+      exit match {
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
+        case _                   =>
       }
-      fiber.unsafe.addObserver { exit =>
-        exit match {
-          case Exit.Failure(cause) => Console.err.println(s"$runnerType failed: " + cause.prettyPrint)
-          case _                   =>
-        }
-        continuation(Array())
-      }
-    }
+      continuation(Array())
+    }(Unsafe.unsafe)
+  }
 }
 
 object ZTestTask {

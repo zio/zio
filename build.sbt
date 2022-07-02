@@ -36,7 +36,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreNative/test;stacktracerNative/test;streamsNative/test;testNative/test;testRunnerNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -96,6 +96,7 @@ lazy val root = project
     coreNative,
     coreTestsJS,
     coreTestsJVM,
+    coreTestsNative,
     docs,
     internalMacrosJS,
     internalMacrosJVM,
@@ -121,6 +122,7 @@ lazy val root = project
     streamsNative,
     streamsTestsJS,
     streamsTestsJVM,
+    streamsTestsNative,
     testJS,
     testJVM,
     testNative,
@@ -139,7 +141,8 @@ lazy val root = project
     testScalaCheckJVM,
     testScalaCheckNative,
     testTestsJS,
-    testTestsJVM
+    testTestsJVM,
+    testTestsNative
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -149,7 +152,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(stdSettings("zio"))
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio"))
-  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.0")
+  .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.3")
   .enablePlugins(BuildInfoPlugin)
   .settings(macroDefinitionSettings)
   .settings(
@@ -170,7 +173,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val coreJVM = core.jvm
   .settings(replSettings)
-  .settings(mimaSettings(failOnProblem = false))
+  .settings(mimaSettings(failOnProblem = true))
 
 lazy val coreJS = core.js
   .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
@@ -183,7 +186,7 @@ lazy val coreNative = core.native
     )
   )
 
-lazy val coreTests = crossProject(JSPlatform, JVMPlatform)
+lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
   .dependsOn(core)
   .dependsOn(test)
@@ -212,6 +215,9 @@ lazy val coreTestsJS = coreTests.js
       }
     }
   )
+
+lazy val coreTestsNative = coreTests.native
+  .settings(nativeSettings)
 
 lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("managed"))
@@ -327,15 +333,14 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val streamsJVM = streams.jvm
-  // No bincompat on streams yet
-  .settings(mimaSettings(failOnProblem = false))
+  .settings(mimaSettings(failOnProblem = true))
 
 lazy val streamsJS = streams.js
 
 lazy val streamsNative = streams.native
   .settings(nativeSettings)
 
-lazy val streamsTests = crossProject(JSPlatform, JVMPlatform)
+lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams-tests"))
   .dependsOn(streams)
   .dependsOn(coreTests % "test->test;compile->compile")
@@ -363,6 +368,9 @@ lazy val streamsTestsJS = streamsTests.js
       }
     }
   )
+
+lazy val streamsTestsNative = streamsTests.native
+  .settings(nativeSettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -405,7 +413,7 @@ lazy val testNative = test.native
     )
   )
 
-lazy val testTests = crossProject(JSPlatform, JVMPlatform)
+lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-tests"))
   .dependsOn(test)
   .settings(stdSettings("test-tests"))
@@ -425,6 +433,8 @@ lazy val testTestsJS = testTests.js
       ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
     )
   )
+lazy val testTestsNative = testTests.native
+  .settings(nativeSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -504,9 +514,10 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     )
   )
 
-lazy val testScalaCheckJVM    = testScalaCheck.jvm
-lazy val testScalaCheckJS     = testScalaCheck.js
-lazy val testScalaCheckNative = testScalaCheck.native.settings(nativeSettings)
+lazy val testScalaCheckJVM = testScalaCheck.jvm
+lazy val testScalaCheckJS  = testScalaCheck.js
+lazy val testScalaCheckNative = testScalaCheck.native
+  .settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -761,6 +772,7 @@ lazy val docs = project.module
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
+    Compile / fork := false,
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     crossScalaVersions --= List(Scala211, Scala3),

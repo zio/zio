@@ -87,63 +87,61 @@ object Standard {
 
   val live: ZLayer[JvmMetricsSchedule, Throwable, Standard] =
     ZLayer.scoped {
-      Unsafe.unsafeCompat { implicit u =>
-        for {
-          runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean)
-          operatingSystemMXBean <- ZIO.attempt(ManagementFactory.getOperatingSystemMXBean)
-          getProcessCpuTime      = new MXReflection("getProcessCpuTime", operatingSystemMXBean)
-          getOpenFileDescriptorCount =
-            new MXReflection("getOpenFileDescriptorCount", operatingSystemMXBean)
-          getMaxFileDescriptorCount =
-            new MXReflection("getMaxFileDescriptorCount", operatingSystemMXBean)
-          isLinux <- ZIO.attempt(operatingSystemMXBean.getName.indexOf("Linux") == 0)
-          cpuSecondsTotal =
-            PollingMetric(
-              Metric.gauge("process_cpu_seconds_total").contramap[Long](_.toDouble / 1.0e09),
-              getProcessCpuTime.get
-            )
-          processStartTime =
-            PollingMetric(
-              Metric
-                .gauge("process_start_time_seconds")
-                .contramap[Long](_.toDouble / 1000.0),
-              ZIO.attempt(runtimeMXBean.getStartTime)
-            )
-          openFdCount =
-            PollingMetric(
-              Metric
-                .gauge("process_open_fds")
-                .contramap[Long](_.toDouble),
-              getOpenFileDescriptorCount.get
-            )
-          maxFdCount =
-            PollingMetric(
-              Metric
-                .gauge("process_max_fds")
-                .contramap[Long](_.toDouble),
-              getMaxFileDescriptorCount.get
-            )
-          virtualMemorySize  = Metric.gauge("process_virtual_memory_bytes")
-          residentMemorySize = Metric.gauge("process_resident_memory_bytes")
+      for {
+        runtimeMXBean         <- ZIO.attempt(ManagementFactory.getRuntimeMXBean)
+        operatingSystemMXBean <- ZIO.attempt(ManagementFactory.getOperatingSystemMXBean)
+        getProcessCpuTime      = new MXReflection("getProcessCpuTime", operatingSystemMXBean)
+        getOpenFileDescriptorCount =
+          new MXReflection("getOpenFileDescriptorCount", operatingSystemMXBean)
+        getMaxFileDescriptorCount =
+          new MXReflection("getMaxFileDescriptorCount", operatingSystemMXBean)
+        isLinux <- ZIO.attempt(operatingSystemMXBean.getName.indexOf("Linux") == 0)
+        cpuSecondsTotal =
+          PollingMetric(
+            Metric.gauge("process_cpu_seconds_total").contramap[Long](_.toDouble / 1.0e09),
+            getProcessCpuTime.get(Trace.empty, Unsafe.unsafe)
+          )
+        processStartTime =
+          PollingMetric(
+            Metric
+              .gauge("process_start_time_seconds")
+              .contramap[Long](_.toDouble / 1000.0),
+            ZIO.attempt(runtimeMXBean.getStartTime)
+          )
+        openFdCount =
+          PollingMetric(
+            Metric
+              .gauge("process_open_fds")
+              .contramap[Long](_.toDouble),
+            getOpenFileDescriptorCount.get(Trace.empty, Unsafe.unsafe)
+          )
+        maxFdCount =
+          PollingMetric(
+            Metric
+              .gauge("process_max_fds")
+              .contramap[Long](_.toDouble),
+            getMaxFileDescriptorCount.get(Trace.empty, Unsafe.unsafe)
+          )
+        virtualMemorySize  = Metric.gauge("process_virtual_memory_bytes")
+        residentMemorySize = Metric.gauge("process_resident_memory_bytes")
 
-          schedule <- ZIO.service[JvmMetricsSchedule]
-          _        <- cpuSecondsTotal.launch(schedule.updateMetrics)
-          _        <- processStartTime.launch(schedule.updateMetrics)
-          _        <- openFdCount.launch(schedule.updateMetrics).when(getOpenFileDescriptorCount.isAvailable)
-          _        <- maxFdCount.launch(schedule.updateMetrics).when(getMaxFileDescriptorCount.isAvailable)
-          _ <-
-            collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize)
-              .scheduleFork(schedule.updateMetrics)
-              .when(isLinux)
+        schedule <- ZIO.service[JvmMetricsSchedule]
+        _        <- cpuSecondsTotal.launch(schedule.updateMetrics)
+        _        <- processStartTime.launch(schedule.updateMetrics)
+        _        <- openFdCount.launch(schedule.updateMetrics).when(getOpenFileDescriptorCount.isAvailable)
+        _        <- maxFdCount.launch(schedule.updateMetrics).when(getMaxFileDescriptorCount.isAvailable)
+        _ <-
+          collectMemoryMetricsLinux(virtualMemorySize, residentMemorySize)
+            .scheduleFork(schedule.updateMetrics)
+            .when(isLinux)
 
-        } yield Standard(
-          cpuSecondsTotal,
-          processStartTime,
-          openFdCount,
-          maxFdCount,
-          virtualMemorySize,
-          residentMemorySize
-        )
-      }
+      } yield Standard(
+        cpuSecondsTotal,
+        processStartTime,
+        openFdCount,
+        maxFdCount,
+        virtualMemorySize,
+        residentMemorySize
+      )
     }
 }

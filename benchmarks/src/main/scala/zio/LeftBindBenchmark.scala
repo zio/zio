@@ -99,7 +99,7 @@ class LeftBindBenchmark {
       else if (i < size) loop(i + 1).flatMap(i => ZIO.succeed(i))
       else ZIO.succeed(i)
 
-    Unsafe.unsafeCompat { implicit u =>
+    Unsafe.unsafe { implicit unsafe =>
       runtime.unsafe.run(ZIO.succeed(0).flatMap[Any, Nothing, Int](loop)).getOrThrowFiberFailure()
     }
   }

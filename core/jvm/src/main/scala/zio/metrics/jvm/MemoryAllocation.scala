@@ -67,7 +67,7 @@ object MemoryAllocation {
       if (diff2 < 0) diff2 = 0
       val increase = diff1 + diff2
       if (increase > 0) {
-        Unsafe.unsafeCompat(implicit u => runtime.run(countAllocations(memoryPool).incrementBy(increase)))
+        runtime.unsafe.run(countAllocations(memoryPool).incrementBy(increase))(Trace.empty, Unsafe.unsafe)
       }
     }
   }

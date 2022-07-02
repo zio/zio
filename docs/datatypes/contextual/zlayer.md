@@ -227,40 +227,41 @@ Below is a complete working example:
 ```scala mdoc:compile-only
 import zio._
 
+case class DatabaseConfig()
+
+object DatabaseConfig {
+  val live = ZLayer.succeed(DatabaseConfig())
+}
+
+case class Database(databaseConfig: DatabaseConfig)
+
+object Database {
+  val live: ZLayer[DatabaseConfig, Nothing, Database] =
+    ZLayer.fromFunction(Database.apply _)
+}
+
+case class Analytics()
+
+object Analytics {
+  val live: ULayer[Analytics] = ZLayer.succeed(Analytics())
+}
+
+case class Users(database: Database, analytics: Analytics)
+
+object Users {
+  val live = ZLayer.fromFunction(Users.apply _)
+}
+
+case class App(users: Users, analytics: Analytics) {
+  def execute: UIO[Unit] =
+    ZIO.debug(s"This app is made from ${users} and ${analytics}")
+}
+
+object App {
+  val live = ZLayer.fromFunction(App.apply _)
+}
+
 object MainApp extends ZIOAppDefault {
-  final case class DatabaseConfig()
-
-  object DatabaseConfig {
-    val live = ZLayer.succeed(DatabaseConfig())
-  }
-
-  final case class Database(databaseConfig: DatabaseConfig)
-
-  object Database {
-    val live: ZLayer[DatabaseConfig, Nothing, Database] =
-      ZLayer.fromFunction(Database.apply _)
-  }
-
-  final case class Analytics()
-
-  object Analytics {
-    val live: ULayer[Analytics] = ZLayer.succeed(Analytics())
-  }
-
-  final case class Users(database: Database, analytics: Analytics)
-
-  object Users {
-    val live = ZLayer.fromFunction(Users.apply _)
-  }
-
-  final case class App(users: Users, analytics: Analytics) {
-    def execute: UIO[Unit] =
-      ZIO.debug(s"This app is made from ${users} and ${analytics}")
-  }
-
-  object App {
-    val live = ZLayer.fromFunction(App.apply _)
-  }
 
   def run =
     ZIO

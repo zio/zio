@@ -51,8 +51,12 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
    */
-  final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp =
-    ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)
+  final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp = {
+    def combine[A: EnvironmentTag, B: EnvironmentTag]: EnvironmentTag[A with B] = EnvironmentTag[A with B]
+    ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)(
+      combine[this.Environment, that.Environment](this.environmentTag, that.environmentTag)
+    )
+  }
 
   /**
    * A helper function to obtain access to the command-line arguments of the
@@ -66,11 +70,9 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
    */
   final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed {
-      Unsafe.unsafeCompat { implicit u =>
-        if (!shuttingDown.getAndSet(true)) {
-          try Platform.exit(code.code)
-          catch { case _: SecurityException => }
-        }
+      if (!shuttingDown.getAndSet(true)) {
+        try Platform.exit(code.code)(Unsafe.unsafe)
+        catch { case _: SecurityException => }
       }
     }
 
@@ -94,17 +96,15 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific { self =>
 
   protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.attempt {
-      Unsafe.unsafeCompat { implicit u =>
-        if (!ZIOApp.installedSignals.getAndSet(true)) {
-          val dumpFibers =
-            () => Unsafe.unsafeCompat(implicit u => runtime.unsafe.run(Fiber.dumpAll).getOrThrowFiberFailure())
+      if (!ZIOApp.installedSignals.getAndSet(true)) {
+        val dumpFibers =
+          () => runtime.unsafe.run(Fiber.dumpAll)(trace, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe)
 
-          if (System.os.isWindows) {
-            Platform.addSignalHandler("INT", dumpFibers)
-          } else {
-            Platform.addSignalHandler("INFO", dumpFibers)
-            Platform.addSignalHandler("USR1", dumpFibers)
-          }
+        if (System.os.isWindows) {
+          Platform.addSignalHandler("INT", dumpFibers)(Unsafe.unsafe)
+        } else {
+          Platform.addSignalHandler("INFO", dumpFibers)(Unsafe.unsafe)
+          Platform.addSignalHandler("USR1", dumpFibers)(Unsafe.unsafe)
         }
       }
     }.ignore

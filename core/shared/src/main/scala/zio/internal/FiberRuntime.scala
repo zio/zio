@@ -62,12 +62,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * without locks or immutable data.
    */
   def ask[A](f: Unsafe => (FiberRuntime[_, _], Fiber.Status) => A)(implicit trace: Trace): UIO[A] =
-    ZIO.suspendSucceedUnsafe { implicit u =>
-      val promise = zio.Promise.unsafe.make[Nothing, A](fiberId)
+    ZIO.suspendSucceed {
+      val promise = zio.Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
 
       tell(
-        FiberMessage.Stateful((fiber, status) => promise.unsafe.done(ZIO.succeedNow(f(u)(fiber, status))))
-      )
+        FiberMessage.Stateful((fiber, status) =>
+          promise.unsafe.done(ZIO.succeedNow(f(Unsafe.unsafe)(fiber, status)))(Unsafe.unsafe)
+        )
+      )(Unsafe.unsafe)
 
       promise.await
     }
@@ -83,10 +85,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     )
 
   def children(implicit trace: Trace): UIO[Chunk[FiberRuntime[_, _]]] =
-    ask(implicit u => (fiber, _) => Chunk.fromJavaIterable(fiber.getChildren()))
+    ask(unsafe => (fiber, _) => Chunk.fromJavaIterable(fiber.getChildren()(unsafe)))
 
   def fiberRefs(implicit trace: Trace): UIO[FiberRefs] =
-    ask(implicit u => (fiber, _) => fiber.getFiberRefs())
+    ask(unsafe => (fiber, _) => fiber.getFiberRefs()(unsafe))
 
   def id: FiberId.Runtime = fiberId
 
@@ -133,7 +135,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     drainQueueOnCurrentThread()(Unsafe.unsafe)
 
   def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags] =
-    ask[RuntimeFlags] { implicit u => (state, status) =>
+    ask[RuntimeFlags] { _ => (state, status) =>
       status match {
         case Fiber.Status.Done               => state._runtimeFlags
         case active: Fiber.Status.Unfinished => active.runtimeFlags
@@ -143,7 +145,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   def scope: FiberScope = FiberScope.make(this)
 
   def status(implicit trace: Trace): UIO[zio.Fiber.Status] =
-    ask[zio.Fiber.Status](implicit u => (_, currentStatus) => currentStatus)
+    ask[zio.Fiber.Status](_ => (_, currentStatus) => currentStatus)
 
   def trace(implicit trace: Trace): UIO[StackTrace] =
     ZIO.suspendSucceed {

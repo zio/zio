@@ -64,10 +64,7 @@ private[test] object Fun {
       } { _ =>
         funRuntime[R].map { runtime =>
           Fun(
-            a =>
-              Unsafe.unsafeCompat { implicit u =>
-                runtime.unsafe.run(f(a)).getOrThrowFiberFailure()
-              },
+            a => runtime.unsafe.run(f(a))(trace, Unsafe.unsafe).getOrThrowFiberFailure()(Unsafe.unsafe),
             hash
           )
         }

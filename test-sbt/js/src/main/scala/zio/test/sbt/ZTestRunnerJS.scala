@@ -18,7 +18,7 @@ package zio.test.sbt
 
 import sbt.testing._
 import zio.test.{FilteredSpec, Summary, TestArgs, TestEnvironment, TestLogger, ZIOSpecAbstract}
-import zio.{Exit, Layer, Runtime, Scope, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
+import zio.{Exit, Layer, Runtime, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 
 import scala.collection.mutable
 
@@ -92,47 +92,46 @@ sealed class ZTestTask(
   spec: ZIOSpecAbstract
 ) extends BaseTestTask(taskDef, testClassLoader, sendSummary, testArgs, spec, Runtime.default) {
 
-  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit =
-    Unsafe.unsafeCompat { implicit u =>
-      val fiber = Runtime.default.unsafe.fork {
-        val logic =
-          ZIO.consoleWith { console =>
-            (for {
-              summary <- spec
-                           .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
-              _ <- sendSummary.provide(ZLayer.succeed(summary))
-              // TODO Confirm if/how these events needs to be handled in #6481
-              //    Check XML behavior
-              _ <- ZIO.when(summary.status == Summary.Failure) {
-                     ZIO.attempt(
-                       eventHandler.handle(
-                         ZTestEvent(
-                           fullyQualifiedName = taskDef.fullyQualifiedName(),
-                           // taskDef.selectors() is "one to many" so we can expect nonEmpty here
-                           selector = taskDef.selectors().head,
-                           status = Status.Failure,
-                           maybeThrowable = None,
-                           duration = 0L,
-                           fingerprint = ZioSpecFingerprint
-                         )
+  def execute(eventHandler: EventHandler, loggers: Array[Logger], continuation: Array[Task] => Unit): Unit = {
+    val fiber = Runtime.default.unsafe.fork {
+      val logic =
+        ZIO.consoleWith { console =>
+          (for {
+            summary <- spec
+                         .runSpecAsApp(FilteredSpec(spec.spec, args), args, console)
+            _ <- sendSummary.provide(ZLayer.succeed(summary))
+            // TODO Confirm if/how these events needs to be handled in #6481
+            //    Check XML behavior
+            _ <- ZIO.when(summary.status == Summary.Failure) {
+                   ZIO.attempt(
+                     eventHandler.handle(
+                       ZTestEvent(
+                         fullyQualifiedName = taskDef.fullyQualifiedName(),
+                         // taskDef.selectors() is "one to many" so we can expect nonEmpty here
+                         selector = taskDef.selectors().head,
+                         status = Status.Failure,
+                         maybeThrowable = None,
+                         duration = 0L,
+                         fingerprint = ZioSpecFingerprint
                        )
                      )
-                   }
-            } yield ())
-              .provideLayer(
-                sharedFilledTestLayer
-              )
-          }
-        logic
-      }
-      fiber.unsafe.addObserver { exit =>
-        exit match {
-          case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
-          case _                   =>
+                   )
+                 }
+          } yield ())
+            .provideLayer(
+              sharedFilledTestLayer +!+ (Scope.default >>> spec.bootstrap)
+            )
         }
-        continuation(Array())
+      logic
+    }(Trace.empty, Unsafe.unsafe)
+    fiber.unsafe.addObserver { exit =>
+      exit match {
+        case Exit.Failure(cause) => Console.err.println(s"$runnerType failed.")
+        case _                   =>
       }
-    }
+      continuation(Array())
+    }(Unsafe.unsafe)
+  }
 }
 object ZTestTask {
   def apply(

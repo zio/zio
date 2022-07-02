@@ -1,4 +1,4 @@
-module.exports = {
+const config = {
   title: 'ZIO',
   tagline: 'Type-safe, composable asynchronous and concurrent programming for Scala',
   url: 'https://zio.dev',
@@ -27,11 +27,11 @@ module.exports = {
         src: '/img/navbar_brand.png',
       },
       items: [
-        { to: 'version-1.x/overview/', label: 'Overview', position: 'right' },
-        { to: 'version-1.x/datatypes/', label: 'Data Types', position: 'right' },
-        { to: 'next/guides/', label: 'Guides', position: 'right' },
-        { to: 'version-1.x/resources/', label: 'Resources', position: 'right' },
-        { to: 'version-1.x/about/', label: 'About', position: 'right' },
+        { type: 'docsVersion', label: 'Overview', position: 'right' },
+        { type: 'doc', docId: 'datatypes/index', label: 'Data Types', position: 'right' },
+        { type: 'doc', docId: 'guides/index', label: 'Guides', position: 'right' },
+        { type: 'doc', docId: 'resources/index', label: 'Resources', position: 'right' },
+        { type: 'doc', docId: 'about/about_index', label: 'About', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
@@ -39,13 +39,8 @@ module.exports = {
         },
       ],
     },
-    algolia: {
-      apiKey: '0c94b59071da7001757d08ab43d9e033',
-      indexName: 'zio'
-    },
     footer: {
-      style: 'dark',
-      links: [
+      style: 'dark',     links: [
         {
           items: [
             {
@@ -113,13 +108,14 @@ module.exports = {
     [
       '@docusaurus/preset-classic',
       {
+        debug: true,
         docs: {
           routeBasePath: '/',
           sidebarPath: require.resolve('./sidebars.js'),
-          lastVersion: '1.x',
+          lastVersion: 'current',
           versions: {
             'current': {
-              label: 'ZIO 2.x (WIP)'
+              label: 'ZIO 2.x'
             },
             '1.x': {
               label: 'ZIO 1.x',
@@ -138,4 +134,7 @@ module.exports = {
       },
     ],
   ],
-};
+}
+
+module.exports = config;
+
