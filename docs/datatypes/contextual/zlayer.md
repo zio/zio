@@ -11,13 +11,13 @@ We can think of a layer as mental model of an asynchronous function from `RIn` t
 type ZLayer[-RIn, +E, +ROut] = RIn => async Either[E, ROut]
 ```
 
-For example, a `ZLayer[Clock & Logging, Throwable, Database]` can be thought of as a function that map `Clock` and `Logging` services into `Database` service:
+For example, a `ZLayer[Logging & Persistence, Throwable, Database]` can be thought of as a function that map `Logging` and `Persistence` services into `Database` service:
 
 ```scala
-(Clock, Logging) => Database
+(Logging, Persistence) => Database
 ```
 
-So we can say that the `Database` service has two dependencies: `Clock` and `Logging` services.
+So we can say that the `Database` service has two dependencies: `Logging` and `Persistence` services.
 
 In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The [`Layer`](layer.md) type alias provided by ZIO is a convenient way to define a layer without requirements.
 
@@ -902,39 +902,66 @@ Most of the time, we don't use `ZIO#provideEnvironment` directly to provide our 
 
 Unlike the `ZIO#provideEnvironment` which takes a `ZEnvironment[R]`, the `ZIO#provide` takes a `ZLayer` to the ZIO effect and translates it to another level.
 
-Assume we have written this piece of program that requires `Clock` and `Console` services:
+Assume we have written this piece of program that requires `Foo` and `Bar` services:
 
 ```scala mdoc:silent:nest
-import zio.Clock._
-import zio.Console._
-import zio.Random._
+trait Foo {
+  def foo(): UIO[String]
+}
 
-val myApp: ZIO[Any, Nothing, Unit] = for {
-  random  <- nextInt 
-  _       <- printLine(s"A random number: $random").orDie
-  current <- currentDateTime
-  _       <- printLine(s"Current Data Time: $current").orDie
+object Foo {
+  def foo(): ZIO[Foo, Nothing, String] = ZIO.serviceWithZIO[Foo](_.foo())
+}
+
+case class FooLive() extends Foo {
+  override def foo(): UIO[String] = ZIO.succeed("foo")
+}
+
+object FooLive {
+  val layer: ULayer[Foo] = ZLayer.succeed(FooLive())
+}
+
+trait Bar {
+  def bar(): UIO[Int]
+}
+
+object Bar {
+  def bar(): ZIO[Bar, Nothing, Int] = ZIO.serviceWithZIO[Bar](_.bar())
+}
+
+case class BarLive() extends Bar {
+  override def bar(): UIO[Int] = ZIO.succeed(1)
+}
+
+object BarLive {
+  val layer: ULayer[Bar] = ZLayer.succeed(BarLive())
+}
+
+val myApp: ZIO[Foo & Bar, Nothing, Unit] = for {
+  foo  <- Foo.foo()
+  bar  <- Bar.bar()
+  _    <- ZIO.debug(s"foo: $foo, bar: $bar")
 } yield ()
 ```
 
-We provide implementations of `Random`, `Console` and `Clock` services to the `myApp` effect by using `ZIO#provide` method:
+We provide implementations of `Foo`, `Bar` services to the `myApp` effect by using `ZIO#provide` method:
 
 ```scala mdoc:silent:nest
 val mainEffect: ZIO[Any, Nothing, Unit] = 
-  myApp
+  myApp.provide(FooLive.layer, BarLive.layer)
 ```
 
-As we see, the type of our effect converted from `ZIO[Random & Console & Clock, Nothing, Unit]` which requires three services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
+As we see, the type of our effect converted from `ZIO[Foo & Bar, Nothing, Unit]` which requires two services to `ZIO[Any, Nothing, Unit]` effect which doesn't require any services.
 
 #### Using `ZIO#provideSome` Method
 
 Sometimes we have written a program, and we don't want to provide all its requirements. In these cases, we can use `ZIO#provideSome` to partially apply some layers to the `ZIO` effect.
 
-In the previous example, if we just want to provide the `Console`, we should use `ZIO#provideSome`:
+In the previous example, if we just want to provide the `Foo`, we should use `ZIO#provideSome`:
 
-```scala
-val mainEffectSome: ZIO[Any, Nothing, Unit] = 
-  myApp
+```scala mdoc:compile-only
+val mainEffectSome: ZIO[Bar, Nothing, Unit] = 
+  myApp.provideSome(FooLive.layer)
 ```
 
 > **Note:**
@@ -1318,75 +1345,9 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-### An Example of a ZIO Application with Multiple Dependencies
-
-In the following example, our ZIO application has several dependencies:
-- `zio.Clock`
-- `zio.Console`
-- `B`
-
-And also the `B` service depends upon the `A` service:
-
-```scala mdoc:compile-only
-import zio._
-
-import java.io.IOException
-
-trait A {
-  def letsGoA(v: Int): UIO[String]
-}
-
-object A {
-  def letsGoA(v: Int): URIO[A, String] = ZIO.serviceWithZIO(_.letsGoA(v))
-}
-
-case class ALive() extends A {
-  override def letsGoA(v: Int): UIO[String] = ZIO.succeed(s"done: v = $v ")
-}
-
-object ALive {
-  val layer: ULayer[A] = ZLayer.succeed(ALive())
-}
-
-trait B {
-  def letsGoB(v: Int): UIO[String]
-}
-
-object B {
-  def letsGoB(v: Int): URIO[B, String] = ZIO.serviceWithZIO(_.letsGoB(v))
-}
-
-case class BLive(serviceA: A) extends B {
-  def letsGoB(v: Int): UIO[String] = serviceA.letsGoA(v)
-}
-
-object BLive {
-  val layer: ZLayer[A, Nothing, BLive] = ZLayer(ZIO.service[A].map(BLive(_)))
-}
-
-
-object MainApp extends ZIOAppDefault {
-
-  val program: ZIO[B, IOException, Unit] =
-    for {
-      _ <- Console.printLine(s"Welcome to ZIO!")
-      _ <- Clock.sleep(1.second)
-      r <- B.letsGoB(10)
-      _ <- Console.printLine(r)
-    } yield ()
-
-  def run = program.provide(ALive.layer, BLive.layer)
-
-}
-
-// The output: 
-// Welcome to ZIO!
-// done: v = 10 
-```
-
 ### An Example of Manually Generating a Dependency Graph
 
-Suppose we have defined the ‍‍`UserRepo`, `DocumentRepo`, `Database`, `BlobStorage`, and `Cache` services and their respective implementations as follows:
+Suppose we have defined the `UserRepo`, `DocumentRepo`, `Database`, `BlobStorage`, and `Cache` services and their respective implementations as follows:
 
 ```scala mdoc:silent
 import zio._
