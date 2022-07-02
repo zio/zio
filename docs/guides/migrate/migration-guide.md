@@ -2431,9 +2431,7 @@ There are two significant changes in ZIO Services:
     | `zio.Random.Service.live`  | `zio.Random.RandomLive`   |
 
 
-2. In ZIO 2.0 all type aliases like `type Logging = Has[Logging.Service]` removed.
-
-So when accessing services instead of `ZIO.service[Console.Service]` we now do `ZIO.service[Console]`.
+2. In ZIO 2.0 all type aliases like `type Foo = Has[Foo.Service]` were removed. So when accessing services instead of `ZIO.service[Foo.Service]` we now do `ZIO.service[Foo]`.
 
 ### Blocking Service
 
