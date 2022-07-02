@@ -1,9 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx4G # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx4G # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
-  NODE_OPTIONS: --max_old_space_size=6144
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx6g -Xms6g # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx6g -Xms6g # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
 
 on:
   pull_request:
@@ -29,8 +28,6 @@ jobs:
         check-latest: true
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
-    - name: Install libuv
-      run: sudo apt-get update && sudo apt-get install -y libuv1-dev
     - name: Lint code
       run: ./sbt check
 
@@ -48,8 +45,6 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check generation of ScalaDoc
         run: ./sbt +Test/compile
 
@@ -67,8 +62,6 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check that building packages works
         run: ./sbt +publishLocal
 
@@ -86,8 +79,6 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check Website Generation
         run: |
           ./scripts/checkSite.sh
@@ -153,6 +144,9 @@ jobs:
       fail-fast: false
       matrix:
         platform: ['JS', 'Native']
+    env:
+      JVM_OPTS: -XX:+PrintCommandLineFlags -XX:+UseG1GC -Xmx6g -Xms6g
+      NODE_OPTIONS: --max_old_space_size=6144
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -164,8 +158,6 @@ jobs:
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Test on different Scala target platforms
         run: ./sbt test${{ matrix.platform }}
 
@@ -192,8 +184,6 @@ jobs:
           distribution: temurin
           java-version: 8
           check-latest: true
-      - name: Install libuv
-        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Release
         run: ./sbt ci-release
         env:

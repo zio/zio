@@ -349,47 +349,6 @@ package object test extends CompileVariants {
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
 
   /**
-   * A version of `check` that accepts seven random variables.
-   */
-  def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, In](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    rv7: Gen[R, H]
-  )(
-    test: (A, B, C, D, F, G, H) => In
-  )(implicit
-    checkConstructor: CheckConstructor[R, In],
-    sourceLocation: SourceLocation,
-    trace: Trace
-  ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(test.tupled)
-
-  /**
-   * A version of `check` that accepts height random variables.
-   */
-  def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, I, In](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    rv7: Gen[R, H],
-    rv8: Gen[R, I]
-  )(
-    test: (A, B, C, D, F, G, H, I) => In
-  )(implicit
-    checkConstructor: CheckConstructor[R, In],
-    sourceLocation: SourceLocation,
-    trace: Trace
-  ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8)(test.tupled)
-
-  /**
    * Checks the test passes for all values from the given finite, deterministic
    * generator. For non-deterministic or infinite generators use `check` or
    * `checkN`.
@@ -473,47 +432,6 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6)(test.tupled)
-
-  /**
-   * A version of `checkAll` that accepts seven random variables.
-   */
-  def checkAll[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, In](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    rv7: Gen[R, H]
-  )(
-    test: (A, B, C, D, F, G, H) => In
-  )(implicit
-    checkConstructor: CheckConstructor[R, In],
-    sourceLocation: SourceLocation,
-    trace: Trace
-  ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(test.tupled)
-
-  /**
-   * A version of `checkAll` that accepts height random variables.
-   */
-  def checkAll[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I, In](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    rv7: Gen[R, H],
-    rv8: Gen[R, I]
-  )(
-    test: (A, B, C, D, F, G, H, I) => In
-  )(implicit
-    checkConstructor: CheckConstructor[R, In],
-    sourceLocation: SourceLocation,
-    trace: Trace
-  ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8)(test.tupled)
 
   /**
    * Checks in parallel the effectual test passes for all values from the given
@@ -614,49 +532,6 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
-
-  /**
-   * A version of `checkAllPar` that accepts six random variables.
-   */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, In](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    rv7: Gen[R, H],
-    parallelism: Int
-  )(
-    test: (A, B, C, D, F, G, H) => In
-  )(implicit
-    checkConstructor: CheckConstructor[R, In],
-    sourceLocation: SourceLocation,
-    trace: Trace
-  ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7, parallelism)(test.tupled)
-
-  /**
-   * A version of `checkAllPar` that accepts six random variables.
-   */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I, In](
-    rv1: Gen[R, A],
-    rv2: Gen[R, B],
-    rv3: Gen[R, C],
-    rv4: Gen[R, D],
-    rv5: Gen[R, F],
-    rv6: Gen[R, G],
-    rv7: Gen[R, H],
-    rv8: Gen[R, I],
-    parallelism: Int
-  )(
-    test: (A, B, C, D, F, G, H, I) => In
-  )(implicit
-    checkConstructor: CheckConstructor[R, In],
-    sourceLocation: SourceLocation,
-    trace: Trace
-  ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8, parallelism)(test.tupled)
 
   /**
    * Checks the test passes for the specified number of samples from the given
