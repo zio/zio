@@ -205,6 +205,8 @@ object ConfigExample extends ZIOAppDefault {
 }
 ```
 
+Note that in ZIO 2.x, default services (e.g `Console`) are eliminated from the environment.
+
 ## ZIO
 
 ### Removed Methods
@@ -1157,14 +1159,14 @@ In the above example, although we imported the blocking operation wrongly, the r
 In ZIO 1.x, when we want to write a service that depends on other services, we need to use `ZLayer.fromService*` variants with a lot of boilerplate:
 
 ```scala
-val live: URLayer[Clock with Console, Logging] =
-  ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
-    (clock: Clock.Service, console: Console.Service) =>
-      new Service {
-        override def log(line: String): UIO[Unit] =
+val live: URLayer[FooService with BarService, BazService] =
+  ZLayer.fromServices[FooService.Service, BarService.Service, BazService.Service] {
+    (fooService: FooService.Service, barService: BarService.Service) =>
+      new BazService.Service {
+        override def baz: UIO[Unit] =
           for {
-            current <- clock.currentDateTime.orDie
-            _ <- console.putStrLn(current.toString + "--" + line).orDie
+            _ <- fooService.foo
+            _ <- barService.bar
           } yield ()
       }
   }
@@ -1172,22 +1174,34 @@ val live: URLayer[Clock with Console, Logging] =
 
 ZIO 2.x deprecates all `ZLayer.fromService*` functions. Instead, we use a for comprehension:
 
-```scala
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] =
+```scala mdoc:compile-only
+trait FooService {
+  def foo: UIO[Unit]
+}
+
+trait BarService {
+  def bar: UIO[Unit]
+}
+
+trait BazService {
+  def baz: UIO[Unit]
+}
+
+case class BazServiceImpl(fooService: FooService, barService: BarService) extends BazService {
+  override def baz: UIO[Unit] =
     for {
-      current <- clock.currentDateTime.orDie
-      _       <- console.putStrLn(current.toString + "--" + line).orDie
+      _ <- fooService.foo
+      _ <- barService.bar
     } yield ()
 }
 
 object LoggingLive {
-  val layer: ZLayer[Clock with Console, Nothing, Logging] =
+  val layer: ZLayer[FooService & BarService, Nothing, BazService] =
     ZLayer {
       for {
-        console <- ZIO.service[Console]
-        clock   <- ZIO.service[Clock]
-      } yield LoggingLive(console, clock)
+        fooService <- ZIO.service[FooService]
+        barService <- ZIO.service[BarService]
+      } yield BazServiceImpl(fooService, barService)
     }
 }
 ```
@@ -1232,24 +1246,36 @@ import zio._
 
 ### Accessing Multiple Services in the Environment
 
-In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services`:
+In ZIO 1.x, we could access multiple services using higher arity service accessors like `ZIO.services`.
 
-```scala mdoc:silent:nest:warn
+```scala
 for {
-  (console, random) <- ZIO.services[Console, Random]
-  randomInt         <- random.nextInt
-  _                 <- console.printLine(s"The next random number: $randomInt")
+  (fooService, barService) <- ZIO.services[FooService, BarService]
+  foo                      <- fooService.foo()
+  bar                      <- barService.bar()
+  _                        <- console.putStrLn(s"foo: $foo, bar: $bar")
 } yield ()
 ```
 
 They were _deprecated_ as we can achieve the same functionality using `ZIO.service` with for-comprehension syntax, which is more idiomatic and scalable way of accessing multiple services in the environment:
 
+```scala mdoc:invisible
+trait FooService {
+  def foo(): UIO[String]
+}
+
+trait BarService {
+  def bar(): UIO[Int]
+}
+```
+
 ```scala mdoc:silent:nest
 for {
-  console   <- ZIO.service[Console]
-  random    <- ZIO.service[Random]
-  randomInt <- random.nextInt
-  _         <- console.printLine(s"The next random number: $randomInt")
+  fooService <- ZIO.service[FooService]
+  barService <- ZIO.service[BarService]
+  foo        <- fooService.foo()
+  bar        <- barService.bar()
+  _          <- Console.printLine(s"foo: $foo, bar: $bar")
 } yield ()
 ```
 
