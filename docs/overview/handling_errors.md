@@ -35,7 +35,7 @@ def openFile(s: String): ZIO[Any, IOException, Array[Byte]] =
 val z: ZIO[Any, IOException, Array[Byte]] = 
   openFile("primary.json").catchAll { error => 
     for {
-      _    <- ZIO.logErrorCause("Could not open primary file", error)
+      _    <- ZIO.logErrorCause("Could not open primary file", Cause.fail(error))
       file <- openFile("backup.json")
     } yield file 
   }
