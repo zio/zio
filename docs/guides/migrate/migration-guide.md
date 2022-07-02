@@ -1709,13 +1709,21 @@ object MainApp extends ZIOAppDefault {
 
 It helps us to provide contextual environments like the DSL below:
 
-```scala
-dbTransaction {
-  effect
-}
+```scala mdoc:compile-only
+import zio._
+
+trait Connection
+
+val dbTransaction: ZLayer[Any, Throwable, Connection] = ZLayer.succeed(???)
+val effect: ZIO[Connection, Throwable, Unit] = ZIO.succeed(???)
+
+val result: ZIO[Any, Throwable, Unit] =
+  dbTransaction {
+    effect
+  }
 ```
 
-The `dbTransaction` is a `ZLayer` of type `ZLayer[any, Throwable, Connection]` which can eliminate the `Connection` service from the `effect`.
+The `dbTransaction` is a `ZLayer` of type `ZLayer[Any, Throwable, Connection]` which can eliminate the `Connection` service from the `effect`.
 
 ### Service Pattern
 
