@@ -1727,83 +1727,127 @@ The `dbTransaction` is a `ZLayer` of type `ZLayer[Any, Throwable, Connection]` w
 
 ### Service Pattern
 
-The _Service Pattern_, formerly called "Module Pattern", is one of the most important changes in ZIO 2.x. Let's take a look at services in ZIO 1.x before discussing changes. Here is a `Logging` service that uses _Service Pattern 1.0_:
+The _Service Pattern_, formerly called "Module Pattern", is one of the most important changes in ZIO 2.x. Let's take a look at services in ZIO 1.x before discussing changes. 
+
+Assume we have already defined the `Foo` and `Bar` services using _Service Pattern 1.0_ as follows:
 
 ```scala
-object logging {
+// ZIO 1.x
+object foo {
+  type Foo = Has[Foo.Service]
+
+  object Foo {
+    trait Service {
+      def foo: UIO[String]
+    }
+  }
+}
+
+object bar {
+  type Bar = Has[Bar.Service]
+
+  object Bar {
+    trait Service {
+      def bar: UIO[String]
+    }
+  }
+}
+```
+
+Here is a `Baz` service that uses the `Foo` and `Bar` services:
+
+```scala
+// ZIO 1.x
+object baz {
   // Defining the service type by wrapping the service interface with Has[_] data type
-  type Logging = Has[Logging.Service]
+  type Baz = Has[Baz.Service]
 
   // Companion object that holds service interface and its live implementation
-  object Logging {
+  object Baz {
     trait Service {
-      def log(line: String): UIO[Unit]
+      def baz(input: String): UIO[Unit]
     }
     
-    // Live implementation of the Logging service
-    val live: ZLayer[Clock with Console, Nothing, Logging] =
-      ZLayer.fromServices[Clock.Service, Console.Service, Logging.Service] {
-        (clock: Clock.Service, console: Console.Service) =>
-          new Logging.Service {
-            override def log(line: String): UIO[Unit] =
+    // Live implementation of the Foo service
+    val live: ZLayer[Foo with Bar, Nothing, Baz] =
+      ZLayer.fromServices[Foo.Service, Bar.Service, Baz.Service] {
+        (fooSrv: Foo.Service, barSrv: Bar.Service) =>
+          new Baz.Service {
+            override def baz(input: String): UIO[Unit] =
               for {
-                current <- clock.currentDateTime.orDie
-                _       <- console.putStrLn(s"$current--$line")
+                _ <- fooSrv.foo(input)
+                _ <- barSrv.bar(input)
               } yield ()
           }
       }
   }
 
   // Accessor Methods
-  def log(line: => String): URIO[Logging, Unit] =
-    ZIO.accessM(_.get.log(line))
+  def baz(input: String): URIO[Baz, Unit] =
+    ZIO.accessM(_.get.baz(input))
 }
 ```
 
-The `Logging` service is a logger which depends on the `Console` and `Clock` services.
+The `Baz` service is a service which depends on the `Foo` and `Bar` services.
 
-ZIO 2.x introduces the _Service Pattern 2.0_ which is much more concise and has more ergonomics. Let's see how the `Logging` service can be implemented using this new pattern:
+ZIO 2.x introduces the _Service Pattern 2.0_ which is much more concise and has more ergonomics. Let's see how the `Baz` service can be implemented using this new pattern.
 
-```scala mdoc:invisible:reset
-import zio._
+Assume we have already defined the `Foo` and `Bar` services, as below:
+
+```scala mdoc:silent
+// ZIO 2.x
+
+trait Foo {
+  def foo(input: String): UIO[Unit]
+}
+
+trait Bar {
+  def bar(input: String): UIO[Unit]
+}
 ```
 
+Now, here is the implementation of the `Baz` service based on the _Service Pattern 2.0_:
+
 ```scala mdoc:silent:nest
+// ZIO 2.x
+
+import zio._
+
 // Defining the Service Interface
-trait Logging {
-  def log(line: String): UIO[Unit]
+trait Baz {
+  def baz(input: String): UIO[Unit]
 }
 
 // Accessor Methods Inside the Companion Object
-object Logging {
-  def log(line: String): URIO[Logging, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
+object Baz {
+  def baz(input: String): URIO[Baz, Unit] =
+    ZIO.serviceWithZIO(_.baz(input))
 }
 
 // Implementation of the Service Interface
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] =
+case class BazLive(fooSrv: Foo, barSrv: Bar) extends Baz {
+  override def baz(input: String): UIO[Unit] =
     for {
-      time <- clock.currentDateTime
-      _    <- console.printLine(s"$time--$line").orDie
+      _ <- fooSrv.foo(input)
+      _ <- barSrv.bar(input) 
     } yield ()
 }
 
 // Converting the Service Implementation into the ZLayer
-object LoggingLive {
-  val layer: URLayer[Console with Clock, Logging] =
+object BazLive {
+  val layer: URLayer[Foo & Bar, Baz] =
     ZLayer {
       for {
-        console <- ZIO.service[Console]
-        clock   <- ZIO.service[Clock]
-      } yield LoggingLive(console, clock)
+        fooSrv <- ZIO.service[Foo]
+        barSrv <- ZIO.service[Bar]
+      } yield BazLive(fooSrv, barSrv)
     }
 }
 ```
 
 As we see, we have the following changes:
 
-1. **Deprecation of Type Alias for `Has` Wrappers** — In _Service Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Service Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Console = Has[Console.Service]` removed and the `Console.Service` will just be `Console`.
+1. **Deprecation of Type Alias for `Has` Wrappers** — In _Service Pattern 1.0_ although the type aliases were to prevent using `Has[ServiceName]` boilerplate everywhere, they were confusing, and led to doubly nested `Has[Has[ServiceName]]`. So the _Service Pattern 2.0_ doesn't anymore encourage using type aliases. Also, they were removed from all built-in ZIO services. So, the `type Foo = Has[Foo.Service]` removed and the `Foo.Service` will just be `Foo`.
 
 2. **Introducing Constructor-based Dependency Injection** — In _Service Pattern 1.0_ when we wanted to create a layer that depends on other services, we had to use `ZLayer.fromService*` constructors. The problem with the `ZLayer` constructors is that there are too many constructors each one is useful for a specific use-case, but people had troubled in spending a lot of time figuring out which one to use. 
 
@@ -1821,11 +1865,11 @@ As we see, we have the following changes:
       > 
       > Service Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
    
-   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Logging` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
+   2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Baz` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
-    In Service Pattern 2.0, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Logging.live` to access the live implementation we call `LoggingLive.layer`.
+    In _Service Pattern 2.0_, layers are defined in the implementation's companion object, not in the interface's companion object. So instead of calling `Baz.live` to access the live implementation we call `BazLive.layer`.
 
-4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.log(line))` we write `ZIO.serviceWithZIO(_.log(line))`.
+4. **Accessor Methods** — The new pattern reduced one level of indirection on writing accessor methods. So instead of accessing the environment (`ZIO.access/ZIO.accessM`) and then retrieving the service from the environment (`Has#get`) and then calling the service method, the _Service Pattern 2.0_ introduced the `ZIO.serviceWith` that is a more concise way of writing accessor methods. For example, instead of `ZIO.accessM(_.get.baz(input))` we write `ZIO.serviceWithZIO(_.baz(input))`.
 
 The _Service Pattern 1.0_ was somehow complicated and had some boilerplates. The _Service Pattern 2.0_ is so much familiar to people coming from an object-oriented world. So it is so much easy to learn for newcomers. The new pattern is much simpler.
 
