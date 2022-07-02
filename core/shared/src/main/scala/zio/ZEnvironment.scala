@@ -86,7 +86,7 @@ final class ZEnvironment[+R] private (
     map.size
 
   override def toString: String =
-    s"ZEnvironment($map)"
+    s"ZEnvironment(${map.toList.sortBy(_._2._2).map { case (tag, (service, _)) => s"$tag -> $service" }.mkString(", ")})"
 
   /**
    * Combines this environment with the specified environment.
