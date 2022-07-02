@@ -19,9 +19,9 @@ package zio.test.sbt
 import sbt.testing._
 
 final class ZTestFramework extends Framework {
-  override def name(): String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
+  override final val name: String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
-  override def fingerprints(): Array[Fingerprint] = Array(ZioSpecFingerprint)
+  val fingerprints: Array[Fingerprint] = Array(ZioSpecFingerprint)
 
   override def runner(args: Array[String], remoteArgs: Array[String], testClassLoader: ClassLoader): Runner =
     new ZMasterTestRunner(args, remoteArgs, testClassLoader)
