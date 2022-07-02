@@ -1679,25 +1679,31 @@ In this example, by applying the `fooLayer` to the `fooWithBarWithBaz` effect it
 
 Furthermore, we can compose multiple layers together and then eliminate services from the environmental effects:
 
-```scala
+```scala mdoc:compile-only
 import zio._
+
+trait Foo
+trait Bar
+trait Baz
 
 object MainApp extends ZIOAppDefault {
 
-  val needsClockAndRandomAndConsole: UIO[Unit] =
+  val needsFooAndBarAndBaz: ZIO[Foo & Bar & Baz, Nothing, Unit] =
     for {
-      uuid <- Random.nextUUID
-      date <- Clock.localDateTime
-      _ <- Console.printLine(s"$date -- $uuid").orDie
+      foo <- ZIO.service[Foo]
+      bar <- ZIO.service[Bar]
+      baz <- ZIO.service[Baz]
+      _ <- ZIO.debug(s"Foo: $foo, Bar: $bar, Baz: $baz")
     } yield ()
 
-  val clockAndRandom: ULayer[Clock with Random] = Clock.live ++ Random.live
+  val fooAndBarLayer: ULayer[Foo with Bar] =
+    ZLayer.succeed(new Foo {}) ++ ZLayer.succeed(new Bar {})
 
-  val needsConsole: URIO[Console, Unit] =
-    clockAndRandom(needsClockAndRandomAndConsole)
+  val needsBaz: ZIO[Baz, Nothing, Unit] =
+    fooAndBarLayer(needsFooAndBarAndBaz)
 
-  def run = needsConsole
-  
+  def run = needsBaz.provide(ZLayer.succeed(new Baz {}))
+
 }
 ```
 
