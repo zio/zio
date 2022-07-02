@@ -5,29 +5,17 @@ title: "ZEnvironment"
 
 A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect. The `ZIO` data type uses this map to maintain all the environmental services and their implementations.
 
-For example, assume we have the following services with their implementations:
-
-```scala mdoc:silent
-trait FooService
-object FooServiceLive extends FooService
-
-trait BarService
-object BarServiceLive extends BarService
-
-trait BazService
-object BazServiceLive extends BazService
-```
-
-We can create a `ZEnvironment` of all these services like below:
+For example, assume we have written a `ZEnvironment` containing all built-in services as below:
 
 ```scala mdoc:silent
 import zio._
 
-val environment: ZEnvironment[FooService & BarService & BazService] =
-  ZEnvironment[FooService, BarService, BazService](
-    FooServiceLive,
-    BarServiceLive,
-    BazServiceLive
+val environment: ZEnvironment[Console & Clock & Random & System] =
+  ZEnvironment[Console, Clock, Random, System](
+    Console.ConsoleLive,
+    Clock.ClockLive,
+    Random.RandomLive,
+    System.SystemLive
   )
 ```
 
@@ -36,9 +24,10 @@ This map contains all built-in services and their corresponding implementations.
 ```scala
 ZEnvironment(
   Map(
-    FooService -> (FooServiceLive$@27ae2fd0,0),
-    BarService -> (BarServiceLive$@29176cc1,1),
-    BazService -> (BazServiceLive$@2f177a4b,2)
+    Console -> (zio.Console$ConsoleLive$@76a3e297, 0),
+    Clock   -> (zio.Clock$ClockLive$@4d3167f4, 1), 
+    Random  -> (RandomScala(scala.util.Random$@4eb7f003), 2), 
+    System  -> (zio.System$SystemLive$@eafc191, 3)
   )
 )
 ```
@@ -51,7 +40,7 @@ or
 type ZIO[R, E, A] = ZEnvironment[R] => IO[E, A]
 ```
 
-For example, the `ZIO[FooService & BarService, Throwable, String]` can be thought of as a function from `ZEnvironment[FooService & BarService]` to `Either[Throwable, String]`:
+For example, the `ZIO[Console & Random, Throwable, String]` can be thought of as a function from `ZEnvironment[Console & Random]` to `Either[Throwable, String]`:
 
 > **Note**:
 >
