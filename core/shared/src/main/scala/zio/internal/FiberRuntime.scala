@@ -43,7 +43,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private val running          = new AtomicBoolean(false)
   private var _runtimeFlags    = runtimeFlags0
   private val reifiedStack     = PinchableArray.make[EvaluationStep](-1)
-  private var asyncEffect      = null.asInstanceOf[ZIO[Any, Any, Any]]
   private var asyncInterruptor = null.asInstanceOf[ZIO[Any, Any, Any] => Any]
   private var asyncTrace       = null.asInstanceOf[Trace]
   private var asyncBlockingOn  = null.asInstanceOf[FiberId]
@@ -283,7 +282,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case FiberMessage.Stateful(onFiber) =>
           processStatefulMessage(onFiber, Fiber.Status.Running(runtimeFlags, lastTrace))
 
-        case FiberMessage.Resume =>
+        case FiberMessage.Resume(_) =>
           throw new IllegalStateException("It is illegal to have multiple concurrent run loops in a single fiber")
 
         case FiberMessage.YieldNow =>
@@ -340,12 +339,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               // No more messages to process, so we will allow the fiber to end life:
               self.setExitValue(exit)
             } else {
-              self.asyncEffect = exit
-
               // There are messages, possibly added by the final op executed by
               // the fiber. To be safe, we should execute those now before we
               // allow the fiber to end life:
-              tell(FiberMessage.Resume)
+              tell(FiberMessage.Resume(exit))
             }
 
             effect = null
@@ -360,10 +357,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               (trampolines >= FiberRuntime.MaxTrampolinesBeforeYield || trampoline.forceYield) && RuntimeFlags
                 .cooperativeYielding(_runtimeFlags)
             ) {
-              self.asyncEffect = trampoline.effect
-
               tell(FiberMessage.YieldNow)
-              tell(FiberMessage.Resume)
+              tell(FiberMessage.Resume(trampoline.effect))
 
               effect = null
             } else {
@@ -438,13 +433,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         EvaluationSignal.Continue
 
-      case FiberMessage.Resume =>
-        val nextEffect = self.asyncEffect
+      case FiberMessage.Resume(nextEffect0) =>
+        val nextEffect = nextEffect0.asInstanceOf[ZIO[Any, Any, Any]]
 
         self.asyncInterruptor = null
         self.asyncTrace = null.asInstanceOf[Trace]
         self.asyncBlockingOn = null
-        self.asyncEffect = null
 
         evaluateEffect(nextEffect)
 
@@ -602,8 +596,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     val callback = (effect: ZIO[Any, Any, Any]) => {
       if (alreadyCalled.compareAndSet(false, true)) {
-        self.asyncEffect = effect
-        tell(FiberMessage.Resume)
+        tell(FiberMessage.Resume(effect))
       } else {
         val msg = s"An async callback was invoked more than once, which could be a sign of a defect: ${effect}"
 
@@ -1233,9 +1226,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         if (!queue.isEmpty && running.compareAndSet(false, true)) drainQueueLaterOnExecutor()
       }
     } else {
-      self.asyncEffect = effect.asInstanceOf[ZIO[Any, Any, Any]]
-
-      tell(FiberMessage.Resume)
+      tell(FiberMessage.Resume(effect))
 
       null
     }
@@ -1246,10 +1237,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * off" execution of a fiber after it has been created, in hopes that the
    * effect can be executed synchronously.
    */
-  private[zio] def startFork[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Unit = {
-    self.asyncEffect = effect.asInstanceOf[ZIO[Any, Any, Any]]
-    tell(FiberMessage.Resume)
-  }
+  private[zio] def startFork[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Unit =
+    tell(FiberMessage.Resume(effect))
 
   /**
    * Adds a message to be processed by the fiber on the fiber.
