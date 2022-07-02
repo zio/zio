@@ -304,29 +304,20 @@ val myApp: ZIO[AppConfig, Nothing, Unit] =
 
 2. **ZIO.serviceWithZIO** — When we are accessing service members whose return type is a ZIO effect, we should use the `ZIO.serviceWithZIO`.
 
-For example, in order to write the accessor method for the `log` member of the `Logging` service, we need to use the `ZIO.serviceWithZIO` function:
+For example, in order to write the accessor method for the `foo` member of the `Foo` service, we need to use the `ZIO.serviceWithZIO` function:
 
 ```scala mdoc:compile-only
 import zio._
 
-trait Logging {
-  def log(line: String): Task[Unit]
+trait Foo {
+  def foo(input: String): Task[Unit]
 }
 
-object Logging {
-  // Accessor Methods:
-  def log(line: String): ZIO[Logging, Throwable, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
+object Foo {
+  // Accessor Method
+  def foo(input: String): ZIO[Foo, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.foo(input))
 }
-
-val myApp: ZIO[Logging, Throwable, Unit] =
-  for {
-    _    <- Logging.log("Application Started!")
-    _    <- Console.print("Please enter your name: ")
-    name <- Console.readLine
-    _    <- Console.printLine(s"Hello, $name!")
-    _    <- Logging.log("Application exited!")
-  } yield ()
 ```
 
 ## 2. ZEnvironment
