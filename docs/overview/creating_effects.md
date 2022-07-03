@@ -47,7 +47,7 @@ An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 val zoption: IO[Option[Nothing], Int] = ZIO.fromOption(Some(2))
 ```
 
-The error type of the resulting effect is `Option[Nothing]`, signifying that if such an effect fails, with will fail with the value `None` (which has type `Option[Nothing]`).
+The error type of the resulting effect is `Option[Nothing]`, signifying that if such an effect fails, it will fail with the value `None` (which has type `Option[Nothing]`).
 
 You can transform a failure into some other error value using `orElseFail`, one of many methods that ZIO provides for error management:
 
