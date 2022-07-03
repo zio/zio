@@ -52,7 +52,7 @@ The `ZIO` data type is the only effect type in ZIO. However, there are a family 
 
 If you are new to functional effects, we recommend starting with the `Task` type, which has a single type parameter and corresponds most closely to the `Future` data types built into the Scala and Java standard libraries.
 
-If you are using _Cats Effect_ libraries, you may find the `RIO` type useful, since it allows you to thread cobntext through third-party libraries.
+If you are using _Cats Effect_ libraries, you may find the `RIO` type useful, since it allows you to thread context through third-party libraries.
 
 No matter what type alias you use in your application, `UIO` can be useful for describing infallible effects, including those resulting from handling all errors.
 
