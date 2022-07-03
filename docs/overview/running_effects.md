@@ -73,7 +73,7 @@ val myRuntime: Runtime[Int] =
 
 The ZIO runtime system automatically logs all errors encountered when executing your effects, so long as those errors are not handled by your ZIO code.
 
-You can specify a custom logger easily using _ZIO Logging_, which can intercept these logged errors and handle them as configured by your logginb ackend.
+You can specify a custom logger easily using _ZIO Logging_, which can intercept these logged errors and handle them as configured by your logging backend.
 
 ## Next Steps
 
