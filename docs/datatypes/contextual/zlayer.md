@@ -11,19 +11,19 @@ We can think of a layer as mental model of an asynchronous function from `RIn` t
 type ZLayer[-RIn, +E, +ROut] = RIn => async Either[E, ROut]
 ```
 
-For example, a `ZLayer[Logging & Persistence, Throwable, Database]` can be thought of as a function that map `Logging` and `Persistence` services into `Database` service:
+For example, a `ZLayer[Socket & Persistence, Throwable, Database]` can be thought of as a function that map `Socket` and `Persistence` services into `Database` service:
 
 ```scala
-(Logging, Persistence) => Database
+(Socket, Persistence) => Database
 ```
 
-So we can say that the `Database` service has two dependencies: `Logging` and `Persistence` services.
+So we can say that the `Database` service has two dependencies: `Socket` and `Persistence` services.
 
 In some cases, a `ZLayer` may not have any dependencies or requirements from the environment. In this case, we can specify `Any` for the `RIn` type parameter. The [`Layer`](layer.md) type alias provided by ZIO is a convenient way to define a layer without requirements.
 
 ZLayers are:
 
-1. **Recipes for Creating Services** — They describe how to create services from given dependencies. For example, the `ZLayer[Logging & Database, Throwable, UserRepo]` is a recipe for building a service that requires `Logging` and `Database` service, and it produces a `UserRepo` service.
+1. **Recipes for Creating Services** — They describe how to create services from given dependencies. For example, the `ZLayer[Socket & Database, Throwable, UserRepo]` is a recipe for building a service that requires `Socket` and `Database` service, and it produces a `UserRepo` service.
 
 2. **An Alternative to Constructors** — We can think of `ZLayer` as a more powerful version of a constructor, it is an alternative way to represent a constructor. Like a constructor, it allows us to build the `ROut` service in terms of its dependencies (`RIn`).
 
@@ -82,16 +82,15 @@ In the example above, we created a `configLayer` that provides us an instance of
 ```scala mdoc:compile-only
 import zio._
 
-trait Logging {
-  def log(line: String): UIO[Unit]
+trait EmailService {
+  def send(email: String, content: String): UIO[Unit]
 }
 
-object Logging {
-  val layer: ZLayer[Any, Nothing, Logging] = 
+object EmailService {
+  val layer: ZLayer[Any, Nothing, EmailService] = 
     ZLayer.succeed( 
-      new Logging {
-        override def log(line: String): UIO[Unit] =
-          ZIO.succeed(println(line))
+      new EmailService {
+        override def send(email: String, content: String): UIO[Unit] = ???
       }
     )
 }
@@ -870,27 +869,26 @@ import zio._
 Assume we have the following services:
 
 ```scala mdoc:silent:nest
-trait Logging {
-  def log(str: String): UIO[Unit]
+trait EmailService {
+  def send(email: String, content: String): UIO[Unit]
 }
 
-object Logging {
-  def log(line: String) = ZIO.serviceWithZIO[Logging](_.log(line))
+object EmailService {
+  def send(email: String, content: String) = ZIO.serviceWithZIO[EmailService](_.send(email, content))
 }
 ```
 
-Let's write a simple program using `Logging` service:
+Let's write a simple program using `EmailService` service:
 
 ```scala mdoc:silent:nest
-val app: ZIO[Logging, Nothing, Unit] = Logging.log("Application Started!")
+val app: ZIO[EmailService, Nothing, Unit] = EmailService.send("john@doe.com", "Hello John!")
 ```
 
-We can `provide` implementation of `Logging` service into the `app` effect:
+We can `provide` implementation of `EmailService` service into the `app` effect:
 
 ```scala mdoc:silent:nest
-val loggingImpl = new Logging {
-  override def log(line: String): UIO[Unit] =
-    ZIO.succeed(println(line))
+val loggingImpl = new EmailService {
+  override def send(email: String, content: String): UIO[Unit] = ???
 }
 
 val effect = app.provideEnvironment(ZEnvironment(loggingImpl))
