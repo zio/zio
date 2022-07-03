@@ -42,7 +42,7 @@ Note that mapping the error or success value of an effect does not change _wheth
 You can execute two effects sequentially with the `flatMap` method. The `flatMap` method requires that you pass a callback, which will receive the success value of the first effect, and must return a second effect, which depends on this value:
 
 ```scala mdoc:silent
-val sequenced: ZIO[Console, IOException, Unit] =
+val sequenced: ZIO[Any, IOException, Unit] =
   Console.readLine.flatMap(input => Console.printLine(s"You entered: $input"))
 ```
 
@@ -81,14 +81,14 @@ In any `zip` operation, if either the left or right-hand side fails, the compose
 Sometimes, when the success value of an effect is not useful (for example, if it is `Unit`), it can be more convenient to use the `ZIO#zipLeft` or `ZIO#zipRight` functions, which first perform a `zip` and then map over the tuple to discard one side or the other:
 
 ```scala mdoc:silent
-val zipRight1: ZIO[Console, IOException, String] =
+val zipRight1: ZIO[Any, IOException, String] =
   Console.printLine("What is your name?").zipRight(Console.readLine)
 ```
 
 The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
 
 ```scala mdoc:silent
-val zipRight2: ZIO[Console, IOException, String] =
+val zipRight2: ZIO[Any, IOException, String] =
   Console.printLine("What is your name?") *>
     Console.readLine
 ```
