@@ -82,7 +82,7 @@ An `Either` can be converted into a ZIO effect using `ZIO.fromEither`:
 val zeither: ZIO[Any, Nothing, String] = ZIO.fromEither(Right("Success!"))
 ```
 
-The error type of the resulting effect will be that of `Left` case, while the success type will be that of the `Right` case.
+The error type of the resulting effect will be that of the `Left` case, while the success type will be that of the `Right` case.
 
 ### Try
 
