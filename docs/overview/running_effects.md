@@ -3,19 +3,21 @@ id: overview_running_effects
 title:  "Running Effects"
 ---
 
-ZIO provides several different ways of running effects in your application.
+ZIO effects are precise plans that _describe_ a computation or interaction. Ultimately, every effect must be _executed_ by the ZIO runtime.
+
+In this section, you will learn about the several ways that ZIO provides for you to execute effects in your application.
 
 ## App
 
-If you construct a single effect for your whole program, the most natural way to run the effect is to extend `zio.App`. 
+If you construct a single effect for your whole program, the most natural way to run the effect is to extend `ZIOAppDefault`. 
 
-This class provides Scala with a main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method, which will be passed all command-line arguments in a `List`:
+This class provides Scala with a JVM-compatible main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method by returning the effect to run.
 
 ```scala mdoc:silent
 import zio._
 import zio.Console._
 
-object MyApp extends zio.ZIOAppDefault {
+object MyApp extends ZIOAppDefault {
 
   def run =
     for {
@@ -26,7 +28,9 @@ object MyApp extends zio.ZIOAppDefault {
 }
 ```
 
-If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provide`) before you return it from `run`. `App` does not know how to supply custom environments.
+If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provideEnvironment` or, if you are using layers, `ZIO#provide`) before you return it from `run`. 
+
+`ZIOAppDefault` does not know how to supply custom environments.
 
 ## Default Runtime
 
@@ -50,28 +54,31 @@ Unsafe.unsafe { implicit unsafe =>
 }
 ```
 
-In addition to `unsafeRun`, there are other methods which allow the asynchonous execution of effects or the ability to transform them into `Future`s.
+In addition to `run`, which is for synchronous execution, there are other methods available on `Runtime` that support asynchronous execution.
 
 ## Custom Runtime
 
 If you are using a custom environment for your application, you may find it useful to create a `Runtime` specifically tailored for that environment.
 
-A custom `Runtime[R]` can be created with an `Environment[R]`. This represents the environment that will be provided to effects when they are executed.
+A custom `Runtime[R]` can be created with a `ZEnvironment[R]` (which holds the context required in order to execute your effects), as well as fiber refs and runtime flags (which can generally be set to default values).
 
 For example, the following creates a `Runtime` that can provide an `Int` to effects :
 
 ```scala mdoc:silent
-val myRuntime: Runtime[Int] = Runtime(ZEnvironment[Int](42), FiberRefs.empty, RuntimeFlags.default)
+val myRuntime: Runtime[Int] = 
+  Runtime(ZEnvironment[Int](42), FiberRefs.empty, RuntimeFlags.default)
 ```
 
 ## Error Reporting
 
-In the `Runtime` there is an error reporter that is called by ZIO to report every unhandled error. It is a good idea to supply your own error reporter that can log unhandled errors to a file.
+The ZIO runtime system automatically logs all errors encountered when executing your effects, so long as those errors are not handled by your ZIO code.
 
-The default unhandled error reporter merely logs the error to standard error (`stderr`).
+You can specify a custom logger easily using _ZIO Logging_, which can intercept these logged errors and handle them as configured by your logging backend.
 
 ## Next Steps
 
-If you are comfortable with running effects, congratulations! You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. 
+If you are comfortable with running effects, congratulations!
+
+You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. 
 
 Refer to the Scaladoc for detailed documentation on all the core ZIO types and methods.

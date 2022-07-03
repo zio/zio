@@ -7,9 +7,7 @@ module.exports = {
       "overview/overview_handling_errors",
       "overview/overview_handling_resources",
       "overview/overview_basic_concurrency",
-      "overview/overview_testing_effects",
       "overview/overview_running_effects",
-      "overview/overview_background",
       "overview/overview_performance",
       "overview/overview_platforms"
     ]

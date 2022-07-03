@@ -169,4 +169,4 @@ If an effect times out, then instead of continuing to execute in the background,
 
 ## Next Steps
 
-If you are comfortable with basic concurrency, the next step is to learn about [testing effects](testing_effects.md).
+If you are comfortable with basic concurrency, the next step is to learn about [running effects](running_effects.md).
