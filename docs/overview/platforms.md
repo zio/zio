@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
 Because of the single threaded execution model of Javascript, blocking operations are not supported on Scala.js. In addition, several other methods are not supported or are unsafe on Scala.js:
 
 * The `readLine` method in the `Console` service is not supported because reading a line from the console blocks until input is received and the underlying method from the Scala standard library is not implemented on Scala.js.
-* The synchronous execution methods on `Runtime` are not safe. All of these methods return a value synchronously and may require blocking if the effect includeds asynchronous operations, including yield points introduced by the runtime to guarantee fairness. Users should use asynchronous execution methods instead.
+* The synchronous execution methods on `Runtime` are not safe. All of these methods return a value synchronously and may require blocking if the effect includes asynchronous operations, including yield points introduced by the runtime to guarantee fairness. Users should use asynchronous execution methods instead.
 
 ## Scala Native
 
