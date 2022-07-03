@@ -80,7 +80,7 @@ lazy val DefaultData: Array[Byte] = Array(0, 0)
 val primaryOrDefaultData: ZIO[Any, Nothing, Array[Byte]] = 
   openFile("primary.data").fold(
     _    => DefaultData, // Failure case
-    data => data)        // Suyccess case
+    data => data)        // Success case
 ```
 
 The second fold method, `foldZIO`, lets you separately handle both failure and success by specifying effects that will be executed in each respective case:
