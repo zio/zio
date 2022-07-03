@@ -462,9 +462,9 @@ case class DocRepoImpl() extends DocRepo {
 }
 ```
 
-3. **Define Service Dependencies** — We might need `MetadataRepo`, `BlobStorage` and `Logging` services to implement the `DocRepo` service. Here, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style.
+3. **Define Service Dependencies** — We might need `MetadataRepo` and `BlobStorage` services to implement the `DocRepo` service. Here, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style.
 
-First, we need to define the interfaces for `MetadataRepo`, `BlobStorage` and `Logging` services:
+First, we need to define the interfaces for `MetadataRepo` and `BlobStorage` services:
 
 ```scala mdoc:silent
 case class Metadata(
@@ -491,10 +491,6 @@ trait BlobStorage {
 
   def delete(id: String): ZIO[Any, Throwable, Unit]
 }
-
-trait Logging {
-  def log(msg: String): ZIO[Any, Throwable, Unit]
-}
 ```
 
 Now, we can implement the `DocRepo` service:
@@ -502,15 +498,12 @@ Now, we can implement the `DocRepo` service:
 ```scala mdoc:silent
 case class DocRepoImpl(
     metadataRepo: MetadataRepo,
-    blobStorage: BlobStorage,
-    logger: Logging
+    blobStorage: BlobStorage
 ) extends DocRepo {
   override def get(id: String): ZIO[Any, Throwable, Doc] =
     for {
-      _ <- logger.log(s"Received a request to get document $id")
       metadata <- metadataRepo.get(id)
       content <- blobStorage.get(id)
-      _ <- logger.log("Retrieved document " + id)
     } yield Doc(
       metadata.title,
       metadata.description,
@@ -521,7 +514,6 @@ case class DocRepoImpl(
 
   override def save(document: Doc): ZIO[Any, Throwable, String] =
     for {
-      _ <- logger.log("Received a request to save document " + document.title)
       id <- blobStorage.put(document.content)
       _ <- metadataRepo.put(
         id,
@@ -532,22 +524,16 @@ case class DocRepoImpl(
           document.format
         )
       )
-      _ <- logger.log("Saved document " + id)
     } yield id
 
   override def delete(id: String): ZIO[Any, Throwable, Unit] =
     for {
-      _ <- logger.log(s"Received delete request for $id document")
       _ <- blobStorage.delete(id)
       _ <- metadataRepo.delete(id)
-      _ <- logger.log("Deleted document " + id)
     } yield ()
 
   override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] =
     for {
-      _ <- logger.log(
-        s"Received a request to find documents with title: $title"
-      )
       map <- metadataRepo.findByTitle(title)
       content <- ZIO.foreach(map)((id, metadata) =>
         for {
@@ -560,7 +546,6 @@ case class DocRepoImpl(
           content
         )
       )
-      _ <- logger.log("Retrieved documents with title " + title)
     } yield content.values.toList
 }
 ```
@@ -569,13 +554,12 @@ case class DocRepoImpl(
 
 ```scala mdoc:silent
 object DocRepoImpl {
-  val layer: ZLayer[Logging with BlobStorage with MetadataRepo, Nothing, DocRepo] =
+  val layer: ZLayer[BlobStorage with MetadataRepo, Nothing, DocRepo] =
     ZLayer {
       for {
         metadataRepo <- ZIO.service[MetadataRepo]
-        blobStorage   <- ZIO.service[BlobStorage]
-        logging <- ZIO.service[Logging]
-      } yield DocRepoImpl(metadataRepo, blobStorage, logging)
+        blobStorage  <- ZIO.service[BlobStorage]
+      } yield DocRepoImpl(metadataRepo, blobStorage)
     }
 }
 ```
@@ -600,16 +584,9 @@ object DocRepo {
 
 Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `DocRepo.get`, we don't need to pull out the `get` function from the ZIO Environment. The `ZIO.serviceWithZIO` constructor helps us to access the environment and reduce the redundant operations, every time.
 
-Similarly, we need to implement the `Logging`, `BlobStorage` and `MetadataRepo` services:
+Similarly, we need to implement the `BlobStorage` and `MetadataRepo` services:
 
 ```scala mdoc:silent
-object ConsoleLogger {
-  val layer = 
-    ZLayer{
-      ??? 
-    }
-}
-
 object InmemoryBlobStorage {
   val layer = 
     ZLayer {
@@ -661,14 +638,13 @@ object MainApp extends ZIOAppDefault {
   def run =
     app.provide(
       DocRepoImpl.layer,
-      ConsoleLogger.layer,
       InmemoryBlobStorage.layer,
       InmemoryMetadataRepo.layer
     )
 }
 ```
 
-During writing the application, we don't care which implementation version of the `Logging`, `BlobStorage` and `MetadataRepo` services will be injected into our `app`. Later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
+During writing the application, we don't care which implementation version of the `BlobStorage` and `MetadataRepo` services will be injected into our `app`. Later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
 
@@ -1111,25 +1087,24 @@ Using ZIO environment follows three laws:
 
 For example, if the implementation of service `X` depends on service `Y` and `Z` then these should never be reflected in the trait that defines service `X`. It's leaking implementation details.
 
-So the following service definition is wrong because the `BlobStorage`, `MetadataRepo` and `Logging` services are dependencies of the  `DocRepo` service's implementation, not the `DocRepo` interface itself:
+So the following service definition is wrong because the `BlobStorage` and `MetadataRepo` services are dependencies of the  `DocRepo` service's implementation, not the `DocRepo` interface itself:
 
 ```scala mdoc:compile-only
 import zio._
 
 trait DocRepo {
-  def save(document: Doc): ZIO[BlobStorage & MetadataRepo & Logging, Throwable, String]
+  def save(document: Doc): ZIO[BlobStorage & MetadataRepo, Throwable, String]
 }
 ```
 
 2. **Service Implementation (Class)** — When implementing service interfaces, we should accept all dependencies in the class constructor.
 
-Again, let's see how `DocRepoImpl` accepts `BlobStorage`, `MetadataRepo` and `Logging` dependencies from the class constructor:
+Again, let's see how `DocRepoImpl` accepts `BlobStorage` and `MetadataRepo` dependencies from the class constructor:
 
 ```scala mdoc:compile-only
 case class DocRepoImpl(
     metadataRepo: MetadataRepo,
-    blobStorage: BlobStorage,
-    logger: Logging
+    blobStorage: BlobStorage
 ) extends DocRepo {
   override def delete(id: String): ZIO[Any, Throwable, Unit] =
     for {
@@ -1145,13 +1120,12 @@ case class DocRepoImpl(
 }
 
 object DocRepoImpl {
-  val layer: ZLayer[Logging with BlobStorage with MetadataRepo, Nothing, DocRepo] =
+  val layer: ZLayer[BlobStorage with MetadataRepo, Nothing, DocRepo] =
     ZLayer {
       for {
         metadataRepo <- ZIO.service[MetadataRepo]
         blobStorage  <- ZIO.service[BlobStorage]
-        logging      <- ZIO.service[Logging]
-      } yield DocRepoImpl(metadataRepo, blobStorage, logging)
+      } yield DocRepoImpl(metadataRepo, blobStorage)
     }
 }
 ```
@@ -1215,7 +1189,6 @@ object MainApp extends ZIOAppDefault {
   def run =
     app.provide(
       DocRepoImpl.layer,
-      ConsoleLogger.layer,
       InmemoryBlobStorage.layer,
       InmemoryMetadataRepo.layer
     )
