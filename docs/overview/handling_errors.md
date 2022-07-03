@@ -68,7 +68,7 @@ val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] =
 
 ## Folding
 
-In the Scala standard library, the data types `Option` and `Either` have a `fold` method, which let you handle both failure and success cases at the same time.
+In the Scala standard library, the data types `Option` and `Either` have a `fold` method, which lets you handle both failure and success cases at the same time.
 
 In a similar fashion, `ZIO` effects also have several methods that allow you to handle both failure and success at the same time.
 
