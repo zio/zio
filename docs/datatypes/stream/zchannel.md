@@ -45,3 +45,16 @@ The output of the `runCollect` operation is a tuple of two elements: the first i
 val channel: ZChannel[Any, Any, Any, Any, Exception, Nothing, Nothing] = 
   ZChannel.fail(new Exception("error"))
 ```
+
+3. **ZChannel.write**— Creates a channel that writes given elements to the output port:
+
+```scala mdoc:compile-only
+ZChannel.write(1).runCollect.debug
+// Output: (Chunk(1),()) 
+
+ZChannel.write(1, 2, 3).runCollect.debug
+// Output: (Chunk(1,2,3),()) 
+
+ZChannel.chunk(Chunk(1, 2, 3)).runCollect.debug
+// Output: (Chunk(1,2,3),()) 
+```
