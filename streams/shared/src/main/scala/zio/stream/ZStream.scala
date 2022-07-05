@@ -32,6 +32,16 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   import ZStream.HaltStrategy
 
   /**
+   * Returns a new ZStream that applies the specified aspect to this ZStream.
+   * Aspects are "transformers" that modify the behavior of their input in some
+   * well-defined way (for example, adding a timeout).
+   */
+  def @@[LowerR <: UpperR, UpperR <: R, LowerE >: E, UpperE >: LowerE, LowerA >: A, UpperA >: LowerA](
+    aspect: => ZStreamAspect[LowerR, UpperR, LowerE, UpperE, LowerA, UpperA]
+  )(implicit trace: Trace): ZStream[UpperR, LowerE, LowerA] =
+    ZStream.suspend(aspect(self))
+
+  /**
    * Symbolic alias for [[ZStream#cross]].
    */
   def <*>[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit
