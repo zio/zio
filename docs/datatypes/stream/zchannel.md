@@ -12,3 +12,25 @@ A `ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone]` requir
 We can pipe data from a channel that reads from the input port to a channel that writes to the output port, by using the `ZChannel#pipeTo` or `>>>` operator.
 
 Finally, we can run a channel by using the `ZChannel#run*` operators.
+
+## Creation of a Channel
+
+1. **ZChannel.succeed**: Create a channel that succeeds with a given done value, e.g. `ZChannel.succeed(42)`:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+val channel: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Int] = 
+  ZChannel.succeed(42)
+```
+
+This channel doesn't produce any data but succeeds with a done value of type `Int`. Let's try to `runCollect` this channel and see what happens:
+
+```scala mdoc:compile-only
+channel.runCollect.debug
+
+// Output: 
+//   (Chunk(),42)
+```
+
+The output of the `runCollect` operation is a tuple of two elements: the first is a chunk of data that the channel produced, and the second is the done value. Because this channel doesn't produce any data, the first element is an empty chunk, but it has a 42 as the done value in the second element.
