@@ -15,7 +15,9 @@ Finally, we can run a channel by using the `ZChannel#run*` operators.
 
 ## Creation of a Channel
 
-1. **ZChannel.succeed**— Creates a channel that succeeds with a given done value, e.g. `ZChannel.succeed(42)`:
+### `ZChannel.succeed`
+
+Creates a channel that succeeds with a given done value, e.g. `ZChannel.succeed(42)`:
 
 ```scala mdoc:silent
 import zio.stream._
@@ -39,7 +41,9 @@ channel.runCollect.debug
 
 The output of the `runCollect` operation is a tuple of two elements: the first is a chunk of data that the channel produced, and the second is the done value. Because this channel doesn't produce any data, the first element is an empty chunk, but it has a 42 as the done value in the second element.
 
-2. **ZChannel.fail**— Creates a channel that fails with a given error, e.g. `ZChannel.fail(new Exception("error"))`:
+### `ZChannel.fail`
+
+Creates a channel that fails with a given error, e.g. `ZChannel.fail(new Exception("error"))`:
 
 ```scala mdoc:compile-only
 import java.io.IOException
@@ -49,7 +53,9 @@ val channel: ZChannel[Any, Any, Any, Any, Exception, Nothing, Nothing] =
   ZChannel.fail(new Exception("error"))
 ```
 
-3. **ZChannel.writeXYZ**— Create a channel that writes given elements to the output port:
+### `ZChannel.write*`
+
+Create a channel that writes given elements to the output port:
 
 ```scala mdoc:compile-only
 import zio._
@@ -65,7 +71,9 @@ ZChannel.writeChunk(Chunk(1, 2, 3)).runCollect.debug
 // Output: (Chunk(1,2,3),()) 
 ```
 
-4. **ZChannel.readXYZ**— Create a channel that reads elements from the input port and returns that as a done value:
+### `ZChannel.read*`
+
+Create a channel that reads elements from the input port and returns that as a done value:
 
 Let's start with the simplest read operation, `ZChannel.read`:
 
