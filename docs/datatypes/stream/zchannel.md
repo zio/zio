@@ -52,15 +52,16 @@ val channel: ZChannel[Any, Any, Any, Any, Exception, Nothing, Nothing] =
 3. **ZChannel.writeXYZ**— Create a channel that writes given elements to the output port:
 
 ```scala mdoc:compile-only
+import zio._
 import zio.stream._
 
 ZChannel.write(1).runCollect.debug
 // Output: (Chunk(1),()) 
 
-ZChannel.write(1, 2, 3).runCollect.debug
+ZChannel.writeAll(1, 2, 3).runCollect.debug
 // Output: (Chunk(1,2,3),()) 
 
-ZChannel.chunk(Chunk(1, 2, 3)).runCollect.debug
+ZChannel.writeChunk(Chunk(1, 2, 3)).runCollect.debug
 // Output: (Chunk(1,2,3),()) 
 ```
 
@@ -78,6 +79,8 @@ val read: ZChannel[Any, Any, Int, Any, None.type, Nothing, Int] =
 To test this channel, we can create a writer channel and then pipe that to the reader channel:
 
 ```scala mdoc:compile-only
+import zio.stream._
+
 (ZChannel.write(1) >>> ZChannel.read[Int]).runCollect.debug
 // Output: (Chunk(0),1) 
 ```
