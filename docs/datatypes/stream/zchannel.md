@@ -15,9 +15,9 @@ Finally, we can run a channel by using the `ZChannel#run*` operators.
 
 ## Creation of a Channel
 
-1. **ZChannel.succeed**: Create a channel that succeeds with a given done value, e.g. `ZChannel.succeed(42)`:
+1. **ZChannel.succeed**— Creates a channel that succeeds with a given done value, e.g. `ZChannel.succeed(42)`:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio.stream._
 
 val channel: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Int] = 
@@ -33,4 +33,15 @@ channel.runCollect.debug
 //   (Chunk(),42)
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
 The output of the `runCollect` operation is a tuple of two elements: the first is a chunk of data that the channel produced, and the second is the done value. Because this channel doesn't produce any data, the first element is an empty chunk, but it has a 42 as the done value in the second element.
+
+2. **ZChannel.fail**— Creates a channel that fails with a given error, e.g. `ZChannel.fail(new Exception("error"))`:
+
+```scala mdoc:compile-only
+val channel: ZChannel[Any, Any, Any, Any, Exception, Nothing, Nothing] = 
+  ZChannel.fail(new Exception("error"))
+```
