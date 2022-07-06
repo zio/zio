@@ -156,7 +156,7 @@ The following table summarizes some of the sequential operations and their corre
 | Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
 | Merges many values             | `ZIO.mergeAll`    | `ZIO.mergeAllPar`    |
 
-Because all these parallel operators return all the results, if any effect being parallelized fails, ZIO will automatically cancel the other running effects, because their results will not be used.
+Because all these parallel operators return all the results, if any effect being parallelized fails, ZIO will automatically cancel the other running effects, as their results will not be used.
 
 If the fail-fast behavior is not desired, potentially failing effects can be first converted into infallible effects using the `ZIO#either` or `ZIO#option` methods.
 
