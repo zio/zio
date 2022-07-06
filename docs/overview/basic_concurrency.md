@@ -184,7 +184,7 @@ A value of `None` indicates the timeout elapsed before the effect completed.
 ZIO.succeed("Hello").timeout(10.seconds)
 ```
 
-If an effect times out, then instead of continuing to execute in the background, it will be interrupted, for automatic efficient.
+If an effect times out, then instead of continuing to execute in the background, it will be interrupted, for automatic efficiency.
 
 ## Next Steps
 
