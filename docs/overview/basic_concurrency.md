@@ -13,7 +13,7 @@ In this section, you will learn the basics of fibers, and become acquainted with
 
 All effects in ZIO are executed by _some_ fiber. If you did not create the fiber, then the fiber was created by some operation you are using (if the operation is concurrent or parallel), or by the ZIO runtime system.
 
-Even if you only write "single-threaded" code, with no parallel or concurrent operations, then there will be at least one fiber: the "main" fiber that executes your effect.
+Even if you only write "single-threaded" code, with no parallel or concurrent operations, there will be at least one fiber: the "main" fiber that executes your effect.
 
 Like operating system-level threads, ZIO fibers have a well-defined lifecycle, defined by the effect they are executing.
 
