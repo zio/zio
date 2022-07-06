@@ -55,7 +55,7 @@ jobs:
         with:
           swap-size-gb: 10
       - name: Check generation of ScalaDoc
-        run: free -h -s 1 & +Test/compile
+        run: free -h -s 1 & ./sbt +Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
