@@ -97,7 +97,11 @@ In the above example, the writer channel writes the value 1 to the output port, 
 
 Another useful read operation is `ZChannel.readWith`. Using this operator, after reading a value from the input port, instead of returning it as a done value, we have the ability to pass the input value to another channel.
 
-For example, assume we want to read a value from the input port and then print it to the console, we can use the `ZChannel.readWith` operator to do this:
+Let's try some examples:
+
+#### Simple Echo Channel
+
+Assume we want to read a value from the input port and then print it to the console, we can use the `ZChannel.readWith` operator to do this:
 
 ```scala mdoc:compile-only
 import zio._
@@ -117,6 +121,8 @@ val consumer =
 // Output:
 // Consumed: 1
 ```
+
+#### Echo Channel Forever
 
 We can also recursively compose channels to create a more complex channel. In the following example, we are going to continuously read values from the console and write them back to the console:
 
@@ -155,7 +161,9 @@ object MainApp extends ZIOAppDefault {
 // Please enter some text: exit
 ```
 
-Here is another example that replicates any input to the done value:
+#### Replicator Channel
+
+In this example, we are going to create a channel that replicates any input values to the output port.
 
 ```scala mdoc:compile-only
 import zio._
@@ -173,6 +181,8 @@ object MainApp extends ZIOAppDefault {
 // Output:
 //   (Chunk(1,1,2,2,3,3,4,4,5,5),())
 ```
+
+#### Counter Channel
 
 We can also use `Ref` to create a channel with an updatable state. For example, we can create a channel that keeps track number of all the values that it has read and finally returns it as the done value:
 
@@ -200,4 +210,39 @@ object MainApp extends ZIOAppDefault {
 
 // Output:
 // (Chunk(1,2,3,4,5), 5)
+```
+
+#### Dedupe Channel
+
+Sometimes we want to remove duplicate values from the input port. We need to have a state that keeps track of the values that have been seen. So if a value is seen for the first time, we can write it to the output port. If a value is duplicated, we can ignore it:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+import scala.collection.immutable.HashSet
+
+object MainApp extends ZIOAppDefault {
+  val dedup =
+    ZChannel.fromZIO(Ref.make[HashSet[Int]](HashSet.empty)).flatMap { ref =>
+      lazy val inner: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
+        ZChannel.readWith(
+          (i: Int) =>
+            ZChannel
+              .fromZIO(ref.modify(s => (s contains i, s incl i)))
+              .flatMap {
+                case true  => ZChannel.unit
+                case false => ZChannel.write(i)
+              } *> inner,
+          (_: Any) => ZChannel.unit,
+          (_: Any) => ZChannel.unit
+        )
+      inner
+    }
+
+  def run =
+    (ZChannel.writeAll(1, 2, 2, 3, 3, 4, 2, 5, 5) >>> dedup).runCollect.debug
+}
+// Output:
+// (Chunk(1,2,3,4,5),())
 ```
