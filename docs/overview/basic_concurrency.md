@@ -45,7 +45,7 @@ import zio._
 
 The most fundamental way of creating a fiber is to take an existing effect and _fork_ it. Conceptually, _forking_ an effect begins executing the effect on a new fiber, giving you a reference to the newly-created fiber.
 
-The following code creates a single fiber using `fork`, which executes `fib(100)` independent of the main fiber:
+The following code creates a single fiber using `fork`, which executes `fib(100)` independently of the main fiber:
 
 ```scala mdoc:silent
 def fib(n: Long): UIO[Long] = 
