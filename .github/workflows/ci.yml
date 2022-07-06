@@ -51,7 +51,7 @@ jobs:
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Check generation of ScalaDoc
-        run: free -h -s 1 & ./sbt +Test/compile ; sudo dmesg | egrep -i 'killed'
+        run: free -h -s 1 & ./sbt '; set Global / concurrentRestrictions += Tags.limit(Tags.Compile, 4) ; +Test/compile' ; sudo dmesg | egrep -i 'killed'
 
   publishLocal:
     runs-on: ubuntu-20.04
