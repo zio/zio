@@ -89,11 +89,27 @@ To test this channel, we can create a writer channel and then pipe that to the r
 ```scala mdoc:compile-only
 import zio.stream._
 
-(ZChannel.write(1) >>> ZChannel.read[Int]).runCollect.debug
+val read = ZChannel.read[Int] 
+
+(ZChannel.write(1) >>> read).runCollect.debug
 // Output: (Chunk(0),1) 
 ```
 
 In the above example, the writer channel writes the value 1 to the output port, and the reader channel reads the value from the input port and then returns it as a done value.
+
+If we compose multiple read operations, we can read more values from the input port:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+val read = ZChannel.read[Int] 
+
+(ZChannel.writeAll(1, 2, 3) >>> (read *> read)).runCollect.debug
+// Output: (Chunk(),2) 
+
+(ZChannel.writeAll(1, 2, 3) >>> (read *> read *> read)).runCollect.debug
+// Output: (Chunk(),3) 
+```
 
 Another useful read operation is `ZChannel.readWith`. Using this operator, after reading a value from the input port, instead of returning it as a done value, we have the ability to pass the input value to another channel.
 
