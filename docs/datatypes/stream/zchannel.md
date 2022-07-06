@@ -207,18 +207,15 @@ import zio._
 import zio.stream._
 
 object MainApp extends ZIOAppDefault {
-  val counter =
-    ZChannel.fromZIO(Ref.make[Int](0)).flatMap { ref =>
-      lazy val inner: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
+  val counter = {
+      def count(c: Int): ZChannel[Any, Any, Int, Any, String, Int, Int] =
         ZChannel.readWith(
-          (i: Int) =>
-            ZChannel.fromZIO(ref.update(_ + 1)) *> ZChannel
-              .write(i) *> inner,
-          (_: Any) => ZChannel.unit,
-          (_: Any) => ZChannel.unit
+          (i: Int) => ZChannel.write(i) *> count(c + 1),
+          (_: Any) => ZChannel.fail("error"),
+          (_: Any) => ZChannel.succeed(c)
         )
 
-      inner *> ZChannel.fromZIO(ref.get)
+      count(0)
     }
 
   def run = (ZChannel.writeAll(1, 2, 3, 4, 5) >>> counter).runCollect.debug
