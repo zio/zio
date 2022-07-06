@@ -2,7 +2,7 @@ package zio.test.magnolia
 
 import zio.test._
 
-import zio.test.magnolia.diff.gen
+import zio.test.magnolia.diff._
 import java.time.Instant
 
 object DeriveDiffSpec extends DefaultRunnableSpec {
