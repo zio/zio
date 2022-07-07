@@ -326,6 +326,15 @@ val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
 // Output: (Chunk((1,2,3),(4,5,6)),Done!)
 ```
 
+### Piping Channels
+
+The values from the output port of the first channel are passed to the input port of the second channel when we pipe a channel to another channel:
+
+```scala mdoc:compile-only
+(ZChannel.writeAll(1,2,3) >>> (ZChannel.read[Int] <*> ZChannel.read[Int])).runCollect.debug
+// Output: (Chunk(),(1,2))
+```
+
 ### Converting Channels
 
 We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
