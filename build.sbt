@@ -617,8 +617,14 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(scalacOptions += "-Xfatal-warnings")
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(publish / skip := true)
+  .settings(Test / test := (Test / compile).value)
   .dependsOn(macros, testRunner)
   .jvmConfigure(_.dependsOn(testJunitRunner))
+  .jsSettings(
+    libraryDependencies ++= List(
+      ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
+    )
+  )
   .nativeSettings(nativeSettings)
 
 lazy val benchmarks = project.module
