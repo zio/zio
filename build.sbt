@@ -341,7 +341,7 @@ lazy val testTestsJS = testTests.js
 lazy val testTestsNative = testTests.native
   .settings(nativeSettings)
 
-lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
+lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("test-magnolia"))
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
@@ -373,7 +373,7 @@ lazy val testMagnoliaJS  = testMagnolia.js
 lazy val testMagnoliaNative = testMagnolia.native
   .settings(nativeSettings)
 
-lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
+lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("test-magnolia-tests"))
   .dependsOn(testMagnolia)
   .dependsOn(testTests % "test->test;compile->compile")
@@ -393,7 +393,7 @@ lazy val testMagnoliaTestsJS  = testMagnoliaTests.js
 lazy val testMagnoliaTestsNative = testMagnoliaTests.native
   .settings(nativeSettings)
 
-lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
+lazy val testRefined = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("test-refined"))
   .dependsOn(testMagnolia)
   .settings(stdSettings("zio-test-refined"))
@@ -541,7 +541,7 @@ lazy val concurrentNative = concurrent.native
  *
  * To run tests: `sbt "examplesJVM/test"`
  */
-lazy val examples = crossProject(JVMPlatform, JSPlatform)
+lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
