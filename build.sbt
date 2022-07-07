@@ -36,7 +36,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;testRefinedNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -124,7 +124,6 @@ lazy val root = project
     testMagnoliaTestsJVM,
     testRefinedJS,
     testRefinedJVM,
-    testRefinedNative,
     testRunnerJS,
     testRunnerJVM,
     testRunnerNative,
@@ -388,7 +387,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
 lazy val testMagnoliaTestsJS  = testMagnoliaTests.js
 
-lazy val testRefined = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
   .dependsOn(testMagnolia)
   .settings(stdSettings("zio-test-refined"))
@@ -404,8 +403,6 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 
 lazy val testRefinedJVM = testRefined.jvm
 lazy val testRefinedJS  = testRefined.js
-lazy val testRefinedNative = testRefined.native
-  .settings(nativeSettings)
 
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-scalacheck"))
