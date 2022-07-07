@@ -300,6 +300,32 @@ If the buffer is full, the channel puts the value from the buffer to the output 
 
 ## Operations
 
+### Zipping
+
+1. Ordinary `zip`/`<*>` operator:
+
+```scala mdoc:compile-only
+val first = ZChannel.write(1,2,3) *> ZChannel.succeed("Done!")
+val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
+
+(first <*> second).runCollect.debug
+// Output: (Chunk((1,2,3),(4,5,6)),(Done!,Bye!))
+```
+
+2. `zipRight`/`*>` operator:
+
+```scala mdoc:compile-only
+(first *> second).runCollect.debug
+// Output: (Chunk((1,2,3),(4,5,6)),Bye!)
+```
+
+3. `zipLeft`/`<*` operator:
+
+```scala mdoc:compile-only
+(first <* second).runCollect.debug
+// Output: (Chunk((1,2,3),(4,5,6)),Done!)
+```
+
 ### Converting Channels
 
 We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
