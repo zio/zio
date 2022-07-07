@@ -36,7 +36,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;testMagnoliaTestsNative/test;testRefinedNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -97,10 +97,13 @@ lazy val root = project
     docs,
     examplesJS,
     examplesJVM,
+    examplesNative,
     macrosJS,
     macrosJVM,
+    macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
+    macrosTestsNative,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
@@ -117,10 +120,13 @@ lazy val root = project
     testJunitRunnerTestsJVM,
     testMagnoliaJS,
     testMagnoliaJVM,
+    testMagnoliaNative,
     testMagnoliaTestsJS,
     testMagnoliaTestsJVM,
+    testMagnoliaTestsNative,
     testRefinedJS,
     testRefinedJVM,
+    testRefinedNative,
     testRunnerJS,
     testRunnerJVM,
     testRunnerNative,
@@ -200,7 +206,7 @@ lazy val coreTestsJS = coreTests.js
 lazy val coreTestsNative = coreTests.native
   .settings(nativeSettings)
 
-lazy val macros = crossProject(JSPlatform, JVMPlatform)
+lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
   .dependsOn(core)
   .settings(stdSettings("zio-macros"))
@@ -210,8 +216,10 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
 
 lazy val macrosJVM = macros.jvm
 lazy val macrosJS  = macros.js
+lazy val macrosNative = macros.native
+  .settings(nativeSettings)
 
-lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
+lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros-tests"))
   .dependsOn(macros)
   .settings(stdSettings("macros-tests"))
@@ -224,8 +232,9 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
   .settings(publish / skip := true)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val macrosTestsJVM = macrosTests.jvm
-lazy val macrosTestsJS  = macrosTests.js
+lazy val macrosTestsJVM    = macrosTests.jvm
+lazy val macrosTestsJS     = macrosTests.js
+lazy val macrosTestsNative = macrosTests.native
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -361,6 +370,8 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
 lazy val testMagnoliaJS  = testMagnolia.js
+lazy val testMagnoliaNative = testMagnolia.native
+  .settings(nativeSettings)
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
@@ -379,6 +390,8 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
 lazy val testMagnoliaTestsJS  = testMagnoliaTests.js
+lazy val testMagnoliaTestsNative = testMagnoliaTests.native
+  .settings(nativeSettings)
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
@@ -396,6 +409,8 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
 
 lazy val testRefinedJVM = testRefined.jvm
 lazy val testRefinedJS  = testRefined.js
+lazy val testRefinedNative = testRefined.native
+  .settings(nativeSettings)
 
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-scalacheck"))
@@ -540,6 +555,9 @@ lazy val examplesJS = examples.js
 
 lazy val examplesJVM = examples.jvm
   .dependsOn(testJunitRunnerJVM)
+
+lazy val examplesNative = examples.native
+  .settings(nativeSettings)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)
