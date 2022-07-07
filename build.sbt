@@ -230,9 +230,10 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(publish / skip := true)
   .enablePlugins(BuildInfoPlugin)
 
-lazy val macrosTestsJVM    = macrosTests.jvm
-lazy val macrosTestsJS     = macrosTests.js
+lazy val macrosTestsJVM = macrosTests.jvm
+lazy val macrosTestsJS  = macrosTests.js
 lazy val macrosTestsNative = macrosTests.native
+  .settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
