@@ -55,6 +55,25 @@ jobs:
       - name: Check generation of ScalaDoc
         run: ./sbt ++${{ matrix.scala }} "; Test/doc; publishLocal"
 
+  publishLocal:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3.0.2
+      - name: Setup Java
+        uses: actions/setup-java@v2.5.0
+        with:
+          distribution: temurin
+          java-version: 8
+          check-latest: true
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Install libuv
+        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
+      - name: Check that building packages works
+        run: ./sbt +publishLocal
+
   website:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
