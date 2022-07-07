@@ -6,10 +6,10 @@ import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
 
 object BuildHelper {
-  private val Scala211 = "2.11.12"
-  private val Scala212 = "2.12.15"
-  private val Scala213 = "2.13.8"
-  private val Scala3   = "3.1.2"
+  val Scala211 = "2.11.12"
+  val Scala212 = "2.12.15"
+  val Scala213 = "2.13.8"
+  val Scala3   = "3.1.2"
 
   val SilencerVersion = "1.7.8"
 
