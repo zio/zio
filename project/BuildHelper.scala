@@ -6,23 +6,10 @@ import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
 
 object BuildHelper {
-  private val versions: Map[String, String] = {
-    import org.snakeyaml.engine.v2.api.{Load, LoadSettings}
-
-    import java.util.{List => JList, Map => JMap}
-    import scala.jdk.CollectionConverters._
-    val doc = new Load(LoadSettings.builder().build())
-      .loadFromReader(scala.io.Source.fromFile(".github/workflows/ci.yml").bufferedReader())
-    val yaml = doc.asInstanceOf[JMap[String, JMap[String, JMap[String, JMap[String, JMap[String, JList[String]]]]]]]
-    val list = yaml.get("jobs").get("test").get("strategy").get("matrix").get("scala").asScala
-    list.map { v =>
-      val vs = v.split('.'); val init = vs.take(vs(0) match { case "2" => 2; case _ => 1 }); (init.mkString("."), v)
-    }.toMap
-  }
-  val Scala211: String = versions("2.11")
-  val Scala212: String = versions("2.12")
-  val Scala213: String = versions("2.13")
-  val Scala3: String   = versions("3")
+  private val Scala211 = "2.11.12"
+  private val Scala212 = "2.12.15"
+  private val Scala213 = "2.13.8"
+  private val Scala3   = "3.1.2"
 
   val SilencerVersion = "1.7.8"
 
