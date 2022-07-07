@@ -36,7 +36,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;testMagnoliaTestsNative/test;testRefinedNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;testRefinedNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -120,10 +120,8 @@ lazy val root = project
     testJunitRunnerTestsJVM,
     testMagnoliaJS,
     testMagnoliaJVM,
-    testMagnoliaNative,
     testMagnoliaTestsJS,
     testMagnoliaTestsJVM,
-    testMagnoliaTestsNative,
     testRefinedJS,
     testRefinedJVM,
     testRefinedNative,
@@ -341,7 +339,7 @@ lazy val testTestsJS = testTests.js
 lazy val testTestsNative = testTests.native
   .settings(nativeSettings)
 
-lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
   .dependsOn(test)
   .settings(stdSettings("zio-test-magnolia"))
@@ -370,10 +368,8 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform, NativePlatform)
 
 lazy val testMagnoliaJVM = testMagnolia.jvm
 lazy val testMagnoliaJS  = testMagnolia.js
-lazy val testMagnoliaNative = testMagnolia.native
-  .settings(nativeSettings)
 
-lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform, NativePlatform)
+lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
   .dependsOn(testMagnolia)
   .dependsOn(testTests % "test->test;compile->compile")
@@ -390,8 +386,6 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform, NativePlatfor
 
 lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
 lazy val testMagnoliaTestsJS  = testMagnoliaTests.js
-lazy val testMagnoliaTestsNative = testMagnoliaTests.native
-  .settings(nativeSettings)
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("test-refined"))
@@ -403,7 +397,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform, NativePlatform)
     crossScalaVersions --= Seq(Scala211),
     libraryDependencies ++=
       Seq(
-        ("eu.timepit" %% "refined" % "0.9.27").cross(CrossVersion.for3Use2_13)
+        ("eu.timepit" %% "refined" % "0.10.1").cross(CrossVersion.for3Use2_13)
       )
   )
 
