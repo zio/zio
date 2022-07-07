@@ -134,7 +134,6 @@ import zio._
 case class Counter(value: Ref[Int]) {
   def inc: UIO[Unit] = value.update(_ + 1)
   def get: UIO[Int] = value.get
-  def reset: UIO[Unit] = value.set(0)
 }
 
 object Counter {
@@ -142,7 +141,7 @@ object Counter {
     ZLayer.scoped(
       ZIO.acquireRelease(
         Ref.make(0).map(Counter(_)) <* ZIO.debug("Counter initialized!")
-      )(c => c.get.debug("Number of tests executed") *> c.reset)
+      )(c => c.get.debug("Number of tests executed"))
     )
   def inc = ZIO.service[Counter].flatMap(_.inc)
 }
@@ -216,11 +215,9 @@ import zio.test._
 
 object Spec1 extends SharedCounterSpec {
   override def spec =
-    suite("spec1")(
-      test("test1") {
-        assertTrue(true)
-      } @@ TestAspect.after(Counter.inc)
-    )
+    test("test1") {
+      assertTrue(true)
+    } @@ TestAspect.after(Counter.inc)
 }
 ```
 
@@ -232,17 +229,9 @@ import zio.test._
 
 object Spec2 extends SharedCounterSpec {
   override def spec: Spec[Scope with Counter, Any] =
-    suite("spec2")(
-      test("test1") {
-        assertTrue(true)
-      } @@ TestAspect.after(Counter.inc),
-      test("test2") {
-        assertTrue(true)
-      } @@ TestAspect.after(Counter.inc),
-      test("test2") {
-        assertTrue(true)
-      } @@ TestAspect.after(Counter.inc)
-    )
+    test("test2") {
+      assertTrue(true)
+    } @@ TestAspect.after(Counter.inc)
 }
 ```
 
@@ -250,13 +239,9 @@ Now, when we run all specs (`sbt testOnly org.example.*`), we will see an output
 
 ```
 Counter initialized!
-+ spec1
-  + test1
-+ spec2
-  + test3
-  + test2
-  + test1
-Number of tests executed: 4
++ test1
++ test2
+Number of tests executed: 2
 ```
 
 The ZIO test runner will execute all specs with the shared bootstrap layer. This means that the `Counter` service will be created and managed only once, and will be shared between all specs.
