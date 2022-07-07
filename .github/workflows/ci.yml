@@ -36,7 +36,7 @@ jobs:
 
   compile:
     runs-on: ubuntu-20.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -50,8 +50,12 @@ jobs:
         uses: coursier/cache-action@v6
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 10
       - name: Check generation of ScalaDoc
-        run: ./sbt +Test/compile
+        run: free -h -s 1 & ./sbt +Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
