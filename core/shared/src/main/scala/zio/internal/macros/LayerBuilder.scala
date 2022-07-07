@@ -287,13 +287,13 @@ final case class LayerBuilder[Type, Expr](
           List(getAlias(key))
         case (key, children) =>
           children.map { child =>
-            s"${getAlias(key)} --> ${getAlias(child)}"
+            s"${getAlias(child)} --> ${getAlias(key)}"
           }
       }
         .mkString("\\n")
 
     val mermaidGraph =
-      s"""{"code":"graph\\n$mermaidCode","mermaid": "{\\"theme\\": \\"default\\"}"}"""
+      s"""{"code":"graph BT\\n$mermaidCode","mermaid": "{\\"theme\\": \\"default\\"}"}"""
 
     val encodedMermaidGraph: String =
       new String(Base64.getEncoder.encode(mermaidGraph.getBytes(StandardCharsets.UTF_8)), StandardCharsets.UTF_8)
