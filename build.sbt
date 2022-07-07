@@ -515,8 +515,11 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
 
 lazy val testScalaCheckJVM = testScalaCheck.jvm
-lazy val testScalaCheckJS  = testScalaCheck.js
+  .settings(crossScalaVersions --= Seq(Scala211))
+lazy val testScalaCheckJS = testScalaCheck.js
+  .settings(crossScalaVersions --= Seq(Scala211))
 lazy val testScalaCheckNative = testScalaCheck.native
+  .settings(crossScalaVersions --= Seq(Scala211))
   .settings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
