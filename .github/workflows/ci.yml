@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.11', '2.12', '2.13', '3']
+        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -56,8 +56,18 @@ jobs:
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 7
-      - name: Check generation of ScalaDoc
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root${{ matrix.scala }}/Test/doc
+      - name: Check generation of ScalaDoc 2.11
+        if: ${{ startsWith(matrix.scala, '2.11.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root211/Test/doc
+      - name: Check generation of ScalaDoc 2.12
+        if: ${{ startsWith(matrix.scala, '2.12.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/Test/doc
+      - name: Check generation of ScalaDoc 2.13
+        if: ${{ startsWith(matrix.scala, '2.13.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/Test/doc
+      - name: Check generation of ScalaDoc 3
+        if: ${{ startsWith(matrix.scala, '3.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/Test/doc
 
   publishLocal:
     runs-on: ubuntu-20.04
