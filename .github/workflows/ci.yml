@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
+        scala: ['2.11.x', '2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -57,7 +57,7 @@ jobs:
         with:
           swap-size-gb: 7
       - name: Check generation of ScalaDoc
-        run: free -tmlw -s 10 &./sbt ++${{ matrix.scala }} "; Test/doc; publishLocal"
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} "; Test/doc; publishLocal"
 
   website:
     runs-on: ubuntu-20.04
