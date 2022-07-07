@@ -40,11 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: &scalaVersions
-          - '2.11.*'
-          - '2.12.*'
-          - '2.13.*'
-          - '3.*'
+        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -87,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: *scalaVersions
+        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
