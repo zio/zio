@@ -36,7 +36,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
 )
 addCommandAlias(
   "testJVM",
@@ -97,10 +97,13 @@ lazy val root = project
     docs,
     examplesJS,
     examplesJVM,
+    examplesNative,
     macrosJS,
     macrosJVM,
+    macrosNative,
     macrosTestsJS,
     macrosTestsJVM,
+    macrosTestsNative,
     stacktracerJS,
     stacktracerJVM,
     stacktracerNative,
@@ -200,7 +203,7 @@ lazy val coreTestsJS = coreTests.js
 lazy val coreTestsNative = coreTests.native
   .settings(nativeSettings)
 
-lazy val macros = crossProject(JSPlatform, JVMPlatform)
+lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
   .dependsOn(core)
   .settings(stdSettings("zio-macros"))
@@ -210,8 +213,10 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform)
 
 lazy val macrosJVM = macros.jvm
 lazy val macrosJS  = macros.js
+lazy val macrosNative = macros.native
+  .settings(nativeSettings)
 
-lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
+lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros-tests"))
   .dependsOn(macros)
   .settings(stdSettings("macros-tests"))
@@ -226,6 +231,8 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform)
 
 lazy val macrosTestsJVM = macrosTests.jvm
 lazy val macrosTestsJS  = macrosTests.js
+lazy val macrosTestsNative = macrosTests.native
+  .settings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -526,7 +533,7 @@ lazy val concurrentNative = concurrent.native
  *
  * To run tests: `sbt "examplesJVM/test"`
  */
-lazy val examples = crossProject(JVMPlatform, JSPlatform)
+lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .in(file("examples"))
   .settings(stdSettings("examples"))
   .settings(crossProjectSettings)
@@ -540,6 +547,9 @@ lazy val examplesJS = examples.js
 
 lazy val examplesJVM = examples.jvm
   .dependsOn(testJunitRunnerJVM)
+
+lazy val examplesNative = examples.native
+  .settings(nativeSettings)
 
 lazy val benchmarks = project.module
   .dependsOn(coreJVM, streamsJVM, testJVM)

@@ -34,7 +34,7 @@ jobs:
 
   compile:
     runs-on: ubuntu-20.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
