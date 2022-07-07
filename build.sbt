@@ -71,12 +71,152 @@ addCommandAlias(
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
 )
 
+lazy val projectsCommon = List(
+  concurrent,
+  core,
+  coreTests,
+  examples,
+  macros,
+  macrosTests,
+  stacktracer,
+  streams,
+  streamsTests,
+  test,
+  testRunner,
+  testTests
+)
+
+lazy val rootJVM = project
+  .in(file("target/rootJVM"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
+      benchmarks,
+      docs,
+      testJunitRunner,
+      testJunitRunnerTests,
+      testMagnolia.jvm,
+      testMagnoliaTests.jvm,
+      testRefined.jvm,
+      testScalaCheck.jvm
+    ): _*
+  )
+
+lazy val rootJS = project
+  .in(file("target/rootJS"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(projectsCommon.map(p => p.js: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
+      testMagnolia.js,
+      testMagnoliaTests.js,
+      testRefined.js,
+      testScalaCheck.js
+    ): _*
+  )
+
+lazy val rootNative = project
+  .in(file("target/rootNative"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(projectsCommon.map(_.native: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
+      testScalaCheck.native
+    ): _*
+  )
+
+lazy val root211 = project
+  .in(file("target/root211"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(
+    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List[ProjectReference](
+        testJunitRunner
+      )): _*
+  )
+
+lazy val root212 = project
+  .in(file("target/root212"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(
+    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List(
+        testScalaCheck
+      ).flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List(
+        testMagnolia,
+        testMagnoliaTests,
+        testRefined
+      ).flatMap(p => List[ProjectReference](p.jvm, p.js)) ++
+      List[ProjectReference](
+        benchmarks,
+        docs,
+        testJunitRunner,
+        testJunitRunnerTests
+      )): _*
+  )
+
+lazy val root213 = project
+  .in(file("target/root213"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(
+    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List(
+        testScalaCheck
+      ).flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List(
+        testMagnolia,
+        testMagnoliaTests,
+        testRefined
+      ).flatMap(p => List[ProjectReference](p.jvm, p.js)) ++
+      List[ProjectReference](
+        benchmarks,
+        docs,
+        testJunitRunner,
+        testJunitRunnerTests
+      )): _*
+  )
+
+lazy val root3 = project
+  .in(file("target/root3"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(
+    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List(
+        testScalaCheck
+      ).flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
+      List(
+        testMagnolia,
+        testMagnoliaTests,
+        testRefined
+      ).flatMap(p => List[ProjectReference](p.jvm, p.js)) ++
+      List[ProjectReference](
+        testJunitRunner,
+        testJunitRunnerTests
+      )): _*
+  )
+
 lazy val root = project
   .in(file("."))
   .settings(
     name           := "zio",
     publish / skip := true,
-    console        := (coreJVM / Compile / console).value,
+    console        := (core.jvm / Compile / console).value,
     unusedCompileDependenciesFilter -= moduleFilter(
       "org.scala-js",
       "scalajs-library"
@@ -85,54 +225,54 @@ lazy val root = project
   )
   .aggregate(
     benchmarks,
-    concurrentJS,
-    concurrentJVM,
-    concurrentNative,
-    coreJS,
-    coreJVM,
-    coreNative,
-    coreTestsJS,
-    coreTestsJVM,
-    coreTestsNative,
+    concurrent.js,
+    concurrent.jvm,
+    concurrent.native,
+    core.js,
+    core.jvm,
+    core.native,
+    coreTests.js,
+    coreTests.jvm,
+    coreTests.native,
     docs,
-    examplesJS,
-    examplesJVM,
-    examplesNative,
-    macrosJS,
-    macrosJVM,
-    macrosNative,
-    macrosTestsJS,
-    macrosTestsJVM,
-    macrosTestsNative,
-    stacktracerJS,
-    stacktracerJVM,
-    stacktracerNative,
-    streamsJS,
-    streamsJVM,
-    streamsNative,
-    streamsTestsJS,
-    streamsTestsJVM,
-    streamsTestsNative,
-    testJS,
-    testJVM,
-    testNative,
-    testJunitRunnerJVM,
-    testJunitRunnerTestsJVM,
-    testMagnoliaJS,
-    testMagnoliaJVM,
-    testMagnoliaTestsJS,
-    testMagnoliaTestsJVM,
-    testRefinedJS,
-    testRefinedJVM,
-    testRunnerJS,
-    testRunnerJVM,
-    testRunnerNative,
-    testScalaCheckJS,
-    testScalaCheckJVM,
-    testScalaCheckNative,
-    testTestsJS,
-    testTestsJVM,
-    testTestsNative
+    examples.js,
+    examples.jvm,
+    examples.native,
+    macros.js,
+    macros.jvm,
+    macros.native,
+    macrosTests.js,
+    macrosTests.jvm,
+    macrosTests.native,
+    stacktracer.js,
+    stacktracer.jvm,
+    stacktracer.native,
+    streams.js,
+    streams.jvm,
+    streams.native,
+    streamsTests.js,
+    streamsTests.jvm,
+    streamsTests.native,
+    test.js,
+    test.jvm,
+    test.native,
+    testJunitRunner,
+    testJunitRunnerTests,
+    testMagnolia.js,
+    testMagnolia.jvm,
+    testMagnoliaTests.js,
+    testMagnoliaTests.jvm,
+    testRefined.js,
+    testRefined.jvm,
+    testRunner.js,
+    testRunner.jvm,
+    testRunner.native,
+    testScalaCheck.js,
+    testScalaCheck.jvm,
+    testScalaCheck.native,
+    testTests.js,
+    testTests.jvm,
+    testTests.native
   )
   .enablePlugins(ScalaJSPlugin)
 
@@ -144,14 +284,12 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio"))
   .settings(libraryDependencies += "dev.zio" %%% "izumi-reflect" % "2.1.3")
   .enablePlugins(BuildInfoPlugin)
-
-lazy val coreJVM = core.jvm
-  .settings(replSettings)
-  .settings(mimaSettings(failOnProblem = true))
-
-lazy val coreJS = core.js
-  .settings(libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0")
-  .settings(
+  .jvmSettings(
+    replSettings,
+    mimaSettings(failOnProblem = true)
+  )
+  .jsSettings(
+    libraryDependencies += "org.scala-js" %%% "scala-js-macrotask-executor" % "1.0.0",
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -161,10 +299,8 @@ lazy val coreJS = core.js
       }
     }
   )
-
-lazy val coreNative = core.native
-  .settings(nativeSettings)
-  .settings(
+  .nativeSettings(
+    nativeSettings,
     libraryDependencies ++= Seq(
       "com.github.lolgab" %%% "native-loop-core" % "0.2.1"
     )
@@ -184,13 +320,9 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
   .enablePlugins(BuildInfoPlugin)
-
-lazy val coreTestsJVM = coreTests.jvm
-  .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings)
-
-lazy val coreTestsJS = coreTests.js
-  .settings(
+  .jvmConfigure(_.enablePlugins(JCStressPlugin))
+  .jvmSettings(replSettings)
+  .jsSettings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -199,9 +331,7 @@ lazy val coreTestsJS = coreTests.js
       }
     }
   )
-
-lazy val coreTestsNative = coreTests.native
-  .settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
@@ -210,11 +340,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
-
-lazy val macrosJVM = macros.jvm
-lazy val macrosJS  = macros.js
-lazy val macrosNative = macros.native
-  .settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros-tests"))
@@ -228,11 +354,7 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio"))
   .settings(publish / skip := true)
   .enablePlugins(BuildInfoPlugin)
-
-lazy val macrosTestsJVM = macrosTests.jvm
-lazy val macrosTestsJS  = macrosTests.js
-lazy val macrosTestsNative = macrosTests.native
-  .settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -242,15 +364,8 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio.stream"))
   .settings(streamReplSettings)
   .enablePlugins(BuildInfoPlugin)
-
-lazy val streamsJVM = streams.jvm
-  // No bincompat on streams yet
-  .settings(mimaSettings(failOnProblem = false))
-
-lazy val streamsJS = streams.js
-
-lazy val streamsNative = streams.native
-  .settings(nativeSettings)
+  .jvmSettings(mimaSettings(failOnProblem = false))
+  .nativeSettings(nativeSettings)
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams-tests"))
@@ -266,12 +381,8 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.AllLibraryJars
   )
   .enablePlugins(BuildInfoPlugin)
-
-lazy val streamsTestsJVM = streamsTests.jvm
-  .dependsOn(coreTestsJVM % "test->compile")
-
-lazy val streamsTestsJS = streamsTests.js
-  .settings(
+  .jvmConfigure(_.dependsOn(coreTests.jvm % "test->compile"))
+  .jsSettings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -280,9 +391,7 @@ lazy val streamsTestsJS = streamsTests.js
       }
     }
   )
-
-lazy val streamsTestsNative = streamsTests.native
-  .settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
@@ -297,20 +406,15 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         .cross(CrossVersion.for3Use2_13)
     )
   )
-
-lazy val testJVM = test.jvm
-  // No bincompat on zio-test yet
-  .settings(mimaSettings(failOnProblem = false))
-lazy val testJS = test.js
-  .settings(
+  .jvmSettings(mimaSettings(failOnProblem = false))
+  .jsSettings(
     libraryDependencies ++= List(
       "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
     )
   )
-lazy val testNative = test.native
-  .settings(nativeSettings)
-  .settings(
+  .nativeSettings(
+    nativeSettings,
     libraryDependencies ++= List(
       "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
@@ -328,16 +432,12 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(publish / skip := true)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
-
-lazy val testTestsJVM = testTests.jvm
-lazy val testTestsJS = testTests.js
-  .settings(
+  .jsSettings(
     libraryDependencies ++= List(
       ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
     )
   )
-lazy val testTestsNative = testTests.native
-  .settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
@@ -366,9 +466,6 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
     }
   )
 
-lazy val testMagnoliaJVM = testMagnolia.jvm
-lazy val testMagnoliaJS  = testMagnolia.js
-
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
   .dependsOn(testMagnolia)
@@ -384,9 +481,6 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   )
   .enablePlugins(BuildInfoPlugin)
 
-lazy val testMagnoliaTestsJVM = testMagnoliaTests.jvm
-lazy val testMagnoliaTestsJS  = testMagnoliaTests.js
-
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-refined"))
   .dependsOn(testMagnolia)
@@ -401,9 +495,6 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
       )
   )
 
-lazy val testRefinedJVM = testRefined.jvm
-lazy val testRefinedJS  = testRefined.js
-
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-scalacheck"))
   .dependsOn(test)
@@ -415,11 +506,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ("org.scalacheck" %%% "scalacheck" % "1.16.0")
     )
   )
-
-lazy val testScalaCheckJVM = testScalaCheck.jvm
-lazy val testScalaCheckJS  = testScalaCheck.js
-lazy val testScalaCheckNative = testScalaCheck.native
-  .settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("stacktracer"))
@@ -427,14 +514,11 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .enablePlugins(BuildInfoPlugin)
-
-lazy val stacktracerJS = stacktracer.js
-lazy val stacktracerJVM = stacktracer.jvm
-  .settings(replSettings)
-
-lazy val stacktracerNative = stacktracer.native
-  .settings(nativeSettings)
-  .settings(scalacOptions -= "-Xfatal-warnings") // Issue 3112
+  .jvmSettings(replSettings)
+  .nativeSettings(
+    nativeSettings,
+    scalacOptions -= "-Xfatal-warnings" // Issue 3112
+  )
 
 lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-sbt"))
@@ -443,29 +527,26 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
   .dependsOn(core)
   .dependsOn(test)
-
-lazy val testRunnerJVM = testRunner.jvm
-  .settings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
-lazy val testRunnerJS = testRunner.js
-  .settings(
+  .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
+  .jsSettings(
     libraryDependencies ++= Seq(
       ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
     )
   )
-lazy val testRunnerNative = testRunner.native
-  .settings(nativeSettings)
-  .settings(libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion))
+  .nativeSettings(
+    nativeSettings,
+    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion)
+  )
 
-lazy val testJunitRunner = crossProject(JVMPlatform)
+lazy val testJunitRunner = crossProject(JVMPlatform) // TODO: make plain project, nothing cross about this
   .in(file("test-junit"))
   .settings(stdSettings("zio-test-junit"))
   .settings(crossProjectSettings)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
   .dependsOn(test)
+  .jvm
 
-lazy val testJunitRunnerJVM = testJunitRunner.jvm
-
-lazy val testJunitRunnerTests = crossProject(JVMPlatform)
+lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain project, nothing cross about this
   .in(file("test-junit-tests"))
   .settings(stdSettings("test-junit-tests"))
   .settings(crossProjectSettings)
@@ -494,21 +575,22 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform)
       "org.slf4j"              % "slf4j-simple"           % "1.7.36" % Test
     )
   )
-  .dependsOn(test)
-  .dependsOn(testRunner)
-
-lazy val testJunitRunnerTestsJVM = testJunitRunnerTests.jvm
+  .dependsOn(
+    test,
+    testRunner
+  )
   // publish locally so embedded maven runs against locally compiled zio
   .settings(
     Test / Keys.test :=
       (Test / Keys.test)
-        .dependsOn(testJunitRunnerJVM / publishM2)
-        .dependsOn(testJVM / publishM2)
-        .dependsOn(coreJVM / publishM2)
-        .dependsOn(streamsJVM / publishM2)
-        .dependsOn(stacktracerJVM / publishM2)
+        .dependsOn(testJunitRunner / publishM2)
+        .dependsOn(test.jvm / publishM2)
+        .dependsOn(core.jvm / publishM2)
+        .dependsOn(streams.jvm / publishM2)
+        .dependsOn(stacktracer.jvm / publishM2)
         .value
   )
+  .jvm
 
 lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("concurrent"))
@@ -519,14 +601,8 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(BuildInfoPlugin)
   .dependsOn(testRunner % Test)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
-
-lazy val concurrentJVM = concurrent.jvm
-  .settings(mimaSettings(failOnProblem = false))
-
-lazy val concurrentJS = concurrent.js
-
-lazy val concurrentNative = concurrent.native
-  .settings(nativeSettings)
+  .jvmSettings(mimaSettings(failOnProblem = false))
+  .nativeSettings(nativeSettings)
 
 /**
  * Examples sub-project that is not included in the root project.
@@ -542,17 +618,11 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .settings(publish / skip := true)
   .dependsOn(macros, testRunner)
-
-lazy val examplesJS = examples.js
-
-lazy val examplesJVM = examples.jvm
-  .dependsOn(testJunitRunnerJVM)
-
-lazy val examplesNative = examples.native
-  .settings(nativeSettings)
+  .jvmConfigure(_.dependsOn(testJunitRunner))
+  .nativeSettings(nativeSettings)
 
 lazy val benchmarks = project.module
-  .dependsOn(coreJVM, streamsJVM, testJVM)
+  .dependsOn(core.jvm, streams.jvm, test.jvm)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
@@ -617,12 +687,12 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     crossScalaVersions --= List(Scala211, Scala3),
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
-      coreJVM,
-      streamsJVM,
-      testJVM,
-      testMagnoliaJVM,
-      testRefinedJVM,
-      testScalaCheckJVM
+      core.jvm,
+      streams.jvm,
+      test.jvm,
+      testMagnolia.jvm,
+      testRefined.jvm,
+      testScalaCheck.jvm
     ),
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
@@ -701,5 +771,14 @@ lazy val docs = project.module
   )
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
-  .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
+  .dependsOn(
+    core.jvm,
+    streams.jvm,
+    concurrent.jvm,
+    test.jvm,
+    testMagnolia.jvm,
+    testRefined.jvm,
+    testScalaCheck.jvm,
+    core.js
+  )
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)

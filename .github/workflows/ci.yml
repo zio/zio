@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        scala: ['2.11.12', '2.12.15', '2.13.8', '3.1.2']
+        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -57,7 +57,26 @@ jobs:
         with:
           swap-size-gb: 7
       - name: Check generation of ScalaDoc
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} "; Test/doc; publishLocal"
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root${{ matrix.scala }}/Test/doc
+
+  publishLocal:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3.0.2
+      - name: Setup Java
+        uses: actions/setup-java@v2.5.0
+        with:
+          distribution: temurin
+          java-version: 8
+          check-latest: true
+      - name: Cache scala dependencies
+        uses: coursier/cache-action@v6
+      - name: Install libuv
+        run: sudo apt-get update && sudo apt-get install -y libuv1-dev
+      - name: Check that building packages works
+        run: ./sbt +publishLocal
 
   website:
     runs-on: ubuntu-20.04
@@ -85,6 +104,7 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.11.12', '2.12.15', '2.13.8', '3.1.2']
+        java: ['17']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
@@ -93,7 +113,7 @@ jobs:
       uses: actions/setup-java@v2.5.0
       with:
         distribution: temurin
-        java-version: 17
+        java-version: ${{ matrix.java }}
         check-latest: true
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
@@ -130,7 +150,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: ./sbt test${{ matrix.platform }}
+        run: ./sbt root${{ matrix.platform }}/test
 
   testPlatforms:
     runs-on: ubuntu-20.04
@@ -138,6 +158,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        java: ['17']
         platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
@@ -146,18 +167,18 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 17
+          java-version: ${{ matrix.java }}
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Test on different Scala target platforms
-        run: ./sbt test${{ matrix.platform }}
+        run: ./sbt root${{ matrix.platform }}/test
 
   ci:
     runs-on: ubuntu-20.04
-    needs: [lint, compile, website, test, testJvms, testPlatforms]
+    needs: [lint, compile, publishLocal, website, test, testJvms, testPlatforms]
     steps:
       - name: Aggregate of lint, mdoc and all tests
         run: echo "ci passed"
