@@ -24,6 +24,12 @@ object Trace {
   def apply(location: String, file: String, line: Int): Trace =
     Tracer.instance(location, file, line)
 
+  def equalIgnoreLocation(left: Trace, right: Trace): Boolean =
+    (left, right) match {
+      case (Trace(_, leftFile, leftLine), Trace(_, rightFile, rightLine)) =>
+        leftFile == rightFile && leftLine == rightLine
+    }
+
   val empty: Trace =
     Tracer.instance.empty
 
