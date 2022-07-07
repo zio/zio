@@ -260,6 +260,44 @@ object MainApp extends ZIOAppDefault {
 // (Chunk(1,2,3,4,5),())
 ```
 
+### Buffered Channel
+
+With help of `ZChannel.buffer` or `ZChannel.bufferChunk`, we can create a channel backed by a buffer.
+- If the buffer is full, the channel puts the values in the buffer to the output port.
+- If the buffer is empty, the channel reads the value from the input port and puts it in the output port.
+
+Assume we have a channel written as follows:
+
+```scala mdoc:silent
+import zio._
+import zio.stream._
+
+def buffered(input: Int) =
+  ZChannel
+    .fromZIO(Ref.make(input))
+    .flatMap { ref =>
+      ZChannel.buffer[Any, Int, Unit](
+        0,
+        i => if (i == 0) true else false,
+        ref
+      )
+    }
+```
+
+If the buffer is empty (zero value), the `buffered` channel passes the `1` to the output port:
+
+```scala mdoc:compile-only
+(ZChannel.write(1) >>> buffered(0)).runCollect.debug
+// Output: (Chunk(1),())
+```
+
+If the buffer is full, the channel puts the value from the buffer to the output port:
+
+```scala mdoc:compile-only
+(ZChannel.write(1) >>> buffered(0)).runCollect.debug
+// Output: (Chunk(2,1),())
+```
+
 ## Operations
 
 ### Converting Channels
