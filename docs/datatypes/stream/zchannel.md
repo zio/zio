@@ -304,7 +304,7 @@ If the buffer is full, the channel puts the value from the buffer to the output 
 
 1. Ordinary `zip`/`<*>` operator:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 val first = ZChannel.write(1,2,3) *> ZChannel.succeed("Done!")
 val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
 
@@ -326,13 +326,84 @@ val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
 // Output: (Chunk((1,2,3),(4,5,6)),Done!)
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
 ### Piping Channels
 
 The values from the output port of the first channel are passed to the input port of the second channel when we pipe a channel to another channel:
 
 ```scala mdoc:compile-only
+import zio.stream._
+
 (ZChannel.writeAll(1,2,3) >>> (ZChannel.read[Int] <*> ZChannel.read[Int])).runCollect.debug
 // Output: (Chunk(),(1,2))
+```
+
+### Mapping The Terminal Done Value (`OutDone`)
+
+The ordinary `map` operator is used to map the done value of a channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel.writeAll(1, 2, 3).map(_ => 5).runCollect.debug 
+// (Chunk(1,2,3),5)
+```
+
+### Mapping The Done Value of The Input Port (`InDone`)
+
+To map the done value of the input port, we use the `contramap` operator:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+(ZChannel.succeed("5") >>>
+  ZChannel
+    .readWith(
+      (i: Int) => ZChannel.write(ZChannel.write(i)),
+      (_: Any) => ZChannel.unit,
+      (d: Int) => ZChannel.succeed(d * 2)
+    )
+    .contramap[String](_.toInt)).runCollect.debug
+// Output: (Chunk(),(10))
+```
+
+### Mapping The Error Value of The Output Port (`OutErr`)
+
+To map the failure value of a channel, we use the `mapError` operator:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+val channel =
+  ZChannel
+    .fromZIO(Console.readLine("Please enter you name: "))
+    .mapError(_.toString)
+```
+
+### Mapping The Output Elements of a Channel (`OutElem`)
+
+To map the output elements of a channel, we use the `mapOutput` operator:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel.writeAll(1,2,3).mapOut(_ * 2).runCollect.debug
+// Output: (Chunk(2,4,6),())
+```
+
+### Mapping The Input Elements of a Channel (`InElem`)
+
+To map the input elements of a channel, we use the `contramapIn` operator:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+(ZChannel.write("123") >>> ZChannel.read[Int].contramapIn[String](_.toInt * 2)).runCollect.debug
+// Output: (Chunk(),(246))
 ```
 
 ### Converting Channels
