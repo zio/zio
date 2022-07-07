@@ -81,7 +81,7 @@ lazy val projectsCommon = List(
   stacktracer,
   streams,
   streamsTests,
-  test,
+  tests,
   testRunner,
   testTests
 )
@@ -253,9 +253,9 @@ lazy val root = project
     streamsTests.js,
     streamsTests.jvm,
     streamsTests.native,
-    test.js,
-    test.jvm,
-    test.native,
+    tests.js,
+    tests.jvm,
+    tests.native,
     testJunitRunner,
     testJunitRunnerTests,
     testMagnolia.js,
@@ -309,7 +309,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
   .dependsOn(core)
-  .dependsOn(test)
+  .dependsOn(tests)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -393,7 +393,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .nativeSettings(nativeSettings)
 
-lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test"))
   .dependsOn(core, streams)
   .settings(stdSettings("zio-test"))
@@ -423,7 +423,7 @@ lazy val test = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-tests"))
-  .dependsOn(test)
+  .dependsOn(tests)
   .settings(stdSettings("test-tests"))
   .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -441,7 +441,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia"))
-  .dependsOn(test)
+  .dependsOn(tests)
   .settings(stdSettings("zio-test-magnolia"))
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
@@ -497,7 +497,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
 
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-scalacheck"))
-  .dependsOn(test)
+  .dependsOn(tests)
   .settings(stdSettings("zio-test-scalacheck"))
   .settings(crossProjectSettings)
   .settings(
@@ -526,7 +526,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
   .dependsOn(core)
-  .dependsOn(test)
+  .dependsOn(tests)
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .jsSettings(
     libraryDependencies ++= Seq(
@@ -543,7 +543,7 @@ lazy val testJunitRunner = crossProject(JVMPlatform) // TODO: make plain project
   .settings(stdSettings("zio-test-junit"))
   .settings(crossProjectSettings)
   .settings(libraryDependencies ++= Seq("junit" % "junit" % "4.13.2"))
-  .dependsOn(test)
+  .dependsOn(tests)
   .jvm
 
 lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain project, nothing cross about this
@@ -576,7 +576,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
     )
   )
   .dependsOn(
-    test,
+    tests,
     testRunner
   )
   // publish locally so embedded maven runs against locally compiled zio
@@ -584,7 +584,7 @@ lazy val testJunitRunnerTests = crossProject(JVMPlatform) // TODO: make plain pr
     Test / Keys.test :=
       (Test / Keys.test)
         .dependsOn(testJunitRunner / publishM2)
-        .dependsOn(test.jvm / publishM2)
+        .dependsOn(tests.jvm / publishM2)
         .dependsOn(core.jvm / publishM2)
         .dependsOn(streams.jvm / publishM2)
         .dependsOn(stacktracer.jvm / publishM2)
@@ -628,7 +628,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .nativeSettings(nativeSettings)
 
 lazy val benchmarks = project.module
-  .dependsOn(core.jvm, streams.jvm, test.jvm)
+  .dependsOn(core.jvm, streams.jvm, tests.jvm)
   .enablePlugins(JmhPlugin)
   .settings(replSettings)
   .settings(
@@ -695,7 +695,7 @@ lazy val docs = project.module
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       core.jvm,
       streams.jvm,
-      test.jvm,
+      tests.jvm,
       testMagnolia.jvm,
       testRefined.jvm,
       testScalaCheck.jvm
@@ -781,7 +781,7 @@ lazy val docs = project.module
     core.jvm,
     streams.jvm,
     concurrent.jvm,
-    test.jvm,
+    tests.jvm,
     testMagnolia.jvm,
     testRefined.jvm,
     testScalaCheck.jvm,
