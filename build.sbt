@@ -135,6 +135,7 @@ lazy val rootNative = project
 lazy val root211 = project
   .in(file("target/root211"))
   .settings(
+    name           := "root2.11",
     publish / skip := true
   )
   .aggregate(
@@ -147,6 +148,7 @@ lazy val root211 = project
 lazy val root212 = project
   .in(file("target/root212"))
   .settings(
+    name           := "root2.12",
     publish / skip := true
   )
   .aggregate(
@@ -170,6 +172,7 @@ lazy val root212 = project
 lazy val root213 = project
   .in(file("target/root213"))
   .settings(
+    name           := "root2.13",
     publish / skip := true
   )
   .aggregate(
