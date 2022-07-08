@@ -467,9 +467,9 @@ ZChannel
 // Output: (Chunk(6,12,18),())
 ```
 
-### collectElements
+### Collect Operators
 
-`collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
+1. `collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
 
 ```scala mdoc:compile-only
 import zio.stream._
@@ -479,6 +479,18 @@ ZChannel.writeAll(1,2,3,4,5)
   .runCollect
   .debug
 // Output: (Chunk(),(Chunk(1,2,3,4,5),()))
+```
+
+2. `emitCollect` is like the `collectElements` operator, but it emits the result of the collection to the output port of the new channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel.writeAll(1,2,3,4,5)
+  .emitCollect
+  .runCollect
+  .debug
+// Output: (Chunk((Chunk(1,2,3,4,5),())),())
 ```
 
 ### concatOut
@@ -559,3 +571,5 @@ for {
 // 52
 // 79
 ``` 
+
+## kkkkkkkkk
