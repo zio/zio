@@ -452,6 +452,21 @@ ZChannel
 // Non-deterministic output: (Chunk(a0,a1,a2,b0,b1,b2,b3,c0,b4,c1,a3,c2,b5,a4,c3,c4,a5,c5),())
 ```
 
+### collect
+
+`collect` is a combination of two operations: filtering and mapping. Using this operator, we can filter the elements of a channel using a partial function, and then map the filtered elements:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .writeAll((1 to 10): _*)
+  .collect { case i if i % 3 == 0 => i * 2 }
+  .runCollect
+  .debug
+// Output: (Chunk(6,12,18),())
+```
+
 ### Converting Channels
 
 We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
