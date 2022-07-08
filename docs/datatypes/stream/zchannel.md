@@ -535,3 +535,27 @@ def randomNumbers: ZChannel[Any, Any, Any, Any, Nothing, Int, Nothing] =
 randomNumbers.interruptWhen(ZIO.sleep(3.seconds).as("Done!")).runCollect.debug
 // One output: (Chunk(84,57,70),Done!)
 ```
+
+Another version of `interruptWhen` takes a `Promise` as an argument. It will interrupt the channel when the promise is fulfilled:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+for {
+  p <- Promise.make[Nothing, Unit]
+  f <- randomNumbers
+    .interruptWhen(p)
+    .mapOutZIO(e => Console.printLine(e))
+    .runDrain
+    .fork
+  _ <- p.succeed(()).delay(5.seconds)
+  _ <- f.join
+} yield ()
+
+// Output:
+// 74
+// 60
+// 52
+// 52
+// 79
+``` 
