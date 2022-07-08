@@ -517,3 +517,21 @@ To run a channel, we can use the `ZChannel.runXYZ` methods:
 - `ZChannel#runCollect`— It will run a channel and collects the output and finally returns it along with the done value of the channel.
 - `ZChannel#runDrain`— It will run a channel and ignore any emitted output.
 - `ZChannel#runScoped`— Using this method, we can run a channel in a scope. So all the finalizers of the scope will be run before the channel is closed.
+
+### Channel Interruption
+
+We can interrupt a channel using the `ZChannel.interruptWhen` operator. It takes a ZIO effect that will be evaluated, if it finishes before the channel is closed, it will interrupt the channel, and the terminal value of the returned channel will be the success value of the effect:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+def randomNumbers: ZChannel[Any, Any, Any, Any, Nothing, Int, Nothing] =
+  ZChannel
+    .fromZIO(Random.nextIntBounded(100))
+    .flatMap(ZChannel.write) *>
+    ZChannel.fromZIO(ZIO.sleep(1.second)) *> randomNumbers
+
+randomNumbers.interruptWhen(ZIO.sleep(3.seconds).as("Done!")).runCollect.debug
+// One output: (Chunk(84,57,70),Done!)
+```
