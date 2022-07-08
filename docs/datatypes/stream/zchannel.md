@@ -411,21 +411,45 @@ import zio.stream._
 `concatMap` is a combination of two operators: mapping and concatenation. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channels), and then concatenate all the inner channels into a single channel. The concatenation is done **sequentially**, so we use this operator when the order of the elements is important:
 
 ```scala mdoc:compile-only
-val app =
-  ZChannel
-    .writeAll("a", "b", "c")
-    .concatMap { l =>
-      def inner(i: Int, max: Int): ZChannel[Any, Any, Any, Any, Nothing, String, Unit] =
-        if (i <= max) ZChannel.write(s"$l$i") *> inner(i + 1, max)
-        else ZChannel.unit  
-      inner(0, max = 5)
-    }
-    .runCollect
-    .debug
+import zio.stream._
+
+ZChannel
+  .writeAll("a", "b", "c")
+  .concatMap { l =>
+    def inner(from: Int, to: Int): ZChannel[Any, Any, Any, Any, Nothing, String, Unit] =
+      if (from <= to) ZChannel.write(s"$l$from") *> inner(from + 1, to)
+      else ZChannel.unit  
+    inner(0, 5)
+  }
+  .runCollect
+  .debug
 // Output: (Chunk(a0,a1,a2,a3,a4,a5,b0,b1,b2,b3,b4,b5,c0,c1,c2,c3,c4,c5),())
 ```
 
 In the above example, we create a new channel for every element of the outer channel. The new inner channel is responsible for emitting from zero to five with the label of the outer channel. When an inner channel is done, it moves to the next inner channel sequentially. There is a similar operator called `mergeMap` that works in parallel and doesn't preserve the order of the elements.
+
+### mergeMap 
+
+`mergeMap` is a combination of two operators: mapping and merging. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channel), and then run all the inner channels in parallel and merge them into a single channel. The merge operation is done **in parallel**, so we use this operator when the order of the elements is not important, and we want to process all inner channels in parallel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .writeAll("a", "b", "c")
+  .mergeMap(8, 1, MergeStrategy.BackPressure) { l =>
+    def inner(
+        i: Int,
+        max: Int
+    ): ZChannel[Any, Any, Any, Any, Nothing, String, Unit] =
+      if (from <= to) ZChannel.write(s"$l$from") *> inner(from + 1, to)
+      else ZChannel.unit
+    inner(0, 5)
+  }
+  .runCollect
+  .debug
+// Non-deterministic output: (Chunk(a0,a1,a2,b0,b1,b2,b3,c0,b4,c1,a3,c2,b5,a4,c3,c4,a5,c5),())
+```
 
 ### Converting Channels
 
