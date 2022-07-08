@@ -49,7 +49,7 @@ val runtime = Runtime.default
 Once you have a runtime, you can use it to execute effects:
 
 ```scala mdoc:silent
-Unsafe.unsafe { implicit unsafe =>
+Unsafe.unsafe {  unsafe ?=>
     runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure()
 }
 ```
