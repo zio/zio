@@ -467,6 +467,24 @@ ZChannel
 // Output: (Chunk(6,12,18),())
 ```
 
+### concatOut
+
+Suppose there is a channel that creates a new channel for each element of the outer channel and emits them to the output port. We can use `concatOut` to concatenate all the inner channels into a single channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .writeAll("a", "b", "c")
+  .mapOut { l =>
+    ZChannel.writeAll((1 to 3).map(i => s"$l$i"):_*) 
+  }
+  .concatOut
+  .runCollect
+  .debug
+// Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
+```
+
 ### Converting Channels
 
 We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
