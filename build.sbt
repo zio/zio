@@ -68,7 +68,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "mimaChecks",
-  "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testJVM/mimaReportBinaryIssues"
+  "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testsJVM/mimaReportBinaryIssues"
 )
 
 lazy val projectsCommon = List(
