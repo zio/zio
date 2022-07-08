@@ -467,6 +467,20 @@ ZChannel
 // Output: (Chunk(6,12,18),())
 ```
 
+### collectElements
+
+`collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel.writeAll(1,2,3,4,5)
+  .collectElements
+  .runCollect
+  .debug
+// Output: (Chunk(),(Chunk(1,2,3,4,5),()))
+```
+
 ### concatOut
 
 Suppose there is a channel that creates a new channel for each element of the outer channel and emits them to the output port. We can use `concatOut` to concatenate all the inner channels into a single channel:
