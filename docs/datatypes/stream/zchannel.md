@@ -434,13 +434,14 @@ In the above example, we create a new channel for every element of the outer cha
 
 ```scala mdoc:compile-only
 import zio.stream._
+import zio.stream.ZChannel._
 
 ZChannel
   .writeAll("a", "b", "c")
   .mergeMap(8, 1, MergeStrategy.BackPressure) { l =>
     def inner(
-        i: Int,
-        max: Int
+        from: Int,
+        to: Int
     ): ZChannel[Any, Any, Any, Any, Nothing, String, Unit] =
       if (from <= to) ZChannel.write(s"$l$from") *> inner(from + 1, to)
       else ZChannel.unit
