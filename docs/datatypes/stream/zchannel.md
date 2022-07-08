@@ -406,6 +406,27 @@ import zio.stream._
 // Output: (Chunk(),(246))
 ```
 
+### concatMap
+
+`concatMap` is a combination of two operators: mapping and concatenation. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channels), and then concatenate all the inner channels into a single channel. The concatenation is done **sequentially**, so we use this operator when the order of the elements is important:
+
+```scala mdoc:compile-only
+val app =
+  ZChannel
+    .writeAll("a", "b", "c")
+    .concatMap { l =>
+      def inner(i: Int, max: Int): ZChannel[Any, Any, Any, Any, Nothing, String, Unit] =
+        if (i <= max) ZChannel.write(s"$l$i") *> inner(i + 1, max)
+        else ZChannel.unit  
+      inner(0, max = 5)
+    }
+    .runCollect
+    .debug
+// Output: (Chunk(a0,a1,a2,a3,a4,a5,b0,b1,b2,b3,b4,b5,c0,c1,c2,c3,c4,c5),())
+```
+
+In the above example, we create a new channel for every element of the outer channel. The new inner channel is responsible for emitting from zero to five with the label of the outer channel. When an inner channel is done, it moves to the next inner channel sequentially. There is a similar operator called `mergeMap` that works in parallel and doesn't preserve the order of the elements.
+
 ### Converting Channels
 
 We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
