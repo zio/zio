@@ -347,7 +347,9 @@ import zio.stream._
 // Output: (Chunk(),(1,2))
 ```
 
-### Mapping The Terminal Done Value (`OutDone`)
+### Mapping Channels
+
+#### Mapping The Terminal Done Value (`OutDone`)
 
 The ordinary `map` operator is used to map the done value of a channel:
 
@@ -358,7 +360,7 @@ ZChannel.writeAll(1, 2, 3).map(_ => 5).runCollect.debug
 // (Chunk(1,2,3),5)
 ```
 
-### Mapping The Done Value of The Input Port (`InDone`)
+#### Mapping The Done Value of The Input Port (`InDone`)
 
 To map the done value of the input port, we use the `contramap` operator:
 
@@ -376,7 +378,7 @@ import zio.stream._
 // Output: (Chunk(),(10))
 ```
 
-### Mapping The Error Value of The Output Port (`OutErr`)
+#### Mapping The Error Value of The Output Port (`OutErr`)
 
 To map the failure value of a channel, we use the `mapError` operator:
 
@@ -390,7 +392,7 @@ val channel =
     .mapError(_.toString)
 ```
 
-### Mapping The Output Elements of a Channel (`OutElem`)
+#### Mapping The Output Elements of a Channel (`OutElem`)
 
 To map the output elements of a channel, we use the `mapOutput` operator:
 
@@ -401,7 +403,7 @@ ZChannel.writeAll(1,2,3).mapOut(_ * 2).runCollect.debug
 // Output: (Chunk(2,4,6),())
 ```
 
-### Mapping The Input Elements of a Channel (`InElem`)
+#### Mapping The Input Elements of a Channel (`InElem`)
 
 To map the input elements of a channel, we use the `contramapIn` operator:
 
@@ -533,7 +535,7 @@ ZChannel
 // Output: (Chunk(6,12,18),())
 ```
 
-### Collect Operators
+### Collecting Channels
 
 1. `collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
 
@@ -559,7 +561,7 @@ ZChannel.writeAll(1,2,3,4,5)
 // Output: (Chunk((Chunk(1,2,3,4,5),())),())
 ```
 
-### concatOut
+### Concatenating Channels
 
 Suppose there is a channel that creates a new channel for each element of the outer channel and emits them to the output port. We can use `concatOut` to concatenate all the inner channels into a single channel:
 
@@ -574,6 +576,25 @@ ZChannel
   .concatOut
   .runCollect
   .debug
+// Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
+```
+
+We can do the same with `ZChannel.concatAll`:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .concatAll(
+    ZChannel
+      .writeAll("a", "b", "c")
+      .mapOut { l =>
+        ZChannel.writeAll((1 to 3).map(i => s"$l$i"): _*)
+      }
+  )
+  .runCollect
+  .debug
+  
 // Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
 ```
 
