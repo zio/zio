@@ -19,7 +19,7 @@ Channels compose in a variety of ways:
 
 Finally, we can run a channel by using the `ZChannel#run*` operators.
 
-## Creation of a Channel
+## Creation
 
 ### `ZChannel.succeed`
 
@@ -306,7 +306,18 @@ If the buffer is full, the channel puts the value from the buffer to the output 
 
 ## Operations
 
-### Sequencing Channels
+### Piping
+
+The values from the output port of the first channel are passed to the input port of the second channel when we pipe a channel to another channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+(ZChannel.writeAll(1,2,3) >>> (ZChannel.read[Int] <*> ZChannel.read[Int])).runCollect.debug
+// Output: (Chunk(),(1,2))
+```
+
+### Sequencing
 
 In order to sequence channels, we can use the `ZChannel#flatMap` operator. When we use the `flatMap` operator, we have the ability to chain two channels together. After the first channel is finished, we can create a new channel based on the terminal value of the first channel:
 
@@ -326,6 +337,43 @@ ZChannel
 // Sample Output:
 // Please enter a number: 5
 // (Chunk(0,1,2,3,4,5),())
+```
+
+### Concatenating
+
+Suppose there is a channel that creates a new channel for each element of the outer channel and emits them to the output port. We can use `concatOut` to concatenate all the inner channels into a single channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .writeAll("a", "b", "c")
+  .mapOut { l =>
+    ZChannel.writeAll((1 to 3).map(i => s"$l$i"):_*) 
+  }
+  .concatOut
+  .runCollect
+  .debug
+// Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
+```
+
+We can do the same with `ZChannel.concatAll`:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .concatAll(
+    ZChannel
+      .writeAll("a", "b", "c")
+      .mapOut { l =>
+        ZChannel.writeAll((1 to 3).map(i => s"$l$i"): _*)
+      }
+  )
+  .runCollect
+  .debug
+  
+// Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
 ```
 
 ### Zipping
@@ -360,18 +408,7 @@ val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
 
 ```
 
-### Piping Channels
-
-The values from the output port of the first channel are passed to the input port of the second channel when we pipe a channel to another channel:
-
-```scala mdoc:compile-only
-import zio.stream._
-
-(ZChannel.writeAll(1,2,3) >>> (ZChannel.read[Int] <*> ZChannel.read[Int])).runCollect.debug
-// Output: (Chunk(),(1,2))
-```
-
-### Mapping Channels
+### Mapping
 
 #### Mapping The Terminal Done Value (`OutDone`)
 
@@ -438,7 +475,7 @@ import zio.stream._
 // Output: (Chunk(),(246))
 ```
 
-### Merging Channels
+### Merging
 
 Merge operators are used to merging multiple channels into a single channel. They are used to combine the output port of channels concurrently. Every time any of the channels produces a value, the output port of the resulting channel will produce a value.
 
@@ -497,6 +534,93 @@ import zio.stream._
 ```scala mdoc:invisible:reset
 
 ```
+
+### Collecting
+
+1. `collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel.writeAll(1,2,3,4,5)
+  .collectElements
+  .runCollect
+  .debug
+// Output: (Chunk(),(Chunk(1,2,3,4,5),()))
+```
+
+2. `emitCollect` is like the `collectElements` operator, but it emits the result of the collection to the output port of the new channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel.writeAll(1,2,3,4,5)
+  .emitCollect
+  .runCollect
+  .debug
+// Output: (Chunk((Chunk(1,2,3,4,5),())),())
+```
+
+### Converting
+
+We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
+
+- `ZChannel#toStream`
+- `ZChannel#toPipeline`
+- `ZChannel#toSink`
+- `ZChannel#toPull`
+- `ZChannel#toQueue`
+
+### Running a channel
+
+To run a channel, we can use the `ZChannel.runXYZ` methods:
+
+- `ZChannel#run`— The `run` method is the simplest way to run a channel. It only runs a channel that doesn't read any input or write any output.
+- `ZChannel#runCollect`— It will run a channel and collects the output and finally returns it along with the done value of the channel.
+- `ZChannel#runDrain`— It will run a channel and ignore any emitted output.
+- `ZChannel#runScoped`— Using this method, we can run a channel in a scope. So all the finalizers of the scope will be run before the channel is closed.
+
+### Channel Interruption
+
+We can interrupt a channel using the `ZChannel.interruptWhen` operator. It takes a ZIO effect that will be evaluated, if it finishes before the channel is closed, it will interrupt the channel, and the terminal value of the returned channel will be the success value of the effect:
+
+```scala mdoc:silent
+import zio._
+import zio.stream._
+
+def randomNumbers: ZChannel[Any, Any, Any, Any, Nothing, Int, Nothing] =
+  ZChannel
+    .fromZIO(Random.nextIntBounded(100))
+    .flatMap(ZChannel.write) *>
+    ZChannel.fromZIO(ZIO.sleep(1.second)) *> randomNumbers
+
+randomNumbers.interruptWhen(ZIO.sleep(3.seconds).as("Done!")).runCollect.debug
+// One output: (Chunk(84,57,70),Done!)
+```
+
+Another version of `interruptWhen` takes a `Promise` as an argument. It will interrupt the channel when the promise is fulfilled:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+for {
+  p <- Promise.make[Nothing, Unit]
+  f <- randomNumbers
+    .interruptWhen(p)
+    .mapOutZIO(e => Console.printLine(e))
+    .runDrain
+    .fork
+  _ <- p.succeed(()).delay(5.seconds)
+  _ <- f.join
+} yield ()
+
+// Output:
+// 74
+// 60
+// 52
+// 52
+// 79
+``` 
 
 ### concatMap
 
@@ -559,126 +683,3 @@ ZChannel
 // Output: (Chunk(6,12,18),())
 ```
 
-### Collecting Channels
-
-1. `collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
-
-```scala mdoc:compile-only
-import zio.stream._
-
-ZChannel.writeAll(1,2,3,4,5)
-  .collectElements
-  .runCollect
-  .debug
-// Output: (Chunk(),(Chunk(1,2,3,4,5),()))
-```
-
-2. `emitCollect` is like the `collectElements` operator, but it emits the result of the collection to the output port of the new channel:
-
-```scala mdoc:compile-only
-import zio.stream._
-
-ZChannel.writeAll(1,2,3,4,5)
-  .emitCollect
-  .runCollect
-  .debug
-// Output: (Chunk((Chunk(1,2,3,4,5),())),())
-```
-
-### Concatenating Channels
-
-Suppose there is a channel that creates a new channel for each element of the outer channel and emits them to the output port. We can use `concatOut` to concatenate all the inner channels into a single channel:
-
-```scala mdoc:compile-only
-import zio.stream._
-
-ZChannel
-  .writeAll("a", "b", "c")
-  .mapOut { l =>
-    ZChannel.writeAll((1 to 3).map(i => s"$l$i"):_*) 
-  }
-  .concatOut
-  .runCollect
-  .debug
-// Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
-```
-
-We can do the same with `ZChannel.concatAll`:
-
-```scala mdoc:compile-only
-import zio.stream._
-
-ZChannel
-  .concatAll(
-    ZChannel
-      .writeAll("a", "b", "c")
-      .mapOut { l =>
-        ZChannel.writeAll((1 to 3).map(i => s"$l$i"): _*)
-      }
-  )
-  .runCollect
-  .debug
-  
-// Output: (Chunk(a1,a2,a3,b1,b2,b3,c1,c2,c3),())
-```
-
-### Converting Channels
-
-We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
-
-- `ZChannel#toStream`
-- `ZChannel#toPipeline`
-- `ZChannel#toSink`
-- `ZChannel#toPull`
-- `ZChannel#toQueue`
-
-### Running Channels
-
-To run a channel, we can use the `ZChannel.runXYZ` methods:
-
-- `ZChannel#run`— The `run` method is the simplest way to run a channel. It only runs a channel that doesn't read any input or write any output.
-- `ZChannel#runCollect`— It will run a channel and collects the output and finally returns it along with the done value of the channel.
-- `ZChannel#runDrain`— It will run a channel and ignore any emitted output.
-- `ZChannel#runScoped`— Using this method, we can run a channel in a scope. So all the finalizers of the scope will be run before the channel is closed.
-
-### Channel Interruption
-
-We can interrupt a channel using the `ZChannel.interruptWhen` operator. It takes a ZIO effect that will be evaluated, if it finishes before the channel is closed, it will interrupt the channel, and the terminal value of the returned channel will be the success value of the effect:
-
-```scala mdoc:silent
-import zio._
-import zio.stream._
-
-def randomNumbers: ZChannel[Any, Any, Any, Any, Nothing, Int, Nothing] =
-  ZChannel
-    .fromZIO(Random.nextIntBounded(100))
-    .flatMap(ZChannel.write) *>
-    ZChannel.fromZIO(ZIO.sleep(1.second)) *> randomNumbers
-
-randomNumbers.interruptWhen(ZIO.sleep(3.seconds).as("Done!")).runCollect.debug
-// One output: (Chunk(84,57,70),Done!)
-```
-
-Another version of `interruptWhen` takes a `Promise` as an argument. It will interrupt the channel when the promise is fulfilled:
-
-```scala mdoc:compile-only
-import zio.stream._
-
-for {
-  p <- Promise.make[Nothing, Unit]
-  f <- randomNumbers
-    .interruptWhen(p)
-    .mapOutZIO(e => Console.printLine(e))
-    .runDrain
-    .fork
-  _ <- p.succeed(()).delay(5.seconds)
-  _ <- f.join
-} yield ()
-
-// Output:
-// 74
-// 60
-// 52
-// 52
-// 79
-``` 
