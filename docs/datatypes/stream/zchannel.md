@@ -306,9 +306,33 @@ If the buffer is full, the channel puts the value from the buffer to the output 
 
 ## Operations
 
+### Sequencing Channels
+
+In order to sequence channels, we can use the `ZChannel#flatMap` operator. When we use the `flatMap` operator, we have the ability to chain two channels together. After the first channel is finished, we can create a new channel based on the terminal value of the first channel:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZChannel
+  .fromZIO(
+    Console.readLine("Please enter a number: ").map(_.toInt)
+  )
+  .flatMap {
+    case n if n < 0 => ZChannel.fail("Number must be positive")
+    case n          => ZChannel.writeAll((0 to n): _*)
+  }
+  .runCollect
+  .debug
+// Sample Output:
+// Please enter a number: 5
+// (Chunk(0,1,2,3,4,5),())
+```
+
 ### Zipping
 
-1. Ordinary `zip`/`<*>` operator:
+We have two categories of `zip` operators: ordinary `zipXYZ` operators which run sequentially, and parallel `zipXYZ` operators which run in parallel.
+
+1. `zip`/`<*>` operator:
 
 ```scala mdoc:silent
 val first = ZChannel.write(1,2,3) *> ZChannel.succeed("Done!")
