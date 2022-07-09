@@ -414,9 +414,11 @@ import zio.stream._
 
 ### Merging Channels
 
-Merge operators are used to merging multiple channels into a single channel. They are used to combine the output port of channels concurrently. Every time any of the channels produces a value, the output port of the resulting channel will produce a value:
+Merge operators are used to merging multiple channels into a single channel. They are used to combine the output port of channels concurrently. Every time any of the channels produces a value, the output port of the resulting channel will produce a value.
 
-```scala mdoc:compile-only
+Assume we have the following channel:
+
+```scala mdoc:silent
 import zio._
 import zio.stream._
 
@@ -432,7 +434,14 @@ def iterate(
           .flatMap(delay => ZIO.sleep(Duration.fromMillis(delay)))
       ) *> iterate(from + 1, to)
   else ZChannel.unit
-  
+```
+
+Now let's merge some channels:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
 ZChannel
   .mergeAllUnbounded(
     ZChannel.writeAll(
@@ -452,11 +461,15 @@ We have another operator called `ZChannel.mergeAll`, which allows us to specify 
 
 Note that if we want to merge channels sequentially, we can use the `zip` or `flatMap` operators:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio.stream._
 
 (iterate(1, 3) <*> iterate(4, 6) <*> iterate(6, 9)).runCollect.debug
 // Output: (Chunk(1,2,3,4,5,6,7,8,9),())
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 ### concatMap
@@ -587,7 +600,7 @@ To run a channel, we can use the `ZChannel.runXYZ` methods:
 
 We can interrupt a channel using the `ZChannel.interruptWhen` operator. It takes a ZIO effect that will be evaluated, if it finishes before the channel is closed, it will interrupt the channel, and the terminal value of the returned channel will be the success value of the effect:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 import zio.stream._
 
