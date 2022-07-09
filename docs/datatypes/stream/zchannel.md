@@ -406,6 +406,44 @@ import zio.stream._
 // Output: (Chunk(),(246))
 ```
 
+### Merging Channels
+
+Merge operators are used to merging multiple channels into a single channel. They are used to combine the output port of channels concurrently. Every time any of the channels produces a value, the output port of the resulting channel will produce a value:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+def iterate(
+    from: Int,
+    to: Int
+): ZChannel[Any, Any, Any, Any, Nothing, Int, Unit] =
+  if (from <= to)
+    ZChannel.write(from) *>
+      ZChannel.fromZIO(
+        Random
+          .nextLongBounded(1000)
+          .flatMap(delay => ZIO.sleep(Duration.fromMillis(delay)))
+      ) *> iterate(from + 1, to)
+  else ZChannel.unit
+  
+ZChannel
+  .mergeAllUnbounded(
+    ZChannel.writeAll(
+      iterate(1, 3),
+      iterate(4, 6),
+      iterate(6, 9)
+    )
+  )
+  .mapOutZIO(i => Console.print(i + " "))
+  .runDrain
+// Sample output: 1 4 6 7 8 2 3 5 6 9 
+```
+
+The `ZChannel.mergeAllUnbounded` uses the maximum buffer size, which is `Int.MaxValue` by default. This means that if we use this operator for long-running channels, which produce a lot of values, it can cause the program to run out of memory.
+
+We have another operator called `ZChannel.mergeAll`, which allows us to specify the buffer size, the concurrency level, and also the strategy for merging the channels.
+
 ### concatMap
 
 `concatMap` is a combination of two operators: mapping and concatenation. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channels), and then concatenate all the inner channels into a single channel. The concatenation is done **sequentially**, so we use this operator when the order of the elements is important:
@@ -572,4 +610,4 @@ for {
 // 79
 ``` 
 
-## kkkkkkkkk
+## 
