@@ -9,7 +9,13 @@ A `ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone]` requir
 - It can read some data `InElem` from the input port, and finally can terminate with a done value of type `InDone`. If the read operation fails, the channel will terminate with an error of type `InErr`.
 - It can write some data `OutElem` to the output port, and finally terminate the channel with a done value of type `OutDone`. If the write operation fails, the channel will terminate with an error of type `OutErr`.
 
-We can pipe data from a channel that reads from the input port to a channel that writes to the output port, by using the `ZChannel#pipeTo` or `>>>` operator.
+Channels compose in a variety of ways:
+
+- **Piping**— One channel can be piped to another channel, assuming the input type of the second is the same as the output type of the first. We can pipe data from a channel that reads from the input port to a channel that writes to the output port, by using the `pipeTo` or `>>>` operator.
+
+- **Sequencing**— The terminal value of one channel can be used to create another channel, and both the first channel and the function that makes the second channel can be composed into a channel. We use the `ZChannel#flatMap` to sequence the channels.
+
+- **Concating**— The output of one channel can be used to create other channels, which are all concatenated together. The first channel and the function that makes the other channels can be composed into a channel. We use `ZChannel#concat*` operators to do this.
 
 Finally, we can run a channel by using the `ZChannel#run*` operators.
 
@@ -618,5 +624,3 @@ for {
 // 52
 // 79
 ``` 
-
-## 
