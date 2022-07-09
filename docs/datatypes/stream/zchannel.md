@@ -444,6 +444,15 @@ The `ZChannel.mergeAllUnbounded` uses the maximum buffer size, which is `Int.Max
 
 We have another operator called `ZChannel.mergeAll`, which allows us to specify the buffer size, the concurrency level, and also the strategy for merging the channels.
 
+Note that if we want to merge channels sequentially, we can use the `zip` or `flatMap` operators:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+(iterate(1, 3) <*> iterate(4, 6) <*> iterate(6, 9)).runCollect.debug
+// Output: (Chunk(1,2,3,4,5,6,7,8,9),())
+```
+
 ### concatMap
 
 `concatMap` is a combination of two operators: mapping and concatenation. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channels), and then concatenate all the inner channels into a single channel. The concatenation is done **sequentially**, so we use this operator when the order of the elements is important:
