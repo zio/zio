@@ -80,7 +80,7 @@ Updating the non-existing indexes aborts the transaction with `ArrayIndexOutOfBo
 
 ## Transform elements of a TArray
 
-The transform function `A => A` allows computing a new value for every element in the array: 
+The transform function `A => A` allows computing a new value for every element in the array:
 
 ```scala mdoc:silent
 import zio._

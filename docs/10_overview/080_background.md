@@ -1,19 +1,19 @@
 ---
 id: overview_background
-title:  "Background"
+title: "Background"
 ---
 
 Procedural Scala programs use _procedural functions_, which are:
 
- * **Partial** — Procedures do not return values for some inputs (for example, they throw exceptions).
- * **Non-Deterministic** — Procedures return different outputs for the same input.
- * **Impure** — Procedures perform side-effects, which mutate data or interact with the external world.
+- **Partial** — Procedures do not return values for some inputs (for example, they throw exceptions).
+- **Non-Deterministic** — Procedures return different outputs for the same input.
+- **Impure** — Procedures perform side-effects, which mutate data or interact with the external world.
 
 Unlike procedural Scala programs, functional Scala programs only use _pure functions_, which are:
 
- * **Total** — Functions always return an output for every input.
- * **Deterministic** — Functions return the same output for the same input.
- * **Pure** — The only effect of providing a function an input is computing the output.
+- **Total** — Functions always return an output for every input.
+- **Deterministic** — Functions return the same output for the same input.
+- **Pure** — The only effect of providing a function an input is computing the output.
 
 Pure functions only combine or transform input values into output values in a total, deterministic way. Pure functions are easier to understand, easier to test, easier to refactor, and easier to abstract over.
 
@@ -39,22 +39,22 @@ The `Console` data structure is an ordered _tree_, and at the very "end" of the 
 Although very simple, this data structure is enough to build an interactive program:
 
 ```scala mdoc:silent
-val example1: Console[Unit] = 
+val example1: Console[Unit] =
   PrintLine("Hello, what is your name?",
     ReadLine(name =>
       PrintLine(s"Good to meet you, ${name}", Return(() => ())))
 )
 ```
 
-This immutable value doesn't do anything—it just _describes_ a program that prints out a message, asks for input, and prints out another message that depends on the input. 
+This immutable value doesn't do anything—it just _describes_ a program that prints out a message, asks for input, and prints out another message that depends on the input.
 
 Although this program is just a model, we can translate the model into procedural effects quite simply using an _interpreter_, which recurses on the data structure, translating every instruction into the side-effect that it describes:
 
 ```scala mdoc:silent
 def interpret[A](program: Console[A]): A = program match {
-  case Return(value) => 
+  case Return(value) =>
     value()
-  case PrintLine(line, next) => 
+  case PrintLine(line, next) =>
     println(line)
     interpret(next)
   case ReadLine(next) =>
@@ -76,10 +76,10 @@ val readLine: Console[String] =
 
 Composing these "leaf" instructions into larger programs becomes a lot easier if we define `map` and `flatMap` methods on `Console`:
 
- - The `map` method lets you transform a console program that returns an `A` into a console program that returns a `B`, by supplying a function `A => B`. 
- - The `flatMap` method lets you sequentially compose a console program that returns an `A` with a callback that returns another console program created from the `A`.
+- The `map` method lets you transform a console program that returns an `A` into a console program that returns a `B`, by supplying a function `A => B`.
+- The `flatMap` method lets you sequentially compose a console program that returns an `A` with a callback that returns another console program created from the `A`.
 
- These two methods are defined as follows:
+These two methods are defined as follows:
 
 ```scala mdoc:silent
 implicit class ConsoleSyntax[+A](self: Console[A]) {
@@ -108,7 +108,7 @@ val example2: Console[String] =
   } yield name
 ```
 
-When we wish to execute this program, we can call `interpret` on the `Console` value. 
+When we wish to execute this program, we can call `interpret` on the `Console` value.
 
 All functional Scala programs are constructed like this: instead of interacting with the real world, they build a _functional effect_, which is nothing more than an immutable, type-safe, tree-like data structure that models procedural effects.
 

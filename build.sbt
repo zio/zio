@@ -616,8 +616,6 @@ lazy val docs = project.module
     ),
     ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
-    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
-    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
       "commons-io"                     % "commons-io"                    % "2.11.0" % "provided",
       "io.7mind.izumi"                %% "distage-core"                  % "1.0.8",
@@ -692,4 +690,4 @@ lazy val docs = project.module
   .settings(macroDefinitionSettings)
   .settings(mdocJS := Some(jsdocs))
   .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
-  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+  .enablePlugins(MdocPlugin, ScalaUnidocPlugin)

@@ -8,6 +8,7 @@ title: "Cause"
 `IO[E, A]` is polymorphic in values of type `E` and we can work with any error type that we want, but there is a lot of information that is not inside an arbitrary `E` value. So as a result ZIO needs somewhere to store things like **unexpected exceptions or defects**, **stack and execution traces**, **cause of fiber interruptions**, and so forth.
 
 ## Cause Variations
+
 `Cause` has several variations which encode all the cases:
 
 1. `Fail[+E](value: E)` contains the cause of expected failure of type `E`.
@@ -21,8 +22,8 @@ title: "Cause"
 5. `Meta(cause, data)`
 
 6. `Both(left, right)` & `Then(left, right)` store composition of two parallel and sequential causes. Sometimes fibers can fail for more than one reason. If we are doing two things at once and both of them fail then we actually have two errors. Examples:
-    + If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`.
-    + If we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`.
+   - If we perform ZIO's analog of try-finally (e.g. ZIO#ensuring), and both of `try` and `finally` blocks fail, so their causes are encoded with `Then`.
+   - If we run two parallel fibers with `zipPar` and all of them fail, so their causes will be encoded with `Both`.
 
 Let's try to create some of these causes:
 
@@ -41,5 +42,5 @@ for {
 ```
 
 ## Lossless Error Model
-ZIO is very aggressive about preserving the full information related to a failure. ZIO capture all type of errors into the `Cause` data type. So its error model is lossless. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.
 
+ZIO is very aggressive about preserving the full information related to a failure. ZIO capture all type of errors into the `Cause` data type. So its error model is lossless. It doesn't throw information related to the failure result. So we can figure out exactly what happened during the operation of our effects.

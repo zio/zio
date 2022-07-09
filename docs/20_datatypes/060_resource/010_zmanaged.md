@@ -5,7 +5,7 @@ title: "ZManaged"
 
 A `ZManaged[R, E, A]` is a managed resource, that requires an `R`, and may fail with an `E` value, or succeed with an `A`.
 
- `ZManaged` is a data structure that encapsulates the acquisition and the release of a resource, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used and automatically released after the resource is used.
+`ZManaged` is a data structure that encapsulates the acquisition and the release of a resource, which may be used by invoking the `use` method of the resource. The resource will be automatically acquired before the resource is used and automatically released after the resource is used.
 
 Resources do not survive the scope of `use`, meaning that if we attempt to capture the resource, leak it from `use`, and then use it after the resource has been consumed, the resource will not be valid anymore and may fail with some checked error, as per the type of the functions provided by the resource.
 
@@ -42,7 +42,7 @@ def printFirstLine(file: String): ZIO[Console, Throwable, Unit] = {
   def release(reader: BufferedReader) = ZIO.effectTotal(reader.close())
 
   ZManaged.make(acquire(file))(release).use { reader =>
-    putStrLn(reader.readLine()) 
+    putStrLn(reader.readLine())
   }
 }
 ```
@@ -95,7 +95,7 @@ def makeTransactor(config: DBConfig): ZManaged[Blocking, Throwable, Transactor] 
 
 case class UserRepository(xa: Transactor)
 object UserRepository {
-  def apply(xa: Transactor): UserRepository = new UserRepository(xa) 
+  def apply(xa: Transactor): UserRepository = new UserRepository(xa)
 }
 ```
 
@@ -155,7 +155,7 @@ import scala.io.Source._
 final case class Reservation[-R, +E, +A](acquire: ZIO[R, E, A], release: Exit[Any, Any] => URIO[R, Any])
 ```
 
-## Usage 
+## Usage
 
 ### use
 
@@ -170,7 +170,7 @@ def firstLine(file: String): ZIO[Console, Throwable, Unit] =
 
 ### useNow
 
-If our managed resource could be valid after releasing resources, we can convert that `ZManaged` to `ZIO` effect by calling `ZManaged#useNow`. 
+If our managed resource could be valid after releasing resources, we can convert that `ZManaged` to `ZIO` effect by calling `ZManaged#useNow`.
 
 ```scala mdoc:silent:nest
 val hello: UIO[String] = ZManaged.succeed("Hello, World!").useNow

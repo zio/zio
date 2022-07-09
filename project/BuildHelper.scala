@@ -283,7 +283,6 @@ object BuildHelper {
         |${item("testJS")} - Runs all ScalaJS tests
         |${item("testOnly *.YourSpec -- -t \"YourLabel\"")} - Only runs tests with matching term e.g.
         |${subItem("coreTestsJVM/testOnly *.ZIOSpec -- -t \"happy-path\"")}
-        |${item("docs/docusaurusCreateSite")} - Generates the ZIO microsite
       """.stripMargin
   }
 
