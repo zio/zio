@@ -3,11 +3,21 @@ id: zchannel
 title: "ZChannel"
 ---
 
-Channels are the nexus of communications. They allow us to have a unidirectional flow of data from the input to the output. They are an underlying abstraction for both `ZStream` and `ZSink`. In ZIO Streams, we call the input port `ZStream` and the output port `ZSink`. So streams and sinks are just Channels. Channels are the abstraction that unifies both streams and sinks.
+Channels are the nexus of communications, which support both reading and writing. They allow us to have a unidirectional flow of data from the input to the output. 
 
 A `ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone]` requires some environment `Env` and have two main operations:
+
 - It can read some data `InElem` from the input port, and finally can terminate with a done value of type `InDone`. If the read operation fails, the channel will terminate with an error of type `InErr`.
+
 - It can write some data `OutElem` to the output port, and finally terminate the channel with a done value of type `OutDone`. If the write operation fails, the channel will terminate with an error of type `OutErr`.
+
+They are an underlying abstraction for `ZStream`, `ZPipeline`, and `ZSink`. In ZIO Streams, we call the input port `ZStream`, the output port `ZSink`, and the middle part `ZPipeline`:
+
+- A `Channel` can write some elements to the _output_, and it can terminate with some sort of _done_ value. The `Channel` uses this _done_ value to notify the downstream `Channel` that its emission of elements is finished. In ZIO, the `ZStream` is encoded as an output side of the `Channel`.
+
+- A `Channel` can read from its input, and it can also terminate with some sort of _done_ value, which is an upstream result. So a `Channel` has the _input type_, and the _input done type_. The `Channel` uses this _done_ value to determine when the upstream `Channel` finishes its emission. In ZIO, the `ZSink` is encoded as an input side of the `Channel`.
+
+- A `Channel` can read from its input, do some transformation on the elements, and write to its output. In ZIO, the `ZPipeline` is encoded as a middle part of both sides of the `Channel`. Pipelines accept a stream as input and return the transformed stream as output.
 
 Let's take a look at how `ZStream`, `ZPipeline` and `ZSink` are defined using `ZChannel`:
 
@@ -34,6 +44,8 @@ So we can say that:
 - `ZPipeline[R, Err, In, Out]` is a channel that uses `R` as its environment, consumes `Chunk[Int]` from its input port, and produces `Chunk[Out]` to its output port.
 
 - `ZSink[R, E, In, L , Z]` is a channel that uses `R` as its environment, consumes `Chunk[In]` from its input port, and produces `Chunk[L]` to its output port as its leftovers, and can terminate with a success value of type `Z` or can terminate with a failure of type `E`.
+
+![ZIO Streams 2.x](/img/assets/zio-streams-2.x.svg)
 
 Channels compose in a variety of ways:
 
