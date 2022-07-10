@@ -131,7 +131,7 @@ object SmartAssertMacros {
       Expr(term.pos.start - summon[PositionContext].start, term.pos.end - summon[PositionContext].start)
 
     expr match {
-      case '{ type t; type v; zio.test.SmartAssertionOps[`t`](${something}: `t`).is[`v`](${Unseal(Lambda(terms, body))}) } =>
+      case '{ type t; type v; SmartAssertionOps[`t`](${something}: `t`).is[`v`](${Unseal(Lambda(terms, body))}) } =>
         val lhs = transform(something).asInstanceOf[Expr[TestArrow[Any, t]]]
         val res = transformAs(body.asExprOf[TestLens[v]])(lhs)
         res.asInstanceOf[Expr[TestArrow[Any, A]]]
