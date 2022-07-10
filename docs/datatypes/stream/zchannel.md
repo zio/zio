@@ -9,23 +9,31 @@ A `ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone]` requir
 - It can read some data `InElem` from the input port, and finally can terminate with a done value of type `InDone`. If the read operation fails, the channel will terminate with an error of type `InErr`.
 - It can write some data `OutElem` to the output port, and finally terminate the channel with a done value of type `OutDone`. If the write operation fails, the channel will terminate with an error of type `OutErr`.
 
-Let's take a look at how `ZStream` and `ZSink` are defined using `ZChannel`:
+Let's take a look at how `ZStream`, `ZPipeline` and `ZSink` are defined using `ZChannel`:
 
 ```scala
 trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone] 
 
-case class ZStream[-R, +E, +A] private (
+case class ZStream[-R, +E, +A] (
   val channel: ZChannel[R, Any, Any, Any, E, Chunk[A], Any]
 )
 
-case class ZSink[-R, +E, -In, +L, +Z] private (
+case class ZSink[-R, +E, -In, +L, +Z] (
   val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]
+)
+
+case class ZPipeline[-R, +E, -In, +Out] (
+  val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[Out], Any]
 )
 ```
 
 So we can say that:
-- `ZStream[R, E, A]` is a channel that uses `R` as its environment, produce `Chunk[A]` to its output port, can terminate with `Any` values, and may terminate with an error of type `E`.
-- `ZSink[R, E, In, L , Z]` is a channel that uses `R` as its environment, consumes `Chunk[In]` from its input port, and produces `Chunk[L]` to its output port as its leftovers, and can terminate with a value of type `Z`. It may terminate with an error of type `E`.
+
+- `ZStream[R, E, A]` is a channel that uses `R` as its environment, produce `Chunk[A]` to its output port, can terminate with `Any` success value or can terminate with a failure of type `E`.
+
+- `ZPipeline[R, Err, In, Out]` is a channel that uses `R` as its environment, consumes `Chunk[Int]` from its input port, and produces `Chunk[Out]` to its output port.
+
+- `ZSink[R, E, In, L , Z]` is a channel that uses `R` as its environment, consumes `Chunk[In]` from its input port, and produces `Chunk[L]` to its output port as its leftovers, and can terminate with a success value of type `Z` or can terminate with a failure of type `E`.
 
 Channels compose in a variety of ways:
 
