@@ -1,13 +1,13 @@
 package zio.test.magnolia
 
 import zio.test._
-import zio.test.magnolia.diff._
 
+import zio.test.magnolia.diff._
 import java.time.Instant
 
 object DeriveDiffSpec extends DefaultRunnableSpec {
   final case class Pet(name: String, hasBone: Boolean, favoriteFoods: List[String], birthday: Instant)
-  final case class Person(name: String, nickname: Option[String], age: Int, pet: Pet)
+  final case class Person(name: String, nickname: Option[String], age: Int, pet: Pet, person: Option[Person] = None)
 
   sealed trait Color
 
@@ -27,13 +27,29 @@ object DeriveDiffSpec extends DefaultRunnableSpec {
             "Boboo",
             Some("Babbo\nThe\nBibber"),
             300,
-            Pet("The Beautiful Crumb", false, l1, Instant.MIN)
+            Pet("The Beautiful Crumb", false, l1, Instant.MIN),
+            Some(
+              Person(
+                "Boboo",
+                Some("Babbo\nThe\nBibber"),
+                300,
+                Pet("The Beautiful Crumb", false, l1, Instant.MIN)
+              )
+            )
           )
         val p2 = Person(
           "Bibi",
           Some("Bibbo\nThe\nBibber\nBobber"),
           300,
-          Pet("The Beautiful Destroyer", false, l2, Instant.now)
+          Pet("The Beautiful Destroyer", false, l2, Instant.now),
+          Some(
+            Person(
+              "Bibi",
+              Some("Bibbo\nThe\nBibber\nBobber"),
+              300,
+              Pet("The Beautiful Destroyer", false, l2, Instant.now)
+            )
+          )
         )
         assertTrue(p1 == p2)
       } @@ TestAspect.failing,
