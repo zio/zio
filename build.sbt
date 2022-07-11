@@ -50,7 +50,7 @@ lazy val projectsCommon = List(
   testTests
 )
 
-lazy val rootJVM = rootJVM213
+lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip := true).aggregate(rootJVM213)
 
 lazy val rootJVM211 = project
   .in(file("target/rootJVM211"))
@@ -64,7 +64,7 @@ lazy val rootJVM211 = project
     ): _*
   )
 
-lazy val rootJVM212 = rootJVM213
+lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / skip := true).aggregate(rootJVM213)
 
 lazy val rootJVM213 = project
   .in(file("target/rootJVM213"))
@@ -141,7 +141,7 @@ lazy val root211 = project
       )): _*
   )
 
-lazy val root212 = root213
+lazy val root212 = project.in(file("target/root212")).settings(publish / skip := true).aggregate(root213)
 
 lazy val root213 = project
   .in(file("target/root213"))
