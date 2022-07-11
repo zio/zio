@@ -29,7 +29,7 @@ The ZIO Config has a lot of features, and it is more than just a config parsing 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-config" % "3.0.0-RC9" 
+libraryDependencies += "dev.zio" %% "zio-config" % "3.0.1" 
 ```
 
 There are also some optional dependencies:
@@ -44,10 +44,10 @@ There are also some optional dependencies:
 Let's add these four lines to our `build.sbt` file as we are using these modules in our example:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-config"          % "3.0.0-RC9"
-libraryDependencies += "dev.zio" %% "zio-config-magnolia" % "3.0.0-RC9"
-libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "3.0.0-RC9"
-libraryDependencies += "dev.zio" %% "zio-config-refined"  % "3.0.0-RC9"
+libraryDependencies += "dev.zio" %% "zio-config"          % "3.0.1"
+libraryDependencies += "dev.zio" %% "zio-config-magnolia" % "3.0.1"
+libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "3.0.1"
+libraryDependencies += "dev.zio" %% "zio-config-refined"  % "3.0.1"
 ```
 
 In this example we are reading from HOCON config format using type derivation:
