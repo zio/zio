@@ -50,6 +50,8 @@ lazy val projectsCommon = List(
   testTests
 )
 
+lazy val rootJVM = rootJVM213
+
 lazy val rootJVM211 = project
   .in(file("target/rootJVM211"))
   .settings(
@@ -62,24 +64,7 @@ lazy val rootJVM211 = project
     ): _*
   )
 
-lazy val rootJVM212 = project
-  .in(file("target/rootJVM212"))
-  .settings(
-    publish / skip := true
-  )
-  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
-  .aggregate(
-    List[ProjectReference](
-      benchmarks,
-      docs,
-      testJunitRunner,
-      testJunitRunnerTests,
-      testMagnolia.jvm,
-      testMagnoliaTests.jvm,
-      testRefined.jvm,
-      testScalaCheck.jvm
-    ): _*
-  )
+lazy val rootJVM212 = rootJVM213
 
 lazy val rootJVM213 = project
   .in(file("target/rootJVM213"))
@@ -156,28 +141,7 @@ lazy val root211 = project
       )): _*
   )
 
-lazy val root212 = project
-  .in(file("target/root212"))
-  .settings(
-    publish / skip := true
-  )
-  .aggregate(
-    (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
-      List(
-        testScalaCheck
-      ).flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
-      List(
-        testMagnolia,
-        testMagnoliaTests,
-        testRefined
-      ).flatMap(p => List[ProjectReference](p.jvm, p.js)) ++
-      List[ProjectReference](
-        benchmarks,
-        docs,
-        testJunitRunner,
-        testJunitRunnerTests
-      )): _*
-  )
+lazy val root212 = root213
 
 lazy val root213 = project
   .in(file("target/root213"))
