@@ -28,7 +28,7 @@ addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "check",
-  "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile"
+  "; scalafmtSbtCheck; scalafmtCheckAll"
 )
 addCommandAlias(
   "mimaChecks",
@@ -54,9 +54,7 @@ lazy val rootJVM = project.in(file("target/rootJVM")).settings(publish / skip :=
 
 lazy val rootJVM211 = project
   .in(file("target/rootJVM211"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
   .aggregate(
     List[ProjectReference](
@@ -68,9 +66,7 @@ lazy val rootJVM212 = project.in(file("target/rootJVM212")).settings(publish / s
 
 lazy val rootJVM213 = project
   .in(file("target/rootJVM213"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
   .aggregate(
     List[ProjectReference](
@@ -87,9 +83,7 @@ lazy val rootJVM213 = project
 
 lazy val rootJVM3 = project
   .in(file("target/rootJVM3"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
   .aggregate(
     List[ProjectReference](
@@ -104,9 +98,7 @@ lazy val rootJVM3 = project
 
 lazy val rootJS = project
   .in(file("target/rootJS"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(projectsCommon.map(p => p.js: ProjectReference): _*)
   .aggregate(
     List[ProjectReference](
@@ -119,9 +111,7 @@ lazy val rootJS = project
 
 lazy val rootNative = project
   .in(file("target/rootNative"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(projectsCommon.map(_.native: ProjectReference): _*)
   .aggregate(
     List[ProjectReference](
@@ -131,9 +121,7 @@ lazy val rootNative = project
 
 lazy val root211 = project
   .in(file("target/root211"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(
     (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
       List[ProjectReference](
@@ -145,9 +133,7 @@ lazy val root212 = project.in(file("target/root212")).settings(publish / skip :=
 
 lazy val root213 = project
   .in(file("target/root213"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(
     (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
       List(
@@ -168,9 +154,7 @@ lazy val root213 = project
 
 lazy val root3 = project
   .in(file("target/root3"))
-  .settings(
-    publish / skip := true
-  )
+  .settings(publish / skip := true)
   .aggregate(
     (projectsCommon.flatMap(p => List[ProjectReference](p.jvm, p.js, p.native)) ++
       List(
@@ -199,57 +183,7 @@ lazy val root = project
     ),
     welcomeMessage
   )
-  .aggregate(
-    benchmarks,
-    concurrent.js,
-    concurrent.jvm,
-    concurrent.native,
-    core.js,
-    core.jvm,
-    core.native,
-    coreTests.js,
-    coreTests.jvm,
-    coreTests.native,
-    docs,
-    examples.js,
-    examples.jvm,
-    examples.native,
-    macros.js,
-    macros.jvm,
-    macros.native,
-    macrosTests.js,
-    macrosTests.jvm,
-    macrosTests.native,
-    stacktracer.js,
-    stacktracer.jvm,
-    stacktracer.native,
-    streams.js,
-    streams.jvm,
-    streams.native,
-    streamsTests.js,
-    streamsTests.jvm,
-    streamsTests.native,
-    tests.js,
-    tests.jvm,
-    tests.native,
-    testJunitRunner,
-    testJunitRunnerTests,
-    testMagnolia.js,
-    testMagnolia.jvm,
-    testMagnoliaTests.js,
-    testMagnoliaTests.jvm,
-    testRefined.js,
-    testRefined.jvm,
-    testRunner.js,
-    testRunner.jvm,
-    testRunner.native,
-    testScalaCheck.js,
-    testScalaCheck.jvm,
-    testScalaCheck.native,
-    testTests.js,
-    testTests.jvm,
-    testTests.native
-  )
+  .aggregate(root213)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
