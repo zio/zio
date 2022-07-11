@@ -130,15 +130,18 @@ jobs:
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
-    - name: Test 2.11.x
+    - name: Test 2.11
       if: ${{ startsWith(matrix.scala, '2.11.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
-    - name: Test 2.12.x and 2.13.x
-      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
-    - name: Test 3.x
+      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}211/test
+    - name: Test 2.12
+      if: ${{ startsWith(matrix.scala, '2.12.') }}
+      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}212/test
+    - name: Test 2.13
+      if: ${{ startsWith(matrix.scala, '2.13.') }}
+      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}213/test
+    - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
+      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
 
   testJvms:
     runs-on: ubuntu-20.04

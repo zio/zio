@@ -23,48 +23,12 @@ inThisBuild(
   )
 )
 
-addCommandAlias("build", "; fmt; testJVM")
+addCommandAlias("build", "; fmt; rootJVM/test")
 addCommandAlias("fmt", "all root/scalafmtSbt root/scalafmtAll")
 addCommandAlias("fmtCheck", "all root/scalafmtSbtCheck root/scalafmtCheckAll")
 addCommandAlias(
   "check",
   "; scalafmtSbtCheck; scalafmtCheckAll; Test/compile"
-)
-addCommandAlias(
-  "compileJVM",
-  ";coreTestsJVM/test:compile;stacktracerJVM/test:compile;streamsTestsJVM/test:compile;testTestsJVM/test:compile;testMagnoliaTestsJVM/test:compile;testRefinedJVM/test:compile;testRunnerJVM/test:compile;examplesJVM/test:compile;macrosTestsJVM/test:compile;concurrentJVM/test:compile"
-)
-addCommandAlias(
-  "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test" // `test` currently executes only compilation, see `nativeSettings` in `BuildHelper`
-)
-addCommandAlias(
-  "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;benchmarks/test:compile;macrosTestsJVM/test;testJunitRunnerTestsJVM/test;concurrentJVM/test"
-)
-addCommandAlias(
-  "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test:compile;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
-)
-addCommandAlias(
-  "testJVMDotty",
-  ";coreTestsJVM/test;stacktracerJVM/test:compile;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;concurrentJVM/test"
-)
-addCommandAlias(
-  "testJSDotty",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;concurrentJS/test"
-)
-addCommandAlias(
-  "testJVM211",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testRunnerJVM/test:run;examplesJVM/test:compile;macrosTestsJVM/test;concurrentJVM/test"
-)
-addCommandAlias(
-  "testJS",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;testMagnoliaTestsJS/test;testRefinedJS/test;examplesJS/test:compile;macrosTestsJS/test;concurrentJS/test"
-)
-addCommandAlias(
-  "testJS211",
-  ";coreTestsJS/test;stacktracerJS/test;streamsTestsJS/test;testTestsJS/test;examplesJS/test:compile;macrosJS/test;concurrentJS/test"
 )
 addCommandAlias(
   "mimaChecks",
@@ -86,8 +50,20 @@ lazy val projectsCommon = List(
   testTests
 )
 
-lazy val rootJVM = project
-  .in(file("target/rootJVM"))
+lazy val rootJVM211 = project
+  .in(file("target/rootJVM211"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
+      testJunitRunner
+    ): _*
+  )
+
+lazy val rootJVM212 = project
+  .in(file("target/rootJVM212"))
   .settings(
     publish / skip := true
   )
@@ -96,6 +72,42 @@ lazy val rootJVM = project
     List[ProjectReference](
       benchmarks,
       docs,
+      testJunitRunner,
+      testJunitRunnerTests,
+      testMagnolia.jvm,
+      testMagnoliaTests.jvm,
+      testRefined.jvm,
+      testScalaCheck.jvm
+    ): _*
+  )
+
+lazy val rootJVM213 = project
+  .in(file("target/rootJVM213"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
+      benchmarks,
+      docs,
+      testJunitRunner,
+      testJunitRunnerTests,
+      testMagnolia.jvm,
+      testMagnoliaTests.jvm,
+      testRefined.jvm,
+      testScalaCheck.jvm
+    ): _*
+  )
+
+lazy val rootJVM3 = project
+  .in(file("target/rootJVM3"))
+  .settings(
+    publish / skip := true
+  )
+  .aggregate(projectsCommon.map(p => p.jvm: ProjectReference): _*)
+  .aggregate(
+    List[ProjectReference](
       testJunitRunner,
       testJunitRunnerTests,
       testMagnolia.jvm,
