@@ -56,18 +56,18 @@ jobs:
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 7
-      - name: Check generation of ScalaDoc 2.11
+      - name: Test/compile 2.11
         if: ${{ startsWith(matrix.scala, '2.11.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root211/Test/doc
-      - name: Check generation of ScalaDoc 2.12
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root211/Test/compile
+      - name: Test/compile 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/Test/doc
-      - name: Check generation of ScalaDoc 2.13
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/Test/compile
+      - name: Test/compile 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/Test/doc
-      - name: Check generation of ScalaDoc 3
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/Test/compile
+      - name: Test/compile 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/Test/doc
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
@@ -89,16 +89,16 @@ jobs:
         uses: coursier/cache-action@v6
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
-      - name: Check generation of ScalaDoc 2.11
+      - name: publishLocal 2.11
         if: ${{ startsWith(matrix.scala, '2.11.') }}
         run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root211/publishLocal
-      - name: Check generation of ScalaDoc 2.12
+      - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/publishLocal
-      - name: Check generation of ScalaDoc 2.13
+      - name: publishLocal 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
         run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/publishLocal
-      - name: Check generation of ScalaDoc 3
+      - name: publishLocal 3
         if: ${{ startsWith(matrix.scala, '3.') }}
         run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/publishLocal
 
