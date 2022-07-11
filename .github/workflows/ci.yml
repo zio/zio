@@ -91,16 +91,16 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: publishLocal 2.11
         if: ${{ startsWith(matrix.scala, '2.11.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root211/publishLocal
+        run: ./sbt ++${{ matrix.scala }} root211/publishLocal
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/publishLocal
+        run: ./sbt ++${{ matrix.scala }} root212/publishLocal
       - name: publishLocal 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/publishLocal
+        run: ./sbt ++${{ matrix.scala }} root213/publishLocal
       - name: publishLocal 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/publishLocal
+        run: ./sbt ++${{ matrix.scala }} root3/publishLocal
 
   website:
     runs-on: ubuntu-20.04
@@ -146,16 +146,16 @@ jobs:
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
     - name: Test 2.11
       if: ${{ startsWith(matrix.scala, '2.11.') }}
-      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}211/test
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}211/test
     - name: Test 2.12
       if: ${{ startsWith(matrix.scala, '2.12.') }}
-      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}212/test
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}212/test
     - name: Test 2.13
       if: ${{ startsWith(matrix.scala, '2.13.') }}
-      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}213/test
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}213/test
     - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
 
   testJvms:
     runs-on: ubuntu-20.04
