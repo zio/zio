@@ -100,7 +100,7 @@ println(s"executedEffect: $executedEffect")
 
 This will print the result of the computation. But, this is not the idiomatic way to debug functional effects.
 
-Simple _print statements_ are not composable with ZIO applications. So we can't use them to debug ZIO applications easily. So instead of print statements, we should use ZIO effects to debug ZIO applications.
+Simple _print statements_ are not composable with ZIO applications. So we can't use them to debug ZIO applications easily. So instead of print statements, we should use ZIO effects to debug ZIO applications. We can use `Console.printLine` effect to debug ZIO applications, but the ZIO itself has a specialized effect called `ZIO.debug`/`ZIO#debug` which allows us to print intermediate values easily.
 
 For example, assume we have written the Fibonacci function using the `ZIO` data type:
 
@@ -112,3 +112,40 @@ def fib(n: Int): ZIO[Any, Nothing, Int] = {
   else fib(n - 1).zipWith(fib(n - 2))(_ + _)
 }
 ```
+
+We can debug this program by utilizing the `ZIO#debug` effect:
+
+```scala mdoc:compile-only
+import zio._
+
+def fib(n: Int): ZIO[Any, Nothing, Int] = {
+  if (n <= 1) ZIO.succeed(n).debug(s"fib($n) = $n")
+  else {
+    fib(n - 1)
+      .zipWith(fib(n - 2))(_ + _)
+      .debug(s"fib($n) = fib(${n - 1}) + fib(${n - 2})")
+  }
+}
+```
+
+If we run the above program, we will see the following output:
+
+```
+fib(1) = 1: 1
+fib(0) = 0: 0
+fib(2) = fib(1) + fib(0): 1
+fib(1) = 1: 1
+fib(3) = fib(2) + fib(1): 2
+fib(1) = 1: 1
+fib(0) = 0: 0
+fib(2) = fib(1) + fib(0): 1
+fib(4) = fib(3) + fib(2): 3
+fib(1) = 1: 1
+fib(0) = 0: 0
+fib(2) = fib(1) + fib(0): 1
+fib(1) = 1: 1
+fib(3) = fib(2) + fib(1): 2
+fib(5) = fib(4) + fib(3): 5
+```
+
+The `ZIO#debug` effect taps into the called function and prints its output. It doesn't change the result of a computation. We also can use `ZIO.debug` to print any arbitrary message.
