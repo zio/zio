@@ -56,14 +56,6 @@ final result: 2
 
 The `print` statements are the easiest way for lazy programmers to debug their code. However, they are not the most efficient way to debug code.
 
-## Debugging an Ordinary Scala Using a Debugger
-
-Debugging using print statements is usable in some cases, and sometimes it is not performant. Another way to debug a code is to use a debugger. A debugger is a program that allows us to step through the code and see the intermediate values of the computation. Some IDEs like IntelliJ IDEA or Visual Studio Code have built-in debuggers. We can use these to debug our code.
-
-To learn how to use a debugger in each of the IDEs, we can look at the following links:
-- [IntelliJ IDEA](https://www.jetbrains.com/help/idea/debugging-scala.html)
-- [Visual Studio Code](https://code.visualstudio.com/docs/editor/debugging)
-
 ## Debugging a ZIO Application Using `debug` Effect
 
 When we use functional effects like `ZIO`, we are creating the description of the computation that we want to run. For example, assume we have the following code:
@@ -149,3 +141,35 @@ fib(5) = fib(4) + fib(3): 5
 ```
 
 The `ZIO#debug` effect taps into the called function and prints its output. It doesn't change the result of a computation. We also can use `ZIO.debug` to print any arbitrary message.
+
+We have the same effect as the following:
+
+```scala mdoc:compile-only
+import zio.stream._
+
+ZStream
+  .fromIterable(1 to 3)
+  .debug("before map")
+  .map(_ * 2)
+  .debug("after map")
+  .runDrain
+```
+
+The output is:
+
+```
+before map: 1
+after map: 2
+before map: 2
+after map: 4
+before map: 3
+after map: 6
+```
+
+## Debugging Using a Debugger
+
+Debugging using print statements is usable in some cases, and sometimes it is not performant. Another way to debug a code is to use a debugger. A debugger is a program that allows us to step through the code and see the intermediate values of the computation. Some IDEs like IntelliJ IDEA or Visual Studio Code have built-in debuggers. We can use these to debug our code, whether we are debugging a functional effect or an ordinary scala program.
+
+To learn how to use a debugger in each of the IDEs, we can look at the following links:
+- [IntelliJ IDEA](https://www.jetbrains.com/help/idea/debugging-scala.html)
+- [Visual Studio Code](https://code.visualstudio.com/docs/editor/debugging)
