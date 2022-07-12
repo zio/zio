@@ -261,9 +261,10 @@ Here are some of the most important changes:
 |                                |                                   |
 | `ZIO#to`                       | `ZIO#intoPromise`                 |
 |                                |                                   |
+| `ZIO.access`                   | `ZIO.environmentWith`             |
 | `ZIO.accessM`                  | `ZIO.environmentWithZIO`          |
+| `ZIO.fromFunction`             | `ZIO.environmentWith`             |
 | `ZIO.fromFunctionM`            | `ZIO.environmentWithZIO`          |
-| `ZIO.fromFunction`             | `ZIO.access`                      |
 | `ZIO.services`                 | `ZIO.service`                     |
 |                                |                                   |
 | `ZIO.bracket`                  | `ZIO.acquireReleaseWith`          |
