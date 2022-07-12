@@ -173,3 +173,7 @@ Debugging using print statements is usable in some cases, and sometimes it is no
 To learn how to use a debugger in each of the IDEs, we can look at the following links:
 - [IntelliJ IDEA](https://www.jetbrains.com/help/idea/debugging-scala.html)
 - [Visual Studio Code](https://code.visualstudio.com/docs/editor/debugging)
+
+## Conclusion
+
+In this article we discussed how to debug functional effects using `debug` effect and also debuggers. We saw that debugging with functional effects can be even easier than debugging ordinary scala programs.
