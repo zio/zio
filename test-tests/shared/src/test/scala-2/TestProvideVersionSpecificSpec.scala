@@ -73,7 +73,7 @@ object TestProvideVersionSpecificSpec extends ZIOBaseSpec {
             )
           )
         }
-      ),
+      )
     )
 
   object TestLayer {
