@@ -228,6 +228,7 @@ module.exports = {
         "guides/tutorials/deploy-a-zio-application-using-docker",
         "guides/tutorials/producing-consuming-data-from-kafka-topics",
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
+        "guides/tutorials/debug-a-zio-application",
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
