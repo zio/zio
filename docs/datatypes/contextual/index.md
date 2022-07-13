@@ -35,8 +35,8 @@ val eliminated: ZIO[Any, IOException, String] =
 
 ZIO provides this facility through the following concepts and data types:
 1. [ZIO Environment](#1-zio-environment) — The `R` type parameter of `ZIO[R, E, A]` data type.
-2. [ZEnvironment](zenvironment.md) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
-3. [ZLayer](zlayer.md) — Describes how to build one or more services in our application.
+2. [ZEnvironment](#2-zenvironment) — Built-in type-level map for maintaining the environment of a `ZIO` data type. 
+3. [ZLayer](#3-zlayer) — Describes how to build one or more services in our application.
 
 Next, we will discuss _ZIO Environment_ and _ZLayer_ and finally how to write ZIO services using the _Service Pattern_.
 
@@ -54,21 +54,6 @@ type ZIO[R, E, A] = R => Either[E, A]
 
 `R` represents dependencies; whatever services, config, or wiring a part of a ZIO program depends upon to work. We will explore what we can do with `R`, as it plays a crucial role in `ZIO`.
 
-We don't need to provide live layers for built-in services (Layers will be discussed later on this page). ZIO has a `ZEnv` type alias for the composition of all ZIO built-in services (`Clock`, `Console`, `System`, `Random`, and `Blocking`). So we can run the above `effect` as follows:
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  def run = effect
-  
-  val effect: ZIO[Any, Nothing, Unit] = for {
-    r <- Random.nextInt
-    _ <- Console.printLine(s"random number: $r").orDie
-  } yield ()
-}
-```
-
 ```scala mdoc:invisible:reset
 
 ```
@@ -77,12 +62,12 @@ object MainApp extends ZIOAppDefault {
 
 One might ask "What is the motivation behind encoding the dependency in the type parameter of `ZIO` data type"? What is the benefit of doing so?
 
-Let's see how writing an application which requires reading from or writing to the console. As part of making the application _modular_ and _testable_ we define a separate service called `Console` which is responsible for reading from and writing to the console. We do that simply by writing an interface:
+Let's see how writing an application which requires reading from or writing to the terminal. As part of making the application _modular_ and _testable_ we define a separate service called `Terminal` which is responsible for reading from and writing to the terminal. We do that simply by writing an interface:
 
 ```scala mdoc:silent
 import zio._
 
-trait Console {
+trait Terminal {
   def print(line: Any): Task[Unit]
 
   def printLine(line: Any): Task[Unit]
@@ -91,12 +76,12 @@ trait Console {
 }
 ```
 
-Now we can write our application that accepts the `Console` interface as a parameter:
+Now we can write our application that accepts the `Terminal` interface as a parameter:
 
 ```scala mdoc:silent
 import zio._
 
-def myApp(c: Console): Task[Unit] =
+def myApp(c: Terminal): Task[Unit] =
   for {
     _    <- c.print("Please enter your name: ")
     name <- c.readLine
@@ -104,12 +89,12 @@ def myApp(c: Console): Task[Unit] =
   } yield ()
 ```
 
-Similar to the object-oriented paradigm we code to interface not implementation. In order to run the application, we need to implement a production version of the `Console`:
+Similar to the object-oriented paradigm we code to interface not implementation. In order to run the application, we need to implement a production version of the `Terminal`:
 
 ```scala mdoc:silent
 import zio._
 
-object ConsoleLive extends Console {
+object TerminalLive extends Terminal {
   override def print(line: Any): Task[Unit] =
     ZIO.attemptBlocking(scala.Predef.print(line))
 
@@ -121,20 +106,20 @@ object ConsoleLive extends Console {
 }
 ```
 
-Finally, we can provide the `ConsoleLive` to our application and run the whole:
+Finally, we can provide the `TerminalLive` to our application and run the whole:
 
 ```scala mdoc:fail:silent
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  def myApp(c: Console): Task[Unit] =
+  def myApp(c: Terminal): Task[Unit] =
     for {
       _    <- c.print("Please enter your name: ")
       name <- c.readLine
       _    <- c.printLine(s"Hello, $name!")
     } yield ()
 
-  def run = myApp(ConsoleLive)
+  def run = myApp(TerminalLive)
 }
 ```
 
@@ -142,7 +127,7 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-In the above example, we discard the fact that we could use the ZIO environment and utilize the `R` parameter of the `ZIO` data type. So instead we tried to write the application with the `Task` data type, which ignores the ZIO environment. To create our application testable, we gathered all console functionalities into the same interface called `Console`, and implemented that in another object called `ConsoleLive`. Finally, at the end of the day, we provide the implementation of the `Console` service, i.e. `ConsoleLive`, to our application.
+In the above example, we discard the fact that we could use the ZIO environment and utilize the `R` parameter of the `ZIO` data type. So instead we tried to write the application with the `Task` data type, which ignores the ZIO environment. To create our application testable, we gathered all terminal functionalities into the same interface called `Terminal`, and implemented that in another object called `TerminalLive`. Finally, at the end of the day, we provide the implementation of the `Terminal` service, i.e. `TerminalLive`, to our application.
 
 **While this technique works for small programs, it doesn't scale.** Assume we have multiple services, and we use them in our application logic like below:
 
@@ -227,7 +212,7 @@ In the example above, the compiler can infer the environment type of the `myApp`
 
 ### Accessing ZIO Environment
 
-We have two types of accessors for the ZIO environment:
+We have two types of accessors for the ZIO environment:DocRepo
 1. **Service Accessor (`ZIO.service`)** is used to access a specific service from the environment.
 2. **Service Member Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
 
@@ -319,29 +304,20 @@ val myApp: ZIO[AppConfig, Nothing, Unit] =
 
 2. **ZIO.serviceWithZIO** — When we are accessing service members whose return type is a ZIO effect, we should use the `ZIO.serviceWithZIO`.
 
-For example, in order to write the accessor method for the `log` member of the `Logging` service, we need to use the `ZIO.serviceWithZIO` function:
+For example, in order to write the accessor method for the `foo` member of the `Foo` service, we need to use the `ZIO.serviceWithZIO` function:
 
 ```scala mdoc:compile-only
 import zio._
 
-trait Logging {
-  def log(line: String): Task[Unit]
+trait Foo {
+  def foo(input: String): Task[Unit]
 }
 
-object Logging {
-  // Accessor Methods:
-  def log(line: String): ZIO[Logging, Throwable, Unit] =
-    ZIO.serviceWithZIO(_.log(line))
+object Foo {
+  // Accessor Method
+  def foo(input: String): ZIO[Foo, Throwable, Unit] =
+    ZIO.serviceWithZIO(_.foo(input))
 }
-
-val myApp: ZIO[Logging & Console, Throwable, Unit] =
-  for {
-    _    <- Logging.log("Application Started!")
-    _    <- Console.print("Please enter your name: ")
-    name <- Console.readLine
-    _    <- Console.printLine(s"Hello, $name!")
-    _    <- Logging.log("Application exited!")
-  } yield ()
 ```
 
 ## 2. ZEnvironment
@@ -422,8 +398,6 @@ Sometimes, as the number of dependent services grows and the dependency graph of
 
 A service is a group of functions that deals with only one concern. Keeping the scope of each service limited to a single responsibility improves our ability to understand code, in that we need to focus only on one topic at a time without juggling too many concepts together in our head.
 
-`ZIO` itself provides the basic capabilities through modules, e.g. see how `ZEnv` is defined.
-
 In functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
 
 * Allowing the client to hold an interface as a contract and don't worry about the implementation. The interface signature determines all operations that should be done.
@@ -448,73 +422,144 @@ We have a similar analogy in the Service Pattern, except instead of using _const
 
 Writing services in ZIO using the _Service Pattern_ is very similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.
 
-Let's start learning this service pattern by writing a `Logging` service:
+Let's start learning this service pattern by writing a `DocRepo` service:
 
-1. **Service Definition** — Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility. We define the service definition with a trait named `Logging`:
-
-```scala mdoc:invisible:reset
-import zio._
-```
+1. **Service Definition** — Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility. We define the service definition with a trait named `DocRepo`:
 
 ```scala mdoc:silent
-trait Logging {
-  def log(line: String): UIO[Unit]
+import zio._
+
+case class Doc(
+    title: String,
+    description: String,
+    language: String,
+    format: String,
+    content: Array[Byte]
+)
+
+trait DocRepo {
+  def get(id: String): ZIO[Any, Throwable, Doc]
+
+  def save(document: Doc): ZIO[Any, Throwable, String]
+
+  def delete(id: String): ZIO[Any, Throwable, Unit]
+
+  def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]]
 }
 ```
 
-2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class. By convention, we name the live version of its implementation as `LoggingLive`:
+2. **Service Implementation** — It is the same as what we did in an object-oriented fashion. We implement the service with the Scala class:
 
 ```scala mdoc:compile-only
-case class LoggingLive() extends Logging {
-  override def log(line: String): UIO[Unit] = 
-    ZIO.succeed(print(line))
+case class DocRepoImpl() extends DocRepo {
+  override def get(id: String): ZIO[Any, Throwable, Doc] = ???
+
+  override def save(document: Doc): ZIO[Any, Throwable, String] = ???
+
+  override def delete(id: String): ZIO[Any, Throwable, Unit] = ???
+
+  override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] = ???
 }
 ```
 
-3. **Define Service Dependencies** — We might need `Console` and `Clock` services to implement the `Logging` service. Here, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style:
+3. **Define Service Dependencies** — We might need `MetadataRepo` and `BlobStorage` services to implement the `DocRepo` service. Here, we put its dependencies into its constructor. All the dependencies are just interfaces, not implementation. Just like what we did in object-oriented style.
 
-```scala mdoc:invisible:reset
-import zio._
-
-trait Logging {
-  def log(line: String): UIO[Unit]
-}
-```
+First, we need to define the interfaces for `MetadataRepo` and `BlobStorage` services:
 
 ```scala mdoc:silent
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] = 
+case class Metadata(
+    title: String,
+    description: String,
+    language: String,
+    format: String
+)
+
+trait MetadataRepo {
+  def get(id: String): ZIO[Any, Throwable, Metadata]
+
+  def put(id: String, metadata: Metadata): ZIO[Any, Throwable, Unit]
+
+  def delete(id: String): ZIO[Any, Throwable, Unit]
+
+  def findByTitle(title: String): ZIO[Any, Throwable, Map[String, Metadata]]
+}
+
+trait BlobStorage {
+  def get(id: String): ZIO[Any, Throwable, Array[Byte]]
+
+  def put(content: Array[Byte]): ZIO[Any, Throwable, String]
+
+  def delete(id: String): ZIO[Any, Throwable, Unit]
+}
+```
+
+Now, we can implement the `DocRepo` service:
+
+```scala mdoc:silent
+case class DocRepoImpl(
+    metadataRepo: MetadataRepo,
+    blobStorage: BlobStorage
+) extends DocRepo {
+  override def get(id: String): ZIO[Any, Throwable, Doc] =
     for {
-      current <- clock.currentDateTime
-      _       <- console.printLine(s"$current--$line").orDie
+      metadata <- metadataRepo.get(id)
+      content <- blobStorage.get(id)
+    } yield Doc(
+      metadata.title,
+      metadata.description,
+      metadata.language,
+      metadata.format,
+      content
+    )
+
+  override def save(document: Doc): ZIO[Any, Throwable, String] =
+    for {
+      id <- blobStorage.put(document.content)
+      _ <- metadataRepo.put(
+        id,
+        Metadata(
+          document.title,
+          document.description,
+          document.language,
+          document.format
+        )
+      )
+    } yield id
+
+  override def delete(id: String): ZIO[Any, Throwable, Unit] =
+    for {
+      _ <- blobStorage.delete(id)
+      _ <- metadataRepo.delete(id)
     } yield ()
+
+  override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] =
+    for {
+      map <- metadataRepo.findByTitle(title)
+      content <- ZIO.foreach(map)((id, metadata) =>
+        for {
+          content <- blobStorage.get(id)
+        } yield id -> Doc(
+          metadata.title,
+          metadata.description,
+          metadata.language,
+          metadata.format,
+          content
+        )
+      )
+    } yield content.values.toList
 }
 ```
 
-4. **Defining ZLayer** — Now, we create a companion object for `LoggingLive` data type and lift the service implementation into the `ZLayer`:
+4. **Defining ZLayer** — Now, we create a companion object for `DocRepoImpl` data type and lift the service implementation into the `ZLayer`:
 
 ```scala mdoc:silent
-object LoggingLive {
-  val layer: URLayer[Any, Logging] =
+object DocRepoImpl {
+  val layer: ZLayer[BlobStorage with MetadataRepo, Nothing, DocRepo] =
     ZLayer {
       for {
-        console <- ZIO.console
-        clock   <- ZIO.clock
-      } yield LoggingLive(console, clock)
-    }
-}
-```
-
-Note that the previous step is syntactic sugar of writing the layer directly in combination with for-comprehension style of accessing the ZIO environment:
-
-```scala
-object LoggingLive {
-  val layer: ZLayer[Any, Nothing, Logging] =
-    ZLayer {
-      for {
-        console <- ZIO.service[Console]
-        clock   <- ZIO.service[Clock]
-      } yield LoggingLive(console, clock)
+        metadataRepo <- ZIO.service[MetadataRepo]
+        blobStorage  <- ZIO.service[BlobStorage]
+      } yield DocRepoImpl(metadataRepo, blobStorage)
     }
 }
 ```
@@ -522,34 +567,84 @@ object LoggingLive {
 5. **Accessor Methods** — Finally, to create the API more ergonomic, it's better to write accessor methods for all of our service methods using `ZIO.serviceWithZIO` constructor inside the companion object:
 
 ```scala mdoc:silent
-object Logging {
-  def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO[Logging](_.log(line))
+object DocRepo {
+  def get(id: String): ZIO[DocRepo, Throwable, Doc] =
+    ZIO.serviceWithZIO[DocRepo](_.get(id))
+
+  def save(document: Doc): ZIO[DocRepo, Throwable, String] =
+    ZIO.serviceWithZIO[DocRepo](_.save(document))
+
+  def delete(id: String): ZIO[DocRepo, Throwable, Unit] =
+    ZIO.serviceWithZIO[DocRepo](_.delete(id))
+
+  def findByTitle(title: String): ZIO[DocRepo, Throwable, List[Doc]] =
+    ZIO.serviceWithZIO[DocRepo](_.findByTitle(title))
 }
 ```
 
-Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `Logging.log`, we don't need to pull out the `log` function from the ZIO Environment. The `ZIO.serviceWithZIO` constructor helps us to access the environment and reduce the redundant operations, every time.
+Accessor methods allow us to utilize all the features inside the service through the ZIO Environment. That means, if we call `DocRepo.get`, we don't need to pull out the `get` function from the ZIO Environment. The `ZIO.serviceWithZIO` constructor helps us to access the environment and reduce the redundant operations, every time.
 
-This is how ZIO services are created. Let's use the `Logging` service in our application. We should provide the live layer of the `Logging` service to be able to run the application:
+Similarly, we need to implement the `BlobStorage` and `MetadataRepo` services:
+
+```scala mdoc:silent
+object InmemoryBlobStorage {
+  val layer = 
+    ZLayer {
+      ???
+    } 
+}
+
+object InmemoryMetadataRepo {
+  val layer = 
+    ZLayer {
+      ???
+    }
+}
+```
+
+This is how ZIO services are created. Let's use the `DocRepo` service in our application. We should provide `DocRepo` layer to be able to run the application:
 
 ```scala mdoc:compile-only
 import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging, IOException, Unit] =
+  val app =
     for {
-      _    <- Logging.log("Application Started!")
-      _    <- Console.print("Enter your name:")
-      name <- Console.readLine
-      _    <- Console.printLine(s"Hello, $name!")
-      _    <- Logging.log("Application Exited!")
+      id <-
+        DocRepo.save(
+          Doc(
+            "title",
+            "description",
+            "en",
+            "text/plain",
+            "content".getBytes()
+          )
+        )
+      doc <- DocRepo.get(id)
+      _ <- Console.printLine(
+        s"""
+          |Downloaded the document with $id id:
+          |  title: ${doc.title}
+          |  description: ${doc.description}
+          |  language: ${doc.language}
+          |  format: ${doc.format}
+          |""".stripMargin
+      )
+      _ <- DocRepo.delete(id)
+      _ <- Console.printLine(s"Deleted the document with $id id")
     } yield ()
 
-  def run = app.provide(LoggingLive.layer)
+  def run =
+    app.provide(
+      DocRepoImpl.layer,
+      InmemoryBlobStorage.layer,
+      InmemoryMetadataRepo.layer
+    )
 }
 ```
 
-During writing the application, we don't care which implementation version of the `Logging` service will be injected into our `app`, later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
+During writing the application, we don't care which implementation version of the `BlobStorage` and `MetadataRepo` services will be injected into our `app`. Later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
 
@@ -992,48 +1087,67 @@ Using ZIO environment follows three laws:
 
 For example, if the implementation of service `X` depends on service `Y` and `Z` then these should never be reflected in the trait that defines service `X`. It's leaking implementation details.
 
-So the following service definition is wrong because the `Console` and `Clock` service are dependencies of the  `Logging` service's implementation, not the `Logging` interface itself:
+So the following service definition is wrong because the `BlobStorage` and `MetadataRepo` services are dependencies of the  `DocRepo` service's implementation, not the `DocRepo` interface itself:
 
 ```scala mdoc:compile-only
 import zio._
-trait Logging {
-  def log(line: String): ZIO[Any, Nothing, Unit]
+
+trait DocRepo {
+  def save(document: Doc): ZIO[BlobStorage & MetadataRepo, Throwable, String]
 }
 ```
 
 2. **Service Implementation (Class)** — When implementing service interfaces, we should accept all dependencies in the class constructor.
 
-Again, let's see how `LoggingLive` accepts `Console` and `Clock` dependencies from the class constructor:
+Again, let's see how `DocRepoImpl` accepts `BlobStorage` and `MetadataRepo` dependencies from the class constructor:
 
 ```scala mdoc:compile-only
-case class LoggingLive(console: Console, clock: Clock) extends Logging {
-  override def log(line: String): UIO[Unit] =
+case class DocRepoImpl(
+    metadataRepo: MetadataRepo,
+    blobStorage: BlobStorage
+) extends DocRepo {
+  override def delete(id: String): ZIO[Any, Throwable, Unit] =
     for {
-      current <- clock.currentDateTime
-      _       <- console.printLine(s"$current--$line").orDie
+      _ <- blobStorage.delete(id)
+      _ <- metadataRepo.delete(id)
     } yield ()
+
+  override def get(id: String): ZIO[Any, Throwable, Doc] = ???
+
+  override def save(document: Doc): ZIO[Any, Throwable, String] = ???
+
+  override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] = ???
+}
+
+object DocRepoImpl {
+  val layer: ZLayer[BlobStorage with MetadataRepo, Nothing, DocRepo] =
+    ZLayer {
+      for {
+        metadataRepo <- ZIO.service[MetadataRepo]
+        blobStorage  <- ZIO.service[BlobStorage]
+      } yield DocRepoImpl(metadataRepo, blobStorage)
+    }
 }
 ```
 
 So keep in mind, we can't do something like this:
 
 ```scala mdoc:fail:silent
-case class LoggingLive() extends Logging {
-  override def log(line: String) =
+case class DocRepoImpl() extends DocRepo {
+  override def delete(id: String): ZIO[Any, Throwable, Unit] =
     for {
-      clock   <- ZIO.service[Clock]
-      console <- ZIO.service[Console]
-      current <- clock.currentDateTime
-      _       <- console.printLine(s"$current--$line").orDie
+      blobStorage  <- ZIO.service[BlobStorage]
+      metadataRepo <- ZIO.service[MetadataRepo]
+      _            <- blobStorage.delete(id)
+      _            <- metadataRepo.delete(id)
     } yield ()
-}
 
-// error: type mismatch;
-//  found   : zio.ZIO[zio.Console & zio.Clock,Nothing,Unit]
-//     (which expands to)  zio.ZIO[zio.Console with zio.Clock,Nothing,Unit]
-//  required: zio.ZIO[Logging,Nothing,Unit]
-//   def log(line: String): URIO[Logging, Unit] = ZIO.serviceWithZIO[Logging](_.log(line))
-//                                                                            ^^^^^^^^^^^
+  override def get(id: String): ZIO[Any, Throwable, Doc] = ???
+
+  override def save(document: Doc): ZIO[Any, Throwable, String] = ???
+
+  override def findByTitle(title: String): ZIO[Any, Throwable, List[Doc]] = ???
+}
 ```
 
 3. **Business Logic** — Finally, in the business logic we should use the ZIO environment to consume services.
@@ -1045,16 +1159,39 @@ import zio._
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
-  val app: ZIO[Logging, IOException, Unit] =
+  val app =
     for {
-      _    <- ZIO.serviceWithZIO[Logging](_.log("Application Started!"))
-      _    <- Console.print("Enter your name: ")
-      name <- Console.readLine
-      _    <- Console.printLine(s"Hello, $name!")
-      _    <- ZIO.serviceWithZIO[Logging](_.log("Application Exited!"))
+      id <-
+        ZIO.serviceWithZIO[DocRepo](_.save(
+          Doc(
+              "How to write a ZIO application?",
+              "In this tutorial we will learn how to write a ZIO application.",
+              "en",
+              "text/plain",
+              "content".getBytes()
+            )
+          )
+        )
+      doc <- ZIO.serviceWithZIO[DocRepo](_.get(id))
+      _ <- Console.printLine(
+        s"""
+          |Downloaded the document with $id id:
+          |  title: ${doc.title}
+          |  description: ${doc.description}
+          |  language: ${doc.language}
+          |  format: ${doc.format}
+          |""".stripMargin
+      )
+      _ <- ZIO.serviceWithZIO[DocRepo](_.delete(id))
+      _ <- Console.printLine(s"Deleted the document with $id id")
     } yield ()
 
-  def run = app.provide(LoggingLive.layer)
+  def run =
+    app.provide(
+      DocRepoImpl.layer,
+      InmemoryBlobStorage.layer,
+      InmemoryMetadataRepo.layer
+    )
 }
 ```
 
