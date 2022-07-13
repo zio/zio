@@ -2,6 +2,7 @@ package zio.test
 
 import zio._
 import zio.Clock._
+import zio.internal.macros.StringUtils.StringOps
 import zio.stm.STM
 import zio.test.Assertion._
 import zio.test.TestAspect.{failing, timeout}
@@ -59,6 +60,44 @@ object TestSpec extends ZIOBaseSpec {
       for {
         message <- STM.succeed("Hello from an STM transaction!")
       } yield assert(message)(anything)
+    },
+    test("fail-fast assertion by automatic lifting to ZIO") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 for {
+                   _ <- ref.update(_ + 1)
+                   _ <- assertTrue(1 == 2)
+                   _ <- ref.update(_ + 1)
+                 } yield assertTrue(3 == 4)
+               }
+        summary <- execute(spec)
+        count   <- ref.get
+      } yield assert(count)(equalTo(1)) &&
+        assert(summary.fail)(equalTo(1)) &&
+        assert(summary.failureDetails.unstyled)(
+          containsString("1 == 2") &&
+            not(containsString("3 == 4"))
+        )
+    },
+    test("composed assertions are lifted to ZIO and fully evaluated") {
+      for {
+        ref <- Ref.make(0)
+        spec = test("test") {
+                 for {
+                   _ <- ref.update(_ + 1)
+                   _ <- assertTrue(1 == 2) && assertTrue(3 == 4)
+                   _ <- ref.update(_ + 1)
+                 } yield assertCompletes
+               }
+        summary <- execute(spec)
+        count   <- ref.get
+      } yield assert(count)(equalTo(1)) &&
+        assert(summary.fail)(equalTo(1)) &&
+        assert(summary.failureDetails.unstyled)(
+          containsString("1 == 2") &&
+            containsString("3 == 4")
+        )
     },
     suite("suites can be effectual") {
       ZIO.succeed {
