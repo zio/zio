@@ -159,7 +159,8 @@ module.exports = {
                         "datatypes/stream/zsink",
                         "datatypes/stream/sink",
                     ]
-                }
+                },
+                "datatypes/stream/zchannel"
             ]
         },
         "datatypes/stream/subscription-ref"
