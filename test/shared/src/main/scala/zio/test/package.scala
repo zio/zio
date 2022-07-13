@@ -369,7 +369,7 @@ package object test extends CompileVariants {
     check(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(test.tupled)
 
   /**
-   * A version of `check` that accepts height random variables.
+   * A version of `check` that accepts eight random variables.
    */
   def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
@@ -495,7 +495,7 @@ package object test extends CompileVariants {
     checkAll(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7)(test.tupled)
 
   /**
-   * A version of `checkAll` that accepts height random variables.
+   * A version of `checkAll` that accepts eight random variables.
    */
   def checkAll[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
