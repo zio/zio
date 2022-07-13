@@ -12,6 +12,11 @@ object CompileSpec extends ZIOBaseSpec {
       val expected = "value ++ is not a member of Int"
       if (TestVersion.isScala2) assertZIO(typeCheck("1 ++ 1"))(isLeft(equalTo(expected)))
       else assertZIO(typeCheck("1 ++ 1"))(isLeft(anything))
+    },
+    test("typeCheck must have access to local context") {
+      val x = 3
+      val _ = x
+      assertZIO(typeCheck("x"))(isRight(anything))
     }
   )
 }

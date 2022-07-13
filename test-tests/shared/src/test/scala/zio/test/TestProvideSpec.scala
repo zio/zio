@@ -27,69 +27,7 @@ object TestProvideSpec extends ZIOBaseSpec {
             assertZIO(program)(equalTo(128))
           }
             .provide(doubleLayer, stringLayer, intLayer)
-        },
-        test("reports missing top-level dependencies") {
-          val program: URIO[String with Int, String] = ZIO.succeed("test")
-          val _                                      = program
-          val checked =
-            typeCheck("""test("foo")(assertZIO(program)(anything)).provide(ZLayer.succeed(3))""")
-          assertZIO(checked)(isLeft(containsStringWithoutAnsi("String")))
-        } @@ TestAspect.exceptScala3,
-        test("reports multiple missing top-level dependencies") {
-          val program: URIO[String with Int, String] = ZIO.succeed("test")
-          val _                                      = program
-
-          val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide()""")
-          assertZIO(checked)(
-            isLeft(containsStringWithoutAnsi("String") && containsStringWithoutAnsi("Int"))
-          )
-        } @@ TestAspect.exceptScala3,
-        test("reports missing transitive dependencies") {
-          import TestLayer._
-          val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
-          val _                               = program
-
-          val checked = typeCheck("""test("foo")(assertZIO(program)(anything)).provide(OldLady.live)""")
-          assertZIO(checked)(
-            isLeft(
-              containsStringWithoutAnsi("zio.test.TestProvideSpec.TestLayer.Fly") &&
-                containsStringWithoutAnsi("Required by TestLayer.OldLady.live")
-            )
-          )
-        } @@ TestAspect.exceptScala3,
-        test("reports nested missing transitive dependencies") {
-          import TestLayer._
-          val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
-          val _                               = program
-
-          val checked =
-            typeCheck("""test("foo")(assertZIO(program)(anything)).provide(OldLady.live, Fly.live)""")
-          assertZIO(checked)(
-            isLeft(
-              containsStringWithoutAnsi("zio.test.TestProvideSpec.TestLayer.Spider") &&
-                containsStringWithoutAnsi("Required by TestLayer.Fly.live")
-            )
-          )
-        } @@ TestAspect.exceptScala3,
-        test("reports circular dependencies") {
-          import TestLayer._
-          val program: URIO[OldLady, Boolean] = ZIO.service[OldLady].flatMap(_.willDie)
-          val _                               = program
-
-          val checked =
-            typeCheck(
-              """test("foo")(assertZIO(program)(anything)).provide(OldLady.live, Fly.manEatingFly)"""
-            )
-          assertZIO(checked)(
-            isLeft(
-              containsStringWithoutAnsi("TestLayer.Fly.manEatingFly") &&
-                containsStringWithoutAnsi("OldLady.live") &&
-                containsStringWithoutAnsi(
-                  "A layer simultaneously requires and is required by another"
-                )
-            )
-          )
-        } @@ TestAspect.exceptScala3
+        }
       ),
       suite(".provideSome") {
         val stringLayer = ZLayer.succeed("10")

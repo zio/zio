@@ -31,7 +31,7 @@ trait CompileVariants {
    * exception if specified string cannot be parsed or is not a known value at
    * compile time.
    */
-  inline def typeCheck(inline code: String): UIO[Either[String, Unit]] =
+  transparent inline def typeCheck(inline code: String): UIO[Either[String, Unit]] =
     try {
       if (typeChecks(code)) ZIO.succeedNow(Right(()))
       else ZIO.succeedNow(Left(errorMessage))
