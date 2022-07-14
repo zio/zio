@@ -125,28 +125,28 @@ object TestClock extends Serializable {
      * Returns the current clock time as an `OffsetDateTime`.
      */
     def currentDateTime(implicit trace: Trace): UIO[OffsetDateTime] =
-      ZIO.succeed(unsafe.currentDateTime()(Unsafe.unsafe))
+      warningStart *> ZIO.succeed(unsafe.currentDateTime()(Unsafe.unsafe))
 
     /**
      * Returns the current clock time in the specified time unit.
      */
     def currentTime(unit: => TimeUnit)(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
+      warningStart *> ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
 
     def currentTime(unit: => ChronoUnit)(implicit trace: Trace, d: DummyImplicit): UIO[Long] =
-      ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
+      warningStart *> ZIO.succeed(unsafe.currentTime(unit)(Unsafe.unsafe))
 
     /**
      * Returns the current clock time in nanoseconds.
      */
     def nanoTime(implicit trace: Trace): UIO[Long] =
-      ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
+      warningStart *> ZIO.succeed(unsafe.nanoTime()(Unsafe.unsafe))
 
     /**
      * Returns the current clock time as an `Instant`.
      */
     def instant(implicit trace: Trace): UIO[Instant] =
-      ZIO.succeed(unsafe.instant()(Unsafe.unsafe))
+      warningStart *> ZIO.succeed(unsafe.instant()(Unsafe.unsafe))
 
     /**
      * Constructs a `java.time.Clock` backed by the `Clock` service.
@@ -169,7 +169,7 @@ object TestClock extends Serializable {
      * Returns the current clock time as a `LocalDateTime`.
      */
     def localDateTime(implicit trace: Trace): UIO[LocalDateTime] =
-      ZIO.succeed(unsafe.localDateTime()(Unsafe.unsafe))
+      warningStart *> ZIO.succeed(unsafe.localDateTime()(Unsafe.unsafe))
 
     /**
      * Saves the `TestClock`'s current state in an effect which, when run, will
