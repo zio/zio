@@ -37,7 +37,7 @@ Like the `ZIO` data type, it can be transformed and also composed with other `Ht
 
 Let's try to model some HTTP applications using the `Http` data type. So first, we are going to learn some basic `Http` constructors and how to combine them to build more complex HTTP applications.
 
-### Creation
+### Creation of `Http` Applications
 
 The `Http.succeed` constructor creates an `Http` application that always returns a successful response:
 
@@ -76,3 +76,29 @@ Http applications can be effectual. We have a couple of constructors that can be
 - `Http.fromFile`
 
 There are lots of other constructors, but we will not go into them here.
+
+### Combining `Http` Applications
+
+The `Http` data type is composable like `ZIO`. We can create new complex `Http` applications by combining existing simple ones by using `flatMap`, `zip`, `andThen`, `orElse`, and `++` methods:
+
+```scala
+val a           : Http[Any, Nothing, Int, Double]    = ???
+val b           : Http[Any, Nothing, Double, String] = ???
+def c(i: Double): Http[Any, Nothing, Double, String] = ???
+
+val d = a >>= c // a flatMap c (combine two http sequentially)
+val e = a ++ b  // a defaultWith b (combine two http app)
+val f = a >>> b // a andThen b (pipe output of a to input of b)
+val g = a <<< b // a compose b (pipe input of b to output of a)
+val h = a <> b  // a orElse b  (run a, if it fails, run b)
+```
+
+Assume we have written several `Http` apps, like `GreetingApp`, `DownloadApp`, `CounterApp`, and `UserApp` we can combine them and ask the `Server` to run them in parallel:
+
+```scala
+Server
+  .start(
+    port = 8080,
+    http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
+  )
+```
