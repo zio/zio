@@ -4323,7 +4323,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * effects. The effect must not throw any exceptions. When no environment is
    * required (i.e., when R == Any) it is conceptually equivalent to
    * `flatten(succeed(zio))`. If you wonder if the effect throws exceptions, do
-   * not use this method, use [[ZIO.suspend]] or [[ZIO.suspend]].
+   * not use this method, use [[ZIO.suspend]].
    */
   def suspendSucceed[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.succeed(zio).flatMap(identityFn)
