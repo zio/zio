@@ -268,19 +268,19 @@ package object environment extends PlatformSpecific {
        * Returns the current clock time as an `OffsetDateTime`.
        */
       def currentDateTime: UIO[OffsetDateTime] =
-        clockState.get.map(data => toDateTime(data.duration, data.timeZone))
+        warningStart *> clockState.get.map(data => toDateTime(data.duration, data.timeZone))
 
       /**
        * Returns the current clock time in the specified time unit.
        */
       def currentTime(unit: TimeUnit): UIO[Long] =
-        clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
+        warningStart *> clockState.get.map(data => unit.convert(data.duration.toMillis, TimeUnit.MILLISECONDS))
 
       /**
        * Returns the current clock time in nanoseconds.
        */
-      val nanoTime: UIO[Long] =
-        clockState.get.map(_.duration.toNanos)
+      lazy val nanoTime: UIO[Long] =
+        warningStart *> clockState.get.map(_.duration.toNanos)
 
       /**
        * Saves the `TestClock`'s current state in an effect which, when run,
