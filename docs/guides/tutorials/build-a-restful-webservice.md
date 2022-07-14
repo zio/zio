@@ -32,3 +32,47 @@ We can say that `Http[R, E, A, B]` is a function that takes an `A` and returns a
 - Will fail with `E` if there is an error
 
 Like the `ZIO` data type, it can be transformed and also composed with other `Http` data types to build complex and large HTTP applications.
+
+## Modeling Http Applications
+
+Let's try to model some HTTP applications using the `Http` data type. So first, we are going to learn some basic `Http` constructors and how to combine them to build more complex HTTP applications.
+
+### Creation
+
+The `Http.succeed` constructor creates an `Http` application that always returns a successful response:
+
+```scala
+val app: Http[Any, Nothing, Any, String] = Http.succeed("Hello, world!")
+```
+
+We have the same constructor for failures called `Http.fail`. It creates an `Http` application that always returns a failed response:
+
+```scala
+val app: Http[Any, String, Any, Nothing] = Http.fail("Something went wrong")
+```
+
+We can also create `Http` programs from total and partial functions. The `Http.fromFunction` constructor takes a total function of type `A => B` and then creates an `Http` application that accepts an `A` and returns a `B`:
+
+```scala
+val app: Http[Any, Nothing, Int, Double] = Http.fromFunction[Int](_ / 2.0)
+```
+
+And the `Http.collect` constructor takes a partial function of type `PartialFunction[A, B]` and then creates an `Http` application that accepts an `A` and returns a `B`:
+
+```scala
+val app: Http[Any, Nothing, String, Int] =
+  Http.collect {
+    case "case 1" => 1
+    case "case 2" => 2
+  }
+``` 
+
+Http applications can be effectual. We have a couple of constructors that can be used to create an `Http` applications that are effectual:
+
+- `Http.fromZIO`
+- `Http.fromStream`
+- `Http.fromFunctionZIO`
+- `Http.collectZIO`
+- `Http.fromFile`
+
+There are lots of other constructors, but we will not go into them here.
