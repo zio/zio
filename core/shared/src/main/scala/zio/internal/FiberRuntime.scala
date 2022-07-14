@@ -75,12 +75,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
   def await(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.async[Any, Nothing, Exit[E, A]](
-      cb =>
+    ZIO.asyncInterrupt[Any, Nothing, Exit[E, A]](
+      { k =>
+        val cb = (exit: Exit[_, _]) => k(Exit.Success(exit.asInstanceOf[Exit[E, A]]))
         tell(FiberMessage.Stateful { (fiber, _) =>
-          if (fiber._exitValue ne null) cb(Exit.Success(fiber.exitValue()(Unsafe.unsafe).asInstanceOf[Exit[E, A]]))
-          else fiber.addObserver(exit => cb(Exit.Success(exit.asInstanceOf[Exit[E, A]])))(Unsafe.unsafe)
-        })(Unsafe.unsafe),
+          if (fiber._exitValue ne null) cb(fiber.exitValue()(Unsafe.unsafe))
+          else fiber.addObserver(cb)(Unsafe.unsafe)
+        })(Unsafe.unsafe)
+        Left(ZIO.succeed(tell(FiberMessage.Stateful { (fiber, _) =>
+          fiber.removeObserver(cb)(Unsafe.unsafe)
+        })(Unsafe.unsafe)))
+      },
       id
     )
 

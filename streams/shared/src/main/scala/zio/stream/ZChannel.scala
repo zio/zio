@@ -802,18 +802,20 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
               ZChannel.unwrap {
                 lj.raceWith(rj)(
-                  (leftEx, _) =>
-                    handleSide(leftEx, rightFiber, pullL)(
-                      leftDone,
-                      BothRunning(_, _),
-                      LeftDone(_)
-                    ),
-                  (rightEx, _) =>
-                    handleSide(rightEx, leftFiber, pullR)(
-                      rightDone,
-                      (l, r) => BothRunning(r, l),
-                      RightDone(_)
-                    )
+                  (leftEx, rf) =>
+                    rf.interrupt *>
+                      handleSide(leftEx, rightFiber, pullL)(
+                        leftDone,
+                        BothRunning(_, _),
+                        LeftDone(_)
+                      ),
+                  (rightEx, lf) =>
+                    lf.interrupt *>
+                      handleSide(rightEx, leftFiber, pullR)(
+                        rightDone,
+                        (l, r) => BothRunning(r, l),
+                        RightDone(_)
+                      )
                 )
               }
 
