@@ -3,9 +3,9 @@ id: overview_basic_concurrency
 title:  "Basic Concurrency"
 ---
 
-ZIO is a highly concurrent framework, powered by _fibers_, which are lightweight virtual threads that achieve massive scalability compared to threads.
+ZIO is a highly concurrent framework, powered by _fibers_, which are lightweight virtual threads that achieve massive scalability compared to threads, augmented with resource-safe cancellation, which powers many features in ZIO.
 
-ZIO augments the modern virtual threading model with pervasive, automatic, resource-safe interruption, which allows ZIO to instantly and deeply cancel running computations when their results are no longer needed, making ZIO applications automatically globally-efficient.
+This powerful concurrency model lets you do more with less, achieving highly-scalable, ultra low-latency applications that are globally efficient and resource-safe.
 
 In this section, you will learn the basics of fibers, and become acquainted with some of the powerful high-level operators that are powered by fibers.
 
@@ -21,7 +21,17 @@ Every fiber exits with failure or success, depending on whether the effect it is
 
 Also like operating system threads, ZIO fibers have unique identities, stacks (including stack traces), local state, and a status (such as _done_, _running_, or _suspended_).
 
-Unlike operating system threads, ZIO fibers consume almost no memory, they have dynamic stacks that grow and shrink, they don't waste operating system threads with blocking operations, they can be safely interrupted at any point in time, they are strongly typed, they have enumerable child fibers, and they will be garbage collected automatically if they are suspended and cannot be reactivated.
+Compared to operating system threads, ZIO fibers:
+
+ - Consume almost no memory
+ - Have dynamic stacks that grow and shrink
+ - Don't waste operating system threads with blocking operations
+ - Can be safely interrupted at any point in time
+ - Are strongly typed
+ - Let you query them to discover their children 
+ - Will be garbage collected automatically if they are suspended and cannot be reactivated
+
+These make fibers a superior choice for building modern applications.
 
 Fibers are scheduled onto operating system threads by the ZIO runtime. Because fibers cooperatively yield to each other, ZIO fibers always execute concurrently, even when running in a single-threaded environment like JavaScript (or the JVM, when ZIO is configured with one work thread).
 
