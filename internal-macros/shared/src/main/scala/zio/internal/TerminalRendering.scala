@@ -132,7 +132,7 @@ object TerminalRendering {
        | Call your $effectType's ${"provide".green.bold} method with the layers you need.
        | You can read more about layers and providing services here:
        | 
-       |   https://zio.dev/next/datatypes/contextual/
+       |   https://zio.dev/next/references/contextual/
        |
        |${line.red}
        |

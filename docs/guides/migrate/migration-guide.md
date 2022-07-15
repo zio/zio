@@ -1595,7 +1595,7 @@ This will print the following error message:
 [error]  Call your effect's provide method with the layers you need.
 [error]  You can read more about layers and providing services here:
 [error]  
-[error]    https://zio.dev/version-1.x/datatypes/contextual/index
+[error]    https://zio.dev/version-1.x/dataypes/contextual/index
 [error] 
 [error] ──────────────────────────────────────────────────────────────────────
 [error] 
@@ -2610,7 +2610,7 @@ for {
 } yield ()
 ```
 
-Visit the [Hub](../../datatypes/concurrency/hub.md) page to learn more about it.
+Visit the [Hub](../../references/concurrency/hub.md) page to learn more about it.
 
 ### ZIO Aspects
 

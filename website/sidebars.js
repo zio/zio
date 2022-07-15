@@ -12,53 +12,53 @@ module.exports = {
       "overview/overview_platforms"
     ]
   },
-  "datatypes-sidebar": {
-    "Data Types": [
-      "datatypes/index"
+  "references-sidebar": {
+    "References": [
+      "references/index"
     ],
     "Core Data Types": [
         {
             type: "category",
             label: "ZIO Effects",
             items: [
-                "datatypes/core/zio/zio",
-                "datatypes/core/zio/error-management",
-                "datatypes/core/zio/uio",
-                "datatypes/core/zio/urio",
-                "datatypes/core/zio/task",
-                "datatypes/core/zio/rio",
-                "datatypes/core/zio/io",
+                "references/core/zio/zio",
+                "references/core/zio/error-management",
+                "references/core/zio/uio",
+                "references/core/zio/urio",
+                "references/core/zio/task",
+                "references/core/zio/rio",
+                "references/core/zio/io",
             ]
         },
-        "datatypes/core/zioapp",
-        "datatypes/core/runtime",
-        "datatypes/core/exit",
-        "datatypes/core/cause"
+        "references/core/zioapp",
+        "references/core/runtime",
+        "references/core/exit",
+        "references/core/cause"
     ],
     "Contextual Types": [
-        "datatypes/contextual/index",
-        "datatypes/contextual/zenvironment",
+        "references/contextual/index",
+        "references/contextual/zenvironment",
         {
             type: "category",
             label: "ZIO Layers",
             items: [
-                "datatypes/contextual/zlayer",
-                "datatypes/contextual/rlayer",
-                "datatypes/contextual/ulayer",
-                "datatypes/contextual/layer",
-                "datatypes/contextual/urlayer",
-                "datatypes/contextual/tasklayer"
+                "references/contextual/zlayer",
+                "references/contextual/rlayer",
+                "references/contextual/ulayer",
+                "references/contextual/layer",
+                "references/contextual/urlayer",
+                "references/contextual/tasklayer"
             ]
         },
         {
             type: "category",
             label: "Built-in Services",
             items: [
-                "datatypes/contextual/services/index",
-                "datatypes/contextual/services/console",
-                "datatypes/contextual/services/clock",
-                "datatypes/contextual/services/random",
-                "datatypes/contextual/services/system"
+                "references/contextual/services/index",
+                "references/contextual/services/console",
+                "references/contextual/services/clock",
+                "references/contextual/services/random",
+                "references/contextual/services/system"
             ]
         }
     ],
@@ -67,71 +67,71 @@ module.exports = {
             type: "category",
             label: "ZIO Fibers",
             items: [
-                "datatypes/fiber/index",
-                "datatypes/fiber/fiber",
-                "datatypes/fiber/fiberref",
-                "datatypes/fiber/fiberid",
-                "datatypes/fiber/fiberstatus"
+                "references/fiber/index",
+                "references/fiber/fiber",
+                "references/fiber/fiberref",
+                "references/fiber/fiberid",
+                "references/fiber/fiberstatus"
             ]
         },
         {
             type: "category",
             label: "Synchronization",
             items: [
-                "datatypes/sync/index",
-                "datatypes/sync/reentrantlock",
-                "datatypes/sync/countdownlatch",
-                "datatypes/sync/cyclicbarrier",
-                "datatypes/sync/concurrentmap",
-                "datatypes/sync/concurrentset",
+                "references/sync/index",
+                "references/sync/reentrantlock",
+                "references/sync/countdownlatch",
+                "references/sync/cyclicbarrier",
+                "references/sync/concurrentmap",
+                "references/sync/concurrentset",
             ]
         },
         {
             type: "category",
             label: "Concurrency Primitives",
             items: [
-                "datatypes/concurrency/index",
+                "references/concurrency/index",
                 {
                     type: "category",
                     label: "Mutable References",
                     items: [
-                        "datatypes/concurrency/ref",
-                        "datatypes/concurrency/refsynchronized",
+                        "references/concurrency/ref",
+                        "references/concurrency/refsynchronized",
                     ]
                 },
-                "datatypes/concurrency/promise",
-                "datatypes/concurrency/queue",
-                "datatypes/concurrency/hub",
-                "datatypes/concurrency/semaphore"
+                "references/concurrency/promise",
+                "references/concurrency/queue",
+                "references/concurrency/hub",
+                "references/concurrency/semaphore"
             ]
         },
         {
             type: "category",
             label: "STM",
             items: [
-                "datatypes/stm/index",
-                "datatypes/stm/stm",
-                "datatypes/stm/tarray",
-                "datatypes/stm/trandom",
-                "datatypes/stm/tset",
-                "datatypes/stm/tmap",
-                "datatypes/stm/tref",
-                "datatypes/stm/tpriorityqueue",
-                "datatypes/stm/tpromise",
-                "datatypes/stm/tqueue",
-                "datatypes/stm/treentrantlock",
-                "datatypes/stm/tsemaphore",
-                "datatypes/stm/thub",
+                "references/stm/index",
+                "references/stm/stm",
+                "references/stm/tarray",
+                "references/stm/trandom",
+                "references/stm/tset",
+                "references/stm/tmap",
+                "references/stm/tref",
+                "references/stm/tpriorityqueue",
+                "references/stm/tpromise",
+                "references/stm/tqueue",
+                "references/stm/treentrantlock",
+                "references/stm/tsemaphore",
+                "references/stm/thub",
             ]
         },
     ],
     "Resource Management": [
-      "datatypes/resource/index",
-      "datatypes/resource/scope",
-      "datatypes/resource/zpool",
+      "references/resource/index",
+      "references/resource/scope",
+      "references/resource/zpool",
     ],
     "Streaming": [
-        "datatypes/stream/index",
+        "references/stream/index",
         {
             type: "category",
             label: "Main Components",
@@ -140,73 +140,73 @@ module.exports = {
                     type: "category",
                     label: "ZStream",
                     items: [
-                        "datatypes/stream/zstream",
-                        "datatypes/stream/stream",
-                        "datatypes/stream/ustream",
+                        "references/stream/zstream",
+                        "references/stream/stream",
+                        "references/stream/ustream",
                     ]
                 },
                 {
                     type: "category",
                     label: "ZPipeline",
                     items: [
-                        "datatypes/stream/zpipeline",
+                        "references/stream/zpipeline",
                     ]
                 },
                 {
                     type: "category",
                     label: "ZSink",
                     items: [
-                        "datatypes/stream/zsink",
-                        "datatypes/stream/sink",
+                        "references/stream/zsink",
+                        "references/stream/sink",
                     ]
                 },
-                "datatypes/stream/zchannel"
+                "references/stream/zchannel"
             ]
         },
-        "datatypes/stream/subscription-ref"
+        "references/stream/subscription-ref"
     ],
       "Metrics": [
-          "datatypes/metrics/index",
+          "references/metrics/index",
           {
               type: "category",
               label: "Metric Types",
               items: [
-                  "datatypes/metrics/counter",
-                  "datatypes/metrics/gauge",
-                  "datatypes/metrics/histogram",
-                  "datatypes/metrics/summary",
-                  "datatypes/metrics/setcount"
+                  "references/metrics/counter",
+                  "references/metrics/gauge",
+                  "references/metrics/histogram",
+                  "references/metrics/summary",
+                  "references/metrics/setcount"
               ]
           },
-          "datatypes/metrics/metriclabel",
-          "datatypes/metrics/jvm",
+          "references/metrics/metriclabel",
+          "references/metrics/jvm",
       ],
-      "ZIO Test": [
-        "datatypes/test/index",
-        "datatypes/test/spec",
-        "datatypes/test/assertion",
+      "Testing": [
+        "references/test/index",
+        "references/test/spec",
+        "references/test/assertion",
         {
           type: "category",
           label: "Test Services",
           items: [
-            "datatypes/test/environment/index",
-            "datatypes/test/environment/console",
-            "datatypes/test/environment/clock",
-            "datatypes/test/environment/random",
-            "datatypes/test/environment/system",
-            "datatypes/test/environment/live",
-            "datatypes/test/environment/config",
-            "datatypes/test/environment/sized",
+            "references/test/environment/index",
+            "references/test/environment/console",
+            "references/test/environment/clock",
+            "references/test/environment/random",
+            "references/test/environment/system",
+            "references/test/environment/live",
+            "references/test/environment/config",
+            "references/test/environment/sized",
           ]
         },
-        "datatypes/test/test-aspect",
-        "datatypes/test/gen",
+        "references/test/test-aspect",
+        "references/test/gen",
       ],
     "Miscellaneous": [
-      "datatypes/misc/chunk",
-      "datatypes/misc/schedule",
-      "datatypes/misc/supervisor",
-      "datatypes/misc/zstate",
+      "references/misc/chunk",
+      "references/misc/schedule",
+      "references/misc/supervisor",
+      "references/misc/zstate",
     ]
   },
   "guides-sidebar": [
