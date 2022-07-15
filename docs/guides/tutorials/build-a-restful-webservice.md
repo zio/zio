@@ -117,7 +117,7 @@ type HttpApp[-R, +E] = Http[R, E, Request, Response]
 object Server {
   def start[R](
     port: Int,
-    http: HttpApp[R, Throwable],
+    http: HttpApp[R, Throwable]
   ): ZIO[R, Throwable, Nothing] = ???
 }
 ```
