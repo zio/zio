@@ -24,10 +24,13 @@ import scala.collection.mutable
 
 sealed abstract class ZTestRunnerNative(
   val args: Array[String],
-  val remoteArgs: Array[String],
+  remoteArgs0: Array[String],
   testClassLoader: ClassLoader,
   runnerType: String
 ) extends Runner {
+
+  def remoteArgs(): Array[String] = remoteArgs0
+
   def sendSummary: SendSummary
 
   val summaries: mutable.Buffer[Summary] = mutable.Buffer.empty
@@ -94,7 +97,7 @@ sealed class ZTestTask(
       for {
         summary <- ZIO.scoped {
                      spec.run
-                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope])
+                       .provideLayer(ZIOAppArgs.empty ++ ZLayer.environment[Scope] ++ spec.bootstrap)
                        .onError(e => ZIO.succeed(println(e.prettyPrint)))
                    }
         _ <- sendSummary.provide(ZLayer.succeed(summary))

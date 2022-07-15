@@ -43,8 +43,8 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
               ()
             }
           })
-        result <- fiber.join
-      } yield result).provideLayer(newLayer).tapErrorCause(ZIO.logErrorCause(_)).exitCode.tap(exit)
+        result <- fiber.join.tapErrorCause(ZIO.logErrorCause(_))
+      } yield result).provideLayer(newLayer).exitCode.tap(exit)
     }.getOrThrowFiberFailure()
   }
 

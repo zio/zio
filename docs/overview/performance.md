@@ -3,8 +3,10 @@ id: overview_performance
 title:  "Performance"
 ---
 
-`zio` has excellent performance, featuring a hand-optimized, low-level interpreter that achieves zero allocations for right-associated binds and minimal allocations for left-associated binds.
+ZIO is a high-performance framework that is powered by non-blocking fibers (_virtual threads_ under Loom).
 
-The `benchmarks` project may be used to compare `IO` with other effect monads, including `Future` (which is not an effect monad but is included for reference), Monix `Task`, and Cats `IO`.
+ZIO's core execution engine minimizes allocations and automatically cancels all unused computation. All data structures included with ZIO are high-performance and non-blocking, and to the maximum extent possible on the JVM, non-boxing.
 
-As of the time of this writing, `IO` is significantly faster than, or at least comparable to, all other purely functional solutions.
+The `benchmarks` project has a variety of benchmarks that compare the performance of ZIO with other similar projects in the Scala and Java ecosystems, demonstrating 2-100x faster performance in some cases.
+
+Benchmarks to compare the performance of HTTP, GraphQL, RDMBS, and other ZIO integrations can be found in those respective projects.

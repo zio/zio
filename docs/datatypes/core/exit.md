@@ -27,7 +27,7 @@ import zio.Console._
 
 import java.io.IOException
 
-val result: ZIO[Console, IOException, Unit] = 
+val result: ZIO[Any, IOException, Unit] = 
   for {
     successExit <- ZIO.succeed(1).exit
     _ <- successExit match {

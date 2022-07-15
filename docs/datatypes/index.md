@@ -27,7 +27,6 @@ ZIO contains a few data types that can help you solve complex problems in asynch
  - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
  - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
  - **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure. 
- - **[Runtime](core/runtime.md)** — A `Runtime[R]` is capable of executing tasks within an environment `R`.
 
 ## Contextual Data Types
 - **[ZEnvironment](contextual/zenvironment.md)** — `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect.

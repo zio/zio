@@ -28,7 +28,7 @@ The following guides have been written to help you get started with ZIO with min
 8. Building a Web Service Client
 9. Building a gRPC Service with its Client
 10. How to Build a Chat Client and Server using ZIO Streams?
-11. How to Deploy a ZIO Application Using Docker?
+11. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
 12. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
 13. How to Monitor a ZIO Application by Implementing Custom Metrics
 14. How to Integrate ZIO With a Legacy JVM Application?

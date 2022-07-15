@@ -40,7 +40,7 @@ or
 type ZIO[R, E, A] = ZEnvironment[R] => IO[E, A]
 ```
 
-For example, the `ZIO[Console & Random, Throwable, String]` can be thought of as a function from `ZEnvironment[Console & Random]` to `Either[Throwable, String]`:
+For example, the `ZIO[Foo & Bar, Throwable, String]` can be thought of as a function from `ZEnvironment[Foo & Bar]` to `Either[Throwable, String]`:
 
 > **Note**:
 >

@@ -7,9 +7,7 @@ module.exports = {
       "overview/overview_handling_errors",
       "overview/overview_handling_resources",
       "overview/overview_basic_concurrency",
-      "overview/overview_testing_effects",
       "overview/overview_running_effects",
-      "overview/overview_background",
       "overview/overview_performance",
       "overview/overview_platforms"
     ]
@@ -161,7 +159,8 @@ module.exports = {
                         "datatypes/stream/zsink",
                         "datatypes/stream/sink",
                     ]
-                }
+                },
+                "datatypes/stream/zchannel"
             ]
         },
         "datatypes/stream/subscription-ref"
@@ -230,6 +229,7 @@ module.exports = {
         "guides/tutorials/deploy-a-zio-application-using-docker",
         "guides/tutorials/producing-consuming-data-from-kafka-topics",
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
+        "guides/tutorials/debug-a-zio-application",
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
@@ -277,6 +277,7 @@ module.exports = {
                 "resources/ecosystem/officials/zio-kafka",
                 "resources/ecosystem/officials/zio-logging",
                 "resources/ecosystem/officials/zio-metrics",
+                "resources/ecosystem/officials/zio-mock",
                 "resources/ecosystem/officials/zio-nio",
                 "resources/ecosystem/officials/zio-optics",
                 "resources/ecosystem/officials/zio-prelude",

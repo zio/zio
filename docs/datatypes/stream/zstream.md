@@ -101,11 +101,12 @@ val nats: ZStream[Any, Nothing, Int] =
 val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
 ```
 
-**ZStream.service[R]** — Create a stream that extract the request service from the environment:
+**ZStream.service[R]** — Create a stream that extract the requested service from the environment:
 
-```scala mdoc:silent:nest
+```scala mdoc:compile-only
+trait Foo
 
-val clockStream: ZStream[Clock, Nothing, Clock] = ZStream.service[Clock]
+val fooStream: ZStream[Foo, Nothing, Foo] = ZStream.service[Foo]
 ```
 
 **ZStream.scoped** — Creates a single-valued stream from a scoped resource:

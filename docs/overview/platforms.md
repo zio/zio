@@ -7,9 +7,9 @@ ZIO provides a consistent interface across platforms to the maximum extent possi
 
 ## JVM
 
-ZIO supports Java versions 8 and above and Scala versions 2.11, 2.12, 2.13, and Dotty.
+ZIO supports Java versions 8 and above and Scala versions 2.11, 2.12, 2.13, and 3.x.
 
-On the JVM, the `Blocking` service is available to lock effects on the blocking thread pool and is included as part of the `ZEnv`. See the documentation on [Creating Effects](../overview/creating_effects.md) for further discussion on blocking synchronous side-effects.
+On the JVM, effects may be executed on a blocking thread pool using methods like `ZIO.blocking` and `ZIO.attemptBlocking`. See the documentation on [Creating Effects](../overview/creating_effects.md) for further discussion on blocking operations.
 
 ## Scala.js
 
@@ -24,10 +24,10 @@ libraryDependencies ++= Seq(
 )
 ```
 
-Because of its single threaded execution model, blocking operations are not supported on Scala.js. As such, the `Blocking` service is not available and is not included in the `ZEnv`. In addition, several other methods are not supported or are unsafe on Scala.js:
+Because of the single threaded execution model of Javascript, blocking operations are not supported on Scala.js. In addition, several other methods are not supported or are unsafe on Scala.js:
 
 * The `readLine` method in the `Console` service is not supported because reading a line from the console blocks until input is received and the underlying method from the Scala standard library is not implemented on Scala.js.
-* The `unsafeRun`, `unsafeRunTask`, and `unsafeRunSync` methods on `Runtime` are not safe. All of these methods return a value synchronously and may require blocking if the effect includeds asynchronous steps, including yield points introduced by the runtime to guarantee fairness. Users should use the `unsafeRunAsyncWith`, `unsafeRunAsync`, or `unsafeRunToFuture` methods instead.
+* The synchronous execution methods on `Runtime` are not safe. All of these methods return a value synchronously and may require blocking if the effect includes asynchronous operations, including yield points introduced by the runtime to guarantee fairness. Users should use asynchronous execution methods instead.
 
 ## Scala Native
 

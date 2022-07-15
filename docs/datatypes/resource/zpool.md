@@ -69,7 +69,7 @@ The previous constructor creates a `ZPool` with a fixed size, so all of its entr
 ```scala
 def make[E, A](get: ZIO[Scope, E, A],
         range: Range, // minimum and maximum size of the pool
-        timeToLive: Duration): ZIO[Clock with Scope, Nothing, ZPool[E, A]]
+        timeToLive: Duration): ZIO[Scope, Nothing, ZPool[E, A]]
 ```
 
 Having a lot of resources that are over our average requirement can waste space and degrade the performance. Therefore, this variant of `ZPool` has an _eviction policy_. By taking the `timeToLive` argument, it will evict excess items that have not been acquired for more than the `timeToLive` time, until it reaches the minimum size.

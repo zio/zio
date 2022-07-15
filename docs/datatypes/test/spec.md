@@ -3,7 +3,7 @@ id: spec
 title: "Spec"
 ---
 
-A `Spec[R, E, T]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
+A `Spec[R, E]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
 
 We can think of a spec as just a collection of tests. It is essentially a recursive data structure where every spec is just one individual test or a suite that itself can have multiple specs inside that each could be tests or sub suites. We can go down as far as we want in a recursive tree-like data structure.
 
@@ -58,7 +58,7 @@ suite("int and string")(
 
 Just like the `ZIO` data type, the `Spec` requires an environment of type `R`. When we write tests, we might need to access a service through the environment. It can be a combination of the standard services such a `Clock`, `Console`, `Random` and `System` or test services like `TestClock`, `TestConsole`, `TestRandom`, and `TestSystem`, or any user-defined services.
 
-### Using Standard Test Services
+## Using Standard Test Services
 
 All standard test services are located at the `zio.test` package. They are test implementation of standard ZIO services. The use of these test services enables us to test functionality that depends on printing to or reading from a console, randomness, timings, and, also the system properties.
 
@@ -86,75 +86,168 @@ suite("HelloWorldSpec")(
 
 There is a separate section in the documentation pages that covers [all built-in test services](./environment/index.md).
 
-### Providing Layers
+## Providing Layers
 
-By using `Spec#provideLayer`, `Spec#provideSomeLayer`, or `Spec#provideCustomLayer`, a test or suite of tests can be provided with any dependencies in a similar way to how a ZIO data type can. 
+By using `Spec#provideXYZLayer`, a test or suite of tests can be provided with any dependencies in a similar way to how a ZIO data type can.
 
-### Sharing Layers Within a Suite
+## Sharing Layers Between Multiple Specs
 
-The `Spec` has a very nice mechanism to share layers within all tests in a suite. So instead of acquiring and releasing dependencies for each test, we can share the layer within all tests. The test framework acquires that layer for once and shares that between all tests. When the execution of all tests is finished, that layer will be released.
+ZIO Test has the ability to share layers between multiple specs. This is useful when we want to have some common services available for all tests. We have two ways to do this:
 
-Assume we have the following tests:
+1. Using `Spec#provideXYZShared` methods, which is useful to share layers between multiple specs that are residing in the same file.
+2. Using the `bootstrap` layer, which is useful to share layers between multiple specs that are residing in different files.
 
-```scala mdoc:invisible
-import zio.test.{test, _}
-import zio.{Chunk, _}
+### Sharing Layers Within The Same File
 
-case class Row(key: String, value: String)
-
-trait Kafka {
-  def consume(topic: String): Task[Chunk[Row]]
-
-  def produce(topic: String, key: String, value: String): Task[Unit]
-}
-
-object Kafka {
-  def consume(topic: String) =
-    ZIO.serviceWith[Kafka](_.consume(topic))
-
-  def produce(topic: String, key: String, value: String) =
-    ZIO.serviceWith[Kafka](_.produce(topic, key, value))
-}
-
-case class EmbeddedKafka() extends Kafka {
-  override def consume(topic: String): Task[Chunk[Row]] =
-    ZIO.succeed(Chunk.empty)
-
-  override def produce(topic: String, key: String, value: String): Task[Unit] =
-    ZIO.unit
-}
-
-object EmbeddedKafka {
-  val layer = ZLayer.succeed(EmbeddedKafka())
-}
-```
-
-```mdoc:compile-only
-val testA =
-  test("producing an element to the kafka service") {
-    for {
-      _ <- Kafka.produce(
-        topic = "testTopic",
-        key = "key1",
-        value = "value1")
-    } yield assertTrue(true)
-  }
-
-val testB =
-  test("consuming elements from the kafka service") {
-    for {
-      _ <- Kafka.consume(topic = "testTopic")
-    } yield assertTrue(true)
-  }
-```
-
-We can provide kafka as a shared layer within all tests in a suite:
+The `Spec` data type has a very nice mechanism to share layers within all tests in a suite. So instead of acquiring and releasing dependencies for each test, we can share the layer within all tests. The test framework acquires that layer for once and shares that between all tests. When the execution of all tests is finished, that layer will be released. To share layers between multiple specs we can use `Spec#provideXYZShared` methods:
 
 ```scala
-suite("a test suite with shared kafka layer")(
-  testA,
-  testB
-).provideCustomShared(EmbeddedKafka.layer)
+{
+  test("test1")(???) +
+    test("test2")(???)
+}.provideZYZShared(sharedLayer)
+
+suite("suite1")(
+  test("test1")(???),
+  test("test2")(???)
+).provideZYZShared(sharedLayer)
+
+suite("all suites")(
+  suite("suite1")(
+    test("test1")(???),
+  ),
+  suite("suite2")(
+    test("test1")(???),
+    test("test2")(???),
+    test("test3")(???)
+  )
+).provideXYZShared(sharedLayer)
+```
+
+To demonstrate this, let's try an example. In this example, instead of using the built-in features of the ZIO Test, we want to write our own basic solution to count the number of times tests are executed.
+
+First, we need a counter service like the below:
+
+```scala mdoc:silent
+import zio._
+
+case class Counter(value: Ref[Int]) {
+  def inc: UIO[Unit] = value.update(_ + 1)
+  def get: UIO[Int] = value.get
+}
+
+object Counter {
+  val layer =
+    ZLayer.scoped(
+      ZIO.acquireRelease(
+        Ref.make(0).map(Counter(_)) <* ZIO.debug("Counter initialized!")
+      )(c => c.get.debug("Number of tests executed"))
+    )
+  def inc = ZIO.service[Counter].flatMap(_.inc)
+}
+```
+
+We use this service to count the number of times the tests are executed, by calling the `Counter.inc` operator after each test:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+object MySpecs extends ZIOSpecDefault {
+  def spec = {
+    suite("Spec1")(
+      test("test1") {
+        assertTrue(true)
+      } @@ TestAspect.after(Counter.inc),
+      test("test2") { assertTrue(true)
+      } @@ TestAspect.after(Counter.inc)
+    ) +
+      suite("Spec2") {
+        test("test1") {
+          assertTrue(true)
+        } @@ TestAspect.after(Counter.inc)
+      }
+  }.provideShared(Counter.layer)
+}
+```
+
+If we execute all tests, we will see an output like this:
+
+```
+Counter initialized!
++ Spec1
+  + test2
+  + test1
++ Spec2
+  + test1
+Number of tests executed: 3
+3 tests passed. 0 tests failed. 0 tests ignored.
+```
+
+In the above example, the `Counter.layer` is shared between all tests, and only acquired and released once.
+
+### Sharing Layers Within Multiple Files
+
+In the previous example, we used the `Spec#provideXYZShared` methods to share layers between multiple specs in one file. In most cases, when the number of tests and specs grows, this is not a good idea. We want a way to share layers between multiple specs in different files.
+
+So in such situations, we can't use the previous pattern here, because specs are in entirely different files, and we don't want the boilerplate of creating a _master spec_ that references the other specs. ZIO has a solution to this problem. We can define the resource we want to share as part of the `bootstrap` layer of `ZIOApp`.
+
+The `bootstrap` layer is responsible for creating and managing any services that our ZIO tests need. Using `boostrap` we can have one shared layer across multiple test specs.
+
+Let's assume we have two specs in different files, and we want to share the `Counter` service between them. First, we need to create a base class that contains the shared bootstrap layer:
+
+```scala mdoc:silent
+import zio._
+import zio.test._
+
+abstract class SharedCounterSpec extends ZIOSpec[Counter] {
+  override val bootstrap: ZLayer[Any, Nothing, Counter] = Counter.layer
+}
+```
+
+Now it's time to create the specs. Each spec is extending the `SharedCounterSpec` class.
+
+Spec1.scala:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+object Spec1 extends SharedCounterSpec {
+  override def spec =
+    test("test1") {
+      assertTrue(true)
+    } @@ TestAspect.after(Counter.inc)
+}
+```
+
+Spec2.scala:
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+object Spec2 extends SharedCounterSpec {
+  override def spec: Spec[Scope with Counter, Any] =
+    test("test2") {
+      assertTrue(true)
+    } @@ TestAspect.after(Counter.inc)
+}
+```
+
+Now, when we run all specs (`sbt testOnly org.example.*`), we will see an output like this:
+
+```
+Counter initialized!
++ test1
++ test2
+Number of tests executed: 2
+```
+
+The ZIO test runner will execute all specs with the shared bootstrap layer. This means that the `Counter` service will be created and managed only once, and will be shared between all specs.
+
+```scala mdoc:invisible:reset
+
 ```
 
 ## Operations

@@ -101,37 +101,37 @@ The custom runtime can be used to run many different effects that all require th
 
 For example, assume we want to create a `Runtime` for services that are for testing purposes, and they don't interact with real external APIs. So we can create a runtime, especially for testing.
 
-Let's say we have defined two `Logging` and `Email` services:
+Let's say we have defined two `LoggingService` and `EmailService` services:
 
 ```scala mdoc:silent:nest
-trait Logging {
+trait LoggingService {
   def log(line: String): UIO[Unit]
 }
 
-object Logging {
-  def log(line: String): URIO[Logging, Unit] =
-    ZIO.serviceWith[Logging](_.log(line))
+object LoggingService {
+  def log(line: String): URIO[LoggingService, Unit] =
+    ZIO.serviceWith[LoggingService](_.log(line))
 }
 
-trait Email {
+trait EmailService {
   def send(user: String, content: String): Task[Unit]
 }
 
-object Email {
-  def send(user: String, content: String): ZIO[Email, Throwable, Unit] =
-    ZIO.serviceWith[Email](_.send(user, content))
+object EmailService {
+  def send(user: String, content: String): ZIO[EmailService, Throwable, Unit] =
+    ZIO.serviceWith[EmailService](_.send(user, content))
 }
 ```
 
-We are going to implement a live version of `Logging` service and also a mock version of `Email` service for testing:
+We are going to implement a live version of `LoggingService` and also a fake version of `EmailService` for testing:
 
 ```scala mdoc:silent:nest
-case class LoggingLive() extends Logging {
+case class LoggingServiceLive() extends LoggingService {
   override def log(line: String): UIO[Unit] =
     ZIO.succeed(print(line))
 }
 
-case class EmailMock() extends Email {
+case class EmailServiceFake() extends EmailService {
   override def send(user: String, content: String): Task[Unit] =
     ZIO.attempt(println(s"sending email to $user"))
 }
@@ -141,7 +141,7 @@ Let's create a custom runtime that contains these two service implementations in
 
 ```scala mdoc:silent:nest
 val testableRuntime = Runtime(
-  ZEnvironment[Logging, Email](LoggingLive(), EmailMock()),
+  ZEnvironment[LoggingService, EmailService](LoggingServiceLive(), EmailServiceFake()),
   FiberRefs.empty,
   RuntimeFlags.default
 )
@@ -150,9 +150,9 @@ val testableRuntime = Runtime(
 Also, we can replace the environment of the default runtime with our own custom environment, which allows us to add new services to the ZIO environment:
 
 ```scala mdoc:silent:nest
-val testableRuntime: Runtime[Logging with Email] =
+val testableRuntime: Runtime[LoggingService with EmailService] =
   Runtime.default.withEnvironment {
-    ZEnvironment[Logging, Email](LoggingLive(), EmailMock())
+    ZEnvironment[LoggingService, EmailService](LoggingServiceLive(), EmailServiceFake())
   }
 ```
 
@@ -162,8 +162,8 @@ Now we can run our effects using this custom `Runtime`:
 Unsafe.unsafe { implicit unsafe =>
     testableRuntime.unsafe.run(
       for {
-        _ <- Logging.log("sending newsletter")
-        _ <- Email.send("David", "Hi! Here is today's newsletter.")
+        _ <- LoggingService.log("sending newsletter")
+        _ <- EmailService.send("David", "Hi! Here is today's newsletter.")
       } yield ()
     ).getOrThrowFiberFailure()
 }
