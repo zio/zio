@@ -103,11 +103,71 @@ Server
   )
 ```
 
-## `Request` and `Response`
+## Built-in `Request` and `Response` Data Types
 
 Until now, we have learned how to create `Http` applications with some simple request and response types, e.g. `String` and `Int` in an `Http[Any, Nothing, String, Int]`. But, in real life, when we want to deal with HTTP requests and responses, we need to have a more complex type for the request and response.
 
 ZIO HTTP provides a type `Request` for HTTP requests and a type `Response` for HTTP responses. It has a built-in decoder for `Request` and encoder for `Response`. So we don't need to worry about the details of how requests and responses are decoded and encoded.
+
+The `Response` type has a default `apply` constructor in its companion object that takes a status, headers and, http data to create a `Response`:
+
+```scala
+object Response {
+  def apply[R, E](
+    status: Status = Status.Ok,
+    headers: Headers = Headers.empty,
+    data: HttpData = HttpData.Empty
+  ): Response = ???
+}
+```
+
+Other than the default constructor, we have several helper methods to create a `Response`. Here are some of them:
+
+1. **`Response.ok`**: Creates a successful response with 200 status code.
+2. **`Response.text("Hello World")`**: Creates a successful response with 200 status code and a body of `Hello World`.
+3. **`Response.status(Status.BadRequest)`**: Creates a response with a status code of 400.
+4. **`Response.html("<h1>Hello World</h1>")`**: Creates a successful response with 200 status code and an HTML body of `<h1>Hello World</h1>`.
+5. **`Response.redirect("/")`**: Creates a successful response that redirects to the root path.
+
+On the other hand, we do not need to create a `Request` instead, we need to pattern match incoming requests to decompose them and determine the appropriate action to take.
+
+Each incoming request can be extracted into two parts using pattern matching:
+- HTTP Method (GET, POST, PUT, etc.)
+- Path (e.g. /, /greeting, /download)
+
+Let's see an example of how to pattern match on incoming requests:
+
+```scala
+import zhttp.http._
+
+val greetApp: Http[Any, Nothing, Request, Response] = {
+  Http.collect[Request] {
+    // GET /greet?name=:name
+    case req @ (Method.GET -> !! / "greet")
+      if (req.url.queryParams.nonEmpty) =>
+      Response.text(
+        s"Hello ${req.url.queryParams("name").mkString(" and ")}!"
+      )
+
+    // GET /greet
+    case Method.GET -> !! / "greet" =>
+      Response.text(s"Hello World!")
+
+    // GET /greet/:name
+    case Method.GET -> !! / "greet" / name =>
+      Response.text(s"Hello $name!")
+  }
+}
+```
+
+In the above example, we have defined an `Http` app that handles GET requests. 
+- The first case matches a request with a path of `/greet` and a query parameter `name`. 
+- The second case matches a request with a path of `/greet` with no query parameters. 
+- The third case matches a request with a path of `/greet/:name` and extracts the `name` from the path.
+
+Until now, we have learned how to create `Http` applications that handle HTTP requests. In the next section, we will learn how to create HTTP servers that can handle `Http` applications.
+
+## Creating HTTP Server
 
 In order to start an HTTP server, the ZIO HTTP requires an HTTP application of type `HttpApp[R, E]` which is type alias for `Http[R, E, Request, Response]`:
 
