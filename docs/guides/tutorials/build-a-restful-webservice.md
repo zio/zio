@@ -84,7 +84,7 @@ The `Http` data type is composable like `ZIO`. We can create new complex `Http` 
 ```scala
 val a           : Http[Any, Nothing, Int, Double]    = ???
 val b           : Http[Any, Nothing, Double, String] = ???
-def c(i: Double): Http[Any, Nothing, Double, String] = ???
+def c(i: Double): Http[Any, Nothing, Long, String]   = ???
 
 val d = a >>= c // a flatMap c (combine two http sequentially)
 val e = a ++ b  // a defaultWith b (combine two http app)
@@ -101,4 +101,23 @@ Server
     port = 8080,
     http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
   )
+```
+
+## `Request` and `Response`
+
+Until now, we have learned how to create `Http` applications with some simple request and response types, e.g. `String` and `Int` in an `Http[Any, Nothing, String, Int]`. But, in real life, when we want to deal with HTTP requests and responses, we need to have a more complex type for the request and response.
+
+ZIO HTTP provides a type `Request` for HTTP requests and a type `Response` for HTTP responses. It has a built-in decoder for `Request` and encoder for `Response`. So we don't need to worry about the details of how requests and responses are decoded and encoded.
+
+In order to start an HTTP server, the ZIO HTTP requires an HTTP application of type `HttpApp[R, E]` which is type alias for `Http[R, E, Request, Response]`:
+
+```scala
+type HttpApp[-R, +E] = Http[R, E, Request, Response]
+
+object Server {
+  def start[R](
+    port: Int,
+    http: HttpApp[R, Throwable],
+  ): ZIO[R, Throwable, Nothing] = ???
+}
 ```
