@@ -89,7 +89,6 @@ def c(i: Double): Http[Any, Nothing, Long, String]   = ???
 val d = a >>= c // a flatMap c (combine two http sequentially)
 val e = a ++ b  // a defaultWith b (combine two http app)
 val f = a >>> b // a andThen b (pipe output of a to input of b)
-val g = a <<< b // a compose b (pipe input of b to output of a)
 val h = a <> b  // a orElse b  (run a, if it fails, run b)
 ```
 
