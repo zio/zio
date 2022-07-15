@@ -277,6 +277,7 @@ module.exports = {
                 "resources/ecosystem/officials/zio-kafka",
                 "resources/ecosystem/officials/zio-logging",
                 "resources/ecosystem/officials/zio-metrics",
+                "resources/ecosystem/officials/zio-mock",
                 "resources/ecosystem/officials/zio-nio",
                 "resources/ecosystem/officials/zio-optics",
                 "resources/ecosystem/officials/zio-prelude",
