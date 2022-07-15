@@ -114,7 +114,7 @@ When try to compile the above code, you will see the following output:
  Call your effect's provide method with the layers you need.
  You can read more about layers and providing services here:
  
-   https://zio.dev/next/datatypes/contextual/
+   https://zio.dev/next/references/contextual/
 
 ──────────────────────────────────────────────────────────────────────
 
