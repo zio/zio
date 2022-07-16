@@ -55,7 +55,7 @@ If `myAppLogic` fails, there will be a 1; if it succeeds, there will be a 0.
 
 If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can create a runtime system in order to execute your ZIO programs:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import zio._
 
 object IntegrationExample {
@@ -75,7 +75,9 @@ ZIO provides a module for interacting with the console. You can import the funct
 
 If you need to print text to the console, you can use `print` and `printLine`:
 
-```scala mdoc
+```scala mdoc:compile-only
+import zio._
+
 // Print without trailing line break
 Console.print("Hello World")
 
@@ -85,7 +87,9 @@ Console.printLine("Hello World")
 
 If you need to read input from the console, you can use `readLine`:
 
-```scala mdoc
+```scala mdoc:compile-only
+import zio._
+
 val echo = Console.readLine.flatMap(line => Console.printLine(line))
 ```
 
