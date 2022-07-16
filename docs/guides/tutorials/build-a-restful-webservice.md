@@ -92,16 +92,6 @@ val f = a >>> b // a andThen b (pipe output of a to input of b)
 val h = a <> b  // a orElse b  (run a, if it fails, run b)
 ```
 
-Assume we have written several `Http` apps, like `GreetingApp`, `DownloadApp`, `CounterApp`, and `UserApp` we can combine them and ask the `Server` to run them in parallel:
-
-```scala
-Server
-  .start(
-    port = 8080,
-    http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
-  )
-```
-
 ## Built-in `Request` and `Response` Data Types
 
 Until now, we have learned how to create `Http` applications with some simple request and response types, e.g. `String` and `Int` in an `Http[Any, Nothing, String, Int]`. But, in real life, when we want to deal with HTTP requests and responses, we need to have a more complex type for the request and response.
@@ -191,7 +181,9 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-If we have written other applications along with `GreetingApp`, such as `DownloadApp`, `CounterApp`, and `UserApp`, we can combine them into a single `HttpApp` and start a server for that app:
+Now, we have three endpoints in our server. We can test the server according to the steps mentioned in the corresponding [quickstart](../quickstarts/restful-webservice.md).
+
+Note that if we have written other applications along with `GreetingApp`, such as `DownloadApp`, `CounterApp`, and `UserApp`, we can combine them into a single `HttpApp` and start a server for that app:
 
 ```scala
 Server.start(
