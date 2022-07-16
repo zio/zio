@@ -2623,7 +2623,7 @@ for {
 } yield ()
 ```
 
-Visit the [Hub](../../references/concurrency/hub.md) page to learn more about it.
+Visit the [Hub](../../references/concurrency/hub) page to learn more about it.
 
 ### ZIO Aspects
 
