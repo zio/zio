@@ -217,3 +217,9 @@ Server.start(
   http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
 )
 ```
+
+## Conclusion
+
+In this tutorial, we have learned the basic building blocks of writing HTTP servers. We learned how to write handlers for HTTP requests using `Http` data type. And finally, we saw how to create an HTTP server that can handle HTTP applications.
+
+All the source code associated with this article is available through the `master` branch of the [ZIO Quickstart: Building RESTful Web Service](http://github.com/zio/zio-quickstart-restful-webservice).
