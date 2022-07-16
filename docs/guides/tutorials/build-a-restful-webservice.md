@@ -139,23 +139,21 @@ Let's see an example of how to pattern match on incoming requests:
 ```scala
 import zhttp.http._
 
-val greetApp: Http[Any, Nothing, Request, Response] = {
-  Http.collect[Request] {
-    // GET /greet?name=:name
-    case req @ (Method.GET -> !! / "greet")
-      if (req.url.queryParams.nonEmpty) =>
-      Response.text(
-        s"Hello ${req.url.queryParams("name").mkString(" and ")}!"
-      )
+object GreetingApp {
+  def apply(): Http[Any, Nothing, Request, Response] =
+    Http.collect[Request] {
+      // GET /greet?name=:name
+      case req@(Method.GET -> !! / "greet") if (req.url.queryParams.nonEmpty) =>
+        Response.text(s"Hello ${req.url.queryParams("name").mkString(" and ")}!")
 
-    // GET /greet
-    case Method.GET -> !! / "greet" =>
-      Response.text(s"Hello World!")
+      // GET /greet
+      case Method.GET -> !! / "greet" =>
+        Response.text(s"Hello World!")
 
-    // GET /greet/:name
-    case Method.GET -> !! / "greet" / name =>
-      Response.text(s"Hello $name!")
-  }
+      // GET /greet/:name
+      case Method.GET -> !! / "greet" / name =>
+        Response.text(s"Hello $name!")
+    }
 }
 ```
 
@@ -179,4 +177,25 @@ object Server {
     http: HttpApp[R, Throwable]
   ): ZIO[R, Throwable, Nothing] = ???
 }
+```
+
+Let's try to create a server for `GreetingApp`:
+
+```scala
+import zhttp.service.Server
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    Server.start(port = 8080, http = GreetingApp())
+}
+```
+
+If we have written other applications along with `GreetingApp`, such as `DownloadApp`, `CounterApp`, and `UserApp`, we can combine them into a single `HttpApp` and start a server for that app:
+
+```scala
+Server.start(
+  port = 8080,
+  http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
+)
 ```
