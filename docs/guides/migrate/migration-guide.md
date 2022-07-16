@@ -122,7 +122,20 @@ object MainApp extends ZIOAppDefault {
     As a result, the code will be robust to _double evaluation_ as well as to _side-effects embedded within parameters_.
 
 3. We should update names to match [ZIO 2.0 naming conventions](#zio-20-naming-conventions).
+
 4. ZIO 2.0 introduced [new structured concurrently operators](#compositional-concurrency) which helps us to change the regional parallelism settings of our application. So if applicable, we should use these operators instead of the old parallel operators.
+
+5. If we are exposing [unsafe operators](#unsafe-marker) in one of our interfaces we should use the `Unsafe` data type to indicate this. By convention we define these operators in an `UnsafeAPI` trait in our interface that can be accessed using as `unsafe` operator.
+
+```diff
+def MyInterface {
+-  def unsafeDoSomething(): Unit
++  def unsafe: UnsafeAPI
++
++  trait UnsafeAPI {
++    def doSomething()(implicit unsafe: Unsafe): Unit
++  }
+}
 
 ## Deletion of Type Alias Companion Objects
 
