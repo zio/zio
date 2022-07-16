@@ -24,15 +24,15 @@ The following guides have been written to help you get started with ZIO with min
 4. [How to Create a Custom Logger for a ZIO Application?](tutorials/create-custom-logger-for-a-zio-application.md)
 5. [How to Run Our First ZIO Project With VSCode?](tutorials/run-our-first-zio-project-with-vscode.md)
 6. [How to Run Our First ZIO Project With IntelliJ IDEA?](tutorials/running-our-first-zio-project-with-intellij-idea.md) 
-7. Building a RESTful Web Service
-8. Building a Web Service Client
-9. Building a gRPC Service with its Client
-10. How to Build a Chat Client and Server using ZIO Streams?
-11. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
-12. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
-13. How to Monitor a ZIO Application by Implementing Custom Metrics
-14. How to Integrate ZIO With a Legacy JVM Application?
-15. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
+7. [How to Build a RESTful Web Service](tutorials/build-a-restful-webservice.md)
+8. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
+9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
+10. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
+11. Building a Web Service Client
+12. Building a gRPC Service with its Client
+13. How to Build a Chat Client and Server using ZIO Streams?
+14. How to Monitor a ZIO Application by Implementing Custom Metrics
+15. How to Integrate ZIO With a Legacy JVM Application?
 16. How to Consume/Produce Data From/To a RabbitMQ Queue?
 17. How to Enable Tracing in ZIO and How to Use it?
 18. How to Debug a ZIO Application?
