@@ -129,28 +129,24 @@ Let's see an example of how to pattern match on incoming requests:
 ```scala
 import zhttp.http._
 
-object GreetingApp {
-  def apply(): Http[Any, Nothing, Request, Response] =
-    Http.collect[Request] {
-      // GET /greet?name=:name
-      case req@(Method.GET -> !! / "greet") if (req.url.queryParams.nonEmpty) =>
-        Response.text(s"Hello ${req.url.queryParams("name").mkString(" and ")}!")
-
-      // GET /greet
-      case Method.GET -> !! / "greet" =>
-        Response.text(s"Hello World!")
-
-      // GET /greet/:name
-      case Method.GET -> !! / "greet" / name =>
-        Response.text(s"Hello $name!")
-    }
-}
+val httpApp: Http[Any, Nothing, Request, Response] =
+  Http.collect[Request] {
+    case Method.GET -> !! / "greet" / name =>
+      Response.text(s"Hello $name!")
+  } 
 ```
 
-In the above example, we have defined an `Http` app that handles GET requests. 
-- The first case matches a request with a path of `/greet` and a query parameter `name`. 
-- The second case matches a request with a path of `/greet` with no query parameters. 
-- The third case matches a request with a path of `/greet/:name` and extracts the `name` from the path.
+In the above example, the `Http.collect` constructor takes a partial function of type `PartialFunction[Request, Response]` as an argument and returns an `Http` application. Using this DSL we only access the method and path of the incoming request. If we need to access the query string, the body, and more, we need to use the following DSL:
+
+```scala
+import zhttp.http._
+
+val httpApp: Http[Any, Nothing, Request, Response] =
+  Http.collect[Request] {
+    case req@(Method.GET -> !! / "greet") if (req.url.queryParams.nonEmpty) =>
+      Response.text(s"Hello ${req.url.queryParams("name").mkString(" and ")}!")
+  } 
+```
 
 Until now, we have learned how to create `Http` applications that handle HTTP requests. In the next section, we will learn how to create HTTP servers that can handle `Http` applications.
 
@@ -169,7 +165,37 @@ object Server {
 }
 ```
 
-Let's try to create a server for `GreetingApp`:
+## Greeting App
+
+First, we need to define a request handler that will handle `GET` requests to the `/greet` path:
+
+```scala
+import zhttp.http._
+
+object GreetingApp {
+  def apply(): Http[Any, Nothing, Request, Response] =
+    Http.collect[Request] {
+      // GET /greet?name=:name
+      case req@(Method.GET -> !! / "greet") if (req.url.queryParams.nonEmpty) =>
+        Response.text(s"Hello ${req.url.queryParams("name").mkString(" and ")}!")
+
+      // GET /greet
+      case Method.GET -> !! / "greet" =>
+        Response.text(s"Hello World!")
+
+      // GET /greet/:name
+      case Method.GET -> !! / "greet" / name =>
+        Response.text(s"Hello $name!")
+    }
+}
+```
+
+In the above example, we have defined an `Http` app that handles GET requests.
+- The first case matches a request with a path of `/greet` and a query parameter `name`.
+- The second case matches a request with a path of `/greet` with no query parameters.
+- The third case matches a request with a path of `/greet/:name` and extracts the `name` from the path.
+
+Next, we need to create a server for `GreetingApp`:
 
 ```scala
 import zhttp.service.Server
