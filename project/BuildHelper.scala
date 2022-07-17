@@ -4,6 +4,8 @@ import sbt._
 import sbtbuildinfo.BuildInfoKeys._
 import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
+import mdoc.MdocPlugin
+import MdocPlugin.autoImport._
 
 object BuildHelper {
   private val versions: Map[String, String] = {
@@ -290,4 +292,10 @@ object BuildHelper {
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))
   }
+
+  def mdocSettings = Seq[sbt.Def.Setting[_]](
+    mdocIn := baseDirectory.value / "docs",
+    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs"
+  )
+  
 }

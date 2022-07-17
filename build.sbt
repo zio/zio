@@ -764,11 +764,17 @@ lazy val scalafixTests = project
   .dependsOn(scalafixRules)
   .enablePlugins(ScalafixTestkitPlugin)
 
-lazy val docs = project.module
-  .in(file("zio-docs"))
+lazy val docs =
+  project
+    .in(file("docs"))
+    .aggregate(coreDocs, tutorialDocs)
+
+lazy val coreDocs = project.module
+  .in(file("docs/core-docs"))
+  .settings(BuildHelper.mdocSettings)
   .settings(
     publish / skip := true,
-    moduleName     := "zio-docs",
+    moduleName     := "core-docs",
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
@@ -776,8 +782,6 @@ lazy val docs = project.module
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
     crossScalaVersions --= List(Scala211, Scala3),
-    mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
-    mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
       coreJVM,
       streamsJVM,
@@ -805,7 +809,6 @@ lazy val docs = project.module
       "dev.zio"            %% "zio-config-refined"        % "3.0.0-RC9",
       "dev.zio"            %% "zio-ftp"                   % "0.3.3",
       "dev.zio"            %% "zio-json"                  % "0.3.0-RC8",
-//      "dev.zio"               %% "zio-kafka"                   % "2.0.0-RC5",
       "dev.zio"               %% "zio-logging"                 % "0.5.12",
       "dev.zio"               %% "zio-metrics-prometheus"      % "1.0.12",
       "dev.zio"               %% "zio-nio"                     % "1.0.0-RC11",
@@ -867,3 +870,14 @@ lazy val docs = project.module
   .settings(mdocJS := Some(jsdocs))
   .dependsOn(coreJVM, streamsJVM, concurrentJVM, testJVM, testMagnoliaJVM, testRefinedJVM, testScalaCheckJVM, coreJS)
   .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+
+lazy val tutorialDocs =
+  project
+    .in(file("docs/tutorial-docs"))
+    .settings(BuildHelper.mdocSettings)
+    .settings(
+      libraryDependencies ++= Seq(
+        "dev.zio" %% "zio-kafka" % "2.0.0"
+     ) 
+    )
+    .enablePlugins(MdocPlugin)

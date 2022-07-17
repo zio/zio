@@ -26,7 +26,7 @@ Powered by highly-scalable, non-blocking fibers that never waste or leak resourc
 To learn more about ZIO, see the following references:
 
  - [Homepage](https://zio.dev/)
- - [Contributor's Guide](./docs/about/contributing.md)
+ - [Contributor's Guide](docs/core-docs/docs/about/contributing.md)
  - [License](LICENSE)
  - [Issues](https://github.com/zio/zio/issues)
  - [Pull Requests](https://github.com/zio/zio/pulls)
@@ -201,7 +201,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio/edit/mas
 
 ## Code of Conduct
 
-See the [Code of Conduct](./docs/about/code_of_conduct.md)
+See the [Code of Conduct](./docs/core-docs/docs/about/code-of-conduct.md)
 
 ---
 
