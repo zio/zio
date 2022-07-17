@@ -3,6 +3,7 @@ id: index
 title: "Introduction"
 ---
 
+
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
@@ -12,23 +13,26 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     - [Concurrency Primitives](#concurrency-primitives)
     - [Synchronization Aids](#synchronization-aids)
     - [STM](#stm)
-3. [Resource Management](#resource-management)
-6. [Streaming](#streaming)
-7. [Miscellaneous](#miscellaneous)
+4. [Resource Management](#resource-management)
+5. [Streaming](#streaming)
+6. [Metrics](#metrics)
+7. [Testing](#testing)
+8. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
- - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
-   + **[UIO](core/zio/uio.md)** — `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`.
-   + **[URIO](core/zio/urio.md)** — `URIO[R, A]` is a type alias for `ZIO[R, Nothing, A]`.
-   + **[Task](core/zio/task.md)** — `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`.
-   + **[RIO](core/zio/rio.md)** — `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`.
-   + **[IO](core/zio/io.md)** — `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
- - **[ZIOApp](core/zioapp.md)** — `ZIOApp` and the `ZIOAppDefault` are entry points for ZIO applications.
- - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
- - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
- - **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure. 
+- **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
+    + **[UIO](core/zio/uio.md)** — `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`.
+    + **[URIO](core/zio/urio.md)** — `URIO[R, A]` is a type alias for `ZIO[R, Nothing, A]`.
+    + **[Task](core/zio/task.md)** — `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`.
+    + **[RIO](core/zio/rio.md)** — `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`.
+    + **[IO](core/zio/io.md)** — `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
+- **[ZIOApp](core/zioapp.md)** — `ZIOApp` and the `ZIOAppDefault` are entry points for ZIO applications.
+- **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
+- **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
+- **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure.
 
 ## Contextual Data Types
+
 - **[ZEnvironment](contextual/zenvironment.md)** — `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect.
 - **[ZLayer](contextual/zlayer.md)** — `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
     + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
@@ -40,27 +44,28 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 ## Concurrency
 
 ### Fiber Primitives
- - **[Fiber](fiber/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
- - **[FiberRef](fiber/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
- - **[Fiber.Status](fiber/fiberstatus.md)** — `Fiber.Status` describe the current status of a Fiber.
- - **[FiberId](fiber/fiberid.md)** — `FiberId` describe the unique identity of a Fiber.
- 
+
+- **[Fiber](fiber/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
+- **[FiberRef](fiber/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+- **[Fiber.Status](fiber/fiberstatus.md)** — `Fiber.Status` describe the current status of a Fiber.
+- **[FiberId](fiber/fiberid.md)** — `FiberId` describe the unique identity of a Fiber.
+
 ### Concurrency Primitives
- - **[Hub](concurrency/hub.md)** — A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
- - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
- - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
- - **[Ref](concurrency/ref.md)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
- - **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
- - **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
 
-### Synchronization aids
+- **[Hub](concurrency/hub.md)** — A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
+- **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
+- **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
+- **[Ref](concurrency/ref.md)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
+- **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
+- **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
 
+### Synchronization Aids
+
+- **[ReentrantLock](sync/reentrantlock.md)**— The `ReentrantLock` is a synchronization tool that is useful for synchronizing blocks of code.
+- **[CountdownLatch](sync/countdownlatch.md)** — A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
+- **[CyclicBarrier](sync/cyclicbarrier.md)** — A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
 - **[ConcurrentMap](sync/concurrentmap.md)** — A Map wrapper over `java.util.concurrent.ConcurrentHashMap`
 - **[ConcurrentSet](sync/concurrentset.md)** — A Set implementation over `java.util.concurrent.ConcurrentHashMap`
-- **[CountdownLatch](sync/countdownlatch.md)** — A synchronization aid that allows one or more fibers to wait until a
-  set of operations being performed in other fibers completes.
-- **[CyclicBarrier](sync/cyclicbarrier.md)** — A synchronization aid that allows a set of fibers to all wait for each
-  other to reach a common barrier point.
 
 ### STM
 
@@ -76,20 +81,49 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[TSemaphore](stm/tsemaphore.md)** — A `TSemaphore` is a semaphore that can participate in transactions.
 
 ## Resource Management
+
 - **[Scope](resource/scope.md)** — A scope in which resources can safely be used.
 - **[ZPool](resource/zpool.md)** — An asynchronous and concurrent generalized pool of reusable resources.
 
 ## Streaming
+
 - **[ZStream](stream/zstream.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.
-   + **[Stream](stream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`. 
+    + **[Stream](stream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`.
 - **[ZSink](stream/zsink.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produce a value when it has consumed enough.
-   + **[Sink](stream/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
+    + **[Sink](stream/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
 - **[ZPipeline](stream/zpipeline.md)** — `ZPipeline` is a polymorphic stream transformer.
 - **[SubscriptionRef](stream/subscriptionref.md)** — `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
- 
+
+## Metrics
+
+IO supports 5 types of Metrics:
+
+- **[Counter](metrics/counter.md)** — The Counter is used for any value that increases over time like _request counts_.
+- **[Gauge](metrics/gauge.md)** — The gauge is a single numerical value that can arbitrary goes up or down over time like _memory usage_.
+- **[Histogram](metrics/histogram.md)** — The Histogram is used to track the distribution of a set of observed values across a set of buckets like _request latencies_.
+- **[Summary](metrics/summary.md)** — The Summary represents a sliding window of a time series along with metrics for certain percentiles of the time series, referred to as quantiles like _request latencies_.
+- **[Frequency](metrics/setcount.md)** — The Frequency is a metric that counts the number of occurrences of distinct string values.
+
+## Testing
+
+- **[Spec](test/spec.md)**— A `Spec[R, E]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
+- **[Assertion](test/assertion.md)**— An `Assertion[A]` is a test assertion that can be used to assert the predicate of type `A => Boolean`.
+- **[TestAspect](test/test-aspect.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
+- **[Gen](test/gen.md)**— A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`.
+- **Test Service**— ZIO Test has the following out-of-the-box test services:
+    - **[TestConsole](test/environment/console.md)**— It allows testing of applications that interact with the console.
+    - **[TestClock](test/environment/clock.md)**— We can deterministically and efficiently test effects involving the passage of time without actually having to wait for the full amount of time to pass.
+    - **[TestRandom](test/environment/random.md)**— This service allows us having fully deterministic testing of code that deals with Randomness.
+    - **[TestSystem](test/environment/system.md)**— It supports deterministic testing of effects involving system properties.
+    - **[Live](test/environment/live.md)**— It provides access to the live environment from within the test environment for effects.
+    - **[TestConfig](test/environment/test-config.md)**— It provides access to default configuration settings used by ZIO Test.
+    - **[Sized](test/environment/sized.md)**— It enables _Sized Generators_ to access the size from the ZIO Test environment.
+
 ## Miscellaneous
-- **[Chunk](misc/chunk.md)** — `Chunk` is a fast, pure alternative to Arrays.
-- **[Schedule](misc/schedule.md)** — `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
-- **[Supervisor](misc/supervisor.md)** — `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
+
+- **[Chunk](misc/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
+- **[Schedule](misc/schedule.md)**— `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
+- **[Supervisor](misc/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
+- **[ZState](misc/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
 
 To learn more about these data types, please explore the pages above, or check out the Scaladoc documentation.
