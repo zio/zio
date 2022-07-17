@@ -14,8 +14,7 @@ We need to add the following dependencies to our project:
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio"   % "2.0.0-RC6",
-  "io.d11"  %% "zhttp" % "2.0.0-RC9"
+  "io.d11"  %% "zhttp" % "2.0.0-RC10"
 )
 ```
 
@@ -48,25 +47,33 @@ Let's try to model some HTTP applications using the `Http` data type. So first, 
 
 The `Http.succeed` constructor creates an `Http` application that always returns a successful response:
 
-```scala
+```scala mdoc:compile-only
+import zhttp.http._
+
 val app: Http[Any, Nothing, Any, String] = Http.succeed("Hello, world!")
 ```
 
 We have the same constructor for failures called `Http.fail`. It creates an `Http` application that always returns a failed response:
 
-```scala
+```scala mdoc:compile-only
+import zhttp.http._
+
 val app: Http[Any, String, Any, Nothing] = Http.fail("Something went wrong")
 ```
 
 We can also create `Http` programs from total and partial functions. The `Http.fromFunction` constructor takes a total function of type `A => B` and then creates an `Http` application that accepts an `A` and returns a `B`:
 
-```scala
+```scala mdoc:compile-only
+import zhttp.http._
+
 val app: Http[Any, Nothing, Int, Double] = Http.fromFunction[Int](_ / 2.0)
 ```
 
 And the `Http.collect` constructor takes a partial function of type `PartialFunction[A, B]` and then creates an `Http` application that accepts an `A` and returns a `B`:
 
-```scala
+```scala mdoc:compile-only
+import zhttp.http._
+
 val app: Http[Any, Nothing, String, Int] =
   Http.collect {
     case "case 1" => 1
@@ -88,7 +95,9 @@ There are lots of other constructors, but we will not go into them here.
 
 The `Http` data type is composable like `ZIO`. We can create new complex `Http` applications by combining existing simple ones by using `flatMap`, `zip`, `andThen`, `orElse`, and `++` methods:
 
-```scala
+```scala mdoc:compile-only
+import zhttp.http._
+
 val a           : Http[Any, Nothing, Int, Double]    = ???
 val b           : Http[Any, Nothing, Double, String] = ???
 def c(i: Double): Http[Any, Nothing, Long, String]   = ???
@@ -133,7 +142,7 @@ Each incoming request can be extracted into two parts using pattern matching:
 
 Let's see an example of how to pattern match on incoming requests:
 
-```scala
+```scala mdoc:compile-only
 import zhttp.http._
 
 val httpApp: Http[Any, Nothing, Request, Response] =
@@ -145,7 +154,7 @@ val httpApp: Http[Any, Nothing, Request, Response] =
 
 In the above example, the `Http.collect` constructor takes a partial function of type `PartialFunction[Request, Response]` as an argument and returns an `Http` application. Using this DSL we only access the method and path of the incoming request. If we need to access the query string, the body, and more, we need to use the following DSL:
 
-```scala
+```scala mdoc:compile-only
 import zhttp.http._
 
 val httpApp: Http[Any, Nothing, Request, Response] =
@@ -176,7 +185,7 @@ object Server {
 
 First, we need to define a request handler that will handle `GET` requests to the `/greet` path:
 
-```scala
+```scala mdoc:silent
 import zhttp.http._
 
 object GreetingApp {
@@ -204,7 +213,7 @@ In the above example, we have defined an `Http` app that handles GET requests.
 
 Next, we need to create a server for `GreetingApp`:
 
-```scala
+```scala mdoc:compile-only
 import zhttp.service.Server
 import zio._
 
@@ -214,11 +223,38 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+```scala mdoc:invisible:reset
+
+```
+
 Now, we have three endpoints in our server. We can test the server according to the steps mentioned in the corresponding [quickstart](../quickstarts/restful-webservice.md).
 
 Note that if we have written other applications along with `GreetingApp`, such as `DownloadApp`, `CounterApp`, and `UserApp`, we can combine them into a single `HttpApp` and start a server for that app:
 
-```scala
+```scala mdoc:invisible
+import zhttp.http._
+
+object GreetingApp {
+  def apply() = Http.empty
+}
+
+object DownloadApp {
+  def apply() = Http.empty
+}
+
+object CounterApp {
+  def apply() = Http.empty
+}
+
+object UserApp {
+  def apply() = Http.empty
+}
+```
+
+```scala mdoc:compile-only
+import zhttp.http._
+import zhttp.service.Server
+
 Server.start(
   port = 8080,
   http = GreetingApp() ++ DownloadApp() ++ CounterApp() ++ UserApp()
