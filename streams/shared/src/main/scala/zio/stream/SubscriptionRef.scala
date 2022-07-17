@@ -55,8 +55,8 @@ object SubscriptionRef {
       def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B] =
         ref.modifyZIO(a => f(a).tap { case (_, a) => hub.publish(a) })
       def set(a: A)(implicit trace: Trace): UIO[Unit] =
-        ref.modifyZIO(_ => hub.publish(a).as((), a))
+        ref.modifyZIO(_ => hub.publish(a).as(((), a)))
       def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
-        ref.modifyZIO(_ => hub.publish(a).as((), a))
+        ref.modifyZIO(_ => hub.publish(a).as(((), a)))
     }
 }
