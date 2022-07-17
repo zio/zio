@@ -39,24 +39,27 @@ object SubscriptionRef {
    */
   def make[A](a: => A)(implicit trace: Trace): UIO[SubscriptionRef[A]] =
     for {
-      ref <- Ref.Synchronized.make(a)
-      hub <- Hub.unbounded[A]
+      hub       <- Hub.unbounded[A]
+      ref       <- Ref.make(a)
+      semaphore <- Semaphore.make(1)
     } yield new SubscriptionRef[A] {
       def changes: ZStream[Any, Nothing, A] =
         ZStream.unwrapScoped {
-          ref.modifyZIO { a =>
-            ZStream.fromHubScoped(hub).map { stream =>
-              (ZStream(a) ++ stream, a)
+          semaphore.withPermit {
+            ref.get.flatMap { a =>
+              ZStream.fromHubScoped(hub).map { stream =>
+                ZStream(a) ++ stream
+              }
             }
           }
         }
       def get(implicit trace: Trace): UIO[A] =
         ref.get
       def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B] =
-        ref.modifyZIO(a => f(a).tap { case (_, a) => hub.publish(a) })
+        semaphore.withPermit(ref.get.flatMap(f).flatMap { case (b, a) => ref.set(a).as(b) <* hub.publish(a) })
       def set(a: A)(implicit trace: Trace): UIO[Unit] =
-        ref.modifyZIO(_ => hub.publish(a).as(((), a)))
+        semaphore.withPermit(ref.set(a) <* hub.publish(a))
       def setAsync(a: A)(implicit trace: Trace): UIO[Unit] =
-        ref.modifyZIO(_ => hub.publish(a).as(((), a)))
+        semaphore.withPermit(ref.setAsync(a) <* hub.publish(a))
     }
 }
