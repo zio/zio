@@ -52,6 +52,16 @@ object SubscriptionRefSpec extends ZIOSpecDefault {
           values          <- ZIO.collectAllPar(List.fill(5000)(subscriber(subscriptionRef)))
           _               <- fiber.interrupt
         } yield assert(values)(forall(isSorted))
+      },
+      test("set and setAsync are observed") {
+        for {
+          subscriptionRef <- SubscriptionRef.make(0)
+          promise         <- Promise.make[Nothing, Unit]
+          subscriber      <- subscriptionRef.changes.tap(_ => promise.succeed(())).take(3).runCollect.fork
+          _               <- promise.await
+          _               <- subscriptionRef.set(100) *> subscriptionRef.setAsync(200)
+          values          <- subscriber.join
+        } yield assert(values)(equalTo(Chunk(0, 100, 200)))
       }
     )
 }
