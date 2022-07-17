@@ -294,8 +294,8 @@ object BuildHelper {
   }
 
   def mdocSettings = Seq[sbt.Def.Setting[_]](
-    mdocIn := baseDirectory.value / "docs",
+    mdocIn  := baseDirectory.value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs"
   )
-  
+
 }
