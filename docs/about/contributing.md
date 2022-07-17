@@ -123,10 +123,10 @@ git push
 
 Now while you were working on this great improvement, it's quite likely that other ZIO contributors were making their own improvements. You need to pull all those improvements into your own code base to resolve any conflicts and make sure the changes all work well together.
 
-To do that, use the `git pull` command:
+To do that, use the `git pull` (for the 2.x branch) command:
 
 ```bash
-git pull git@github.com:zio/zio.git master
+git pull git@github.com:zio/zio.git series/2.x
 ```
 
 You may get a warning from Git that some files conflicted. Don't worry! That just means you and another contributor edited the same parts of the same files.
