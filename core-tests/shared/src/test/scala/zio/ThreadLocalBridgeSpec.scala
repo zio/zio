@@ -11,7 +11,7 @@ object ThreadLocalBridgeSpec extends ZIOBaseSpec {
         val initialValue = s"initial-value-$tag"
         tracking(initialValue) { (_, threadLocalGet) =>
           for {
-            _     <- FiberRef.currentSupervisor.get.debug("currentSupervisor")
+            _     <- FiberRef.currentSupervisor.get
             ab    <- threadLocalGet zipPar threadLocalGet
             (a, b) = ab
           } yield {
