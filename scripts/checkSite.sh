@@ -2,7 +2,8 @@
 
 set -ex
 
-ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc docs/mdoc
+ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc
+ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/mdoc
 cd website
 
 mv docusaurus.config.js docusaurus.config.js.org 
