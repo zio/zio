@@ -3463,7 +3463,19 @@ object ZIOSpec extends ZIOBaseSpec {
           _     <- (started.await *> ZIO.unit).race(effect)
           value <- finalized.await *> ZIO.succeed(ref.get())
         } yield assert(value)(equalTo(0))
-      } @@ jvm(nonFlaky)
+      } @@ jvm(nonFlaky),
+      test("interruption is not inherited on fork") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          finalizer = ZIO.interruptible(promise2.succeed(())).forkDaemon
+          resource  = (promise1.succeed(()) *> ZIO.never).ensuring(finalizer)
+          fiber    <- resource.forkDaemon
+          _        <- promise1.await
+          _        <- fiber.interrupt
+          _        <- promise2.await
+        } yield assertCompletes
+      }
     ) @@ zioTag(interruption),
     suite("RTS environment")(
       test("provide is modular") {
