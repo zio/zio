@@ -2446,7 +2446,7 @@ sealed trait ZIO[-R, +E, +A]
 }
 
 object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific {
-  private object unsafe {
+  private[zio] object unsafe {
     def fork[R, E1, E2, A, B](
       trace: Trace,
       effect: ZIO[R, E1, A],
