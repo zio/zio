@@ -709,8 +709,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
       def step(now: OffsetDateTime, in: In1, state: State)(implicit
         trace: Trace
       ): ZIO[Env, Nothing, (State, In1, Decision)] =
-        self.step(now, in, state).map {
-          case (state, _, decision) => (state, in, decision)
+        self.step(now, in, state).map { case (state, _, decision) =>
+          (state, in, decision)
         }
     }
 
