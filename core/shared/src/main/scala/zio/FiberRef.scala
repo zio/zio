@@ -490,7 +490,7 @@ object FiberRef {
     FiberRef.unsafe.makeEnvironment(ZEnvironment.empty)(Unsafe.unsafe)
 
   private[zio] val interruptedCause: FiberRef[Cause[Nothing]] =
-    FiberRef.unsafe.make[Cause[Nothing]](Cause.empty, identity(_), (parent, _) => parent)(Unsafe.unsafe)
+    FiberRef.unsafe.make[Cause[Nothing]](Cause.empty, _ => Cause.empty, (parent, _) => parent)(Unsafe.unsafe)
 
   private[zio] val currentBlockingExecutor: FiberRef[Executor] =
     FiberRef.unsafe.make(Runtime.defaultBlockingExecutor)(Unsafe.unsafe)
