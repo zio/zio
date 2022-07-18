@@ -602,10 +602,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     val callback = (effect: ZIO[Any, Any, Any]) => {
       if (alreadyCalled.compareAndSet(false, true)) {
         tell(FiberMessage.Resume(effect))
-      } else {
-        val msg = s"An async callback was invoked more than once, which could be a sign of a defect: ${effect}"
-
-        log(() => msg, Cause.empty, ZIO.someDebug, self.asyncTrace)
       }
     }
 

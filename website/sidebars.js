@@ -230,6 +230,7 @@ module.exports = {
         "guides/tutorials/producing-consuming-data-from-kafka-topics",
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
         "guides/tutorials/debug-a-zio-application",
+        "guides/tutorials/build-a-restful-webservice",
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
