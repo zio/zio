@@ -9,7 +9,8 @@ rm -Rf website/versioned_docs
 # Checkout latest version of the website from the 1.x series
 git checkout series/1.x
 git clean -df
-sbt docs/mdoc docs/unidoc
+sbt docs/mdoc
+sbt docs/unidoc
 
 mkdir -p website/versioned_docs/version-1.x
 mv zio-docs/target/mdoc/* website/versioned_docs/version-1.x
@@ -20,7 +21,8 @@ mv website/static/api website/static/api-1.x
 # Now we need to checkout the branch that originally has triggered the site build
 git checkout $1
 git fetch --tags
-ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc docs/mdoc
+ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc
+ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/mdoc
 
 cd website 
 rm -Rf node_modules
