@@ -792,6 +792,7 @@ lazy val docs = project.module
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     libraryDependencies ++= Seq(
       "commons-io"          % "commons-io"                % "2.11.0" % "provided",
+      "io.d11"             %% "zhttp"                     % "2.0.0-RC10",
       "io.7mind.izumi"     %% "distage-core"              % "1.0.8",
       "io.7mind.izumi"     %% "logstage-core"             % "1.0.8",
       "org.jsoup"           % "jsoup"                     % "1.14.3" % "provided",
