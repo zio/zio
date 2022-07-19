@@ -17,6 +17,7 @@
 package zio
 
 import java.nio._
+import java.nio.charset.Charset
 import java.util.concurrent.atomic.AtomicInteger
 import scala.annotation.tailrec
 import scala.collection.mutable.Builder
@@ -168,6 +169,32 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
   def toPackedLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Long] =
     Chunk.ChunkPackedBoolean[Long](self.asInstanceOf[Chunk[Boolean]], 64, endianness)
+
+  /**
+   * Crates a new String based on this chunks data.
+   */
+  final def asString(implicit ev: IsText[A]): String = ev.convert(self)
+
+  /**
+   * Crates a new String based on this chunk of bytes and using the given
+   * charset.
+   */
+  final def asString(charset: Charset)(implicit ev: A <:< Byte): String = {
+    implicit val cls: ClassTag[A] = classTag[Byte].asInstanceOf[ClassTag[A]]
+    new String(self.toArray.asInstanceOf[Array[Byte]], charset)
+  }
+
+  sealed trait IsText[-T] {
+    def convert(chunk: Chunk[T]): String
+  }
+  object IsText {
+    implicit val byteIsText: IsText[Byte] =
+      new IsText[Byte] { def convert(chunk: Chunk[Byte]): String = new String(chunk.toArray) }
+    implicit val charIsText: IsText[Char] =
+      new IsText[Char] { def convert(chunk: Chunk[Char]): String = new String(chunk.toArray) }
+    implicit val strIsText: IsText[String] =
+      new IsText[String] { def convert(chunk: Chunk[String]): String = chunk.toArray.mkString }
+  }
 
   /**
    * Get the element at the specified index.
