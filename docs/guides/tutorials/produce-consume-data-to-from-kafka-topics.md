@@ -34,10 +34,10 @@ In this tutorial, we will be using the following dependencies. So, let's add the
 
 ```scala
 libraryDependencies += Seq(
-  "dev.zio" %% "zio"         % "2.0.0-RC5",
-  "dev.zio" %% "zio-streams" % "2.0.0-RC5",
-  "dev.zio" %% "zio-kafka"   % "2.0.0-M3",
-  "dev.zio" %% "zio-json"    % "0.3.0-RC7",
+  "dev.zio" %% "zio"         % "2.0.0",
+  "dev.zio" %% "zio-streams" % "2.0.0",
+  "dev.zio" %% "zio-kafka"   % "2.0.0",
+  "dev.zio" %% "zio-json"    % "0.3.0-RC10"
 )
 ```
 
@@ -159,7 +159,11 @@ The `produce` function is polymorphic in the type of key and value of the record
 
 The `produce` workflow requires the `Producer` from the ZIO environment. So we need to provide a `Producer` instance to it. So let's create a `producer` layer:
 
-```scala
+```scala mdoc:compile-only
+import zio._
+import zio.kafka._
+import zio.kafka.producer._
+
 val producer: ZLayer[Any, Throwable, Producer] =
   ZLayer.scoped(
     Producer.make(
@@ -171,7 +175,7 @@ val producer: ZLayer[Any, Throwable, Producer] =
 It is sufficient for this example, although the following helper methods are available for more customization:
 
 ```scala
-case ProducerSettings {
+class ProducerSettings {
   def withBootstrapServers(servers: List[String]): ProducerSettings
   def withClientId(clientId: String)             : ProducerSettings
   def withCloseTimeout(duration: Duration)       : ProducerSettings
@@ -201,7 +205,7 @@ def consumeAndPrintEvents(groupId: String, topic: String, topics: String*): RIO[
 
 Now it's time to combine all the above steps to create a ZIO workflow that will produce and consume data from the Kafka cluster:
 
-```scala
+```scala mdoc:compile-only
 import org.apache.kafka.clients.producer.RecordMetadata
 import zio._
 import zio.kafka.consumer._
@@ -303,7 +307,15 @@ The `CommittableRecord` is a record that can be committed to Kafka via `Committa
 
 For example, if we want to consume records and then save them to a file system, we can run the `CommittableRecord#commit` function after we wrote the record to the file system. So we are sure that the record has been persisted in the file system:
 
-```scala
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+import zio.kafka._
+import zio.kafka.consumer._
+import zio.kafka.serde._
+
+val KAFKA_TOPIC = "my-topic"
+
 val c: ZStream[Consumer, Throwable, Nothing] =
   Consumer
     .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
@@ -316,7 +328,15 @@ val c: ZStream[Consumer, Throwable, Nothing] =
 
 The problem with this approach is that we are committing offsets for each record that we consume. This will cause a lot of overhead and will slow down the consumption of the records. To avoid this, we can aggregate the offsets into batches and commit them all at once. This can be done by using the `ZStream#aggregateAsync` along with the `Consumer.offsetBatches` sink:
 
-```scala
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+import zio.kafka._
+import zio.kafka.consumer._
+import zio.kafka.serde._
+
+val KAFKA_TOPIC = "my-topic"
+
 val c: ZStream[Consumer, Throwable, Nothing] =
   Consumer
     .subscribeAnd(Subscription.topics(KAFKA_TOPIC))
@@ -332,7 +352,15 @@ The `Consumer.offsetBatches` sink folds `Offset`s into `OffsetBatch` which conta
 
 ### 3. Creating a Consumer and Producer Layer
 
-```scala
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+import zio.kafka._
+import zio.kafka.producer._
+import zio.kafka.consumer._
+
+val BOOSTRAP_SERVERS = List("localhost:29092")
+
 private val producer: ZLayer[Any, Throwable, Producer] =
   ZLayer.scoped(
     Producer.make(
@@ -353,7 +381,7 @@ private val consumer: ZLayer[Any, Throwable, Consumer] =
 
 It's time to create a full working example of ZIO Kafka with ZIO streams:
 
-```scala
+```scala mdoc:compile-only
 import org.apache.kafka.clients.producer.ProducerRecord
 import zio._
 import zio.kafka.consumer._
@@ -432,7 +460,10 @@ Using the `inmap` and `inmapM` combinators, we can create our own serializers an
 
 Let's say we have a case class `Event` with the following fields:
 
-```scala
+```scala mdoc:silent
+import java.time.OffsetDateTime
+import java.util.UUID
+
 case class Event(
   uuid: UUID,
   timestamp: OffsetDateTime,
@@ -442,7 +473,9 @@ case class Event(
 
 First, we need to define a JSON decoder and encoder for it:
 
-```scala
+```scala mdoc:silent
+import zio.json._
+
 object Event {
   implicit val encoder: JsonEncoder[Event] =
     DeriveJsonEncoder.gen[Event]
@@ -454,7 +487,10 @@ object Event {
 
 Then we need to create a `Serde` for the `Event` type. To convert `Event` to JSON and back, we will use the ZIO JSON library, and to define `Serde` for the `Event` type, we will use the `Serde#inmapM` combinator:
 
-```scala
+```scala mdoc:silent
+import zio._
+import zio.kafka.serde._
+
 object KafkaSerde {
   val key: Serde[Any, Int] =
     Serde.int
@@ -473,8 +509,20 @@ As we can see, we use the `String#fromJson` to convert the string to an `Event` 
 
 After we have defined our custom `Serde` for the `Event` type, we can use it in our Kafka producer and consumer streams:
 
-```scala
-val producer = events.via(Producer.produceAll(KafkaSerde.key, KafkaSerde.value))
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+import zio.kafka.serde._
+import zio.kafka.producer._
+import zio.kafka.consumer._
+import org.apache.kafka.clients.producer.ProducerRecord
+
+val KAFKA_TOPIC = "json-streaming-hello"
+
+val events: UStream[ProducerRecord[Int, Event]] = ???
+
+val producer = 
+  events.via(Producer.produceAll(KafkaSerde.key, KafkaSerde.value))
 
 val consumer =
   Consumer
@@ -486,7 +534,7 @@ val consumer =
 
 Here is a full working example of producing and consuming JSON data with ZIO Kafka, ZIO Streams and ZIO JSON:
 
-```scala
+```scala mdoc:compile-only
 import org.apache.kafka.clients.producer.ProducerRecord
 import zio._
 import zio.json._
