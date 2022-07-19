@@ -149,6 +149,10 @@ This module provides various connectors for metrics backend, e.g. Prometheus.
 
 The following snippet shows how to provide an HTTP endpoint that exposes the metrics as a REST API for Prometheus:
 
+```scala mdoc:invisible:reset
+
+```
+
 ```scala mdoc:invisible
 import zio._
 import zhttp.http._
@@ -162,6 +166,10 @@ object DownloadApp {
 }
 
 object CounterApp {
+  def apply() = Http.empty
+}
+
+object UserApp {
   def apply() = Http.empty
 }
 
