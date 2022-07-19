@@ -622,6 +622,12 @@ object ScheduleSpec extends ZIOBaseSpec {
         actual   <- alsoWednesday.delays.run(now, in)
         expected <- wednesday.delays.run(now, in)
       } yield assert(actual)(equalTo(expected))
+    },
+    test("passthrough") {
+      for {
+        ref   <- Ref.make(0)
+        value <- ref.getAndUpdate(_ + 1).repeat(Schedule.recurs(10).passthrough)
+      } yield assertTrue(value == 10)
     }
   )
 

@@ -700,6 +700,21 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
+   * Returns a new schedule that passes through the inputs of this schedule.
+   */
+  def passthrough[In1 <: In](implicit trace: Trace): Schedule.WithState[self.State, Env, In1, In1] =
+    new Schedule[Env, In1, In1] {
+      type State = self.State
+      val initial = self.initial
+      def step(now: OffsetDateTime, in: In1, state: State)(implicit
+        trace: Trace
+      ): ZIO[Env, Nothing, (State, In1, Decision)] =
+        self.step(now, in, state).map { case (state, _, decision) =>
+          (state, in, decision)
+        }
+    }
+
+  /**
    * Returns a new schedule with its environment provided to it, so the
    * resulting schedule does not require any environment.
    */
