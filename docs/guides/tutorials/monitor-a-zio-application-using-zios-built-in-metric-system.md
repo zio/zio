@@ -85,8 +85,17 @@ After defining the metric, we need to apply it to our web service. We can do thi
 
 ```scala mdoc:invisible
 import zio._
+import zio.json._
 
-trait User
+case class User(name: String, age: Int)
+
+object User {
+  implicit val encoder: JsonEncoder[User] =
+    DeriveJsonEncoder.gen[User]
+  implicit val decoder: JsonDecoder[User] =
+    DeriveJsonDecoder.gen[User]
+}
+
 trait UserRepo {
   def register(user: User): Task[String]
 
@@ -109,6 +118,8 @@ object UserRepo {
 
 ```scala mdoc:silent
 import zhttp.http._
+import zio.json._
+
 
 object UserApp {
   def apply(): Http[UserRepo, Throwable, Request, Response] =
