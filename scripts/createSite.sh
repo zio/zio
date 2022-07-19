@@ -1,6 +1,8 @@
 set -ex
 
 OLDDIR=`pwd`
+export SBT_OPTS="-Xmx2048m -XX:+UseG1GC"
+
 # Clean existing build and mdoc output directory
 rm -Rf target
 rm -Rf website/docs

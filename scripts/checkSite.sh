@@ -2,6 +2,8 @@
 
 set -ex
 
+export SBT_OPTS="-Xmx2048m -XX:+UseG1GC"
+
 #ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/unidoc
 ZIO_LATEST_2=`git describe --tags --abbrev=0 ` sbt docs/mdoc
 cd website
