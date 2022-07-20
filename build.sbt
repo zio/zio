@@ -318,19 +318,15 @@ lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
   )
+  .jvmSettings(
+    mimaSettings(failOnProblem = false)
+  )
+  .nativeSettings(nativeSettings)
 
-lazy val managedJVM = managed.jvm
-  .settings(mimaSettings(failOnProblem = false))
-
-lazy val managedJS = managed.js
-
-lazy val managedNative = managed.native
-  .settings(nativeSettings)
-
-lazy val managedTests = crossProject(JSPlatform, JVMPlatform)
+lazy val managedTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("managed-tests"))
   .dependsOn(managed)
-  .dependsOn(test)
+  .dependsOn(tests)
   .settings(stdSettings("managed-tests"))
   .settings(crossProjectSettings)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
@@ -341,13 +337,9 @@ lazy val managedTests = crossProject(JSPlatform, JVMPlatform)
     Compile / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
   )
   .enablePlugins(BuildInfoPlugin)
-
-lazy val managedTestsJVM = managedTests.jvm
-  .configure(_.enablePlugins(JCStressPlugin))
-  .settings(replSettings)
-
-lazy val managedTestsJS = managedTests.js
-  .settings(
+  .jvmConfigure(_.enablePlugins(JCStressPlugin))
+  .jvmSettings(replSettings)
+  .jsSettings(
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -356,6 +348,7 @@ lazy val managedTestsJS = managedTests.js
       }
     }
   )
+  .nativeSettings(nativeSettings)
 
 lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("macros"))
@@ -386,10 +379,7 @@ lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
-
-lazy val internalMacrosJVM    = internalMacros.jvm
-lazy val internalMacrosJS     = internalMacros.js
-lazy val internalMacrosNative = internalMacros.native.settings(nativeSettings)
+  .nativeSettings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("streams"))
@@ -757,7 +747,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.9.34"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.1"
   )
 
 val zio1Version = "1.0.12"
@@ -778,14 +768,14 @@ lazy val scalafixOutput = project
     scalafixSettings,
     publish / skip := true
   )
-  .dependsOn(coreJVM, testJVM, streamsJVM, managedJVM)
+  .dependsOn(core.jvm, tests.jvm, streams.jvm, managed.jvm)
 
 lazy val scalafixTests = project
   .in(file("scalafix/tests"))
   .settings(
     scalafixSettings,
     publish / skip                        := true,
-    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.9.34" % Test cross CrossVersion.full,
+    libraryDependencies += "ch.epfl.scala" % "scalafix-testkit" % "0.10.1" % Test cross CrossVersion.full,
     Compile / compile :=
       (Compile / compile).dependsOn(scalafixInput / Compile / compile).value,
     scalafixTestkitOutputSourceDirectories :=
