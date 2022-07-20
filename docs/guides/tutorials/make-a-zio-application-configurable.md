@@ -84,6 +84,10 @@ val workflow: ZIO[HttpServerConfig, IOException, Unit] =
 
 Let's run the above workflow and see the output:
 
+```scala mdoc:invisible:reset
+
+```
+
 ```scala mdoc:fail
 import zio._
 
@@ -142,6 +146,8 @@ import zio._
 
 import java.io.IOException
 
+case class HttpServerConfig(host: String, port: Int)
+
 object MainApp extends ZIOAppDefault {
 
   val workflow: ZIO[HttpServerConfig, IOException, Unit] =
@@ -167,7 +173,11 @@ Application started with following configuration:
 
 Great! Now we have ZIO workflow that can access the configuration layer, and finally we can provide a configuration layer to our application. It works! Now, let's apply the same approach to our RESTful Web Service:
 
-```scala mdoc:invisible
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
 import zio._
 import zhttp.http._
 
@@ -190,6 +200,8 @@ object UserApp {
 object InmemoryUserRepo {
   val layer = ZLayer.empty
 }
+
+case class HttpServerConfig(host: String, port: Int)
 ```
 
 ```scala mdoc:compile-only
