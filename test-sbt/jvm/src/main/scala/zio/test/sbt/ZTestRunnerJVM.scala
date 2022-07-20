@@ -29,6 +29,9 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     extends Runner {
 
   @volatile
+  private var used = false
+
+  @volatile
   var shutdownHook: () => Unit =
     () => {
       throw new Error("ZTestRunnerJVM.shutdownHook called before it was set")
@@ -43,25 +46,28 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
   )
 
-  def done(): String = {
-    shutdownHook()
-
-    val allSummaries = summaries.get
-
-    val total  = allSummaries.map(_.total).sum
-    val ignore = allSummaries.map(_.ignore).sum
-
-    val compositeSummary =
-      allSummaries.foldLeft(Summary.empty)(_.add(_))
-
-    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
-
-    if (allSummaries.isEmpty || total == ignore)
-      s"${Console.YELLOW}No tests were executed${Console.RESET}"
+  def done(): String =
+    // Can't build the summary due to https://github.com/sbt/sbt/issues/3510
+    if (!used) ""
     else {
-      colored(renderedSummary)
+      shutdownHook()
+
+      val allSummaries = summaries.get
+
+      val total  = allSummaries.map(_.total).sum
+      val ignore = allSummaries.map(_.ignore).sum
+
+      val compositeSummary =
+        allSummaries.foldLeft(Summary.empty)(_.add(_))
+
+      val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
+
+      if (allSummaries.isEmpty || total == ignore)
+        s"${Console.YELLOW}No tests were executed${Console.RESET}"
+      else {
+        colored(renderedSummary)
+      }
     }
-  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
@@ -70,6 +76,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     defs: Array[TaskDef],
     console: zio.Console
   )(implicit trace: Trace): Array[ZTestTask[ExecutionEventSink]] = {
+    used = true
     val testArgs        = TestArgs.parse(args)
     val sharedSinkLayer = sinkLayer(console, ConsoleEventRenderer)
 
