@@ -1,8 +1,8 @@
 name: CI
 
 env:
-  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx4G # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
-  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx4G # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
+  JDK_JAVA_OPTIONS: -XX:+PrintCommandLineFlags -Xmx4G -Xss4M # JDK_JAVA_OPTIONS is _the_ env. variable to use for modern Java
+  JVM_OPTS: -XX:+PrintCommandLineFlags -Xmx4G -Xss4M # for Java 8 only (sadly, it is not modern enough for JDK_JAVA_OPTIONS)
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
@@ -37,6 +37,10 @@ jobs:
   compile:
     runs-on: ubuntu-20.04
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -53,13 +57,27 @@ jobs:
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
-          swap-size-gb: 10
-      - name: Check generation of ScalaDoc
-        run: free -h -s 1 & ./sbt +Test/compile
+          swap-size-gb: 7
+      - name: Test/compile 2.11
+        if: ${{ startsWith(matrix.scala, '2.11.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root211/Test/compile
+      - name: Test/compile 2.12
+        if: ${{ startsWith(matrix.scala, '2.12.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root212/Test/compile
+      - name: Test/compile 2.13
+        if: ${{ startsWith(matrix.scala, '2.13.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root213/Test/compile
+      - name: Test/compile 3
+        if: ${{ startsWith(matrix.scala, '3.') }}
+        run: free --si -tmws 10 & ./sbt ++${{ matrix.scala }} root3/Test/compile
 
   publishLocal:
     runs-on: ubuntu-20.04
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        scala: ['2.11.*', '2.12.*', '2.13.*', '3.*']
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v3.0.2
@@ -73,8 +91,18 @@ jobs:
         uses: coursier/cache-action@v6
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
-      - name: Check that building packages works
-        run: ./sbt +publishLocal
+      - name: publishLocal 2.11
+        if: ${{ startsWith(matrix.scala, '2.11.') }}
+        run: ./sbt ++${{ matrix.scala }} root211/publishLocal
+      - name: publishLocal 2.12
+        if: ${{ startsWith(matrix.scala, '2.12.') }}
+        run: ./sbt ++${{ matrix.scala }} root212/publishLocal
+      - name: publishLocal 2.13
+        if: ${{ startsWith(matrix.scala, '2.13.') }}
+        run: ./sbt ++${{ matrix.scala }} root213/publishLocal
+      - name: publishLocal 3
+        if: ${{ startsWith(matrix.scala, '3.') }}
+        run: ./sbt ++${{ matrix.scala }} root3/publishLocal
 
   website:
     runs-on: ubuntu-20.04
@@ -103,6 +131,7 @@ jobs:
       fail-fast: false
       matrix:
         scala: ['2.11.12', '2.12.16', '2.13.8', '3.1.3']
+        java: ['17']
         platform: ['JVM']
     steps:
     - name: Checkout current branch
@@ -111,22 +140,25 @@ jobs:
       uses: actions/setup-java@v2.5.0
       with:
         distribution: temurin
-        java-version: 17
+        java-version: ${{ matrix.java }}
         check-latest: true
     - name: Cache scala dependencies
       uses: coursier/cache-action@v6
     - name: Mima Checks
       if: ${{ !startsWith(matrix.scala, '3.') }}
       run: ./sbt ++${{ matrix.scala }}! mimaChecks
-    - name: Test 2.11.x
+    - name: Test 2.11
       if: ${{ startsWith(matrix.scala, '2.11.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}211
-    - name: Test 2.12.x and 2.13.x
-      if: ${{ !startsWith(matrix.scala, '2.11.') && !startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}
-    - name: Test 3.x
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}211/test
+    - name: Test 2.12
+      if: ${{ startsWith(matrix.scala, '2.12.') }}
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}212/test
+    - name: Test 2.13
+      if: ${{ startsWith(matrix.scala, '2.13.') }}
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}213/test
+    - name: Test 3
       if: ${{ startsWith(matrix.scala, '3.') }}
-      run: ./sbt ++${{ matrix.scala }}! test${{ matrix.platform }}Dotty
+      run: ./sbt ++${{ matrix.scala }}! root${{ matrix.platform }}3/test
 
   testJvms:
     runs-on: ubuntu-20.04
@@ -148,7 +180,7 @@ jobs:
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Test on different JVM versions
-        run: ./sbt test${{ matrix.platform }}
+        run: ./sbt root${{ matrix.platform }}/test
 
   testPlatforms:
     runs-on: ubuntu-20.04
@@ -156,6 +188,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        java: ['17']
         platform: ['JS', 'Native']
     steps:
       - name: Checkout current branch
@@ -164,14 +197,14 @@ jobs:
         uses: actions/setup-java@v2.5.0
         with:
           distribution: temurin
-          java-version: 17
+          java-version: ${{ matrix.java }}
           check-latest: true
       - name: Cache scala dependencies
         uses: coursier/cache-action@v6
       - name: Install libuv
         run: sudo apt-get update && sudo apt-get install -y libuv1-dev
       - name: Test on different Scala target platforms
-        run: ./sbt test${{ matrix.platform }}
+        run: ./sbt root${{ matrix.platform }}/test
 
   ci:
     runs-on: ubuntu-20.04
