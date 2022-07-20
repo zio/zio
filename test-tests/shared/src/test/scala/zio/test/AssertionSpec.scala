@@ -93,6 +93,19 @@ object AssertionSpec extends ZIOBaseSpec {
           )
         )
       } @@ TestAspect.scala2Only,
+      test("equalTo should succeed for same CharSequence value") {
+        val probe: CharSequence = "test"
+        assert(probe)(equalTo(probe))
+      },
+      test("equalTo should succeed for CharSequence value compared with String value") {
+        val probe: CharSequence = "test"
+        assert(probe)(equalTo("test"))
+      },
+      test("equalTo should fail for difference CharSequence values") {
+        val probe: CharSequence    = "test"
+        val expected: CharSequence = "test123"
+        assert(probe)(equalTo(expected))
+      } @@ failing,
       test("exists must succeed when at least one element of iterable satisfy specified assertion") {
         assert(Seq(1, 42, 5))(exists(equalTo(42)))
       },
