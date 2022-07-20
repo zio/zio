@@ -103,13 +103,13 @@ SLF4J is a logging facade that decouples our application code from any underlyin
 So we can simply add this library to our project by adding the following dependencies to our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-logging"       % "2.0.0-RC10"
-libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.0.0-RC10"
+libraryDependencies += "dev.zio" %% "zio-logging"       % "2.0.0"
+libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.0.0"
 ```
 
 Now we can use the `SLF4J.sl4j` layer to enable SLF4J logging:
 
-```scala
+```scala mdoc:compile-only
 import zio._
 import zio.logging.LogFormat
 import zio.logging.backend.SLF4J

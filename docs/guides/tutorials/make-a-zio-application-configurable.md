@@ -46,7 +46,7 @@ In this tutorial, we will focus on the second case to configure the host and por
 
 In this example our configuration data type is a case class that contains two fields:
 
-```scala
+```scala mdoc:silent
 case class HttpServerConfig(host: String, port: Int)
 ```
 
@@ -57,15 +57,21 @@ configuration from the environment.
 
 We can use the `ZIO.service[HttpServerConfig]` method to access the configuration from the environment:
 
-```scala
+```scala mdoc:compile-only
+import zio._
+
 ZIO.service[HttpServerConfig].flatMap { config =>
-  // Do something with the configuration
+  ??? // Do something with the configuration
 }
 ```
 
 The above code is a ZIO workflow that will access the `HttpServerConfig` configuration from the environment and then by using flatMap, we can do something with it, for example, we can print it:
 
-```scala
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
 val workflow: ZIO[HttpServerConfig, IOException, Unit] =
   ZIO.service[HttpServerConfig].flatMap { config =>
     Console.printLine(
@@ -78,7 +84,11 @@ val workflow: ZIO[HttpServerConfig, IOException, Unit] =
 
 Let's run the above workflow and see the output:
 
-```scala
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:fail
 import zio._
 
 import java.io.IOException
@@ -163,14 +173,40 @@ Application started with following configuration:
 
 Great! Now we have ZIO workflow that can access the configuration layer, and finally we can provide a configuration layer to our application. It works! Now, let's apply the same approach to our RESTful Web Service:
 
-```scala
-import dev.zio.quickstart.config.HttpServerConfig
-import dev.zio.quickstart.counter.CounterApp
-import dev.zio.quickstart.download.DownloadApp
-import dev.zio.quickstart.greet.GreetingApp
-import dev.zio.quickstart.users.{InmemoryUserRepo, UserApp}
-import zhttp.service.Server
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
 import zio._
+import zhttp.http._
+
+object GreetingApp {
+  def apply() = Http.empty
+}
+
+object DownloadApp {
+  def apply() = Http.empty
+}
+
+object CounterApp {
+  def apply() = Http.empty
+}
+
+object UserApp {
+  def apply() = Http.empty
+}
+
+object InmemoryUserRepo {
+  val layer = ZLayer.empty
+}
+
+case class HttpServerConfig(host: String, port: Int)
+```
+
+```scala mdoc:compile-only
+import zio._
+import zhttp.service.Server
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -212,9 +248,9 @@ In this tutorial, we will use the HOCON files. [HOCON](https://github.com/lightb
 We should add the following dependencies to our `build.sb` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-config"          % "3.0.0-RC8"
-libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "3.0.0-RC8"
-libraryDependencies += "dev.zio" %% "zio-config-magnolia" % "3.0.0-RC8"
+libraryDependencies += "dev.zio" %% "zio-config"          % "3.0.1"
+libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "3.0.1"
+libraryDependencies += "dev.zio" %% "zio-config-magnolia" % "3.0.1"
 ```
 
 ### Defining the HOCON Configuration File
@@ -241,7 +277,7 @@ HOCON supports substitutions, so in the above configuration, we can use the envi
 
 Now let's define configuration layer inside the `HttpServerConfig`'s companion object:
 
-```scala
+```scala mdoc:silent:nest
 import zio._
 import zio.config._
 import zio.config.magnolia.descriptor
@@ -268,14 +304,9 @@ The ZIO Config has automatic derivation mechanism to parse the HOCON configurati
 
 We are ready to provide the configuration layer to our application:
 
-```scala
-import dev.zio.quickstart.config.HttpServerConfig
-import dev.zio.quickstart.counter.CounterApp
-import dev.zio.quickstart.download.DownloadApp
-import dev.zio.quickstart.greet.GreetingApp
-import dev.zio.quickstart.users.{InmemoryUserRepo, UserApp}
-import zhttp.service.Server
+```scala mdoc:compile-only
 import zio._
+import zhttp.service.Server
 
 object MainApp extends ZIOAppDefault {
   def run =

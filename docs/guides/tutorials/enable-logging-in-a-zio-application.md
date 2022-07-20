@@ -42,7 +42,7 @@ object MainApp extends ZIOAppDefault {
 
 This will print the following message to the console:
 
-```scala
+```
 timestamp=2022-06-01T09:43:08.848398Z level=INFO thread=#zio-fiber-6 message="Application started" location=zio.examples.MainApp.run file=MainApp.scala line=4
 ```
 
@@ -65,7 +65,7 @@ object MainApp extends ZIOAppDefault {
 
 Here is the output which includes the cause:
 
-```scala
+```
 timestamp=2022-06-02T05:18:04.131876Z level=ERROR thread=#zio-fiber-6 message="application stopped working due to an unexpected error" cause="Exception in thread "zio-fiber-6" java.lang.RuntimeException: Boom!
 at zio.examples.MainApp.run(MainApp.scala:9)
 at zio.examples.MainApp.run(MainApp.scala:10)" location=zio.examples.MainApp.run file=MainApp.scala line=11
@@ -106,7 +106,7 @@ object MainApp extends ZIOAppDefault {
 
 The output will look like the following:
 
-```scala
+```
 timestamp=2022-06-01T10:16:26.623633Z level=FATAL thread=#zio-fiber-6 message="Fatal" location=zio.examples.MainApp.run file=MainApp.scala line=6
 timestamp=2022-06-01T10:16:26.638771Z level=ERROR thread=#zio-fiber-6 message="Error" location=zio.examples.MainApp.run file=MainApp.scala line=7
 timestamp=2022-06-01T10:16:26.640827Z level=WARN thread=#zio-fiber-6 message="Warning" location=zio.examples.MainApp.run file=MainApp.scala line=8
@@ -117,7 +117,7 @@ timestamp=2022-06-01T10:16:26.642260Z level=INFO thread=#zio-fiber-6 message="In
 
 As we mentioned, the default log level for ZIO.log and ZIO.logCause is `Info`. We can use these two methods to log various part of our workflow, and then finally we can wrap the whole workflow with our desired log level:
 
-```scala
+```scala mdoc:compile-only
 import zio._
 
 ZIO.logLevel(LogLevel.Debug) {
@@ -134,9 +134,72 @@ ZIO.logLevel(LogLevel.Debug) {
 
 In this section, we are going to log all the HTTP requests coming to the `UserApp`, and then in each step, when we are handling a request we will log the result, whether is successful or not.
 
-We demonstrate this for the "POST /users" endpoint. This process is the same for all the other endpoints.
+We demonstrate this for the "POST /users" endpoint. This process is the same for all the other endpoints:
 
-```scala
+```scala mdoc:invisible
+import java.util.UUID
+import zio.json._
+import zhttp.http._
+
+case class User(name: String, age: Int)
+
+object User {
+  implicit val encoder: JsonEncoder[User] =
+    DeriveJsonEncoder.gen[User]
+  implicit val decoder: JsonDecoder[User] =
+    DeriveJsonDecoder.gen[User]
+}
+
+import zio._
+
+trait UserRepo {
+  def register(user: User): Task[String]
+
+  def lookup(id: String): Task[Option[User]]
+  
+  def users: Task[List[User]]
+}
+
+object UserRepo {
+  def register(user: User): ZIO[UserRepo, Throwable, String] =
+    ZIO.serviceWithZIO[UserRepo](_.register(user))
+
+  def lookup(id: String): ZIO[UserRepo, Throwable, Option[User]] =
+    ZIO.serviceWithZIO[UserRepo](_.lookup(id))
+
+  def users: ZIO[UserRepo, Throwable, List[User]] =
+    ZIO.serviceWithZIO[UserRepo](_.users)
+}
+
+def logSpan(
+    label: String
+): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+    override def apply[R, E, A](zio: ZIO[R, E, A])(implicit
+        trace: Trace
+    ): ZIO[R, E, A] =
+      ZIO.logSpan(label)(zio)
+  }
+
+def logAnnotateCorrelationId(
+    req: Request
+): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+    override def apply[R, E, A](
+        zio: ZIO[R, E, A]
+    )(implicit trace: Trace): ZIO[R, E, A] =
+      correlationId(req).flatMap(id =>
+        ZIO.logAnnotate("correlation-id", id)(zio)
+      )
+
+    def correlationId(req: Request): UIO[String] =
+      ZIO
+        .succeed(req.header("X-Correlation-ID").map(_._2.toString))
+        .flatMap(x => Random.nextUUID.map(uuid => x.getOrElse(uuid.toString)))
+  }
+```
+
+```scala mdoc:compile-only
 import zio._
 import zio.json._
 import zhttp.http._
@@ -204,7 +267,7 @@ def getProfilePicture(username: String) =
 
 If we run this code with `getProfilePicture("john")`, the output will look like the following:
 
-```scala
+```
 timestamp=2022-06-01T13:59:40.779263Z level=INFO thread=#zio-fiber-6 message="Getting information of john from the UserService" get-profile-picture=6ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=11
 timestamp=2022-06-01T13:59:40.793804Z level=INFO thread=#zio-fiber-6 message="Downloading profile image john.png" get-profile-picture=20ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=13
 timestamp=2022-06-01T13:59:40.795677Z level=INFO thread=#zio-fiber-6 message="Profile image downloaded" get-profile-picture=22ms location=zio.examples.MainApp.getProfilePicture file=MainApp.scala line=15
@@ -234,19 +297,26 @@ ZIO.logSpan("span1") {
 
 To measure the time taken to process the request at different points of the code, we can wrap any workflow with `ZIO.logSpan`. In the `UserApp` example, we wrote a workflow that handles the registration of a new user. We can wrap the workflow in a span and log inside the span:
 
-```scala
+```scala mdoc:compile-only
+import zio._
+import zhttp.http._
+
 Http.collectZIO[Request] {
   // POST /users -d '{"name": "John", "age": 35}'
   case req@(Method.POST -> !! / "users") =>
     ZIO.logSpan("register-user") {
-      // registration workflow
+      ??? // registration workflow
     }
 }
 ```
 
 As we need the same for all other endpoints, we introduced a new ZIO Aspect called `LogAspect.logSpan` which can be applied to any ZIO workflow. Let's see how it is implemented and how it works:
 
-```scala
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
 import zio._
 
 object LogAspect {
@@ -255,7 +325,7 @@ object LogAspect {
   ): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       override def apply[R, E, A](zio: ZIO[R, E, A])(
-        implicit trace: TraceElement
+        implicit trace: Trace
       ): ZIO[R, E, A] =
         ZIO.logSpan(label)(zio)
     }
@@ -264,7 +334,11 @@ object LogAspect {
 
 To apply this aspect to a ZIO workflow, we can use the `@@` operator:
 
-```scala
+```scala mdoc:silent
+val workflow = ZIO.unit
+```
+
+```scala mdoc:compile-only
 workflow @@ LogAspect.logSpan("register-user")
 ```
 
@@ -276,7 +350,7 @@ $ curl -i http://localhost:8080/users -d '{"name": "John", "age": 42}'
 
 And the logs:
 
-```scala
+```
 timestamp=2022-06-03T09:42:15.590135Z level=INFO thread=#zio-fiber-16 message="POST /users -d {"name": "John", "age": 42}" register-user=16ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=22
 timestamp=2022-06-03T09:42:15.748359Z level=INFO thread=#zio-fiber-16 message="User registered: 24c4ed63-ecc2-41fb-ac0e-5cbf22f187f6" register-user=174ms location=dev.zio.quickstart.users.UserApp.apply.applyOrElse file=UserApp.scala line=35
 ```
@@ -327,7 +401,7 @@ object MainApp extends ZIOAppDefault {
 
 The output will look as follows:
 
-```scala
+```
 timestamp=2022-06-01T16:31:00.058151Z level=INFO thread=#zio-fiber-9 message="fetching user from database" location=zio.examples.MainApp.run file=MainApp.scala line=14 user-id=UserC
 timestamp=2022-06-01T16:31:00.413569Z level=INFO thread=#zio-fiber-7 message="fetching user from database" location=zio.examples.MainApp.run file=MainApp.scala line=14 user-id=UserA
 timestamp=2022-06-01T16:31:00.525170Z level=INFO thread=#zio-fiber-9 message="downloading user's profile picture" location=zio.examples.MainApp.run file=MainApp.scala line=16 user-id=UserC
@@ -344,7 +418,11 @@ To add a Correlation ID to the logs, we should first extract the `X-Correlation-
 
 As this is a common pattern along with all other endpoints, we created a new ZIO Aspect called `LogAspect.logAnnotateCorrelationId` which can be applied to any ZIO workflow:
 
-```scala
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
 import zio._
 import zhttp.http.Request
 
@@ -355,7 +433,7 @@ object LogAspect {
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       override def apply[R, E, A](
           zio: ZIO[R, E, A]
-      )(implicit trace: TraceElement): ZIO[R, E, A] =
+      )(implicit trace: Trace): ZIO[R, E, A] =
         correlationId(req).flatMap(id => ZIO.logAnnotate("correlation-id", id)(zio))
 
       def correlationId(req: Request): UIO[String] =
@@ -368,7 +446,14 @@ object LogAspect {
 
 Now, we can apply this aspect to any ZIO workflow:
 
-```scala
+```scala mdoc:invisible
+import zhttp.http._
+
+val workflow = ZIO.unit
+val req = Request(headers = Headers("X-Correlation-ID" -> "123"))
+```
+
+```scala mdoc:compile-only
 workflow @@ LogAspect.logAnnotateCorrelationId(req)
 ```
 

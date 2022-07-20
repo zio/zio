@@ -28,14 +28,14 @@ The following guides have been written to help you get started with ZIO with min
 8. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
 9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
 10. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
-11. Building a Web Service Client
-12. Building a gRPC Service with its Client
-13. How to Build a Chat Client and Server using ZIO Streams?
-14. How to Monitor a ZIO Application by Implementing Custom Metrics
-15. How to Integrate ZIO With a Legacy JVM Application?
-16. How to Consume/Produce Data From/To a RabbitMQ Queue?
-17. How to Enable Tracing in ZIO and How to Use it?
-18. How to Debug a ZIO Application?
+11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
+12. Building a Web Service Client
+13. Building a gRPC Service with its Client
+14. How to Build a Chat Client and Server using ZIO Streams?
+15. How to Monitor a ZIO Application by Implementing Custom Metrics
+16. How to Integrate ZIO With a Legacy JVM Application?
+17. How to Consume/Produce Data From/To a RabbitMQ Queue?
+18. How to Enable Tracing in ZIO and How to Use it?
 
 ## Integration Guides
 

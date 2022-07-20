@@ -63,7 +63,10 @@ This is a pedagogical example of how to use metrics. But in real life, we will p
 
 In this section, we are going to define a new metric called `count_all_requests` that counts the number of requests to our web service:
 
-```scala
+```scala mdoc:silent
+import zio._
+import zio.metrics._
+
 def countAllRequests(method: String, handler: String) =
   Metric.counterInt("count_all_requests").fromConst(1)
     .tagged(
@@ -80,7 +83,44 @@ All metrics are defined as a `ZIOAspect` that helps us to add metrics to our app
 
 After defining the metric, we need to apply it to our web service. We can do this by using the `@@` syntax:
 
-```scala
+```scala mdoc:invisible
+import zio._
+import zio.json._
+
+case class User(name: String, age: Int)
+
+object User {
+  implicit val encoder: JsonEncoder[User] =
+    DeriveJsonEncoder.gen[User]
+  implicit val decoder: JsonDecoder[User] =
+    DeriveJsonDecoder.gen[User]
+}
+
+trait UserRepo {
+  def register(user: User): Task[String]
+
+  def lookup(id: String): Task[Option[User]]
+  
+  def users: Task[List[User]]
+}
+
+object UserRepo {
+  def register(user: User): ZIO[UserRepo, Throwable, String] =
+    ZIO.serviceWithZIO[UserRepo](_.register(user))
+
+  def lookup(id: String): ZIO[UserRepo, Throwable, Option[User]] =
+    ZIO.serviceWithZIO[UserRepo](_.lookup(id))
+
+  def users: ZIO[UserRepo, Throwable, List[User]] =
+    ZIO.serviceWithZIO[UserRepo](_.users)
+}
+```
+
+```scala mdoc:silent
+import zhttp.http._
+import zio.json._
+
+
 object UserApp {
   def apply(): Http[UserRepo, Throwable, Request, Response] =
     Http.collectZIO[Request] {
@@ -90,7 +130,6 @@ object UserApp {
           .map(response => Response.json(response.toJson)) @@
           countAllRequests("GET", "/users")
     }
-
 }
 ```
 
@@ -110,7 +149,36 @@ This module provides various connectors for metrics backend, e.g. Prometheus.
 
 The following snippet shows how to provide an HTTP endpoint that exposes the metrics as a REST API for Prometheus:
 
-```scala
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:invisible
+import zio._
+import zhttp.http._
+
+object GreetingApp {
+  def apply() = Http.empty
+}
+
+object DownloadApp {
+  def apply() = Http.empty
+}
+
+object CounterApp {
+  def apply() = Http.empty
+}
+
+object UserApp {
+  def apply() = Http.empty
+}
+
+object InmemoryUserRepo {
+  val layer = ZLayer.empty
+}
+```
+
+```scala mdoc:silent
 import zhttp.http._
 import zio._
 import zio.metrics.connectors.prometheus.PrometheusPublisher
@@ -126,14 +194,9 @@ object PrometheusPublisherApp {
 
 Next, we need to add the `PrometheusPublisherApp` HTTP App to our application:
 
-```scala
-import dev.zio.quickstart.counter.CounterApp
-import dev.zio.quickstart.download.DownloadApp
-import dev.zio.quickstart.greet.GreetingApp
-import dev.zio.quickstart.prometheus.PrometheusPublisherApp
-import dev.zio.quickstart.users.{InmemoryUserRepo, UserApp}
-import zhttp.service.Server
+```scala mdoc:silent
 import zio._
+import zhttp.service.Server
 import zio.metrics.connectors.{MetricsConfig, prometheus}
 
 object MainApp extends ZIOAppDefault {
