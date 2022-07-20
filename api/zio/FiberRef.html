@@ -19,13 +19,14 @@ combinators.</p><pre><span class="kw">import</span> zio.test._
 <code>FiberRef</code> is automatically propagated to child fibers when they are forked
 and merged back in to the value of the parent fiber after they are joined.</p><pre><span class="kw">for</span> {
   fiberRef <span class="kw">&lt;-</span> FiberRef.make(<span class="lit">"Hello world!"</span>)
-  child    <span class="kw">&lt;-</span> fiberRef.set(<span class="lit">"Hi!).fork
-  result   &lt;- child.join
-} yield result</span></pre><p>Here <code>result</code> will be equal to "Hi!" since changed made by a child fiber are
+  child    <span class="kw">&lt;-</span> fiberRef.set(<span class="lit">"Hi!"</span>).fork
+  _        <span class="kw">&lt;-</span> child.join
+  result   <span class="kw">&lt;-</span> fiberRef.get
+} <span class="kw">yield</span> result</pre><p>Here <code>result</code> will be equal to "Hi!" since changes made by a child fiber are
 merged back in to the value of the parent fiber on join.</p><p>By default the value of the child fiber will replace the value of the parent
 fiber on join but you can specify your own logic for how values should be
 merged.</p><pre><span class="kw">for</span> {
-  fiberRef <span class="kw">&lt;-</span> FiberRef.make(<span class="num">0</span>, math.max)
+  fiberRef <span class="kw">&lt;-</span> FiberRef.make(<span class="num">0</span>, identity[<span class="std">Int</span>], math.max)
   child    <span class="kw">&lt;-</span> fiberRef.update(_ + <span class="num">1</span>).fork
   _        <span class="kw">&lt;-</span> fiberRef.update(_ + <span class="num">2</span>)
   _        <span class="kw">&lt;-</span> child.join
