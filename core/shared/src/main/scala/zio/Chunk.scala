@@ -1384,16 +1384,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
     chunk match {
-      case x: AppendN[_]     => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Arr[_]         => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Concat[_]      => x.classTag.asInstanceOf[ClassTag[A]]
-      case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
-      case x: PrependN[_]    => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Singleton[_]   => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Slice[_]       => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Update[_]      => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: VectorChunk[_] => x.classTag.asInstanceOf[ClassTag[A]]
-      case _: BitChunk[_]    => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
+      case x: AppendN[_]            => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Arr[_]                => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Concat[_]             => x.classTag.asInstanceOf[ClassTag[A]]
+      case Empty                    => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case x: PrependN[_]           => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Singleton[_]          => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Slice[_]              => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Update[_]             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: VectorChunk[_]        => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: ChunkPackedBoolean[_] => x.classTag.asInstanceOf[ClassTag[A]]
+      case _: BitChunk[_]           => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
   /**
@@ -1873,6 +1874,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def &(x: T, y: T): T
     def ^(x: T, y: T): T
     def unary_~(x: T): T
+    def classTag: ClassTag[T]
   }
 
   private[zio] object BitOps {
@@ -1887,6 +1889,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def &(x: Byte, y: Byte): Byte = (x & y).toByte
       def ^(x: Byte, y: Byte): Byte = (x ^ y).toByte
       def unary_~(x: Byte): Byte    = (~x).toByte
+      def classTag: ClassTag[Byte]  = ClassTag.Byte
     }
     implicit val IntOps: BitOps[Int] = new BitOps[Int] {
       def zero: Int               = 0
@@ -1898,6 +1901,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def &(x: Int, y: Int): Int  = x & y
       def ^(x: Int, y: Int): Int  = x ^ y
       def unary_~(x: Int): Int    = ~x
+      def classTag: ClassTag[Int] = ClassTag.Int
     }
     implicit val LongOps: BitOps[Long] = new BitOps[Long] {
       def zero: Long                = 0L
@@ -1909,6 +1913,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def &(x: Long, y: Long): Long = x & y
       def ^(x: Long, y: Long): Long = x ^ y
       def unary_~(x: Long): Long    = ~x
+      def classTag: ClassTag[Long]  = ClassTag.Long
     }
   }
 
@@ -2361,8 +2366,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         if (endianness == BitChunk.Endianness.BigEndian) elem else ops.reverse(elem)
       }
 
+    override protected[zio] def toArray[T1 >: T](n: Int, dest: Array[T1]): Unit = {
+      var i = n
+      while (i < length) {
+        dest(i + n) = self.apply(i)
+        i += 1
+      }
+    }
+
     override def chunkIterator: ChunkIterator[T] =
       self
+
+    implicit val classTag: ClassTag[T] =
+      ops.classTag
 
     def hasNextAt(index: Int): Boolean =
       index < length
