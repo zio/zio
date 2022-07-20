@@ -26,8 +26,9 @@ trait AssertionVariants {
       TestArrow
         .make[B, Boolean] { actual =>
           val result = (actual, expected) match {
-            case (left: Array[_], right: Array[_]) => left.sameElements[Any](right)
-            case (left, right)                     => left == right
+            case (left: Array[_], right: Array[_])         => left.sameElements[Any](right)
+            case (left: CharSequence, right: CharSequence) => left.toString.contentEquals(right)
+            case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
             M.pretty(actual) + M.equals + M.pretty(expected)
