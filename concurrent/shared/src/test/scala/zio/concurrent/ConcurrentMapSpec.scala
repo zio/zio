@@ -25,16 +25,24 @@ object ConcurrentMapSpec extends ZIOSpecDefault {
         test("computes a new value") {
           for {
             map      <- ConcurrentMap.make(1 -> 100)
-            computed <- map.compute(1, _ + _.get)
+            computed <- map.compute(1, (key, value) => value.map(key + _))
             stored   <- map.get(1)
-          } yield assert(computed)(equalTo(101)) && assert(Some(computed))(equalTo(stored))
+          } yield assert(computed)(isSome(equalTo(101))) && assert(computed)(equalTo(stored))
         },
         test("returns new value for a non-existing key") {
           for {
             map      <- ConcurrentMap.empty[Int, Int]
-            computed <- map.compute(1, (_, _) => 100)
+            computed <- map.compute(1, (_, _) => Some(100))
             stored   <- map.get(1)
-          } yield assert(computed)(equalTo(100)) && assert(Some(computed))(equalTo(stored))
+          } yield assert(computed)(isSome(equalTo(100))) && assert(computed)(equalTo(stored))
+        },
+        test("removes the entry when remap returns None") {
+          for {
+            map      <- ConcurrentMap.empty[Int, Int]
+            _        <- map.put(1, 1000)
+            computed <- map.compute(1, (_, _) => None)
+            stored   <- map.get(1)
+          } yield assert(computed)(isNone) && assert(stored)(isNone)
         }
       ),
       suite("computeIfAbsent")(

@@ -33,8 +33,10 @@ final class ConcurrentMap[K, V] private (private val underlying: ConcurrentHashM
    * Attempts to compute a mapping for the specified key and its current mapped
    * value (or None if there is no current mapping).
    */
-  def compute(key: K, remap: (K, Option[V]) => V): UIO[V] =
-    ZIO.succeed(underlying.compute(key, (key, value) => remap(key, Option(value))))
+  def compute(key: K, remap: (K, Option[V]) => Option[V]): UIO[Option[V]] =
+    ZIO.succeed(
+      Option(underlying.compute(key, (key, value) => remap(key, Option(value)).getOrElse(null.asInstanceOf[V])))
+    )
 
   /**
    * Computes a value of a non-existing key.
