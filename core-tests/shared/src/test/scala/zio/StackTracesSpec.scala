@@ -92,6 +92,20 @@ object StackTracesSpec extends ZIOBaseSpec {
           assert(trace)(containsString("Suppressed: java.lang.RuntimeException: other failure")) &&
           assertTrue(numberOfOccurrences("Suppressed")(trace) == 1)
         }
+      },
+      test("captures a die failure") {
+        val underlyingFailure =
+          ZIO
+            .succeed("ITEM")
+            .map(_ => List.empty.head)
+
+        for {
+          trace <- matchPrettyPrintCause(underlyingFailure)
+        } yield {
+          assertHasExceptionInThreadZioFiber(trace)("java.util.NoSuchElementException: head of empty list") &&
+          assertHasStacktraceFor(trace)("spec.underlyingFailure") &&
+          assertHasStacktraceFor(trace)("matchPrettyPrintCause")
+        }
       }
     )
   ) @@ sequential
