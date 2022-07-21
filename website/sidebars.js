@@ -17,23 +17,30 @@ module.exports = {
       "references/index"
     ],
     "Core Data Types": [
-        {
+      {
+        type: "category",
+        label: "ZIO Effects",
+        items: [
+          "references/core/zio/zio",
+          {
             type: "category",
-            label: "ZIO Effects",
+            label: "Type Aliases",
             items: [
-                "references/core/zio/zio",
-                "references/core/zio/error-management",
-                "references/core/zio/uio",
-                "references/core/zio/urio",
-                "references/core/zio/task",
-                "references/core/zio/rio",
-                "references/core/zio/io",
+              "references/core/zio/zio",
+              "references/core/zio/uio",
+              "references/core/zio/urio",
+              "references/core/zio/task",
+              "references/core/zio/rio",
+              "references/core/zio/io",
             ]
-        },
-        "references/core/zioapp",
-        "references/core/runtime",
-        "references/core/exit",
-        "references/core/cause"
+          },
+          "references/core/zio/error-management",
+        ]
+      },
+      "references/core/zioapp",
+      "references/core/runtime",
+      "references/core/exit",
+      "references/core/cause"
     ],
     "Contextual Types": [
         "references/contextual/index",
