@@ -21,11 +21,11 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Core Data Types
 - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
-    + **[UIO](core/zio/type-aliases/uio.md)** — `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`.
-    + **[URIO](core/zio/type-aliases/urio.md)** — `URIO[R, A]` is a type alias for `ZIO[R, Nothing, A]`.
-    + **[Task](core/zio/type-aliases/task.md)** — `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`.
-    + **[RIO](core/zio/type-aliases/rio.md)** — `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`.
-    + **[IO](core/zio/type-aliases/io.md)** — `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
+    + **[UIO](core/zio/uio.md)** — `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`.
+    + **[URIO](core/zio/urio.md)** — `URIO[R, A]` is a type alias for `ZIO[R, Nothing, A]`.
+    + **[Task](core/zio/task.md)** — `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`.
+    + **[RIO](core/zio/rio.md)** — `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`.
+    + **[IO](core/zio/io.md)** — `IO[E, A]` is a type alias for `ZIO[Any, E, A]`.
 - **[ZIOApp](core/zioapp.md)** — `ZIOApp` and the `ZIOAppDefault` are entry points for ZIO applications.
 - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
 - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
