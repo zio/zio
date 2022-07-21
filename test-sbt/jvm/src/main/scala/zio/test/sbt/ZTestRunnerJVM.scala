@@ -41,25 +41,26 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
   )
 
-  def done(): String = {
-    shutdownHook.foreach(_.apply())
+  def done(): String =
+    shutdownHook.fold("") { hook =>
+      hook.apply()
 
-    val allSummaries = summaries.get
+      val allSummaries = summaries.get
 
-    val total  = allSummaries.map(_.total).sum
-    val ignore = allSummaries.map(_.ignore).sum
+      val total  = allSummaries.map(_.total).sum
+      val ignore = allSummaries.map(_.ignore).sum
 
-    val compositeSummary =
-      allSummaries.foldLeft(Summary.empty)(_.add(_))
+      val compositeSummary =
+        allSummaries.foldLeft(Summary.empty)(_.add(_))
 
-    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
+      val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
 
-    if (allSummaries.isEmpty || total == ignore)
-      s"${Console.YELLOW}No tests were executed${Console.RESET}"
-    else {
-      colored(renderedSummary)
+      if (allSummaries.isEmpty || total == ignore)
+        s"${Console.YELLOW}No tests were executed${Console.RESET}"
+      else {
+        colored(renderedSummary)
+      }
     }
-  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
