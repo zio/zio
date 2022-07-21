@@ -64,6 +64,10 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
         val expected = toBinaryString(bools, bits = 64, endianness)
         assert(actual)(equalTo(expected))
       }
+    },
+    test("hashcode") {
+      val actual = Chunk(false, true, false).toPackedByte.hashCode
+      assert(actual)(anything)
     }
   )
 
