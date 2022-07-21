@@ -29,10 +29,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     extends Runner {
 
   @volatile
-  var shutdownHook: () => Unit =
-    () => {
-      throw new Error("ZTestRunnerJVM.shutdownHook called before it was set")
-    }
+  var shutdownHook: Option[() => Unit] =
+    None
 
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
@@ -43,25 +41,26 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
   )
 
-  def done(): String = {
-    shutdownHook()
+  def done(): String =
+    shutdownHook.fold("") { hook =>
+      hook.apply()
 
-    val allSummaries = summaries.get
+      val allSummaries = summaries.get
 
-    val total  = allSummaries.map(_.total).sum
-    val ignore = allSummaries.map(_.ignore).sum
+      val total  = allSummaries.map(_.total).sum
+      val ignore = allSummaries.map(_.ignore).sum
 
-    val compositeSummary =
-      allSummaries.foldLeft(Summary.empty)(_.add(_))
+      val compositeSummary =
+        allSummaries.foldLeft(Summary.empty)(_.add(_))
 
-    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
+      val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
 
-    if (allSummaries.isEmpty || total == ignore)
-      s"${Console.YELLOW}No tests were executed${Console.RESET}"
-    else {
-      colored(renderedSummary)
+      if (allSummaries.isEmpty || total == ignore)
+        s"${Console.YELLOW}No tests were executed${Console.RESET}"
+      else {
+        colored(renderedSummary)
+      }
     }
-  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
@@ -85,7 +84,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val runtime: Runtime.Scoped[ExecutionEventSink] =
       zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.empty, Unsafe.unsafe)
 
-    shutdownHook = () => runtime.unsafe.shutdown()(Unsafe.unsafe)
+    shutdownHook = Some(() => runtime.unsafe.shutdown()(Unsafe.unsafe))
 
     defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
   }
