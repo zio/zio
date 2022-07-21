@@ -10,6 +10,8 @@ Instead of having endpoints for our resources, the GraphQL API only provides a s
 
 GraphQL supports three types of operations: **queries**, **mutations**, and **subscriptions**. In this tutorial, we are going to learn the foundation of GraphQL using _queries_. Once we learned that, we can easily write two other types of operations.
 
+The corresponding source code for this tutorial is available on [GitHub](https://github.com/zio/zio-quickstart-graphql-webservice). If you haven't read the [ZIO Quickstart: Building GraphQL Web Service](../quickstarts/graphql-webservice.md) yet, we recommend you to read it first and download and run the source code, before reading this tutorial.
+
 ## Installation
 
 In this tutorial, we will build a GraphQL API using _Caliban_, and in order to serve it, we will use the _ZIO HTTP_ library. So let's install the necessary dependencies by putting the following lines in the _build.sbt_ file:
