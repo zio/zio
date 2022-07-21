@@ -29,10 +29,8 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     extends Runner {
 
   @volatile
-  var shutdownHook: () => Unit =
-    () => {
-      throw new Error("ZTestRunnerJVM.shutdownHook called before it was set")
-    }
+  var shutdownHook: Option[() => Unit] =
+    None
 
   val summaries: AtomicReference[Vector[Summary]] = new AtomicReference(Vector.empty)
 
@@ -44,7 +42,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
   )
 
   def done(): String = {
-    shutdownHook()
+    shutdownHook.foreach(_.apply())
 
     val allSummaries = summaries.get
 
@@ -85,7 +83,7 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     val runtime: Runtime.Scoped[ExecutionEventSink] =
       zio.Runtime.unsafe.fromLayer(sharedLayer)(Trace.empty, Unsafe.unsafe)
 
-    shutdownHook = () => runtime.unsafe.shutdown()(Unsafe.unsafe)
+    shutdownHook = Some(() => runtime.unsafe.shutdown()(Unsafe.unsafe))
 
     defs.map(ZTestTask(_, testClassLoader, sendSummary, testArgs, runtime))
   }
