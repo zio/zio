@@ -15,7 +15,7 @@ module.exports = {
     "reference/index",
     {
       type: "category",
-      label: "Core Data Types",
+      label: "Core",
       collapsed: false,
       items: [
         {
