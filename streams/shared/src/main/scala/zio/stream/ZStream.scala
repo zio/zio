@@ -686,11 +686,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     mapChunks(Chunk.single)
 
   /**
-    * Performs the specified stream transformation with the chunk structure of
-    * the stream exposed.
-    */
-   def chunksWith[R1, E1, A1](f: ZStream[R, E, Chunk[A]] => ZStream[R1, E1, Chunk[A1]])(implicit trace: Trace): ZStream[R1, E1, A1] =
-     f(self.chunks).flattenChunks
+   * Performs the specified stream transformation with the chunk structure of
+   * the stream exposed.
+   */
+  def chunksWith[R1, E1, A1](f: ZStream[R, E, Chunk[A]] => ZStream[R1, E1, Chunk[A1]])(implicit
+    trace: Trace
+  ): ZStream[R1, E1, A1] =
+    f(self.chunks).flattenChunks
 
   /**
    * Performs a filter and map in a single step.
