@@ -231,6 +231,7 @@ module.exports = {
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
         "guides/tutorials/debug-a-zio-application",
         "guides/tutorials/build-a-restful-webservice",
+        "guides/tutorials/build-a-graphql-webservice",
       ],
       "Integration Guides": [
         "guides/interop/with-cats-effect",
