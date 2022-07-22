@@ -29,12 +29,13 @@ import java.util.concurrent.locks.LockSupport
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
 private final class ZScheduler extends Executor {
-  private[this] val poolSize    = java.lang.Runtime.getRuntime.availableProcessors
-  private[this] val cache       = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
-  private[this] val globalQueue = MutableConcurrentQueue.unbounded[Runnable]
-  private[this] val idle        = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
-  private[this] val state       = new AtomicInteger(poolSize << 16)
-  private[this] val workers     = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val poolSize           = java.lang.Runtime.getRuntime.availableProcessors
+  private[this] val cache              = MutableConcurrentQueue.unbounded[ZScheduler.Worker]
+  private[this] val globalQueue        = MutableConcurrentQueue.unbounded[Runnable]
+  private[this] val idle               = MutableConcurrentQueue.bounded[ZScheduler.Worker](poolSize)
+  private[this] val state              = new AtomicInteger(poolSize << 16)
+  private[this] val submittedLocations = new java.util.HashMap[Trace, Long]
+  private[this] val workers            = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -195,8 +196,10 @@ private final class ZScheduler extends Executor {
 
   private[this] def isBlocking(runnable: Runnable): Boolean =
     if (runnable.isInstanceOf[FiberRunnable]) {
-      val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
-      val location      = fiberRunnable.location
+      val fiberRunnable  = runnable.asInstanceOf[FiberRunnable]
+      val location       = fiberRunnable.location
+      val submittedCount = submittedLocations.getOrDefault(location, 0L)
+      submittedLocations.put(location, submittedCount + 1)
       blockingLocations.contains(location)
     } else {
       false
@@ -205,8 +208,9 @@ private final class ZScheduler extends Executor {
   private[this] def makeSupervisor(): ZScheduler.Supervisor =
     new ZScheduler.Supervisor {
       override def run(): Unit = {
-        var currentTime      = java.lang.System.currentTimeMillis()
-        val previousOpCounts = Array.fill(poolSize)(-1L)
+        var currentTime         = java.lang.System.currentTimeMillis()
+        val identifiedLocations = new java.util.HashMap[Trace, Long]()
+        val previousOpCounts    = Array.fill(poolSize)(-1L)
         while (!isInterrupted) {
           var workerId = 0
           while (workerId != poolSize) {
@@ -220,7 +224,12 @@ private final class ZScheduler extends Executor {
                   val fiberRunnable = currentRunnable.asInstanceOf[FiberRunnable]
                   val location      = fiberRunnable.location
                   if (location ne Trace.empty) {
-                    blockingLocations += location
+                    val identifiedCount = identifiedLocations.getOrDefault(location, 0L)
+                    identifiedLocations.put(location, identifiedCount + 1L)
+                    val submittedCount = submittedLocations.getOrDefault(location, 0L)
+                    if (submittedCount > 64 && identifiedCount >= submittedCount / 2) {
+                      blockingLocations += location
+                    }
                   }
                 }
                 previousOpCounts(workerId) = -1L
