@@ -11,8 +11,8 @@ module.exports = {
       "overview/overview_performance",
       "overview/overview_platforms"
     ],
-  "references-sidebar": [
-    "references/index",
+  "reference-sidebar": [
+    "reference/index",
     {
       type: "category",
       label: "Core Data Types",
@@ -20,7 +20,7 @@ module.exports = {
       items: [
         {
           type: "category",
-          link: { type: 'doc', id: 'references/core/zio/zio' },
+          link: { type: 'doc', id: 'reference/core/zio/zio' },
           label: "ZIO",
           items: [
             {
@@ -28,20 +28,20 @@ module.exports = {
               collapsed: true,
               label: "Type Aliases",
               items: [
-                "references/core/zio/uio",
-                "references/core/zio/urio",
-                "references/core/zio/task",
-                "references/core/zio/rio",
-                "references/core/zio/io",
+                "reference/core/zio/uio",
+                "reference/core/zio/urio",
+                "reference/core/zio/task",
+                "reference/core/zio/rio",
+                "reference/core/zio/io",
               ]
             },
-            "references/core/zio/error-management",
+            "reference/core/zio/error-management",
           ]
         },
-        "references/core/zioapp",
-        "references/core/runtime",
-        "references/core/exit",
-        "references/core/cause"
+        "reference/core/zioapp",
+        "reference/core/runtime",
+        "reference/core/exit",
+        "reference/core/cause"
       ]
     },
     {
@@ -49,29 +49,29 @@ module.exports = {
       label: "Contextual Types",
       items:
         [
-          "references/contextual/index",
-          "references/contextual/zenvironment",
+          "reference/contextual/index",
+          "reference/contextual/zenvironment",
           {
             type: "category",
             label: "ZIO Layers",
             items: [
-              "references/contextual/zlayer",
-              "references/contextual/rlayer",
-              "references/contextual/ulayer",
-              "references/contextual/layer",
-              "references/contextual/urlayer",
-              "references/contextual/tasklayer"
+              "reference/contextual/zlayer",
+              "reference/contextual/rlayer",
+              "reference/contextual/ulayer",
+              "reference/contextual/layer",
+              "reference/contextual/urlayer",
+              "reference/contextual/tasklayer"
             ]
           },
           {
             type: "category",
             label: "Built-in Services",
             items: [
-              "references/contextual/services/index",
-              "references/contextual/services/console",
-              "references/contextual/services/clock",
-              "references/contextual/services/random",
-              "references/contextual/services/system"
+              "reference/contextual/services/index",
+              "reference/contextual/services/console",
+              "reference/contextual/services/clock",
+              "reference/contextual/services/random",
+              "reference/contextual/services/system"
             ]
           }
         ]
@@ -84,61 +84,61 @@ module.exports = {
           type: "category",
           label: "ZIO Fibers",
           items: [
-            "references/fiber/index",
-            "references/fiber/fiber",
-            "references/fiber/fiberref",
-            "references/fiber/fiberid",
-            "references/fiber/fiberstatus"
+            "reference/fiber/index",
+            "reference/fiber/fiber",
+            "reference/fiber/fiberref",
+            "reference/fiber/fiberid",
+            "reference/fiber/fiberstatus"
           ]
         },
         {
           type: "category",
           label: "Synchronization",
           items: [
-            "references/sync/index",
-            "references/sync/reentrantlock",
-            "references/sync/countdownlatch",
-            "references/sync/cyclicbarrier",
-            "references/sync/concurrentmap",
-            "references/sync/concurrentset",
+            "reference/sync/index",
+            "reference/sync/reentrantlock",
+            "reference/sync/countdownlatch",
+            "reference/sync/cyclicbarrier",
+            "reference/sync/concurrentmap",
+            "reference/sync/concurrentset",
           ]
         },
         {
           type: "category",
           label: "Concurrency Primitives",
           items: [
-            "references/concurrency/index",
+            "reference/concurrency/index",
             {
               type: "category",
-              label: "Mutable References",
+              label: "Mutable Reference",
               items: [
-                "references/concurrency/ref",
-                "references/concurrency/refsynchronized",
+                "reference/concurrency/ref",
+                "reference/concurrency/refsynchronized",
               ]
             },
-            "references/concurrency/promise",
-            "references/concurrency/queue",
-            "references/concurrency/hub",
-            "references/concurrency/semaphore"
+            "reference/concurrency/promise",
+            "reference/concurrency/queue",
+            "reference/concurrency/hub",
+            "reference/concurrency/semaphore"
           ]
         },
         {
           type: "category",
           label: "STM",
           items: [
-            "references/stm/index",
-            "references/stm/stm",
-            "references/stm/tarray",
-            "references/stm/trandom",
-            "references/stm/tset",
-            "references/stm/tmap",
-            "references/stm/tref",
-            "references/stm/tpriorityqueue",
-            "references/stm/tpromise",
-            "references/stm/tqueue",
-            "references/stm/treentrantlock",
-            "references/stm/tsemaphore",
-            "references/stm/thub",
+            "reference/stm/index",
+            "reference/stm/stm",
+            "reference/stm/tarray",
+            "reference/stm/trandom",
+            "reference/stm/tset",
+            "reference/stm/tmap",
+            "reference/stm/tref",
+            "reference/stm/tpriorityqueue",
+            "reference/stm/tpromise",
+            "reference/stm/tqueue",
+            "reference/stm/treentrantlock",
+            "reference/stm/tsemaphore",
+            "reference/stm/thub",
           ]
         },
       ]
@@ -147,16 +147,16 @@ module.exports = {
       type: "category",
       label: "Resource Management",
       items: [
-        "references/resource/index",
-        "references/resource/scope",
-        "references/resource/zpool",
+        "reference/resource/index",
+        "reference/resource/scope",
+        "reference/resource/zpool",
       ]
     },
     {
       type: "category",
       label: "Streaming",
       items: [
-        "references/stream/index",
+        "reference/stream/index",
         {
           type: "category",
           label: "Main Components",
@@ -165,85 +165,85 @@ module.exports = {
               type: "category",
               label: "ZStream",
               items: [
-                "references/stream/zstream",
-                "references/stream/stream",
-                "references/stream/ustream",
+                "reference/stream/zstream",
+                "reference/stream/stream",
+                "reference/stream/ustream",
               ]
             },
             {
               type: "category",
               label: "ZPipeline",
               items: [
-                "references/stream/zpipeline",
+                "reference/stream/zpipeline",
               ]
             },
             {
               type: "category",
               label: "ZSink",
               items: [
-                "references/stream/zsink",
-                "references/stream/sink",
+                "reference/stream/zsink",
+                "reference/stream/sink",
               ]
             },
-            "references/stream/zchannel"
+            "reference/stream/zchannel"
           ]
         },
-        "references/stream/subscription-ref"
+        "reference/stream/subscription-ref"
       ]
     },
     {
       type: "category",
       label: "Metrics",
       items: [
-        "references/metrics/index",
+        "reference/metrics/index",
         {
           type: "category",
           label: "Metric Types",
           items: [
-            "references/metrics/counter",
-            "references/metrics/gauge",
-            "references/metrics/histogram",
-            "references/metrics/summary",
-            "references/metrics/setcount"
+            "reference/metrics/counter",
+            "reference/metrics/gauge",
+            "reference/metrics/histogram",
+            "reference/metrics/summary",
+            "reference/metrics/setcount"
           ]
         },
-        "references/metrics/metriclabel",
-        "references/metrics/jvm",
+        "reference/metrics/metriclabel",
+        "reference/metrics/jvm",
       ]
     },
     {
       type: "category",
       label: "Testing",
       items: [
-        "references/test/index",
-        "references/test/spec",
-        "references/test/assertion",
+        "reference/test/index",
+        "reference/test/spec",
+        "reference/test/assertion",
         {
           type: "category",
           label: "Test Services",
           items: [
-            "references/test/environment/index",
-            "references/test/environment/console",
-            "references/test/environment/clock",
-            "references/test/environment/random",
-            "references/test/environment/system",
-            "references/test/environment/live",
-            "references/test/environment/config",
-            "references/test/environment/sized",
+            "reference/test/environment/index",
+            "reference/test/environment/console",
+            "reference/test/environment/clock",
+            "reference/test/environment/random",
+            "reference/test/environment/system",
+            "reference/test/environment/live",
+            "reference/test/environment/config",
+            "reference/test/environment/sized",
           ]
         },
-        "references/test/test-aspect",
-        "references/test/gen",
+        "reference/test/test-aspect",
+        "reference/test/gen",
       ]
     },
     {
       type: "category",
       label: "Miscellaneous",
       items: [
-        "references/misc/chunk",
-        "references/misc/schedule",
-        "references/misc/supervisor",
-        "references/misc/zstate",
+        "reference/misc/chunk",
+        "reference/misc/schedule",
+        "reference/misc/supervisor",
+        "reference/misc/zstate",
       ]
     }
   ],

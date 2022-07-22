@@ -28,7 +28,7 @@ module.exports = {
       },
       items: [
         { to: 'overview/index', label: 'Overview', position: 'right' },
-        { to: 'references/index', label: 'References', position: 'right' },
+        { to: 'reference/index', label: 'Reference', position: 'right' },
         { to: 'guides/index', label: 'Guides', position: 'right' },
         { to: 'resources/index', label: 'Resources', position: 'right' },
         { to: 'about/index', label: 'About', position: 'right' },
