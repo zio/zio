@@ -47,27 +47,34 @@ module.exports = {
     {
       type: "category",
       label: "Contextual Types",
+      link: { type: "doc", id: "reference/contextual/index" },
       items:
         [
-          "reference/contextual/index",
           "reference/contextual/zenvironment",
           {
             type: "category",
             label: "ZIO Layers",
             items: [
               "reference/contextual/zlayer",
-              "reference/contextual/rlayer",
-              "reference/contextual/ulayer",
-              "reference/contextual/layer",
-              "reference/contextual/urlayer",
-              "reference/contextual/tasklayer"
+              {
+                type: "category",
+                collapsed: true,
+                label: "Type Aliases",
+                items: [
+                  "reference/contextual/rlayer",
+                  "reference/contextual/ulayer",
+                  "reference/contextual/layer",
+                  "reference/contextual/urlayer",
+                  "reference/contextual/tasklayer"
+                ]
+              }
             ]
           },
           {
             type: "category",
             label: "Built-in Services",
+            link: { type: "doc", id: "reference/contextual/services/index" },
             items: [
-              "reference/contextual/services/index",
               "reference/contextual/services/console",
               "reference/contextual/services/clock",
               "reference/contextual/services/random",
@@ -83,8 +90,8 @@ module.exports = {
         {
           type: "category",
           label: "ZIO Fibers",
+          link: { type: "doc", id: "reference/fiber/index" },
           items: [
-            "reference/fiber/index",
             "reference/fiber/fiber",
             "reference/fiber/fiberref",
             "reference/fiber/fiberid",
@@ -94,8 +101,8 @@ module.exports = {
         {
           type: "category",
           label: "Synchronization",
+          link: { type: "doc", id: "reference/sync/index" },
           items: [
-            "reference/sync/index",
             "reference/sync/reentrantlock",
             "reference/sync/countdownlatch",
             "reference/sync/cyclicbarrier",
@@ -106,8 +113,8 @@ module.exports = {
         {
           type: "category",
           label: "Concurrency Primitives",
+          link: { type: "doc", id: "reference/concurrency/index" },
           items: [
-            "reference/concurrency/index",
             {
               type: "category",
               label: "Mutable Reference",
@@ -125,8 +132,8 @@ module.exports = {
         {
           type: "category",
           label: "STM",
+          link: { type: "doc", id: "reference/stm/index" },
           items: [
-            "reference/stm/index",
             "reference/stm/stm",
             "reference/stm/tarray",
             "reference/stm/trandom",
@@ -146,8 +153,8 @@ module.exports = {
     {
       type: "category",
       label: "Resource Management",
+      link: { type: "doc", id: "reference/resource/index" },
       items: [
-        "reference/resource/index",
         "reference/resource/scope",
         "reference/resource/zpool",
       ]
@@ -155,8 +162,8 @@ module.exports = {
     {
       type: "category",
       label: "Streaming",
+      link: { type: "doc", id: "reference/stream/index" },
       items: [
-        "reference/stream/index",
         {
           type: "category",
           label: "Main Components",
@@ -194,8 +201,8 @@ module.exports = {
     {
       type: "category",
       label: "Metrics",
+      link: { type: "doc", id: "reference/metrics/index" },
       items: [
-        "reference/metrics/index",
         {
           type: "category",
           label: "Metric Types",
@@ -214,15 +221,15 @@ module.exports = {
     {
       type: "category",
       label: "Testing",
+      link: { type: "doc", id: "reference/test/index" },
       items: [
-        "reference/test/index",
         "reference/test/spec",
         "reference/test/assertion",
         {
           type: "category",
           label: "Test Services",
+          link: { type: "doc", id: "reference/test/environment/index" },
           items: [
-            "reference/test/environment/index",
             "reference/test/environment/console",
             "reference/test/environment/clock",
             "reference/test/environment/random",
