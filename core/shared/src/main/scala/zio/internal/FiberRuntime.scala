@@ -1102,7 +1102,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           case throwable: Throwable =>
             cur = if (isFatal(throwable)) {
               handleFatalError(throwable)
-            } else Exit.Failure(Cause.die(throwable))
+            } else ZIO.failCause(Cause.die(throwable))(lastTrace)
         }
       }
     }
