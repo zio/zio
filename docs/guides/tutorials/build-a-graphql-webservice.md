@@ -78,8 +78,6 @@ type Queries {
 Fortunately, we are not required to define the schema in GraphQL manually. Instead, we can use the _Caliban_ library which has a built-in facility to generate the schema from our data types defined in Scala:
 
 ```scala mdoc:silent
-import caliban.schema.Annotations.GQLDescription
-
 case class EmployeesArgs(role: Role)
 case class EmployeeArgs(name: String)
 
