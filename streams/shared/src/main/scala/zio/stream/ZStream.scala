@@ -3185,10 +3185,18 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self >>> ZPipeline.takeWhile(f)
 
   /**
-   * Adds an effect to consumption of every element of the stream.
+   * Adds an effect to consumption of every element of the stream. This destroys the chunk
+   * structure. For a version that preserves the chunks, see [[tapChunks()]].
    */
   def tap[R1 <: R, E1 >: E](f: A => ZIO[R1, E1, Any])(implicit trace: Trace): ZStream[R1, E1, A] =
     mapZIO(a => f(a).as(a))
+
+  /**
+   * Adds an effect to consumption of every element of the stream, preserving
+   * the chunk structure.
+   */
+  def tapChunks[R1 <: R, E1 >: E](f: Chunk[A] => ZIO[R1, E1, Any])(implicit trace: Trace): ZStream[R1, E1, A] =
+    mapChunksZIO(a => f(a).as(a))
 
   /**
    * Returns a stream that effectfully "peeks" at the failure of the stream.

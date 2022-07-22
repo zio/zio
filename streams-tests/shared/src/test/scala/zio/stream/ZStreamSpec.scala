@@ -3410,6 +3410,23 @@ object ZStreamSpec extends ZIOBaseSpec {
             )
           }
         ),
+        suite("tapChunks")(
+          test("tapChunks") {
+            for {
+              ref <- Ref.make(Chunk.empty[Chunk[Int]])
+              res <- ZStream.fromChunks(Chunk(1, 1), Chunk(2, 2)).tapChunks[Any, Nothing](as => ref.update(old => old ++ Chunk(as))).runCollect
+              allValues <- ref.get
+            } yield assert(res)(equalTo(Chunk(1, 1, 2, 2))) && assert(allValues)(equalTo(Chunk(Chunk(1, 1), Chunk(2, 2))))
+          },
+          test("preserves chunks") {
+            assertZIO(
+              ZStream(1, 2, 3)
+                .tapChunks(Function.const(ZIO.unit))
+                .chunks
+                .runCollect
+            )(equalTo(Chunk(Chunk(1, 2, 3))))
+          }
+        ),
         suite("tapError")(
           test("tapError") {
             for {
