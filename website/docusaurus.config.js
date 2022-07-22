@@ -9,6 +9,11 @@ const config = {
   organizationName: 'zio',
   projectName: 'zio',
   themeConfig: {
+    docs: {
+      sidebar: {
+        autoCollapseCategories: true,
+      },
+    },
     prism: {
       // In case we want to use one of the json packaged themes, we can simply require those 
       //theme: require('prism-react-renderer/themes/vsDark'),
