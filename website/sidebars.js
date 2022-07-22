@@ -295,6 +295,7 @@ module.exports = {
     {
       type: "category",
       label: "Migration Guides",
+      collapsed: false,
       items: [
         "guides/migrate/zio-2.x-migration-guide",
         "guides/migrate/from-cats-effect",
