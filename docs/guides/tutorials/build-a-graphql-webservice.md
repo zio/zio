@@ -135,6 +135,21 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+## Effectful Queries
+
+In the previous section, we used an in-memory data structure to store the data. But, in real-world applications we usually want to perform some kind of effectful queries to retrieve the data from the database. In such cases, we can use queries that return `ZIO` values:
+
+```diff
+case class Queries(
+-    employees: EmployeesArgs => List[Employee],
++    employees: EmployeesArgs => ZIO[UserRepo, Throwable, List[Employee]],
+-    employee: EmployeeArgs => Option[Employee]
+_    employee: EmployeeArgs => ZIO[UserRepo, Throwable, Option[Employee]]
+)
+```
+
+As we see, each query is a function that takes some arguments and returns a `ZIO` workflow.
+
 ## Running the GraphQL Client
 
 In this project, we have defined models of our employees with their names and roles. Then using GraphQL annotations, we asked Caliban to derive the GraphQL schema from these models.
