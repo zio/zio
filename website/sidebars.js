@@ -16,6 +16,7 @@ module.exports = {
     {
       type: "category",
       label: "Core Data Types",
+      collapsed: false,
       items: [
         {
           type: "category",
@@ -251,6 +252,7 @@ module.exports = {
     {
       type: "category",
       label: "Quickstart Guides",
+      collapsed: false,
       items: [
         "guides/quickstarts/hello-world",
         "guides/quickstarts/restful-webservice",
@@ -305,6 +307,7 @@ module.exports = {
     {
       type: "category",
       label: "Learning",
+      collapsed: false,
       items: [
         "resources/learning/articles",
         "resources/learning/videos",
@@ -317,6 +320,7 @@ module.exports = {
     {
       type: "category",
       label: "Ecosystem",
+      collapsed: false,
       items: [
         {
           type: "category",
