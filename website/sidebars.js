@@ -19,14 +19,14 @@ module.exports = {
     "Core Data Types": [
       {
         type: "category",
-        label: "ZIO Effects",
+        link: {type: 'doc', id: 'references/core/zio/zio'},
+        label: "ZIO",
         items: [
-          "references/core/zio/zio",
           {
             type: "category",
+            collapsed: true,
             label: "Type Aliases",
             items: [
-              "references/core/zio/zio",
               "references/core/zio/uio",
               "references/core/zio/urio",
               "references/core/zio/task",
