@@ -12,9 +12,6 @@ The following guides have been written to help you get started with ZIO with min
 2. [ZIO Quickstart: Building a RESTful Web Service](quickstarts/restful-webservice.md)
 3. [ZIO Quickstart: Building a GraphQL Web Service](quickstarts/graphql-webservice.md)
 4. [ZIO Quickstart: Building a gRPC Server and Client](https://scalapb.github.io/zio-grpc/docs/quickstart/)
-5. Getting Started With ZIO Streaming
-6. Getting Started With ZIO and ScalaJS
-7. Getting Started with a ZIO Application With a Persistent Layer
 
 ## Tutorial Guides
 
@@ -29,13 +26,6 @@ The following guides have been written to help you get started with ZIO with min
 9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
 10. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
 11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
-12. Building a Web Service Client
-13. Building a gRPC Service with its Client
-14. How to Build a Chat Client and Server using ZIO Streams?
-15. How to Monitor a ZIO Application by Implementing Custom Metrics
-16. How to Integrate ZIO With a Legacy JVM Application?
-17. How to Consume/Produce Data From/To a RabbitMQ Queue?
-18. How to Enable Tracing in ZIO and How to Use it?
 
 ## Integration Guides
 
