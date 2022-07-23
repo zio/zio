@@ -1446,9 +1446,10 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           leftCause      <- task.cause
           rightCause     <- task.mapError(identity).cause
-          leftStackTrace  = leftCause.trace.stackTrace.patch(1, Chunk.empty, 1)
-          rightStackTrace = rightCause.trace.stackTrace.patch(1, Chunk.empty, 1)
-        } yield assertTrue(leftStackTrace == rightStackTrace)
+          leftTrace  = leftCause.trace.stackTrace.head
+          rightTrace = rightCause.trace.stackTrace.head
+        } yield assertTrue(leftTrace == rightTrace)
+
       }
     ),
     suite("memoize")(
