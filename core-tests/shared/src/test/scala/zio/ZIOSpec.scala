@@ -1444,10 +1444,10 @@ object ZIOSpec extends ZIOBaseSpec {
       test("preserves the cause") {
         val task = ZIO.fail("fail")
         for {
-          leftCause      <- task.cause
-          rightCause     <- task.mapError(identity).cause
-          leftTrace  = leftCause.trace.stackTrace.head
-          rightTrace = rightCause.trace.stackTrace.head
+          leftCause  <- task.cause
+          rightCause <- task.mapError(identity).cause
+          leftTrace   = leftCause.trace.stackTrace.head
+          rightTrace  = rightCause.trace.stackTrace.head
         } yield assertTrue(leftTrace == rightTrace)
 
       }
