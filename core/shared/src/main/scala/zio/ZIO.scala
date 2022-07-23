@@ -945,7 +945,7 @@ sealed trait ZIO[-R, +E, +A]
    * function. This can be used to lift a "smaller" error into a "larger" error.
    */
   final def mapError[E2](f: E => E2)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, A] =
-    self.foldCauseZIO(c => ZIO.refailCause(c.map(f)), a => ZIO.succeedNow(a))
+    self.mapErrorCause(_.map(f))
 
   /**
    * Returns an effect with its full cause of failure mapped using the specified
