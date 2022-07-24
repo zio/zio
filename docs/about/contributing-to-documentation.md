@@ -77,7 +77,7 @@ npm run start --watch
 
 It will be served on [localhost](http://127.0.0.1:3000/) address.
 
-5. When we are finished with the documentation, we can commit those changes and [create a pull request] (contributing.md#create-a-pull-request).
+5. When we are finished with the documentation, we can commit those changes and [create a pull request](contributing.md#create-a-pull-request).
 
 
 ## Giving Feedback
