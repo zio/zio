@@ -377,7 +377,7 @@ trait ServiceB {
 
 }
 
-class FooServiceImpl(a: ServiceA, b: ServiceB) {
+class FooServiceImpl(a: ServiceA, b: ServiceB) extends FooService {
 
 }
 ```
@@ -1237,7 +1237,7 @@ object HttpResponse {
 
   def ok(msg: String): HttpResponse = HttpResponse(200, msg)
 
-  def error(msg: String): HttpResponse = HttpResponse(800, msg)
+  def error(msg: String): HttpResponse = HttpResponse(500, msg)
 }
 
 trait HttpServer {
