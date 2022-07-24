@@ -85,6 +85,17 @@ module.exports = {
     },
     {
       type: "category",
+      label: "State Management",
+      link: { type: "doc", id: "reference/state/index" },
+      items:
+        [
+          "reference/state/zstate",
+          "reference/state/ref",
+          "reference/state/fiberref",
+        ]
+    },
+    {
+      type: "category",
       label: "Concurrency",
       items: [
         {
