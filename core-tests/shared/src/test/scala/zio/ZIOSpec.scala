@@ -1440,6 +1440,18 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(task.exit)(fails(isSubtype[NumberFormatException](anything)))
       }
     ),
+    suite("mapError")(
+      test("preserves the cause") {
+        val task = ZIO.fail("fail")
+        for {
+          leftCause  <- task.cause
+          rightCause <- task.mapError(identity).cause
+          leftTrace   = leftCause.trace.stackTrace.head
+          rightTrace  = rightCause.trace.stackTrace.head
+        } yield assertTrue(leftTrace == rightTrace)
+
+      }
+    ),
     suite("memoize")(
       test("non-memoized returns new instances on repeated calls") {
         val io = Random.nextString(10)
