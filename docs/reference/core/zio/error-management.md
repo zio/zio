@@ -2688,7 +2688,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Sometimes the [`ZIO#mapErrorCause`](#map-and-flatmap-on-error-channel) operator is a better choice when we just want to map the underlying cause without exposing the cause.
+Sometimes the [`ZIO#mapErrorCause`](#map-and-flatmap-on-the-error-channel) operator is a better choice when we just want to map the underlying cause without exposing the cause.
 
 ## Best Practices
 

@@ -11,7 +11,7 @@ An `MVar[A]` is a mutable location that is either empty or contains a value of t
 - As a synchronized mutable variable
 - As a channel, with `take` and `put` as `receive` and `send`
 
-They were introduced in the paper [Concurrent Haskell](#http://research.microsoft.com/~simonpj/papers/concurrent-haskell.ps.gz) by Simon Peyton Jones, Andrew Gordon and, Sigbjorn Finne.
+They were introduced in the paper [Concurrent Haskell](http://research.microsoft.com/~simonpj/papers/concurrent-haskell.ps.gz) by Simon Peyton Jones, Andrew Gordon and, Sigbjorn Finne.
 
 ## Creation
 
