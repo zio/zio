@@ -1930,7 +1930,7 @@ Despite the drawbacks of `ZManaged`, the benefits of concurrent resource safety 
 
 The concept of scopes has been implicit in ZIO since before ZIO 1.0, including in `ZManaged`, `FiberRef`, interruptibility, and thread pool shifting. In each of these cases we "do something" at the beginning of the scope (e.g. acquire a resource, set a `FiberRef`, change the interruptibility of the thread pool) and "do something else" (release the resource, restore the `FiberRef`, restore the interruptibility or thread pool) at the end of the scope.
 
-However, scopes have not been first-class values, which has required the use of other data types such as `ZManaged` to represent this concept. With ZIO 2.0, all of this is radically changing for the better! Thanks to other ZIO 2.0 innovations, including the [removal of `Has`](#has) (which bakes a compositional environment directly into the ZIO data type), we have found a way to delete `ZManaged` entirely, while preserving all of its benefits!
+However, scopes have not been first-class values, which has required the use of other data types such as `ZManaged` to represent this concept. With ZIO 2.0, all of this is radically changing for the better! Thanks to other ZIO 2.0 innovations, including the [removal of `Has`](#deletion-of-has-data-type) (which bakes a compositional environment directly into the ZIO data type), we have found a way to delete `ZManaged` entirely, while preserving all of its benefits!
 
 ZIO 2.x addresses this by introducing the concept of a Scope as a first class value:
 
