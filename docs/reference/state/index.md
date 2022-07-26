@@ -23,10 +23,15 @@ def length[T](list: List[T]): Int = {
 }
 ```
 
-In functional programming we avoid using variables to keep track of state. Instead, we use other techniques. For example, in recursive style, we use function arguments to pass the state to the next function:
+This is a very common pattern in imperative programming. But it can be source of bugs, specially when the state is shared between multiple components. So it is better to avoid using variables to keep track of the state.
+
+In functional programming we avoid using variables to keep track of state. Instead, we use other techniques. For example, we use function arguments to pass the state to the next function, using recursive calls:
 
 ```scala mdoc:compile-only
+import scala.annotation.tailrec
+
 def length[T](list: List[T]): Int = {
+  @tailrec
   def loop(list: List[T], count: Int): Int = {
     list match {
       case Nil => count
@@ -39,6 +44,8 @@ def length[T](list: List[T]): Int = {
 ```
 
 In imperative programming, when we have some I/O operation, we can also use a variable to keep track of the state:
+
+The same pattern can be used when we have some I/O operation. Assume we have a function that tries to read names from the input, until the user enters the "q" command indicating the end of the input. We can write the function like this:
 
 ```scala mdoc:compile-only
 import scala.io.StdIn._
@@ -55,7 +62,7 @@ def getNames: List[String] = {
 } 
 ```
 
-Using the previous pattern, we can eliminate the need to use a variable:
+Using the previous pattern, we can eliminate the need to use variables:
 
 ```scala mdoc:compile-only
 import scala.io.StdIn._
@@ -88,9 +95,26 @@ def inputNames: ZIO[Any, String, List[String]] = {
 }
 ```
 
-It is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. All the operations on the `Ref` data type are effectful. So when we read or write to a `Ref`, we are performing an effectful operation.
+it is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. all the operations on the `Ref` data type are effectful. so when we read or write to a `ref`, we are performing an effectful operation.
 
-So let's try to solve the problem, using the `Ref` data type:
+so let's try to so```scala mdoc:compile-only
+def inputNames: ZIO[Any, String, List[String]] = {
+  def loop(names: List[String]): ZIO[Any, String, List[String]] = {
+    Console.readLine("Please enter a name or `q` to exit: ").orDie.flatMap {
+      case "q" =>
+        ZIO.succeed(names)
+      case name =>
+        loop(names appended name)
+    }
+  }
+
+  loop(List.empty[String])
+}
+```
+
+it is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. all the operations on the `Ref` data type are effectful. so when we read or write to a `ref`, we are performing an effectful operation.
+
+so let's try to solve the problem, using the `Ref` data type:
 
 ```scala mdoc:compile-only
 import zio._
@@ -107,3 +131,24 @@ def getNames: ZIO[Any, String, List[String]] =
         } *> ref.get
     }
 ```
+
+First, we created a mutable reference to the initial state value, which is an empty list. Then, we read from the console repeatedly until the user enters the `q` command. Finally, we got the value of the reference and returned it.
+lve the problem, using the `Ref` data type:
+
+```scala mdoc:compile-only
+import zio._
+
+def getNames: ZIO[Any, String, List[String]] =
+  Ref.make(List.empty[String])
+    .flatMap { ref =>
+      Console
+        .readLine("Please enter a name or 'q' to exit: ")
+        .orDie
+        .repeatWhileZIO {
+          case "q" => ZIO.succeed(false)
+          case name => ref.update(_ appended name).as(true)
+        } *> ref.get
+    }
+```
+
+First, we created a mutable reference to the initial state value, which is an empty list. Then, we read from the console repeatedly until the user enters the "q" command. Finally, we got the value of the reference and returned it.
