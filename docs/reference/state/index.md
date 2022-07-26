@@ -69,6 +69,7 @@ Using the previous pattern, we can eliminate the need to use variables:
 
 ```scala mdoc:compile-only
 import scala.io.StdIn._
+import scala.annotation.tailrec
 
 def getNames: Seq[String] = {
   @tailrec
@@ -84,6 +85,8 @@ def getNames: Seq[String] = {
 But, there is also a problem with the previous solution. The `getName` is not referentially transparent. In order to make it free of side effects, we can use `ZIO` to describe any effectual operation:
 
 ```scala mdoc:compile-only
+import zio._
+
 def inputNames: ZIO[Any, String, List[String]] = {
   def loop(names: List[String]): ZIO[Any, String, List[String]] = {
     Console.readLine("Please enter a name or `q` to exit: ").orDie.flatMap {
