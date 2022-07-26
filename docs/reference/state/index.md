@@ -13,6 +13,9 @@ Here are some examples of some states:
 - **List of Users**— In a web application, we can have a list of users, and we can add, remove, or modify users. They are changing over time, and we want to keep track of any changes to users.
 - When we are iterating over a list of items, we might need to keep track of the number of items we have seen so far. So during the calculation of the length of the list, we need an intermediate state that records the number of items we have seen so far.
 
+
+## Maintaining The State Through The Function Arguments
+
 In imperative programming, we usually use a variable to keep track of the state:
 
 ```scala mdoc:compile-only
@@ -95,45 +98,11 @@ def inputNames: ZIO[Any, String, List[String]] = {
 }
 ```
 
-it is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. all the operations on the `Ref` data type are effectful. so when we read or write to a `ref`, we are performing an effectful operation.
+## Maintaining The State Through The Functional Mutable Reference (`Ref`)
 
-so let's try to so```scala mdoc:compile-only
-def inputNames: ZIO[Any, String, List[String]] = {
-  def loop(names: List[String]): ZIO[Any, String, List[String]] = {
-    Console.readLine("Please enter a name or `q` to exit: ").orDie.flatMap {
-      case "q" =>
-        ZIO.succeed(names)
-      case name =>
-        loop(names appended name)
-    }
-  }
+It is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. All the operations on the `Ref` data type are effectful. So when we are reading from or writing to a `Ref`, we are performing an effectful operation.
 
-  loop(List.empty[String])
-}
-```
-
-it is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. all the operations on the `Ref` data type are effectful. so when we read or write to a `ref`, we are performing an effectful operation.
-
-so let's try to solve the problem, using the `Ref` data type:
-
-```scala mdoc:compile-only
-import zio._
-
-def getNames: ZIO[Any, String, List[String]] =
-  Ref.make(List.empty[String])
-    .flatMap { ref =>
-      Console
-        .readLine("Please enter a name or 'q' to exit: ")
-        .orDie
-        .repeatWhileZIO {
-          case "q" => ZIO.succeed(false)
-          case name => ref.update(_ appended name).as(true)
-        } *> ref.get
-    }
-```
-
-First, we created a mutable reference to the initial state value, which is an empty list. Then, we read from the console repeatedly until the user enters the `q` command. Finally, we got the value of the reference and returned it.
-lve the problem, using the `Ref` data type:
+So let's try to solve the problem, using the `Ref` data type:
 
 ```scala mdoc:compile-only
 import zio._
