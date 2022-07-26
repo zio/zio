@@ -355,7 +355,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts seven random variables.
    */
-  def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, In](
+  def check[R <: TestConfig, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -375,7 +375,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts eight random variables.
    */
-  def check[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, I, In](
+  def check[R <: TestConfig, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -481,7 +481,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts seven random variables.
    */
-  def checkAll[R <: TestConfig, R1 <: R, A, B, C, D, F, G, H, In](
+  def checkAll[R <: TestConfig, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -501,7 +501,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts eight random variables.
    */
-  def checkAll[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I, In](
+  def checkAll[R <: TestConfig, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -524,7 +524,7 @@ package object test extends CompileVariants {
    * random variable. This is useful for deterministic `Gen` that
    * comprehensively explore all possibilities in a given domain.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, In](rv: Gen[R, A], parallelism: Int)(
+  def checkAllPar[R <: TestConfig, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -536,7 +536,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts two random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
+  def checkAllPar[R <: TestConfig, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -548,7 +548,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts three random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, In](
+  def checkAllPar[R <: TestConfig, E, A, B, C, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -565,7 +565,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts four random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, In](
+  def checkAllPar[R <: TestConfig, E, A, B, C, D, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -583,7 +583,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts five random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, In](
+  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -602,7 +602,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, In](
+  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -622,7 +622,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, In](
+  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -643,7 +643,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R <: TestConfig, R1 <: R, E, A, B, C, D, F, G, H, I, In](
+  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
