@@ -88,3 +88,22 @@ def inputNames: ZIO[Any, String, List[String]] = {
 }
 ```
 
+It is sometimes awkward to pass the state using function parameters. In such cases, we can use the `Ref` data type, which is a purely functional description of a mutable reference. All the operations on the `Ref` data type are effectful. So when we read or write to a `Ref`, we are performing an effectful operation.
+
+So let's try to solve the problem, using the `Ref` data type:
+
+```scala mdoc:compile-only
+import zio._
+
+def getNames: ZIO[Any, String, List[String]] =
+  Ref.make(List.empty[String])
+    .flatMap { ref =>
+      Console
+        .readLine("Please enter a name or 'q' to exit: ")
+        .orDie
+        .repeatWhileZIO {
+          case "q" => ZIO.succeed(false)
+          case name => ref.update(_ appended name).as(true)
+        } *> ref.get
+    }
+```
