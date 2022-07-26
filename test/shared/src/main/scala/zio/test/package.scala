@@ -37,14 +37,13 @@ import scala.language.implicitConversions
  * {{{
  *   import zio.test._
  *   import zio.Clock.nanoTime
- *   import Assertion.isGreaterThan
  *
- *   object MyTest extends DefaultRunnableSpec {
+ *   object MyTest extends ZIOSpecDefault {
  *     def spec = suite("clock")(
  *       test("time is non-zero") {
  *         for {
  *           time <- Live.live(nanoTime)
- *         } yield assertTrue(time >= 0)
+ *         } yield assertTrue(time >= 0L)
  *       }
  *     )
  *   }
