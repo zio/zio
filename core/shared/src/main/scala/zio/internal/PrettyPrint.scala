@@ -1,8 +1,7 @@
-package zio.test
+package zio.internal
 
 import zio.internal.ansi.AnsiStringOps
-import zio.{Chunk, NonEmptyChunk}
-import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.{Chunk, NonEmptyChunk, PrettyPrintVersionSpecific}
 
 /**
  * PrettyPrint will attempt to render a Scala value as the syntax used to create

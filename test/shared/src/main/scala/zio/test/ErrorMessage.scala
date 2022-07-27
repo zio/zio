@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.internal.PrettyPrint
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.render.LogLine.{Fragment, Message}
 import zio.test.render._

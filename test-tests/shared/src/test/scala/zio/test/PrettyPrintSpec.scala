@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.internal.PrettyPrint
 import zio.internal.macros.StringUtils.StringOps
 
 object PrettyPrintSpec extends ZIOBaseSpec {

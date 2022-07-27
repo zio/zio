@@ -2,6 +2,7 @@ package zio.test.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
+import zio.internal.PrettyPrint
 import zio.internal.ansi.AnsiStringOps
 import zio.test.diff.{Diff, DiffResult}
 

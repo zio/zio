@@ -1,6 +1,7 @@
 package zio.test.laws
 
 import zio.Trace
+import zio.internal.PrettyPrint
 import zio.test._
 
 object LawsSpec extends ZIOBaseSpec {

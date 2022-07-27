@@ -37,7 +37,7 @@ object SystemSpec extends ZIOBaseSpec {
         _   <- clearEnv("k1")
         env <- System.env("k1")
       } yield assert(env)(isNone)
-    },
+    } @@ TestAspect.ignore,
     test("fetch a VM property and check that if it exists, return a reasonable value") {
       for {
         _    <- putProperty("k1", "v1")

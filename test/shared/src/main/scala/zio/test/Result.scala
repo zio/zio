@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.Chunk
+import zio.internal.PrettyPrint
 import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.TestArrow.Span

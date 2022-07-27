@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{FiberScope, Platform}
+import zio.internal.{FiberScope, Platform, PrettyPrint}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
@@ -443,6 +443,11 @@ sealed trait ZIO[-R, +E, +A]
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     self
       .tap(value => ZIO.succeedNow(println(value)))
+      .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $error")))
+
+  final def debugPrettyPrint(implicit trace: Trace): ZIO[R, E, A] =
+    self
+      .tap(value => ZIO.succeedNow(println(PrettyPrint(value))))
       .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $error")))
 
   /**

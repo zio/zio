@@ -1,9 +1,9 @@
 package zio.test.diff
 
+import zio.internal.PrettyPrint
 import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ConsoleUtils._
-import zio.test.PrettyPrint
 
 sealed trait DiffResult {
   self =>

@@ -1,5 +1,6 @@
 package zio.test
 
+import zio.internal.PrettyPrint
 import zio.internal.ansi.AnsiStringOps
 import zio.internal.stacktracer.SourceLocation
 import zio.stacktracer.TracingImplicits.disableAutoTrace

@@ -4176,6 +4176,14 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(value)(equalTo("Controlling side-effect of function passed to promise"))
         }
       }
+    ),
+    suite("debugPrettyPrint")(
+      test("experiments") (
+        for {
+          _ <- ZIO.succeed(List(List("Apple", "Bear", "Correspondence"), List(1, 2, 3))).debugPrettyPrint
+          _ <- ZIO.succeed(Map(("Bill", 1), ("Kit", 2), ("Adam", 3))).debugPrettyPrint
+        } yield assertCompletes
+      )
     )
   )
 
