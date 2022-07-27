@@ -524,6 +524,16 @@ object ZLayerSpec extends ZIOBaseSpec {
         for {
           exit <- ZIO.scoped(combined.build).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
+      } @@ nonFlaky,
+      test("fiberRef changes are memoized") {
+        for {
+          fiberRef    <- FiberRef.make(false)
+          layer1       = ZLayer.scoped(fiberRef.locallyScoped(true))
+          layer2       = ZLayer.fromZIO(fiberRef.get)
+          layer3       = layer1 ++ (layer1 >>> layer2)
+          environment <- layer3.build
+          value        = environment.get[Boolean]
+        } yield assertTrue(value)
       } @@ nonFlaky
     )
 }
