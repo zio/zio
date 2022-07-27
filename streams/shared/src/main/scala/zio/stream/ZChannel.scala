@@ -639,7 +639,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                          _     <- queue.offer(p.await.map(Right(_)))
                          _ <- permits.withPermit {
                                 latch.succeed(()) *>
-                                  (errorSignal.await raceFirst f(outElem))
+                                  ZIO.uninterruptibleMask { restore =>
+                                    restore(errorSignal.await) raceFirst restore(f(outElem))
+                                  }
                                     .tapErrorCause(errorSignal.failCause)
                                     .intoPromise(p)
                               }.fork
