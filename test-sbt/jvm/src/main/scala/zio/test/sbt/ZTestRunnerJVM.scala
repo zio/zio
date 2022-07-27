@@ -41,38 +41,26 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
   )
 
-  def done(): String = {
-    val allSummaries = summaries.get
+  def done(): String =
+    shutdownHook.fold("") { hook =>
+      hook.apply()
 
-    val total  = allSummaries.map(_.total).sum
-    val ignore = allSummaries.map(_.ignore).sum
+      val allSummaries = summaries.get
 
-    val compositeSummary =
-      allSummaries.foldLeft(Summary.empty)(_.add(_))
+      val total  = allSummaries.map(_.total).sum
+      val ignore = allSummaries.map(_.ignore).sum
 
-    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
+      val compositeSummary =
+        allSummaries.foldLeft(Summary.empty)(_.add(_))
 
-    val renderedResults =
-      if (allSummaries.nonEmpty && total != ignore)
+      val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
+
+      if (allSummaries.isEmpty || total == ignore)
+        s"${Console.YELLOW}No tests were executed${Console.RESET}"
+      else {
         colored(renderedSummary)
-      else if (ignore > 0)
-        s"${Console.YELLOW}All eligible tests are currently ignored ${Console.RESET}"
-
-    if (allSummaries.nonEmpty)
-      println(renderedResults)
-    else ()
-
-    shutdownHook.foreach(_.apply())
-
-    shutdownHook match {
-      case Some(hook) =>
-        s"Completed non-forked tests"
-      case None =>
-        s"Completed forked tests"
+      }
     }
-
-    "Completed tests" // TODO just use this when finished demo'ing
-  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray
