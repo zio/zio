@@ -151,3 +151,5 @@ def inputNames: ZIO[Any, String, List[String]] = {
   loop(List.empty[String])
 }
 ```
+
+On this page, we have learned how to have stateful computations in our programs using recursion. However, this approach is not suitable for concurrent programs, where multiple fibers want to change the state of the program concurrently. Let's move on to the next page, where we will discuss stateful computation over concurrent programs.
