@@ -30,10 +30,10 @@ The environment type parameter is a _composite type parameter_, because sometime
 Although this analogy is not precise, a ZIO effect can be thought of as a function:
 
 ```scala
-ZEnvironment[R] => Either[Cause[E], A]
+R => Either[E, A]
 ```
 
-This function, which requires a `ZEnvironment[R]` (which is a ZIO environment that contains context values of different types), might produce either a `Cause[E]`, which represents a failure of type `E` (augmented with additional metadata, such as stack trace and secondary failures), or an `A`, representing success. 
+This function requires an `R` and produces a failure of type `E` or a success value of type `A`. 
 
 ZIO effects are not actually functions, of course, because they model complex computations and interactions, which may be asynchronous, concurrent, or resourceful.
 
