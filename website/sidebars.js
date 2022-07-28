@@ -268,7 +268,6 @@ module.exports = {
         "reference/misc/chunk",
         "reference/misc/schedule",
         "reference/misc/supervisor",
-        "reference/misc/zstate",
       ]
     }
   ],
