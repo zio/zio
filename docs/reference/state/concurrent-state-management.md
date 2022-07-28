@@ -1,6 +1,7 @@
 ---
 id: concurrent
-title: "Concurrent State Management"
+title: "Concurrent State Managementt"
+sidebar_label: "Concurrent"
 ---
 
 One of the common use cases for `Ref` is to manage the state of applications, especially in concurrent environments. We can use the `Ref` data type, which is a purely functional description of a mutable reference.

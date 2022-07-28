@@ -1,6 +1,7 @@
 ---
 id: sequential 
 title: "Sequential State Management"
+sidebar_label: "Sequential"
 ---
 
 This is a very common pattern to use variables to keep track of the state. For example, to calculate the length of a list, we can store intermediate results inside the `count` variable:
@@ -64,7 +65,7 @@ case class State[T](count: Int, remainder: List[T])
 
 Now we are ready to write the state transformation function called `loop` as below:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 case class State[T](count: Int, remainder: List[T])
 
 def loop[T](state: State[T]): State[T] = {

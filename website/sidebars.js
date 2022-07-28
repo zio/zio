@@ -89,9 +89,9 @@ module.exports = {
       link: { type: "doc", id: "reference/state/index" },
       items:
         [
+          "reference/state/sequential",
+          "reference/state/concurrent",
           "reference/state/zstate",
-          "reference/state/ref",
-          "reference/state/fiberref",
         ]
     },
     {
