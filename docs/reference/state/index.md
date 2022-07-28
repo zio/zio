@@ -16,8 +16,8 @@ Here are some examples of some states:
 In imperative programming, one common way to store the state is using a variable. So we can update their values in place. But this approach can introduce bugs, especially when the state is shared between multiple components. So it is better to avoid using variables to keep track of the state.
 
 From the aspect of concurrency, we have two general approaches to maintaining the state in functional programming:
-1. **Sequential**— In this approach, we can update the state by passing the new state to the next component. This is a very easy way to maintain the state, but it can't be used in a concurrent environment, because we can't share the state between multiple fibers.
+1. **[Sequential](sequential-state-management.md)**— In this approach, we can update the state by passing the new state to the next component. This is a very easy way to maintain the state, but it can't be used in a concurrent environment, because we can't share the state between multiple fibers.
 
-2. **Concurrent**— ZIO has a powerful data type called `Ref`, which is the description of a mutable reference. We can use `Ref` to share the state between multiple fibers, e.g. producer and consumer components.
+2. **[Concurrent](concurrent-state-management.md)**— ZIO has a powerful data type called `Ref`, which is the description of a mutable reference. We can use `Ref` to share the state between multiple fibers, e.g. producer and consumer components.
 
 In this section, we will talk about these two approaches.
