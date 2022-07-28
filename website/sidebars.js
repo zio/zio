@@ -85,6 +85,25 @@ module.exports = {
     },
     {
       type: "category",
+      label: "State Management",
+      link: { type: "doc", id: "reference/state/index" },
+      items:
+        [
+          "reference/state/sequential",
+          {
+            type: "category",
+            label: "Concurrent",
+            link: { type: "doc", id: "reference/state/concurrent" },
+            items:
+              [
+                "reference/state/fiberref",
+                "reference/state/zstate",
+              ]
+          },
+        ]
+    },
+    {
+      type: "category",
       label: "Concurrency",
       items: [
         {
@@ -93,7 +112,6 @@ module.exports = {
           link: { type: "doc", id: "reference/fiber/index" },
           items: [
             "reference/fiber/fiber",
-            "reference/fiber/fiberref",
             "reference/fiber/fiberid",
             "reference/fiber/fiberstatus"
           ]
@@ -250,7 +268,6 @@ module.exports = {
         "reference/misc/chunk",
         "reference/misc/schedule",
         "reference/misc/supervisor",
-        "reference/misc/zstate",
       ]
     }
   ],

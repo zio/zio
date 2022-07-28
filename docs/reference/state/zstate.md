@@ -3,7 +3,7 @@ id: zstate
 title: "ZState"
 ---
 
-`ZState[S]` models a value of type `S` that can be read from and written to during the execution of an effect. This is a higher-level construct built on top of [`FiberRef`](../fiber/fiberref.md) and the environment type to support using ZIO where we might have traditionally used state monad transformers.
+`ZState[S]` models a value of type `S` that can be read from and written to during the execution of an effect. This is a higher-level construct built on top of [`FiberRef`](fiberref.md) and the environment type to support using ZIO where we might have traditionally used state monad transformers.
 
 Let's try a simple example of using `ZState`:
 
