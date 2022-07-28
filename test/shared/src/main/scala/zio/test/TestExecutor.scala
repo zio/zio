@@ -153,7 +153,7 @@ object TestExecutor {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
             } *> processEvent(topLevelFlush)
           }
-          summary <- summary.get // .debug("Summary at end of Test execution")
+          summary <- summary.get
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
