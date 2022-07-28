@@ -46,6 +46,25 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Scheduling",
+      link: { type: "doc", id: "reference/schedule/index" },
+      items: [
+        {
+          type: "category",
+          label: "Repetition and Retrying",
+          link: { type: "doc", id: "reference/schedule/repetition-and-retrying" },
+          items: [
+               "reference/schedule/repetition",
+               "reference/schedule/retrying"
+          ]
+        },
+        "reference/schedule/built-in-schedules",
+        "reference/schedule/combinators",
+        "reference/schedule/examples",
+      ]
+    },
+    {
+      type: "category",
       label: "Contextual Types",
       link: { type: "doc", id: "reference/contextual/index" },
       items:

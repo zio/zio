@@ -122,7 +122,6 @@ IO supports 5 types of Metrics:
 ## Miscellaneous
 
 - **[Chunk](misc/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
-- **[Schedule](misc/schedule.md)**— `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
 - **[Supervisor](misc/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
 - **[ZState](misc/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
 
