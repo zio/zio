@@ -114,9 +114,10 @@ object TestExecutor {
                         )
                     _ <- summary.update(_.add(event)) *> sink.process(event) *> eventHandlerZ.handle(event)
                   } yield ()).catchAllCause { e =>
+                    println("Should be boom: " + e.prettyPrint)
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     ConsoleRenderer.render(e, labels).foreach(println)
-                    summary.update(_.add(event)) *> sink.process(event)
+                    summary.update(_.add(event)) *> sink.process(event) *> ZIO.debug("hm?") *> eventHandlerZ.handle(event)
                   }
               }
 
@@ -146,7 +147,7 @@ object TestExecutor {
                 event
               ) *> eventHandlerZ.handle(event)
           }
-          summary <- summary.get
+          summary <- summary.get.debug("Summary at end of Test execution")
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
