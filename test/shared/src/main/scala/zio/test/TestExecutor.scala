@@ -45,9 +45,19 @@ object TestExecutor {
           summary  <- Ref.make[Summary](Summary.empty)
           topParent = SuiteId.global
           _ <- {
+            def processEvent(
+              event: ExecutionEvent
+                           ) =
+              summary.update(
+                _.add(event)
+              ) *>
+                sink.process(
+                  event
+                ) *> eventHandlerZ.handle(event)
+
             def loop(
-              labels: List[String],
-              spec: Spec[Scope, E],
+                      labels: List[String],
+                      spec: Spec[Scope, E],
               exec: ExecutionStrategy,
               ancestors: List[SuiteId],
               sectionId: SuiteId
@@ -68,12 +78,8 @@ object TestExecutor {
                     .catchAllCause { e =>
                       val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
-                      summary.update(
-                        _.add(event)
-                      ) *>
-                        sink.process(
-                          event
-                        ) *> eventHandlerZ.handle(event)
+
+                      processEvent(event)
                     }
 
                 case Spec.MultipleCase(specs) =>
@@ -82,7 +88,7 @@ object TestExecutor {
                       newMultiSectionId <- SuiteId.newRandom
                       newAncestors       = sectionId :: ancestors
                       start              = ExecutionEvent.SectionStart(labels, newMultiSectionId, newAncestors)
-                      _                 <- sink.process(start) *> eventHandlerZ.handle(start)
+                      _                 <- processEvent(start)
                       end                = ExecutionEvent.SectionEnd(labels, newMultiSectionId, newAncestors)
                       _ <-
                         restore(
@@ -91,16 +97,16 @@ object TestExecutor {
                           )
                         )
                           .ensuring(
-                            sink.process(end) *> eventHandlerZ.handle(end)
+                            processEvent(end)
                           )
                     } yield ()
                   )
                 case Spec.TestCase(
                       test,
                       staticAnnotations: TestAnnotationMap
-                    ) =>
-                  (for {
-                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
+                    ) => {
+                  val testResultZ  = (for {
+                    result <- ZIO.withClock(ClockLive)(test.timed.either)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent
@@ -112,13 +118,17 @@ object TestExecutor {
                           duration,
                           sectionId
                         )
-                    _ <- summary.update(_.add(event)) *> sink.process(event) *> eventHandlerZ.handle(event)
-                  } yield ()).catchAllCause { e =>
-                    println("Should be boom: " + e.prettyPrint)
+                  } yield event)
+                    .catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
-                    ConsoleRenderer.render(e, labels).foreach(println)
-                    summary.update(_.add(event)) *> sink.process(event) *> ZIO.debug("hm?") *> eventHandlerZ.handle(event)
+                    ConsoleRenderer.render(e, labels).foreach(cr => println("CR: " + cr))
+                    ZIO.succeed(event)
                   }
+                  for {
+                    testResult <- testResultZ
+                    _ <- processEvent(testResult)
+                  } yield ()
+                }
               }
 
             val scopedSpec =
@@ -127,7 +137,7 @@ object TestExecutor {
               )).annotated
                 .provideSomeLayer[R](freshLayerPerSpec)
                 .provideLayerShared(sharedSpecLayer.tapErrorCause { e =>
-                  sink.process(
+                  processEvent(
                     ExecutionEvent.RuntimeFailure(
                       SuiteId(-1),
                       List("Top level layer construction failure. No tests will execute."),
@@ -137,17 +147,14 @@ object TestExecutor {
                   )
                 })
 
-            val event = ExecutionEvent.TopLevelFlush(
+            val topLevelFlush = ExecutionEvent.TopLevelFlush(
               topParent
             )
             ZIO.scoped {
               loop(List.empty, scopedSpec, defExec, List.empty, topParent)
-            } *>
-              sink.process(
-                event
-              ) *> eventHandlerZ.handle(event)
+            } *> processEvent(topLevelFlush)
           }
-          summary <- summary.get.debug("Summary at end of Test execution")
+          summary <- summary.get // .debug("Summary at end of Test execution")
         } yield summary).provideLayer(sinkLayer)
 
       private def extractAnnotations(result: Either[TestFailure[E], TestSuccess]) =
