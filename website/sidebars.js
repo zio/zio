@@ -96,7 +96,7 @@ module.exports = {
             link: { type: "doc", id: "reference/state/concurrent" },
             items:
               [
-                "reference/fiber/fiberref",
+                "reference/state/fiberref",
                 "reference/state/zstate",
               ]
           },
