@@ -4,6 +4,14 @@ title: "Concurrent State Managementt"
 sidebar_label: "Concurrent"
 ---
 
+In concurrent programming, we can categorize state management into two general approaches:
+
+1. **Global Shared State**- ZIO provides the `Ref` data type for managing global states that are shared across all fibers and can be updated and accessed concurrently.
+
+2. **Fiber-local State**— ZIO provides two data types called `Fiberref` and `ZState` that can be used to maintain the state in a concurrent environment, but each fiber has its own state. Their states are not shared between other fibers. This prevents them from clobbering each other's state.
+
+## Global Shared State
+
 One of the common use cases for `Ref` is to manage the state of applications, especially in concurrent environments. We can use the `Ref` data type, which is a purely functional description of a mutable reference.
 
 > **Note:**
@@ -136,3 +144,9 @@ object MainApp extends ZIOAppDefault {
     } yield ()
 }
 ```
+
+## Fiber-local State
+
+Both the `FiberRef` and `ZState` data types are state management tools that are scoped to a certain fiber. Their values are only accessible within the fiber that runs them. 
+
+We have a separate page for the [`FiberRef`](fiberref.md) and [`ZState`](zstate.md) data types which explain how to use them.

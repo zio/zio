@@ -90,8 +90,16 @@ module.exports = {
       items:
         [
           "reference/state/sequential",
-          "reference/state/concurrent",
-          "reference/state/zstate",
+          {
+            type: "category",
+            label: "Concurrent",
+            link: { type: "doc", id: "reference/state/concurrent" },
+            items:
+              [
+                "reference/fiber/fiberref",
+                "reference/state/zstate",
+              ]
+          },
         ]
     },
     {
@@ -104,7 +112,6 @@ module.exports = {
           link: { type: "doc", id: "reference/fiber/index" },
           items: [
             "reference/fiber/fiber",
-            "reference/fiber/fiberref",
             "reference/fiber/fiberid",
             "reference/fiber/fiberstatus"
           ]
