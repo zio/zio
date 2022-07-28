@@ -55,6 +55,10 @@ def getNames: ZIO[Any, String, List[String]] =
 
 First, we created a mutable reference to the initial state value, which is an empty list. Then, we read from the console repeatedly until the user enters the "q" command. Finally, we got the value of the reference and returned it.
 
+> **Note:**
+>
+> All the operations on the `Ref` data type are effectful. So when we are reading from or writing to a `Ref`, we are performing an effectful operation.
+
 Now that we have learned how to use the `Ref` data type, we can use it to manage the state concurrently. For example, assume while we are reading from the console, we have another fiber that is trying to update the state from a different source:
 
 ```scala mdoc:compile-only
@@ -79,10 +83,6 @@ def getNames: ZIO[Any, String, List[String]] =
     v <- ref.get
   } yield v
 ```
-
-> **Note:**
->
-> All the operations on the `Ref` data type are effectful. So when we are reading from or writing to a `Ref`, we are performing an effectful operation.
 
 ## Counter Example
 
@@ -110,13 +110,29 @@ import zio._
 object MainApp extends ZIOAppDefault {
   def run =
     for {
-      counter <- Counter.make
-      _ <- counter.inc
-      _ <- counter.inc
-      _ <- counter.dec
-      _ <- counter.inc
-      value <- counter.get
-      _ <- ZIO.debug(s"This counter has a value of $value.")
+      c <- Counter.make
+      _ <- c.inc
+      _ <- c.inc
+      _ <- c.dec
+      _ <- c.inc
+      v <- c.get
+      _ <- ZIO.debug(s"This counter has a value of $v.")
+    } yield ()
+}
+```
+
+We can use this counter in a concurrent environment, e.g. in a RESTful API to count the number of requests. But for just an example, let's concurrently update the counter:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      c <- Counter.make
+      _ <- c.inc <&> c.inc <&> c.dec <&> c.inc
+      v <- c.get
+      _ <- ZIO.debug(s"This counter has a value of $v.")
     } yield ()
 }
 ```
