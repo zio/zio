@@ -55,6 +55,31 @@ def getNames: ZIO[Any, String, List[String]] =
 
 First, we created a mutable reference to the initial state value, which is an empty list. Then, we read from the console repeatedly until the user enters the "q" command. Finally, we got the value of the reference and returned it.
 
+Now that we have learned how to use the `Ref` data type, we can use it to manage the state concurrently. For example, assume while we are reading from the console, we have another fiber that is trying to update the state from a different source:
+
+```scala mdoc:compile-only
+import zio._
+
+def getNames: ZIO[Any, String, List[String]] =
+  for {
+    ref <- Ref.make(List.empty[String])
+    f1 <- Console
+      .readLine("Please enter a name or 'q' to exit: ")
+      .orDie
+      .repeatWhileZIO {
+        case "q"  => ZIO.succeed(false)
+        case name => ref.update(_ appended name).as(true)
+      }.fork 
+      f2 <- ZIO.foreachDiscard(Seq("John", "Jane", "Joe", "Tom")) { name =>
+        ref.update(_ appended name) *> ZIO.sleep(1.second)
+      }
+      .fork
+    _ <- f1.join
+    _ <- f2.join
+    v <- ref.get
+  } yield v
+```
+
 > **Note:**
 >
 > All the operations on the `Ref` data type are effectful. So when we are reading from or writing to a `Ref`, we are performing an effectful operation.
