@@ -47,7 +47,7 @@ object TestExecutor {
           _ <- {
             def processEvent(
               event: ExecutionEvent
-                           ) =
+            ) =
               summary.update(
                 _.add(event)
               ) *>
@@ -56,8 +56,8 @@ object TestExecutor {
                 ) *> eventHandlerZ.handle(event)
 
             def loop(
-                      labels: List[String],
-                      spec: Spec[Scope, E],
+              labels: List[String],
+              spec: Spec[Scope, E],
               exec: ExecutionStrategy,
               ancestors: List[SuiteId],
               sectionId: SuiteId
@@ -105,8 +105,8 @@ object TestExecutor {
                       test,
                       staticAnnotations: TestAnnotationMap
                     ) => {
-                  val testResultZ  = (for {
-                    result <- ZIO.withClock(ClockLive)(test.timed.either)
+                  val testResultZ = (for {
+                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent
@@ -118,15 +118,14 @@ object TestExecutor {
                           duration,
                           sectionId
                         )
-                  } yield event)
-                    .catchAllCause { e =>
+                  } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     ConsoleRenderer.render(e, labels).foreach(cr => println("CR: " + cr))
                     ZIO.succeed(event)
                   }
                   for {
                     testResult <- testResultZ
-                    _ <- processEvent(testResult)
+                    _          <- processEvent(testResult)
                   } yield ()
                 }
               }

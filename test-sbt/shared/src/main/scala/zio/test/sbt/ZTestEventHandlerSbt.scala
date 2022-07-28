@@ -9,15 +9,14 @@ class ZTestEventHandlerSbt(eventHandler: EventHandler, taskDef: TaskDef) extends
     event match {
       case evt @ ExecutionEvent.Test(_, _, _, _, _, _) =>
         ZIO.succeed(eventHandler.handle(ZTestEvent.convertEvent(evt, taskDef)))
-      case ExecutionEvent.SectionStart(_, _, _)      => ZIO.unit
-      case ExecutionEvent.SectionEnd(_, _, _)        => ZIO.unit
-      case ExecutionEvent.TopLevelFlush(_)           => ZIO.unit
+      case ExecutionEvent.SectionStart(_, _, _) => ZIO.unit
+      case ExecutionEvent.SectionEnd(_, _, _)   => ZIO.unit
+      case ExecutionEvent.TopLevelFlush(_)      => ZIO.unit
       case ExecutionEvent.RuntimeFailure(id, labelsReversed, failure, ancestors) =>
         val (e, annotations) = failure match {
           case TestFailure.Assertion(result, annotations) => ???
-          case TestFailure.Runtime(cause, annotations) => (cause.dieOption, annotations)
+          case TestFailure.Runtime(cause, annotations)    => (cause.dieOption, annotations)
         }
-
 
         val zTestEvent = ZTestEvent(
           fullyQualifiedName = taskDef.fullyQualifiedName(),
