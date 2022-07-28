@@ -57,6 +57,12 @@ trait Runtime[+R] { self =>
     }
 
   /**
+   * Access the loggers provided by application
+   */
+  def providedLoggers: Set[ZLogger[String, Any]] =
+    fiberRefs.get(FiberRef.currentLoggers).map(_ -- Runtime.defaultLoggers).getOrElse(Set.empty)
+
+  /**
    * The [[zio.RuntimeFlags]] that will be used for all effects executed by this
    * [[zio.Runtime]].
    */
