@@ -136,6 +136,7 @@ def MyInterface {
 +    def doSomething()(implicit unsafe: Unsafe): Unit
 +  }
 }
+```
 
 ## Deletion of Type Alias Companion Objects
 
