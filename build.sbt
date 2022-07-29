@@ -398,7 +398,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
         Seq("-P:silencer:globalFilters=[zio.stacktracer.TracingImplicits.disableAutoTrace]")
     }
   )
-  .jvmSettings(mimaSettings(failOnProblem = false))
+  .jvmSettings(mimaSettings(failOnProblem = true))
   .nativeSettings(nativeSettings)
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)

@@ -4405,18 +4405,32 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an iterator that may potentially throw exceptions
    */
+  def fromIteratorZIO[R, A](iterator: => ZIO[R, Throwable, Iterator[A]])(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] =
+    fromIteratorZIO(iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from an iterator that may potentially throw exceptions
+   */
   def fromIteratorZIO[R, A](
     iterator: => ZIO[R, Throwable, Iterator[A]],
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[R, Throwable, A] =
     fromZIO(iterator).flatMap(fromIterator(_, chunkSize))
 
   /**
    * Creates a stream from a Java iterator that may throw exceptions
    */
+  def fromJavaIterator[A](iterator: => java.util.Iterator[A])(implicit trace: Trace): ZStream[Any, Throwable, A] =
+    fromJavaIterator(iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from a Java iterator that may throw exceptions
+   */
   def fromJavaIterator[A](
     iterator: => java.util.Iterator[A],
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Throwable, A] =
     fromIterator(
       {
@@ -4432,9 +4446,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a scoped iterator
    */
+  def fromJavaIteratorScoped[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] =
+    fromJavaIteratorScoped[R, A](iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from a scoped iterator
+   */
   def fromJavaIteratorScoped[R, A](
     iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]],
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int
   )(implicit
     trace: Trace
   ): ZStream[R, Throwable, A] =
@@ -4443,9 +4465,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java iterator
    */
+  def fromJavaIteratorSucceed[A](iterator: => java.util.Iterator[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
+    fromJavaIteratorSucceed(iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from a Java iterator
+   */
   def fromJavaIteratorSucceed[A](
     iterator: => java.util.Iterator[A],
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Nothing, A] =
     fromIteratorSucceed(
       {
@@ -4461,9 +4489,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java iterator that may potentially throw exceptions
    */
+  def fromJavaIteratorZIO[R, A](iterator: => ZIO[R, Throwable, java.util.Iterator[A]])(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] =
+    fromJavaIteratorZIO(iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from a Java iterator that may potentially throw exceptions
+   */
   def fromJavaIteratorZIO[R, A](
     iterator: => ZIO[R, Throwable, java.util.Iterator[A]],
-    chunkSize: Int = DefaultChunkSize
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[R, Throwable, A] =
     fromZIO(iterator).flatMap(fromJavaIterator(_, chunkSize))
 
