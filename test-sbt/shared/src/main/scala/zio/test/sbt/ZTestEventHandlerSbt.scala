@@ -26,12 +26,12 @@ class ZTestEventHandlerSbt(eventHandler: EventHandler, taskDef: TaskDef) extends
           case TestFailure.Assertion(_, _) => ZIO.unit // Assertion failures all come through Execution.Test path above
           case TestFailure.Runtime(cause, annotations) =>
             val zTestEvent = ZTestEvent(
-              fullyQualifiedName = taskDef.fullyQualifiedName(),
-              selector = taskDef.selectors().head,
-              status = Status.Failure,
-              maybeThrowable = cause.dieOption,
-              duration = annotations.get(TestAnnotation.timing).toMillis,
-              fingerprint = ZioSpecFingerprint
+              taskDef.fullyQualifiedName(),
+              taskDef.selectors().head,
+              Status.Failure,
+              cause.dieOption,
+              annotations.get(TestAnnotation.timing).toMillis,
+              ZioSpecFingerprint
             )
             ZIO.succeed(eventHandler.handle(zTestEvent))
         }
