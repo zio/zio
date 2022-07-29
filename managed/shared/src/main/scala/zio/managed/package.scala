@@ -386,9 +386,17 @@ package object managed extends ZManagedCompatPlatformSpecific {
     /**
      * Creates a stream from a managed iterator
      */
+    def fromJavaIteratorManaged[R, A](iterator: => ZManaged[R, Throwable, java.util.Iterator[A]])(implicit
+      trace: Trace
+    ): ZStream[R, Throwable, A] =
+      fromJavaIteratorManaged(iterator, ZStream.DefaultChunkSize)
+
+    /**
+     * Creates a stream from a managed iterator
+     */
     def fromJavaIteratorManaged[R, A](
       iterator: => ZManaged[R, Throwable, java.util.Iterator[A]],
-      chunkSize: Int = ZStream.DefaultChunkSize
+      chunkSize: Int
     )(implicit
       trace: Trace
     ): ZStream[R, Throwable, A] =
