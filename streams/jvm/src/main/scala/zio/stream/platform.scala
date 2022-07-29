@@ -327,36 +327,45 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStream[A](stream: => java.util.stream.Stream[A])(implicit
-    trace: Trace
-  ): ZStream[Any, Throwable, A] =
+  final def fromJavaStream[A](
+    stream: => java.util.stream.Stream[A],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  )(implicit trace: Trace): ZStream[Any, Throwable, A] =
     ZStream.fromJavaIteratorScoped(
-      ZIO.acquireRelease(ZIO.attempt(stream))(stream => ZIO.succeed(stream.close())).map(_.iterator())
+      ZIO.acquireRelease(ZIO.attempt(stream))(stream => ZIO.succeed(stream.close())).map(_.iterator()),
+      chunkSize
     )
 
   /**
    * Creates a stream from a scoped Java stream
    */
   final def fromJavaStreamScoped[R, A](
-    stream: => ZIO[Scope with R, Throwable, java.util.stream.Stream[A]]
+    stream: => ZIO[Scope with R, Throwable, java.util.stream.Stream[A]],
+    chunkSize: Int = ZStream.DefaultChunkSize
   )(implicit trace: Trace): ZStream[R, Throwable, A] =
-    ZStream.scoped[R](stream).flatMap(ZStream.fromJavaStream(_))
+    ZStream.scoped[R](stream).flatMap(ZStream.fromJavaStream(_, chunkSize))
 
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStreamSucceed[R, A](stream: => java.util.stream.Stream[A])(implicit
+  final def fromJavaStreamSucceed[R, A](
+    stream: => java.util.stream.Stream[A],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  )(implicit
     trace: Trace
   ): ZStream[R, Nothing, A] =
-    ZStream.fromJavaIteratorSucceed(stream.iterator())
+    ZStream.fromJavaIteratorSucceed(stream.iterator(), chunkSize)
 
   /**
    * Creates a stream from a Java stream
    */
-  final def fromJavaStreamZIO[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
+  final def fromJavaStreamZIO[R, A](
+    stream: => ZIO[R, Throwable, java.util.stream.Stream[A]],
+    chunkSize: Int = ZStream.DefaultChunkSize
+  )(implicit
     trace: Trace
   ): ZStream[R, Throwable, A] =
-    ZStream.fromZIO(stream).flatMap(ZStream.fromJavaStream(_))
+    ZStream.fromZIO(stream).flatMap(ZStream.fromJavaStream(_, chunkSize))
 
   /**
    * Create a stream of accepted connection from server socket Emit socket
