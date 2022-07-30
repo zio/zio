@@ -49,15 +49,8 @@ module.exports = {
       label: "Scheduling",
       link: { type: "doc", id: "reference/schedule/index" },
       items: [
-        {
-          type: "category",
-          label: "Repetition and Retrying",
-          link: { type: "doc", id: "reference/schedule/repetition-and-retrying" },
-          items: [
-               "reference/schedule/repetition",
-               "reference/schedule/retrying"
-          ]
-        },
+        "reference/schedule/repetition",
+        "reference/schedule/retrying"
         "reference/schedule/built-in-schedules",
         "reference/schedule/combinators",
         "reference/schedule/examples",
@@ -267,7 +260,6 @@ module.exports = {
       label: "Miscellaneous",
       items: [
         "reference/misc/chunk",
-        "reference/misc/schedule",
         "reference/misc/supervisor",
         "reference/misc/zstate",
       ]
