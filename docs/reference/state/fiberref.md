@@ -19,6 +19,62 @@ for {
 } yield v == 10
 ```
 
+## Motivation
+
+Whenever we have some kind of scoped information or context, and we don't want to use the ZIO environment to store it, we can use `FiberRef` to store it.
+
+To illustrate this, let's try to find a solution to the _Structured Logging_ problem. In structured logging, we tend to attach contextual information to log messages, such as user id, correlation id, log level, and so on.
+
+So assume we have written the following code:
+
+```scala mdoc:compile-only
+import zio._
+
+for {
+  _ <- Logging.log("Hello World!")
+  _ <- ZIO.foreachParDiscard(List("Jane", "John")) { name =>
+    Logging.logAnnotate("name", name) {
+      for {
+        _ <- Logging.log(s"Received request")
+        fiberId <- ZIO.fiberId.map(_.ids.head)
+        _ <- Logging.logAnnotate("fiber_id", s"$fiberId")(
+          Logging.log("Processing request")
+        )
+        _ <- Logging.log("Finished processing request")
+      } yield ()
+    }
+  }
+  _ <- Logging.log("All requests processed")
+} yield ()
+```
+
+We would like to see the following log output:
+
+```scala
+Hello World!
+[name=Jane] Received request
+[name=John] Received request
+[name=Jane] [fiber_id=7] Processing request
+[name=John] [fiber_id=8] Processing request
+[name=John] Finished processing request
+[name=Jane] Finished processing request
+All requests processed
+```
+
+In the above code, we have two users, `Jane` and `John`, and we want to handle some operations on each user, concurrently. When we perform concurrent operations, we would like to have a way to associate each concurrent operation with its corresponding user and fiber id. So when we log messages, we have all the information available for a specific event.
+
+In order to do this, we need a context-aware logging service. This logging service needs to have a **state** that is a place to store annotations. This state can be accessed and modified **concurrently** by multiple fibers. And the important part is that each fiber should have its own isolated copy of the state, so when a fiber modifies the state, it doesn't clobber the state of other fibers.
+
+Until now, we can categorize our requirements into two parts:
+- We need a mechanism to carry some contextual information, without explicitly passing it around.
+- We need a mechanism to update the state in an isolated fashion, where each fiber can update the state without affecting the state of other fibers.
+
+One solution is to use the ZIO environment to store the state. It addresses the first requirement, very well. ZIO environment is a nice place to store the contextual states. And to make the state isolated between fibers, we can reintroduce the new state to the environment instead of updating the environment globally.
+
+But this solution is not very flexible, because this brings type safety over the contextual data types. So any change to the type of contextual data needs a change to the whole program.
+
+The other solution is to use `FiberRef`. FiberRef is a nice way to store the contextual states and make them isolated. Any state maintained by a `FiberRef` will be isolated between fibers. Also, a nice thing about `FiberRef` is that we do not require to place the state in the environment. 
+
 ## Operations
 
 `FiberRef[A]` has an API almost identical to `Ref[A]`. It includes well-known methods such as:
