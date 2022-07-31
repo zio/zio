@@ -58,20 +58,21 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
       else if (ignore > 0)
         s"${Console.YELLOW}All eligible tests are currently ignored ${Console.RESET}"
 
+    // We eagerly print out the info here, rather than returning it
+    // from this function as a workaround for this bug when running
+    // tests in a forked JVM:
+    //    https://github.com/sbt/sbt/issues/3510
     if (allSummaries.nonEmpty)
       println(renderedResults)
     else ()
 
+    // If tests are forked, this will only be relevant in the forked
+    // JVM, and will not be set in the original JVM.
     shutdownHook.foreach(_.apply())
 
-    shutdownHook match {
-      case Some(hook) =>
-        s"Completed non-forked tests"
-      case None =>
-        s"Completed forked tests"
-    }
-
-    "Completed tests" // TODO just use this when finished demo'ing
+    // Does not try to return a real summary, because we have already
+    // printed this info directly to the console.
+    "Completed tests"
   }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
