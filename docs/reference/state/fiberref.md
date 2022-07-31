@@ -106,7 +106,7 @@ object Logging {
     } yield (r)
   }
 
-  def log(line: String): ZIO[Annotation, Nothing, Unit] = {
+  def log({
     ZIO.service[Annotation].flatMap {
       case annotation if annotation.isEmpty => 
         Console.printLine(line).orDie
@@ -135,7 +135,7 @@ case class Logging private (ref: FiberRef[Map[String, String]]) {
       zio: ZIO[R, E, A]
   ): ZIO[R, E, A] = ref.locallyWith(_ + (key -> value))(zio)
 
-  def log(line: String): UIO[Unit] = {
+  def log({
     ref.get.flatMap {
       case annotation if annotation.isEmpty => Console.printLine(line).orDie
       case annotation =>
@@ -191,7 +191,7 @@ In ZIO we have several use cases for `FiberRef`:
 
 ```scala mdoc:compile-only
 import zio._
-object ParallelismExample extends ZIOAppDefault {
+object MainApp extends ZIOAppDefault {
   def myJob(name: String) =
     ZIO.foreachParDiscard(1 to 3)(i =>
       ZIO.debug(s"The $name-$i job started") *> ZIO.sleep(2.second)
@@ -208,6 +208,46 @@ object ParallelismExample extends ZIOAppDefault {
       } yield ()
     )
 }
+```
+
+2. Using `ZIOAspect.annotated` we can annotate the effect with some contextual information, e.g. the `correlation_id`. This information will be stored inside a `FiberRef`, which will be propagated to all fibers that are created from the same parent fiber. Each fiber will have its own set of annotations. When we log inside a fiber, the logging service will use the fiber's specific annotations to create the log message:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def handleRequest(request: String) =
+    for {
+      _ <- ZIO.log(s"Received request.")
+      _ <- ZIO.unit // do something with the request
+      _ <- ZIO.log(s"Finished processing request")
+    } yield ()
+
+  def run =
+    for {
+      _ <- ZIO.log("Hello World!")
+      _ <- ZIO.foreachParDiscard(List(("req1", "1"), ("req2", "2"), ("req3", "3"))){ case (req, id) =>
+        handleRequest(req) @@ ZIOAspect.annotated("correlation_id", id)
+      }
+      _ <- ZIO.log("Goodbye!")
+    } yield ()
+
+}
+```
+
+Here is the output (removed extra columns for better readability):
+
+```
+```scala
+message="Hello World!"
+message="Received request." correlation_id=2
+message="Received request." correlation_id=1
+message="Received request." correlation_id=3
+message="Finished processing request." correlation_id=3
+message="Finished processing request." correlation_id=1
+message="Finished processing request." correlation_id=2
+message="Goodbye!"
 ```
 
 ## Operations
