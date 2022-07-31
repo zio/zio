@@ -2228,6 +2228,24 @@ val taken: UIO[Chunk[Int]] = for {
 
 ## ZIO Test
 
+### ZSpec
+
+The `ZSpec` data type has been renamed to `Spec`.
+
+| ZIO 1.x | ZIO 2.x |
+|---------|---------|
+| `ZSpec` | `Spec`  |
+
+So without any special effort, whenever we use `ZSpec` we should change it to `Spec`, e.g.:
+
+```diff
+- val myspec: ZSpec[Any, Nothing] =
++ val myspec: Spec[Any, Nothing] =
+  test("my spec") {
+    assertTrue(true)
+  }
+```
+
 ### Composable Test Apps
 
 In ZIO 2.x, the `DefaultRunnableSpec` deprecated, so in order to write tests, we should extend the `ZIOSpecDefault` abstract class. Due to this change, executable tests can be composed, similar to `ZIOAppDefault`:
