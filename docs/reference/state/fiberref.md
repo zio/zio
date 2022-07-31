@@ -182,6 +182,34 @@ object FiberRefLoggingExample extends ZIOAppDefault {
 >
 > In the above solution, if we replace the `FiberRef` with `Ref`, the program will not work properly, because the `Ref` is not isolated. The `Ref` will be shared between all fibers, so each fiber clobbers the other fibers' state.
 
+## Use Cases
+
+Whenever we have some kind of scoped information or context, we can think about `FiberRef` as a way to store that information.
+
+In ZIO we have several use cases for `FiberRef`:
+1. Whenever we use `ZIO.withParallelism`, we can specify the parallelism factor for a region of code. So this information will be stored inside a `FiberRef`, without any need to pass it around all effects explicitly. When we exit the region, the parallelism factor will be restored to the original value:
+
+```scala mdoc:compile-only
+import zio._
+object ParallelismExample extends ZIOAppDefault {
+  def myJob(name: String) =
+    ZIO.foreachParDiscard(1 to 3)(i =>
+      ZIO.debug(s"The $name-$i job started") *> ZIO.sleep(2.second)
+    )
+
+  def run =
+    ZIO.withParallelismUnbounded(
+      for {
+        _ <- myJob("foo")
+        _ <- ZIO.debug("------------------")
+        _ <- ZIO.withParallelism(1)(myJob("bar"))
+        _ <- ZIO.debug("------------------")
+        _ <- myJob("baz")
+      } yield ()
+    )
+}
+```
+
 ## Operations
 
 `FiberRef[A]` has an API almost identical to `Ref[A]`. It includes well-known methods such as:
