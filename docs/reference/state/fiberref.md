@@ -95,11 +95,11 @@ object Logging {
 
   def logAnnotate[R, E, A](key: String, value: String)(
     zio: ZIO[R with Annotation, E, A]
-  ): ZIO[R with Annotation, E, Unit] = {
+  ): ZIO[R with Annotation, E, A] = {
     for {
-      annotations <- ZIO.service[Annotation]
-      _ <- zio.provideSomeLayer[R](ZLayer.succeed(annotations.updated(key, value)))
-    } yield ()
+      s <- ZIO.service[Annotation]
+      r <- zio.provideSomeLayer[R](ZLayer.succeed(s.updated(key, value)))
+    } yield (r)
   }
 
   def log(line: String): ZIO[Annotation, Nothing, Unit] = {
