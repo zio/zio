@@ -104,13 +104,12 @@ object Logging {
 
   def log(line: String): ZIO[Annotation, Nothing, Unit] = {
     ZIO.service[Annotation].flatMap {
-      case annotation if annotation.isEmpty => Console.printLine(line).orDie
+      case annotation if annotation.isEmpty => 
+        Console.printLine(line).orDie
       case annotation =>
-        Console
-          .printLine(
-            s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $line"
-          )
-          .orDie
+        val message =
+          s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $line"
+        Console.printLine(message).orDie
     }
   }
 }
@@ -118,7 +117,60 @@ object Logging {
 
 But this solution is not very flexible, because this brings type safety over the contextual data types. So any change to the type of contextual data needs a change to the whole program.
 
-The other solution is to use `FiberRef`. FiberRef is a nice way to store the contextual states and make them isolated. Any state maintained by a `FiberRef` will be isolated between fibers. Also, a nice thing about `FiberRef` is that we do not require to place the state in the environment. 
+The other solution is to use `FiberRef`. FiberRef is a nice way to store the contextual states and make them isolated. Any state maintained by a `FiberRef` will be isolated between fibers. Also, a nice thing about `FiberRef` is that we do not require to place the state in the environment.
+
+Let's see how to use `FiberRef` to implement the logging service:
+
+```scala mdoc:silent
+import zio._
+
+case class Logging private (ref: FiberRef[Map[String, String]]) {
+  def logAnnotate[R, E, A](key: String, value: String)(
+      zio: ZIO[R, E, A]
+  ): ZIO[R, E, A] = ref.locallyWith(_ + (key -> value))(zio)
+
+  def log(line: String): UIO[Unit] = {
+    ref.get.flatMap {
+      case annotation if annotation.isEmpty => Console.printLine(line).orDie
+      case annotation =>
+        val message =
+          s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $line"
+        Console.printLine(message).orDie
+    }
+  }
+}
+
+object Logging {
+  def make() = FiberRef.make(Map.empty[String, String]).map(new Logging(_))
+}
+```
+
+Now we can write a program that logs some information:
+
+```scala mdoc:compile-only
+import zio._
+
+object FiberRefLoggingExample extends ZIOAppDefault {
+  def run =
+    for {
+      logging <- Logging.make()
+      _ <- logging.log("Hello World!")
+      _ <- ZIO.foreachParDiscard(List("Jane", "John")) { name =>
+        logging.logAnnotate("name", name) {
+          for {
+            _ <- logging.log(s"Received request")
+            fiberId <- ZIO.fiberId.map(_.ids.head)
+            _ <- logging.logAnnotate("fiber_id", s"$fiberId")(
+              logging.log("Processing request")
+            )
+            _ <- logging.log("Finished processing request")
+          } yield ()
+        }
+      }
+      _ <- logging.log("All requests processed")
+    } yield ()
+}
+```
 
 ## Operations
 
