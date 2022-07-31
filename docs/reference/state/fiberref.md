@@ -178,6 +178,10 @@ object FiberRefLoggingExample extends ZIOAppDefault {
 }
 ```
 
+> **Note:**
+>
+> In the above solution, if we replace the `FiberRef` with `Ref`, the program will not work properly, because the `Ref` is not isolated. The `Ref` will be shared between all fibers, so each fiber clobbers the other fibers' state.
+
 ## Operations
 
 `FiberRef[A]` has an API almost identical to `Ref[A]`. It includes well-known methods such as:
