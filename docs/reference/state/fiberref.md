@@ -84,6 +84,10 @@ Until now, we can categorize our requirements into two parts:
 
 ## The Solution
 
+In this section, we will look at two solutions to the problem of structured logging we have mentioned above. The first solution has some limitations and drawbacks, so we will choose the second solution as the final solution.
+
+### Solution 1: ZIO Environment
+
 One solution is to use the ZIO environment to store the state. It addresses the first requirement, very well. ZIO environment is a nice place to store the contextual states. And to make the state isolated between fibers, we can reintroduce the new state to the environment instead of updating the environment globally:
 
 ```scala mdoc:compile-only
@@ -116,6 +120,8 @@ object Logging {
 ```
 
 But this solution is not very flexible, because this brings type safety over the contextual data types. So any change to the type of contextual data needs a change to the whole program.
+
+### Solution 2: FiberRef
 
 The other solution is to use `FiberRef`. FiberRef is a nice way to store the contextual states and make them isolated. Any state maintained by a `FiberRef` will be isolated between fibers. Also, a nice thing about `FiberRef` is that we do not require to place the state in the environment.
 
