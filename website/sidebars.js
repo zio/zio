@@ -50,7 +50,7 @@ module.exports = {
       link: { type: "doc", id: "reference/schedule/index" },
       items: [
         "reference/schedule/repetition",
-        "reference/schedule/retrying"
+        "reference/schedule/retrying",
         "reference/schedule/built-in-schedules",
         "reference/schedule/combinators",
         "reference/schedule/examples",
