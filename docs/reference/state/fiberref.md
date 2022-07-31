@@ -82,7 +82,39 @@ Until now, we can categorize our requirements into two parts:
 - We need a mechanism to carry some contextual information, without explicitly passing it around.
 - We need a mechanism to update the state in an isolated fashion, where each fiber can update the state without affecting the state of other fibers.
 
-One solution is to use the ZIO environment to store the state. It addresses the first requirement, very well. ZIO environment is a nice place to store the contextual states. And to make the state isolated between fibers, we can reintroduce the new state to the environment instead of updating the environment globally.
+## The Solution
+
+One solution is to use the ZIO environment to store the state. It addresses the first requirement, very well. ZIO environment is a nice place to store the contextual states. And to make the state isolated between fibers, we can reintroduce the new state to the environment instead of updating the environment globally:
+
+```scala mdoc:compile-only
+// Solution 1: Using the ZIO environment to store the state
+import zio._
+
+object Logging {
+  type Annotation = Map[String, String]
+
+  def logAnnotate[R, E, A](key: String, value: String)(
+    zio: ZIO[R with Annotation, E, A]
+  ): ZIO[R with Annotation, E, Unit] = {
+    for {
+      annotations <- ZIO.service[Annotation]
+      _ <- zio.provideSomeLayer[R](ZLayer.succeed(annotations.updated(key, value)))
+    } yield ()
+  }
+
+  def log(line: String): ZIO[Annotation, Nothing, Unit] = {
+    ZIO.service[Annotation].flatMap {
+      case annotation if annotation.isEmpty => Console.printLine(line).orDie
+      case annotation =>
+        Console
+          .printLine(
+            s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $line"
+          )
+          .orDie
+    }
+  }
+}
+```
 
 But this solution is not very flexible, because this brings type safety over the contextual data types. So any change to the type of contextual data needs a change to the whole program.
 
@@ -99,7 +131,9 @@ The other solution is to use `FiberRef`. FiberRef is a nice way to store the con
 
 You can also use `locally` to scope `FiberRef` value only for a given effect:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   correlationId <- FiberRef.make[String]("")
   v1            <- correlationId.locally("my-correlation-id")(correlationId.get)
@@ -118,7 +152,9 @@ Let's go back to the `FiberRef`s analog called `ThreadLocal` and see how it work
 
 So if we create a `FiberRef` and set its value to `5`, and we pass this `FiberRef` to a child fiber, it sees the value `5`. If the child fiber modifies the value from `5` to `6`, the parent fiber can't see that change. So the child fiber gets its own copy of the `FiberRef`, and it can modify it locally. Those changes will not affect the parent fiber:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   fiberRef <- FiberRef.make(5)
   promise <- Promise.make[Nothing, Int]
@@ -137,7 +173,9 @@ ZIO does not only support to propagate `FiberRef` values from parents to childs,
 ### join
 If we `join` a fiber then its `FiberRef` is merged back into the parent fiber:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   fiberRef <- FiberRef.make(5)
   child <- fiberRef.set(6).fork
@@ -152,7 +190,9 @@ Each fiber has its own `FiberRef` and can modify it locally. So when multiple ch
 
 As we can see, `child1` is the last fiber, so its value, which is `6`, gets merged back into its parent:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   fiberRef <- FiberRef.make(5)
   child1 <- fiberRef.set(6).fork
@@ -165,7 +205,10 @@ for {
 
 ### join with Custom Merge
 Furthermore, we can customize how, if at all, the value will be initialized when a fiber is forked and how values will be combined when a fiber is merged. To do this you specify the desired behavior during `FiberRef#make`:
-```scala mdoc:silent
+
+```scala mdoc:compile-only
+import zio._
+
 for {
   fiberRef <- FiberRef.make(initial = 0, join = math.max)
   child    <- fiberRef.update(_ + 1).fork
@@ -176,9 +219,12 @@ for {
 ```
 
 ### await
+
 It is important to note that `await` has no such merge behavior. So `await` waits for the child fiber to finish and gives us its value as an `Exit`, without ever merging any `FiberRef` values back into the parent:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   fiberRef <- FiberRef.make(5)
   child <- fiberRef.set(6).fork
@@ -190,9 +236,12 @@ for {
 `join` has higher-level semantics than `await` because it will fail if the child fiber failed, it will interrupt if the child is interrupted, and it will also merge back its value to its parent.
 
 ### inheritAll
+
 We can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritAll` method:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 for {
   fiberRef <- FiberRef.make[Int](0)
   latch    <- Promise.make[Nothing, Unit]
@@ -205,7 +254,9 @@ for {
 
 Note that `inheritAll` is automatically called on `join`. However, `join` will wait for merging the *final* values, while `inheritAll` will merge the *current* values and then continue:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val withJoin =
     for {
         fiberRef <- FiberRef.make[Int](0)
@@ -215,7 +266,9 @@ val withJoin =
     } yield assert(v == 20)
 ```
 
-```scala mdoc:silent
+```scala mdoc:compile-only
+import zio._
+
 val withoutJoin =
     for {
         fiberRef <- FiberRef.make[Int](0)
