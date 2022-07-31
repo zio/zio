@@ -27,6 +27,15 @@ To illustrate this, let's try to find a solution to the _Structured Logging_ pro
 
 So assume we have written the following code:
 
+```scala mdoc:invisible
+import zio._
+
+object Logging {
+  def log(message: String) = ZIO.unit
+  def logAnnotate[R, E, A](key: String, value: String)(zio: ZIO[R, E, A]) = ZIO.unit
+}
+```
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -46,6 +55,10 @@ for {
   }
   _ <- Logging.log("All requests processed")
 } yield ()
+```
+
+```scala mdoc:invisible:reset
+
 ```
 
 We would like to see the following log output:
