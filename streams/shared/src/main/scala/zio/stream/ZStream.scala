@@ -4274,13 +4274,32 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an iterable collection of values
    */
   def fromIterable[O](as: => Iterable[O])(implicit trace: Trace): ZStream[Any, Nothing, O] =
-    fromChunk(Chunk.fromIterable(as))
+    fromIterable(as, DefaultChunkSize)
+
+  /**
+   * Creates a stream from an iterable collection of values
+   */
+  def fromIterable[O](as: => Iterable[O], chunkSize: => Int)(implicit trace: Trace): ZStream[Any, Nothing, O] =
+    ZStream.suspend {
+      as match {
+        case chunk: Chunk[O]       => ZStream.fromChunk(chunk)
+        case iterable: Iterable[O] => ZStream.fromIteratorSucceed(iterable.iterator)
+      }
+    }
 
   /**
    * Creates a stream from an effect producing a value of type `Iterable[A]`
    */
   def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]])(implicit trace: Trace): ZStream[R, E, O] =
-    fromZIO(iterable).mapConcat(identity)
+    fromIterableZIO(iterable, DefaultChunkSize)
+
+  /**
+   * Creates a stream from an effect producing a value of type `Iterable[A]`
+   */
+  def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]], chunkSize: => Int)(implicit
+    trace: Trace
+  ): ZStream[R, E, O] =
+    ZStream.unwrap(iterable.map(fromIterable(_, chunkSize)))
 
   /** Creates a stream from an iterator */
   def fromIterator[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
