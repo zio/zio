@@ -5514,7 +5514,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   )(implicit bf: BuildFrom[Collection[A], B, Collection[B]], trace: Trace): ZIO[R, E, Collection[B]] =
     ZIO.suspendSucceed {
       val n = n0
-      if (n < 1) ZIO.dieMessage(s"Unexpected nonpositive value `$n` passed to foreachParN.")
+      if (n < 1) ZIO.dieMessage(s"Unexpected nonpositive value `$n` passed to foreachPar.")
       else {
         val size = as.size
         if (size == 0) ZIO.succeedNow(bf.newBuilder(as).result())
