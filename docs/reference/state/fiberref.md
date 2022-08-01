@@ -236,10 +236,9 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Here is the output (removed extra columns for better readability):
+Here is the output (extra columns were removed for better readability):
 
 ```
-```scala
 message="Hello World!"
 message="Received request." correlation_id=2
 message="Received request." correlation_id=1
