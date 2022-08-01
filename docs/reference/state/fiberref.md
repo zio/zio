@@ -184,9 +184,18 @@ object FiberRefLoggingExample extends ZIOAppDefault {
 
 ## Use Cases
 
-Whenever we have some kind of scoped information or context, we can think about `FiberRef` as a way to store that information.
+Whenever we have some kind of scoped information or context, we can think about `FiberRef` as a way to store that information. 
 
-In ZIO we have several use cases for `FiberRef`:
+When developing applications, there are several use cases for `FiberRef`. Let's take a look at some of them:
+
+1. **Distributed Tracing**— In an architecture, where we have highly concurrent workflows and distributed services, there is a need to trace requests as they propagate through the services. To be able to trace requests, we can use `FiberRef` to design the system to automatically propagate request-scoped information.
+
+2. **Contextual Logging**— In lot of cases, logs are not independent piece of information, but they are part of a larger context. So other than just logging the message, we also need to log some additional information such as the request ID, the user ID, the session id, and so on. So whe we collect these logs, we can correlate them based on a common data point. Instead of explicitly passing these contextual information, we can use `FiberRef`.
+
+3. **Execution Scoped Configuration**— When we write applications, we would like to make them configurable. So we configure the application once and used it throughout the whole components. Not all configurations are global. There are certain kinds of configurations that are not global, or at least we have a default value for them globally, but we need to change them dynamically for certain regions. `FiberRef` is a nice tool to model these kind of configurations.
+
+In ZIO we have several use cases for `FiberRef`. Let's discuss some of them:
+
 1. Whenever we use `ZIO.withParallelism`, we can specify the parallelism factor for a region of code. So this information will be stored inside a `FiberRef`, without any need to pass it around all effects explicitly. When we exit the region, the parallelism factor will be restored to the original value:
 
 ```scala mdoc:compile-only
@@ -248,6 +257,48 @@ message="Finished processing request." correlation_id=1
 message="Finished processing request." correlation_id=2
 message="Goodbye!"
 ```
+
+3. Log levels are also maintained by using `FiberRef`. They are stored inside a `FiberRef`, and whenever we want, we can change the log level using the `ZIO.logLevel` operator:
+
+```scala mdoc:compile-only
+import zio._
+
+for {
+  _ <- ZIO.log("Application started!")
+  _ <- ZIO.logLevel(LogLevel.Trace) {
+    for {
+      _ <- ZIO.log("Entering trace log level region")
+      _ <- ZIO.log("Doing something")
+      _ <- ZIO.log("Leaving trace log level region")
+    } yield ()
+  }
+  _ <- ZIO.log("Application ended!")
+} yield ()
+```
+
+4. The same goes for when we access the environment (e.g. `ZIO.service`), or when we provide a layer to a ZIO effect (e.g. `ZIO#provide`). ZIO uses `FiberRef` under the hood to store the environment:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  private val fooLayer = ZLayer.succeed("foo")
+  private val barLayer = ZLayer.succeed("bar") 
+  
+  def run =
+    (for {
+      _ <- ZIO.service[String].debug("context")
+      _ <- ZIO.service[String].debug("context").provide(barLayer)
+      _ <- ZIO.service[String].debug("context")
+    } yield ()).provide(fooLayer)
+}
+// Output:
+// context: foo
+// context: bar
+// context: foo
+```
+
+There are several other use cases for `FiberRef` in ZIO itself. We just covered some of them to get you some ideas on how they are used in the real world.
 
 ## Operations
 
