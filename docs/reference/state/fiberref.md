@@ -106,14 +106,14 @@ object Logging {
     } yield (r)
   }
 
-  def log({
+  def log(message: String): ZIO[Annotation, Nothing, Unit] = {
     ZIO.service[Annotation].flatMap {
       case annotation if annotation.isEmpty => 
-        Console.printLine(line).orDie
-      case annotation =>
-        val message =
-          s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $line"
         Console.printLine(message).orDie
+      case annotation =>
+        val line =
+          s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $message"
+        Console.printLine(line).orDie
     }
   }
 }
@@ -135,12 +135,12 @@ case class Logging private (ref: FiberRef[Map[String, String]]) {
       zio: ZIO[R, E, A]
   ): ZIO[R, E, A] = ref.locallyWith(_ + (key -> value))(zio)
 
-  def log({
+  def log(message: String): UIO[Unit] = {
     ref.get.flatMap {
-      case annotation if annotation.isEmpty => Console.printLine(line).orDie
+      case annotation if annotation.isEmpty => Console.printLine(message).orDie
       case annotation =>
-        val message =
-          s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $line"
+        val line =
+          s"${annotation.map { case (k, v) => s"[$k=$v]" }.mkString(" ")} $message"
         Console.printLine(message).orDie
     }
   }
