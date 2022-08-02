@@ -82,7 +82,7 @@ Until now, we can categorize our requirements into two parts:
 - We need a mechanism to carry some contextual information, without explicitly passing it around.
 - We need a mechanism to update the state in an isolated fashion, where each fiber can update the state without affecting the state of other fibers.
 
-## The Solution
+## Solution
 
 In this section, we will look at two solutions to the problem of structured logging we have mentioned above. The first solution has some limitations and drawbacks, so we will choose the second solution as the final solution.
 
