@@ -233,6 +233,18 @@ object TestConsole extends Serializable {
       } yield test
     }
 
+  def makeZ(data: Data, debug: Boolean = true)(implicit
+                                              trace: Trace
+  ): ZIO[Live, Nothing, TestConsole] =
+    ZIO.scoped(
+      for {
+        live     <- ZIO.service[Live]
+        ref      <- ZIO.succeed(Ref.unsafe.make(data)(Unsafe.unsafe))
+        debugRef <- FiberRef.make(debug)
+        test      = Test(ref, live, debugRef)
+      } yield test
+    )
+
   val any: ZLayer[TestConsole, Nothing, TestConsole] =
     ZLayer.environment[TestConsole](Tracer.newTrace)
 

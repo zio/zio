@@ -47,13 +47,17 @@ object TestExecutor {
           _ <- {
             def processEvent(
               event: ExecutionEvent
-            ) =
+            ) = {
+//              ZIO.console.debug("Console in executor") *>
+//              ZIO.service[TestConsole].debug *>
+//              ZIO.serviceWithZIO[TestConsole](_.output).debug("TestConsole output:").provide(freshLayerPerSpec) *>
               summary.update(
                 _.add(event)
               ) *>
                 sink.process(
                   event
                 ) *> eventHandlerZ.handle(event)
+            }
 
             def loop(
               labels: List[String],
@@ -78,6 +82,7 @@ object TestExecutor {
                     .catchAllCause { e =>
                       val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
+
 
                       processEvent(event)
                     }
@@ -106,7 +111,21 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) => {
                   val testResultZ = (for {
-                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
+                    x <- freshLayerPerSpec.build
+//                    _ <- ZIO.debug(x)
+//                    testC <- TestConsole.makeZ(TestConsole.Data())
+//                      .provide(freshLayerPerSpec)
+                    testConsole = x.get[TestConsole]
+                    result  <-
+                      ZIO.withClock(ClockLive)(
+                        ZIO.withConsole(testConsole)(
+                          test.timed.either
+                        )
+                      )
+                    _ <- TestConsole.output.debug("Output in executor")
+//                    _ <- ZIO.debug("Console in executor: " + testConsole)
+//                      .withConsole(TestConsole)
+//                      .provideSomeLayer[R with Scope](freshLayerPerSpec)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
                     event =
                       ExecutionEvent

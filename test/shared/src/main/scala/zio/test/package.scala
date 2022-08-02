@@ -50,7 +50,7 @@ import scala.language.implicitConversions
  * }}}
  */
 package object test extends CompileVariants {
-  type TestEnvironment = Annotations with Live with Sized with TestConfig
+  type TestEnvironment = Annotations with Live with Sized with TestConfig with TestConsole
 
   object TestEnvironment {
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
