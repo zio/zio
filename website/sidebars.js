@@ -96,8 +96,17 @@ module.exports = {
             link: { type: "doc", id: "reference/state/concurrent" },
             items:
               [
-                "reference/state/fiberref",
-                "reference/state/zstate",
+                "reference/state/global-shared-state",
+                {
+                  type: "category",
+                  label: "Fiber-local State",
+                  link: { type: "doc", id: "reference/state/fiber-local-state" },
+                  items:
+                    [
+                      "reference/state/fiberref",
+                      "reference/state/zstate",
+                    ]
+                }
               ]
           },
         ]

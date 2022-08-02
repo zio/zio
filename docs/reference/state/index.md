@@ -5,13 +5,12 @@ title: "Introduction"
 
 When we write a program, more often we need to keep track of some sort of state during the execution of the program. If an object has a state, its behavior is influenced by passing the time.
 
-Here are some examples of some states:
+Here are some examples:
 
 - **Counter**— Assume a RESTful API, which has a set of endpoints, and wants to keep track of how many requests have been made to each endpoint.
 - **Bank Account Balance**— Each bank account has a balance, and it can be deposited or withdrawn. So its value is changing over time.
 - **Temperature**— The temperature of a room is changing over time.
-- **List of Users**— In a web application, we can have a list of users, and we can add, remove, or modify users. They are changing over time, and we want to keep track of any changes to users.
-- When we are iterating over a list of items, we might need to keep track of the number of items we have seen so far. So during the calculation of the length of the list, we need an intermediate state that records the number of items we have seen so far.
+- **List length**— When we are iterating over a list of items, we might need to keep track of the number of items we have seen so far. So during the calculation of the length of the list, we need an intermediate state that records the number of items we have seen so far.
 
 In imperative programming, one common way to store the state is using a variable. So we can update their values in place. But this approach can introduce bugs, especially when the state is shared between multiple components. So it is better to avoid using variables to keep track of the state.
 
