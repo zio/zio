@@ -100,7 +100,7 @@ object EmailService {
 
 Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
 
-The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.apply` constructor:
+The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.scoped` constructor:
 
 ```scala mdoc:silent:nest
 import zio._
@@ -149,7 +149,7 @@ def scoped: ZIO[Scope, Throwable, UserRepository] =
   } yield new UserRepositoryLive(xa)
 ```
 
-We can convert that to `ZLayer` with `ZLayer.apply`:
+We can convert that to `ZLayer` with `ZLayer.scoped`:
 
 ```scala mdoc:nest
 val usersLayer : ZLayer[Any, Throwable, UserRepository] =
