@@ -1,6 +1,6 @@
 ---
 id: concurrent
-title: "Concurrent State Managementt"
+title: "Concurrent State Management"
 sidebar_label: "Concurrent"
 ---
 
