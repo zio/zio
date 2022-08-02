@@ -46,6 +46,18 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Scheduling",
+      link: { type: "doc", id: "reference/schedule/index" },
+      items: [
+        "reference/schedule/repetition",
+        "reference/schedule/retrying",
+        "reference/schedule/built-in-schedules",
+        "reference/schedule/combinators",
+        "reference/schedule/examples",
+      ]
+    },
+    {
+      type: "category",
       label: "Contextual Types",
       link: { type: "doc", id: "reference/contextual/index" },
       items:
@@ -275,7 +287,6 @@ module.exports = {
       label: "Miscellaneous",
       items: [
         "reference/misc/chunk",
-        "reference/misc/schedule",
         "reference/misc/supervisor",
       ]
     }
