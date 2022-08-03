@@ -22,6 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.nio.charset.{Charset, StandardCharsets}
 import java.util.concurrent.atomic.AtomicReference
+import scala.reflect.ClassTag
 
 final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z])
     extends AnyVal {
@@ -406,6 +407,24 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     ZSink.unwrapScoped(scoped)
   }
 
+  def refineOrDie[E1](
+    pf: PartialFunction[E, E1]
+  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: Trace): ZSink[R, E1, In, L, Z] =
+    refineOrDieWith(pf)(ev1(_))
+
+  def refineOrDieWith[E1](
+    pf: PartialFunction[E, E1]
+  )(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): ZSink[R, E1, In, L, Z] =
+    new ZSink(
+      channel.catchAll(e =>
+        pf.andThen(r => ZChannel.fail(r))
+          .applyOrElse[E, ZChannel[Any, Any, Any, Any, E1, Nothing, Nothing]](
+            e,
+            er => ZChannel.failCause(Cause.die(f(er)))
+          )
+      )
+    )
+
   /**
    * Returns the sink that executes this one and times its execution.
    */
@@ -589,6 +608,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
         ZChannel.failCause(_),
         _ => ZChannel.succeed(acc)
       )
+
     new ZSink(loop(Chunk.empty))
   }
 

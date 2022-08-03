@@ -555,6 +555,36 @@ object ZSinkSpec extends ZIOBaseSpec {
           assertZIO(ZStream(1, 2, 3).run(s))(equalTo((Chunk(1, 2, 3), "boom")))
         }
       ),
+      suite("refine")(
+        test("refineOrDie") {
+          val exception = new Exception
+          val refinedTo = "refined"
+          val s =
+            ZSink
+              .fail(exception)
+              .refineOrDie { case _: Exception =>
+                refinedTo
+              }
+          assertZIO(ZStream(1, 2, 3).run(s).exit)(fails(equalTo(refinedTo)))
+        },
+        test("refineOrDieWith - refines") {
+          object SinkFailure extends Throwable()
+          object RefinedTo   extends Throwable()
+          val s =
+            ZSink
+              .fail(SinkFailure)
+              .refineOrDieWith { case _: SinkFailure.type => RefinedTo }(_ => new Throwable())
+          assertZIO(ZStream(1, 2, 3).run(s).exit)(fails(equalTo(RefinedTo)))
+        },
+        test("refineOrDieWith - dies") {
+          object DieWith extends RuntimeException()
+          val s =
+            ZSink
+              .fail(new Throwable("Sink failed"))
+              .refineOrDieWith { case _: RuntimeException => new RuntimeException("Refined") }(_ => DieWith)
+          assertZIO(ZStream(1, 2, 3).run(s).exit)(dies(equalTo(DieWith)))
+        }
+      ),
       // suite("foreach")(
       //   test("preserves leftovers in case of failure") {
       //     for {

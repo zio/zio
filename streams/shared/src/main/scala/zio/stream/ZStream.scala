@@ -2433,10 +2433,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): ZStream[R, E1, A] =
     new ZStream(
       channel.catchAll(e =>
-        if (pf.isDefinedAt(e))
-          ZChannel.fail(pf.apply(e))
-        else
-          ZChannel.failCause(Cause.die(f(e)))
+        pf.andThen(r => ZChannel.fail(r))
+          .applyOrElse[E, ZChannel[Any, Any, Any, Any, E1, Nothing, Nothing]](
+            e,
+            er => ZChannel.failCause(Cause.die(f(er)))
+          )
       )
     )
 
