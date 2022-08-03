@@ -1,6 +1,6 @@
 ---
-id: uncovering-the-underlying-cause-of-an-effect
-title: "Uncovering The Underlying Cause of an Effect"
+id: exposing-the-cause-in-the-success-channel
+title: "Exposing the Cause in The Success Channel"
 ---
 
 Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:

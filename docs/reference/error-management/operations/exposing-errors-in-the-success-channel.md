@@ -1,6 +1,6 @@
 ---
-id: submerge
-title: "Putting Errors Into Success Channel and Submerging Them Back Again"
+id: exposing-errors-in-the-success-channel
+title: "Exposing Errors in The Success Channel"
 ---
 
 Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:

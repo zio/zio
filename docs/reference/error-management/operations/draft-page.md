@@ -1,35 +1,7 @@
 ---
-id: converting-optional-values-to-optional-errors-and-vice-versa
-title: "Converting Optional Values to Optional Errors and Vice Versa"
+id: draft-page
+title: "Draft Page"
 ---
-
-Assume we have the following effect:
-
-```scala mdoc:silent
-import zio._
-
-val nextRandomEven: ZIO[Any, String, Option[Int]] =
-  Random.nextInt
-    .reject {
-      case n if n < 0 => s"$n is negative!"
-    }
-    .map{
-      case n if n % 2 == 0 => Some(n)
-      case _               => None
-    }
-```
-
-Now we can convert this effect which is optional on the success channel to an effect that is optional on the error channel using the `ZIO#some` operator and also the `ZIO#unsome` to reverse this conversion.
-
-```scala mdoc:compile-only
-nextRandomEven // ZIO[Any, String, Option[Int]]
-  .some        // ZIO[Any, Option[String], Int]
-  .unsome      // ZIO[Any, String, Option[Int]]
-```
-
-```scala mdoc:invisible:reset
-
-```
 
 Sometimes instead of converting optional values to optional errors, we can perform one of the following operations:
 

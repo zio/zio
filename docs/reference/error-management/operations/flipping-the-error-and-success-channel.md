@@ -1,6 +1,6 @@
 ---
-id: flipping-the-error-and-success-channels
-title: "Flipping the Error and Success Channels"
+id: flipping-error-and-success-channels
+title: "Flipping Error and Success Channels"
 ---
 
 Sometimes, we would like to apply some methods on the error channel which are specific for the success channel, or we want to apply some methods on the success channel which are specific for the error channel. Therefore, we can flip the error and success channel and before flipping back, we can perform the right operator on flipped channels:

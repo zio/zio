@@ -90,17 +90,15 @@ module.exports = {
                 "reference/error-management/operations/map-and-flatmap",
                 "reference/error-management/operations/filtering-the-success-channel",
                 "reference/error-management/operations/tapping-errors",
-                "reference/error-management/operations/submerge",
+                "reference/error-management/operations/exposing-errors-in-the-success-channel",
+                "reference/error-management/operations/exposing-the-cause-in-the-success-channel",
                 "reference/error-management/operations/converting-defects-to-failures",
                 "reference/error-management/operations/error-refinement",
-                "reference/error-management/operations/converting-option-on-values-to-option-on-errors-and-vice-versa",
                 "reference/error-management/operations/flattening-optional-error-types",
                 "reference/error-management/operations/merging-the-error-channel-into-the-success-channel",
-                "reference/error-management/operations/flipping-the-error-and-success-channels",
+                "reference/error-management/operations/flipping-error-and-success-channels",
                 "reference/error-management/operations/rejecting-some-success-values",
-                "reference/error-management/operations/zoom-in-out-on-either-values",
-                "reference/error-management/operations/converting-optional-values-to-optional-errors-and-vice-versa",
-                "reference/error-management/operations/uncovering-the-underlying-cause-of-an-effect"
+                "reference/error-management/operations/zooming-in-on-nested-values",
               ]
           },
           {

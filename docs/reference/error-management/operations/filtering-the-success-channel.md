@@ -1,6 +1,6 @@
 ---
 id: filtering-the-success-channel
-title: "Filtering the Success Channel Values"
+title: "Filtering the Success Channel"
 ---
 
 ZIO has a variety of operators that can filter values on the success channel based on a given predicate, and if the predicate fails, we can use different strategies:
