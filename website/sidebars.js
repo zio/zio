@@ -87,7 +87,8 @@ module.exports = {
             label: "Error Channel Operations",
             items:
               [
-                "reference/error-management/operations/map-and-flatmap",
+                "reference/error-management/operations/map-operations",
+                "reference/error-management/operations/chaining-effects-based-on-errors",
                 "reference/error-management/operations/filtering-the-success-channel",
                 "reference/error-management/operations/tapping-errors",
                 "reference/error-management/operations/exposing-errors-in-the-success-channel",
