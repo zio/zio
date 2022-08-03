@@ -1,6 +1,7 @@
 ---
-id: typed-errors
+id: typed-errors-guarantees
 title: "Typed Errors Don't Guarantee the Absence of Defects and Interruptions"
+sidebar_label: "Typed Errors Guarantees"
 ---
 
 Having an effect of type `ZIO[R, E, A]`, means it can fail because of some failure of type `E`, but it doesn't mean it can't die or be interrupted. So the error channel is only for `failure` errors.

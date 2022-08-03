@@ -65,7 +65,7 @@ module.exports = {
           "reference/error-management/imperative-vs-declarative",
           "reference/error-management/expected-and-unexpected-errors",
           "reference/error-management/exceptional-and-unexceptional-effects",
-          "reference/error-management/typed-errors",
+          "reference/error-management/typed-errors-guarantees",
           "reference/error-management/sequential-and-parallel-errors",
 
           {
