@@ -1,6 +1,6 @@
 ---
 id: map-and-flatmap
-title: "Map and FlatMap on The Error Channel"
+title: "map and flatMap"
 ---
 
 Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
