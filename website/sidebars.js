@@ -62,7 +62,7 @@ module.exports = {
               ]
           },
 
-          "reference/error-management/declarative",
+          "reference/error-management/imperative-vs-declarative",
           "reference/error-management/expected-and-unexpected-errors",
           "reference/error-management/exceptional-and-unexceptional-effects",
           "reference/error-management/typed-errors",

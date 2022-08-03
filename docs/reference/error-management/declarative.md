@@ -1,46 +1,44 @@
 ---
-id: declarative
-title: "Declarative Error Handling"
+id: imperative-vs-declarative
+title: "Imperative vs. Declarative Error Handling"
+sidebar_label: "Imperative vs. Declarative"
 ---
 
-When practicing imperative programming in Scala, we have the `try`/`catch` language construct for handling errors. Using them, we can wrap regions that may throw exceptions, and handle them in the catch block.
+To figure out the benefit of typed errors in declarative error handling, we need to understand the drawbacks of the imperative approach and then see how the declarative approach can be used to solve the same problem.
 
-Let's try an example. In the following code we have an age validation function that may throw two exceptions:
+## Imperative Error Handling
+
+In the imperative style, when we encounter a wrong state, we throw an exception, and to handle exceptions, we have to use the `try`/`catch` language construct. Whenever we encounter an exception inside a `try` block, the control flow will jump to the `catch` block. In the catch block, we can handle the exception and decide what to do next. This is a very common pattern in imperative programming.
+
+For example, we can write the `divide` function like this:
 
 ```scala mdoc:silent
-sealed trait AgeValidationException extends Exception
-case class NegativeAgeException(age: Int) extends AgeValidationException
-case class IllegalAgeException(age: Int)  extends AgeValidationException
-
-def validate(age: Int): Int = {
-  if (age < 0)
-    throw NegativeAgeException(age)
-  else if (age < 18)
-    throw IllegalAgeException(age)
-  else age
-}
+def divide(a: Int, b: Int): Int =
+  if (b == 0)
+    throw new IllegalArgumentException("Division by zero")
+  else
+    a / b
 ```
 
-Using `try`/`catch` we can handle exceptions:
+As we know that this function throws an exception when `b` is zero, so we need to handle the exception when we call this function:
 
-```scala
+```scala mdoc:compile-only
+def readFromConsole: (Int, Int) = ???
+
+val (a, b) = readFromConsole
+
 try {
-  validate(17)
+  Some(divide(a, b))
 } catch {
-  case NegativeAgeException(age) => ???
-  case IllegalAgeException(age) =>  ???
+  case _: IllegalArgumentException => None
 }
 ```
 
-There are some issues with error handling using exceptions and `try`/`catch`/`finally` statement:
+## Declarative Error Handling
 
-## It isn't Type Safe
+In declarative error handling, we treat errors as values instead of throwing exceptions. So instead of breaking the flow of the program, we can return a value that represents the error. When we have a workflow of type `ZIO[R, E, A]`, the `E` type parameter is used to represent that our workflow may fail with an error of type `E`.
 
-There is no way to know what errors can be thrown by looking the function signature. The only way to find out in which circumstance a method may throw an exception is to read and investigate its implementation. So the compiler cannot prevent us from writing unsafe codes. It is also hard for a developer to read the documentation event through reading the documentation is not suffice as it may be obsolete, or it may don't reflect the exact exceptions.
-
-```scala mdoc:invisible:reset
-
-```
+For example, the following program written with ZIO may fail with an error of type `AgeValidationException`:
 
 ```scala mdoc:silent
 import zio._
@@ -57,7 +55,7 @@ def validate(age: Int): ZIO[Any, AgeValidationException, Int] =
   else ZIO.succeed(age)
 ```
 
-We can handle errors using `catchAll`/`catchSome` methods:
+We can handle errors using `catchAll`/`catchSome` methods instead of using `try`/`catch` blocks:
 
 ```scala mdoc:compile-only
 validate(17).catchAll {
@@ -66,9 +64,49 @@ validate(17).catchAll {
 }
 ```
 
-## Lack of Exhaustivity Checking
+## Imperative vs. Declarative
 
-When we use `try`/`catch` the compiler doesn't know about errors at compile-time, so if we forgot to handle one of the exceptions the compiler doesn't help us to write total functions. This code will crash at runtime because we forgot to handle the `IllegalAgeException` case:
+### Referential Transparency
+
+We say that an expression is referentially transparent if it can be replaced with its value without changing the behavior of the program. This property helps us to reason about a program easily. Also writing tests for our programs becomes much easier.
+
+Unfortunately, when we throw an exception, we lose the ability to reason about our programs. Exceptions break the referential transparency of our programs. For example, let's say we have the following function:
+
+```scala mdoc:compile-only
+def divide10By(b: Int): Option[Int] = {
+  val result = divide(10, b)
+  try {
+    Some(result)
+  } catch {
+    case _: IllegalArgumentException => None
+  }
+}
+```
+
+If we call `divide10By(0)`, we will get an exception (`IllegalArgumentException`). Now, let's see what happens if we replace the result with its value like this:
+
+```scala mdoc:compile-only
+def divide10By(b: Int): Option[Int] = 
+  try {
+    Some(divide(10, b))
+  } catch {
+    case _: IllegalArgumentException => None
+  }
+```
+
+In this case, if we call `divide10By(0)`, we will get the `None` value. The behavior of the function will be changed. We cannot reason about the behavior of our program by substituting expressions with their values. In this style of error handling, the behavior of the program is dependent on where we call our expressions, inside or outside the `try` block.
+
+When we model our programs with the `ZIO`, we sure that our programs are referentially transparent. We can reason about our programs very easily without having to worry about changing the behavior of our programs.
+
+### Type-safety
+
+There is no way to know what errors can be thrown by looking at the function signature. The only way to find out in which circumstance a method may throw an exception is to read and investigate its implementation. So the compiler cannot prevent us from writing unsafe codes. It is also hard for a developer to read the documentation event through reading the documentation is not sufficient as it may be obsolete, or it may don't reflect the exact exceptions.
+
+In ZIO when we see the type of the effect, we can determine what kind of error it can fail with. This helps us to have compile-time type-safety on our programs not only on success values but also on failure values.
+
+### Exhaustivity Checking
+
+When we use `try`/`catch` the compiler doesn't know about errors at compile time, so if we forgot to handle one of the exceptions the compiler doesn't help us to write total functions. This code will crash at runtime because we forgot to handle the `IllegalAgeException` case:
 
 ```scala
 try {
@@ -79,9 +117,9 @@ try {
 }
 ```
 
-When we are using typed errors we can have exhaustive checking support of the compiler. For example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
+When we are using typed errors we can have exhaustive checking support from the compiler. For example, when we are catching all errors if we forgot to handle one of the cases, the compiler warns us about that:
 
-```scala mdoc
+```scala mdoc:silent
 validate(17).catchAll {
   case NegativeAgeException(age) => ???
 }
@@ -90,13 +128,13 @@ validate(17).catchAll {
 // It would fail on the following input: IllegalAgeException(_)
 ```
 
-This helps us cover all cases and write _total functions_ easily.
+In the example above, if we only handle `NegativeAgeException`, the compiler will complain about the `IllegalAgeException` being unhandled. This helps us cover all cases and write _total functions_ easily.
 
 > **Note:**
 >
 > When a function is defined for all possible input values, it is called a _total function_ in functional programming.
 
-## Lossy Error Model
+### Error Model
 
 The error model based on the `try`/`catch`/`finally` statement is lossy and broken. Because if we have the combinations of these statements we can throw many exceptions, and then we are only able to catch one of them. All the other ones are lost. They are swallowed into a black hole, and also the one that we catch is the wrong one. It is not the primary cause of the failure.
 
@@ -134,4 +172,4 @@ ZIO.fail("e1")
 // e1
 ```
 
-ZIO guarantees that no errors are lost. It has a _lossless error model_. This guarantee is provided via a hierarchy of supervisors and information made available via data types such as `Exit` and `Cause`. All errors will be reported. If there's a bug in the code, ZIO enables us to find about it.
+ZIO guarantees that no errors are lost. It has a _lossless error model_. This guarantee is provided via a hierarchy of supervisors and information made available via data types such as `Exit` and `Cause`. All errors will be reported. If there's a bug in the code, ZIO enables us to find out about it.
