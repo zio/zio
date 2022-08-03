@@ -2422,7 +2422,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: Trace): ZStream[R, E1, A] =
-    refineOrDieWith(pf)(identity(_))
+    refineOrDieWith(pf)(_.asInstanceOf[Throwable])
 
   /**
    * Keeps some of the errors, and terminates the fiber with the rest, using the

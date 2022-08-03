@@ -410,7 +410,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: Trace): ZSink[R, E1, In, L, Z] =
-    refineOrDieWith(pf)(identity(_))
+    refineOrDieWith(pf)(_.asInstanceOf[Throwable])
 
   def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
