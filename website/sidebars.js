@@ -113,10 +113,7 @@ module.exports = {
                 "reference/error-management/best-practices/logging-errors"
               ]
           },
-          "reference/error-management/debugging",
-          "reference/error-management/logging",
           "reference/error-management/examples"
-
         ]
     },
     {
