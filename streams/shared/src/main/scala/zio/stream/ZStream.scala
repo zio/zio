@@ -2421,7 +2421,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    */
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
-  )(implicit ev1: E <:< Throwable, ev2: CanFail[E], trace: Trace): ZStream[R, E1, A] =
+  )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: Trace): ZStream[R, E1, A] =
     refineOrDieWith(pf)(identity(_))
 
   /**
@@ -2433,10 +2433,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): ZStream[R, E1, A] =
     new ZStream(
       channel.catchAll(e =>
-        if (pf.isDefinedAt(e))
-          ZChannel.fail(pf.apply(e))
-        else
-          ZChannel.failCause(Cause.die(f(e)))
+        pf.andThen(r => ZChannel.fail(r))
+          .applyOrElse[E, ZChannel[Any, Any, Any, Any, E1, Nothing, Nothing]](
+            e,
+            er => ZChannel.failCause(Cause.die(f(er)))
+          )
       )
     )
 
