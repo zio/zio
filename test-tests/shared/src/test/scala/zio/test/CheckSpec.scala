@@ -83,6 +83,11 @@ object CheckSpec extends ZIOBaseSpec {
           _ <- Random.nextInt
         } yield assertCompletes
       }
+    },
+    test("checkAllPar effect type is correctly inferred") {
+      checkAllPar(Gen.int, 2) { _ =>
+        assertZIO(ZIO.unit)(equalTo(()))
+      }
     }
   )
 }
