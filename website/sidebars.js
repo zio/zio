@@ -34,8 +34,7 @@ module.exports = {
                 "reference/core/zio/rio",
                 "reference/core/zio/io",
               ]
-            },
-            "reference/core/zio/error-management",
+            }
           ]
         },
         "reference/core/zioapp",
@@ -43,6 +42,83 @@ module.exports = {
         "reference/core/exit",
         "reference/core/cause"
       ]
+    },
+    {
+      type: "category",
+      label: "Error Management",
+      link: { type: "doc", id: "reference/error-management/index" },
+      items:
+        [
+
+          {
+            type: "category",
+            label: "Three Types of Errors in ZIO",
+            link: { type: "doc", id: "reference/error-management/types/index" },
+            items:
+              [
+                "reference/error-management/types/failures",
+                "reference/error-management/types/defects",
+                "reference/error-management/types/fatals"
+              ]
+          },
+
+          "reference/error-management/declarative",
+          "reference/error-management/expected-and-unexpected-errors",
+          "reference/error-management/exceptional-and-unexceptional-effects",
+          "reference/error-management/typed-errors",
+          "reference/error-management/sequential-and-parallel-errors",
+
+          {
+            type: "category",
+            label: "Recovering From Errors",
+            items:
+              [
+                "reference/error-management/recovering/catching",
+                "reference/error-management/recovering/fallback",
+                "reference/error-management/recovering/folding",
+                "reference/error-management/recovering/retrying",
+                "reference/error-management/recovering/timing-out",
+                "reference/error-management/recovering/sandboxing",
+              ]
+          },
+          "reference/error-management/error-accumulation",
+          {
+            type: "category",
+            label: "Error Channel Operations",
+            items:
+              [
+                "reference/error-management/operations/map-and-flatmap",
+                "reference/error-management/operations/filtering-the-success-channel",
+                "reference/error-management/operations/tapping-errors",
+                "reference/error-management/operations/submerge",
+                "reference/error-management/operations/converting-defects-to-failures",
+                "reference/error-management/operations/error-refinement",
+                "reference/error-management/operations/converting-option-on-values-to-option-on-errors-and-vice-versa",
+                "reference/error-management/operations/flattening-optional-error-types",
+                "reference/error-management/operations/merging-the-error-channel-into-the-success-channel",
+                "reference/error-management/operations/flipping-the-error-and-success-channels",
+                "reference/error-management/operations/rejecting-some-success-values",
+                "reference/error-management/operations/zoom-in-out-on-either-values",
+                "reference/error-management/operations/converting-optional-values-to-optional-errors-and-vice-versa",
+                "reference/error-management/operations/uncovering-the-underlying-cause-of-an-effect"
+              ]
+          },
+          {
+            type: "category",
+            label: "Best Practices",
+            items:
+              [
+                "reference/error-management/best-practices/algebraic-data-types",
+                "reference/error-management/best-practices/union-types",
+                "reference/error-management/best-practices/unexpected-errors",
+                "reference/error-management/best-practices/logging-errors"
+              ]
+          },
+          "reference/error-management/debugging",
+          "reference/error-management/logging",
+          "reference/error-management/examples"
+
+        ]
     },
     {
       type: "category",
