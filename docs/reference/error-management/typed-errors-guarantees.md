@@ -1,10 +1,10 @@
 ---
 id: typed-errors-guarantees
-title: "Typed Errors Don't Guarantee the Absence of Defects and Interruptions"
+title: "Typed Errors Guarantees"
 sidebar_label: "Typed Errors Guarantees"
 ---
 
-Having an effect of type `ZIO[R, E, A]`, means it can fail because of some failure of type `E`, but it doesn't mean it can't die or be interrupted. So the error channel is only for `failure` errors.
+**Typed errors don't guarantee the absence of defects and interruptions.** Having an effect of type `ZIO[R, E, A]`, means it can fail because of some failure of type `E`, but it doesn't mean it can't die or be interrupted. So the error channel is only for `failure` errors.
 
 In the following example, the type of the `validateNonNegativeNumber` function is `ZIO[Any, String, Int]` which denotes it is a typed exceptional effect. It can fail of type `String` but it still can die with the type of `NumberFormatException` defect:
 
