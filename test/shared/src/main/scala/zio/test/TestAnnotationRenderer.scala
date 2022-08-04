@@ -74,6 +74,9 @@ object TestAnnotationRenderer {
    * The default test annotation renderer used by the `DefaultTestReporter`.
    */
   lazy val default: TestAnnotationRenderer =
+    CompositeRenderer(Vector(ignored, repeated, retried, tagged, timed))
+
+  lazy val noisyDev: TestAnnotationRenderer =
     CompositeRenderer(Vector(ignored, repeated, retried, tagged, timed, output))
 
   /**

@@ -103,7 +103,7 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
-      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
+      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.noisyDev)
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 
