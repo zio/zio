@@ -941,6 +941,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     else Exit.Success(value)
                   } catch {
                     case zioError: ZIOError =>
+                      runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
                       Exit.Failure(zioError.cause)
 
                     case reifyStack: ReifyStack =>
