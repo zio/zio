@@ -98,10 +98,15 @@ object TestExecutor {
                       _ <-
                         restore(
                           ZIO.foreachExec(specs)(exec)(spec =>
-                            FiberRefTestOutput.outputRef.locallyWith(
-                              old => old.copy(lines = old.lines :+ newMultiSectionId.toString)
+                            FiberRefTestOutput.lineageRef.locallyWith(
+                              old => old.copy(ancestors = old.ancestors :+ newMultiSectionId)
+
                             )(
-                              loop(labels, spec, exec, newAncestors, newMultiSectionId)
+//                              FiberRefTestOutput.outputRef.locallyWith(
+//                                old => old.copy(lines = old.lines :+ newMultiSectionId.toString)
+//                              )(
+                                loop(labels, spec, exec, newAncestors, newMultiSectionId)
+//                              )
                             )
                           )
                         )
@@ -115,18 +120,11 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) => {
                   val testResultZ = (for {
-                    x <- freshLayerPerSpec.build
-//                    _ <- ZIO.debug(x)
-//                    testC <- TestConsole.makeZ(TestConsole.Data())
-//                      .provide(freshLayerPerSpec)
-
-//                    _ <- TestOutputZ.log(FiberRefTestOutput.outputRef)("TestExecutor")
-                    testConsole = x.get[TestConsole]
                     result <-
                       ZIO.withClock(ClockLive)(
                           test.timed.either
                       )
-                    _ <- FiberRefTestOutput.outputRef.get.debug(s"Test Executor output")
+//                    _ <- FiberRefTestOutput.lineageRef.get.debug(s"Test ancestors")
 //                    _ <- TestConsole.output.debug("Output in executor")
 //                    _ <- ZIO.debug("Console in executor: " + testConsole)
 //                      .withConsole(TestConsole)
@@ -150,6 +148,7 @@ object TestExecutor {
                   for {
                     testResult <- testResultZ
                     _          <- processEvent(testResult)
+                    _ <- FiberRefTestOutput.outputRef.get.map(_.lines.mkString(",")).debug(s"Captured output for ${labels.head}")
                   } yield ()
                 }
               }

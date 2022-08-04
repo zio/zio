@@ -442,7 +442,9 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     self
-      .tap(value => ZIO.succeedNow(println(value)))
+      .tap(value =>
+        ZIO.succeedNow(println(value))
+        )
       .tapErrorCause(error => ZIO.succeedNow(println(s"<FAIL> $error")))
 
   /**

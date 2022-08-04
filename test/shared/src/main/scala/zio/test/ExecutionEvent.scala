@@ -9,6 +9,7 @@ object ExecutionEvent {
     ancestors: List[SuiteId],
     duration: Long,
     id: SuiteId
+    // TODO Add output here?
   ) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
   }
