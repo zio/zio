@@ -11,8 +11,9 @@ object ExecutionEvent {
     ancestors: List[SuiteId],
     duration: Long,
     id: SuiteId,
+    // TODO Probably shouldn't be a chunk, since we've already finished appending
+    //    by the time we construct this
     output: Chunk[String]
-    // TODO Add output here?
   ) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
   }

@@ -55,6 +55,12 @@ object TestAnnotation {
     TestAnnotation("ignored", 0, _ + _)
 
   /**
+   * An annotation which tracks output produced by a test.
+   */
+  val output: TestAnnotation[Chunk[String]] =
+    TestAnnotation("output", Chunk.empty, _ ++ _)
+
+  /**
    * An annotation which counts repeated tests.
    */
   val repeated: TestAnnotation[Int] =
