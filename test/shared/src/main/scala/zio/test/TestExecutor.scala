@@ -98,7 +98,11 @@ object TestExecutor {
                       _ <-
                         restore(
                           ZIO.foreachExec(specs)(exec)(spec =>
-                            loop(labels, spec, exec, newAncestors, newMultiSectionId)
+                            FiberRefTestOutput.outputRef.locallyWith(
+                              old => old.copy(lines = old.lines :+ newMultiSectionId.toString)
+                            )(
+                              loop(labels, spec, exec, newAncestors, newMultiSectionId)
+                            )
                           )
                         )
                           .ensuring(
@@ -115,14 +119,15 @@ object TestExecutor {
 //                    _ <- ZIO.debug(x)
 //                    testC <- TestConsole.makeZ(TestConsole.Data())
 //                      .provide(freshLayerPerSpec)
+
+//                    _ <- TestOutputZ.log(FiberRefTestOutput.outputRef)("TestExecutor")
                     testConsole = x.get[TestConsole]
-                    result  <-
+                    result <-
                       ZIO.withClock(ClockLive)(
-                        ZIO.withConsole(testConsole)(
                           test.timed.either
-                        )
                       )
-                    _ <- TestConsole.output.debug("Output in executor")
+                    _ <- FiberRefTestOutput.outputRef.get.debug(s"Test Executor output")
+//                    _ <- TestConsole.output.debug("Output in executor")
 //                    _ <- ZIO.debug("Console in executor: " + testConsole)
 //                      .withConsole(TestConsole)
 //                      .provideSomeLayer[R with Scope](freshLayerPerSpec)

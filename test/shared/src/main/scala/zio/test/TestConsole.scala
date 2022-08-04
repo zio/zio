@@ -153,7 +153,8 @@ object TestConsole extends Serializable {
      * character.
      */
     override def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      ZIO.succeed(unsafe.printLine(line)(Unsafe.unsafe)) *>
+      TestOutputZ.log(FiberRefTestOutput.outputRef)(line.toString) *>
+        ZIO.succeed(unsafe.printLine(line)(Unsafe.unsafe)) *>
         live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
 
     /**
