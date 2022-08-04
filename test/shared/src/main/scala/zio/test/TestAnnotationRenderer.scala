@@ -74,7 +74,7 @@ object TestAnnotationRenderer {
    * The default test annotation renderer used by the `DefaultTestReporter`.
    */
   lazy val default: TestAnnotationRenderer =
-    CompositeRenderer(Vector(ignored, repeated, retried, tagged, timed))
+    CompositeRenderer(Vector(ignored, repeated, retried, tagged, timed, output))
 
   /**
    * A test annotation renderer that renders the number of ignored tests.
@@ -92,6 +92,15 @@ object TestAnnotationRenderer {
     LeafRenderer(TestAnnotation.repeated) { case (child :: _) =>
       if (child == 0) None
       else Some(s"repeated: $child")
+    }
+
+  /**
+   * TODO
+   */
+  val output: TestAnnotationRenderer =
+    LeafRenderer(TestAnnotation.output) { case (child :: _) =>
+      if (child.isEmpty) None
+      else Some(s"Output: ${child.mkString("\n")}")
     }
 
   /**
