@@ -1,5 +1,7 @@
 package zio.test
 
+import zio.Chunk
+
 object ExecutionEvent {
 
   final case class Test[+E](
@@ -8,7 +10,8 @@ object ExecutionEvent {
     annotations: TestAnnotationMap,
     ancestors: List[SuiteId],
     duration: Long,
-    id: SuiteId
+    id: SuiteId,
+    output: Chunk[String]
     // TODO Add output here?
   ) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse

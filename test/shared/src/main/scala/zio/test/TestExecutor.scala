@@ -130,6 +130,8 @@ object TestExecutor {
 //                      .withConsole(TestConsole)
 //                      .provideSomeLayer[R with Scope](freshLayerPerSpec)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
+                    _ <- FiberRefTestOutput.outputRef.get.map(_.lines.mkString(",")).debug(s"Captured output for ${labels.head}")
+                    output <- FiberRefTestOutput.outputRef.get
                     event =
                       ExecutionEvent
                         .Test(
@@ -138,7 +140,8 @@ object TestExecutor {
                           staticAnnotations ++ extractAnnotations(result.map(_._2)),
                           ancestors,
                           duration,
-                          sectionId
+                          sectionId,
+                          output.lines
                         )
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
@@ -148,7 +151,6 @@ object TestExecutor {
                   for {
                     testResult <- testResultZ
                     _          <- processEvent(testResult)
-                    _ <- FiberRefTestOutput.outputRef.get.map(_.lines.mkString(",")).debug(s"Captured output for ${labels.head}")
                   } yield ()
                 }
               }

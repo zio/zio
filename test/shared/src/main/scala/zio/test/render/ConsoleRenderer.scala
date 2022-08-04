@@ -50,7 +50,8 @@ trait ConsoleRenderer extends TestRenderer {
             )
         }
 
-      case Test(labelsReversed, results, annotations, _, _, _) =>
+      // TODO Should we show output here? Might be too noisy
+      case Test(labelsReversed, results, annotations, _, _, _, _) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
         val (streamingOutput, summaryOutput) =
