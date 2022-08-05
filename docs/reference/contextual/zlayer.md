@@ -1039,7 +1039,7 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-ZIO Test's [Live service](../test/environment/live.md) uses this pattern to provide real environment to a single part of an effect.
+ZIO Test's [Live service](../test/services/live.md) uses this pattern to provide real environment to a single part of an effect.
 
 ## Layer Memoization
 

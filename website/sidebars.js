@@ -339,15 +339,15 @@ module.exports = {
         {
           type: "category",
           label: "Test Services",
-          link: { type: "doc", id: "reference/test/environment/index" },
+          link: { type: "doc", id: "reference/test/services/index" },
           items: [
-            "reference/test/environment/console",
-            "reference/test/environment/clock",
-            "reference/test/environment/random",
-            "reference/test/environment/system",
-            "reference/test/environment/live",
-            "reference/test/environment/config",
-            "reference/test/environment/sized",
+            "reference/test/services/console",
+            "reference/test/services/clock",
+            "reference/test/services/random",
+            "reference/test/services/system",
+            "reference/test/services/live",
+            "reference/test/services/config",
+            "reference/test/services/sized",
           ]
         },
         "reference/test/test-aspect",

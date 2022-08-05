@@ -688,7 +688,7 @@ The output would be:
 
 ## Test Configs
 
-To run cases, there are some [default configuration settings](environment/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
+To run cases, there are some [default configuration settings](services/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
 
 1. **`TestAspect.repeats(n: Int)`** — Runs each test with the number of times to repeat tests to ensure they are stable set to the specified value.
 

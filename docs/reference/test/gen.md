@@ -157,7 +157,7 @@ runSpec
 + example test
 ```
 
-This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm. The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values. For more information, there is a separate page about this on [TestRandom](../test/environment/random.md) which is the underlying service for generating test values.
+This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm. The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values. For more information, there is a separate page about this on [TestRandom](services/random.md) which is the underlying service for generating test values.
 
 This behavior helps us to have reproducible tests. But, if we might need non-deterministic tests values, we can use the `TestAspect.nondeterministic` to change the default behavior:
 

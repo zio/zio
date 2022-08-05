@@ -84,7 +84,7 @@ suite("HelloWorldSpec")(
 )
 ```
 
-There is a separate section in the documentation pages that covers [all built-in test services](./environment/index.md).
+There is a separate section in the documentation pages that covers [all built-in test services](services/index.md).
 
 ## Providing Layers
 
