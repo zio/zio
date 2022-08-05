@@ -118,6 +118,17 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Built-in Services",
+      link: { type: "doc", id: "reference/services/index" },
+      items: [
+        "reference/services/console",
+        "reference/services/clock",
+        "reference/services/random",
+        "reference/services/system"
+      ]
+    },
+    {
+      type: "category",
       label: "Scheduling",
       link: { type: "doc", id: "reference/schedule/index" },
       items: [
@@ -152,17 +163,6 @@ module.exports = {
                   "reference/contextual/tasklayer"
                 ]
               }
-            ]
-          },
-          {
-            type: "category",
-            label: "Built-in Services",
-            link: { type: "doc", id: "reference/contextual/services/index" },
-            items: [
-              "reference/contextual/services/console",
-              "reference/contextual/services/clock",
-              "reference/contextual/services/random",
-              "reference/contextual/services/system"
             ]
           }
         ]
