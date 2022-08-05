@@ -334,6 +334,7 @@ module.exports = {
       label: "Testing",
       link: { type: "doc", id: "reference/test/index" },
       items: [
+        "reference/test/why-zio-test",
         "reference/test/installation",
         "reference/test/writing-our-first-test",
         "reference/test/running-tests",
