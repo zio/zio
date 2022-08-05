@@ -5,13 +5,13 @@ title: "Console"
 
 The Console service contains simple I/O operations for reading/writing strings from/to the standard input, output, and error console.
 
-| Function        | Input Type        | Output Type                         |
-|-----------------|-------------------|-------------------------------------|
-| `print`         | `line: => String` | `ZIO[Any, IOException, Unit]`       |
-| `printError`    | `line: => String` | `ZIO[Any, IOException, Unit]`       |
-| `printLine`     | `line: => String` | `ZIO[Any, IOException, Unit]`       |
-| `printLineError`| `line: => String` | `ZIO[Any, IOException, Unit]`       |
-| `readLine`      |                   | `ZIO[Any, IOException, String]`     |
+| Function         | Input Type        | Output Type                     |
+|------------------|-------------------|---------------------------------|
+| `print`          | `line: => String` | `ZIO[Any, IOException, Unit]`   |
+| `printError`     | `line: => String` | `ZIO[Any, IOException, Unit]`   |
+| `printLine`      | `line: => String` | `ZIO[Any, IOException, Unit]`   |
+| `printLineError` | `line: => String` | `ZIO[Any, IOException, Unit]`   |
+| `readLine`       |                   | `ZIO[Any, IOException, String]` |
 
 All functions of the Console service are effectful, this means they are just descriptions of reading/writing from/to the console. 
 
