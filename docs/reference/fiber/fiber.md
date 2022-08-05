@@ -311,6 +311,32 @@ Still running ...
 Still running ...
 The outer scope is about to be closed.
 ```
+### Background Processes And Layers
+
+We also can use background processes to create layers:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val layer: ZLayer[Scope, Nothing, Int] =
+    ZLayer.fromZIO {
+      ZIO
+        .debug("Still running ...")
+        .repeat(Schedule.fixed(1.second))
+        .forkDaemon
+        .as(42)
+    }
+
+  def run =
+    for {
+      _ <- ZIO.service[Int].provideLayer(layer)
+      _ <- ZIO.sleep(5.seconds)
+    } yield ()
+}
+```
+
+Int this example, we have created a layer that has a background process scoped to the global scope (daemon).
 
 ### interrupt
 Whenever we want to get rid of our fiber, we can simply call `interrupt` on that. The interrupt operation does not resume until the fiber has completed or has been interrupted and all its finalizers have been run. These precise semantics allow construction of programs that do not leak resources.
