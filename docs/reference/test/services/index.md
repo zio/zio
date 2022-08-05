@@ -3,7 +3,7 @@ id: index
 title: "Introduction"
 ---
 
-ZIO Test has out of the box test implementations for all standard ZIO environment types, such as `Console`, `Clock`, `Random` and `System` through the following modules:
+ZIO Test has out of the box test implementations for all built-in ZIO services, such as `Console`, `Clock`, `Random` and `System` through the following modules:
 - [`TestConsole`](./console.md)
 - [`TestClock`](./clock.md)
 - [`TestRandom`](./random.md)
