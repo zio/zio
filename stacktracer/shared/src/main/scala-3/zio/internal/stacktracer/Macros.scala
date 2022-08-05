@@ -22,9 +22,9 @@ object Macros {
 
     val location = {
       def loop(current: Symbol, acc: List[String] = Nil): List[String] = {
-        val currentName = current.name.toString.trim
+        val currentName = current.name.trim.stripSuffix("$")
         if (currentName != "<root>")
-          loop(current.owner, if (currentName == "$anonfun") acc else currentName :: acc)
+          loop(current.owner, if (currentName == "$anonfun" || currentName == "macro") acc else currentName :: acc)
         else acc
       }
 
