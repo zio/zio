@@ -336,6 +336,7 @@ module.exports = {
       items: [
         "reference/test/installation",
         "reference/test/writing-our-first-test",
+        "reference/test/running-tests",
         "reference/test/spec",
         "reference/test/assertion",
         {

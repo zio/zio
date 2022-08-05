@@ -55,60 +55,6 @@ Another thing worth pointing out is that tests being values are also effects. Im
 
 2. Second, because our tests are ordinary `ZIO` values, we don't need to turn to a testing framework for things like retries, timeouts, and resource management. We can solve all those problems with the full richness of functions that `ZIO` exposes.
 
-## Running Tests
-
-We can run ZIO Tests in two ways:
-
-1. If we [added](installation.md) `zio.test.sbt.ZTestFramework` to SBT's `testFrameworks`, our tests should be automatically picked up by SBT on invocation of `test`:
-
-  ```bash
-  sbt Test/test                      // run all tests
-  sbt Test/testOnly HelloWorldSpec   // run a specific test
-  ```
-
-To run a specific test by their labels, we can use the `-t "<label>"` option. Assume we have multiple tests like the below:
-
-```scala mdoc:compile-only
-import zio.test._
-
-object ExampleSpec extends ZIOSpecDefault {
-  def spec = suite("clock")(
-    test("foo") {
-      assertTrue(true)
-    },
-    test("foo bar") {
-      assertTrue(true)
-    },
-    test("foo bar baz") {
-      assertTrue(true)
-    }
-  )
-}
-```
-
-We can run those test that contains the "bar" label using the following SBT command:
-
-```scala
-sbt Test/runMain ExampleSpect -- -t "bar"
-```
-
-It will print the following results after running all tests containing the "bar" label:
-
-```scala
-sbt:zio-2.0> Test/testOnly ExampleSpec -- -t "bar"
-+ example suite
-  + foo bar
-  + foo bar baz
-3 tests passed. 0 tests failed. 0 tests ignored.
-```
-
-2. However, if we're not using SBT or have some other special needs, the `ZIOSpecDefault` has a `main` method which can be invoked directly or with SBTs `Test/run` or `Test/runMain` commands:
-
-  ```bash
-  sbt Test/run                       // prompt to choose which test to run
-  sbt Test/runMain HelloWorldSpec    // run a specific test
-  ```
-
 ## Why ZIO Test?
 
 ### Test Environment
