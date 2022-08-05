@@ -2022,7 +2022,7 @@ Example:
 
 ```diff
 - ZManaged.make(acquire)(release)
-+ ZIO.acquireRelease(acqurie)(release)
++ ZIO.acquireRelease(acquire)(release)
 ```
 
 Example: 
