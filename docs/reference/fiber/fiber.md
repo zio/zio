@@ -311,7 +311,7 @@ Still running ...
 Still running ...
 The outer scope is about to be closed.
 ```
-### Background Processes And Layers
+### Background Processes and Layers
 
 We also can use background processes to create layers:
 
