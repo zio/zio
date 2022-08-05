@@ -55,19 +55,6 @@ Another thing worth pointing out is that tests being values are also effects. Im
 
 2. Second, because our tests are ordinary `ZIO` values, we don't need to turn to a testing framework for things like retries, timeouts, and resource management. We can solve all those problems with the full richness of functions that `ZIO` exposes.
 
-## Installation
-
-In order to use ZIO Test, we need to add the required configuration in our SBT settings:
-
-```scala
-libraryDependencies ++= Seq( 
-  "dev.zio" %% "zio-test"          % zioVersion % "test",
-  "dev.zio" %% "zio-test-sbt"      % zioVersion % "test",
-  "dev.zio" %% "zio-test-magnolia" % zioVersion % "test" // optional
-)
-testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-```
-
 ## Our First Lines of ZIO Test
 
 Any object that implements the `ZIOSpecDefault` trait is a runnable test. So to start writing tests we need to extend `ZIOSpecDefault`, which requires a `Spec`:

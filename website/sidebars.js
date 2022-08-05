@@ -334,6 +334,7 @@ module.exports = {
       label: "Testing",
       link: { type: "doc", id: "reference/test/index" },
       items: [
+        "reference/test/installation",
         "reference/test/spec",
         "reference/test/assertion",
         {
