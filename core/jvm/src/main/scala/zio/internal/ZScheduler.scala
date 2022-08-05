@@ -101,6 +101,32 @@ private final class ZScheduler extends Executor {
     Some(metrics)
   }
 
+  override def stealWork(depth: Int)(implicit unsafe: Unsafe): Unit = {
+    val currentThread = Thread.currentThread
+    if (currentThread.isInstanceOf[ZScheduler.Worker]) {
+      val worker   = currentThread.asInstanceOf[ZScheduler.Worker]
+      var runnable = null.asInstanceOf[Runnable]
+      if (worker.nextRunnable ne null) {
+        runnable = worker.nextRunnable
+        worker.nextRunnable = null
+      } else {
+        runnable = worker.localQueue.poll(null)
+        if (runnable eq null) {
+          runnable = globalQueue.poll(null)
+        }
+      }
+      if (runnable ne null) {
+        if (runnable.isInstanceOf[FiberRunnable]) {
+          val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
+          worker.currentRunnable = fiberRunnable
+          fiberRunnable.run(depth)
+        } else {
+          runnable.run()
+        }
+      }
+    }
+  }
+
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     if (isBlocking(runnable)) {
       submitBlocking(runnable)

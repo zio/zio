@@ -136,6 +136,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     ZIO.succeed(Option(self.exitValue()(Unsafe.unsafe)))
 
   override def run(): Unit =
+    run(0)
+
+  def run(depth: Int): Unit =
     drainQueueOnCurrentThread()(Unsafe.unsafe)
 
   def runtimeFlags(implicit trace: Trace): UIO[RuntimeFlags] =

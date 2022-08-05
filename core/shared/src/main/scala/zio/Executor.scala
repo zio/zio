@@ -77,6 +77,9 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
    */
   final def submitOrThrow(runnable: Runnable)(implicit unsafe: Unsafe): Unit =
     if (!submit(runnable)) throw new RejectedExecutionException(s"Unable to run ${runnable.toString()}")
+
+  private[zio] def stealWork(depth: Int)(implicit unsafe: Unsafe): Unit =
+    ()
 }
 
 object Executor extends DefaultExecutors with Serializable {
