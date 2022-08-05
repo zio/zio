@@ -60,7 +60,7 @@ Sometimes we want to run a background fiber that doesn't block the current fiber
 - The life of a daemon fiber is tied to the life of the **global scope**. It will be terminated when the global scope is terminated.
 - The life of a scoped fiber is tied to the life of a **local scope**. It will be terminated when the local scope is terminated.
 
-#### Daemon Fibers
+#### Global Scoped Fibers (Daemons)
 
 Using `ZIO#forkDaemon` we can create a daemon fiber from a `ZIO` effect. This fiber will be automatically started and its life is tied to the global scope. So if the parent fiber terminates, the daemon fiber will not be terminated. It will only be terminated when the global scope is closed:
 
@@ -156,7 +156,7 @@ Daemon fiber which is attached to the global scope is running.
 
 Note that in the above example, the `ZIO#timeout` operator is used to interrupt the inner job after 3 seconds.
 
-#### Scoped Fibers
+#### Local Scoped Fibers
 
 Sometimes we want to attach fiber to a local scope. In such cases, we can use the `ZIO#forkScoped` operator. By using this operator, the lifetime of the forked fiber will be tied to the lifetime of the local scope:
 
@@ -228,7 +228,7 @@ object MainApp extends ZIOAppDefault {
           .timeout(3.seconds)
         _ <- ZIO.sleep(5.seconds)
       } yield ())
-      _ <- ZIO.debug("Global scope is about to be closed.")
+      _ <- ZIO.debug("The global scope is about to be closed.")
     } yield ()
 }
 ```
