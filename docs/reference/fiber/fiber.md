@@ -54,31 +54,202 @@ for {
 } yield ()
 ```
 
-### forkDaemon
+### Background Fibers
 
-The `ZIO#forkDaemon` forks the effect into a new fiber **attached to the global scope**. Because the new fiber is attached to the global scope, when the fiber executing the returned effect terminates, the forked fiber will continue running.
+Sometimes we want to run a background fiber that doesn't block the current fiber. This is useful for long-running tasks that we don't want to block the current fiber. We have two options to create background processes: **daemon fibers** and **scoped fibers**.
+- The life of a daemon fiber is tied to the life of the **global scope**. It will be terminated when the global scope is terminated.
+- The life of a scoped fiber is tied to the life of a **local scope**. It will be terminated when the local scope is terminated.
 
-In the following example, we have three effects: `inner`, `outer`, and `mainApp`. The outer effect is forking the `inner` effect using `ZIO#forkDaemon`. The `mainApp` effect is forking the `outer` fiber using `ZIO#fork` method and interrupt it after 3 seconds. Since the `inner` effect is forked in global scope, it will not be interrupted and continue its job:
+#### Daemon Fibers
 
-```scala mdoc:silent:nest
-val inner = printLine("Inner job is running.")
-  .delay(1.seconds)
-  .forever
-  .onInterrupt(printLine("Inner job interrupted.").orDie)
+Using `ZIO#forkDaemon` we can create a daemon fiber from a `ZIO` effect. This fiber will be automatically started and its life is tied to the global scope. So if the parent fiber terminates, the daemon fiber will not be terminated. It will only be terminated when the global scope is closed:
 
-val outer = (
-  for {
-    f <- inner.forkDaemon
-    _ <- printLine("Outer job is running.").delay(1.seconds).forever
-    _ <- f.join
-  } yield ()
-).onInterrupt(printLine("Outer job interrupted.").orDie)
+```scala mdoc:compile-only
+import zio._
 
-val mainApp = for {
-  fiber <- outer.fork
-  _     <- fiber.interrupt.delay(3.seconds)
-  _     <- ZIO.never
-} yield ()
+object MainApp extends ZIOAppDefault {
+  val innerJob = ZIO.scoped {
+    for {
+      _ <- ZIO.debug("starting a new inner scope.")
+      _ <- ZIO
+        .debug("Daemon fiber which is attached to the global scope is running.")
+        .repeat(Schedule.fixed(1.second))
+        .forkDaemon
+      _ <- ZIO.sleep(3.seconds)
+      _ <- ZIO.debug("The inner scope is about to be closed.")
+    } yield ()
+  }
+
+  def run =
+    for {
+      _ <- ZIO.debug("Starting global scope.")
+      _ <- innerJob
+      _ <- ZIO.sleep(5.seconds)
+      _ <- ZIO.debug("The global scope is about to be closed.")
+    } yield ()
+}
+```
+
+If we run the above program, we will see the following output which shows that while the inner scope closes after 3 seconds, the daemon fiber is still running until the global scope is closed:
+
+
+```
+Starting global scope.
+starting a new inner scope.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+The inner scope is about to be closed.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+The global scope is about to be closed.
+Daemon fiber which is attached to the global scope is running.
+```
+
+Even if we interrupt the `innerJob` fiber, the daemon fiber will not be interrupted:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val innerJob = ZIO.scoped {
+    for {
+      _ <- ZIO.debug("starting a new inner scope.")
+      _ <- ZIO
+        .debug("Daemon fiber which is attached to the global scope is running.")
+        .repeat(Schedule.fixed(1.second))
+        .forkDaemon
+      _ <- ZIO.never
+    } yield ()
+  }
+
+  def run =
+    for {
+      _ <- ZIO.debug("Starting global scope.")
+      _ <- innerJob.onInterrupt(ZIO.debug("Inner job interrupted.")).timeout(3.seconds)
+      _ <- ZIO.sleep(5.seconds)
+      _ <- ZIO.debug("The global scope is about to be closed.")
+    } yield ()
+}
+```
+
+The output:
+
+```
+Starting global scope.
+starting a new inner scope.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Inner job interrupted.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+Daemon fiber which is attached to the global scope is running.
+The global scope is about to be closed.
+Daemon fiber which is attached to the global scope is running.
+```
+
+Note that in the above example, the `ZIO#timeout` operator is used to interrupt the inner job after 3 seconds.
+
+#### Scoped Fibers
+
+Sometimes we want to attach fiber to a local scope. In such cases, we can use the `ZIO#forkScoped` operator. By using this operator, the lifetime of the forked fiber will be tied to the lifetime of the local scope:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val innerJob = ZIO.scoped {
+    for {
+      _ <- ZIO.debug("starting a new inner scope.")
+      _ <- ZIO
+        .debug("Scoped fiber which is attached to the inner scope is running.")
+        .repeat(Schedule.fixed(1.second))
+        .onInterrupt(ZIO.debug("The scoped fiber is interrupted."))
+        .forkScoped
+      _ <- ZIO.never
+    } yield ()
+  }
+
+  def run =
+    for {
+      _ <- ZIO.debug("Starting global scope.")
+      _ <- innerJob
+        .onInterrupt(ZIO.debug("Inner job interrupted."))
+        .timeout(3.seconds)
+      _ <- ZIO.sleep(5.seconds)
+      _ <- ZIO.debug("The global scope is about to be closed.")
+    } yield ()
+}
+```
+
+In the above example, when the inner scope closes, the scoped fiber will also be interrupted:
+
+```
+Starting global scope.
+starting a new inner scope.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+The scoped fiber is interrupted.
+Inner job interrupted.
+The global scope is about to be closed.
+```
+
+If we increase the region of the local scope which encloses more than the `innerJob` operation, if the `innerJob` is interrupted, the scoped fiber will not be interrupted until the local scope closes:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val innerJob =
+    for {
+      _ <- ZIO.debug("starting a new inner scope.")
+      _ <- ZIO
+        .debug("Scoped fiber which is attached to the inner scope is running.")
+        .repeat(Schedule.fixed(1.second))
+        .onInterrupt(ZIO.debug("The scoped fiber is interrupted."))
+        .forkScoped
+      _ <- ZIO.never
+    } yield ()
+
+  def run =
+    for {
+      _ <- ZIO.debug("Starting global scope.")
+      _ <- ZIO.scoped(for {
+        _ <- innerJob
+          .onInterrupt(ZIO.debug("Inner job interrupted."))
+          .timeout(3.seconds)
+        _ <- ZIO.sleep(5.seconds)
+      } yield ())
+      _ <- ZIO.debug("Global scope is about to be closed.")
+    } yield ()
+}
+```
+
+Here is the output:
+
+```
+Starting global scope.
+starting a new inner scope.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Inner job interrupted.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+Scoped fiber that is attached to the inner scope is running.
+The scoped fiber is interrupted.
+The global scope is about to be closed.
 ```
 
 ### interrupt
