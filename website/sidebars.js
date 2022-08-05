@@ -335,6 +335,7 @@ module.exports = {
       link: { type: "doc", id: "reference/test/index" },
       items: [
         "reference/test/installation",
+        "reference/test/writing-our-first-test",
         "reference/test/spec",
         "reference/test/assertion",
         {
