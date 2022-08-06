@@ -388,6 +388,7 @@ module.exports = {
             "reference/test/test-aspect/flaky-and-non-flaky-tests",
             "reference/test/test-aspect/ignoring-tests",
             "reference/test/test-aspect/non-deterministic-test-data",
+            "reference/test/test-aspect/passing-failed-tests",
           ]
         },
         "reference/test/gen",
