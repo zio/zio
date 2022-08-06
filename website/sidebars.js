@@ -386,6 +386,7 @@ module.exports = {
             "reference/test/test-aspect/environment-specific-tests",
             "reference/test/test-aspect/execution-strategy",
             "reference/test/test-aspect/flaky-and-non-flaky-tests",
+            "reference/test/test-aspect/ignoring-tests",
           ]
         },
         "reference/test/gen",
