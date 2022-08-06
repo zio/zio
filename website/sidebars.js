@@ -357,6 +357,7 @@ module.exports = {
             },
           ]
         },
+        "reference/test/test-hierarchies-and-organization",
         "reference/test/spec",
         {
           type: "category",

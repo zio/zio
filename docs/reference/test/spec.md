@@ -3,57 +3,8 @@ id: spec
 title: "Spec"
 ---
 
-A `Spec[R, E]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
-
-We can think of a spec as just a collection of tests. It is essentially a recursive data structure where every spec is just one individual test or a suite that itself can have multiple specs inside that each could be tests or sub suites. We can go down as far as we want in a recursive tree-like data structure.
-
 ## Constructors
 
-- **A Single Test** — The `test` constructor creates one single spec (test):
-
-  ```scala mdoc:silent:nest
-  import zio.test._
-  
-  val mySpec = test("true is true") {
-    assertTrue(true)
-  }
-  ```
-  
-  Real tests that run some logic and return testing result are created mostly with `test` function. It expects two arguments, first one will be the label of test which will be used for visual reporting back to the user, and an assertion which contains some testable logic specified about a target under the test.
-
-- **Collection of Multiple Tests** — The `suite` creates a suite which contains other specs (tests or suites):
-
-```scala mdoc:compile-only
-import zio.test._
-
-val mySuite =
-  suite("A suite containing multiple tests")(
-    test("the first test") {
-      assertTrue(1 + 1 == 2)
-    },
-    test("the second test") {
-      assertTrue(2 * 2 == 4)
-    }
-  )
-```
-
-  Suites can contain other suites. We can have multiple suites and one big suite that will aggregate them all:
-
-```scala mdoc:compile-only
-import zio.test._
-
-suite("int and string")(
-  suite("int suite")(
-    test("minus")(assertTrue(2 - 1 == 1)),
-    test("plus")(assertTrue(1 + 1 == 2))
-  ),
-  suite("string suite")(
-    test("concat")(assertTrue("a" + "b" == "ab")),
-    test("length")(assertTrue("abc".length == 3))
-  )
-)
-```
-  
 ## Dependencies on Other Services
 
 Just like the `ZIO` data type, the `Spec` requires an environment of type `R`. When we write tests, we might need to access a service through the environment. It can be a combination of the standard services such a `Clock`, `Console`, `Random` and `System` or test services like `TestClock`, `TestConsole`, `TestRandom`, and `TestSystem`, or any user-defined services.
