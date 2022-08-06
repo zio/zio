@@ -334,23 +334,69 @@ module.exports = {
       label: "Testing",
       link: { type: "doc", id: "reference/test/index" },
       items: [
+        "reference/test/why-zio-test",
+        "reference/test/installation",
+        "reference/test/writing-our-first-test",
+        "reference/test/running-tests",
+        {
+          type: "category",
+          label: "Assertions",
+          link: { type: "doc", id: "reference/test/assertions/index" },
+          items: [
+            "reference/test/assertions/smart-assertions",
+            {
+              type: "category",
+              label: "Classic Assertions",
+              link: { type: "doc", id: "reference/test/assertions/classic-assertions" },
+              items: [
+                "reference/test/assertions/operations",
+                "reference/test/assertions/built-in-assertions",
+                "reference/test/assertions/examples",
+                "reference/test/assertions/how-it-works"
+              ]
+            },
+          ]
+        },
+        "reference/test/test-hierarchies-and-organization",
+        "reference/test/sharing-layers-within-the-same-file",
+        "reference/test/sharing-layers-between-multiple-files",
         "reference/test/spec",
-        "reference/test/assertion",
         {
           type: "category",
           label: "Test Services",
-          link: { type: "doc", id: "reference/test/environment/index" },
+          link: { type: "doc", id: "reference/test/services/index" },
           items: [
-            "reference/test/environment/console",
-            "reference/test/environment/clock",
-            "reference/test/environment/random",
-            "reference/test/environment/system",
-            "reference/test/environment/live",
-            "reference/test/environment/config",
-            "reference/test/environment/sized",
+            "reference/test/services/console",
+            "reference/test/services/clock",
+            "reference/test/services/random",
+            "reference/test/services/system",
+            "reference/test/services/live",
+            "reference/test/services/config",
+            "reference/test/services/sized",
           ]
         },
-        "reference/test/test-aspect",
+        {
+          type: "category",
+          label: "Test Aspects",
+          link: { type: "doc", id: "reference/test/aspects/index" },
+          items: [ 
+            "reference/test/aspects/before-after-around",
+            "reference/test/aspects/conditional",
+            "reference/test/aspects/debugging-and-diagnostics",
+            "reference/test/aspects/environment-specific-tests",
+            "reference/test/aspects/execution-strategy",
+            "reference/test/aspects/flaky-and-non-flaky-tests",
+            "reference/test/aspects/ignoring-tests",
+            "reference/test/aspects/non-deterministic-test-data",
+            "reference/test/aspects/passing-failed-tests",
+            "reference/test/aspects/repeat-and-retry",
+            "reference/test/aspects/restoring-state-of-test-services",
+            "reference/test/aspects/sized", 
+            "reference/test/aspects/annotating-tests",
+            "reference/test/aspects/configuring-tests",
+            "reference/test/aspects/timing-out-tests",
+          ]
+        },
         "reference/test/gen",
       ]
     },
