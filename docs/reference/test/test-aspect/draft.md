@@ -1,6 +1,6 @@
 ---
-id: test-aspect
-title: "TestAspect"
+id: my
+title: "Draft"
 ---
 
 A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type.
@@ -105,63 +105,9 @@ executing test
 Ran 1 test in 478 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
-## Before, After and Around
 
-1. We can run a test _before_, _after_, or _around_ every test:
-- `TestAspect.before`
-- `TestAspect.after`
-- `TestAspect.around`
 
-```scala mdoc:invisible
-import zio._
-def deleteDir(dir: Option[String]): Task[Unit] = ZIO.attempt{
-  val _ = dir
-}
-```
 
-```scala mdoc:compile-only
-import zio._
-import zio.test.{ test, _ }
-
-test("before and after") {
-  for {
-    tmp <- System.env("TEMP_DIR")
-  } yield assertTrue(tmp.contains("/tmp/test"))
-} @@ TestAspect.before(
-  TestSystem.putEnv("TEMP_DIR", s"/tmp/test")
-) @@ TestAspect.after(
-  System.env("TEMP_DIR").flatMap(deleteDir)
-)
-```
-
-2. The `TestAspect.aroundTest` takes a scoped resource and evaluates every test within the context of the scoped function.
-
-3. There are also `TestAspect.beforeAll`, `TestAspect.afterAll`, and `TestAspect.aroundAll` variants.
-
-4. Using `TestAspect.aroundWith` and `TestAspect.aroundAllWith` we can evaluate every test or all test between two given effects, `before` and `after`, where the result of the `before` effect can be used in the `after` effect.
-
-## Conditional Aspects
-
-When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
-
-- **`ifEnv`** — Only runs a test if the specified environment variable satisfies the specified assertion.
-- **`ifEnvSet`** — Only runs a test if the specified environment variable is set.
-- **`ifProp`** — Only runs a test if the specified Java property satisfies the specified assertion.
-- **`ifPropSet`** — Only runs a test if the specified Java property is set.
-
-```scala mdoc:compile-only
-import zio._
-import zio.test.{test, _}
-import zio.test.TestAspect._
-
-test("a test that will run if the product is deployed in the testing environment") {
-  ???
-} @@ ifEnv("ENV")(_ == "testing")
-
-test("a test that will run if the java.io.tmpdir property is available") {
-  ???
-} @@ ifEnvSet("java.io.tmpdir")
-```
 
 ## Debugging and Diagnostics
 
@@ -584,7 +530,7 @@ current time: 1
 
 ## Sized Tests
 
-To change the default _size_ used by [sized generators](gen.md#sized-generators) we can use `sized` test aspect:
+To change the default _size_ used by [sized generators](../gen.md#sized-generators) we can use `sized` test aspect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -688,7 +634,7 @@ The output would be:
 
 ## Test Configs
 
-To run cases, there are some [default configuration settings](services/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
+To run cases, there are some [default configuration settings](../services/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
 
 1. **`TestAspect.repeats(n: Int)`** — Runs each test with the number of times to repeat tests to ensure they are stable set to the specified value.
 

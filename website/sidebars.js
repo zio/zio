@@ -375,7 +375,15 @@ module.exports = {
             "reference/test/services/sized",
           ]
         },
-        "reference/test/test-aspect",
+        {
+          type: "category",
+          label: "Test Aspects",
+          link: { type: "doc", id: "reference/test/test-aspect/index" },
+          items: [ 
+            "reference/test/test-aspect/before-after-around",
+            "reference/test/test-aspect/conditional",
+          ]
+        },
         "reference/test/gen",
       ]
     },

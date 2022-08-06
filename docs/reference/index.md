@@ -3,7 +3,6 @@ id: index
 title: "Introduction"
 ---
 
-
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
@@ -114,7 +113,7 @@ IO supports 5 types of Metrics:
 
 - **[Spec](test/spec.md)**— A `Spec[R, E]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
 - **[Assertion](test/assertion.md)**— An `Assertion[A]` is a test assertion that can be used to assert the predicate of type `A => Boolean`.
-- **[TestAspect](test/test-aspect.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
+- **[TestAspect](test/test-aspect/test-aspect.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
 - **[Gen](test/gen.md)**— A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`.
 - **Test Service**— ZIO Test has the following out-of-the-box test services:
     - **[TestConsole](test/services/console.md)**— It allows testing of applications that interact with the console.
