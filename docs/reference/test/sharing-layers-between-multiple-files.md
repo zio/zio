@@ -1,6 +1,6 @@
 ---
-id: sharing-layers-within-multiple-files
-title: "Sharing Layers Within Multiple Files"
+id: sharing-layers-between-multiple-files
+title: "Sharing Layers Between Multiple Files"
 ---
 
 In the previous example, we used the `Spec#provideXYZShared` methods to share layers between multiple specs in one file. In most cases, when the number of tests and specs grows, this is not a good idea. We want a way to share layers between multiple specs in different files.

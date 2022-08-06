@@ -359,7 +359,7 @@ module.exports = {
         },
         "reference/test/test-hierarchies-and-organization",
         "reference/test/sharing-layers-within-the-same-file",
-        "reference/test/sharing-layers-within-multiple-files",
+        "reference/test/sharing-layers-between-multiple-files",
         "reference/test/spec",
         {
           type: "category",
