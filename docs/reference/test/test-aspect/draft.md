@@ -106,54 +106,6 @@ Ran 1 test in 478 ms: 1 succeeded, 0 ignored, 0 failed
 ```
 
 
-
-
-
-
-## Repeat and Retry
-
-There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:
-
-1. **`TestAspect.repeat(schedule: Schedule)`** — It takes a schedule and repeats a test based on it. The test passes if it passes every time:
-
-  ```scala mdoc:compile-only
-  import zio._
-  import zio.test.{ test, _ }
-  
-  test("repeating a test based on the scheduler to ensure it passes every time") {
-    ZIO("repeating successful tests")
-      .debug
-      .map(_ => assertTrue(true))
-  } @@ TestAspect.repeat(Schedule.recurs(5))
-  ```
-
-2. **`TestAspect.retry(schedule: Schedule)`** — If our test fails occasionally, we can retry failed tests by providing a scheduler to the `retry` test aspect.
-
-  For example, the following test retries a maximum of five times. Once a successful assertion is made, the test passes:
-
-  ```scala mdoc:compile-only
-  import zio._
-  import zio.test.{ test, _ }
-  
-  test("retrying a failing test based on the schedule until it succeeds") {
-    ZIO("retrying a failing test")
-      .debug
-      .map(_ => assertTrue(true))
-  } @@ TestAspect.retry(Schedule.recurs(5))
-  ```
-3. **`TestAspect.eventually`** — This test aspect keeps retrying a test until it passes, regardless of how many times it fails:
-
-  ```scala mdoc:compile-only
-  import zio._
-  import zio.test.{ test, _ }
-  
-  test("retrying a failing test until it succeeds") {
-    ZIO("retrying a failing test")
-      .debug
-      .map(_ => assertTrue(true))
-  } @@ TestAspect.eventually
-  ```
-
 ## Restoring State of Test Services
 
 ZIO Test has some test aspects which restore the state of given restorable test services, such as `TestClock`, `TestConsole`, `TestRandom` and `TestSystem`, to their starting state after the test is run. Note that these test aspects are only useful when we are repeating tests.
