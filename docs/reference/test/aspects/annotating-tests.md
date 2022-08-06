@@ -7,6 +7,7 @@ title: "Annotating Tests"
 
 We can annotate the execution time of each test using the `timed` test aspect:
 
+
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{ test, _ }
@@ -15,7 +16,7 @@ suite("a timed suite")(
   test("A")(Live.live(ZIO.sleep(100.millis)).map(_ => assertTrue(true))),
   test("B")(assertTrue(true)),
   test("C")(assertTrue(true))
-) @@ timed 
+) @@ TestAspect.timed 
 ```
 
 After running the test suite, the output should be something like this:

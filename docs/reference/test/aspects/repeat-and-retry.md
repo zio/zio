@@ -14,8 +14,7 @@ import zio._
 import zio.test.{ test, _ }
 
 test("repeating a test based on the scheduler to ensure it passes every time") {
-  ZIO("repeating successful tests")
-    .debug
+  ZIO.debug("repeating successful tests")
     .map(_ => assertTrue(true))
 } @@ TestAspect.repeat(Schedule.recurs(5))
 ```
@@ -31,23 +30,21 @@ import zio._
 import zio.test.{ test, _ }
 
 test("retrying a failing test based on the schedule until it succeeds") {
-  ZIO("retrying a failing test")
-    .debug
+  ZIO.debug("retrying a failing test")
     .map(_ => assertTrue(true))
 } @@ TestAspect.retry(Schedule.recurs(5))
 ```
 
 ## Eventually
 
-3. The `TestAspect.eventually` test aspect keeps retrying a test until it passes, regardless of how many times it fails:
+3. The `eventually` test aspect keeps retrying a test until it passes, regardless of how many times it fails:
 
 ```scala mdoc:compile-only
 import zio._
 import zio.test.{ test, _ }
 
 test("retrying a failing test until it succeeds") {
-  ZIO("retrying a failing test")
-    .debug
+  ZIO.debug("retrying a failing test")
     .map(_ => assertTrue(true))
 } @@ TestAspect.eventually
 ```
