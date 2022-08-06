@@ -391,6 +391,7 @@ module.exports = {
             "reference/test/test-aspect/passing-failed-tests",
             "reference/test/test-aspect/repeat-and-retry",
             "reference/test/test-aspect/restoring-state-of-test-services",
+            "reference/test/test-aspect/sized", 
           ]
         },
         "reference/test/gen",
