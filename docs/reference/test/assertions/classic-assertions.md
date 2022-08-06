@@ -42,7 +42,7 @@ test("updating ref") {
 }
 ```
 
-## For-Comprehensions Style
+## The for-comprehension Style
 
 Having this all in mind, probably the most common and also most readable way of structuring tests is to pass a for-comprehension to `test` function and yield a call to `assert` function.
 
