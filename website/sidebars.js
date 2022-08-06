@@ -393,6 +393,7 @@ module.exports = {
             "reference/test/test-aspect/restoring-state-of-test-services",
             "reference/test/test-aspect/sized", 
             "reference/test/test-aspect/annotating-tests",
+            "reference/test/test-aspect/configuring-tests",
           ]
         },
         "reference/test/gen",
