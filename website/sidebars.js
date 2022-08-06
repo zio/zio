@@ -394,6 +394,7 @@ module.exports = {
             "reference/test/test-aspect/sized", 
             "reference/test/test-aspect/annotating-tests",
             "reference/test/test-aspect/configuring-tests",
+            "reference/test/test-aspect/timing-out-tests",
           ]
         },
         "reference/test/gen",
