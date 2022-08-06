@@ -338,8 +338,26 @@ module.exports = {
         "reference/test/installation",
         "reference/test/writing-our-first-test",
         "reference/test/running-tests",
+        {
+          type: "category",
+          label: "Assertions",
+          link: { type: "doc", id: "reference/test/assertions/index" },
+          items: [
+            "reference/test/assertions/smart-assertions",
+            {
+              type: "category",
+              label: "Classic Assertions",
+              link: { type: "doc", id: "reference/test/assertions/classic-assertions" },
+              items: [
+                "reference/test/assertions/operations",
+                "reference/test/assertions/built-in-assertions",
+                "reference/test/assertions/examples",
+                "reference/test/assertions/how-it-works"
+              ]
+            },
+          ]
+        },
         "reference/test/spec",
-        "reference/test/assertion",
         {
           type: "category",
           label: "Test Services",
