@@ -383,6 +383,7 @@ module.exports = {
             "reference/test/test-aspect/before-after-around",
             "reference/test/test-aspect/conditional",
             "reference/test/test-aspect/debugging-and-diagnostics",
+            "reference/test/test-aspect/environment-specific-tests",
           ]
         },
         "reference/test/gen",
