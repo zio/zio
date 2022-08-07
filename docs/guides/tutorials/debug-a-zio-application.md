@@ -171,7 +171,7 @@ after map: 6
 Debugging using print statements is usable in some cases, and sometimes it is not performant. Another way to debug a code is to use a debugger. A debugger is a program that allows us to step through the code and see the intermediate values of the computation. Some IDEs like IntelliJ IDEA or Visual Studio Code have built-in debuggers. We can use these to debug our code, whether we are debugging a functional effect or an ordinary scala program.
 
 To learn how to use a debugger in each of the IDEs, we can look at the following links:
-- [IntelliJ IDEA](https://www.jetbrains.com/help/idea/debugging-scala.html)
+- [IntelliJ IDEA](https://www.jetbrains.com/help/idea/run-debug-and-test-scala.html)
 - [Visual Studio Code](https://code.visualstudio.com/docs/editor/debugging)
 
 ## Conclusion
