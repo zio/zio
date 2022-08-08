@@ -4,17 +4,7 @@ import zio.Chunk
 
 object ExecutionEvent {
 
-  final case class Test[+E](
-    labelsReversed: List[String],
-    test: Either[TestFailure[E], TestSuccess],
-    annotations: TestAnnotationMap,
-    ancestors: List[SuiteId],
-    duration: Long,
-    id: SuiteId,
-    // TODO Probably shouldn't be a chunk, since we've already finished appending
-    //    by the time we construct this
-    output: Chunk[String]
-  ) extends ExecutionEvent {
+  final case class Test[+E](labelsReversed: List[String], test: Either[TestFailure[E], TestSuccess], annotations: TestAnnotationMap, ancestors: List[SuiteId], duration: Long, id: SuiteId) extends ExecutionEvent {
     val labels: List[String] = labelsReversed.reverse
   }
 

@@ -18,7 +18,7 @@ import java.nio.file.StandardOpenOption
 class ZTestEventHandlerSbt(eventHandler: EventHandler, taskDef: TaskDef) extends ZTestEventHandler {
   def handle(event: ExecutionEvent): UIO[Unit] =
     event match {
-      case evt @ ExecutionEvent.Test(_, _, _, _, _, _, _) =>
+      case evt @ ExecutionEvent.Test(_, _, _, _, _, _) =>
         writeTestResultsToFile(evt) *>
         ZIO.succeed(eventHandler.handle(ZTestEvent.convertEvent(evt, taskDef)))
       case ExecutionEvent.SectionStart(_, _, _) => ZIO.unit
@@ -51,9 +51,11 @@ class ZTestEventHandlerSbt(eventHandler: EventHandler, taskDef: TaskDef) extends
       Files.createFile(path)
 
     // TODO Write as JSON. Decide if we want everything in the event serialized.
+    val testOutput = test.annotations.get(TestAnnotation.output)
+
     val serialized =
       test.labels.mkString(" - ") + "\n" +
-        test.output.mkString("\n") + "\n\n"
+        testOutput.mkString("\n") + "\n\n"
 
     Files.write(path, serialized.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND)
 

@@ -51,7 +51,7 @@ object SummaryBuilder {
     executedSpec: ExecutionEvent
   )(pred: Either[TestFailure[_], TestSuccess] => Boolean): Int =
     executedSpec match {
-      case Test(_, test, _, _, _, _, _) =>
+      case Test(_, test, _, _, _, _) =>
         if (pred(test)) 1 else 0
       case RuntimeFailure(_, _, _, _) =>
         0
@@ -63,7 +63,7 @@ object SummaryBuilder {
 
   private def extractFailures(reporterEvent: ExecutionEvent): Seq[ExecutionEvent] =
     reporterEvent match {
-      case Test(_, test, _, _, _, _, _) =>
+      case Test(_, test, _, _, _, _) =>
         test match {
           case Left(_) =>
             Seq(reporterEvent)

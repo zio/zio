@@ -120,15 +120,7 @@ object TestExecutor {
                     outputAnnotation = annotationMap.get(TestAnnotation.output)
                     event =
                       ExecutionEvent
-                        .Test(
-                          labels,
-                          result.map(_._2),
-                          staticAnnotations ++ extractAnnotations(result.map(_._2)),
-                          ancestors,
-                          duration,
-                          sectionId,
-                          outputAnnotation
-                        )
+                        .Test(labels, result.map(_._2), staticAnnotations ++ extractAnnotations(result.map(_._2)), ancestors, duration, sectionId)
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     ConsoleRenderer.render(e, labels).foreach(cr => println("CR: " + cr))
