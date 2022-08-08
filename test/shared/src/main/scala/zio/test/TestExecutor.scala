@@ -98,18 +98,9 @@ object TestExecutor {
                       _ <-
                         restore(
                           ZIO.foreachExec(specs)(exec)(spec =>
-                            FiberRefTestOutput.lineageRef.locallyWith(
-                              old => old.copy(ancestors = old.ancestors :+ newMultiSectionId)
-
-                            )(
-//                              FiberRefTestOutput.outputRef.locallyWith(
-//                                old => old.copy(lines = old.lines :+ newMultiSectionId.toString)
-//                              )(
                                 loop(labels, spec, exec, newAncestors, newMultiSectionId)
-//                              )
                             )
                           )
-                        )
                           .ensuring(
                             processEvent(end)
                           )
@@ -124,14 +115,9 @@ object TestExecutor {
                       ZIO.withClock(ClockLive)(
                           test.timed.either
                       )
-//                    _ <- FiberRefTestOutput.lineageRef.get.debug(s"Test ancestors")
-//                    _ <- TestConsole.output.debug("Output in executor")
-//                    _ <- ZIO.debug("Console in executor: " + testConsole)
-//                      .withConsole(TestConsole)
-//                      .provideSomeLayer[R with Scope](freshLayerPerSpec)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
-                    _ <- FiberRefTestOutput.outputRef.get.map(_.lines.mkString(",")).debug(s"Captured output for ${labels.head}")
-                    output <- FiberRefTestOutput.outputRef.get
+                    annotationMap = extractAnnotations(result.map(_._2))
+                    outputAnnotation = annotationMap.get(TestAnnotation.output)
                     event =
                       ExecutionEvent
                         .Test(
@@ -141,7 +127,7 @@ object TestExecutor {
                           ancestors,
                           duration,
                           sectionId,
-                          output.lines
+                          outputAnnotation
                         )
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
