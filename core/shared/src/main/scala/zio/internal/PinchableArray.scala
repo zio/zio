@@ -36,13 +36,7 @@ private[zio] final class PinchableArray[A: ClassTag](hint: Int) extends Iterable
   def ++=(as: Chunk[A]): Unit = {
     ensureCapacity(as.length)
 
-    var i = 0
-    var j = _size
-    while (i < as.length) {
-      array(j) = as(i)
-      i = i + 1
-      j = j + 1
-    }
+    as.copyToArray(array, _size)
 
     _size = _size + as.length
   }

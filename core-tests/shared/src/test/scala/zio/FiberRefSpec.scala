@@ -414,6 +414,32 @@ object FiberRefSpec extends ZIOBaseSpec {
         runtime  <- ZIO.runtime[Any]
         actual   <- ZIO.succeedBlockingUnsafe(implicit unsafe => runtime.unsafe.run(ZIO.clock).getOrThrowFiberFailure())
       } yield assertTrue(actual == expected)
+    },
+    test("fork patch is applied when a fiber is unsafely run") {
+      for {
+        fiberRef <- FiberRef.make[Boolean](true, _ => true)
+        runtime  <- fiberRef.locally(false)(ZIO.runtime[Any])
+        promise  <- Promise.make[Nothing, Boolean]
+        _ <- ZIO.succeed {
+               Unsafe.unsafe { implicit unsafe =>
+                 runtime.unsafe.run(fiberRef.get.intoPromise(promise))
+               }
+             }
+        value <- promise.await
+      } yield assertTrue(value)
+    },
+    test("fork patch is applied when a fiber is unsafely forked") {
+      for {
+        fiberRef <- FiberRef.make[Boolean](true, _ => true)
+        runtime  <- fiberRef.locally(false)(ZIO.runtime[Any])
+        promise  <- Promise.make[Nothing, Boolean]
+        _ <- ZIO.succeed {
+               Unsafe.unsafe { implicit unsafe =>
+                 runtime.unsafe.fork(fiberRef.get.intoPromise(promise))
+               }
+             }
+        value <- promise.await
+      } yield assertTrue(value)
     }
   ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
 }

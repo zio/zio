@@ -111,7 +111,7 @@ trait Runtime[+R] { self =>
 
       val fiberId   = FiberId.make(trace)
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-      val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
+      val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
 
       val supervisor = fiber.getSupervisor()
 
@@ -140,7 +140,7 @@ trait Runtime[+R] { self =>
 
       val fiberId   = FiberId.make(trace)
       val fiberRefs = self.fiberRefs.updatedAs(fiberId)(FiberRef.currentEnvironment, environment)
-      val fiber     = FiberRuntime[E, A](fiberId, fiberRefs, runtimeFlags)
+      val fiber     = FiberRuntime[E, A](fiberId, fiberRefs.forkAs(fiberId), runtimeFlags)
 
       FiberScope.global.add(runtimeFlags, fiber)
 

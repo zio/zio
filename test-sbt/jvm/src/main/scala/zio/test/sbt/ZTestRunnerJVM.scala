@@ -41,26 +41,39 @@ final class ZTestRunnerJVM(val args: Array[String], val remoteArgs: Array[String
     }
   )
 
-  def done(): String =
-    shutdownHook.fold("") { hook =>
-      hook.apply()
+  def done(): String = {
+    val allSummaries = summaries.get
 
-      val allSummaries = summaries.get
+    val total  = allSummaries.map(_.total).sum
+    val ignore = allSummaries.map(_.ignore).sum
 
-      val total  = allSummaries.map(_.total).sum
-      val ignore = allSummaries.map(_.ignore).sum
+    val compositeSummary =
+      allSummaries.foldLeft(Summary.empty)(_.add(_))
 
-      val compositeSummary =
-        allSummaries.foldLeft(Summary.empty)(_.add(_))
+    val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
 
-      val renderedSummary = ConsoleRenderer.renderSummary(compositeSummary)
-
-      if (allSummaries.isEmpty || total == ignore)
-        s"${Console.YELLOW}No tests were executed${Console.RESET}"
-      else {
+    val renderedResults =
+      if (allSummaries.nonEmpty && total != ignore)
         colored(renderedSummary)
-      }
-    }
+      else if (ignore > 0)
+        s"${Console.YELLOW}All eligible tests are currently ignored ${Console.RESET}"
+
+    // We eagerly print out the info here, rather than returning it
+    // from this function as a workaround for this bug when running
+    // tests in a forked JVM:
+    //    https://github.com/sbt/sbt/issues/3510
+    if (allSummaries.nonEmpty)
+      println(renderedResults)
+    else ()
+
+    // If tests are forked, this will only be relevant in the forked
+    // JVM, and will not be set in the original JVM.
+    shutdownHook.foreach(_.apply())
+
+    // Does not try to return a real summary, because we have already
+    // printed this info directly to the console.
+    "Completed tests"
+  }
 
   def tasks(defs: Array[TaskDef]): Array[Task] =
     tasksZ(defs, zio.Console.ConsoleLive)(Trace.empty).toArray

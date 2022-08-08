@@ -4722,9 +4722,19 @@ object ZStreamSpec extends ZIOBaseSpec {
           def lazyL = l
           assertZIO(ZStream.fromIterable(lazyL).runCollect)(equalTo(l))
         }),
+        test("fromIterable is safe with very large collections") {
+          for {
+            _ <- ZStream.fromIterable(1 to 5000000).runDrain
+          } yield assertCompletes
+        },
         test("fromIterableZIO")(check(Gen.small(Gen.chunkOfN(_)(Gen.int))) { l =>
           assertZIO(ZStream.fromIterableZIO(ZIO.succeed(l)).runCollect)(equalTo(l))
         }),
+        test("fromIterableZIO is safe with very large collections") {
+          for {
+            _ <- ZStream.fromIterableZIO(ZIO.succeed(1 to 5000000)).runDrain
+          } yield assertCompletes
+        },
         test("fromIterator") {
           check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertZIO(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))

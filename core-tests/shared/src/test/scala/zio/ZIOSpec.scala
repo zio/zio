@@ -2338,6 +2338,25 @@ object ZIOSpec extends ZIOBaseSpec {
         val effect = (ZIO.unit.timeout(Duration.Infinity)).uninterruptible
         assertZIO(effect)(isSome(isUnit))
       } @@ zioTag(interruption),
+      test("timeout preserves uninterruptibility") {
+        def run(start: Promise[Nothing, Unit], end: Promise[Nothing, Unit]) =
+          ZIO.scoped {
+            for {
+              promise <- Promise.make[Nothing, Unit]
+              _       <- promise.succeed(())
+              _       <- start.succeed(()).withFinalizer(_ => promise.await.timeout(10.seconds) *> end.succeed(()))
+              _       <- ZIO.never
+            } yield ()
+          }
+        for {
+          start <- Promise.make[Nothing, Unit]
+          end   <- Promise.make[Nothing, Unit]
+          fiber <- run(start, end).forkDaemon
+          _     <- start.await
+          _     <- fiber.interrupt
+          _     <- end.await
+        } yield assertCompletes
+      } @@ nonFlaky,
       test("catchAllCause") {
         val io =
           for {

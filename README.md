@@ -218,10 +218,10 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 
 [Link-Codecov]: https://codecov.io/gh/zio/zio?branch=master "Codecov"
 [Link-IsItMaintained]: http://isitmaintained.com/project/zio/zio "Average time to resolve an issue"
-[Link-Scaladoc]: https://javadoc.io/doc/dev.zio/zio_2.12/latest/zio/index.html
+[Link-Scaladoc]: https://javadoc.io/doc/dev.zio/zio_3/latest/zio/index.html
 [Link-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio "Scaladex"
-[Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_2.12/ "Sonatype Releases"
-[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_2.12/ "Sonatype Snapshots"
+[Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_3/ "Sonatype Releases"
+[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_3/ "Sonatype Snapshots"
 [Link-Ziverge]: https://ziverge.com "Ziverge"
 [Link-Scalac]: https://scalac.io "Scalac"
 [Link-SoftwareMill]: https://softwaremill.com "SoftwareMill"
@@ -234,8 +234,8 @@ Copyright 2017 - 2020 John A. De Goes and the ZIO Contributors. All rights reser
 [Badge-Codecov]: https://codecov.io/gh/zio/zio/coverage.svg?branch=master "Codecov"
 [Badge-IsItMaintained]: http://isitmaintained.com/badge/resolution/zio/zio.svg "Average time to resolve an issue"
 [Badge-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio/latest.svg "Scaladex"
-[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Releases"
-[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_2.12.svg "Sonatype Snapshots"
+[Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio_3.svg "Sonatype Releases"
+[Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio_3.svg "Sonatype Snapshots"
 [Badge-Discord]: https://img.shields.io/discord/629491597070827530?logo=discord "chat on discord"
 [Badge-Twitter]: https://img.shields.io/twitter/follow/zioscala.svg?style=plastic&label=follow&logo=twitter
 [Badge-Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg

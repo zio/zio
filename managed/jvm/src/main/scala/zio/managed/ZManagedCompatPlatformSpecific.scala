@@ -42,10 +42,19 @@ private[managed] trait ZManagedCompatPlatformSpecific {
     /**
      * Creates a stream from a managed Java stream
      */
+    final def fromJavaStreamManaged[R, A](stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]])(implicit
+      trace: Trace
+    ): ZStream[R, Throwable, A] =
+      fromJavaStreamManaged(stream, ZStream.DefaultChunkSize)
+
+    /**
+     * Creates a stream from a managed Java stream
+     */
     final def fromJavaStreamManaged[R, A](
-      stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]]
+      stream: => ZManaged[R, Throwable, java.util.stream.Stream[A]],
+      chunkSize: Int
     )(implicit trace: Trace): ZStream[R, Throwable, A] =
-      ZStream.fromJavaStreamScoped[R, A](stream.scoped)
+      ZStream.fromJavaStreamScoped[R, A](stream.scoped, chunkSize)
 
     /**
      * Creates a stream from managed `java.io.Reader`.

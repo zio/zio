@@ -3556,6 +3556,14 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.sleep(Duration.fromNanos(Long.MaxValue)) *> ZIO.never
 
   /**
+   * Inherits values from all [[FiberRef]] instances into current fiber.
+   */
+  def inheritFiberRefs(childFiberRefs: FiberRefs)(implicit trace: Trace): UIO[Unit] =
+    ZIO.updateFiberRefs { (parentFiberId, parentFiberRefs) =>
+      parentFiberRefs.joinAs(parentFiberId)(childFiberRefs)
+    }
+
+  /**
    * Returns an effect that is interrupted as if by the fiber calling this
    * method.
    */

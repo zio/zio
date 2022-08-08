@@ -2433,10 +2433,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   )(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): ZStream[R, E1, A] =
     new ZStream(
       channel.catchAll(e =>
-        if (pf.isDefinedAt(e))
-          ZChannel.fail(pf.apply(e))
-        else
-          ZChannel.failCause(Cause.die(f(e)))
+        pf.andThen(r => ZChannel.fail(r))
+          .applyOrElse[E, ZChannel[Any, Any, Any, Any, E1, Nothing, Nothing]](
+            e,
+            er => ZChannel.failCause(Cause.die(f(er)))
+          )
       )
     )
 
@@ -4274,13 +4275,32 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an iterable collection of values
    */
   def fromIterable[O](as: => Iterable[O])(implicit trace: Trace): ZStream[Any, Nothing, O] =
-    fromChunk(Chunk.fromIterable(as))
+    fromIterable(as, DefaultChunkSize)
+
+  /**
+   * Creates a stream from an iterable collection of values
+   */
+  def fromIterable[O](as: => Iterable[O], chunkSize: => Int)(implicit trace: Trace): ZStream[Any, Nothing, O] =
+    ZStream.suspend {
+      as match {
+        case chunk: Chunk[O]       => ZStream.fromChunk(chunk)
+        case iterable: Iterable[O] => ZStream.fromIteratorSucceed(iterable.iterator)
+      }
+    }
 
   /**
    * Creates a stream from an effect producing a value of type `Iterable[A]`
    */
   def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]])(implicit trace: Trace): ZStream[R, E, O] =
-    fromZIO(iterable).mapConcat(identity)
+    fromIterableZIO(iterable, DefaultChunkSize)
+
+  /**
+   * Creates a stream from an effect producing a value of type `Iterable[A]`
+   */
+  def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]], chunkSize: => Int)(implicit
+    trace: Trace
+  ): ZStream[R, E, O] =
+    ZStream.unwrap(iterable.map(fromIterable(_, chunkSize)))
 
   /** Creates a stream from an iterator */
   def fromIterator[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
@@ -4405,24 +4425,43 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Creates a stream from an iterator that may potentially throw exceptions
    */
+  def fromIteratorZIO[R, A](iterator: => ZIO[R, Throwable, Iterator[A]])(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] =
+    fromIteratorZIO(iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from an iterator that may potentially throw exceptions
+   */
   def fromIteratorZIO[R, A](
-    iterator: => ZIO[R, Throwable, Iterator[A]]
+    iterator: => ZIO[R, Throwable, Iterator[A]],
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[R, Throwable, A] =
-    fromZIO(iterator).flatMap(fromIterator(_))
+    fromZIO(iterator).flatMap(fromIterator(_, chunkSize))
+
+  /**
+   * Creates a stream from a Java iterator that may throw exceptions
+   */
+  def fromJavaIterator[A](iterator: => java.util.Iterator[A])(implicit trace: Trace): ZStream[Any, Throwable, A] =
+    fromJavaIterator(iterator, DefaultChunkSize)
 
   /**
    * Creates a stream from a Java iterator that may throw exceptions
    */
   def fromJavaIterator[A](
-    iterator: => java.util.Iterator[A]
+    iterator: => java.util.Iterator[A],
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Throwable, A] =
-    fromIterator {
-      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-      new Iterator[A] {
-        def next(): A        = it.next
-        def hasNext: Boolean = it.hasNext
-      }
-    }
+    fromIterator(
+      {
+        val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
+        new Iterator[A] {
+          def next(): A        = it.next
+          def hasNext: Boolean = it.hasNext
+        }
+      },
+      chunkSize
+    )
 
   /**
    * Creates a stream from a scoped iterator
@@ -4430,29 +4469,59 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def fromJavaIteratorScoped[R, A](iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]])(implicit
     trace: Trace
   ): ZStream[R, Throwable, A] =
-    scoped[R](iterator).flatMap(fromJavaIterator(_))
+    fromJavaIteratorScoped[R, A](iterator, DefaultChunkSize)
+
+  /**
+   * Creates a stream from a scoped iterator
+   */
+  def fromJavaIteratorScoped[R, A](
+    iterator: => ZIO[Scope with R, Throwable, java.util.Iterator[A]],
+    chunkSize: Int
+  )(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] =
+    scoped[R](iterator).flatMap(fromJavaIterator(_, chunkSize))
+
+  /**
+   * Creates a stream from a Java iterator
+   */
+  def fromJavaIteratorSucceed[A](iterator: => java.util.Iterator[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
+    fromJavaIteratorSucceed(iterator, DefaultChunkSize)
 
   /**
    * Creates a stream from a Java iterator
    */
   def fromJavaIteratorSucceed[A](
-    iterator: => java.util.Iterator[A]
+    iterator: => java.util.Iterator[A],
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[Any, Nothing, A] =
-    fromIteratorSucceed {
-      val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
-      new Iterator[A] {
-        def next(): A        = it.next
-        def hasNext: Boolean = it.hasNext
-      }
-    }
+    fromIteratorSucceed(
+      {
+        val it = iterator // Scala 2.13 scala.collection.Iterator has `iterator` in local scope
+        new Iterator[A] {
+          def next(): A        = it.next
+          def hasNext: Boolean = it.hasNext
+        }
+      },
+      chunkSize
+    )
+
+  /**
+   * Creates a stream from a Java iterator that may potentially throw exceptions
+   */
+  def fromJavaIteratorZIO[R, A](iterator: => ZIO[R, Throwable, java.util.Iterator[A]])(implicit
+    trace: Trace
+  ): ZStream[R, Throwable, A] =
+    fromJavaIteratorZIO(iterator, DefaultChunkSize)
 
   /**
    * Creates a stream from a Java iterator that may potentially throw exceptions
    */
   def fromJavaIteratorZIO[R, A](
-    iterator: => ZIO[R, Throwable, java.util.Iterator[A]]
+    iterator: => ZIO[R, Throwable, java.util.Iterator[A]],
+    chunkSize: Int
   )(implicit trace: Trace): ZStream[R, Throwable, A] =
-    fromZIO(iterator).flatMap(fromJavaIterator(_))
+    fromZIO(iterator).flatMap(fromJavaIterator(_, chunkSize))
 
   /**
    * Creates a stream from a ZIO effect that pulls elements from another stream.

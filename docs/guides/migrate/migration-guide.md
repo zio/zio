@@ -136,6 +136,7 @@ def MyInterface {
 +    def doSomething()(implicit unsafe: Unsafe): Unit
 +  }
 }
+```
 
 ## Deletion of Type Alias Companion Objects
 
@@ -2021,7 +2022,7 @@ Example:
 
 ```diff
 - ZManaged.make(acquire)(release)
-+ ZIO.acquireRelease(acqurie)(release)
++ ZIO.acquireRelease(acquire)(release)
 ```
 
 Example: 
@@ -2226,6 +2227,24 @@ val taken: UIO[Chunk[Int]] = for {
 ```
 
 ## ZIO Test
+
+### ZSpec
+
+The `ZSpec` data type has been renamed to `Spec`.
+
+| ZIO 1.x | ZIO 2.x |
+|---------|---------|
+| `ZSpec` | `Spec`  |
+
+So without any special effort, whenever we use `ZSpec` we should change it to `Spec`, e.g.:
+
+```diff
+- val myspec: ZSpec[Any, Nothing] =
++ val myspec: Spec[Any, Nothing] =
+  test("my spec") {
+    assertTrue(true)
+  }
+```
 
 ### Composable Test Apps
 

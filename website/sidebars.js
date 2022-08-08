@@ -34,14 +34,109 @@ module.exports = {
                 "reference/core/zio/rio",
                 "reference/core/zio/io",
               ]
-            },
-            "reference/core/zio/error-management",
+            }
           ]
         },
         "reference/core/zioapp",
         "reference/core/runtime",
         "reference/core/exit",
         "reference/core/cause"
+      ]
+    },
+    {
+      type: "category",
+      label: "Error Management",
+      link: { type: "doc", id: "reference/error-management/index" },
+      items:
+        [
+
+          {
+            type: "category",
+            label: "Three Types of Errors in ZIO",
+            link: { type: "doc", id: "reference/error-management/types/index" },
+            items:
+              [
+                "reference/error-management/types/failures",
+                "reference/error-management/types/defects",
+                "reference/error-management/types/fatals"
+              ]
+          },
+
+          "reference/error-management/imperative-vs-declarative",
+          "reference/error-management/expected-and-unexpected-errors",
+          "reference/error-management/exceptional-and-unexceptional-effects",
+          "reference/error-management/typed-errors-guarantees",
+          "reference/error-management/sequential-and-parallel-errors",
+
+          {
+            type: "category",
+            label: "Recovering From Errors",
+            items:
+              [
+                "reference/error-management/recovering/catching",
+                "reference/error-management/recovering/fallback",
+                "reference/error-management/recovering/folding",
+                "reference/error-management/recovering/retrying",
+                "reference/error-management/recovering/timing-out",
+                "reference/error-management/recovering/sandboxing",
+              ]
+          },
+          "reference/error-management/error-accumulation",
+          {
+            type: "category",
+            label: "Error Channel Operations",
+            items:
+              [
+                "reference/error-management/operations/map-operations",
+                "reference/error-management/operations/chaining-effects-based-on-errors",
+                "reference/error-management/operations/filtering-the-success-channel",
+                "reference/error-management/operations/tapping-errors",
+                "reference/error-management/operations/exposing-errors-in-the-success-channel",
+                "reference/error-management/operations/exposing-the-cause-in-the-success-channel",
+                "reference/error-management/operations/converting-defects-to-failures",
+                "reference/error-management/operations/error-refinement",
+                "reference/error-management/operations/flattening-optional-error-types",
+                "reference/error-management/operations/merging-the-error-channel-into-the-success-channel",
+                "reference/error-management/operations/flipping-error-and-success-channels",
+                "reference/error-management/operations/rejecting-some-success-values",
+                "reference/error-management/operations/zooming-in-on-nested-values",
+              ]
+          },
+          {
+            type: "category",
+            label: "Best Practices",
+            items:
+              [
+                "reference/error-management/best-practices/algebraic-data-types",
+                "reference/error-management/best-practices/union-types",
+                "reference/error-management/best-practices/unexpected-errors",
+                "reference/error-management/best-practices/logging-errors"
+              ]
+          },
+          "reference/error-management/examples"
+        ]
+    },
+    {
+      type: "category",
+      label: "Built-in Services",
+      link: { type: "doc", id: "reference/services/index" },
+      items: [
+        "reference/services/console",
+        "reference/services/clock",
+        "reference/services/random",
+        "reference/services/system"
+      ]
+    },
+    {
+      type: "category",
+      label: "Scheduling",
+      link: { type: "doc", id: "reference/schedule/index" },
+      items: [
+        "reference/schedule/repetition",
+        "reference/schedule/retrying",
+        "reference/schedule/built-in-schedules",
+        "reference/schedule/combinators",
+        "reference/schedule/examples",
       ]
     },
     {
@@ -69,18 +164,35 @@ module.exports = {
                 ]
               }
             ]
-          },
+          }
+        ]
+    },
+    {
+      type: "category",
+      label: "State Management",
+      link: { type: "doc", id: "reference/state/index" },
+      items:
+        [
+          "reference/state/sequential",
           {
             type: "category",
-            label: "Built-in Services",
-            link: { type: "doc", id: "reference/contextual/services/index" },
-            items: [
-              "reference/contextual/services/console",
-              "reference/contextual/services/clock",
-              "reference/contextual/services/random",
-              "reference/contextual/services/system"
-            ]
-          }
+            label: "Concurrent",
+            link: { type: "doc", id: "reference/state/concurrent" },
+            items:
+              [
+                "reference/state/global-shared-state",
+                {
+                  type: "category",
+                  label: "Fiber-local State",
+                  link: { type: "doc", id: "reference/state/fiber-local-state" },
+                  items:
+                    [
+                      "reference/state/fiberref",
+                      "reference/state/zstate",
+                    ]
+                }
+              ]
+          },
         ]
     },
     {
@@ -93,7 +205,6 @@ module.exports = {
           link: { type: "doc", id: "reference/fiber/index" },
           items: [
             "reference/fiber/fiber",
-            "reference/fiber/fiberref",
             "reference/fiber/fiberid",
             "reference/fiber/fiberstatus"
           ]
@@ -223,23 +334,69 @@ module.exports = {
       label: "Testing",
       link: { type: "doc", id: "reference/test/index" },
       items: [
+        "reference/test/why-zio-test",
+        "reference/test/installation",
+        "reference/test/writing-our-first-test",
+        "reference/test/running-tests",
+        {
+          type: "category",
+          label: "Assertions",
+          link: { type: "doc", id: "reference/test/assertions/index" },
+          items: [
+            "reference/test/assertions/smart-assertions",
+            {
+              type: "category",
+              label: "Classic Assertions",
+              link: { type: "doc", id: "reference/test/assertions/classic-assertions" },
+              items: [
+                "reference/test/assertions/operations",
+                "reference/test/assertions/built-in-assertions",
+                "reference/test/assertions/examples",
+                "reference/test/assertions/how-it-works"
+              ]
+            },
+          ]
+        },
+        "reference/test/test-hierarchies-and-organization",
+        "reference/test/sharing-layers-within-the-same-file",
+        "reference/test/sharing-layers-between-multiple-files",
         "reference/test/spec",
-        "reference/test/assertion",
         {
           type: "category",
           label: "Test Services",
-          link: { type: "doc", id: "reference/test/environment/index" },
+          link: { type: "doc", id: "reference/test/services/index" },
           items: [
-            "reference/test/environment/console",
-            "reference/test/environment/clock",
-            "reference/test/environment/random",
-            "reference/test/environment/system",
-            "reference/test/environment/live",
-            "reference/test/environment/config",
-            "reference/test/environment/sized",
+            "reference/test/services/console",
+            "reference/test/services/clock",
+            "reference/test/services/random",
+            "reference/test/services/system",
+            "reference/test/services/live",
+            "reference/test/services/config",
+            "reference/test/services/sized",
           ]
         },
-        "reference/test/test-aspect",
+        {
+          type: "category",
+          label: "Test Aspects",
+          link: { type: "doc", id: "reference/test/aspects/index" },
+          items: [ 
+            "reference/test/aspects/before-after-around",
+            "reference/test/aspects/conditional",
+            "reference/test/aspects/debugging-and-diagnostics",
+            "reference/test/aspects/environment-specific-tests",
+            "reference/test/aspects/execution-strategy",
+            "reference/test/aspects/flaky-and-non-flaky-tests",
+            "reference/test/aspects/ignoring-tests",
+            "reference/test/aspects/non-deterministic-test-data",
+            "reference/test/aspects/passing-failed-tests",
+            "reference/test/aspects/repeat-and-retry",
+            "reference/test/aspects/restoring-state-of-test-services",
+            "reference/test/aspects/sized", 
+            "reference/test/aspects/annotating-tests",
+            "reference/test/aspects/configuring-tests",
+            "reference/test/aspects/timing-out-tests",
+          ]
+        },
         "reference/test/gen",
       ]
     },
@@ -248,9 +405,7 @@ module.exports = {
       label: "Miscellaneous",
       items: [
         "reference/misc/chunk",
-        "reference/misc/schedule",
         "reference/misc/supervisor",
-        "reference/misc/zstate",
       ]
     }
   ],

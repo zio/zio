@@ -3,21 +3,21 @@ id: index
 title: "Introduction"
 ---
 
-
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
 2. [Contextual Data Types](#contextual-data-types)
-3. [Concurrency](#concurrency)
+3. [State Management](#state-management)
+4. [Concurrency](#concurrency)
     - [Fiber Primitives](#fiber-primitives)
     - [Concurrency Primitives](#concurrency-primitives)
     - [Synchronization Aids](#synchronization-aids)
     - [STM](#stm)
-4. [Resource Management](#resource-management)
-5. [Streaming](#streaming)
-6. [Metrics](#metrics)
-7. [Testing](#testing)
-8. [Miscellaneous](#miscellaneous)
+5. [Resource Management](#resource-management)
+6. [Streaming](#streaming)
+7. [Metrics](#metrics)
+8. [Testing](#testing)
+9. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
 - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
@@ -41,12 +41,17 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     + **[URLayer](contextual/urlayer.md)** — `URLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Nothing, ROut]`, which represents a layer that requires `RIn` as its input, it can't fail, and returns `ROut` as its output.
     + **[TaskLayer](contextual/task-layer.md)** — `TaskLayer[+ROut]` is a type alias for `ZLayer[Any, Throwable, ROut]`, which represents a layer that doesn't require any services as its input, it may fail with `Throwable` value, and returns `ROut` as its output.
 
+## State Management
+
+- **[ZState](state/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
+- **[Ref](state/ref.md)**— `Ref[A]` models a mutable reference to a value of type `A`.
+- **[FiberRef](state/fiberref.md)**— `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+
 ## Concurrency
 
 ### Fiber Primitives
 
 - **[Fiber](fiber/fiber.md)** — A fiber value models an `IO` value that has started running, and is the moral equivalent of a green thread.
-- **[FiberRef](fiber/fiberref.md)** — `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
 - **[Fiber.Status](fiber/fiberstatus.md)** — `Fiber.Status` describe the current status of a Fiber.
 - **[FiberId](fiber/fiberid.md)** — `FiberId` describe the unique identity of a Fiber.
 
@@ -108,22 +113,20 @@ IO supports 5 types of Metrics:
 
 - **[Spec](test/spec.md)**— A `Spec[R, E]` is the backbone of ZIO Test. All specs require an environment of type `R` and may potentially fail with an error of type `E`.
 - **[Assertion](test/assertion.md)**— An `Assertion[A]` is a test assertion that can be used to assert the predicate of type `A => Boolean`.
-- **[TestAspect](test/test-aspect.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
+- **[TestAspect](test/aspects/test-aspect.md)**— A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another.
 - **[Gen](test/gen.md)**— A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`.
 - **Test Service**— ZIO Test has the following out-of-the-box test services:
-    - **[TestConsole](test/environment/console.md)**— It allows testing of applications that interact with the console.
-    - **[TestClock](test/environment/clock.md)**— We can deterministically and efficiently test effects involving the passage of time without actually having to wait for the full amount of time to pass.
-    - **[TestRandom](test/environment/random.md)**— This service allows us having fully deterministic testing of code that deals with Randomness.
-    - **[TestSystem](test/environment/system.md)**— It supports deterministic testing of effects involving system properties.
-    - **[Live](test/environment/live.md)**— It provides access to the live environment from within the test environment for effects.
-    - **[TestConfig](test/environment/test-config.md)**— It provides access to default configuration settings used by ZIO Test.
-    - **[Sized](test/environment/sized.md)**— It enables _Sized Generators_ to access the size from the ZIO Test environment.
+    - **[TestConsole](test/services/console.md)**— It allows testing of applications that interact with the console.
+    - **[TestClock](test/services/clock.md)**— We can deterministically and efficiently test effects involving the passage of time without actually having to wait for the full amount of time to pass.
+    - **[TestRandom](test/services/random.md)**— This service allows us having fully deterministic testing of code that deals with Randomness.
+    - **[TestSystem](test/services/system.md)**— It supports deterministic testing of effects involving system properties.
+    - **[Live](test/services/live.md)**— It provides access to the live environment from within the test environment for effects.
+    - **[TestConfig](test/services/test-config.md)**— It provides access to default configuration settings used by ZIO Test.
+    - **[Sized](test/services/sized.md)**— It enables _Sized Generators_ to access the size from the ZIO Test environment.
 
 ## Miscellaneous
 
 - **[Chunk](misc/chunk.md)**— `Chunk` is a fast, pure alternative to Arrays.
-- **[Schedule](misc/schedule.md)**— `Schedule` is a model of a recurring schedule, which can be used for repeating successful `IO` values, or retrying failed `IO` values.
 - **[Supervisor](misc/supervisor.md)**— `Supervisor[A]` is allowed to supervise the launching and termination of fibers, producing some visible value of type `A` from the supervision.
-- **[ZState](misc/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
 
 To learn more about these data types, please explore the pages above, or check out the Scaladoc documentation.
