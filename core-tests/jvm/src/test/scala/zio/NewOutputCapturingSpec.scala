@@ -1,7 +1,7 @@
 package zio
 
 import zio.Console.printLine
-import zio.test.{ZIOSpecDefault, assertCompletes}
+import zio.test.{ZIOSpecDefault, assertCompletes, assertNever}
 
 object NewOutputCapturingSpec extends ZIOSpecDefault {
   def spec =
@@ -14,7 +14,7 @@ object NewOutputCapturingSpec extends ZIOSpecDefault {
       test("B"){
         printLine("first B output") *>
           printLine("second B output") *>
-          assertCompletes
+          assertNever("Don't get here!")
       },
     )
 

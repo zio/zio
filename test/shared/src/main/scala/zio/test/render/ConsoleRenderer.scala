@@ -79,8 +79,8 @@ trait ConsoleRenderer extends TestRenderer {
       case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = event.labels.length
         failure match {
-          case TestFailure.Assertion(result, _) =>
-            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
+          case TestFailure.Assertion(result, annotations) =>
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth, annotations.get(TestAnnotation.output)))
           case TestFailure.Runtime(cause, _) =>
             Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
         }

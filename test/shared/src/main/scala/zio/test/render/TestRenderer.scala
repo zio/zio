@@ -66,15 +66,16 @@ trait TestRenderer {
             warn(label).toLine
           )
         )
-      case Left(TestFailure.Assertion(result, _)) =>
+      case Left(TestFailure.Assertion(result, annotations)) =>
+        val failureOutput: Chunk[String] = annotations.get(TestAnnotation.output)
         result.failures.map { result =>
           renderedWithSummary(
             ResultType.Test,
             label,
             Failed,
             depth,
-            renderFailure(label, depth, result).lines.toList,
-            renderFailure(flatLabel, depth, result).lines.toList // Fully-qualified label
+            renderFailure(label, depth, result, failureOutput).lines.toList,
+            renderFailure(flatLabel, depth, result, failureOutput).lines.toList // Fully-qualified label
           )
         }
 
@@ -91,11 +92,11 @@ trait TestRenderer {
     (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
-  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
+  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int, output: Chunk[String]): ExecutionResult = {
     val streamingLabel           = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel             = labels.mkString(" - ")
-    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result).lines.toList
-    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result).lines.toList
+    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result, output).lines.toList
+    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result, output).lines.toList
     renderedWithSummary(
       ResultType.Test,
       streamingLabel,
@@ -131,6 +132,14 @@ trait TestRenderer {
       summaryFailureDetails.toList
     )
   }
+
+  def renderOutput(output: Chunk[String]): Message =
+    Message(
+      Line.fromString("========= Output Produced by Test ========") +:
+        output.map(Line.fromString(_)) :+
+        Line.fromString("==========================================")
+    )
+
 
   def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message = {
     val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
@@ -195,8 +204,9 @@ trait TestRenderer {
     }
   }
 
-  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean]): Message =
-    renderFailureLabel(label, offset) +: renderAssertionResult(details, offset) :+ Line.empty
+  // TODO Invoke
+  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], failureOutput: Chunk[String]): Message =
+    Message(Seq(renderFailureLabel(label, offset)))  ++ renderAssertionResult(details, offset) ++ renderOutput(failureOutput) ++ Message(Seq(Line.empty))
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)
