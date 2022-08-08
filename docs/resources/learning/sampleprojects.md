@@ -3,6 +3,7 @@ id: sampleprojects
 title:  "Sample Projects"
 ---
 
+- [GitHub Release Pager with ZIO 2.0](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
 - [Redis Streams with ZIO](https://github.com/kensuio-oss/redis-streams-zio) by [Leszek Gruchała](https://github.com/leszekgruchala)
 - [ZIO Production Ready Microservice](https://github.com/saraiva132/zio-cats-backend) by [Rafael Figueiredo](https://github.com/saraiva132)
 - [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
@@ -17,7 +18,6 @@ title:  "Sample Projects"
 - [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
 - [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
 - [More ZIO/http4s: with http4s authentication, encoding/decoding + zio tests](https://github.com/TimPigden/zio-http4s-examples) by [Tim Pigden](https://github.com/TimPigden)
-- [GitHub Release Pager with ZIO](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
 - [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
 - [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
 - [Lagom CQRS/ES microservices with ZIO, Caliban, zio-grpc, elastic4s and Logstage](https://github.com/sigurdthor/book-shelf) by [Yaroslav Yaremenko](https://github.com/sigurdthor)
