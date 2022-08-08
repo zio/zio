@@ -108,7 +108,7 @@ Fortunately, the construction of ZIO layers can be effectful and resourceful, th
 
 `ZLayer` relies on the powerful `ZManaged` data type and this makes this process extremely simple.
 
-We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZIO.fromManaged` constructor:
+We can lift any `ZManaged` to `ZLayer` by providing a managed resource to the `ZLayer.fromManaged` constructor:
 
 ```scala mdoc:invisible
 import scala.io.BufferedSource
