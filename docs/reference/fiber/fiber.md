@@ -34,6 +34,49 @@ val analyzed =
   } yield analyzed
 ```
 
+## Structured Concurrency
+
+ZIO uses a structured concurrency model where fiber lifetimes are cleanly nested. This means that the lifetime of any fiber is tied to the lifetime of its parent fiber.
+
+For example, if the `foo` fiber creates the `bar` fiber, then the ZIO guarantees that the `bar` fiber will not outlive the `foo` fiber:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val barJob: ZIO[Any, Nothing, Long] =
+    ZIO
+      .debug("Bar: still running!")
+      .repeat(Schedule.fixed(1.seconds))
+
+  val fooJob: ZIO[Any, Nothing, Unit] =
+    for {
+      _ <- ZIO.debug("Foo: started!")
+      _ <- barJob.fork
+      _ <- ZIO.sleep(3.seconds)
+      _ <- ZIO.debug("Foo: finished!")
+    } yield ()
+
+  def run =
+    for {
+      f <- fooJob.fork
+      _ <- f.join
+    } yield ()
+}
+```
+
+The output of the above program is:
+
+```
+Foo: started!
+Bar: still running!
+Bar: still running!
+Bar: still running!
+Foo: finished!
+```
+
+The above pattern will be applied to any nested level of fibers. **The lifetime of any child fiber is tied to the lifetime of its parent fiber.**
+
 ## Operations
 
 ### fork and join
