@@ -144,7 +144,7 @@ Using acquire releases is simple and straightforward, but in the case of multipl
 
 ### Scope 
 
-`Scope` is a composable data type for resource management, which wraps the acquisition and release action of a resource. We can think of `Scope` as a handle with build-in acquisition and release logic.
+`Scope` is a composable data type for resource management, which wraps the acquisition and release action of a resource. We can think of `Scope` as a handle with built-in acquisition and release logic.
 
 To create a scoped resource, we need to provide `acquire` and `release` action of that resource to the `acquireRelease` constructor:
 

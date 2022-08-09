@@ -145,7 +145,7 @@ Or from multiple `Chunks`:
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 ```
 
-### From Effect
+### From ZIO
 
 **ZStream.fromZIO** — We can create a stream from an effect by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
 
