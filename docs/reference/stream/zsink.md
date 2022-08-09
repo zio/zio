@@ -297,7 +297,7 @@ val stream: ZIO[Any, Nothing, Int] =
 
 ### From ZIO
 
-The `ZSink.fromZIO` creates a single-value sink produced from an effect:
+The `ZSink.fromZIO` creates a single-value sink produced from a ZIO workflow:
 
 ```scala mdoc:silent:nest
 val sink = ZSink.fromZIO(ZIO.succeed(1))
