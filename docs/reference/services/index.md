@@ -3,7 +3,7 @@ id: index
 title: "Introduction"
 ---
 
-ZIO already provides four build-in services:
+ZIO already provides four built-in services:
 
 1. **[Console](console.md)** — Operations for reading/writing strings from/to the standard input, output, and error console.
 2. **[Clock](clock.md)** — Contains some functionality related to time and scheduling.

@@ -145,9 +145,9 @@ Or from multiple `Chunks`:
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
 ```
 
-### From Effect
+### From ZIO
 
-**ZStream.fromZIO** — We can create a stream from an effect by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
+**ZStream.fromZIO** — We can create a stream from a ZIO workflow by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
 
 ```scala mdoc:silent:nest
 val readline: ZStream[Any, IOException, String] = 
@@ -161,7 +161,7 @@ val randomInt: ZStream[Any, Nothing, Int] =
   ZStream.fromZIO(Random.nextInt)
 ```
 
-**ZStream.fromZIOOption** — In some cases, depending on the result of the effect, we should decide to emit an element or return an empty stream. In these cases, we can use `fromZIOOption` constructor:
+**ZStream.fromZIOOption** — In some cases, depending on the result of the ZIO workflow, we should decide to emit an element or return an empty stream. In these cases, we can use `fromZIOOption` constructor:
 
 ```scala 
 object ZStream {
