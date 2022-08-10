@@ -120,9 +120,10 @@ for {
 } yield assert(value == 1)
 ```
 
-> **Note**:  
->
-> `update` is not the composition of `get` and `set`. This composition is not concurrent-safe. Whenever we need to update our state, we should use the `update` operation which modifies its `Ref` atomically. 
+:::caution
+
+`update` is not the composition of `get` and `set`. This composition is not concurrent-safe. Whenever we need to update our state, we should use the `update` operation which modifies its `Ref` atomically. 
+:::
 
 For example, the following snippet is not concurrent-safe:
 

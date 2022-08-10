@@ -198,6 +198,7 @@ module.exports = {
     {
       type: "category",
       label: "Concurrency",
+      link: { type: "doc", id: "reference/concurrency/index" },
       items: [
         {
           type: "category",

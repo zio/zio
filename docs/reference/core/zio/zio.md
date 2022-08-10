@@ -1419,9 +1419,9 @@ val cleanupAction: UIO[Unit] = ZIO.succeed(i -= 1)
 val composite = action.ensuring(cleanupAction)
 ```
 
-> _**Note:**_
->
-> Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#acquireReleaseWith` in the acquire release section.
+:::caution
+Finalizers offer very powerful guarantees, but they are low-level, and should generally not be used for releasing resources. For higher-level logic built on `ensuring`, see `ZIO#acquireReleaseWith` in the acquire release section.
+:::
 
 #### Unstoppable Finalizers
 

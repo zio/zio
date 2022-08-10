@@ -216,9 +216,10 @@ We have two types of accessors for the ZIO environment:DocRepo
 1. **Service Accessor (`ZIO.service`)** is used to access a specific service from the environment.
 2. **Service Member Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
 
-> **Note**:
->
-> To access the entire ZIO environment we can use `ZIO.environment*`, but we do not use these methods regularly to access ZIO services. Instead, we use service accessors and service member accessors.
+:::note
+
+To access the entire ZIO environment we can use `ZIO.environment*`, but we do not use these methods regularly to access ZIO services. Instead, we use service accessors and service member accessors.
+:::
 
 #### Service Accessor
 
@@ -336,9 +337,10 @@ ZIO has a full solution to the dependency injection problem. It solves the first
 
 ZIO also solves the second problem by using [ZIO Environment facilities like `ZIO#provide`](zlayer.md#dependency-propagation).
 
-> **Note:**
-> 
-> By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. Note that we are not enforced to use this approach, as we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+:::tip
+
+By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. Note that we are not enforced to use this approach, as we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
+:::
 
 ## Defining ZIO Services
 
@@ -830,9 +832,9 @@ Also, to enable macro expansion we need to setup our project:
   compilerPlugin(("org.scalamacros" % "paradise"  % "2.1.1") cross CrossVersion.full)
   ```
 
-> **Note:**
-> 
-> At the moment these are only available for Scala versions `2.x`, however their equivalents for Scala 3 are on our roadmap.
+:::info
+At the moment these are only available for Scala versions `2.x`, however their equivalents for Scala 3 are on our roadmap.
+:::
 
 #### Monomorphic Services
 
@@ -1197,9 +1199,10 @@ object MainApp extends ZIOAppDefault {
 
 That's it! These are the most important rules we need to know about the ZIO environment.
 
-> **Note**:
-> 
-> The remaining part of this section can be skipped if you are not an advanced ZIO user.
+:::info
+ 
+The remaining part of this section can be skipped if you are not an advanced ZIO user.
+:::
 
 Now let's elaborate more on the first rule. On rare occasions, all of which involve local context that is independent of implementation, it's _acceptable_ to use the environment in the definition of a service.
 

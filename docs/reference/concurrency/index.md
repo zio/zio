@@ -68,9 +68,11 @@ Let's point out the key properties of the ZIO concurrency model:
 
 1. **Composable** — Due to the use of the lock-free concurrency model, ZIO brings us composable concurrency primitives and lots of great combinators in a declarative style.
 
-> **Note:** `Ref` and `Promise` and subsequently all other ZIO concurrency primitives that are on top of these two basic primitives **are not _transactionally_ composable**.
->
-> We cannot do transactional changes across two or more of such concurrency primitives. They are susceptible to race conditions and deadlocks. **So don't use them if you need to perform an atomic operation on top of a composed sequence of multiple state-changing operations. In such a case use [`STM`](../stm/index.md) instead**. 
+:::note
+`Ref` and `Promise` and subsequently all other ZIO concurrency primitives that are on top of these two basic primitives **are not _transactionally_ composable**.
+
+We cannot do transactional changes across two or more of such concurrency primitives. They are susceptible to race conditions and deadlocks. **So don't use them if you need to perform an atomic operation on top of a composed sequence of multiple state-changing operations. In such a case use [`STM`](../stm/index.md) instead**. 
+:::
 
 2. **Non-blocking** — All of the ZIO primitives are a hundred percent asynchronous and nonblocking.
 

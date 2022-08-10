@@ -4,9 +4,10 @@ title: "Ref.Synchronized"
 ---
 `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
 
-> _**Note:**_
->
-> Almost all of `Ref.Synchronized` operations are the same as `Ref`. We suggest reading [`Ref`](ref.md) at first if you are not familiar with `Ref`.
+:::note
+
+Almost all of `Ref.Synchronized` operations are the same as `Ref`. We suggest reading [`Ref`](ref.md) at first if you are not familiar with `Ref`.
+:::
 
 Let's explain how we can update a shared state effectfully with `Ref.Synchronized`. The `update` method and all other related methods get an effectful operation, and then they run these effects to change the shared state. This is the main difference between `Ref.Synchronized` and `Ref`. 
 

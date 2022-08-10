@@ -1499,9 +1499,9 @@ val app: ZIO[Any, Nothing, Unit] =
   )
 ```
 
-> Note:
-> 
-> In ZIO 2.x, the `ZIO#provide` method—together with its variant `ZIO#provideSome`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and its variant `ZIO#provideSomeLayer`—is useful for low-level and custom cases like.
+:::note
+In ZIO 2.x, the `ZIO#provide` method—together with its variant `ZIO#provideSome`—is a default and easier way of injecting dependencies to the environmental effect. We do not require creating the dependency graph manually, it will be automatically generated. In contrast, the `ZIO#provideLayer`—and its variant `ZIO#provideSomeLayer`—is useful for low-level and custom cases like.
+:::
 
 ### ZLayer Debugging
 
@@ -1876,9 +1876,9 @@ As we see, we have the following changes:
     
    1. **Flattened Structure** — In the new pattern, everything is at the top level in a file. So the developer is not limited to package service definition and service implementation in one package.
    
-      > **_Note_**:
-      > 
-      > Service Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
+      :::note
+      Service Pattern 2.0 supports the idea of _Separated Interface_, but it doesn't enforce us grouping them into different packages and modules. The decision is up to us, based on the complexity and requirements of our application.
+      :::
    
    2. **Decoupling Interfaces from Implementation** — Assume we have a complex application, and our interface is `Baz` with different implementations that potentially depend on entirely different modules. Putting layers in the service definition means anyone depending on the service definition needs to depend on all the dependencies of all the implementations, which is not a good practice.
    
