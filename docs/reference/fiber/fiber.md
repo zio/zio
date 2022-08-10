@@ -36,9 +36,51 @@ val analyzed =
 
 ## Structured Concurrency
 
-ZIO uses a structured concurrency model where fiber lifetimes are cleanly nested. This means that the lifetime of any fiber is tied to the lifetime of its parent fiber.
+ZIO uses a structured concurrency model where fiber lifetimes are cleanly nested. The lifetime of a fiber depends on the lifetime of its parent fiber.
 
-For example, if the `foo` fiber creates the `bar` fiber, then the ZIO guarantees that the `bar` fiber will not outlive the `foo` fiber:
+To illustrate this, let's look at some examples:
+
+1. In the following example, we have two fibers. The first fiber is responsible for running the first and last debug tasks. It is also responsible for creating the second fiber. The second fiber is a task that forked from the first fiber and will never produce anything:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      _ <- ZIO.debug(s"Application started!")
+      _ <- ZIO.never.onInterrupt(_ => ZIO.debug(s"The child fiber interrupted!")).fork
+      _ <- ZIO.debug(s"Application finished!")
+    } yield ()
+}
+```
+
+In this example, the child fiber will be interrupted when the parent fiber is finished (successfully or interrupted).
+
+Note that the example above is just for educational purposes. In a real application, the `onInterrupt` callback is not guaranteed to be called just before the parent fiber finishes its execution. It is possible that the parent fiber will be finished just before the `onInterrupt` callback is called. So this example is the simplified version of the following example:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    ZIO.fiberIdWith { parent =>
+      for {
+        _     <- ZIO.debug(s"fiber-${parent.id} Application started!")
+        latch <- Promise.make[Nothing, Unit]
+        _ <- ZIO.fiberIdWith { child =>
+               (latch.succeed(()) *> ZIO.never).onInterrupt(_ =>
+                 ZIO.debug(s"fiber-${child.id} The child fiber interrupted!")
+               )
+             }.fork
+        _ <- latch.await
+        _ <- ZIO.debug(s"fiber-${parent.id} Application finished!")
+      } yield ()
+    }
+}
+```
+
+2. Here is another example. In this case, the `foo` fiber creates the `bar` fiber. The `bar` fiber has a long-running task that never finishes. Under the automatic supervision model of ZIO, the `bar` fiber will be interrupted when its parent fiber terminates. So ZIO guarantees that the `bar` fiber will not outlive the `foo` fiber:
 
 ```scala mdoc:compile-only
 import zio._
@@ -75,7 +117,7 @@ Bar: still running!
 Foo: finished!
 ```
 
-The above pattern will be applied to any nested level of fibers. **The lifetime of any child fiber is tied to the lifetime of its parent fiber.**
+This pattern can be applied to any nested level of fibers. The lifetime of any child fiber is tied to the lifetime of its parent fiber.
 
 ## Operations
 
