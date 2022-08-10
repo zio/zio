@@ -2246,35 +2246,76 @@ So without any special effort, whenever we use `ZSpec` we should change it to `S
   }
 ```
 
-### Composable Test Apps
-
-In ZIO 2.x, the `DefaultRunnableSpec` deprecated, so in order to write tests, we should extend the `ZIOSpecDefault` abstract class. Due to this change, executable tests can be composed, similar to `ZIOAppDefault`:
+### Sharing Layers between Specs
+In ZIO 1.x, in order to share costly layers between specs, you needed a "Master" spec that would invoke test code from individual Spec classes.
+In ZIO 2.x, sharing layers is much simpler. 
+Use `ZIOSpec[YourSharedType]` and plug your layer into the `bootstrap` field.
 
 ```scala mdoc:compile-only
-import zio.ZIOApp
 import zio.test._
 
-object ExampleSpec1 extends ZIOSpecDefault {
-  def spec = suite("suite 1")(
-    test("passing test 1")(assertTrue(true)),
-    test("failing test 2")(assertTrue(false))
-  )
+class SharedService()
+
+object Layers {
+  val sharedLayer = 
+    ZLayer.succeed(new SharedService())
 }
 
-object ExampleSpec2 extends ZIOSpecDefault {
-  def spec = suite("suite 2")(
-    test("passing test")(assertTrue(true))
-  )
+object UseSharedLayerA extends ZIOSpec[SharedService]{
+  override def spec =
+    test("use the shared layer in test A") {
+      assertCompletes
+    }
+
+  override def bootstrap= Layers.sharedLayer
 }
 
-object AllSpecs extends ZIOApp.Proxy(ExampleSpec1 <> ExampleSpec2)
+object UseSharedLayerB extends ZIOSpec[SharedService]{
+  override def spec =
+    test("use the shared layer in test B") {
+      assertCompletes
+    }
+
+  override def bootstrap = Layers.sharedLayer
+}
 ```
-
-To run `AllSpecs` with sbt:
-
+Then use the standard
 ```bash
-sbt Test/runMain AllSpecs
+sbt test
 ```
+in order to run the tests.
+
+Note - If you assign the results of a function call to `bootstrap`, like this:
+
+```scala mdoc:compile-only
+import zio.test._
+class SharedService()
+
+object LayerBuilder {
+  def createLayer() = ZLayer.succeed(new SharedService())
+}
+
+object NotUsingSharedLayerA extends ZIOSpec[SharedService]{
+  override def spec =
+    test("use the shared layer in test A") {
+      assertCompletes
+    }
+
+  override def bootstrap = LayerBuilder.createLayer()
+}
+
+object NotUsingSharedLayerB extends ZIOSpec[SharedService]{
+  override def spec =
+    test("use the shared layer in test B") {
+      assertCompletes
+    }
+
+  override def bootstrap = LayerBuilder.createLayer()
+}
+```
+
+These Specs will *not* share the same instance, as they are different references.
+
 
 ### Smart Constructors
 
