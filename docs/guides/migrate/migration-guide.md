@@ -2288,6 +2288,8 @@ in order to run the tests.
 Note - If you assign the results of a function call to `bootstrap`, like this:
 
 ```scala mdoc:compile-only
+import zio.test._
+class SharedService()
 
 object LayerBuilder {
   def createLayer() = ZLayer.succeed(new SharedService())
@@ -2299,7 +2301,7 @@ object NotUsingSharedLayerA extends ZIOSpec[SharedService]{
       assertCompletes
     }
 
-  override def bootstrap= createLayer()
+  override def bootstrap = LayerBuilder.createLayer()
 }
 
 object NotUsingSharedLayerB extends ZIOSpec[SharedService]{
@@ -2308,7 +2310,7 @@ object NotUsingSharedLayerB extends ZIOSpec[SharedService]{
       assertCompletes
     }
 
-  override def bootstrap = createLayer()
+  override def bootstrap = LayerBuilder.createLayer()
 }
 ```
 
