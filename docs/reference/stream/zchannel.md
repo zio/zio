@@ -19,9 +19,10 @@ They are an underlying abstraction for `ZStream`, `ZPipeline`, and `ZSink`. In Z
 
 - A `Channel` can read from its input, do some transformation on the elements, and write to its output. In ZIO, the `ZPipeline` is encoded as a middle part of both sides of the `Channel`. Pipelines accept a stream as input and return the transformed stream as output.
 
-> **_Note:_**
-> 
-> `ZChannel` is an underlying abstraction. So we do not usually need to use it directly. So if you are learning ZIO Streams, we recommend you to focus on `ZStream`, `ZPipeline`, and `ZSink` data types.
+:::caution
+ 
+`ZChannel` is an underlying abstraction. So we do not usually need to use it directly. So if you are learning ZIO Streams, we recommend you to focus on `ZStream`, `ZPipeline`, and `ZSink` data types.
+:::
 
 Let's take a look at how `ZStream`, `ZPipeline` and `ZSink` are defined using `ZChannel`:
 

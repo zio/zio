@@ -288,9 +288,9 @@ The first method uses ZIO's composition operators such as horizontal (`++`) and 
 
 We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
 
-> **Note**:
->
-> In a regular ZIO application we are not required to build the dependency graph through composing layers tougher. Instead, we can provide all dependencies to the ZIO application using `ZIO#provide`, and the ZIO will create the dependency graph manually under the hood. Therefore, use manual layer composition if you know what you're doing.
+:::note
+In a regular ZIO application we are not required to build the dependency graph through composing layers tougher. Instead, we can provide all dependencies to the ZIO application using `ZIO#provide`, and the ZIO will create the dependency graph manually under the hood. Therefore, use manual layer composition if you know what you're doing.
+:::
 
 ### Vertical and Horizontal Composition
 
@@ -570,9 +570,10 @@ The automatic layer construction takes place at the _compile-time_, so if there 
 
 When we provide individual layers using `ZIO#provide`, `ZIO#provideCustom`, or `ZIO#provideSome` to a ZIO application, the compiler will create the dependency graph automatically from the provided layers:
 
-> **Note:**
-> 
-> We have a [separate section](#dependency-propagation) that describes different methods for providing layers to the ZIO application.
+:::info
+
+We have a [separate section](#dependency-propagation) that describes different methods for providing layers to the ZIO application.
+:::
 
 Assume we have written the following services (`Cake`, `Chocolate`, `Flour`, and `Spoon`):
 
@@ -962,9 +963,9 @@ val mainEffectSome: ZIO[Bar, Nothing, Unit] =
   myApp.provideSome(FooLive.layer)
 ```
 
-> **Note:**
->
-> When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+:::caution
+When using `ZIO#provideSome[R0]`, we should provide the remaining type as `R0` type parameter. This workaround helps the compiler to infer the proper types.
+:::
 
 ## Environment Scope
 

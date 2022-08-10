@@ -314,18 +314,19 @@ If a CPU Work doesn't yield quickly, then that is going to monopolize a thread. 
 
 The best practice is to run those huge CPU Work on a dedicated thread pool, by lifting them with `ZIO#blocking`.
 
-> **Note**:
->
-> So as a rule of thumb, when we have a huge CPU Work that is not chunked with built-in ZIO operations, and thus going to monopolize the underlying thread, we should run that on a dedicated thread pool that is designed to perform CPU-driven tasks.
+:::note
+
+So as a rule of thumb, when we have a huge CPU Work that is not chunked with built-in ZIO operations, and thus going to monopolize the underlying thread, we should run that on a dedicated thread pool that is designed to perform CPU-driven tasks.
+:::
 
 ### Blocking I/O
 Inside Java, there are many methods that will put our thread to sleep. For example, if we call `read` on a socket and there is nothing to read right now because not enough bytes have been read from the other side over the TCP/IP protocol, then that will put our thread to sleep. 
 
 Most of the I/O operations and certainly all the classic I/O operations like `InputStream` and `OutputStream` are utilizing a locking mechanism that will `park` a thread. When we `write` to `OutputStream`, this method will `park` the thread and `wait` until the data has actually been written to file. It is the same way for `read` and similar blocking operations. Anytime we use a `lock`, anything in `java.util.concurrent.locks`, all those locks use this mechanism. All these operations are called blocking because they `park` the thread that is doing the work, and the thread that's doing the work goes to sleep.
 
-> _**Note:**_ 
->
-> What we refer to as blocking I/O is not necessarily just an I/O operation. Remember every time we use a `lock` we are also `park`ing a thread. It goes to `sleep`, and it has to be woken up again. We refer to this entire class of operations as **blocking I/O**.
+:::note
+What we refer to as blocking I/O is not necessarily just an I/O operation. Remember every time we use a `lock` we are also `park`ing a thread. It goes to `sleep`, and it has to be woken up again. We refer to this entire class of operations as **blocking I/O**.
+:::
 
 There are multiple types of overhead associated with parking a thread:
 
