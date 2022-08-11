@@ -1,6 +1,6 @@
 ---
 id: introduction 
-title: "Introduction"
+title: "Introduction to Writing ZIO Services"
 slug: introduction
 ---
 
@@ -12,9 +12,7 @@ Before diving into writing services in ZIO style, let's review how we define the
 
 Here are the steps we take to implement a service in object-oriented programming:
 
-### 1. Service Definition
-
-In object-oriented programming, we define services with traits. A service is a bundle of related functionality that is defined in a trait:
+1. **Service Definition**— In object-oriented programming, we define services with traits. A service is a bundle of related functionality that is defined in a trait:
 
 ```scala mdoc:silent:nest
 trait FooService {
@@ -22,9 +20,7 @@ trait FooService {
 }
 ```
 
-### 2. Service Implementation
-
-We implement these services by using classes:
+2. **Service Implementation**— We implement these services by using classes:
 
 ```scala mdoc:silent:nest
 class FooServiceImpl extends FooService {
@@ -32,9 +28,7 @@ class FooServiceImpl extends FooService {
 }
 ```
 
-### 3. Defining Dependencies
-
-If the creation of a service depends on other services, we can define these dependencies by using constructors:
+3. **Defining Dependencies**— If the creation of a service depends on other services, we can define these dependencies by using constructors:
 
 ```scala mdoc:silent:nest
 trait ServiceA {
@@ -52,9 +46,7 @@ class FooServiceImpl(a: ServiceA, b: ServiceB) extends FooService {
 
 In object-oriented programming, the best practice is to _program to an interface, not an implementation_. So in the previous example, `ServiceA` and `ServiceB` are interfaces, not concrete classes.
 
-### 4. Injecting Dependencies
-
-Now, the client of `FooServiceImpl` service can provide its own implementation of `ServiceA` and `ServiceB`, and inject them to the `FooServiceImpl` constructor:
+4. **Injecting Dependencies**— Now, the client of `FooServiceImpl` service can provide its own implementation of `ServiceA` and `ServiceB`, and inject them to the `FooServiceImpl` constructor:
 
 ```scala mdoc:silent:nest
 class ServiceAImpl extends ServiceA
