@@ -129,14 +129,13 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Scheduling",
-      link: { type: "doc", id: "reference/schedule/index" },
+      label: "Writing ZIO Services",
+      link: { type: "doc", id: "reference/service-pattern/introduction" },
       items: [
-        "reference/schedule/repetition",
-        "reference/schedule/retrying",
-        "reference/schedule/built-in-schedules",
-        "reference/schedule/combinators",
-        "reference/schedule/examples",
+        "reference/service-pattern/service-pattern",
+        "reference/service-pattern/defining-polymorphic-services-in-zio",
+        "reference/service-pattern/generating-accessor-methods-using-macros",
+        "reference/service-pattern/the-three-laws-of-zio-environment"
       ]
     },
     {
@@ -166,6 +165,18 @@ module.exports = {
             ]
           }
         ]
+    },
+    {
+      type: "category",
+      label: "Scheduling",
+      link: { type: "doc", id: "reference/schedule/index" },
+      items: [
+        "reference/schedule/repetition",
+        "reference/schedule/retrying",
+        "reference/schedule/built-in-schedules",
+        "reference/schedule/combinators",
+        "reference/schedule/examples",
+      ]
     },
     {
       type: "category",
