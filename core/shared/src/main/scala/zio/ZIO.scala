@@ -1997,6 +1997,16 @@ sealed trait ZIO[-R, +E, +A]
     self.tap(f.applyOrElse(_, (_: A) => ZIO.unit))
 
   /**
+   * Returns an effect that effectfully "peeks" at the failure of this effect.
+   * If the partial function isn't defined at the input, the result is
+   * equivalent to the original effect.
+   */
+  final def tapSomeError[R1 <: R, E1 >: E, A1 >: A](
+    f: PartialFunction[E, ZIO[R1, E1, A1]]
+  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] =
+    self.tapError(f.applyOrElse(_, (_: E) => ZIO.unit))
+
+  /**
    * Returns a new effect that executes this one and times the execution.
    */
   final def timed(implicit trace: Trace): ZIO[R, E, (Duration, A)] =

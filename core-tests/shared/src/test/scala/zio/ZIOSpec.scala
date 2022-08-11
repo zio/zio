@@ -3675,6 +3675,22 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(effect)(equalTo(42))
       }
     ),
+    suite("tapSomeError")(
+      test("is identity if the function doesn't match") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ZIO.fail("die").tapSomeError { case "alive" => ref.set(true) }.exit
+          effect <- ref.get
+        } yield assert(result)(fails(equalTo("die"))) && assert(effect)(isFalse)
+      },
+      test("runs the effect if the function matches") {
+        for {
+          ref    <- Ref.make(false)
+          result <- ZIO.fail("die").tapSomeError { case "die" => ref.set(true) }.exit
+          effect <- ref.get
+        } yield assert(result)(fails(equalTo("die"))) && assert(effect)(isTrue)
+      }
+    ),
     suite("timeout disconnect")(
       test("returns `Some` with the produced value if the effect completes before the timeout elapses") {
         assertZIO(ZIO.unit.disconnect.timeout(100.millis))(isSome(isUnit))
