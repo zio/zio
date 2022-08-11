@@ -40,16 +40,18 @@ timestamp=2022-03-08T17:55:50.002161369Z level=ERROR thread=#zio-fiber-0 message
 We can also model a failure using `Exception`:
 
 ```
-val f2: ZIO[Any, Exception, Nothing] =
+val f3: ZIO[Any, Exception, Nothing] =
   ZIO.fail(new Exception("Oh uh!"))
 ```
 
 Or using user-defined failure types (domain errors):
 
-```
+```scala mdoc:compile-only
+import zio._
+
 case class NegativeNumberException(msg: String) extends Exception(msg)
 
-val validateNonNegaive(input: Int): ZIO[Any, NegativeNumberException, Int] =
+def validateNonNegative(input: Int): ZIO[Any, NegativeNumberException, Int] =
   if (input < 0)
     ZIO.fail(NegativeNumberException(s"entered negative number: $input"))
   else
