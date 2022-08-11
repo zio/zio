@@ -57,7 +57,8 @@ object MainApp extends ZIOAppDefault {
 
 In this example, the child fiber will be interrupted when the parent fiber is finished (successfully or interrupted).
 
-Note that the example above is just for educational purposes. In a real application, the `onInterrupt` callback is not guaranteed to be called just before the parent fiber finishes its execution. It is possible that the parent fiber will be finished just before the `onInterrupt` callback is called. So this example is the simplified version of the following example:
+:::caution
+The example above is just for educational purposes. In a real application, the `onInterrupt` callback is not guaranteed to be called just before the parent fiber finishes its execution. It is possible that the parent fiber will be finished just before the `onInterrupt` callback is called. So this example is the simplified version of the following example:
 
 ```scala mdoc:compile-only
 import zio._
@@ -79,6 +80,15 @@ object MainApp extends ZIOAppDefault {
     }
 }
 ```
+
+In this version, other than making sure that the `onInterrupt` callback is called, we also added fiber ids to the debug messages. Here is the output of the above example:
+
+```
+fiber-6 Application started!
+fiber-6 Application finished!
+fiber-7 The child fiber interrupted!
+```
+:::
 
 2. Here is another example. In this case, the `foo` fiber creates the `bar` fiber. The `bar` fiber has a long-running task that never finishes. ZIO guarantees that the `bar` fiber will not outlive the `foo` fiber:
 
