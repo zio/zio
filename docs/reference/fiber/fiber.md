@@ -368,14 +368,6 @@ for {
 } yield ()
 ```
 
-### Background Fibers
-
-Sometimes we want to run a background fiber that doesn't block the current fiber. This is useful for long-running tasks that we don't want to block the current fiber. We have three choices to create background processes:
-- **Global Scoped Fibers (Daemons)**— The life of daemon fibers is tied to the life of the **global scope**. They will be terminated when the global scope is terminated.
-- **Local Scoped Fibers**— The life of these fibers is tied to the life of a **local scope**. They will be terminated when the local scope is terminated.
-- **Specific Scoped Fibers**— The life of these fibers is tied to the life of a **specific scope**. It will be terminated when that scope is terminated.
-
-
 ### interrupt
 Whenever we want to get rid of our fiber, we can simply call `interrupt` on that. The interrupt operation does not resume until the fiber has completed or has been interrupted and all its finalizers have been run. These precise semantics allow construction of programs that do not leak resources.
 
