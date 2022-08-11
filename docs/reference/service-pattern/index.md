@@ -63,11 +63,11 @@ A service is a group of functions that deals with only one concern. Keeping the 
 
 In functional Scala as well as in object-oriented programming the best practice is to _Program to an Interface, Not an Implementation_. This is the most important design principle in software development and helps us to write maintainable code by:
 
-* Allowing the client to hold an interface as a contract and don't worry about the implementation. The interface signature determines all operations that should be done.
+* Allowing the client to hold an **interface as a contract** and don't worry about the implementation. The interface signature determines all operations that should be done.
 
-* Enabling a developer to write more testable programs. When we write a test for our business logic we don't have to run and interact with real services like databases which makes our test run very slow. If our code is correct our test code should always pass, there should be no hidden variables or depend on outside sources. We can't know that the database is always running correctly. We don't want to fail our tests because of the failure of external service.
+* Enabling a developer to **write more testable programs**. When we write a test for our business logic we don't have to run and interact with real services like databases which makes our test run very slow. If our code is correct our test code should always pass, there should be no hidden variables or depend on outside sources. We can't know that the database is always running correctly. We don't want to fail our tests because of the failure of external service.
 
-* Providing the ability to write more modular applications. So we can plug in different implementations for different purposes without a major modification.
+* Providing the ability to **write more modular applications**. So we can plug in different implementations for different purposes without a major modification.
 
 It is not mandatory, but ZIO encourages us to follow this principle by bundling related functionality as an interface by using the _Service Pattern_.
 
