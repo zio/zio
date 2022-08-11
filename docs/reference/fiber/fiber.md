@@ -34,9 +34,26 @@ val analyzed =
   } yield analyzed
 ```
 
-## Structured Concurrency
+## Lifetime of Child Fibers
 
-ZIO uses a structured concurrency model where fiber lifetimes are cleanly nested. The lifetime of a fiber depends on the lifetime of its parent fiber.
+When we fork fibers, depending on how we fork them we can have four different lifetime strategies for the child fibers:
+
+1. **Fork With Automatic Supervision**— If we use the ordinary `ZIO#fork` operation, the child fiber will be automatically supervised by the parent fiber. The lifetime child fibers are tied to the lifetime of their parent fiber. This means that these fibers will be terminated either when they end naturally, or when their parent fiber is terminated.
+3. **Fork in Global Scope (Daemon)**— Sometimes we want to run long-running background fibers that aren't tied to their parent fiber, and also we want to fork them in a global scope. Any fiber that is forked in global scope will become daemon fiber. This can be achieved by using the `ZIO#forkDaemon` operator. As these fibers have no parent, they are not supervised, and they will be terminated when they end naturally, or when our application is terminated.
+4. **Fork in Local Scope**— Sometimes, we want to run a background fiber that isn't tied to its parent fiber, but we want to live that fiber in the local scope. We can fork fibers in the local scope by using `ZIO#forkScoped`. Such fibers can outlive their parent fiber (so they are not supervised by their parents), and they will be terminated when their life end or their local scope is closed.
+5. **Fork in Specific Scope**— This is similar to the previous strategy, but we can have more fine-grained control over the lifetime of the child fiber by forking it in a specific scope. We can do this by using the `ZIO#forkIn` operator.
+
+:::note
+Forking with **automatic supervision** is the _default strategy_. When we use the `ZIO#fork` method, the lifetime of child fibers is tied to their parent fiber. However, sometimes we don't want this behavior. Instead, we use three other alternatives.
+:::
+
+:::note Managing Fiber Lifetime Using `Scope` Data Type
+The second and third strategies are required to work with the `Scope` data type. A contextual data type that describes a resource's lifetime, in this case, the fiber's lifetime. To learn more about `Scope` we have a [separate section](../resource/scope.md) on it.
+:::
+
+### Fork with Automatic Supervision
+
+ZIO uses a **structured concurrency** model where fiber lifetimes are cleanly nested. The lifetime of a fiber depends on the lifetime of its parent fiber.
 
 To illustrate this, let's look at some examples:
 
@@ -127,20 +144,11 @@ Bar: still running!
 Foo: finished!
 ```
 
-This pattern can be applied to any nested level of fibers. The lifetime of any child fiber is tied to the lifetime of its parent fiber.
+This pattern can be applied to any nested level of fibers. 
 
-## Daemon and Scoped Fibers
+### Fork in Global Scope (Daemon)
 
-In the previous section, we learned that under the automatic supervision model of ZIO, the child fiber will be interrupted when its parent fiber terminates. This structured approach helps us to have a clear understanding of how our application works just by looking at the source code. Even in presence of concurrency, we can easily reason about the control flow of our application.
-
-However, sometimes we don't want this behavior. Instead, we have two alternatives:
-
-1. We want to run a long-running background fiber that isn't tied to its parent fiber, and also we want to fork that fiber in a global scope. Any fiber that is forked in global scope will be a daemon fiber. As these fibers have no parent, they are not supervised, and they will be terminated when they end their own life, or when our application is terminated. This can be achieved by using the `ZIO#forkDaemon` operator.
-2. We want to run a background task that isn't tied to its parent fiber, but we want to fork that task in a specific local scope. Such fibers can outlive their parent fiber, and they will be terminated when their own life ends, or their scope is closed. Using the `ZIO#forkScoped`, `ZIO#forkIn` we can have more fine-grained control over the lifetimes of our fibers.
-
-### Daemon Fibers
-
-Using `ZIO#forkDaemon` we can create a daemon fiber from a `ZIO` effect. This fiber will be automatically started and its life is tied to the global scope. So if the parent fiber terminates, the daemon fiber will not be terminated. It will only be terminated when the global scope is closed:
+Using `ZIO#forkDaemon` we can create a daemon fiber from a `ZIO` effect. Its lifetime is tied to the global scope. So if the parent fiber terminates, the daemon fiber will not be terminated. It will only will be terminated when the global scope is closed, or its life end naturaly.
 
 ```scala mdoc:compile-only
 import zio._
@@ -221,7 +229,7 @@ Bar: still running!
 Bar: still running!
 ```
 
-### Scoped Fibers
+### Fork in Local Scope
 
 Sometimes we want to attach fiber to a local scope. In such cases, we can use the `ZIO#forkScoped` operator. By using this operator, the lifetime of the forked fiber can be outlived the lifetime of its parent fiber, and it will be terminated when the local scope is closed:
 
@@ -274,6 +282,8 @@ Leaving the local scope!
 Do something else and sleep for 10 seconds
 Application exited!
 ```
+
+### Fork in Specific Scope
 
 There are some cases where we need more fine-grained control, so we want to fork a fiber in a specific scope. We can use the `ZIO#forkIn` operator which takes the target scope as an argument:
 
