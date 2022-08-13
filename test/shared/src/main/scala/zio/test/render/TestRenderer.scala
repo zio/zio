@@ -135,7 +135,7 @@ trait TestRenderer {
 
   def renderOutput(output: Chunk[String]): Message =
     Message(
-      Line.fromString("========= Output Produced by Test ========".red, 2) +:
+      Line.fromString("          Output Produced by Test         ".red.underlined, 2) +:
         output.map(s => Line.fromString("| ".red + s.yellow, 2)) :+
         Line.fromString("==========================================".red, 2)
     )
