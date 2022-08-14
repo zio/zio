@@ -66,44 +66,36 @@ trait TestRenderer {
             warn(label).toLine
           )
         )
-      case Left(TestFailure.Assertion(result, annotations)) =>
-        val output: Chunk[String] = annotations.get(TestAnnotation.output)
+      case Left(TestFailure.Assertion(result, _)) =>
         result.failures.map { result =>
           renderedWithSummary(
             ResultType.Test,
             label,
             Failed,
             depth,
-            renderFailure(label, depth, result, output).lines.toList,
-            renderFailure(flatLabel, depth, result, output).lines.toList // Fully-qualified label
+            renderFailure(label, depth, result).lines.toList,
+            renderFailure(flatLabel, depth, result).lines.toList // Fully-qualified label
           )
         }
 
-      case Left(TestFailure.Runtime(cause, annotations)) =>
-        val output: Chunk[String] = annotations.get(TestAnnotation.output)
+      case Left(TestFailure.Runtime(cause, _)) =>
         Some(
           renderRuntimeCause(
             cause,
             labels,
             depth,
-            includeCause,
-            output
+            includeCause
           )
         )
     }
     (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
-  def renderAssertFailure(
-    result: TestResult,
-    labels: List[String],
-    depth: Int,
-    output: Chunk[String]
-  ): ExecutionResult = {
+  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int): ExecutionResult = {
     val streamingLabel           = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel             = labels.mkString(" - ")
-    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result, output).lines.toList
-    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result, output).lines.toList
+    val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result).lines.toList
+    val summaryRenderedFailure   = renderFailure(summaryLabel, depth, result.result).lines.toList
     renderedWithSummary(
       ResultType.Test,
       streamingLabel,
@@ -114,13 +106,7 @@ trait TestRenderer {
     )
   }
 
-  def renderRuntimeCause[E](
-    cause: Cause[E],
-    labels: List[String],
-    depth: Int,
-    includeCause: Boolean,
-    output: Chunk[String]
-  )(implicit
+  def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
     trace: Trace
   ): ExecutionResult = {
     val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
@@ -209,10 +195,8 @@ trait TestRenderer {
     }
   }
 
-  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], output: Chunk[String]): Message =
-    Message(Seq(renderFailureLabel(label, offset))) ++ renderAssertionResult(details, offset) ++ Message(
-      Seq(Line.empty)
-    )
+  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean]): Message =
+    renderFailureLabel(label, offset) +: renderAssertionResult(details, offset) :+ Line.empty
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)

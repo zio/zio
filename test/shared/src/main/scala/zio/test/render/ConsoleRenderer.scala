@@ -80,7 +80,7 @@ trait ConsoleRenderer extends TestRenderer {
         val depth = event.labels.length
         failure match {
           case TestFailure.Assertion(result, annotations) =>
-            Seq(renderAssertFailure(result, runtimeFailure.labels, depth, annotations.get(TestAnnotation.output)))
+            Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
           case TestFailure.Runtime(cause, annotations) =>
             Seq(
               renderRuntimeCause(
