@@ -5,22 +5,22 @@ import zio.test.Hash.ProjectHash
 
 trait TestStats {
   def flaky[E](results: Seq[ZTestResult[E]]): Boolean
-  def performanceDegraded[E](current:ZTestResult[E], previous: Seq[ZTestResult[E]]): Boolean
+  def performanceDegraded[E](current: ZTestResult[E], previous: Seq[ZTestResult[E]]): Boolean
 }
 
 case class ZTestResult[E](
-                        fullyQualifiedName: String,
-                        labels: List[String],
-                        // For grouping results. Cannot reliably be done with labels
-                        ancestors: List[SuiteId],
-                        test: Either[TestFailure[E], TestSuccess],
-                        annotations: TestAnnotationMap,
-                        time: Duration,
-                        projectHash: ProjectHash,
-                        // In addition to real-time streaming output, we could also capture the output
-                        // from specific tests for later browsing
-                        output: Chunk[String]
-                      )
+  fullyQualifiedName: String,
+  labels: List[String],
+  // For grouping results. Cannot reliably be done with labels
+  ancestors: List[SuiteId],
+  test: Either[TestFailure[E], TestSuccess],
+  annotations: TestAnnotationMap,
+  time: Duration,
+  projectHash: ProjectHash,
+  // In addition to real-time streaming output, we could also capture the output
+  // from specific tests for later browsing
+  output: Chunk[String]
+)
 
 object Hash {
   import java.nio.file.{Files, Path}
@@ -34,7 +34,7 @@ object Hash {
     sha256(Seq(path): _*)
 
   def sha256(roots: Path*): ProjectHash = {
-    val md = MessageDigest.getInstance("SHA-256")
+    val md     = MessageDigest.getInstance("SHA-256")
     val buffer = new Array[Byte](4096)
     roots.foreach { root =>
       Files.walk(root).filter(!_.toFile.isDirectory).forEach { path =>

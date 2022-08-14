@@ -150,7 +150,7 @@ trait TestRenderer {
     Message(
       Line.fromString("          Output Produced by Test         ".red.underlined, 2) +:
         output.map(s => Line.fromString("| ".red + s.yellow, 2)) :+
-        Line.fromString("==========================================".red, 2)
+        Line.fromString("==========================================\n".red, 2)
     )
 
   def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message = {

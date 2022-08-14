@@ -154,7 +154,6 @@ object TestConsole extends Serializable {
      * character.
      */
     override def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-
       annotations.annotate(TestAnnotation.output, Chunk(line.toString)) *>
         ZIO.succeed(unsafe.printLine(line)(Unsafe.unsafe)) *>
         live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
@@ -228,12 +227,12 @@ object TestConsole extends Serializable {
   ): ZLayer[Live with Annotations, Nothing, TestConsole] =
     ZLayer.scoped {
       for {
-        live     <- ZIO.service[Live]
-        annotations           <- ZIO.service[Annotations]
-        ref      <- ZIO.succeed(Ref.unsafe.make(data)(Unsafe.unsafe))
-        debugRef <- FiberRef.make(debug)
-        test      = Test(ref, live, annotations, debugRef)
-        _        <- ZIO.withConsoleScoped(test)
+        live        <- ZIO.service[Live]
+        annotations <- ZIO.service[Annotations]
+        ref         <- ZIO.succeed(Ref.unsafe.make(data)(Unsafe.unsafe))
+        debugRef    <- FiberRef.make(debug)
+        test         = Test(ref, live, annotations, debugRef)
+        _           <- ZIO.withConsoleScoped(test)
       } yield test
     }
 

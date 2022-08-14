@@ -63,7 +63,11 @@ object ZLayerSpec extends ZIOBaseSpec {
       test("Size of Test layers") {
         for {
           r1 <- testSize(Annotations.live, 1, "Annotations.live")
-          r2 <- testSize(liveEnvironment >>> (Live.default ++ Annotations.live) >>> TestConsole.debug, 1, "TestConsole.default")
+          r2 <- testSize(
+                  liveEnvironment >>> (Live.default ++ Annotations.live) >>> TestConsole.debug,
+                  1,
+                  "TestConsole.default"
+                )
           r3 <- testSize(liveEnvironment >>> Live.default, 1, "Live.default")
           r4 <- testSize(liveEnvironment >>> TestRandom.deterministic, 1, "TestRandom.live")
           r5 <- testSize(Sized.live(100), 1, "Sized.live(100)")
