@@ -127,12 +127,12 @@ trait TestRenderer {
     val summaryLabel   = labels.mkString(" - ")
 
     val failureDetails =
-      Seq(renderFailureLabel(streamingLabel, depth)) ++ Seq(renderCause(cause, depth) ++ renderOutput(output))
+      Seq(renderFailureLabel(streamingLabel, depth)) ++ Seq(renderCause(cause, depth))
         .filter(_ => includeCause)
         .flatMap(_.lines)
 
     val summaryFailureDetails =
-      Seq(renderFailureLabel(summaryLabel, depth)) ++ Seq(renderCause(cause, depth) ++ renderOutput(output))
+      Seq(renderFailureLabel(summaryLabel, depth)) ++ Seq(renderCause(cause, depth))
         .filter(_ => includeCause)
         .flatMap(_.lines)
 
@@ -145,13 +145,6 @@ trait TestRenderer {
       summaryFailureDetails.toList
     )
   }
-
-  def renderOutput(output: Chunk[String]): Message =
-    Message(
-      Line.fromString("          Output Produced by Test         ".red.underlined, 2) +:
-        output.map(s => Line.fromString("| ".red + s.yellow, 2)) :+
-        Line.fromString("==========================================\n".red, 2)
-    )
 
   def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message = {
     val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
@@ -217,9 +210,9 @@ trait TestRenderer {
   }
 
   private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], output: Chunk[String]): Message =
-    Message(Seq(renderFailureLabel(label, offset))) ++ renderAssertionResult(details, offset) ++ renderOutput(
-      output
-    ) ++ Message(Seq(Line.empty))
+    Message(Seq(renderFailureLabel(label, offset))) ++ renderAssertionResult(details, offset) ++ Message(
+      Seq(Line.empty)
+    )
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)

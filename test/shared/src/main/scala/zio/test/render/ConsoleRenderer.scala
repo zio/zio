@@ -22,7 +22,7 @@ import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test._
-import zio.{Cause, Trace}
+import zio.{Cause, Chunk, Trace}
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -53,6 +53,7 @@ trait ConsoleRenderer extends TestRenderer {
       case Test(labelsReversed, results, annotations, _, _, _) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
+        // TODO Call a different/additional function here to include output
         val (streamingOutput, summaryOutput) =
           testCaseOutput(labels, results, includeCause)
 
@@ -114,9 +115,22 @@ trait ConsoleRenderer extends TestRenderer {
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 
+  // TODO Use this
+  import zio.internal.ansi.AnsiStringOps
+  private def renderOutput(output: List[String]): Message =
+    if (output.isEmpty)
+      Message.empty
+    else
+      Message(
+        Line.fromString("          Output Produced by Test         ".red.underlined, 2) +:
+          output.map(s => Line.fromString("| ".red + s.yellow, 2)) :+
+          Line.fromString("==========================================\n".red, 2)
+      )
+
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
-      val message = Message(result.summaryLines).intersperse(Line.fromString("\n"))
+      val testOutput: List[String] = result.annotations.flatMap(_.get(TestAnnotation.output))
+      val message                  = (Message(result.summaryLines) ++ renderOutput(testOutput)).intersperse(Line.fromString("\n"))
 
       val output = result.resultType match {
         case ResultType.Suite =>
