@@ -1,7 +1,5 @@
 package zio.test
 
-import zio.Chunk
-
 object ExecutionEvent {
 
   final case class Test[+E](
