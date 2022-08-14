@@ -61,18 +61,10 @@ trait IntelliJRenderer extends TestRenderer {
       case runtimeFailure @ ExecutionEvent.RuntimeFailure(_, _, failure, _) =>
         val depth = event.labels.length
         failure match {
-          case TestFailure.Assertion(result, annotations) =>
+          case TestFailure.Assertion(result, _) =>
             Seq(renderAssertFailure(result, runtimeFailure.labels, depth))
-          case TestFailure.Runtime(cause, annotations) =>
-            Seq(
-              renderRuntimeCause(
-                cause,
-                runtimeFailure.labels,
-                depth,
-                includeCause,
-                annotations.get(TestAnnotation.output)
-              )
-            )
+          case TestFailure.Runtime(cause, _) =>
+            Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
         }
       case SectionEnd(labelsReversed, _, _) =>
         val depth = labelsReversed.length - 1

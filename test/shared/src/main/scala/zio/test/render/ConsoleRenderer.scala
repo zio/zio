@@ -87,8 +87,7 @@ trait ConsoleRenderer extends TestRenderer {
                 cause,
                 runtimeFailure.labels,
                 depth,
-                includeCause,
-                annotations.get(TestAnnotation.output)
+                includeCause
               )
             )
         }
