@@ -23,6 +23,7 @@ import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line, Message}
 import zio.test._
 import zio.{Cause, Chunk, Trace}
+import zio.internal.ansi.AnsiStringOps
 
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
@@ -53,7 +54,6 @@ trait ConsoleRenderer extends TestRenderer {
       case Test(labelsReversed, results, annotations, _, _, _) =>
         val labels       = labelsReversed.reverse
         val initialDepth = labels.length - 1
-        // TODO Call a different/additional function here to include output
         val (streamingOutput, summaryOutput) =
           testCaseOutput(labels, results, includeCause)
 
@@ -114,8 +114,6 @@ trait ConsoleRenderer extends TestRenderer {
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 
-  // TODO Use this
-  import zio.internal.ansi.AnsiStringOps
   private def renderOutput(output: List[String]): Message =
     if (output.isEmpty)
       Message.empty
