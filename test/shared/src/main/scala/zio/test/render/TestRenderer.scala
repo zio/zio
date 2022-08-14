@@ -67,32 +67,39 @@ trait TestRenderer {
           )
         )
       case Left(TestFailure.Assertion(result, annotations)) =>
-        val failureOutput: Chunk[String] = annotations.get(TestAnnotation.output)
+        val output: Chunk[String] = annotations.get(TestAnnotation.output)
         result.failures.map { result =>
           renderedWithSummary(
             ResultType.Test,
             label,
             Failed,
             depth,
-            renderFailure(label, depth, result, failureOutput).lines.toList,
-            renderFailure(flatLabel, depth, result, failureOutput).lines.toList // Fully-qualified label
+            renderFailure(label, depth, result, output).lines.toList,
+            renderFailure(flatLabel, depth, result, output).lines.toList // Fully-qualified label
           )
         }
 
-      case Left(TestFailure.Runtime(cause, _)) =>
+      case Left(TestFailure.Runtime(cause, annotations)) =>
+        val output: Chunk[String] = annotations.get(TestAnnotation.output)
         Some(
           renderRuntimeCause(
             cause,
             labels,
             depth,
-            includeCause
+            includeCause,
+            output
           )
         )
     }
     (renderedResult.map(r => r.streamingLines).getOrElse(Nil), renderedResult.map(r => r.summaryLines).getOrElse(Nil))
   }
 
-  def renderAssertFailure(result: TestResult, labels: List[String], depth: Int, output: Chunk[String]): ExecutionResult = {
+  def renderAssertFailure(
+    result: TestResult,
+    labels: List[String],
+    depth: Int,
+    output: Chunk[String]
+  ): ExecutionResult = {
     val streamingLabel           = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel             = labels.mkString(" - ")
     val streamingRenderedFailure = renderFailure(streamingLabel, depth, result.result, output).lines.toList
@@ -107,19 +114,25 @@ trait TestRenderer {
     )
   }
 
-  def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
+  def renderRuntimeCause[E](
+    cause: Cause[E],
+    labels: List[String],
+    depth: Int,
+    includeCause: Boolean,
+    output: Chunk[String]
+  )(implicit
     trace: Trace
   ): ExecutionResult = {
     val streamingLabel = labels.lastOption.getOrElse("Top-level defect prevented test execution")
     val summaryLabel   = labels.mkString(" - ")
 
     val failureDetails =
-      Seq(renderFailureLabel(streamingLabel, depth)) ++ Seq(renderCause(cause, depth))
+      Seq(renderFailureLabel(streamingLabel, depth)) ++ Seq(renderCause(cause, depth) ++ renderOutput(output))
         .filter(_ => includeCause)
         .flatMap(_.lines)
 
     val summaryFailureDetails =
-      Seq(renderFailureLabel(summaryLabel, depth)) ++ Seq(renderCause(cause, depth))
+      Seq(renderFailureLabel(summaryLabel, depth)) ++ Seq(renderCause(cause, depth) ++ renderOutput(output))
         .filter(_ => includeCause)
         .flatMap(_.lines)
 
@@ -139,7 +152,6 @@ trait TestRenderer {
         output.map(s => Line.fromString("| ".red + s.yellow, 2)) :+
         Line.fromString("==========================================".red, 2)
     )
-
 
   def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message = {
     val failures = FailureCase.fromTrace(assertionResult, Chunk.empty)
@@ -204,9 +216,10 @@ trait TestRenderer {
     }
   }
 
-  // TODO Invoke
-  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], failureOutput: Chunk[String]): Message =
-    Message(Seq(renderFailureLabel(label, offset)))  ++ renderAssertionResult(details, offset) ++ renderOutput(failureOutput) ++ Message(Seq(Line.empty))
+  private def renderFailure(label: String, offset: Int, details: TestTrace[Boolean], output: Chunk[String]): Message =
+    Message(Seq(renderFailureLabel(label, offset))) ++ renderAssertionResult(details, offset) ++ renderOutput(
+      output
+    ) ++ Message(Seq(Line.empty))
 
   def renderFailureLabel(label: String, offset: Int): Line =
     withOffset(offset)(error("- " + label).toLine)

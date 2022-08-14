@@ -47,17 +47,13 @@ object TestExecutor {
           _ <- {
             def processEvent(
               event: ExecutionEvent
-            ) = {
-//              ZIO.console.debug("Console in executor") *>
-//              ZIO.service[TestConsole].debug *>
-//              ZIO.serviceWithZIO[TestConsole](_.output).debug("TestConsole output:").provide(freshLayerPerSpec) *>
+            ) =
               summary.update(
                 _.add(event)
               ) *>
                 sink.process(
                   event
                 ) *> eventHandlerZ.handle(event)
-            }
 
             def loop(
               labels: List[String],
@@ -83,7 +79,6 @@ object TestExecutor {
                       val event =
                         ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
 
-
                       processEvent(event)
                     }
 
@@ -98,9 +93,9 @@ object TestExecutor {
                       _ <-
                         restore(
                           ZIO.foreachExec(specs)(exec)(spec =>
-                                loop(labels, spec, exec, newAncestors, newMultiSectionId)
-                            )
+                            loop(labels, spec, exec, newAncestors, newMultiSectionId)
                           )
+                        )
                           .ensuring(
                             processEvent(end)
                           )
@@ -111,16 +106,18 @@ object TestExecutor {
                       staticAnnotations: TestAnnotationMap
                     ) => {
                   val testResultZ = (for {
-                    result <-
-                      ZIO.withClock(ClockLive)(
-                          test.timed.either
-                      )
+                    result  <- ZIO.withClock(ClockLive)(test.timed.either)
                     duration = result.map(_._1.toMillis).fold(_ => 1L, identity)
-                    annotationMap = extractAnnotations(result.map(_._2))
-                    outputAnnotation = annotationMap.get(TestAnnotation.output)
                     event =
                       ExecutionEvent
-                        .Test(labels, result.map(_._2), staticAnnotations ++ extractAnnotations(result.map(_._2)), ancestors, duration, sectionId)
+                        .Test(
+                          labels,
+                          result.map(_._2),
+                          staticAnnotations ++ extractAnnotations(result.map(_._2)),
+                          ancestors,
+                          duration,
+                          sectionId
+                        )
                   } yield event).catchAllCause { e =>
                     val event = ExecutionEvent.RuntimeFailure(sectionId, labels, TestFailure.Runtime(e), ancestors)
                     ConsoleRenderer.render(e, labels).foreach(cr => println("CR: " + cr))

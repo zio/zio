@@ -81,8 +81,16 @@ trait ConsoleRenderer extends TestRenderer {
         failure match {
           case TestFailure.Assertion(result, annotations) =>
             Seq(renderAssertFailure(result, runtimeFailure.labels, depth, annotations.get(TestAnnotation.output)))
-          case TestFailure.Runtime(cause, _) =>
-            Seq(renderRuntimeCause(cause, runtimeFailure.labels, depth, includeCause))
+          case TestFailure.Runtime(cause, annotations) =>
+            Seq(
+              renderRuntimeCause(
+                cause,
+                runtimeFailure.labels,
+                depth,
+                includeCause,
+                annotations.get(TestAnnotation.output)
+              )
+            )
         }
       case SectionEnd(_, _, _) =>
         Nil
@@ -103,7 +111,7 @@ trait ConsoleRenderer extends TestRenderer {
           Message(result.streamingLines)
       }
 
-      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default) // noisyDev // TODO Delete when done
+      val renderedAnnotations = renderAnnotations(result.annotations, TestAnnotationRenderer.default)
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 

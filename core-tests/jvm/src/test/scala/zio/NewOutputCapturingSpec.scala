@@ -1,22 +1,22 @@
 package zio
 
 import zio.Console.printLine
-import zio.test.{ZIOSpecDefault, assertCompletes, assertNever}
+import zio.test.{ZIOSpecDefault, assertCompletes}
 
 object NewOutputCapturingSpec extends ZIOSpecDefault {
   def spec =
     suite("basic suite")(
-      test("A"){
+      test("A") {
         printLine("first A output") *>
           printLine("second A output") *>
           assertCompletes
       },
-      test("B"){
+      test("B") {
         printLine("first B output") *>
           printLine("second B output") *>
-          assertNever("Don't get here!")
-      },
+          ???
+//          assertNever("Don't get here!")
+      }
     )
-
 
 }
