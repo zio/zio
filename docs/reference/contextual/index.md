@@ -212,7 +212,7 @@ In the example above, the compiler can infer the environment type of the `myApp`
 
 ### Accessing ZIO Environment
 
-We have two types of accessors for the ZIO environment:DocRepo
+We have two types of accessors for the ZIO environment:
 1. **Service Accessor (`ZIO.service`)** is used to access a specific service from the environment.
 2. **Service Member Accessors (`ZIO.serviceWith` and `ZIO.serviceWithZIO`)** are used to access capabilities of a specific service from the environment.
 
@@ -265,7 +265,7 @@ for {
 } yield ()
 ```
 
-When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Service Pattern](#service-pattern) section.
+When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Service Pattern](../service-pattern) section.
 
 #### Service Member Accessors
 
@@ -273,7 +273,7 @@ Sometimes instead of accessing a service, we need to access the capabilities (me
 - **ZIO.serviceWith**
 - **ZIO.serviceWithZIO**
 
-In [Service Pattern](#service-pattern), we use these accessors to write "accessor methods" for ZIO services.
+In [Service Pattern](../service-pattern), we use these accessors to write "accessor methods" for ZIO services.
 
 Let's look at each one in more detail:
 
@@ -329,15 +329,3 @@ object Foo {
 
 `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
 
-`ZLayer` combined with the _ZIO Environment_, allow us to use ZIO for _dependency injection_. There are two parts of dependency injection:
-1. **Building Dependency Graph**
-2. **Dependency Propagation**
-
-ZIO has a full solution to the dependency injection problem. It solves the first problem by using [compositional properties](zlayer.md#manual-layer-construction) of `ZLayer`. Assume we have several services with their dependencies, and we need a way to compose and wire up these dependencies to create the dependency graph of the application. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically. 
-
-ZIO also solves the second problem by using [ZIO Environment facilities like `ZIO#provide`](zlayer.md#dependency-propagation).
-
-:::tip
-
-By using ZLayer and ZIO Environment we can solve the propagation and wire-up problems in dependency injection. Note that we are not enforced to use this approach, as we can still use things like [Guice](https://github.com/google/guice) with ZIO, or we might like to use [izumi distage](https://izumi.7mind.io/distage/index.html) solution for dependency injection.
-:::
