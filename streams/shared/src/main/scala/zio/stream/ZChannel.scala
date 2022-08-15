@@ -279,6 +279,40 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   /**
    * Returns a new channel which is the same as this one but applies the given
+   * function to the input channel's error value.
+   */
+  final def contramapErr[InErr0](
+    f: InErr0 => InErr
+  )(implicit trace: Trace): ZChannel[Env, InErr0, InElem, InDone, OutErr, OutElem, OutDone] = {
+    lazy val reader: ZChannel[Any, InErr0, InElem, InDone, InErr, InElem, InDone] =
+      ZChannel.readWith(
+        (in: InElem) => ZChannel.write(in) *> reader,
+        (err0: InErr0) => ZChannel.fail(f(err0)),
+        (done: InDone) => ZChannel.succeedNow(done)
+      )
+
+    reader >>> self
+  }
+
+  /**
+   * Returns a new channel which is the same as this one but applies the given
+   * ZIO function to the input channel's error value.
+   */
+  final def contramapErrZIO[InErr0, Env1 <: Env](
+    f: InErr0 => ZIO[Env1, InErr, InDone]
+  )(implicit trace: Trace): ZChannel[Env1, InErr0, InElem, InDone, OutErr, OutElem, OutDone] = {
+    lazy val reader: ZChannel[Env1, InErr0, InElem, InDone, InErr, InElem, InDone] =
+      ZChannel.readWith(
+        (in: InElem) => ZChannel.write(in) *> reader,
+        (err0: InErr0) => ZChannel.fromZIO(f(err0)),
+        (done: InDone) => ZChannel.succeedNow(done)
+      )
+
+    reader >>> self
+  }
+
+  /**
+   * Returns a new channel which is the same as this one but applies the given
    * function to the input channel's output elements
    */
   final def contramapIn[InElem0](
