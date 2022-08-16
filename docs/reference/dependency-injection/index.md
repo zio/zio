@@ -9,6 +9,8 @@ title: "Introduction To Dependency Injection"
 Assume we have two services called `Formatter` and `Compiler` like below:
 
 ```scala mdoc:silent
+import zio._
+
 class Formatter {
   def format(code: String): UIO[String] = 
     ZIO.succeed(code) // dummy implementation
@@ -27,7 +29,7 @@ class Editor {
   private val formatter: Formatter = new Formatter()
   private val compiler: Compiler   = new Compiler()
 
-  def formatAndCompile(code: String): UIO[String] 
+  def formatAndCompile(code: String): UIO[String] =
     formatter.format(code).flatMap(compiler.compile)
 }
 ```
@@ -46,7 +48,7 @@ On solution to the first problem is inverting the control to the user of the `Ed
 
 Now lets instead of instantiating the dependencies inside the `Editor` service, create them outside the `Editor` service and pass them to the `Editor` service:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 class Editor(formatter: Formatter, compiler: Compiler) {
   def formatAndCompile(code: String): UIO[String] =
     formatter.format(code).flatMap(compiler.compile)
@@ -67,7 +69,7 @@ editor.formatAndCompile("println(\"Hello, world!\")")
 
 In the previous step, we delegated the creation of dependencies to the client of the `Editor` service. This decouples the `Editor` service from the creation of the dependencies. But it is not enough. We still coupled to the concrete classes called `Formatter` and `Compiler`. The user of the `Editor` service cannot use different implementations rather than the `Formatter` and `Compiler` services. This is where the object-oriented approach comes into play. By programming to interfaces, we can encapsulate the `Editor` service and make it independent of concrete implementations:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 trait Formatter {
   def format(code: String): UIO[String]
 }
@@ -105,9 +107,21 @@ editor.formatAndCompile("println(\"Hello, world!\")")
 Now, we can test the `Editor` service easily without having to worry about the implementation of the `Formatter` and `Compiler` services. To test the `Editor` service, we can use a mock implementation of its dependencies:
 
 ```scala mdoc:compile-only
-val formatter = new MockScalaFormatter() // Creating formatter
-val compiler  = new MockScalaCompiler()  // Creating compiler
+class MockFormatter extends Formatter {
+  def format(code: String): UIO[String] = 
+    ZIO.succeed(code) // dummy implementation
+}
+
+class MockCompiler extends Compiler {
+  def compile(code: String): UIO[String] = 
+    ZIO.succeed(code) // dummy implementation
+}
+
+val formatter = new MockFormatter() // Creating mock formatter
+val compiler  = new MockCompiler()  // Creating mock compiler
 val editor    = new EditorLive(formatter, compiler) // Assembling formatter and compiler into CodeEditor
+
+import zio.test._
 
 val expectedOutput = ???
 for {
@@ -121,11 +135,11 @@ In the previous step, we successfully decoupled the `Editor` service from concre
 
 So we need a container that maintains this mapping. ZIO has a type-level map, called `ZEnvironment`, which can do that for us:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 val scalaFormatter = new ScalaFormatter() // Creating Formatter
 val scalaCompiler  = new ScalaCompiler() // Creating Compiler
 val myEditor       = // Assembling Formatter and Compiler into an Editor
-  new CodeEditor(
+  new EditorLive(
     scalaFormatter,
     scalaCompiler
   )
@@ -161,7 +175,7 @@ val workflow: ZIO[Any, Nothing, Unit] =
 
 Until now, we discussed the creation of services where the creation process was not effectful. But, assume in order to implement the `Editor` service, we need the `Counter` service, and the creation of `Counter` itself is effectful:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 trait Counter {
   def inc: UIO[Unit]
   def dec: UIO[Unit]
@@ -190,11 +204,11 @@ class EditorLive(
 
 To instantiate `EditorLive` we can't use the same technique as before:
 
-```scala mdoc:compile-only
+```scala mdoc:fail
 val scalaFormatter = new ScalaFormatter() // Creating Formatter
 val scalaCompiler  = new ScalaCompiler()  // Creating Compiler
 val myEditor       =                      // Assembling Formatter and Compiler into an Editor
-  new CodeEditor(
+  new EditorLive(
     scalaFormatter,
     scalaCompiler,
     CounterLive.make // Compiler Error: Type mismatch: expected: Counter, found: UIO[Counter]
@@ -203,7 +217,7 @@ val myEditor       =                      // Assembling Formatter and Compiler i
 
 We can use `ZIO#flatMap` to create the dependency graph but to make it easier, we have a special data type called `ZLayer`. It is effectful, so we can use it to create the dependency graph effectfully:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 trait Formatter {
   def format(code: String): UIO[String]
 }
@@ -292,22 +306,23 @@ object MainApp extends ZIOAppDefault {
 So far, we learned that the `ZEnvironment` can act as an IoC container. Whenever we need a dependency, we can ask for it from the environment:
 
 ```scala mdoc:compile-only
-val workflow: ZIO[Any, Nothing, Unit] =
+val workflow: ZIO[Scope, Nothing, Unit] =
   for {
-    f <- environment.get[Formatter].format("println(\"Hello, world!\")")
-    _ <- environment.get[Compiler].compile(f)
+    env <- (ScalaFormatter.layer ++ ScalaCompiler.layer).build
+    f   <- env.get[Formatter].format("println(\"Hello, world!\")")
+    _   <- env.get[Compiler].compile(f)
   } yield ()
 ```
 
 While this is a pretty good solution, there is a problem with it. Every time we need a dependency, we are asking for that instantly. In a large codebase, this imperative style of asking for dependencies can be tedious. This is an imperative style. It's better to make this declarative. So instead of **asking for dependencies** it is better to **declare dependencies**.
 Accordingly, we can use the `R` type-parameter of the `ZIO` data type which supports the declarative style:
 
-```scala mdoc:compile-only
+```scala mdoc:silent:nest
 val workflow: ZIO[Compiler with Formatter, Nothing, String] =
  for {
-   f <- ZIO.service[Formatter] 
+   f  <- ZIO.service[Formatter] 
    r1 <- f.format("println(\"Hello, world!\")")
-   c <- ZIO.service[Compiler]
+   c  <- ZIO.service[Compiler]
    r1 <- c.compile(r1)
  } yield r1
 ```
@@ -325,7 +340,7 @@ workflow.provideLayer(ScalaCompiler.layer ++ ScalaFormatter.layer)
 For large applications, it can be tedious to manually create the dependency graph. ZIO has a built-in mechanism empowered by using macros to automatically generate the dependency graph. To use this feature, we can use the `ZIO#provide` method:
 
 ```scala mdoc:compile-only
-workflow.provideLayer(ScalaCompiler.layer, ScalaFormatter.layer)
+workflow.provide(ScalaCompiler.layer, ScalaFormatter.layer)
 ```
 
 We should provide all required dependencies and then the ZIO will construct the dependency graph and provide that to our application.
