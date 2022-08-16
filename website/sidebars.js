@@ -168,6 +168,12 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Dependency Injection",
+      link: { type: "doc", id: "reference/dependency-injection/index" },
+      items: [ ]
+    },
+    {
+      type: "category",
       label: "Scheduling",
       link: { type: "doc", id: "reference/schedule/index" },
       items: [

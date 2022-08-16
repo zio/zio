@@ -204,7 +204,7 @@ class EditorLive(
 
 To instantiate `EditorLive` we can't use the same technique as before:
 
-```scala mdoc:fail
+```scala mdoc:silent:fail
 val scalaFormatter = new ScalaFormatter() // Creating Formatter
 val scalaCompiler  = new ScalaCompiler()  // Creating Compiler
 val myEditor       =                      // Assembling Formatter and Compiler into an Editor
@@ -214,6 +214,7 @@ val myEditor       =                      // Assembling Formatter and Compiler i
     CounterLive.make // Compiler Error: Type mismatch: expected: Counter, found: UIO[Counter]
   )
 ```
+
 
 We can use `ZIO#flatMap` to create the dependency graph but to make it easier, we have a special data type called `ZLayer`. It is effectful, so we can use it to create the dependency graph effectfully:
 
@@ -301,7 +302,7 @@ object MainApp extends ZIOAppDefault {
 `ZLayer` is not only an effectful constructor, but also it supports concurrency and resource safety when constructing layers. So unlike the ordinary scala constructors, with ZIO we can create the dependency graph concurrently. Also, a layer can be thought of as a resource that can be acquired and released.
 :::
 
-## Step 5: Using ZIO environment To Declare Dependencies
+## Step 5: Using ZIO Environment To Declare Dependencies
 
 So far, we learned that the `ZEnvironment` can act as an IoC container. Whenever we need a dependency, we can ask for it from the environment:
 
