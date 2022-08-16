@@ -854,6 +854,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /** Returns a channel that never completes */
+  @deprecated("use ZChannel.never", "3.0.0")
   final def never(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
     ZChannel.fromZIO(ZIO.never)
 
@@ -1761,6 +1762,10 @@ object ZChannel {
         consumer.embedInput(input)
       }
     }
+
+  /** Returns a channel that never completes */
+  final def never(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Nothing] =
+    ZChannel.fromZIO(ZIO.never)
 
   def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
     channel: => ZChannel[Env with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
