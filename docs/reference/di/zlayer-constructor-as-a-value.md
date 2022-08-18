@@ -1,9 +1,10 @@
 ---
-id: surpassing-scala-constructors-with-zlayer
-title: "Surpassing Scala Constructors With ZLayer"
-sidebar_label: "Surpassing Scala Constructors"
+id: zlayer-constructor-as-a-value
+title: "ZLayer: Constructor as Value"
+sidebar_label: "Constructor as Value"
 ---
 
+Before jumping into the next section, which will explain dependency injection in ZIO, let's take a look at the philosophy behind the `ZLayer` data type.
 
 In the [motivation](motivation.md) section, we find out that the ordinary Scala constructors are not powerful enough to help us to build the dependency graph easily. So `ZLayer` was created to overcome scala constructors' limitations.
 
@@ -34,7 +35,9 @@ We can say that each constructor is a function that takes some arguments as depe
 - `() => Compiler`
 - `(Formatter, Compiler) => Editor`
 
-`ZLayer` reifies the conceptual idea of constructors but in a more fashionable way. It is a data type that represents an asynchronous recipe for creating a dependency graph. So a `ZLayer[Input, E, Output]` is a constructor that takes some services as input and returns some services as output.
+The `ZLayer` reifies the conceptual idea of scala constructor and turned it into typed value which is equipped with lots of compositional operators and also supporting asynchronous operations. 
+
+So in other words, `ZLayer` is a type-safe data type that describes the asynchronous, effectful and resourceful process of building the dependency graph. We can say that a `ZLayer[Input, E, Output]` is a recipe that takes some services as input and returns some services as output.
 
 For example, a `ZLayer` of type `ZLayer[Any, Nothing, Formatter]` is a constructor that doesn't take any services from the input and returns `Formatter` as output. Also, a `ZLayer` of type `ZLayer[Formatter with Compiler, Nothing, Editor]` is a constructor that takes `Formatter` and `Compiler` services from the input and returns `Editor` as output:
 
@@ -62,7 +65,7 @@ object Editor {
 }
 ```
 
-## Composability
+## Composable Constructors
 
 With scala constructors we compose services like the below to create the dependency graph:
 
@@ -302,7 +305,7 @@ object KafkaProducer {
 }
 ```
 
-## Parallelism
+## Parallel Constructors
 
 With `Zlayer` all layers in the dependency graph are executed in parallel:
 

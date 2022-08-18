@@ -172,7 +172,7 @@ module.exports = {
       link: { type: "doc", id: "reference/dependency-injection/index" },
       items: [ 
         "reference/di/motivation", 
-        "reference/di/surpassing-scala-constructors-with-zlayer", 
+        "reference/di/zlayer-constructor-as-a-value", 
         "reference/di/dependency-injection-in-zio", 
         "reference/di/building-dependency-graph",
         "reference/di/dependency-propagation",
