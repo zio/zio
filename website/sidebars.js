@@ -169,7 +169,7 @@ module.exports = {
     {
       type: "category",
       label: "Dependency Injection",
-      link: { type: "doc", id: "reference/dependency-injection/index" },
+      link: { type: "doc", id: "reference/di/index" },
       items: [ 
         "reference/di/motivation", 
         "reference/di/zlayer-constructor-as-a-value", 
