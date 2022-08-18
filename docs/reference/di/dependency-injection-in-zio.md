@@ -5,6 +5,10 @@ title: "Dependency Injection in ZIO"
 
 Here is the minimum effort to get dependency injection working in ZIO:
 
+:::caution
+The following example is the simplest possible example of how dependency injection works in ZIO. So in this example, we are not going to use [Service Pattern](../service-pattern/service-pattern.md).
+:::
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -31,3 +35,5 @@ Here are the steps:
 2. We created an implementation of Int service, the concrete `5` value.
 3. We created a layer for the concrete implementation of `Int` service, `ZLayer.succeed(5)`.
 4. Finally, we provided (injected) the layer to our application, `myApp.provide(ZLayer.succeed(5))`. This propagates the layer from bottom to top and provides the concrete implementation of `Int` service to each effect that needs it.
+
+Now we have learned the basics of dependency injection in ZIO, let's see how it can be used along with [Service Pattern](../service-pattern/service-pattern.md).
