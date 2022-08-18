@@ -674,14 +674,14 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * A more powerful version of `fold` that allows recovering from any kind of
-   * failure except interruptions.
+   * failure except external interruption.
    */
   final def foldCause[B](failure: Cause[E] => B, success: A => B)(implicit trace: Trace): URIO[R, B] =
     foldCauseZIO(c => ZIO.succeedNow(failure(c)), a => ZIO.succeedNow(success(a)))
 
   /**
    * A more powerful version of `foldZIO` that allows recovering from any kind
-   * of failure except interruptions.
+   * of failure except external interruption.
    */
   final def foldCauseZIO[R1 <: R, E2, B](
     failure: Cause[E] => ZIO[R1, E2, B],
