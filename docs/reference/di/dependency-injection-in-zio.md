@@ -18,8 +18,16 @@ object MainApp extends ZIOAppDefault {
   def run =
     myApp
       .debug("result") // printing the result of the myApp
-      .provide(                // providing (injecting) all required services that myApp needs
-        ZLayer.succeed(1)      // A simple layer that provides a value of type Int
+      .provide(         // providing (injecting) all required services that myApp needs
+        ZLayer.succeed( // A simple layer that provides implementation of type Int
+          5             // Implementation of Int service
+        )              
       )
 }
 ```
+
+Here are the steps:
+1. We started by writing our application logic. Whenever we wanted to use a service of type `Int` we accessed it from the environment using the `ZIO.service` method. So, we can continue to write our application logic without worrying about what implementation of the service we are using.
+2. We created an implementation of Int service, the concrete `5` value.
+3. We created a layer for the concrete implementation of `Int` service, `ZLayer.succeed(5)`.
+4. Finally, we provided (injected) the layer to our application, `myApp.provide(ZLayer.succeed(5))`. This propagates the layer from bottom to top and provides the concrete implementation of `Int` service to each effect that needs it.
