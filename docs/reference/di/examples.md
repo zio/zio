@@ -5,35 +5,6 @@ title: "Examples"
 
 ## An Example of a ZIO Application with a Simple Config Service
 
-This application demonstrates a ZIO program with a single dependency on a simple `AppConfig`:
-
-```scala mdoc:compile-only
-import zio._
-
-case class AppConfig(poolSize: Int)
-
-object AppConfig {
-  def poolSize: ZIO[AppConfig, Nothing, Int] =
-    ZIO.serviceWith[AppConfig](_.poolSize)
-
-  val layer: ZLayer[ZIOAppArgs, Nothing, AppConfig] =
-    ZLayer {
-      ZIOAppArgs.getArgs
-        .map(_.headOption.map(_.toInt).getOrElse(8))
-        .map(poolSize => AppConfig(poolSize))
-    }
-}
-
-object MainApp extends ZIOAppDefault {
-  val myApp: ZIO[AppConfig, Nothing, Unit] =
-    for {
-      poolSize <- AppConfig.poolSize
-      _        <- ZIO.debug(s"Application started with $poolSize pool size.")
-    } yield ()
-
-  def run = myApp.provideLayer(AppConfig.layer)
-}
-```
 
 ## An Example of Manually Generating a Dependency Graph
 

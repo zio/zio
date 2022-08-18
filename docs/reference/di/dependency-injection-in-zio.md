@@ -36,4 +36,57 @@ Here are the steps:
 3. We created a layer for the concrete implementation of `Int` service, `ZLayer.succeed(5)`.
 4. Finally, we provided (injected) the layer to our application, `myApp.provide(ZLayer.succeed(5))`. This propagates the layer from bottom to top and provides the concrete implementation of `Int` service to each effect that needs it.
 
-Now we have learned the basics of dependency injection in ZIO, let's see how it can be used along with [Service Pattern](../service-pattern/service-pattern.md).
+## Providing Multiple Instances of a Service
+
+In the next example, we have a ZIO application that uses the `AppConfig` service:
+
+```scala mdoc:compile-only
+import zio._
+
+case class AppConfig(poolSize: Int)
+
+object AppConfig {
+  def poolSize: ZIO[AppConfig, Nothing, Int] =
+    ZIO.serviceWith[AppConfig](_.poolSize)
+
+  val appArgsLayer: ZLayer[ZIOAppArgs, Nothing, AppConfig] =
+    ZLayer {
+      ZIOAppArgs.getArgs
+        .map(_.headOption.map(_.toInt).getOrElse(8))
+        .map(poolSize => AppConfig(poolSize))
+    }
+
+  val systemEnvLayer: ZLayer[Any, SecurityException, AppConfig] =
+    ZLayer.fromZIO(
+      System
+        .env("POOL_SIZE")
+        .map(_.headOption.map(_.toInt).getOrElse(8))
+        .map(poolSize => AppConfig(poolSize))
+    )
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp: ZIO[AppConfig, Nothing, Unit] =
+    for {
+      poolSize <- AppConfig.poolSize
+      _        <- ZIO.debug(s"Application started with $poolSize pool size.")
+    } yield ()
+
+  def run = myApp.provideLayer(AppConfig.appArgsLayer)
+}
+```
+
+The `AppConfig` has two layers, `appArgsLayer` and `systemEnvLayer`. The first one uses command-line arguments to create the `AppConfig` and the second one uses environment variables. As we can see, without changing the core logic of our application, we can easily change the way we get the configuration:
+
+```diff
+object MainApp extends ZIOAppDefault {
+  val myApp: ZIO[AppConfig, Nothing, Unit] =
+    for {
+      poolSize <- AppConfig.poolSize
+      _        <- ZIO.debug(s"Application started with $poolSize pool size.")
+    } yield ()
+
+-  def run = myApp.provideLayer(AppConfig.appArgsLayer)
++  def run = myApp.provideLayer(AppConfig.systemEnvLayer)
+}
+```
