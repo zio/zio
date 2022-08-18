@@ -20,7 +20,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoField._
-import java.time.temporal.TemporalAdjusters
+import java.time.temporal.{ChronoField, TemporalAdjusters}
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 
@@ -1437,9 +1437,9 @@ object Schedule {
           )
         } else {
           val (end0, n) = state
-          val now0     = maxOffsetDateTime(end0, now)
-          val second00 = nextSecond(now0, second0)
-          val start    = maxOffsetDateTime(beginningOfSecond(second00), now0)
+          val initial  = n == 0
+          val second00 = nextSecond(now, second0, initial)
+          val start    = beginningOfSecond(second00)
           val end      = endOfSecond(second00)
           val interval = Interval(start, end)
           ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
@@ -1464,9 +1464,9 @@ object Schedule {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `minuteOfHour($minute)`. Must be in range 0...59"))
         } else {
           val (end0, n) = state
-          val now0     = maxOffsetDateTime(end0, now)
-          val minute0  = nextMinute(maxOffsetDateTime(end0, now0), minute)
-          val start    = maxOffsetDateTime(beginningOfMinute(minute0), now0)
+          val initial  = n == 0
+          val minute0  = nextMinute(now, minute, initial)
+          val start    = beginningOfMinute(minute0)
           val end      = endOfMinute(minute0)
           val interval = Interval(start, end)
           ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
@@ -1490,9 +1490,9 @@ object Schedule {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `hourOfDay($hour)`. Must be in range 0...23"))
         } else {
           val (end0, n) = state
-          val now0     = maxOffsetDateTime(end0, now)
-          val hour0    = nextHour(now0, hour)
-          val start    = maxOffsetDateTime(beginningOfHour(hour0), now0)
+          val initial  = n == 0
+          val hour0    = nextHour(now, hour, initial)
+          val start    = beginningOfHour(hour0)
           val end      = endOfHour(hour0)
           val interval = Interval(start, end)
           ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
@@ -1521,9 +1521,9 @@ object Schedule {
           )
         } else {
           val (end0, n) = state
-          val now0     = maxOffsetDateTime(end0, now)
-          val day0     = nextDay(now0, day)
-          val start    = maxOffsetDateTime(beginningOfDay(day0), now0)
+          val initial  = n == 0
+          val day0     = nextDay(now, day, initial)
+          val start    = beginningOfDay(day0)
           val end      = endOfDay(day0)
           val interval = Interval(start, end)
           ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
@@ -1549,9 +1549,9 @@ object Schedule {
           ZIO.die(new IllegalArgumentException(s"Invalid argument in `dayOfMonth($day)`. Must be in range 1...31"))
         } else {
           val (end0, n) = state
-          val now0     = maxOffsetDateTime(end0, now)
-          val day0     = nextDayOfMonth(now0, day)
-          val start    = maxOffsetDateTime(beginningOfDay(day0), now0)
+          val initial  = n == 0
+          val day0     = nextDayOfMonth(now, day, initial)
+          val start    = beginningOfDay(day0)
           val end      = endOfDay(day0)
           val interval = Interval(start, end)
           ZIO.succeedNow(((end, n + 1), n, Decision.Continue(interval)))
@@ -1776,13 +1776,13 @@ object Schedule {
     case object Done                              extends Decision
   }
 
-  private def nextDay(now: OffsetDateTime, day: Int): OffsetDateTime = {
-    val temporalAdjuster = TemporalAdjusters.nextOrSame(java.time.DayOfWeek.of(day))
+  private def nextDay(now: OffsetDateTime, day: Int, initial: Boolean): OffsetDateTime = {
+    val temporalAdjuster = if (initial) TemporalAdjusters.nextOrSame(java.time.DayOfWeek.of(day)) else TemporalAdjusters.next(java.time.DayOfWeek.of(day))
     now.`with`(temporalAdjuster)
   }
 
-  private def nextDayOfMonth(now: OffsetDateTime, day: Int): OffsetDateTime =
-    if (now.getDayOfMonth == day) now
+  private def nextDayOfMonth(now: OffsetDateTime, day: Int, initial: Boolean): OffsetDateTime =
+    if (now.getDayOfMonth == day && initial) now
     else if (now.getDayOfMonth < day) now.`with`(DAY_OF_MONTH, day.toLong)
     else findNextMonth(now, day, 1)
 
@@ -1791,18 +1791,18 @@ object Schedule {
       now.`with`(DAY_OF_MONTH, day.toLong).plusMonths(months.toLong)
     else findNextMonth(now, day, months + 1)
 
-  private def nextHour(now: OffsetDateTime, hour: Int): OffsetDateTime =
-    if (now.getHour == hour) now
+  private def nextHour(now: OffsetDateTime, hour: Int, initial: Boolean): OffsetDateTime =
+    if (now.getHour == hour && initial) now
     else if (now.getHour < hour) now.`with`(HOUR_OF_DAY, hour.toLong)
     else now.`with`(HOUR_OF_DAY, hour.toLong).plusDays(1)
 
-  private def nextMinute(now: OffsetDateTime, minute: Int): OffsetDateTime =
-    if (now.getMinute == minute) now
+  private def nextMinute(now: OffsetDateTime, minute: Int, initial: Boolean): OffsetDateTime =
+    if (now.getMinute == minute && initial) now
     else if (now.getMinute < minute) now.`with`(MINUTE_OF_HOUR, minute.toLong)
     else now.`with`(MINUTE_OF_HOUR, minute.toLong).plusHours(1L)
 
-  private def nextSecond(now: OffsetDateTime, second: Int): OffsetDateTime =
-    if (now.getSecond == second) now
+  private def nextSecond(now: OffsetDateTime, second: Int, initial: Boolean): OffsetDateTime =
+    if (now.getSecond == second && initial) now
     else if (now.getSecond < second) now.`with`(SECOND_OF_MINUTE, second.toLong)
     else now.`with`(SECOND_OF_MINUTE, second.toLong).plusMinutes(1L)
 
