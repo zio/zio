@@ -1,18 +1,15 @@
 ---
-id: index
-title: "Introduction To Dependency Injection"
+id: motivation
+title: "Motivation"
 ---
 
-
-## Motivation
-
 :::caution
-In following sections we are going to study how ZIO supports dependency injection by providing pedagogical examples. Examples provided in these sections are not idiomatic and not meant to be used as a reference. We will discuss idiomatic way to use dependency injection in ZIO later.
+In this section, we are going to study how ZIO supports dependency injection by providing pedagogical examples. Examples provided in these sections are not idiomatic and are not meant to be used as a reference. We will discuss the idiomatic way to use dependency injection in ZIO later.
 
 So feel free to skip reading this section if you are not interested to learn the underlying concepts in detail.
 :::
 
-Assume we have two services called `Formatter` and `Compiler` like below:
+Assume we have two services called `Formatter` and `Compiler` like the below:
 
 ```scala mdoc:silent
 import zio._
@@ -305,7 +302,7 @@ object MainApp extends ZIOAppDefault {
 ```
 
 :::note
-`ZLayer` is not only an effectful constructor, but also it supports concurrency and resource safety when constructing layers. So unlike the ordinary scala constructors, with ZIO we can create the dependency graph concurrently. Also, a layer can be thought of as a resource that can be acquired and released.
+`ZLayer` is not only an effectful constructor, but also it supports concurrency and resource safety when constructing layers.
 :::
 
 ## Step 5: Using ZIO Environment To Declare Dependencies

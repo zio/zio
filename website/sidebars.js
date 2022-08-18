@@ -170,7 +170,16 @@ module.exports = {
       type: "category",
       label: "Dependency Injection",
       link: { type: "doc", id: "reference/dependency-injection/index" },
-      items: [ ]
+      items: [ 
+        "reference/di/motivation", 
+        "reference/di/surpassing-scala-constructors-with-zlayer", 
+        "reference/di/dependency-injection-in-zio", 
+        "reference/di/building-dependency-graph",
+        "reference/di/dependency-propagation",
+        "reference/di/dependency-memoization",
+        "reference/di/overriding-dependency-graph",
+        "reference/di/examples",
+      ]
     },
     {
       type: "category",

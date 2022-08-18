@@ -1,0 +1,359 @@
+---
+id: surpassing-scala-constructors-with-zlayer
+title: "Surpassing Scala Constructors With ZLayer"
+sidebar_label: "Surpassing Scala Constructors"
+---
+
+
+In the [motivation](motivation.md) section, we find out that the ordinary Scala constructors are not powerful enough to help us to build the dependency graph easily. So `ZLayer` was created to overcome scala constructors' limitations.
+
+We can think of `ZLayer` as an alternative to constructors but with the following powerful features:
+- Composable with a nice ergonomic API
+- Asynchronous so it doesn't block the thread
+- Effectful and resourceful
+- Support for concurrency and parallelism
+
+Let's see the following example written using scala constructors:
+
+```scala mdoc:silent
+class Editor(formatter: Formatter, compiler: Compiler) {
+  // ...
+}
+
+class Compiler() {
+  // ...
+}
+
+class Formatter() {
+  // ...
+}
+```
+
+We can say that each constructor is a function that takes some arguments as dependencies and returns a new instance of the class:
+- `() => Formatter`
+- `() => Compiler`
+- `(Formatter, Compiler) => Editor`
+
+`ZLayer` reifies the conceptual idea of constructors but in a more fashionable way. It is a data type that represents an asynchronous recipe for creating a dependency graph. So a `ZLayer[Input, E, Output]` is a constructor that takes some services as input and returns some services as output.
+
+For example, a `ZLayer` of type `ZLayer[Any, Nothing, Formatter]` is a constructor that doesn't take any services from the input and returns `Formatter` as output. Also, a `ZLayer` of type `ZLayer[Formatter with Compiler, Nothing, Editor]` is a constructor that takes `Formatter` and `Compiler` services from the input and returns `Editor` as output:
+
+```scala mdoc:silent
+import zio._
+
+object Formatter {
+  val layer: ZLayer[Any, Nothing, Formatter] =
+    ZLayer.succeed(new Formatter())
+}
+
+object Compiler {
+  val layer: ZLayer[Any, Nothing, Compiler] =
+    ZLayer.succeed(new Compiler())
+}
+
+object Editor {
+  val layer: ZLayer[Formatter with Compiler, Nothing, Editor] =
+    ZLayer {
+      for {
+        formatter <- ZIO.service[Formatter]
+        compiler  <- ZIO.service[Compiler]
+      } yield new Editor(formatter, compiler) 
+    }
+}
+```
+
+## Composability
+
+With scala constructors we compose services like the below to create the dependency graph:
+
+```scala mdoc:silent
+val formatter = new Formatter()
+val compiler = new Compiler()
+val editor = new Editor(formatter, compiler)
+```
+
+While Scala constructors are a type of Scala function. Composable functions in Scala are not as ergonomic as ZLayer for constructing dependency graphs.
+
+With ZLayer we can compose them using operators like `++` and `>>>`:
+
+```scala mdoc:compile-only
+val editor: ZLayer[Formatter with Compiler, Nothing, Editor] = 
+  (Formatter.layer ++ Compiler.layer) >>> Editor.layer
+```
+
+Also, we can compose `Formatter` and `Editor` layers to create a new layer that takes the `Compiler` service and returns the` Editor` service:
+
+```scala mdoc:compile-only
+val editor: ZLayer[Compiler, Nothing, Editor] =
+  Formatter.layer >>> Editor.layer
+```
+
+## Effectful Constructors
+
+If we have a dependency that requires an effectful computation to be initialized, we can't model easily such an operation using ordinary Scala constructors.
+
+In the following example, without the help of `ZIO#flatMap` or `ZLayer`, we can't easily create an instance of the `Editor` class:
+
+```scala mdoc:silent:nest:fail
+import zio._
+
+case class Counter(ref: Ref[Int]) {
+  def inc: UIO[Unit] = ref.update(_ + 1)
+  def dec: UIO[Unit] = ref.update(_ - 1)
+  def get: UIO[Int]  = ref.get
+}
+
+object Counter {
+  // Effectful constructor
+  def make: UIO[Counter] = Ref.make(0).map(new Counter(_))
+}
+
+class Editor(formatter: Formatter, compiler: Compiler, counter: Counter) {
+  // ...
+}
+
+object Formatter {
+  def make = new Formatter() 
+}
+
+object Compiler {
+  def make = new Compiler()
+}
+
+val editor    =   
+  new Editor(
+    Formatter.make,
+    Compiler.make,
+    Counter.make // Compiler Error: Type mismatch: expected: Counter, found: UIO[Counter]
+  )
+```
+
+Let's see how we can use `ZIO#flatMap` to create `Editor`:
+
+```scala mdoc:invisible
+import zio._
+
+class Editor(formatter: Formatter, compiler: Compiler, counter: Counter) {
+  // ...
+}
+
+object Formatter {
+  def make = new Formatter() 
+}
+
+object Compiler {
+  def make = new Compiler()
+}
+
+case class Counter(ref: Ref[Int]) {
+  def inc: UIO[Unit] = ref.update(_ + 1)
+  def dec: UIO[Unit] = ref.update(_ - 1)
+  def get: UIO[Int]  = ref.get
+}
+
+object Counter {
+  // Effectful constructor
+  def make: UIO[Counter] = Ref.make(0).map(new Counter(_))
+}
+```
+
+```scala mdoc:compile-only
+val editor: ZIO[Any, Nothing, Editor] =
+  Counter.make.map { counter =>
+    new Editor(
+      Formatter.make,
+      Compiler.make,
+      counter
+    )
+  }
+```
+
+While with `ZLayer`, we can easily have an effectful constructor:
+
+```scala mdoc:silent:nest
+case class Counter(ref: Ref[Int]) {
+  def inc: UIO[Unit] = ref.update(_ + 1)
+  def dec: UIO[Unit] = ref.update(_ - 1)
+  def get: UIO[Int]  = ref.get
+}
+
+object Counter {
+  val layer: ZLayer[Any, Nothing, Counter] = 
+    ZLayer {
+      Ref.make(0).map(new Counter(_))
+    }
+}
+
+class Formatter {
+  def format(code: String): UIO[String] = ???
+}
+
+object Formatter {
+  val layer: ZLayer[Any, Nothing, Formatter] =
+    ZLayer.succeed(new Formatter())
+}
+
+class Compiler {
+  def compile(code: String): UIO[String] = ???
+}
+
+object Compiler {
+  val layer: ZLayer[Any, Nothing, Compiler] = 
+    ZLayer.succeed(new Compiler())
+}
+
+class Editor(formatter: Formatter, compiler: Compiler, counter: Counter) {
+  def formatAndCompile(code: String): UIO[String] = ???
+}
+
+object Editor {
+  val layer: ZLayer[Formatter with Compiler with Counter, Nothing, Editor] =
+    ZLayer {
+      for {
+        formatter <- ZIO.service[Formatter]
+        compiler  <- ZIO.service[Compiler]
+        counter   <- ZIO.service[Counter]
+      } yield new Editor(formatter, compiler, counter) 
+    }
+}
+```
+
+## Resourceful Constructors
+
+Some services are required to be initialized and carefully released. While we can import the `ZIO` effect to create `ZLayer` we can have resourceful layers:
+
+```scala mdoc:compile-only
+import zio._
+
+case class A(a: Int)
+object A {
+  val layer: ZLayer[Any, Nothing, A] =
+    ZLayer.scoped {
+      ZIO.acquireRelease(acquire = ZIO.debug("Initializing A") *> ZIO.succeed(A(5)))(
+        release = _ => ZIO.debug("Releasing A")
+      )
+    }
+}
+
+object ZIOApp extends ZIOAppDefault {
+  val myApp: ZIO[A, Nothing, Int] =
+    for {
+      a <- ZIO.serviceWith[A](_.a)
+    } yield a * a
+
+  def run =
+    myApp
+      .debug("result")
+      .provide(A.layer)
+}
+```
+
+The output:
+
+```
+Initializing A
+result: 25
+Releasing A
+```
+
+## Asynchronous Constructors
+
+We should avoid using blocking operations inside Scala constructors:
+
+```scala mdoc:compile-only
+class KafkaProducer {
+  def send(message: String): Unit = ???
+}
+
+object KafkaProducer {
+  def apply() = {
+    // Blocking operation, we should avoid it inside constructors
+    doSomeBlockingOperation() 
+    new KafkaProducer() 
+  }
+  
+  private def doSomeBlockingOperation(): Unit = ???
+}
+```
+
+While with `ZLayer`, we can easily use blocking operations:
+
+```scala mdoc:compile-only
+import zio._
+
+class KafkaProducer {
+  def send(message: String): Task[Unit] = ???
+}
+
+object KafkaProducer {
+  def apply() = {
+    doSomeBlockingOperation() 
+    new KafkaProducer()
+  }
+  
+  val layer =
+    ZLayer {
+      for {
+        _ <- ZIO.attemptBlocking(doSomeBlockingOperation())
+      } yield (new KafkaProducer())
+    }
+
+  private def doSomeBlockingOperation(): Unit = ???
+}
+```
+
+## Parallelism
+
+With `Zlayer` all layers in the dependency graph are executed in parallel:
+
+```scala mdoc:compile-only
+import zio._
+
+case class A(a: Int)
+object A {
+  val layer: ZLayer[Any, Nothing, A] =
+    ZLayer.fromZIO {
+      for {
+        _ <- ZIO.debug("Initializing A")
+        _ <- ZIO.sleep(3.seconds)
+        _ <- ZIO.debug("Initialized A")
+      } yield A(1)
+    }
+}
+
+case class B(b: Int)
+object B {
+  val layer: ZLayer[Any, Nothing, B] =
+    ZLayer.fromZIO {
+      for {
+        _ <- ZIO.debug("Initializing B")
+        _ <- ZIO.sleep(2.seconds)
+        _ <- ZIO.debug("Initialized B")
+      } yield B(2)
+    }
+}
+
+object ZIOApp extends ZIOAppDefault {
+  val myApp: ZIO[A with B, Nothing, Int] =
+    for {
+      a <- ZIO.serviceWith[A](_.a)
+      b <- ZIO.serviceWith[B](_.b)
+    } yield a + b
+
+  def run =
+    myApp
+      .debug("result")
+      .provide(A.layer, B.layer)
+}
+```
+
+The output:
+
+```
+Initializing A
+Initializing B
+Initialized B
+Initialized A
+result: 3
+```
+
