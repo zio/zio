@@ -627,7 +627,7 @@ object ScheduleSpec extends ZIOBaseSpec {
         ref     <- Ref.make[Chunk[Long]](Chunk.empty)
         _       <- TestClock.adjust(5.seconds)
         schedule = Schedule.spaced(20.seconds) || Schedule.secondOfMinute(30)
-        _       <- Clock.currentTime(TimeUnit.SECONDS).tap(instant => ref.update(_.appended(instant))).repeat(schedule).fork
+        _       <- Clock.currentTime(TimeUnit.SECONDS).tap(instant => ref.update(_ :+ instant)).repeat(schedule).fork
         _       <- TestClock.adjust(2.minutes)
         seconds <- ref.get
       } yield assertTrue(seconds == Chunk(5L, 25L, 30L, 50L, 70L, 90L, 110L))
