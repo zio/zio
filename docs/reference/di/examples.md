@@ -3,7 +3,7 @@ id: examples
 title: "Examples"
 ---
 
-## An Example of a ZIO Application with a Simple Dependency
+## An Example of a ZIO Application with a Simple Config Service
 
 This application demonstrates a ZIO program with a single dependency on a simple `AppConfig`:
 
@@ -12,23 +12,27 @@ import zio._
 
 case class AppConfig(poolSize: Int)
 
-object MainApp extends ZIOAppDefault {
+object AppConfig {
+  def poolSize: ZIO[AppConfig, Nothing, Int] =
+    ZIO.serviceWith[AppConfig](_.poolSize)
 
-  // Define our simple ZIO program
-  val zio: ZIO[AppConfig, Nothing, Unit] = 
-    for {
-      config <- ZIO.service[AppConfig]
-      _      <- ZIO.succeed(println(s"Application started with config: $config"))
-    } yield ()
-
-  // Create a ZLayer that produces an AppConfig and can be used to satisfy the AppConfig 
-  // dependency that the program has
-  val defaultConfig: ULayer[AppConfig] = ZLayer.succeed(AppConfig(10))
-
-  // Run the program, providing the `defaultConfig`
-  def run = zio.provide(defaultConfig)
+  val layer: ZLayer[ZIOAppArgs, Nothing, AppConfig] =
+    ZLayer {
+      ZIOAppArgs.getArgs
+        .map(_.headOption.map(_.toInt).getOrElse(8))
+        .map(poolSize => AppConfig(poolSize))
+    }
 }
 
+object MainApp extends ZIOAppDefault {
+  val myApp: ZIO[AppConfig, Nothing, Unit] =
+    for {
+      poolSize <- AppConfig.poolSize
+      _        <- ZIO.debug(s"Application started with $poolSize pool size.")
+    } yield ()
+
+  def run = myApp.provideLayer(AppConfig.layer)
+}
 ```
 
 ## An Example of Manually Generating a Dependency Graph
