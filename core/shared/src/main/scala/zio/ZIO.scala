@@ -2003,7 +2003,7 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def tapSomeError[R1 <: R, E1 >: E, A1 >: A](
     f: PartialFunction[E, ZIO[R1, E1, A1]]
-  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] =
+  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
     self.tapError(f.applyOrElse(_, (_: E) => ZIO.unit))
 
   /**

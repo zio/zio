@@ -3679,16 +3679,16 @@ object ZIOSpec extends ZIOBaseSpec {
       test("is identity if the function doesn't match") {
         for {
           ref    <- Ref.make(false)
-          result <- ZIO.fail("die").tapSomeError { case "alive" => ref.set(true) }.exit
+          result <- ZIO.fail("fail").tapSomeError { case "success" => ref.set(true) }.exit
           effect <- ref.get
-        } yield assert(result)(fails(equalTo("die"))) && assert(effect)(isFalse)
+        } yield assert(result)(fails(equalTo("fail"))) && assert(effect)(isFalse)
       },
       test("runs the effect if the function matches") {
         for {
           ref    <- Ref.make(false)
-          result <- ZIO.fail("die").tapSomeError { case "die" => ref.set(true) }.exit
+          result <- ZIO.fail("fail").tapSomeError { case "fail" => ref.set(true) }.exit
           effect <- ref.get
-        } yield assert(result)(fails(equalTo("die"))) && assert(effect)(isTrue)
+        } yield assert(result)(fails(equalTo("fail"))) && assert(effect)(isTrue)
       }
     ),
     suite("timeout disconnect")(
