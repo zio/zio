@@ -2001,9 +2001,9 @@ sealed trait ZIO[-R, +E, +A]
    * If the partial function isn't defined at the input, the result is
    * equivalent to the original effect.
    */
-  final def tapSomeError[R1 <: R, E1 >: E, A1 >: A](
-    f: PartialFunction[E, ZIO[R1, E1, A1]]
-  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A1] =
+  final def tapSomeError[R1 <: R, E1 >: E](
+    f: PartialFunction[E, ZIO[R1, E1, Any]]
+  )(implicit ev: CanFail[E], trace: Trace): ZIO[R1, E1, A] =
     self.tapError(f.applyOrElse(_, (_: E) => ZIO.unit))
 
   /**
