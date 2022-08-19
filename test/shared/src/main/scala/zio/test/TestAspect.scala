@@ -625,7 +625,7 @@ object TestAspect extends TimeoutVariants {
   val nondeterministic: TestAspectAtLeastR[Live] =
     before(
       Live
-        .live(Clock.nanoTime(Trace.empty))(Trace.empty)
+        .live(Random.nextLong(Trace.empty))(Trace.empty)
         .flatMap(TestRandom.setSeed(_)(Trace.empty))(Trace.empty)
     )
 
