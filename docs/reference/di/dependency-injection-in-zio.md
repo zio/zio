@@ -3,6 +3,8 @@ id: dependency-injection-in-zio
 title: "Dependency Injection in ZIO"
 ---
 
+## Getting Started With A Simple Example
+
 Here is the minimum effort to get dependency injection working in ZIO:
 
 :::caution
@@ -68,9 +70,9 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-Note that the `ZIO#provide` method takes a list of required services as an argument and automatically builds the dependency graph using metaprogramming.
+Note that the `ZIO#provide` method takes a list of required services as an argument and [automatically builds the dependency graph](automatic-layer-construction.md) using metaprogramming.
 
-Alternatively, we can manually build the dependency graph and finally pass it to the `ZIO#provideLayer` method, which doesn't perform any metaprogramming under the hood:
+Alternatively, we can [manually build the dependency graph](manual-layer-construction.md) and finally pass it to the `ZIO#provideLayer` method, which doesn't perform any metaprogramming under the hood:
 
 ```scala mdoc:compile-only
 import zio._
@@ -94,7 +96,9 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-## Providing Multiple Instances of a Config Service
+## Examples
+
+### Providing Multiple Instances of a Config Service
 
 In the next example, we have a ZIO application that uses the `AppConfig` service:
 
@@ -149,7 +153,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-## Providing Multiple Instance of an Operational Service
+### Providing Multiple Instance of an Operational Service
 
 In the previous example, we discussed a simple configuration service that doesn't have any functionality. In this example, we are going to define a `KeyValueStore` service and implement two versions of it: one that uses in-memory storage and the other one that uses persistent storage:
 
@@ -254,8 +258,8 @@ object MainApp extends ZIOAppDefault {
 
 :::note
 To build the dependency graph we have two options:
-1. Manual layer construction (using `ZIO#provideLayer`)
-2. Automatic layer construction (using`ZIO#provide`)
+1. [Manual layer construction](manual-layer-construction.md) (using `ZIO#provideLayer`)
+2. [Automatic layer construction](automatic-layer-construction.md) (using`ZIO#provide`)
 
-to learn more about this topic, we have a separate page dedicated to [building dependency graph](building-dependency-graph.md).
+To learn more about this topic, we have a separate page dedicated to [building dependency graph](building-dependency-graph.md).
 :::
