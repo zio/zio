@@ -36,6 +36,38 @@ Here are the steps:
 3. We created a layer for the concrete implementation of `Int` service, `ZLayer.succeed(5)`.
 4. Finally, we provided (injected) the layer to our application, `myApp.provide(ZLayer.succeed(5))`. This propagates the layer from bottom to top and provides the concrete implementation of `Int` service to each effect that needs it.
 
+## Using Multiple Services
+
+Similarly, if we wanted to use multiple services, we can obtain them from the environment using the `ZIO.service` method. Doing so will change the final type of our ZIO application. So, at the end of the day, we know what services we are using and what services we need to provide.
+
+For example, In the following example, we are going to use two services of type `Int` and `String`:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  // myApp requires two services: Int and String
+  val myApp: ZIO[String with Int, Nothing, Unit] =
+    for {
+      a <- ZIO.service[Int] // Accessing a service of type Int
+      _ <- ZIO.debug(s"received an instance of Int service from the environment: $a")
+      b <- ZIO.service[String] // Accessing a service of type String
+      _ <- ZIO.debug(s"received an instance of String service from the environment: $b")
+    } yield ()
+
+  def run =
+    myApp
+      .provide(         // providing (injecting) all required services that myApp needs
+        ZLayer.succeed( // A simple layer that provides implementation of type Int
+          5             // Implementation of Int service
+        ),
+        ZLayer.succeed( // A simple layer that provides implementation of type String
+          "Hello"       // Implementation of String service
+        )
+      )
+}
+```
+
 ## Providing Multiple Instances of a Config Service
 
 In the next example, we have a ZIO application that uses the `AppConfig` service:
