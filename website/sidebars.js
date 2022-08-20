@@ -129,17 +129,6 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Writing ZIO Services",
-      link: { type: "doc", id: "reference/service-pattern/introduction" },
-      items: [
-        "reference/service-pattern/service-pattern",
-        "reference/service-pattern/defining-polymorphic-services-in-zio",
-        "reference/service-pattern/generating-accessor-methods-using-macros",
-        "reference/service-pattern/the-three-laws-of-zio-environment"
-      ]
-    },
-    {
-      type: "category",
       label: "Contextual Types",
       link: { type: "doc", id: "reference/contextual/index" },
       items:
@@ -165,6 +154,17 @@ module.exports = {
             ]
           }
         ]
+    },
+    {
+      type: "category",
+      label: "Writing ZIO Services",
+      link: { type: "doc", id: "reference/service-pattern/introduction" },
+      items: [
+        "reference/service-pattern/service-pattern",
+        "reference/service-pattern/defining-polymorphic-services-in-zio",
+        "reference/service-pattern/generating-accessor-methods-using-macros",
+        "reference/service-pattern/the-three-laws-of-zio-environment"
+      ]
     },
     {
       type: "category",
