@@ -72,7 +72,7 @@ object MainApp extends ZIOAppDefault {
       _        <- ZIO.debug(s"Application started with $poolSize pool size.")
     } yield ()
 
-  def run = myApp.provideLayer(AppConfig.appArgsLayer)
+  def run = myApp.provideSome(AppConfig.appArgsLayer)
 }
 ```
 
