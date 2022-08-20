@@ -176,7 +176,7 @@ Otherwise, if we want to use persistent storage we can provide the `PersistentKe
 
 1. Manually construct the dependency graph and provide it to `myApp`:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 object MainApp extends ZIOAppDefault {
   val appLayer: ZLayer[Any, Nothing, PersistentKeyValueStore] =
     RockDbLive.layer >>> PersistentKeyValueStore.layer
