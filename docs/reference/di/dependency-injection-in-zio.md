@@ -68,6 +68,32 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+Note that the `ZIO#provide` method takes a list of required services as an argument and automatically builds the dependency graph using metaprogramming.
+
+Alternatively, we can manually build the dependency graph and finally pass it to the `ZIO#provideLayer` method, which doesn't perform any metaprogramming under the hood:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  // myApp requires two services: Int and String
+  val myApp: ZIO[String with Int, Nothing, Unit] =
+    for {
+      a <- ZIO.service[Int] // Accessing a service of type Int
+      _ <- ZIO.debug(s"received an instance of Int service from the environment: $a")
+      b <- ZIO.service[String] // Accessing a service of type String
+      _ <- ZIO.debug(s"received an instance of String service from the environment: $b")
+    } yield ()
+
+  def run =
+    myApp
+      .provide(        
+        // Build the dependency graph manually using horizontal composition
+        ZLayer.succeed(5) ++ ZLayer.succeed("Hello")
+      )
+}
+```
+
 ## Providing Multiple Instances of a Config Service
 
 In the next example, we have a ZIO application that uses the `AppConfig` service:
