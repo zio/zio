@@ -3,8 +3,46 @@ id: examples
 title: "Examples"
 ---
 
-## An Example of a ZIO Application with a Simple Config Service
+## An Example of a ZIO Application with Multiple Config Layers
 
+In the following example, we have an application that requires `AppConfig` layer, which itself requires `DBConfig` and `ServerConfig` layers:
+
+```scala mdoc:compile-only
+import zio._
+
+case class ServerConfig(host: String, port: Int)
+object ServerConfig {
+  val layer: ULayer[ServerConfig] =
+    ZLayer.succeed(ServerConfig("localhost", 8080))
+}
+
+case class DBConfig(name: String)
+object DBConfig {
+  val layer: ULayer[DBConfig] =
+    ZLayer.succeed(DBConfig("my-test-db"))
+}
+
+case class AppConfig(db: DBConfig, serverConfig: ServerConfig)
+object AppConfig {
+  val layer: ZLayer[DBConfig with ServerConfig, Nothing, AppConfig] =
+    ZLayer {
+      for {
+        db     <- ZIO.service[DBConfig]
+        server <- ZIO.service[ServerConfig]
+      } yield AppConfig(db, server)
+    }
+}
+
+object MainApp extends ZIOAppDefault {
+  val myApp =
+    for {
+      c <- ZIO.service[AppConfig]
+      _ <- ZIO.debug(s"Application started with config: ${c}")
+    } yield ()
+
+  def run = myApp.provide(AppConfig.layer, DBConfig.layer, ServerConfig.layer)
+}
+```
 
 ## An Example of Manually Generating a Dependency Graph
 
