@@ -36,7 +36,7 @@ object Unsafe extends UnsafeVersionSpecific {
   def unsafe[A](f: Unsafe => A): A =
     f(unsafe)
 
-  @deprecated("use unsafe", "2.0.0")
+  @deprecated("use unsafe", "2.0.1")
   def unsafeCompat[A](f: Unsafe => A): A =
     f(unsafe)
 }
