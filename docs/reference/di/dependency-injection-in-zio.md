@@ -96,9 +96,11 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-## Examples
+## Providing Different Implementations of a Service
 
-### Providing Multiple Instances of a Config Service
+One of the benefits of using dependency injection is that, we can write our application in a way that without modifying the application logic, we can provide different implementations of services to our application.
+
+### Example 1: Config Service
 
 In the next example, we have a ZIO application that uses the `AppConfig` service:
 
@@ -152,6 +154,75 @@ object MainApp extends ZIOAppDefault {
 +  def run = myApp.provideLayer(AppConfig.systemEnvLayer)
 }
 ```
+
+### Example 2: Logging Service
+
+In this example, we have a ZIO application that uses the `Logging` service. And we provided two implementations of the `Logging` service: `SimpleLogger` and `DateTimeLogger`:
+
+```scala mdoc:compile-only
+import zio._
+
+import java.io.IOException
+
+trait Logging {
+  def log(msg: String): ZIO[Any, IOException, Unit]
+}
+
+object Logging {
+  def log(msg: String): ZIO[Logging, IOException, Unit] =
+    ZIO.serviceWithZIO[Logging](_.log(msg))
+}
+
+case class DateTimeLogger() extends Logging {
+  override def log(msg: String): ZIO[Any, IOException, Unit] =
+    for {
+      dt <- Clock.currentDateTime
+      _  <- Console.printLine(s"$dt: $msg")
+    } yield ()
+}
+
+object DateTimeLogger {
+  val live: ULayer[DateTimeLogger] =
+    ZLayer.succeed(DateTimeLogger())
+}
+
+case class SimpleLogger() extends Logging {
+  override def log(msg: String): ZIO[Any, IOException, Unit] =
+    Console.printLine(msg)
+}
+object SimpleLogger {
+  val live: ULayer[SimpleLogger] =
+    ZLayer.succeed(SimpleLogger())
+}
+```
+
+Now, let's write a ZIO application that uses the `Logging` service:
+
+```scala mdoc:silent
+val myApp: ZIO[Logging, IOException, Unit] =
+  for {
+    _ <- Logging.log("Application started.")
+    _ <- Logging.log("Application ended.")
+  } yield ()
+```
+
+Now, we can run our application, just by providing one of the implementations of the `Logging` service. Let's run it with the `SimpleLogger` implementation:
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  def run = myApp.provide(SimpleLogger.live)
+}
+```
+
+Now, we can see that, without changing the core logic of our application, we can easily change the logger implementation:
+
+```scala mdoc:compile-only
+object MainApp extends ZIOAppDefault {
+  def run = myApp.provide(DateTimeLogger.live)
+}
+```
+
+## Example
 
 ### Providing Multiple Instance of an Operational Service
 
