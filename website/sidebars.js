@@ -170,11 +170,20 @@ module.exports = {
       type: "category",
       label: "Dependency Injection",
       link: { type: "doc", id: "reference/di/index" },
-      items: [ 
-        "reference/di/motivation", 
-        "reference/di/zlayer-constructor-as-a-value", 
-        "reference/di/dependency-injection-in-zio", 
-        "reference/di/building-dependency-graph",
+      items: [
+        "reference/di/motivation",
+        "reference/di/zlayer-constructor-as-a-value",
+        "reference/di/dependency-injection-in-zio",
+        ,
+        {
+          type: "category",
+          label: "Building Dependency Graph",
+          link: { type: "doc", id: "reference/di/building-dependency-graph" },
+          items: [
+            "reference/di/manual-layer-construction",
+            "reference/di/automatic-layer-construction",
+          ]
+        },
         "reference/di/dependency-propagation",
         "reference/di/dependency-memoization",
         "reference/di/overriding-dependency-graph",
@@ -406,7 +415,7 @@ module.exports = {
           type: "category",
           label: "Test Aspects",
           link: { type: "doc", id: "reference/test/aspects/index" },
-          items: [ 
+          items: [
             "reference/test/aspects/before-after-around",
             "reference/test/aspects/conditional",
             "reference/test/aspects/debugging-and-diagnostics",
@@ -418,7 +427,7 @@ module.exports = {
             "reference/test/aspects/passing-failed-tests",
             "reference/test/aspects/repeat-and-retry",
             "reference/test/aspects/restoring-state-of-test-services",
-            "reference/test/aspects/sized", 
+            "reference/test/aspects/sized",
             "reference/test/aspects/annotating-tests",
             "reference/test/aspects/configuring-tests",
             "reference/test/aspects/timing-out-tests",
