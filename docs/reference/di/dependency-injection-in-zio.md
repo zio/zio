@@ -88,7 +88,7 @@ object MainApp extends ZIOAppDefault {
   def run =
     myApp
       .provide(        
-        // Build the dependency graph manually using horizontal composition
+        // Build the dependency graph manually using horizontal composition (++)
         ZLayer.succeed(5) ++ ZLayer.succeed("Hello")
       )
 }
@@ -237,6 +237,7 @@ Otherwise, if we want to use persistent storage we can provide the `PersistentKe
 ```scala mdoc:silent:nest
 object MainApp extends ZIOAppDefault {
   val appLayer: ZLayer[Any, Nothing, PersistentKeyValueStore] =
+    // Manually building the dependency graph using vertical composition (>>>)
     RockDbLive.layer >>> PersistentKeyValueStore.layer
     
   def run = myApp.provideLayer(appLayer)
@@ -247,17 +248,14 @@ object MainApp extends ZIOAppDefault {
 
 ```scala mdoc:compile-only
 object MainApp extends ZIOAppDefault {
-  val appLayer: ZLayer[Any, Nothing, PersistentKeyValueStore] =
-    RockDbLive.layer >>> PersistentKeyValueStore.layer
-
   def run = myApp.provide(RockDbLive.layer, PersistentKeyValueStore.layer)
 }
 ```
 
 :::note
 To build the dependency graph we have two options:
-1. Manual layer construction (using `ZIO#provide**Layer`)
-2. Automatic layer construction (using`ZIO#provideLayer`)
+1. Manual layer construction (using `ZIO#provideLayer`)
+2. Automatic layer construction (using`ZIO#provide`)
 
 to learn more about this topic, we have a separate page dedicated to [building dependency graph](building-dependency-graph.md).
 :::
