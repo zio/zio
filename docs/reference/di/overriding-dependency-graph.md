@@ -33,7 +33,6 @@ object MainApp extends ZIOAppDefault {
 ```
 
 ```scala mdoc:invisible:reset
-
 ```
 
 ## Local Environment

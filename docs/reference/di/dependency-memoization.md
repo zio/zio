@@ -1,6 +1,7 @@
 ---
 id: dependency-memoization
-title: "Dependency Memoization"
+title: "Layers Are Shared by Default"
+sidebar_label: "Dependency Memoization"
 ---
 
 Layer memoization allows a layer to be created once and used multiple times in the dependency graph. So if we use the same layer twice, e.g. `(a >>> b) ++ (a >>> c)`, then the `a` layer will be allocated only once.
