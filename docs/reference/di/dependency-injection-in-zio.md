@@ -159,7 +159,7 @@ object MainApp extends ZIOAppDefault {
 
 In this example, we have a ZIO application that uses the `Logging` service. And we provided two implementations of the `Logging` service: `SimpleLogger` and `DateTimeLogger`:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import zio._
 
 import java.io.IOException
@@ -199,6 +199,8 @@ object SimpleLogger {
 Now, let's write a ZIO application that uses the `Logging` service:
 
 ```scala mdoc:silent
+import zio._
+
 val myApp: ZIO[Logging, IOException, Unit] =
   for {
     _ <- Logging.log("Application started.")
