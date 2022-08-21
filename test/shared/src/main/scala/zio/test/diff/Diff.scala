@@ -41,7 +41,8 @@ trait DiffInstances extends LowPriDiff {
   implicit val stringDiff: Diff[String] = { (x: String, y: String) =>
     if (x == y) {
       DiffResult.Identical(x)
-
+    } else if ((x == null && y != null) || (y == null && x != null)) {
+      DiffResult.Different(x, y)
     } else if (x.split("\n").length <= 1 && y.split("\n").length <= 1) {
       if (x.length < 20 || y.length < 20)
         DiffResult.Different(x, y)

@@ -340,6 +340,13 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           val s1 = "Hello\nThis is a wonderful way to dance and party\nThis is a wonderful way to live and die"
           val s2 = "Hello\nThis is a wonderful way to live and die\nThis is a wonderful way to dance and party"
           assertTrue(s1 == s2)
+        } @@ failing,
+        test("null diff works with Strings") {
+          assertTrue("" == null)
+        } @@ failing,
+        test("null diff works with Strings the other way") {
+          val first: String = null
+          assertTrue(first == "")
         } @@ failing
       )
     ),
