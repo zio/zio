@@ -55,7 +55,7 @@ val myApp: ZIO[A with B, Nothing, Int] =
 
 To be able to run our application, we need to build the dependency graph that it needs. This can be done using the `ZLayer` data type. It allows us to build up the whole application's dependency graph by composing layers manually or automatically.
 
-Assume each of these services has its own layer like the bellow:
+Assume each of these services has its own layer like the below:
 
 ```scala mdoc:silent
 object A {
