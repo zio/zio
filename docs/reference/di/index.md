@@ -64,17 +64,21 @@ In the [motivation page](motivation.md) we explain why applications should use t
 ZIO has a full solution to the dependency injection problem. It provides a built-in approach to dependency injection using the following tools in combination together:
 
 1. **ZIO Environment**
-  - We use the `ZIO.serviceXYZ` to access services inside the ZIO environment, without having any knowledge of how the services are created or implemented. Using `ZIO.serviceXYZ` helps us to decouple our usage of services from the implementation of the services. Consequently, all dependencies will be encoded inside the `R` type parameter of our ZIO application. This specifies which services are required to fulfill the application's functionality.
+  - We use the `ZIO.serviceXYZ` to access services inside the ZIO environment, without having any knowledge of how the services are created or implemented. Using `ZIO.serviceXYZ` helps us to decouple our usage of services from the implementation of the services.
+  
+  Consequently, all dependencies will be encoded inside the `R` type parameter of our ZIO application. This specifies which services are required to fulfill the application's functionality.
+  
   - We use the `ZIO.provideXYZ` to provide services to the ZIO environment. This is the opposite operation of `ZIO.serviceXYZ`. It allows us to inject all dependencies into the ZIO environment.
+    
 2. **ZLayer**— We use layers to create the dependency graph that our application depends on.
 
-We can achieve dependency injection through these three simple steps:
+We can have dependency injection through three simple steps:
 
-1. **Accessing The ZIO Environment**— We use `ZIO.service` to access services from the environment.
+1. Accessing services from the ZIO environment
+2. Building the dependency graph
+3. Providing services to the ZIO environment
 
-2. **[Building Dependency Graph](building-dependency-graph.md)**— We use `ZLayer` to build the dependency graph. Assume we have several services with their dependencies, and we need a way to compose and wire up these dependencies to create the application's dependency graph. `ZLayer` is a ZIO solution for this problem. It allows us to build up the whole application dependency graph by composing layers horizontally and vertically.
-
-3. **[Dependency Propagation](dependency-propagation.md)**— The `ZIO#provide` method allows us to propagate the dependencies from bottom to top.
+We will discuss them in more detail throughout [this page](dependency-injection-in-zio.md).
 
 ## ZIO's Dependency Injection Features
 
