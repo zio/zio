@@ -186,7 +186,7 @@ def myApp: ZIO[DocumentRepo & UserRepo, Throwable, Unit] =
   } yield ()
 ```
 
-The `myApp` requires `DocumentRepo` and `UserRepo` services to run. So we need to create a `ZLayer` which requires no services and produces `DocumentRepo` and `UserRepo`. We can manually create this layer using [vertical and horizontal layer composition](#vertical-and-horizontal-composition):
+The `myApp` requires `DocumentRepo` and `UserRepo` services to run. So we need to create a `ZLayer` which requires no services and produces `DocumentRepo` and `UserRepo`. We can manually create this layer using [vertical and horizontal layer composition](manual-layer-construction.md#vertical-and-horizontal-composition):
 
 ```scala mdoc:compile-only
 import zio._
