@@ -3,12 +3,20 @@ id: dependency-injection-in-zio
 title: "Dependency Injection in ZIO"
 ---
 
+:::caution
+In this page, we will focus on essential parts of dependency injection in ZIO. So we are not going to cover all the best practices for writing ZIO services.
+
+In real world applications, we encourage to use [service pattern](../service-pattern/service-pattern.md) to write ZIO services.
+:::
+
+## Getting Started With Dependency Injection in ZIO
+
 We can achieve dependency injection through these three simple steps:
 1. Accessing services from the ZIO environment through the `ZIO.service` operation.
 2. Building the dependency graph using manual or automatic layer construction.
-3. Providing dependencies to the ZIO environment through the `ZIO.provideXYZ` operation.
+3. Providing dependencies to the ZIO environment through the `ZIO.provideXYZ` operations.
 
-## Step 1: Accessing Services From The ZIO Environment
+### Step 1: Accessing Services From The ZIO Environment
 
 To write application logic, we need to access services from the ZIO environment. We can do this by using the `ZIO.service` operation.
 
@@ -44,7 +52,7 @@ val myApp: ZIO[A with B, Nothing, Int] =
   } yield o
 ```
 
-## Step 2: Building The Dependency Graph
+### Step 2: Building The Dependency Graph
 
 To be able to run our application, we need to build the dependency graph that it needs. This can be done using the `ZLayer` data type. It allows us to build up the whole application's dependency graph by composing layers manually or automatically.
 
@@ -80,7 +88,7 @@ val appLayer: ZLayer[Any, Nothing, A with B] =
 Automatic layer construction is useful when the dependency graph is large and complex. So in simple cases, it doesn't demonstrate the power of automatic layer construction.
 :::
 
-## Step 3: Providing Dependencies to the ZIO Environment
+### Step 3: Providing Dependencies to the ZIO Environment
 
 To run our application, we need to provide (inject) all dependencies to the ZIO environment. This can be done by using one of the `ZIO.provideXYZ` operations. This allows us to propagate dependencies from button to top:
 
@@ -114,100 +122,6 @@ object MainApp extends ZIOAppDefault {
 
 ```scala mdoc:invisible:reset
 
-```
-
-
-## Getting Started With A Simple Example
-
-Here is the minimum effort to get dependency injection working in ZIO:
-
-:::caution
-The following example is the simplest possible example of how dependency injection works in ZIO. So in this example, we are not going to use [Service Pattern](../service-pattern/service-pattern.md).
-:::
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  val myApp: ZIO[Int, Nothing, Long] = // myApp requires a service of type Int
-    for {
-      a <- ZIO.service[Int] // Accessing a service of type Int
-      _ <- ZIO.debug(s"received a value object of Int service from the environment: $a")
-    } yield a.toLong * a.toLong
-
-  def run =
-    myApp
-      .debug("result") // printing the result of the myApp
-      .provide(         // providing (injecting) all required services that myApp needs
-        ZLayer.succeed( // A simple layer that provides implementation of type Int
-          5             // Implementation of Int service
-        )              
-      )
-}
-```
-
-Here are the steps:
-1. We started by writing our application logic. Whenever we wanted to use a service of type `Int` we accessed it from the environment using the `ZIO.service` method. So, we can continue to write our application logic without worrying about what implementation of the service we are using.
-2. We created an implementation of Int service, the concrete `5` value.
-3. We created a layer for the concrete implementation of `Int` service, `ZLayer.succeed(5)`.
-4. Finally, we provided (injected) the layer to our application, `myApp.provide(ZLayer.succeed(5))`. This propagates the layer from bottom to top and provides the concrete implementation of `Int` service to each effect that needs it.
-
-## Using Multiple Services
-
-Similarly, if we wanted to use multiple services, we can obtain them from the environment using the `ZIO.service` method. Doing so will change the final type of our ZIO application. So, at the end of the day, we know what services we are using and what services we need to provide.
-
-For example, In the following example, we are going to use two services of type `Int` and `String`:
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  // myApp requires two services: Int and String
-  val myApp: ZIO[String with Int, Nothing, Unit] =
-    for {
-      a <- ZIO.service[Int] // Accessing a service of type Int
-      _ <- ZIO.debug(s"received an instance of Int service from the environment: $a")
-      b <- ZIO.service[String] // Accessing a service of type String
-      _ <- ZIO.debug(s"received an instance of String service from the environment: $b")
-    } yield ()
-
-  def run =
-    myApp
-      .provide(         // providing (injecting) all required services that myApp needs
-        ZLayer.succeed( // A simple layer that provides implementation of type Int
-          5             // Implementation of Int service
-        ),
-        ZLayer.succeed( // A simple layer that provides implementation of type String
-          "Hello"       // Implementation of String service
-        )
-      )
-}
-```
-
-Note that the `ZIO#provide` method takes a list of required services as an argument and [automatically builds the dependency graph](automatic-layer-construction.md) using metaprogramming.
-
-Alternatively, we can [manually build the dependency graph](manual-layer-construction.md) and finally pass it to the `ZIO#provideLayer` method, which doesn't perform any metaprogramming under the hood:
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  // myApp requires two services: Int and String
-  val myApp: ZIO[String with Int, Nothing, Unit] =
-    for {
-      a <- ZIO.service[Int] // Accessing a service of type Int
-      _ <- ZIO.debug(s"received an instance of Int service from the environment: $a")
-      b <- ZIO.service[String] // Accessing a service of type String
-      _ <- ZIO.debug(s"received an instance of String service from the environment: $b")
-    } yield ()
-
-  def run =
-    myApp
-      .provide(        
-        // Build the dependency graph manually using horizontal composition (++)
-        ZLayer.succeed(5) ++ ZLayer.succeed("Hello")
-      )
-}
 ```
 
 ## Providing Different Implementations of a Service
