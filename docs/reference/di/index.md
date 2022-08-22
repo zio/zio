@@ -24,8 +24,9 @@ Dependency injection is a pattern for decoupling the usage of dependencies from 
 The following example shows an `Editor` service that depends on `Formatter` and `Compiler` services. It doesn't use dependency injection:
 
 ```scala mdoc:invisible
-class Formatter
-class Compiler
+import zio._
+class Formatter { def format(code: String): UIO[String] = ZIO.succeed(???) }
+class Compiler { def compile(code: String): UIO[String] = ZIO.succeed(???) }
 ```
 
 ```scala mdoc:compile-only
@@ -43,8 +44,6 @@ class Editor {
 The `Editor` class in the above example is responsible for creating the `Formatter` and `Compiler` services. The client of the `Editor` class doesn't have any control over these services. The client can't use a different implementation for the `Formatter` and `Compiler` services. So it makes it hard to test the `Editor` class.
 
 Let's try to change the above example to use the constructor-based dependency injection pattern:
-
-```scala mdoc:invisible
 
 ```scala mdoc:silent:nest
 import zio._
