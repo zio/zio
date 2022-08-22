@@ -1,14 +1,12 @@
 package zio.test
 
 import zio.duration.durationInt
-import zio.test.Assertion.{anything, isCase, isSubtype, throws}
 import zio.test.SmartTestTypes._
 import zio.test.environment.TestClock
 import zio.{Cause, Chunk, Exit, Fiber, NonEmptyChunk}
 
 import java.time.LocalDateTime
 import scala.collection.immutable.SortedSet
-import scala.reflect.ClassTag
 
 object SmartAssertionSpec extends ZIOBaseSpec {
 
