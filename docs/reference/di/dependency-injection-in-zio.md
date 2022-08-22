@@ -21,11 +21,11 @@ For example, assume we have the following services:
 import zio._
 
 trait A {
-  def doSomething(): UIO[String]
+  def foo(): UIO[String]
 }
 
 trait B {
-  def doSomethingElse(i: String): UIO[Int]
+  def bar(i: String): UIO[Int]
 }
 ```
 
@@ -38,9 +38,9 @@ import zio._
 val myApp: ZIO[A with B, Nothing, Int] =
   for {
     a <- ZIO.service[A] 
-    r <- a.doSomething()
+    r <- a.foo()
     b <- ZIO.service[B]
-    o <- b.doSomethingElse(r)
+    o <- b.bar(r)
   } yield o
 ```
 
