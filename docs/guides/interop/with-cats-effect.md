@@ -65,7 +65,7 @@ object ZioCatsEffectInterop extends scala.App {
         println("Hello from Cats Effect World!")
       )
       
-  implicit val runtime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+  implicit val runtime: zio.Runtime[Any] = zio.Runtime.default
 
   val zioApp: zio.Task[Unit] = catsEffectApp[zio.Task]
   runtime.unsafeRun(zioApp.exitCode)
@@ -80,7 +80,7 @@ import ZioCatsEffectInterop.catsEffectApp
 
 ```scala
 object ZioCatsEffectInterop extends scala.App {
-  val runtime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+  val runtime: zio.Runtime[Any] = zio.Runtime.default
   
   val zioApp: zio.Task[Unit] = catsEffectApp[zio.Task](
     zio.interop.catz.asyncRuntimeInstance(runtime) 
@@ -94,7 +94,7 @@ And if we are working with Cats Effect 2.x, it will be expanded as if we called 
 
 ```scala
 object ZioCatsEffectInterop extends scala.App {
-  val runtime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+  val runtime: zio.Runtime[Any] = zio.Runtime.default
 
   val zioApp = catsEffectApp[zio.Task](zio.interop.catz.taskConcurrentInstance)
   runtime.unsafeRun(zioApp.exitCode)
@@ -105,7 +105,7 @@ If we are using `RIO` for a custom environment `R`, then we will have to create 
 
 ### Using `CatsApp` Runtime
 
-As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[ZEnv]` into our scope:
+As a convenience, our application can extend `CatsApp`, which automatically brings an implicit `Runtime[Any]` into our scope:
 
 ```scala
 import zio.interop.catz._
@@ -115,7 +115,7 @@ object ZioCatsEffectInteropWithCatsApp extends CatsApp {
   def catsEffectApp[F[_]: cats.effect.Sync]: F[Unit] =
     cats.effect.Sync[F].delay(println("Hello from Cats Effect World!"))
 
-  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] = 
+  override def run(args: List[String]): zio.URIO[Any, zio.ExitCode] = 
     catsEffectApp[zio.Task].exitCode
 }
 ```
@@ -139,7 +139,7 @@ import zio.{ ExitCode, Task, URIO }
 import scala.concurrent.duration.DurationInt
 
 object ZioCatsEffectTimerInterop extends zio.interop.catz.CatsApp {
-  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
+  override def run(args: List[String]): zio.URIO[Any, zio.ExitCode] =
     catsEffectTimerApp[zio.Task].exitCode
 
   def catsEffectTimerApp[F[_]: cats.effect.Clock: cats.effect.Timer: cats.effect.Sync]: F[Unit] = for {
@@ -157,8 +157,7 @@ If we're using `RIO` for a custom environment then our environment must use the 
 
 ### Converting Resource to ZManaged
 
-To convert Cats Effect `Resource` into `ZManaged`, we can call `toManaged` on `Resource`.
-
+We have an extension method defined on `Resource` called `Resource#toManaged` which converts `Resource` to `ZManaged`.
 For example, assume we have the following `File` API:
 
 ```scala
@@ -189,8 +188,8 @@ def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, 
 Let's convert that to `ZManaged`:
 
 ```scala
-val resource: zio.ZManaged[zio.ZEnv, Throwable, File[zio.Task]] =
-  fileResource[zio.Task]("log.txt").toManaged[zio.ZEnv]
+val resource: zio.ZManaged[Any, Throwable, File[zio.Task]] =
+  fileResource[zio.Task]("log.txt").toManaged
 ```
 
 Here is a complete working example:
@@ -202,12 +201,12 @@ object CatsEffectResourceInterop extends CatsApp {
   def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
     cats.effect.Resource.make(File.open[F](name))(_.close)
 
-  def myApp: zio.ZIO[zio.ZEnv, Throwable, Unit] = for {
-    c <- fileResource[zio.Task]("log.txt").toManaged[zio.ZEnv].use(_.read)
-    _ <- zio.console.putStr(s"file content: $c")
+  def myApp: zio.ZIO[Any, Throwable, Unit] = for {
+    c <- fileResource[zio.Task]("log.txt").toManaged.use(_.read)
+    _ <- zio.Console.printLine(s"file content: $c")
   } yield ()
 
-  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
+  override def run(args: List[String]): zio.URIO[Any, zio.ExitCode] =
     myApp.exitCode
 }
 ```
@@ -231,7 +230,7 @@ Let's try an example:
 import zio.interop.catz._
 
 object ZManagedToResource extends cats.effect.IOApp {
-  implicit val zioRuntime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+  implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
 
   val resource: cats.effect.Resource[cats.effect.IO, java.io.InputStream] =
     zio.ZManaged
@@ -243,6 +242,103 @@ object ZManagedToResource extends cats.effect.IOApp {
         )
       )
       .toResource[cats.effect.IO]
+
+  val effect: cats.effect.IO[Unit] =
+    resource
+      .use { is =>
+        cats.effect.IO.delay(is.readAllBytes())
+      }
+      .flatMap(bytes =>
+        cats.effect.IO.delay(
+          println(s"file length: ${bytes.length}")
+        )
+      )
+
+  override def run(args: List[String]): cats.effect.IO[cats.effect.ExitCode] =
+    effect.as(cats.effect.ExitCode.Success)
+}
+```
+### Converting Resource to Scoped
+
+We have an extension method defined on `Resource` called `Resource#toScoped` which converts `Resource` to `ZIO` with `Scope`.
+
+For example, assume we have the following `File` API:
+
+```scala
+case class File[F[_]: cats.effect.Sync]() {
+  import cats.syntax.apply._
+  def read: F[String] =
+    cats.effect.Sync[F].delay(println("Reading file.")) *>
+      cats.effect.Sync[F].pure("Hello, World!")
+  def close: F[Unit]  =
+    cats.effect.Sync[F].delay(println("Closing file."))
+}
+
+object File {
+  import cats.syntax.apply._
+  def open[F[_]: cats.effect.Sync](name: String): F[File[F]] =
+    cats.effect.Sync[F].delay(println(s"opening $name file")) *>
+      cats.effect.Sync[F].delay(File())
+}
+```
+
+And, also assume we have `fileResource` defined as follows:
+
+```scala
+def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
+  cats.effect.Resource.make(File.open[F](name))(_.close)
+```
+
+Let's convert that to scoped `ZIO`:
+
+```scala
+val scoped: ZIO[Scope, Throwable, File[zio.Task]] =
+  fileResource[zio.Task]("log.txt").toScoped
+```
+
+Here is a complete working example:
+
+```scala
+import zio.interop.catz._
+
+object CatsEffectResourceInterop extends CatsApp {
+  def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
+    cats.effect.Resource.make(File.open[F](name))(_.close)
+
+  def myApp: zio.ZIO[Scope, Throwable, Unit] = for {
+    c <- fileResource[zio.Task]("log.txt").toScoped
+    _ <- zio.Console.printLine(s"file content: $c")
+  } yield ()
+
+  override def run(args: List[String]): zio.URIO[Scope, zio.ExitCode] =
+    myApp.exitCode
+}
+```
+
+### Converting Scoped to Resource
+
+We have an extension method defined on `Resource` called `Resource#scoped` which creates a `Resource` from `ZIO` with `Scope`.
+
+Let's try an example:
+
+```scala
+import zio.interop.catz._
+
+object ZManagedToResource extends cats.effect.IOApp {
+  implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
+
+  val resource: cats.effect.Resource[cats.effect.IO, java.io.InputStream] = {
+    val scopedZIO: ZIO[Any with Scope, Throwable, InputStream]= ZIO
+      .fromAutoCloseable(
+        zio.ZIO.attempt(
+          java.nio.file.Files.newInputStream(
+            java.nio.file.Paths.get("crawl.log")
+          )
+        )
+      )
+    
+    Resource.scoped[IO, Any](scopedZIO)
+  }
 
   val effect: cats.effect.IO[Unit] =
     resource
@@ -282,54 +378,9 @@ object ZioCatsEffectInterop extends zio.interop.catz.CatsApp {
     _  <- cats.effect.Sync[F].delay(println(t1 - t2))
   } yield ()
   
-  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] = {
+  override def run(args: List[String]): zio.URIO[Any, zio.ExitCode] = {
     catsEffectTimerApp[zio.Task].exitCode
   }
-}
-```
-
-### Converting Resource to ZManaged
-
-To convert a Cats Effect's `Resource` to `ZManaged` we can use `cats.effect.Resource#toZManaged` extension method by importing `zio.interop.catz._` package and also we should provide an implicit instance of `Dispatcher`:
- 
-```scala
-import zio.interop.catz._
-import scala.concurrent.ExecutionContextExecutor
-
-object ResourceToZManagedExample extends zio.App {
-  implicit val ceRuntime: cats.effect.unsafe.IORuntime =
-    cats.effect.unsafe.IORuntime.global
-  implicit val ec: ExecutionContextExecutor =
-    scala.concurrent.ExecutionContext.global
-
-  implicit val dispatcher: cats.effect.std.Dispatcher[cats.effect.IO] =
-    cats.effect.std
-      .Dispatcher[cats.effect.IO]
-      .allocated
-      .unsafeRunSync()
-      ._1
-
-  def catsResource[F[_]: cats.effect.Sync]
-      : cats.effect.Resource[F, java.io.InputStream] =
-    cats.effect.Resource
-      .fromAutoCloseable(
-        cats.effect
-          .Sync[F]
-          .delay(
-            java.nio.file.Files.newInputStream(
-              java.nio.file.Paths.get("file.txt")
-            )
-          )
-      )
-
-  val myApp: zio.ZIO[zio.console.Console, Throwable, Unit] =
-    catsResource[cats.effect.IO].toManaged
-      .use { is =>
-        zio.console.putStrLn(is.readAllBytes().length.toString)
-      }
-      
-  override def run(args: List[String]): zio.URIO[zio.ZEnv, zio.ExitCode] =
-    myApp.exitCode
 }
 ```
 
@@ -418,7 +469,7 @@ object ZioQueueInteropWithCats extends scala.App {
   implicit val ceRuntime: cats.effect.unsafe.IORuntime =
     cats.effect.unsafe.IORuntime.global
 
-  implicit val zioRuntime: zio.Runtime[zio.ZEnv] =
+  implicit val zioRuntime: zio.Runtime[Any] =
     zio.Runtime.default
 
   implicit val ec: scala.concurrent.ExecutionContextExecutor =
@@ -461,7 +512,7 @@ import cats.effect.IO
 import cats.effect.unsafe.IORuntime
 import zio.interop.stm.{STM, TRef}
 
-implicit val zioRuntime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
 implicit val catsRuntime: IORuntime            = IORuntime.global
 
 def transferMoney(
@@ -516,7 +567,7 @@ import fs2.Stream
 import zio.Task
 import zio.interop.catz._
 
-implicit val zioRuntime: zio.Runtime[zio.ZEnv] = zio.Runtime.default
+implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
 
 case class User(id: String, name: String, age: Int)
 
@@ -608,7 +659,7 @@ import doobie.hikari.HikariTransactor
 import zio.interop.catz._
 import zio.{Task, ZIO, ZManaged}
 
-implicit val zioRuntime: zio.Runtime[zio.ZEnv] =
+implicit val zioRuntime: zio.Runtime[Any] =
   zio.Runtime.default
 
 implicit val dispatcher: cats.effect.std.Dispatcher[zio.Task] =
@@ -666,7 +717,7 @@ import zio.{Task, URIO}
 import scala.concurrent.ExecutionContext.global
 
 object ZioHttp4sInterop extends CatsApp {
-  def run(args: List[String]): URIO[zio.ZEnv, zio.ExitCode] =
+  def run(args: List[String]): URIO[Any, zio.ExitCode] =
     stream[Task].compile.drain.exitCode
   
   def stream[F[_]: ConcurrentEffect: Timer]: Stream[F, Nothing] = {
@@ -730,7 +781,7 @@ object ZioHttp4sInterop extends zio.interop.catz.CatsApp {
     }
   }
 
-  def run(args: List[String]): URIO[zio.ZEnv, zio.ExitCode] =
+  def run(args: List[String]): URIO[Any, zio.ExitCode] =
     stream[Task].compile.drain.exitCode
 }
 ```
