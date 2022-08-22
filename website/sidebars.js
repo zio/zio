@@ -185,6 +185,7 @@ module.exports = {
           ]
         },
         "reference/di/dependency-propagation",
+        "reference/di/providing-different-implementation-of-a-service",
         "reference/di/dependency-memoization",
         "reference/di/overriding-dependency-graph",
         "reference/di/examples",

@@ -64,11 +64,12 @@ In the [motivation page](motivation.md) we explain why applications should use t
 ZIO has a full solution to the dependency injection problem. It provides a built-in approach to dependency injection using the following tools in combination together:
 
 1. **ZIO Environment**
-  - We use the `ZIO.serviceXYZ` to access services inside the ZIO environment, without having any knowledge of how the services are created or implemented. Using `ZIO.serviceXYZ` helps us to decouple our usage of services from the implementation of the services.
+
+    1. We use the `ZIO.serviceXYZ` to access services inside the ZIO environment, without having any knowledge of how the services are created or implemented. Using `ZIO.serviceXYZ` helps us to decouple our usage of services from the implementation of the services.
   
-  Consequently, all dependencies will be encoded inside the `R` type parameter of our ZIO application. This specifies which services are required to fulfill the application's functionality.
+     Consequently, all dependencies will be encoded inside the `R` type parameter of our ZIO application. This specifies which services are required to fulfill the application's functionality.
   
-  - We use the `ZIO.provideXYZ` to provide services to the ZIO environment. This is the opposite operation of `ZIO.serviceXYZ`. It allows us to inject all dependencies into the ZIO environment.
+    2. We use the `ZIO.provideXYZ` to provide services to the ZIO environment. This is the opposite operation of `ZIO.serviceXYZ`. It allows us to inject all dependencies into the ZIO environment.
     
 2. **ZLayer**— We use layers to create the dependency graph that our application depends on.
 
@@ -85,11 +86,12 @@ We will discuss them in more detail throughout [this page](dependency-injection-
 Dependency injection in ZIO is very powerful which increases the developer productivity. Let's recap some important features of dependency injection in ZIO:
 
 1. **Composable**
-  - **Composable Environment**— Because of the very composable nature of the `ZIO` data type, its environment type parameter is also composable. So when we compose multiple `ZIO` effects, where each one requires a specific service, we finally get a `ZIO` effect that requires all the required services that each of the composed effects requires. 
-  
-  For example, if we `zip` two effects of type `ZIO[A, Nothing, Int]` and `ZIO[B, Throwable, String]`, the result of this operation will become `ZIO[A with B, Throwable, (Int, String)]`. The result operation requires both `A` and `B` services.
 
-  - **Composable Dependencies**— The `ZLayer` is also composable, As well as the ZIO's environment type parameter. So we can compose multiple layers to [create a complex dependency graph](building-dependency-graph.md).
+    1. **Composable Environment**— Because of the very composable nature of the `ZIO` data type, its environment type parameter is also composable. So when we compose multiple `ZIO` effects, where each one requires a specific service, we finally get a `ZIO` effect that requires all the required services that each of the composed effects requires. 
+  
+     For example, if we `zip` two effects of type `ZIO[A, Nothing, Int]` and `ZIO[B, Throwable, String]`, the result of this operation will become `ZIO[A with B, Throwable, (Int, String)]`. The result operation requires both `A` and `B` services.
+
+    2. **Composable Dependencies**— The `ZLayer` is also composable, As well as the ZIO's environment type parameter. So we can compose multiple layers to [create a complex dependency graph](building-dependency-graph.md).
 
 2. **Type-Safe**— All the required dependencies should be provided at compile time. If we forget to provide the required services at compile time, we will get a compile error. So if our program compiles successfully, we are sure that we haven't runtime errors due to missing dependencies.
 
