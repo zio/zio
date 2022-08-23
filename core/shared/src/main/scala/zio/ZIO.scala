@@ -788,7 +788,18 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def forkScoped(implicit trace: Trace): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).forkDaemon.tap(fiber => ZIO.addFinalizer(fiber.interrupt))
+      def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
+        ZIO.fiberIdWith { fiberId =>
+          if (fiberId == fiber.id) ZIO.unit else fiber.interrupt
+        }
+
+      ZIO.scopeWith { scope =>
+        scope.fork.flatMap { child =>
+          restore(self).onExit(child.close(_)).forkDaemon.tap { fiber =>
+            child.addFinalizer(interrupt(fiber))
+          }
+        }
+      }
     }
 
   /**
