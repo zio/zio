@@ -3,9 +3,9 @@ id: how-it-works
 title: "How it Works?"
 ---
 
-> **_Note:_**
->
-> In this section we are going to learn about the internals of the `Assertion` data type. So feel free to skip this section if you are not interested.
+:::note
+In this section we are going to learn about the internals of the `Assertion` data type. So feel free to skip this section if you are not interested.
+:::
 
 ## The `test` Function
 

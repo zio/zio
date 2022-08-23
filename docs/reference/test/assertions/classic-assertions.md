@@ -3,11 +3,11 @@ id: classic-assertions
 title: "Classic Assertions"
 ---
 
-> **Note**:
->
-> In almost all cases we encourage developers using _[smart assertions](smart-assertions.md)_ instead of [classic assertions](classic-assertions.md). They are more expressive and easier to use. So you can skip reading this section.
->
-> Only use _classic assertions_ when you know what you are doing. There are some rare cases where the smart assertions are not enough.
+:::note
+In almost all cases we encourage developers using _[smart assertions](smart-assertions.md)_ instead of [classic assertions](classic-assertions.md). They are more expressive and easier to use. So you can skip reading this section.
+
+Only use _classic assertions_ when you know what you are doing. There are some rare cases where the smart assertions are not enough.
+:::
 
 The `assert` and its effectful counterpart `assertZIO` are the old way of asserting ordinary values and ZIO effects.
 
