@@ -7,7 +7,7 @@ sidebar_label: "Getting Started"
 :::caution
 In this page, we will focus on essential parts of dependency injection in ZIO. So we are not going to cover all the best practices for writing ZIO services.
 
-In real world applications, we encourage to use [service pattern](../service-pattern/service-pattern.md) to write ZIO services.
+In real world applications, we encourage to use [service pattern](service-pattern/service-pattern.md) to write ZIO services.
 :::
 
 We can achieve dependency injection through these three simple steps:

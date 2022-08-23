@@ -171,7 +171,7 @@ val editor: ZIO[Any, Nothing, Editor] =
   }
 ```
 
-While with `ZLayer`, we can easily have an effectful constructor:
+While with `ZLayer`, we can easily have an effectful constructor. We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromZIO`/`ZLayer.apply` constructor:
 
 ```scala mdoc:silent:nest
 case class Counter(ref: Ref[Int]) {
@@ -221,9 +221,27 @@ object Editor {
 }
 ```
 
+Let's try another example. Assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
+
+```scala mdoc:compile-only
+import zio._
+
+case class AppConfig(poolSize: Int)
+  
+object AppConfig {
+  private def loadConfig : Task[AppConfig] = 
+    ZIO.attempt(???) // loading config from a file
+    
+  val layer: TaskLayer[AppConfig] = 
+    ZLayer(loadConfig)  // or ZLayer.fromZIO(loadConfig)
+} 
+```
+
 ## Resourceful Constructors
 
-Some services are required to be initialized and carefully released. While we can import the `ZIO` effect to create `ZLayer` we can have resourceful layers:
+Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
+
+The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.scoped` constructor:
 
 ```scala mdoc:compile-only
 import zio._
@@ -257,6 +275,66 @@ The output:
 Initializing A
 result: 25
 Releasing A
+```
+
+We can see that the `A` service is initialized and carefull released when the application is shut down.
+
+Here is another example that uses auto closeable resources:
+
+```scala mdoc:silent:nest
+import zio._
+import scala.io.BufferedSource
+
+val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
+  ZLayer.scoped {
+    ZIO.fromAutoCloseable(
+      ZIO.attempt(scala.io.Source.fromFile("file.txt"))
+    )
+  }
+```
+
+Finally, let's see a real-world example of creating a layer from scoped resources. Assume we have the following `UserRepository` service:
+
+```scala mdoc:silent
+import zio._
+import scala.io.Source._
+import java.io.{FileInputStream, FileOutputStream, Closeable}
+
+trait DBConfig
+trait Transactor
+trait User
+
+def dbConfig: Task[DBConfig] = ZIO.attempt(???)
+def initializeDb(config: DBConfig): Task[Unit] = ZIO.attempt(???)
+def makeTransactor(config: DBConfig): ZIO[Scope, Throwable, Transactor] = ZIO.attempt(???)
+
+trait UserRepository {
+  def save(user: User): Task[Unit]
+}
+
+case class UserRepositoryLive(xa: Transactor) extends UserRepository {
+  override def save(user: User): Task[Unit] = ZIO.attempt(???)
+}
+```
+
+Assume we have written a scoped `UserRepository`:
+
+```scala mdoc:silent:nest
+def scoped: ZIO[Scope, Throwable, UserRepository] = 
+  for {
+    cfg <- dbConfig
+    _   <- initializeDb(cfg)
+    xa  <- makeTransactor(cfg)
+  } yield new UserRepositoryLive(xa)
+```
+
+We can convert that to `ZLayer` with `ZLayer.scoped`:
+
+```scala mdoc:nest
+object UserRepositoyLive {
+  val layer : ZLayer[Any, Throwable, UserRepository] =
+    ZLayer.scoped(scoped)
+}
 ```
 
 ## Asynchronous Constructors
