@@ -21,9 +21,9 @@ object HelloWorldSpec extends ZIOSpecDefault {
 }
 ```
 
-> **Note:**
-> 
-> In order to have runnable tests, the `ZIOSpecDefault` trait must be extended by an **object** that implements the `spec` method. If we extend this trait in a class, the test runner will not be able to find the tests.
+:::note
+In order to have runnable tests, the `ZIOSpecDefault` trait must be extended by an **object** that implements the `spec` method. If we extend this trait in a class, the test runner will not be able to find the tests.
+:::
 
 `ZIOSpecDefault` is very similar in its logic of operations to `ZIOAppDefault`. Instead of providing one `ZIO` application at the end of the world, we provide a suite that can be a tree of other suites and tests. 
 
