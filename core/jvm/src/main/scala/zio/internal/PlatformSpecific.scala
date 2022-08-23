@@ -89,6 +89,10 @@ private[internal] trait PlatformSpecific {
 
       def reportFatal(t: Throwable): Nothing = {
         t.printStackTrace()
+        try System.out.flush()
+        catch { case _: Throwable => }
+        try System.err.flush()
+        catch { case _: Throwable => }
         try {
           System.exit(-1)
           throw t
