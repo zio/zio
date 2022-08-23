@@ -16,6 +16,8 @@ The primary goal of a streaming library is to introduce **a high-level API that 
 
 A streaming library helps us to concentrate on the business logic and separates us from low-level implementation details.
 
+## Use Cases
+
 There are lots of examples of streaming that people might not recognize, this is a common problem especially for beginners. A beginner might say "I don't need a streaming library. Why should I use that?". It's because they don't see streams. Once we use a streaming library, we start to see streams everywhere but until then we don't understand where they are. 
 
 Before diving into ZIO Streams, let's list some use cases of a streaming solution and see why we would want to program in a streaming fashion:
