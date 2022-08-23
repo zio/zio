@@ -184,8 +184,6 @@ module.exports = {
             "reference/di/service-pattern/the-three-laws-of-zio-environment"
           ]
         },
-        "reference/di/effectful-layer-construction",
-        "reference/di/resourceful-layers",
         "reference/di/providing-different-implementation-of-a-service",
         "reference/di/dependency-memoization",
         "reference/di/overriding-dependency-graph",
