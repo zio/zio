@@ -98,24 +98,6 @@ object EmailService {
 
 ### From Non-resourceful Effects
 
-We can create `ZLayer` from any `ZIO` effect by using `ZLayer.fromZIO`/`ZLayer.apply` constructor.
-
-For example, assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
-
-```scala mdoc:compile-only
-import zio._
-
-case class AppConfig(poolSize: Int)
-  
-def loadConfig : Task[AppConfig] = 
-  ZIO.attempt(???)
-
-object AppConfig {
-  val layer: TaskLayer[AppConfig] = 
-    ZLayer(loadConfig)  // or ZLayer.fromZIO(loadConfig)
-} 
-```
-
 This is the for-comprehension way of creating a ZIO service using `ZLayer.apply`:
 
 ```scala mdoc:compile-only
@@ -136,7 +118,6 @@ object CLive {
     }
 }
 ```
-
 ### From Functions
 
 A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer` using the `ZLayer.fromFunction` constructor.
