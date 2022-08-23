@@ -129,34 +129,6 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Contextual Types",
-      link: { type: "doc", id: "reference/contextual/index" },
-      items:
-        [
-          "reference/contextual/zenvironment",
-          {
-            type: "category",
-            label: "ZIO Layers",
-            items: [
-              "reference/contextual/zlayer",
-              {
-                type: "category",
-                collapsed: true,
-                label: "Type Aliases",
-                items: [
-                  "reference/contextual/rlayer",
-                  "reference/contextual/ulayer",
-                  "reference/contextual/layer",
-                  "reference/contextual/urlayer",
-                  "reference/contextual/tasklayer"
-                ]
-              }
-            ]
-          }
-        ]
-    },
-    {
-      type: "category",
       label: "Writing ZIO Services",
       link: { type: "doc", id: "reference/service-pattern/introduction" },
       items: [
@@ -192,6 +164,34 @@ module.exports = {
         "reference/di/overriding-dependency-graph",
         "reference/di/examples",
       ]
+    },
+    {
+      type: "category",
+      label: "Contextual Types",
+      link: { type: "doc", id: "reference/contextual/index" },
+      items:
+        [
+          "reference/contextual/zenvironment",
+          {
+            type: "category",
+            label: "ZIO Layers",
+            items: [
+              "reference/contextual/zlayer",
+              {
+                type: "category",
+                collapsed: true,
+                label: "Type Aliases",
+                items: [
+                  "reference/contextual/rlayer",
+                  "reference/contextual/ulayer",
+                  "reference/contextual/layer",
+                  "reference/contextual/urlayer",
+                  "reference/contextual/tasklayer"
+                ]
+              }
+            ]
+          }
+        ]
     },
     {
       type: "category",
