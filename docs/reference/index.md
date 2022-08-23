@@ -33,13 +33,13 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Contextual Data Types
 
-- **[ZEnvironment](di/contextual/zenvironment.md)** — `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect.
-- **[ZLayer](di/contextual/zlayer.md)** — `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
-    + **[RLayer](di/contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
-    + **[ULayer](di/contextual/ulayer.md)** — `ULayer[+ROut]` is a type alias for `ZLayer[Any, Nothing, ROut]`, which represents a layer that doesn't require any services as its input, it can't fail, and returns `ROut` as its output.
-    + **[Layer](di/contextual/layer.md)** — `Layer[+E, +ROut]` is a type alias for `ZLayer[Any, E, ROut]`, which represents a layer that doesn't require any services, it may fail with an error type of `E`, and returns `ROut` as its output.
-    + **[URLayer](di/contextual/urlayer.md)** — `URLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Nothing, ROut]`, which represents a layer that requires `RIn` as its input, it can't fail, and returns `ROut` as its output.
-    + **[TaskLayer](di/contextual/task-layer.md)** — `TaskLayer[+ROut]` is a type alias for `ZLayer[Any, Throwable, ROut]`, which represents a layer that doesn't require any services as its input, it may fail with `Throwable` value, and returns `ROut` as its output.
+- **[ZEnvironment](contextual/zenvironment.md)** — `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect.
+- **[ZLayer](contextual/zlayer.md)** — `ZLayer[-RIn, +E, +ROut]` is a recipe to build an environment of type `ROut`, starting from a value `RIn`, and possibly producing an error `E` during creation.
+    + **[RLayer](contextual/rlayer.md)** — `RLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Throwable, ROut]`, which represents a layer that requires `RIn` as its input, it may fail with `Throwable` value, or returns `ROut` as its output.
+    + **[ULayer](contextual/ulayer.md)** — `ULayer[+ROut]` is a type alias for `ZLayer[Any, Nothing, ROut]`, which represents a layer that doesn't require any services as its input, it can't fail, and returns `ROut` as its output.
+    + **[Layer](contextual/layer.md)** — `Layer[+E, +ROut]` is a type alias for `ZLayer[Any, E, ROut]`, which represents a layer that doesn't require any services, it may fail with an error type of `E`, and returns `ROut` as its output.
+    + **[URLayer](contextual/urlayer.md)** — `URLayer[-RIn, +ROut]` is a type alias for `ZLayer[RIn, Nothing, ROut]`, which represents a layer that requires `RIn` as its input, it can't fail, and returns `ROut` as its output.
+    + **[TaskLayer](contextual/task-layer.md)** — `TaskLayer[+ROut]` is a type alias for `ZLayer[Any, Throwable, ROut]`, which represents a layer that doesn't require any services as its input, it may fail with `Throwable` value, and returns `ROut` as its output.
 
 ## State Management
 

@@ -129,38 +129,38 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Contextual Types",
+      link: { type: "doc", id: "reference/contextual/index" },
+      items:
+        [
+          "reference/contextual/zenvironment",
+          {
+            type: "category",
+            label: "ZIO Layers",
+            items: [
+              "reference/contextual/zlayer",
+              {
+                type: "category",
+                collapsed: true,
+                label: "Type Aliases",
+                items: [
+                  "reference/contextual/rlayer",
+                  "reference/contextual/ulayer",
+                  "reference/contextual/layer",
+                  "reference/contextual/urlayer",
+                  "reference/contextual/tasklayer"
+                ]
+              }
+            ]
+          }
+        ]
+    },
+    {
+      type: "category",
       label: "Dependency Injection",
       link: { type: "doc", id: "reference/di/index" },
       items: [
         "reference/di/motivation",
-        {
-          type: "category",
-          label: "Contextual Types",
-          link: { type: "doc", id: "reference/di/contextual/index" },
-          items:
-            [
-              "reference/di/contextual/zenvironment",
-              {
-                type: "category",
-                label: "ZIO Layers",
-                items: [
-                  "reference/di/contextual/zlayer",
-                  {
-                    type: "category",
-                    collapsed: true,
-                    label: "Type Aliases",
-                    items: [
-                      "reference/di/contextual/rlayer",
-                      "reference/di/contextual/ulayer",
-                      "reference/di/contextual/layer",
-                      "reference/di/contextual/urlayer",
-                      "reference/di/contextual/tasklayer"
-                    ]
-                  }
-                ]
-              }
-            ]
-        },
         "reference/di/zlayer-constructor-as-a-value",
         "reference/di/dependency-injection-in-zio",
         {

@@ -4,7 +4,7 @@ title: "Defining Polymorphic Services in ZIO"
 sidebar_label: "Polymorphic Services"
 ---
 
-As we discussed [here](../contextual/zenvironment.md), the `ZEnvironment`, which is the underlying data type used by `ZLayer`, is backed by a type-level mapping from types of services to implementations of those services. This functionality is backed by `izumi.reflect.Tag`, which captures a type as a value.
+As we discussed [here](../../contextual/zenvironment.md), the `ZEnvironment`, which is the underlying data type used by `ZLayer`, is backed by a type-level mapping from types of services to implementations of those services. This functionality is backed by `izumi.reflect.Tag`, which captures a type as a value.
 
 We just need to know what is the type of service when we put it in the `ZEnvironment` because `ZEnvironment` is essentially a map from _service types (interfaces)_ to _implementation of those interfaces_. To implement the map, the `ZEnvironment` needs a type tag for the new service, and also needs a way to remove the old service from the type level map. So we should have service type information at the runtime.
 
