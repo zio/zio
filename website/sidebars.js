@@ -49,7 +49,6 @@ module.exports = {
       link: { type: "doc", id: "reference/error-management/index" },
       items:
         [
-
           {
             type: "category",
             label: "Three Types of Errors in ZIO",
@@ -61,7 +60,6 @@ module.exports = {
                 "reference/error-management/types/fatals"
               ]
           },
-
           "reference/error-management/imperative-vs-declarative",
           "reference/error-management/expected-and-unexpected-errors",
           "reference/error-management/exceptional-and-unexceptional-effects",
@@ -391,7 +389,7 @@ module.exports = {
           type: "category",
           label: "Test Aspects",
           link: { type: "doc", id: "reference/test/aspects/index" },
-          items: [ 
+          items: [
             "reference/test/aspects/before-after-around",
             "reference/test/aspects/conditional",
             "reference/test/aspects/debugging-and-diagnostics",
@@ -403,13 +401,23 @@ module.exports = {
             "reference/test/aspects/passing-failed-tests",
             "reference/test/aspects/repeat-and-retry",
             "reference/test/aspects/restoring-state-of-test-services",
-            "reference/test/aspects/sized", 
+            "reference/test/aspects/sized",
             "reference/test/aspects/annotating-tests",
             "reference/test/aspects/configuring-tests",
             "reference/test/aspects/timing-out-tests",
           ]
         },
-        "reference/test/gen",
+        {
+          type: "category",
+          label: "Property Testing",
+          link: { type: "doc", id: "reference/test/property-testing/index" },
+          items: [
+            "reference/test/property-testing/gen",
+            "reference/test/property-testing/operators",
+            "reference/test/property-testing/shrinking",
+            "reference/test/property-testing/generators",
+          ]
+        }
       ]
     },
     {
