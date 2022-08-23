@@ -144,17 +144,17 @@ module.exports = {
                 type: "category",
                 label: "ZIO Layers",
                 items: [
-                  "reference/di/contextual/zlayer/zlayer",
+                  "reference/di/contextual/zlayer",
                   {
                     type: "category",
                     collapsed: true,
                     label: "Type Aliases",
                     items: [
-                      "reference/di/contextual/zlayer/rlayer",
-                      "reference/di/contextual/zlayer/ulayer",
-                      "reference/di/contextual/zlayer/layer",
-                      "reference/di/contextual/zlayer/urlayer",
-                      "reference/di/contextual/zlayer/tasklayer"
+                      "reference/di/contextual/rlayer",
+                      "reference/di/contextual/ulayer",
+                      "reference/di/contextual/layer",
+                      "reference/di/contextual/urlayer",
+                      "reference/di/contextual/tasklayer"
                     ]
                   }
                 ]
