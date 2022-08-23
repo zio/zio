@@ -337,6 +337,18 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         val l1 = Seq("Alpha", "This is a wonderful way to dance and party", "Potato")
         val l2 = Seq("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
         assertTrue(l1 == l2)
+      } @@ failing,
+      test("Seq diffs") {
+        val l1 = Seq("Alpha", "This is a wonderful way to dance and party", "Potato")
+        val l2 = Seq("Alpha", "This is a wonderful way to live and die", "Potato", "Bruce Lee", "Potato", "Ziverge")
+        assertTrue(l1 == l2)
+      } @@ failing,
+      test("null String diff") {
+        assertTrue("" == null)
+      } @@ failing,
+      test("null String diff the other way around") {
+        val first: String = null
+        assertTrue(first == "")
       } @@ failing
     ),
     test("Package qualified identifiers") {

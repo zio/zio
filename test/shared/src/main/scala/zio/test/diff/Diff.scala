@@ -24,9 +24,13 @@ object Diff extends DiffInstances {
 trait DiffInstances extends LowPriDiff {
 
   implicit val stringDiff: Diff[String] = (x: String, y: String) =>
-    if (x.split("\n").length <= 1 && y.split("\n").length <= 1 && x.length < 50 && y.length < 50) {
+    if (
+      x != null && y != null && x.split("\n").length <= 1 && y.split("\n").length <= 1 && x.length < 50 && y.length < 50
+    ) {
       if (x == y) DiffResult.Identical(x)
       else DiffResult.Different(x, y)
+    } else if ((x == null && y != null) || (x != null && y == null)) {
+      DiffResult.Different(x, y)
     } else {
       val result = MyersDiff.diff(x, y)
       if (result.isIdentical) DiffResult.Identical(x)
