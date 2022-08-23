@@ -287,6 +287,7 @@ module.exports = {
       label: "Streaming",
       link: { type: "doc", id: "reference/stream/index" },
       items: [
+        "reference/stream/installation",
         {
           type: "category",
           label: "Main Components",
