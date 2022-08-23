@@ -157,12 +157,24 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Writing ZIO Services",
+      link: { type: "doc", id: "reference/service-pattern/introduction" },
+      items: [
+        "reference/service-pattern/service-pattern",
+        "reference/service-pattern/defining-polymorphic-services-in-zio",
+        "reference/service-pattern/generating-accessor-methods-using-macros",
+        "reference/service-pattern/the-three-laws-of-zio-environment"
+      ]
+    },
+    {
+      type: "category",
       label: "Dependency Injection",
       link: { type: "doc", id: "reference/di/index" },
       items: [
         "reference/di/motivation",
         "reference/di/zlayer-constructor-as-a-value",
         "reference/di/dependency-injection-in-zio",
+        ,
         {
           type: "category",
           label: "Building Dependency Graph",
@@ -173,17 +185,6 @@ module.exports = {
           ]
         },
         "reference/di/dependency-propagation",
-        {
-          type: "category",
-          label: "Writing ZIO Services",
-          link: { type: "doc", id: "reference/di/service-pattern/introduction" },
-          items: [
-            "reference/di/service-pattern/service-pattern",
-            "reference/di/service-pattern/defining-polymorphic-services-in-zio",
-            "reference/di/service-pattern/generating-accessor-methods-using-macros",
-            "reference/di/service-pattern/the-three-laws-of-zio-environment"
-          ]
-        },
         "reference/di/effectful-layer-construction",
         "reference/di/resourceful-layers",
         "reference/di/providing-different-implementation-of-a-service",

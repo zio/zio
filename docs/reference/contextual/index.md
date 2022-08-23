@@ -153,7 +153,7 @@ def myApp(s1: Service1, s2: Service2, ..., sn: ServiceN): Task[Unit] =
   } yield ()
 ```
 
-Writing real applications using this technique is tedious and cumbersome because all dependencies have to be passed across all methods. We can simplify the process of writing our application by using the ZIO environment and [Service Pattern](../di/service-pattern/index.md).
+Writing real applications using this technique is tedious and cumbersome because all dependencies have to be passed across all methods. We can simplify the process of writing our application by using the ZIO environment and [Service Pattern](../service-pattern/index.md).
 
 ```scala
 def foo(arg1: String, arg2: String, arg3: Int): ZIO[Service1 & Service2 & Service3, Throwable, Int] = 
@@ -265,7 +265,7 @@ for {
 } yield ()
 ```
 
-When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Service Pattern](../di/service-pattern) section.
+When creating ZIO layers that have multiple dependencies, this can be helpful. We will discuss this pattern in the [Service Pattern](../service-pattern) section.
 
 #### Service Member Accessors
 
@@ -273,7 +273,7 @@ Sometimes instead of accessing a service, we need to access the capabilities (me
 - **ZIO.serviceWith**
 - **ZIO.serviceWithZIO**
 
-In [Service Pattern](../di/service-pattern), we use these accessors to write "accessor methods" for ZIO services.
+In [Service Pattern](../service-pattern), we use these accessors to write "accessor methods" for ZIO services.
 
 Let's look at each one in more detail:
 
