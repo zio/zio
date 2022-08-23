@@ -138,6 +138,31 @@ module.exports = {
     },
     {
       type: "category",
+      label: "Dependency Injection",
+      link: { type: "doc", id: "reference/di/index" },
+      items: [
+        "reference/di/motivation",
+        "reference/di/zlayer-constructor-as-a-value",
+        "reference/di/dependency-injection-in-zio",
+        ,
+        {
+          type: "category",
+          label: "Building Dependency Graph",
+          link: { type: "doc", id: "reference/di/building-dependency-graph" },
+          items: [
+            "reference/di/manual-layer-construction",
+            "reference/di/automatic-layer-construction",
+          ]
+        },
+        "reference/di/dependency-propagation",
+        "reference/di/providing-different-implementation-of-a-service",
+        "reference/di/dependency-memoization",
+        "reference/di/overriding-dependency-graph",
+        "reference/di/examples",
+      ]
+    },
+    {
+      type: "category",
       label: "Contextual Types",
       link: { type: "doc", id: "reference/contextual/index" },
       items:
