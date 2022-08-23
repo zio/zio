@@ -1,7 +1,7 @@
 ---
-id: resourceful-services
+id: resourceful-layers
 title: "Resourceful Services (Scoped Services)"
-sidebar_title: "Resourceful Services"
+sidebar_label: "Resourceful Services"
 ---
 
 Some components of our applications need to be scoped, meaning they undergo a resource acquisition phase before usage, and a resource release phase after usage (e.g. when the application shuts down). As we stated before, the construction of ZIO layers can be effectful and resourceful, this means they can be acquired and safely released when the services are done being utilized.
