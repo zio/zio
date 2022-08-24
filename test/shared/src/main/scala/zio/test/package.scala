@@ -389,7 +389,7 @@ package object test extends CompileVariants {
    * Checks the test passes for "sufficient" numbers of samples from the given
    * random variable.
    */
-  def check[R, A, In](rv: Gen[R, A])(test: A => In)(implicit
+  def check[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     sourceLocation: SourceLocation,
     trace: Trace
@@ -401,7 +401,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts two random variables.
    */
-  def check[R, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def check[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -413,7 +413,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts three random variables.
    */
-  def check[R, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def check[R <: ZAny, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -425,7 +425,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts four random variables.
    */
-  def check[R, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  def check[R <: ZAny, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -437,7 +437,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts five random variables.
    */
-  def check[R, A, B, C, D, F, In](
+  def check[R <: ZAny, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -455,7 +455,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts six random variables.
    */
-  def check[R, A, B, C, D, F, G, In](
+  def check[R <: ZAny, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -474,7 +474,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts seven random variables.
    */
-  def check[R, A, B, C, D, F, G, H, In](
+  def check[R <: ZAny, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -494,7 +494,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts eight random variables.
    */
-  def check[R, A, B, C, D, F, G, H, I, In](
+  def check[R <: ZAny, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -517,7 +517,7 @@ package object test extends CompileVariants {
    * generator. For non-deterministic or infinite generators use `check` or
    * `checkN`.
    */
-  def checkAll[R, A, In](rv: Gen[R, A])(test: A => In)(implicit
+  def checkAll[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     sourceLocation: SourceLocation,
     trace: Trace
@@ -527,7 +527,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts two random variables.
    */
-  def checkAll[R, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def checkAll[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -539,7 +539,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts three random variables.
    */
-  def checkAll[R, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def checkAll[R <: ZAny, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -551,7 +551,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts four random variables.
    */
-  def checkAll[R, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  def checkAll[R <: ZAny, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -563,7 +563,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts five random variables.
    */
-  def checkAll[R, A, B, C, D, F, In](
+  def checkAll[R <: ZAny, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -581,7 +581,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts six random variables.
    */
-  def checkAll[R, A, B, C, D, F, G, In](
+  def checkAll[R <: ZAny, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -600,7 +600,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts seven random variables.
    */
-  def checkAll[R, A, B, C, D, F, G, H, In](
+  def checkAll[R <: ZAny, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -620,7 +620,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts eight random variables.
    */
-  def checkAll[R, E, A, B, C, D, F, G, H, I, In](
+  def checkAll[R <: ZAny, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -643,7 +643,7 @@ package object test extends CompileVariants {
    * random variable. This is useful for deterministic `Gen` that
    * comprehensively explore all possibilities in a given domain.
    */
-  def checkAllPar[R, E, A, In](rv: Gen[R, A], parallelism: Int)(
+  def checkAllPar[R <: ZAny, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -655,7 +655,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts two random variables.
    */
-  def checkAllPar[R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
+  def checkAllPar[R <: ZAny, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -667,7 +667,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts three random variables.
    */
-  def checkAllPar[R, E, A, B, C, In](
+  def checkAllPar[R <: ZAny, E, A, B, C, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -684,7 +684,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts four random variables.
    */
-  def checkAllPar[R, E, A, B, C, D, In](
+  def checkAllPar[R <: ZAny, E, A, B, C, D, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -702,7 +702,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts five random variables.
    */
-  def checkAllPar[R, E, A, B, C, D, F, In](
+  def checkAllPar[R <: ZAny, E, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -721,7 +721,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R, E, A, B, C, D, F, G, In](
+  def checkAllPar[R <: ZAny, E, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -741,7 +741,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R, E, A, B, C, D, F, G, H, In](
+  def checkAllPar[R <: ZAny, E, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -762,7 +762,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R, E, A, B, C, D, F, G, H, I, In](
+  def checkAllPar[R <: ZAny, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -880,33 +880,33 @@ package object test extends CompileVariants {
   object CheckVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
-      def apply[R, A, In](rv: Gen[R, A])(test: A => In)(implicit
+      def apply[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
-      def apply[R, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+      def apply[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
-      def apply[R, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+      def apply[R <: ZAny, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
-      def apply[R, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+      def apply[R <: ZAny, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
-      def apply[R, A, B, C, D, F, In](
+      def apply[R <: ZAny, A, B, C, D, F, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -919,7 +919,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
-      def apply[R, A, B, C, D, F, G, In](
+      def apply[R <: ZAny, A, B, C, D, F, G, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
