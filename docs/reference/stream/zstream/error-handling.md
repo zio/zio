@@ -7,6 +7,12 @@ title: "Error Handling"
 
 If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#orElse` takes another stream, so when the failure occurs it will switch over to the provided stream:
 
+```scala mdoc:invisible
+import java.net.URL
+import scala.concurrent.TimeoutException
+import java.io.{BufferedReader, FileReader, FileInputStream, IOException}
+```
+
 ```scala mdoc:silent:nest
 import zio.stream._
 

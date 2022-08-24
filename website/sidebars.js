@@ -303,7 +303,7 @@ module.exports = {
                 "reference/stream/zstream/operations",
                 "reference/stream/zstream/consuming-streams",
                 "reference/stream/zstream/error-handling",
-                "reference/stream/zstream/zstream",
+                "reference/stream/zstream/scheduling",
                 "reference/stream/zstream/stream",
                 "reference/stream/zstream/ustream",
               ]
