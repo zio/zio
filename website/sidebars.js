@@ -316,7 +316,18 @@ module.exports = {
                 "reference/stream/sink",
               ]
             },
-            "reference/stream/zchannel"
+            {
+              type: "category",
+              label: "ZChannel",
+              link: { type: "doc", id: "reference/stream/zchannel/index" },
+              items: [
+                "reference/stream/zchannel/creating-channels",
+                "reference/stream/zchannel/composing-channels",
+                "reference/stream/zchannel/running-a-channel",
+                "reference/stream/zchannel/channel-operations",
+                "reference/stream/zchannel/channel-interruption",
+              ]
+            },
           ]
         },
         "reference/stream/subscription-ref"
