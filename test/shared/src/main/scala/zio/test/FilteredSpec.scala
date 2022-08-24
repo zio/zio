@@ -24,22 +24,27 @@ import zio.Trace
  * were specified, the spec returns unchanged.
  */
 private[zio] object FilteredSpec {
-  def apply[R, E](spec: Spec[R, E], args: TestArgs)(implicit trace: Trace): Spec[R, E] =
-    (args.testSearchTerms, args.tagSearchTerms) match {
-      case (Nil, Nil) =>
-        spec
-      case (testSearchTerms, Nil) =>
-        spec
-          .filterLabels(label => testSearchTerms.exists(term => label.contains(term)))
-          .getOrElse(Spec.empty)
-      case (Nil, tagSearchTerms) =>
-        spec
-          .filterTags(tag => tagSearchTerms.contains(tag))
-          .getOrElse(Spec.empty)
-      case (testSearchTerms, tagSearchTerms) =>
-        spec
-          .filterTags(tag => testSearchTerms.contains(tag))
-          .flatMap(_.filterLabels(label => tagSearchTerms.exists(term => label.contains(term))))
+
+  def apply[R, E](spec: Spec[R, E], args: TestArgs)(implicit trace: Trace): Spec[R, E] = {
+    val testSearchedSpec = args.testSearchTerms match {
+      case Nil             => spec
+      case testSearchTerms => spec.filterTags(testSearchTerms.contains(_)).getOrElse(Spec.empty)
+    }
+    val tagSearchedSpec = args.tagSearchTerms match {
+      case Nil => testSearchedSpec
+      case tagSearchTerms =>
+        testSearchedSpec
+          .filterLabels(label => tagSearchTerms.exists(term => label.contains(term)))
           .getOrElse(Spec.empty)
     }
+    val tagIgnoredSpec = args.tagIgnoreTerms match {
+      case Nil => tagSearchedSpec
+      case tagIgnoreTerms =>
+        tagSearchedSpec
+          .filterLabels(label => !tagIgnoreTerms.exists(term => label.contains(term)))
+          .getOrElse(Spec.empty)
+    }
+
+    tagIgnoredSpec
+  }
 }
