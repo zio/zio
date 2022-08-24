@@ -1,22 +1,12 @@
 ---
-id: zsink
-title: "ZSink"
+id: leftovers
+title: "Leftovers"
 ---
 
 ```scala mdoc:invisible
 import zio._
 import zio.stream._
-import zio.Console._
-import java.io.IOException
-import java.nio.file.{Path, Paths}
 ```
-
-
-
-
-
-
-
 
 ## Leftovers
 
