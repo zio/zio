@@ -195,7 +195,7 @@ By using ZIO streams, we do not care how big is a file, we just concentrate on t
 
 To define a stream workflow there are three core abstraction in ZIO stream; _Streams_, _Sinks_, and _Pipelines_:
 
-1. **[ZStream](zstream.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
+1. **[ZStream](zstream/zstream.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
 
 2. **[ZSink](zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
 

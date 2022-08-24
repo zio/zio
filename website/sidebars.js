@@ -295,10 +295,12 @@ module.exports = {
             {
               type: "category",
               label: "ZStream",
+              link: { type: "doc", id: "reference/stream/zstream/index" },
               items: [
-                "reference/stream/zstream",
-                "reference/stream/stream",
-                "reference/stream/ustream",
+                "reference/stream/zstream/streams-are-chunked-by-default",
+                "reference/stream/zstream/zstream",
+                "reference/stream/zstream/stream",
+                "reference/stream/zstream/ustream",
               ]
             },
             {
