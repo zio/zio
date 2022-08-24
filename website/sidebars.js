@@ -290,50 +290,44 @@ module.exports = {
         "reference/stream/installation",
         {
           type: "category",
-          label: "Main Components",
+          label: "ZStream",
+          link: { type: "doc", id: "reference/stream/zstream/index" },
           items: [
-            {
-              type: "category",
-              label: "ZStream",
-              link: { type: "doc", id: "reference/stream/zstream/index" },
-              items: [
-                "reference/stream/zstream/type-aliases",
-                "reference/stream/zstream/streams-are-chunked-by-default",
-                "reference/stream/zstream/creating-zio-streams",
-                "reference/stream/zstream/resourceful-streams",
-                "reference/stream/zstream/operations",
-                "reference/stream/zstream/consuming-streams",
-                "reference/stream/zstream/error-handling",
-                "reference/stream/zstream/scheduling",
-              ]
-            },
-            {
-              type: "category",
-              label: "ZPipeline",
-              items: [
-                "reference/stream/zpipeline",
-              ]
-            },
-            {
-              type: "category",
-              label: "ZSink",
-              items: [
-                "reference/stream/zsink",
-                "reference/stream/sink",
-              ]
-            },
-            {
-              type: "category",
-              label: "ZChannel",
-              link: { type: "doc", id: "reference/stream/zchannel/index" },
-              items: [
-                "reference/stream/zchannel/creating-channels",
-                "reference/stream/zchannel/composing-channels",
-                "reference/stream/zchannel/running-a-channel",
-                "reference/stream/zchannel/channel-operations",
-                "reference/stream/zchannel/channel-interruption",
-              ]
-            },
+            "reference/stream/zstream/type-aliases",
+            "reference/stream/zstream/streams-are-chunked-by-default",
+            "reference/stream/zstream/creating-zio-streams",
+            "reference/stream/zstream/resourceful-streams",
+            "reference/stream/zstream/operations",
+            "reference/stream/zstream/consuming-streams",
+            "reference/stream/zstream/error-handling",
+            "reference/stream/zstream/scheduling",
+          ]
+        },
+        {
+          type: "category",
+          label: "ZPipeline",
+          items: [
+            "reference/stream/zpipeline",
+          ]
+        },
+        {
+          type: "category",
+          label: "ZSink",
+          items: [
+            "reference/stream/zsink",
+            "reference/stream/sink",
+          ]
+        },
+        {
+          type: "category",
+          label: "ZChannel",
+          link: { type: "doc", id: "reference/stream/zchannel/index" },
+          items: [
+            "reference/stream/zchannel/creating-channels",
+            "reference/stream/zchannel/composing-channels",
+            "reference/stream/zchannel/running-a-channel",
+            "reference/stream/zchannel/channel-operations",
+            "reference/stream/zchannel/channel-interruption",
           ]
         },
         "reference/stream/subscription-ref"
@@ -409,7 +403,7 @@ module.exports = {
           type: "category",
           label: "Test Aspects",
           link: { type: "doc", id: "reference/test/aspects/index" },
-          items: [ 
+          items: [
             "reference/test/aspects/before-after-around",
             "reference/test/aspects/conditional",
             "reference/test/aspects/debugging-and-diagnostics",
@@ -421,7 +415,7 @@ module.exports = {
             "reference/test/aspects/passing-failed-tests",
             "reference/test/aspects/repeat-and-retry",
             "reference/test/aspects/restoring-state-of-test-services",
-            "reference/test/aspects/sized", 
+            "reference/test/aspects/sized",
             "reference/test/aspects/annotating-tests",
             "reference/test/aspects/configuring-tests",
             "reference/test/aspects/timing-out-tests",
