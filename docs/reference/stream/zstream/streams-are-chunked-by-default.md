@@ -1,6 +1,7 @@
 ---
 id: streams-are-chunked-by-default
 title: "Streams Are Chunked by Default"
+sidebar_label: "Chunked Streams"
 ---
 
 Every time we are working with streams, we are always working with chunks. There are no streams with individual elements, these streams have always chunks in their underlying implementation. So every time we evaluate a stream, when we pull an element out of a stream, we are actually pulling out a chunk of elements.
