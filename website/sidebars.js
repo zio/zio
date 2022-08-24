@@ -313,9 +313,10 @@ module.exports = {
         {
           type: "category",
           label: "ZSink",
+          link: { type: "doc", id: "reference/stream/zsink/index" },
           items: [
-            "reference/stream/zsink",
-            "reference/stream/sink",
+            "reference/stream/zsink/zsinkk",
+            "reference/stream/zsink/sink",
           ]
         },
         {

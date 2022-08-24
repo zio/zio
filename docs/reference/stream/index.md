@@ -197,7 +197,7 @@ To define a stream workflow there are three core abstraction in ZIO stream; _Str
 
 1. **[ZStream](zstream/zstream.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
 
-2. **[ZSink](zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
+2. **[ZSink](zsink/zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
 
 3. **[ZPipeline](zpipeline.md)** — Pipelines act as _transformers_ of values. They take individual values, and they transform or decode them. 
 
