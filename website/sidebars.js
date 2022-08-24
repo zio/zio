@@ -317,6 +317,8 @@ module.exports = {
           items: [
             "reference/stream/zsink/zsink",
             "reference/stream/zsink/creating-sinks",
+            "reference/stream/zsink/operations",
+            "reference/stream/zsink/parallel-operators",
             "reference/stream/zsink/sink",
           ]
         },
