@@ -319,7 +319,6 @@ module.exports = {
             "reference/stream/zsink/operations",
             "reference/stream/zsink/parallel-operators",
             "reference/stream/zsink/leftovers",
-            "reference/stream/zsink/sink",
           ]
         },
         {
