@@ -297,6 +297,7 @@ module.exports = {
               label: "ZStream",
               link: { type: "doc", id: "reference/stream/zstream/index" },
               items: [
+                "reference/stream/zstream/type-aliases",
                 "reference/stream/zstream/streams-are-chunked-by-default",
                 "reference/stream/zstream/creating-zio-streams",
                 "reference/stream/zstream/resourceful-streams",
@@ -304,8 +305,6 @@ module.exports = {
                 "reference/stream/zstream/consuming-streams",
                 "reference/stream/zstream/error-handling",
                 "reference/stream/zstream/scheduling",
-                "reference/stream/zstream/stream",
-                "reference/stream/zstream/ustream",
               ]
             },
             {
