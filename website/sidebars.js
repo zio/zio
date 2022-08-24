@@ -301,6 +301,7 @@ module.exports = {
                 "reference/stream/zstream/creating-zio-streams",
                 "reference/stream/zstream/resourceful-streams",
                 "reference/stream/zstream/operations",
+                "reference/stream/zstream/consuming-streams",
                 "reference/stream/zstream/zstream",
                 "reference/stream/zstream/stream",
                 "reference/stream/zstream/ustream",
