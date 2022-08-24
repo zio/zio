@@ -37,14 +37,12 @@ private[zio] object FilteredSpec {
           .filterLabels(label => tagSearchTerms.exists(term => label.contains(term)))
           .getOrElse(Spec.empty)
     }
-    val tagIgnoredSpec = args.tagIgnoreTerms match {
+    args.tagIgnoreTerms match {
       case Nil => tagSearchedSpec
       case tagIgnoreTerms =>
         tagSearchedSpec
           .filterLabels(label => !tagIgnoreTerms.exists(term => label.contains(term)))
           .getOrElse(Spec.empty)
     }
-
-    tagIgnoredSpec
   }
 }
