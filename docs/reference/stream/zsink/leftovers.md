@@ -8,9 +8,7 @@ import zio._
 import zio.stream._
 ```
 
-## Leftovers
-
-### Collecting Leftovers
+## Collecting Leftovers
 
 A sink consumes a variable amount of `I` elements (zero or more) from the upstream. If the upstream is finite, we can collect leftover values by calling `ZSink#collectLeftover`. It returns a tuple that contains the result of the previous sink and its leftovers:
 
@@ -29,7 +27,7 @@ val s2: ZIO[Any, Nothing, (Option[Int], Chunk[Int])] =
 // Output: (Some(1), Chunk(2, 3, 4, 5))
 ```
 
-### Ignoring Leftovers
+## Ignoring Leftovers
 
 If we don't need leftovers, we can drop them by using `ZSink#ignoreLeftover`:
 
