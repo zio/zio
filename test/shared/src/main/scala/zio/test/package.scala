@@ -175,14 +175,14 @@ package object test extends CompileVariants {
   /**
    * Retrieves the `Sized` service for this test.
    */
-  def sized(implicit trace: Trace): UIO[Sized] =
-    sizedWith(ZIO.succeedNow)
+  def sized0(implicit trace: Trace): UIO[Sized] =
+    sizedWith0(ZIO.succeedNow)
 
   /**
    * Retrieves the `Sized` service for this test and uses it to run the
    * specified workflow.
    */
-  def sizedWith[R, E, A](f: Sized => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def sizedWith0[R, E, A](f: Sized => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     TestServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[Sized]].get))
 
   /**
