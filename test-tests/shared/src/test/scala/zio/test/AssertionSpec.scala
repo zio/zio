@@ -10,7 +10,7 @@ object AssertionSpec extends ZIOBaseSpec {
 
   val failing = TestAspect.failing
 
-  def spec: Spec[Annotations, TestFailure[Any]] =
+  def spec: Spec[Any, TestFailure[Any]] =
     suite("AssertionSpec")(
       test("and must succeed when both assertions are satisfied") {
         assert(sampleUser)(nameStartsWithU && ageGreaterThan20)

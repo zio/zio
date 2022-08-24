@@ -7,7 +7,7 @@ import java.io.File
 
 object SystemSpec extends ZIOBaseSpec {
 
-  def spec: Spec[Live with Annotations, Any] = suite("SystemSpec")(
+  def spec: Spec[Any, Any] = suite("SystemSpec")(
     suite("Fetch an environment variable and check that")(
       test("If it exists, return a reasonable value") {
         assertZIO(live(System.env("PATH")))(isSome(containsString(File.separator + "bin")))

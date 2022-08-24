@@ -772,12 +772,12 @@ object QueueSpec extends ZIOBaseSpec {
 }
 
 object QueueSpecUtil {
-  def waitForValue[T](ref: UIO[T], value: T): URIO[Live, T] =
+  def waitForValue[T](ref: UIO[T], value: T): UIO[T] =
     Live.live((ref <* Clock.sleep(10.millis)).repeatUntil(_ == value))
 
-  def waitForSize[A](queue: Queue[A], size: Int): URIO[Live, Int] =
+  def waitForSize[A](queue: Queue[A], size: Int): UIO[Int] =
     waitForValue(queue.size, size)
 
-  val smallInt: Gen[Sized, Int] =
+  val smallInt: Gen[Any, Int] =
     Gen.small(Gen.const(_), 1)
 }

@@ -23,19 +23,19 @@ import java.util.UUID
 import scala.compiletime.{erasedValue, summonInline}
 import scala.deriving._
 import zio._
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 
 trait DeriveGen[A] {
-    def derive: Gen[Sized, A]
+    def derive: Gen[Any, A]
 }
 
 object DeriveGen {
-    def apply[A](using DeriveGen[A]): Gen[Sized, A] =
+    def apply[A](using DeriveGen[A]): Gen[Any, A] =
         summon[DeriveGen[A]].derive
 
-    inline def instance[A](gen: => Gen[Sized, A]): DeriveGen[A] =
+    inline def instance[A](gen: => Gen[Any, A]): DeriveGen[A] =
         new DeriveGen[A] {
-            val derive: Gen[Sized, A] = gen
+            val derive: Gen[Any, A] = gen
         }
 
     given DeriveGen[Boolean] = instance(Gen.boolean)
@@ -87,7 +87,7 @@ object DeriveGen {
 
     inline def gen[T](using m: Mirror.Of[T]): DeriveGen[T] =
         new DeriveGen[T] {
-            def derive: Gen[Sized, T] = {
+            def derive: Gen[Any, T] = {
                 val elemInstances = summonAll[m.MirroredElemTypes]
                 inline m match {
                     case s: Mirror.SumOf[T]     => genSum(s, elemInstances)
@@ -99,10 +99,10 @@ object DeriveGen {
     inline given derived[T](using m: Mirror.Of[T]): DeriveGen[T] =
         gen[T]
 
-    def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Sized, T] =
+    def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
         Gen.suspend(Gen.oneOf(instances.map(_.asInstanceOf[DeriveGen[T]].derive) : _*))
 
-    def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Sized, T] =
+    def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
         Gen.suspend(
             Gen.collectAll(instances.map(_.derive)).map(lst => Tuple.fromArray(lst.toArray)).map(p.fromProduct))
 

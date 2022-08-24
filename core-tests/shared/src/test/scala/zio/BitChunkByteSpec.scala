@@ -5,22 +5,22 @@ import zio.test._
 
 object BitChunkByteSpec extends ZIOBaseSpec {
 
-  val genByteChunk: Gen[Sized, Chunk[Byte]] =
+  val genByteChunk: Gen[Any, Chunk[Byte]] =
     for {
       bytes <- Gen.listOf(Gen.byte)
     } yield Chunk.fromIterable(bytes)
 
-  val genInt: Gen[Sized, Int] =
+  val genInt: Gen[Any, Int] =
     Gen.small(Gen.const(_))
 
-  val genBitChunk: Gen[Sized, Chunk.BitChunkByte] =
+  val genBitChunk: Gen[Any, Chunk.BitChunkByte] =
     for {
       chunk <- genByteChunk
       i     <- Gen.int(0, chunk.length * 8)
       j     <- Gen.int(0, chunk.length * 8)
     } yield Chunk.BitChunkByte(chunk, i min j, i max j)
 
-  val genBoolChunk: Gen[Sized, Chunk[Boolean]] =
+  val genBoolChunk: Gen[Any, Chunk[Boolean]] =
     Gen.listOf(Gen.boolean).map(Chunk.fromIterable(_))
 
   def toBinaryString(byte: Byte): String =

@@ -690,7 +690,7 @@ object GenSpec extends ZIOBaseSpec {
       val genPop: Gen[Any, Command]  = Gen.const(Pop)
       def genPush: Gen[Any, Command] = Gen.int.map(value => Push(value))
 
-      val genCommands: Gen[Sized, List[Command]] =
+      val genCommands: Gen[Any, List[Command]] =
         Gen.unfoldGen(0) { n =>
           if (n <= 0)
             genPush.map(command => (n + 1, command))

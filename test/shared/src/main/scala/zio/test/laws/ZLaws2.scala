@@ -17,12 +17,12 @@
 package zio.test.laws
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{Gen, TestConfig, TestResult, check}
+import zio.test.{Gen, TestResult, check}
 import zio.{URIO, ZIO, Trace}
 
 abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
-  def run[R1 <: R with TestConfig, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(implicit
+  def run[R1 <: R, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(implicit
     CapsBoth: CapsBoth[A, B],
     trace: Trace
   ): ZIO[R1, Nothing, TestResult]
@@ -39,7 +39,7 @@ object ZLaws2 {
     left: ZLaws2[CapsBoth, CapsLeft, CapsRight, R],
     right: ZLaws2[CapsBoth, CapsLeft, CapsRight, R]
   ) extends ZLaws2[CapsBoth, CapsLeft, CapsRight, R] {
-    final def run[R1 <: R with TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R1, A], b: Gen[R1, B])(implicit
+    final def run[R1 <: R, A: CapsLeft, B: CapsRight](a: Gen[R1, A], b: Gen[R1, B])(implicit
       CapsBoth: CapsBoth[A, B],
       trace: Trace
     ): ZIO[R1, Nothing, TestResult] =
@@ -49,7 +49,7 @@ object ZLaws2 {
   abstract class Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
     def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestResult
-    final def run[R <: TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
+    final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B],
       trace: Trace
     ): URIO[R, TestResult] =
@@ -59,7 +59,7 @@ object ZLaws2 {
   abstract class Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
     def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestResult
-    final def run[R <: TestConfig, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
+    final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B],
       trace: Trace
     ): URIO[R, TestResult] =

@@ -18,15 +18,15 @@ object GenUtils {
     assertZIO(gen.sample.collectSome.map(_.value).runCollect.map(xs => f(xs.toList)))(assertion)
 
   def checkSample[A, B](
-    gen: Gen[Sized, A],
+    gen: Gen[Any, A],
     size: Int = 100
   )(assertion: Assertion[B], f: List[A] => B = (a: List[A]) => a): UIO[TestResult] =
     assertZIO(provideSize(sample100(gen).map(f))(size))(assertion)
 
-  def checkShrink[A](gen: Gen[Sized, A])(a: A): UIO[TestResult] =
+  def checkShrink[A](gen: Gen[Any, A])(a: A): UIO[TestResult] =
     provideSize(alwaysShrinksTo(gen)(a: A))(100)
 
-  val deterministic: Gen[Sized, Gen[Any, Int]] =
+  val deterministic: Gen[Any, Gen[Any, Int]] =
     Gen.listOf1(Gen.int(-10, 10)).map(as => Gen.fromIterable(as))
 
   def equal[A](left: Gen[Any, A], right: Gen[Any, A]): UIO[Boolean] =
@@ -64,7 +64,7 @@ object GenUtils {
       case e @ Failure(_) => Left(e)
     }
 
-  def provideSize[R, A](zio: ZIO[Sized with R, Nothing, A])(n: Int): URIO[R, A] =
+  def provideSize[R, A](zio: ZIO[R, Nothing, A])(n: Int): URIO[R, A] =
     zio.provideSomeLayer[R](Sized.live(n))
 
   val random: Gen[Any, Gen[Any, Int]] =
@@ -85,7 +85,7 @@ object GenUtils {
     gen.sample.collectSome.map(_.value).forever.take(100).runCollect.map(_.toList)
 
   def sampleEffect[E, A](
-    gen: Gen[Sized, ZIO[Sized, E, A]],
+    gen: Gen[Any, ZIO[Any, E, A]],
     size: Int = 100
   ): ZIO[Any, Nothing, List[Exit[E, A]]] =
     provideSize(sample100(gen).flatMap(effects => ZIO.foreach(effects)(_.exit)))(size)

@@ -29,7 +29,7 @@ The `TestRandom` service has some extra functionality that enables us to test th
 
 Each of these services, comes with a bunch of functionality that makes it very easy to test effects.
 
-Whenever we need to access the _live_ environment, we can use the `live` method in the `test` package or specify the live environment in the type signature like `Live[Console]`.
+Whenever we need to access the _live_ environment, we can use the `live` method in the `test` package or test annotations like `withLiveConsole`.
 
 ## Resource Management
 
@@ -84,14 +84,14 @@ import zio.test.magnolia._
 
 case class Point(x: Double, y: Double)
 
-val genPoint: Gen[Sized, Point] = DeriveGen[Point]
+val genPoint: Gen[Any, Point] = DeriveGen[Point]
  
 sealed trait Color
 case object Red   extends Color
 case object Green extends Color
 case object Blue  extends Color
  
-val genColor: Gen[Sized, Color] = DeriveGen[Color]
+val genColor: Gen[Any, Color] = DeriveGen[Color]
 ```
 
 ## Test Reporting

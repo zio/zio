@@ -249,7 +249,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         value <- ref.get
       } yield assert(value)(equalTo(43))
     },
-    test("repeats sets the number of times to repeat a test to the specified value") {
+    test("retries sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)
         spec   = test("test")(assertZIO(ref.update(_ + 1))(nothing)) @@ flaky @@ retries(42)

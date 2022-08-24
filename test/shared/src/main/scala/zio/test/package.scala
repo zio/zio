@@ -91,7 +91,7 @@ package object test extends CompileVariants {
    * environment. This is useful for performing effects such as timing out
    * tests, accessing the real time, or printing to the real console.
    */
-  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+  def live[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     Live.live(zio)
 
   /**
@@ -147,6 +147,126 @@ package object test extends CompileVariants {
     DefaultServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[TestSystem]].get))
 
   /**
+   * Retrieves the `Annotations` service for this test.
+   */
+  def annotations(implicit trace: Trace): UIO[Annotations] =
+    annotationsWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `Annotations` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def annotationsWith[R, E, A](f: Annotations => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    TestServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[Annotations]].get))
+
+  /**
+   * Retrieves the `Live` service for this test.
+   */
+  def live(implicit trace: Trace): UIO[Live] =
+    liveWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `Live` service for this test and uses it to run the specified
+   * workflow.
+   */
+  def liveWith[R, E, A](f: Live => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    TestServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[Live]].get))
+
+  /**
+   * Retrieves the `Sized` service for this test.
+   */
+  def sized(implicit trace: Trace): UIO[Sized] =
+    sizedWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `Sized` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def sizedWith[R, E, A](f: Sized => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    TestServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[Sized]].get))
+
+  /**
+   * Retrieves the `TestConfig` service for this test.
+   */
+  def testConfig(implicit trace: Trace): UIO[TestConfig] =
+    testConfigWith(ZIO.succeedNow)
+
+  /**
+   * Retrieves the `TestConfig` service for this test and uses it to run the
+   * specified workflow.
+   */
+  def testConfigWith[R, E, A](f: TestConfig => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    TestServices.currentServices.getWith(services => f(services.asInstanceOf[ZEnvironment[TestConfig]].get))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * annotations service.
+   */
+  def withAnnotations[R, E, A <: Annotations, B](annotations: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    TestServices.currentServices.locallyWith(_.add(annotations))(zio)
+
+  /**
+   * Sets the implementation of the annotations service to the specified value
+   * and restores it to its original value when the scope is closed.
+   */
+  def withAnnotationsScoped[A <: Annotations](
+    annotations: => A
+  )(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    TestServices.currentServices.locallyScopedWith(_.add(annotations))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * config service.
+   */
+  def withTestConfig[R, E, A <: TestConfig, B](testConfig: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    TestServices.currentServices.locallyWith(_.add(testConfig))(zio)
+
+  /**
+   * Sets the implementation of the config service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withTestConfigScoped[A <: TestConfig](
+    testConfig: => A
+  )(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    TestServices.currentServices.locallyScopedWith(_.add(testConfig))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * sized service.
+   */
+  def withSized[R, E, A <: Sized, B](sized: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    TestServices.currentServices.locallyWith(_.add(sized))(zio)
+
+  /**
+   * Sets the implementation of the sized service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withSizedScoped[A <: Sized](sized: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    TestServices.currentServices.locallyScopedWith(_.add(sized))
+
+  /**
+   * Executes the specified workflow with the specified implementation of the
+   * live service.
+   */
+  def withLive[R, E, A <: Live, B](live: => A)(
+    zio: => ZIO[R, E, B]
+  )(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B] =
+    TestServices.currentServices.locallyWith(_.add(live))(zio)
+
+  /**
+   * Sets the implementation of the live service to the specified value and
+   * restores it to its original value when the scope is closed.
+   */
+  def withLiveScoped[A <: Live](live: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit] =
+    TestServices.currentServices.locallyScopedWith(_.add(live))
+
+  /**
    * Transforms this effect with the specified function. The test environment
    * will be provided to this effect, but the live environment will be provided
    * to the transformation function. This can be useful for applying
@@ -157,9 +277,9 @@ package object test extends CompileVariants {
    *   withLive(test)(_.timeout(duration))
    * }}}
    */
-  def withLive[R <: Live, E, E1, A, B](
+  def withLive[R, E, E1, A, B](
     zio: ZIO[R, E, A]
-  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R with Live, E1, B] =
+  )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, E1, B] =
     Live.withLive(zio)(f)
 
   /**
@@ -269,7 +389,7 @@ package object test extends CompileVariants {
    * Checks the test passes for "sufficient" numbers of samples from the given
    * random variable.
    */
-  def check[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
+  def check[R, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     sourceLocation: SourceLocation,
     trace: Trace
@@ -281,7 +401,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts two random variables.
    */
-  def check[R <: TestConfig, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def check[R, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -293,7 +413,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts three random variables.
    */
-  def check[R <: TestConfig, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def check[R, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -305,7 +425,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts four random variables.
    */
-  def check[R <: TestConfig, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  def check[R, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -317,7 +437,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts five random variables.
    */
-  def check[R <: TestConfig, A, B, C, D, F, In](
+  def check[R, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -335,7 +455,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts six random variables.
    */
-  def check[R <: TestConfig, A, B, C, D, F, G, In](
+  def check[R, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -354,7 +474,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts seven random variables.
    */
-  def check[R <: TestConfig, A, B, C, D, F, G, H, In](
+  def check[R, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -374,7 +494,7 @@ package object test extends CompileVariants {
   /**
    * A version of `check` that accepts eight random variables.
    */
-  def check[R <: TestConfig, A, B, C, D, F, G, H, I, In](
+  def check[R, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -397,7 +517,7 @@ package object test extends CompileVariants {
    * generator. For non-deterministic or infinite generators use `check` or
    * `checkN`.
    */
-  def checkAll[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
+  def checkAll[R, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     sourceLocation: SourceLocation,
     trace: Trace
@@ -407,7 +527,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts two random variables.
    */
-  def checkAll[R <: TestConfig, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+  def checkAll[R, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -419,7 +539,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts three random variables.
    */
-  def checkAll[R <: TestConfig, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+  def checkAll[R, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
     test: (A, B, C) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -431,7 +551,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts four random variables.
    */
-  def checkAll[R <: TestConfig, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+  def checkAll[R, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
     test: (A, B, C, D) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -443,7 +563,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts five random variables.
    */
-  def checkAll[R <: TestConfig, A, B, C, D, F, In](
+  def checkAll[R, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -461,7 +581,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts six random variables.
    */
-  def checkAll[R <: TestConfig, A, B, C, D, F, G, In](
+  def checkAll[R, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -480,7 +600,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts seven random variables.
    */
-  def checkAll[R <: TestConfig, A, B, C, D, F, G, H, In](
+  def checkAll[R, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -500,7 +620,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAll` that accepts eight random variables.
    */
-  def checkAll[R <: TestConfig, E, A, B, C, D, F, G, H, I, In](
+  def checkAll[R, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -523,7 +643,7 @@ package object test extends CompileVariants {
    * random variable. This is useful for deterministic `Gen` that
    * comprehensively explore all possibilities in a given domain.
    */
-  def checkAllPar[R <: TestConfig, E, A, In](rv: Gen[R, A], parallelism: Int)(
+  def checkAllPar[R, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -535,7 +655,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts two random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
+  def checkAllPar[R, E, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B], parallelism: Int)(
     test: (A, B) => In
   )(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -547,7 +667,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts three random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, C, In](
+  def checkAllPar[R, E, A, B, C, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -564,7 +684,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts four random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, C, D, In](
+  def checkAllPar[R, E, A, B, C, D, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -582,7 +702,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts five random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, In](
+  def checkAllPar[R, E, A, B, C, D, F, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -601,7 +721,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, G, In](
+  def checkAllPar[R, E, A, B, C, D, F, G, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -621,7 +741,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, G, H, In](
+  def checkAllPar[R, E, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -642,7 +762,7 @@ package object test extends CompileVariants {
   /**
    * A version of `checkAllPar` that accepts six random variables.
    */
-  def checkAllPar[R <: TestConfig, E, A, B, C, D, F, G, H, I, In](
+  def checkAllPar[R, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
     rv2: Gen[R, B],
     rv3: Gen[R, C],
@@ -760,33 +880,33 @@ package object test extends CompileVariants {
   object CheckVariants {
 
     final class CheckN(private val n: Int) extends AnyVal {
-      def apply[R <: TestConfig, A, In](rv: Gen[R, A])(test: A => In)(implicit
+      def apply[R, A, In](rv: Gen[R, A])(test: A => In)(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkStream(rv.sample.forever.collectSome.take(n.toLong))(a => checkConstructor(test(a)))
-      def apply[R <: TestConfig, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
+      def apply[R, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
-      def apply[R <: TestConfig, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
+      def apply[R, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
-      def apply[R <: TestConfig, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
+      def apply[R, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => In
       )(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
-      def apply[R <: TestConfig, A, B, C, D, F, In](
+      def apply[R, A, B, C, D, F, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -799,7 +919,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
-      def apply[R <: TestConfig, A, B, C, D, F, G, In](
+      def apply[R, A, B, C, D, F, G, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
         rv3: Gen[R, C],
@@ -818,7 +938,7 @@ package object test extends CompileVariants {
 
   private def checkStream[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]])(
     test: A => ZIO[R1, E, TestResult]
-  )(implicit trace: Trace): ZIO[R1 with TestConfig, E, TestResult] =
+  )(implicit trace: Trace): ZIO[R1, E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex.mapZIO { case (initial, index) =>
@@ -833,7 +953,7 @@ package object test extends CompileVariants {
 
   private def shrinkStream[R, R1 <: R, E, A](
     stream: ZStream[R1, Nothing, Sample[R1, Either[E, TestResult]]]
-  )(maxShrinks: Int)(implicit trace: Trace): ZIO[R1 with TestConfig, E, TestResult] =
+  )(maxShrinks: Int)(implicit trace: Trace): ZIO[R1, E, TestResult] =
     stream
       .dropWhile(!_.value.fold(_ => true, _.isFailure)) // Drop until we get to a failure
       .take(1)                                          // Get the first failure
@@ -851,7 +971,7 @@ package object test extends CompileVariants {
 
   private def checkStreamPar[R, R1 <: R, E, A](stream: ZStream[R, Nothing, Sample[R, A]], parallelism: Int)(
     test: A => ZIO[R1, E, TestResult]
-  )(implicit trace: Trace): ZIO[R1 with TestConfig, E, TestResult] =
+  )(implicit trace: Trace): ZIO[R1, E, TestResult] =
     TestConfig.shrinks.flatMap {
       shrinkStream {
         stream.zipWithIndex

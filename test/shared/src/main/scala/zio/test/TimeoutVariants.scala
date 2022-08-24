@@ -26,12 +26,12 @@ trait TimeoutVariants {
    */
   def timeoutWarning(
     duration: Duration
-  ): TestAspectAtLeastR[Live] =
-    new TestAspect[Nothing, Live, Nothing, Any] {
-      def some[R <: Live, E](
+  ): TestAspectPoly =
+    new TestAspectPoly {
+      def some[R, E](
         spec: Spec[R, E]
       )(implicit trace: Trace): Spec[R, E] = {
-        def loop(labels: List[String], spec: Spec[R, E]): Spec[R with Live, E] =
+        def loop(labels: List[String], spec: Spec[R, E]): Spec[R, E] =
           spec.caseValue match {
             case Spec.ExecCase(exec, spec)     => Spec.exec(exec, loop(labels, spec))
             case Spec.LabeledCase(label, spec) => Spec.labeled(label, loop(label :: labels, spec))
@@ -50,7 +50,7 @@ trait TimeoutVariants {
     labels: List[String],
     test: ZTest[R, E],
     duration: Duration
-  ): ZTest[R with Live, E] =
+  ): ZTest[R, E] =
     test.raceWith(Live.withLive(showWarning(labels, duration))(_.delay(duration)))(
       (result, fiber) => fiber.interrupt *> ZIO.done(result),
       (_, fiber) => fiber.join
@@ -59,7 +59,7 @@ trait TimeoutVariants {
   private def showWarning(
     labels: List[String],
     duration: Duration
-  ): URIO[Live, Unit] =
+  ): UIO[Unit] =
     Live.live(Console.printLine(renderWarning(labels, duration)).orDie)
 
   private def renderWarning(labels: List[String], duration: Duration): String =

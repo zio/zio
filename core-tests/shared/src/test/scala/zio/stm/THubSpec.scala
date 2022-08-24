@@ -2,11 +2,11 @@ package zio.stm
 
 import zio._
 import zio.test.Assertion._
-import zio.test.{assert, Gen, Sized, check}
+import zio.test.{assert, Gen, check}
 
 object THubSpec extends ZIOBaseSpec {
 
-  val smallInt: Gen[Sized, Int] =
+  val smallInt: Gen[Any, Int] =
     Gen.small(Gen.const(_), 1)
 
   def spec =

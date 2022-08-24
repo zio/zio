@@ -5,10 +5,10 @@ import zio.test._
 
 object ChunkPackedBooleanSpec extends ZIOBaseSpec {
 
-  val genEndianness: Gen[Sized, Chunk.BitChunk.Endianness] =
+  val genEndianness: Gen[Any, Chunk.BitChunk.Endianness] =
     Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
 
-  val genBoolChunk: Gen[Sized, Chunk[Boolean]] =
+  val genBoolChunk: Gen[Any, Chunk[Boolean]] =
     for {
       endianness   <- genEndianness
       booleanChunk <- Gen.listOf(Gen.boolean).map(Chunk.fromIterable)
@@ -18,7 +18,7 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       oneOf        <- Gen.elements(booleanChunk, byteChunk, intChunk, longChunk)
     } yield oneOf
 
-  val genInt: Gen[Sized, Int] =
+  val genInt: Gen[Any, Int] =
     Gen.small(Gen.const(_))
 
   def toBinaryString(bool: Boolean): String =

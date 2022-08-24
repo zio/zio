@@ -6,7 +6,7 @@ import zio.test._
 import scala.annotation.tailrec
 
 trait ZIOBaseSpec extends ZIOSpecDefault {
-  override def aspects: Chunk[TestAspectAtLeastR[Live]] =
+  override def aspects: Chunk[TestAspectPoly] =
     if (TestPlatform.isJVM) Chunk(TestAspect.timeout(120.seconds))
     else Chunk(TestAspect.timeout(120.seconds))
 

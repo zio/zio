@@ -125,7 +125,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]]) 
   /**
    * Sets the size parameter for this generator to the specified value.
    */
-  def resize(size: Int)(implicit trace: Trace): Gen[R with Sized, A] =
+  def resize(size: Int)(implicit trace: Trace): Gen[R, A] =
     Sized.withSizeGen(size)(self)
 
   /**
@@ -181,7 +181,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of alphanumeric strings. Shrinks towards the empty string.
    */
-  def alphaNumericString(implicit trace: Trace): Gen[Sized, String] =
+  def alphaNumericString(implicit trace: Trace): Gen[Any, String] =
     Gen.string(alphaNumericChar)
 
   /**
@@ -190,7 +190,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    */
   def alphaNumericStringBounded(min: Int, max: Int)(implicit
     trace: Trace
-  ): Gen[Sized, String] =
+  ): Gen[Any, String] =
     Gen.stringBounded(min, max)(alphaNumericChar)
 
   /**
@@ -202,7 +202,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator US-ASCII strings. Shrinks towards the empty string.
    */
-  def asciiString(implicit trace: Trace): Gen[Sized, String] =
+  def asciiString(implicit trace: Trace): Gen[Any, String] =
     Gen.string(Gen.asciiChar)
 
   /**
@@ -315,13 +315,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of chunks.
    */
-  def chunkOf[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
+  def chunkOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Chunk[A]] =
     listOf(g).map(Chunk.fromIterable)
 
   /**
    * A sized generator of non-empty chunks.
    */
-  def chunkOf1[R <: Sized, A](g: Gen[R, A])(implicit
+  def chunkOf1[R, A](g: Gen[R, A])(implicit
     trace: Trace
   ): Gen[R, NonEmptyChunk[A]] =
     listOf1(g).map { case h :: t => NonEmptyChunk.fromIterable(h, t) }
@@ -500,22 +500,22 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings that can be encoded in the ISO-8859-1 character set.
    */
-  def iso_8859_1(implicit trace: Trace): Gen[Sized, String] =
+  def iso_8859_1(implicit trace: Trace): Gen[Any, String] =
     chunkOf(byte).map(chunk => new String(chunk.toArray, StandardCharsets.ISO_8859_1))
 
   /**
    * A sized generator that uses a uniform distribution of size values. A large
    * number of larger sizes will be generated.
    */
-  def large[R <: Sized, A](f: Int => Gen[R, A], min: Int = 0)(implicit
+  def large[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
     trace: Trace
   ): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
 
-  def listOf[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
+  def listOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
-  def listOf1[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
+  def listOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
     for {
       h <- g
       t <- small(n => listOfN(n - 1 max 0)(g))
@@ -557,7 +557,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of maps.
    */
-  def mapOf[R <: Sized, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
+  def mapOf[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value))
@@ -565,7 +565,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of non-empty maps.
    */
-  def mapOf1[R <: Sized, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
+  def mapOf1[R, A, B](key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] =
     small(mapOfN(_)(key, value), 1)
@@ -591,7 +591,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * majority of sizes will be towards the lower end of the range but some
    * larger sizes will be generated as well.
    */
-  def medium[R <: Sized, A](f: Int => Gen[R, A], min: Int = 0)(implicit
+  def medium[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
     trace: Trace
   ): Gen[R, A] = {
     val gen = for {
@@ -655,13 +655,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator of sets.
    */
-  def setOf[R <: Sized, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
+  def setOf[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     small(setOfN(_)(gen))
 
   /**
    * A sized generator of non-empty sets.
    */
-  def setOf1[R <: Sized, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
+  def setOf1[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
     small(setOfN(_)(gen), 1)
 
   /**
@@ -700,13 +700,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def short(min: Short, max: Short)(implicit trace: Trace): Gen[Any, Short] =
     int(min.toInt, max.toInt).map(_.toShort)
 
-  def size(implicit trace: Trace): Gen[Sized, Int] =
+  def size(implicit trace: Trace): Gen[Any, Int] =
     Gen.fromZIO(Sized.size)
 
   /**
    * A sized generator, whose size falls within the specified bounds.
    */
-  def sized[R <: Sized, A](f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
+  def sized[R, A](f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     size.flatMap(f)
 
   /**
@@ -714,7 +714,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * values generated will be strongly concentrated towards the lower end of the
    * range but a few larger values will still be generated.
    */
-  def small[R <: Sized, A](f: Int => Gen[R, A], min: Int = 0)(implicit
+  def small[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
     trace: Trace
   ): Gen[R, A] = {
     val gen = for {
@@ -730,13 +730,13 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of strings. Shrinks towards the empty string.
    */
-  def string(implicit trace: Trace): Gen[Sized, String] =
+  def string(implicit trace: Trace): Gen[Any, String] =
     Gen.string(Gen.unicodeChar)
 
-  def string[R <: Sized](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
+  def string[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf(char).map(_.mkString)
 
-  def string1[R <: Sized](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
+  def string1[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
   /**
@@ -767,7 +767,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A sized generator of collections, where each collection is generated by
    * repeatedly applying a function to an initial state.
    */
-  def unfoldGen[R <: Sized, S, A](s: S)(f: S => Gen[R, (S, A)])(implicit
+  def unfoldGen[R, S, A](s: S)(f: S => Gen[R, (S, A)])(implicit
     trace: Trace
   ): Gen[R, List[A]] =
     small(unfoldGenN(_)(s)(f))
@@ -809,10 +809,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def uuid(implicit trace: Trace): Gen[Any, UUID] =
     Gen.fromZIO(nextUUID)
 
-  def vectorOf[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
+  def vectorOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
-  def vectorOf1[R <: Sized, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
+  def vectorOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
 
   /**

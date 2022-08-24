@@ -17,7 +17,7 @@ import zio._
  * import zio.test._
  * import zio.test.scalacheck._
  *
- * val anyInt: Gen[Sized, Int] =
+ * val anyInt: Gen[Any, Int] =
  *   Arbitrary.arbitrary[Int].toGenZIO
  * }}}
  */
@@ -28,7 +28,7 @@ package object scalacheck {
     /**
      * Converts a legacy ScalaCheck `Gen` to a ZIO Test `Gen`.
      */
-    def toGenZIO: Gen[Sized, A] =
+    def toGenZIO: Gen[Any, A] =
       Gen.fromZIO {
         for {
           long <- Random.nextLong

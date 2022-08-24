@@ -1238,7 +1238,7 @@ object ZSTMSpec extends ZIOBaseSpec {
         .eventually
   }
 
-  def liveClockSleep(d: Duration): ZIO[Live, Nothing, Unit] = Live.live(ZIO.sleep(d))
+  def liveClockSleep(d: Duration): ZIO[Any, Nothing, Unit] = Live.live(ZIO.sleep(d))
 
   def incrementVarN(n: Int, tvar: TRef[Int]): ZIO[Any, Nothing, Int] =
     STM

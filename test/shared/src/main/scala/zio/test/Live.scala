@@ -32,6 +32,13 @@ trait Live {
 
 object Live {
 
+  val tag: Tag[Live] = Tag[Live]
+
+  final case class Test(zenv: ZEnvironment[Clock with Console with System with Random]) extends Live {
+    def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      DefaultServices.currentServices.locallyWith(_.unionAll(zenv))(zio)
+  }
+
   /**
    * Constructs a new `Live` service that implements the `Live` interface. This
    * typically should not be necessary as the `TestEnvironment` already includes
@@ -40,28 +47,26 @@ object Live {
    */
   val default: ZLayer[Clock with Console with System with Random, Nothing, Live] = {
     implicit val trace = Tracer.newTrace
-    ZLayer {
-      ZIO
-        .environmentWith[Clock with Console with System with Random] { zenv =>
-          new Live {
-            def provide[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-              DefaultServices.currentServices.locallyWith(_.unionAll(zenv))(zio)
-          }
-        }
+    ZLayer.scoped {
+      for {
+        zenv <- ZIO.environment[Clock with Console with System with Random]
+        live  = Test(zenv)
+        _    <- withLiveScoped(live)
+      } yield live
     }
   }
 
   /**
    * Provides a workflow with the "live" default ZIO services.
    */
-  def live[R <: Live, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R with Live, E, A] =
-    ZIO.serviceWithZIO[Live](_.provide(zio))
+  def live[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    liveWith(_.provide(zio))
 
   /**
    * Runs a transformation function with the live default ZIO services while
    * ensuring that the workflow itself is run with the test services.
    */
-  def withLive[R <: Live, E, E1, A, B](
+  def withLive[R, E, E1, A, B](
     zio: ZIO[R, E, A]
   )(f: ZIO[R, E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, E1, B] =
     DefaultServices.currentServices.getWith(services => live(f(DefaultServices.currentServices.locally(services)(zio))))
