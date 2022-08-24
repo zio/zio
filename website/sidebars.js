@@ -299,6 +299,7 @@ module.exports = {
               items: [
                 "reference/stream/zstream/streams-are-chunked-by-default",
                 "reference/stream/zstream/creating-zio-streams",
+                "reference/stream/zstream/resourceful-streams",
                 "reference/stream/zstream/zstream",
                 "reference/stream/zstream/stream",
                 "reference/stream/zstream/ustream",
