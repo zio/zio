@@ -303,13 +303,7 @@ module.exports = {
             "reference/stream/zstream/scheduling",
           ]
         },
-        {
-          type: "category",
-          label: "ZPipeline",
-          items: [
-            "reference/stream/zpipeline",
-          ]
-        },
+        "reference/stream/zpipeline",
         {
           type: "category",
           label: "ZSink",
