@@ -45,11 +45,11 @@ object Sized {
     Test(FiberRef.unsafe.make(100)(Unsafe.unsafe))
 
   def size(implicit trace: Trace): UIO[Int] =
-    sizedWith0(_.size)
+    sizedWith(_.size)
 
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    sizedWith0(_.withSize(size)(zio))
+    sizedWith(_.withSize(size)(zio))
 
   def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A] =
-    Gen.fromZIO(sized0).flatMap(_.withSizeGen(size)(gen))
+    Gen.fromZIO(sized).flatMap(_.withSizeGen(size)(gen))
 }

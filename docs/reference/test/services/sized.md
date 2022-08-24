@@ -81,7 +81,7 @@ val effect     : UIO[String] = ZIO.succeed("effect")
 val sizedEffect: UIO[String] = Sized.withSize(10)(effect)
 ```
 
-ZIO Test has a test aspect called `TestAspect.sized` which is a helper method for this operation. This test aspect runs each test with the given _size_ value:
+ZIO Test has a test aspect called `TestAspect.size` which is a helper method for this operation. This test aspect runs each test with the given _size_ value:
 
 ```scala mdoc:compile-only
 import zio._
@@ -94,7 +94,7 @@ object SizedSpec extends ZIOSpecDefault {
         check(Gen.sized(Gen.int(0, _))) { n =>
           assertTrue(n >= 0 && n <= 200)
         }
-      } @@ TestAspect.sized(200)
+      } @@ TestAspect.size(200)
     }
 }
 ```

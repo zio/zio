@@ -914,13 +914,20 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs each test with the size set to the specified value.
    */
-  def sized(n: Int): TestAspectPoly =
+  def size(n: Int): TestAspectPoly =
     new PerTest.Poly {
       def perTest[R, E](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
         trace: Trace
       ): ZIO[R, TestFailure[E], TestSuccess] =
         Sized.withSize(n)(test)
     }
+
+  /**
+   * An aspect that runs each test with the size set to the specified value.
+   */
+  @deprecated("use size", "2.0.2")
+  def sized(n: Int): TestAspectPoly =
+    size(n)
 
   /**
    * An aspect that converts ignored tests into test failures.
