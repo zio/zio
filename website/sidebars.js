@@ -432,6 +432,7 @@ module.exports = {
             "reference/test/aspects/timing-out-tests",
           ]
         },
+        "reference/test/dynamic-test-generation",
         {
           type: "category",
           label: "Property Testing",
