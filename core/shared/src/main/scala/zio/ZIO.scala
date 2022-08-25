@@ -1396,7 +1396,7 @@ sealed trait ZIO[-R, +E, +A]
             rightFiber.startFork(right)(Unsafe.unsafe)
           },
           leftFiber.id <> rightFiber.id
-        )
+        ).onInterrupt(leftFiber.interrupt <&> rightFiber.interrupt)
     }
 
   /**
