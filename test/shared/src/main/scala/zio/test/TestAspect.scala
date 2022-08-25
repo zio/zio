@@ -435,12 +435,11 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect from a layer that does not produce any services.
    */
-  def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] = {
+  def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
       def some[R <: R0, E >: E0](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
         spec.provideSomeLayer[R](layer)
     }
-  }
 
   /**
    * As aspect that runs each test with the specified `ZIOAspect`.
@@ -904,10 +903,10 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-    * As aspect that runs each test with the default console logger removed so
-    * that logs are only written to the output buffer and not rendered to
-    * standard output.
-    */
+   * As aspect that runs each test with the default console logger removed so
+   * that logs are only written to the output buffer and not rendered to
+   * standard output.
+   */
   val silentLogging: TestAspectPoly =
     TestAspect.fromLayer(Runtime.removeDefaultLoggers)
 
