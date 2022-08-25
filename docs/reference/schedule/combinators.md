@@ -22,12 +22,12 @@ Schedules compose in the following primary ways:
 Combines two schedules through union, by recurring if either schedule wants to
 recur, using the minimum of the two delays between recurrences.
 
-|                      | `s1`                | `s2`                | `s1` &#124; &#124; `s2`   |
-|----------------------|---------------------|---------------------|---------------------------|
-| Type                 | `Schedule[R, A, B]` | `Schedule[R, A, C]` | `Schedule[R, A, (B, C)]`  |
-| Continute: `Boolean` | `b1`                | `b2`                | `b1` &#124; &#124; `b2`   |
-| Delay: `Duration`    | `d1`                | `d2`                | `d1.min(d2)`              |
-| Emit: `(A, B)`       | `a`                 | `b`                 | `(a, b)`                  |
+|                     | `s1`                | `s2`                | `s1` &#124; &#124; `s2`   |
+|---------------------|---------------------|---------------------|---------------------------|
+| Type                | `Schedule[R, A, B]` | `Schedule[R, A, C]` | `Schedule[R, A, (B, C)]`  |
+| Continue: `Boolean` | `b1`                | `b2`                | `b1` &#124; &#124; `b2`   |
+| Delay: `Duration`   | `d1`                | `d2`                | `d1.min(d2)`              |
+| Emit: `(A, B)`      | `a`                 | `b`                 | `(a, b)`                  |
 
 We can combine two schedule through union with `||` operator:
 
@@ -39,12 +39,12 @@ val expCapped = Schedule.exponential(100.milliseconds) || Schedule.spaced(1.seco
 
 Combines two schedules through the intersection, by recurring only if both schedules want to recur, using the maximum of the two delays between recurrences.
 
-|                      | `s1`                | `s2`                | `s1 && s2`               |
-|----------------------|---------------------|---------------------|--------------------------|
-| Type                 | `Schedule[R, A, B]` | `Schedule[R, A, C]` | `Schedule[R, A, (B, C)]` |
-| Continute: `Boolean` | `b1`                | `b2`                | `b1 && b2`               |
-| Delay: `Duration`    | `d1`                | `d2`                | `d1.max(d2)`             |
-| Emit: `(A, B)`       | `a`                 | `b`                 | `(a, b)`                 |
+|                     | `s1`                | `s2`                | `s1 && s2`               |
+|---------------------|---------------------|---------------------|--------------------------|
+| Type                | `Schedule[R, A, B]` | `Schedule[R, A, C]` | `Schedule[R, A, (B, C)]` |
+| Continue: `Boolean` | `b1`                | `b2`                | `b1 && b2`               |
+| Delay: `Duration`   | `d1`                | `d2`                | `d1.max(d2)`             |
+| Emit: `(A, B)`      | `a`                 | `b`                 | `(a, b)`                 |
 
 
 We can intersect two schedule with `&&` operator:
