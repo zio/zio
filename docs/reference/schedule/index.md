@@ -1,6 +1,6 @@
 ---
 id: index 
-title: "Scheduling ZIO Effects"
+title: "Introduction to Scheduling ZIO Effects"
 ---
 
 ```scala mdoc:invisible

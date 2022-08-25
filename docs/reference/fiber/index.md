@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to ZIO Fibers"
 ---
 
 A Fiber can be thought of as a virtual thread. A Fiber is the analog of a Java thread (`java.lang.Thread`), but it performs much better. Fibers are implemented in such a fashion that a single JVM thread will execute many fibers. We can think of fibers as unbounded JVM threads.
