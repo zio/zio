@@ -436,14 +436,10 @@ object TestAspect extends TimeoutVariants {
    * Constructs an aspect from a layer that does not produce any services.
    */
   def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] = {
-    val fromLayer = new TestAspect.PerTest[Nothing, R0, E0, Any] {
-      def perTest[R <: R0, E >: E0](test: ZIO[R, TestFailure[E], TestSuccess])(implicit
-        trace: Trace
-      ): ZIO[R, TestFailure[E], TestSuccess] =
-        test.provideSomeLayer[R](layer.mapError(TestFailure.fail))
+    new TestAspect[Nothing, R0, E0, Any] {
+      def some[R <: R0, E >: E0](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E] =
+        spec.provideSomeLayer[R](layer)
     }
-
-    before(ZIO.yieldNow(Trace.empty)) >>> fromLayer >>> after(ZIO.yieldNow(Trace.empty))
   }
 
   /**
@@ -906,6 +902,14 @@ object TestAspect extends TimeoutVariants {
       )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] =
         TestConsole.silent(test)
     }
+
+  /**
+    * As aspect that runs each test with the default console logger removed so
+    * that logs are only written to the output buffer and not renderred to
+    * standard output.
+    */
+  val silentLogging: TestAspectPoly =
+    TestAspect.fromLayer(Runtime.removeDefaultLoggers)
 
   /**
    * An aspect that runs each test with the size set to the specified value.
