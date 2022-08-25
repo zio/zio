@@ -905,7 +905,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
     * As aspect that runs each test with the default console logger removed so
-    * that logs are only written to the output buffer and not renderred to
+    * that logs are only written to the output buffer and not rendered to
     * standard output.
     */
   val silentLogging: TestAspectPoly =
