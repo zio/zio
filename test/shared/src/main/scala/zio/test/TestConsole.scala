@@ -119,7 +119,9 @@ object TestConsole extends Serializable {
      * with an `EOFException`.
      */
     def readLine(implicit trace: Trace): IO[IOException, String] =
-      ZIO.attempt(unsafe.readLine()(Unsafe.unsafe)).refineToOrDie[IOException]
+      ZIO.attempt(unsafe.readLine()(Unsafe.unsafe)).refineToOrDie[IOException].tap { line =>
+        annotations.annotate(TestAnnotation.output, Chunk(line))
+      }
 
     /**
      * Returns the contents of the output buffer. The first value written to the
