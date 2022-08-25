@@ -18,23 +18,17 @@ module.exports = {
       label: "Core",
       collapsed: false,
       items: [
+        "reference/core/zio/zio",
         {
           type: "category",
-          link: { type: 'doc', id: 'reference/core/zio/zio' },
-          label: "ZIO",
+          collapsed: true,
+          label: "ZIO Type Aliases",
           items: [
-            {
-              type: "category",
-              collapsed: true,
-              label: "Type Aliases",
-              items: [
-                "reference/core/zio/uio",
-                "reference/core/zio/urio",
-                "reference/core/zio/task",
-                "reference/core/zio/rio",
-                "reference/core/zio/io",
-              ]
-            }
+            "reference/core/zio/uio",
+            "reference/core/zio/urio",
+            "reference/core/zio/task",
+            "reference/core/zio/rio",
+            "reference/core/zio/io",
           ]
         },
         "reference/core/zioapp",
