@@ -16,6 +16,8 @@ The primary goal of a streaming library is to introduce **a high-level API that 
 
 A streaming library helps us to concentrate on the business logic and separates us from low-level implementation details.
 
+## Use Cases
+
 There are lots of examples of streaming that people might not recognize, this is a common problem especially for beginners. A beginner might say "I don't need a streaming library. Why should I use that?". It's because they don't see streams. Once we use a streaming library, we start to see streams everywhere but until then we don't understand where they are. 
 
 Before diving into ZIO Streams, let's list some use cases of a streaming solution and see why we would want to program in a streaming fashion:
@@ -193,9 +195,9 @@ By using ZIO streams, we do not care how big is a file, we just concentrate on t
 
 To define a stream workflow there are three core abstraction in ZIO stream; _Streams_, _Sinks_, and _Pipelines_:
 
-1. **[ZStream](zstream.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
+1. **[ZStream](zstream/zstream.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
 
-2. **[ZSink](zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
+2. **[ZSink](zsink/zsink.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
 
 3. **[ZPipeline](zpipeline.md)** — Pipelines act as _transformers_ of values. They take individual values, and they transform or decode them. 
 

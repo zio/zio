@@ -92,10 +92,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Streaming
 
-- **[ZStream](stream/zstream.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.
-    + **[Stream](stream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`.
-- **[ZSink](stream/zsink.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produce a value when it has consumed enough.
-    + **[Sink](stream/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
+- **[ZStream](stream/zstream/zstream.md)** — `ZStream` is a lazy, concurrent, asynchronous source of values.
+    + **[Stream](stream/zstream/stream.md)** — `Stream[E, A]` is a type alias for `ZStream[Any, E, A]`, which represents a ZIO stream that does not require any services, and may fail with an `E`, or produce elements with an `A`.
+- **[ZSink](stream/zsink/zsink.md)** — `ZSink` is a consumer of values from a `ZStream`, which may produce a value when it has consumed enough.
+    + **[Sink](stream/zsink/sink.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
 - **[ZPipeline](stream/zpipeline.md)** — `ZPipeline` is a polymorphic stream transformer.
 - **[SubscriptionRef](stream/subscriptionref.md)** — `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
 

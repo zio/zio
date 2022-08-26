@@ -310,35 +310,44 @@ module.exports = {
       label: "Streaming",
       link: { type: "doc", id: "reference/stream/index" },
       items: [
+        "reference/stream/installation",
         {
           type: "category",
-          label: "Main Components",
+          label: "ZStream",
+          link: { type: "doc", id: "reference/stream/zstream/index" },
           items: [
-            {
-              type: "category",
-              label: "ZStream",
-              items: [
-                "reference/stream/zstream",
-                "reference/stream/stream",
-                "reference/stream/ustream",
-              ]
-            },
-            {
-              type: "category",
-              label: "ZPipeline",
-              items: [
-                "reference/stream/zpipeline",
-              ]
-            },
-            {
-              type: "category",
-              label: "ZSink",
-              items: [
-                "reference/stream/zsink",
-                "reference/stream/sink",
-              ]
-            },
-            "reference/stream/zchannel"
+            "reference/stream/zstream/type-aliases",
+            "reference/stream/zstream/streams-are-chunked-by-default",
+            "reference/stream/zstream/creating-zio-streams",
+            "reference/stream/zstream/resourceful-streams",
+            "reference/stream/zstream/operations",
+            "reference/stream/zstream/consuming-streams",
+            "reference/stream/zstream/error-handling",
+            "reference/stream/zstream/scheduling",
+          ]
+        },
+        "reference/stream/zpipeline",
+        {
+          type: "category",
+          label: "ZSink",
+          link: { type: "doc", id: "reference/stream/zsink/index" },
+          items: [
+            "reference/stream/zsink/creating-sinks",
+            "reference/stream/zsink/operations",
+            "reference/stream/zsink/parallel-operators",
+            "reference/stream/zsink/leftovers",
+          ]
+        },
+        {
+          type: "category",
+          label: "ZChannel",
+          link: { type: "doc", id: "reference/stream/zchannel/index" },
+          items: [
+            "reference/stream/zchannel/creating-channels",
+            "reference/stream/zchannel/composing-channels",
+            "reference/stream/zchannel/running-a-channel",
+            "reference/stream/zchannel/channel-operations",
+            "reference/stream/zchannel/channel-interruption",
           ]
         },
         "reference/stream/subscription-ref"

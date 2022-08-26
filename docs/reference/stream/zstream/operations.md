@@ -1,18 +1,20 @@
 ---
-id: zstream
-title: "ZStream"
+id: operations
+title: "Operations"
 ---
 
-## Introduction 
+## Tapping
 
-A `ZStream[R, E, O]` is a description of a program that, when evaluated, may emit zero or more values of type `O`, may fail with errors of type `E`, and uses an environment of type `R`. 
+Tapping is an operation of running an effect on each emission of the ZIO Stream. We can think of `ZStream#tap` as an operation that allows us to observe each element of the stream, do some effectful operation and discard the result of this observation. The `tap` operation does not change elements of the stream, it does not affect the return type of the stream.
 
-One way to think of `ZStream` is as a `ZIO` program that could emit multiple values. As we know, a `ZIO[R, E, A]` data type, is a functional effect which is a description of a program that needs an environment of type `R`, it may end with an error of type `E`, and in case of success, it returns a value of type `A`. The important note about `ZIO` effects is that in the case of success they always end with exactly one value. There is no optionality here, no multiple infinite values, we always get exact value:
+For example, we can print each element of a stream by using the `tap` operation:
 
 ```scala mdoc:invisible
 import zio._
+import zio.stream._
 import zio.Cause.Die
 import zio.Console._
+import scala.io.Source
 import zio.stm.{STM, TQueue}
 import java.io.{BufferedReader, FileReader, FileInputStream, IOException}
 import java.nio.file.{Files, Path, Paths}
@@ -23,677 +25,6 @@ import scala.concurrent.TimeoutException
 ```
 
 ```scala mdoc:silent:nest
-val failedEffect: ZIO[Any, String, Nothing]       = ZIO.fail("fail!")
-val oneIntValue : ZIO[Any, Nothing, Int]          = ZIO.succeed(3)
-val oneListValue: ZIO[Any, Nothing, List[Int]]    = ZIO.succeed(List(1, 2, 3))
-val oneOption   : ZIO[Any, Nothing , Option[Int]] = ZIO.succeed(None)
-```
-
-A functional stream is pretty similar, it is a description of a program that requires an environment of type `R` and it may signal with errors of type `E` and it yields `O`, but the difference is that it will yield zero or more values. 
-
-So a `ZStream` represents one of the following cases in terms of its elements:
-- **An Empty Stream** — It might end up empty; which represent an empty stream, e.g. `ZStream.empty`.
-- **One Element Stream** — It can represent a stream with just one value, e.g. `ZStream.succeed(3)`.
-- **Multiple Finite Element Stream** — It can represent a stream of finite values, e.g. `ZStream.range(1, 10)`
-- **Multiple Infinite Element Stream** — It can even represent a stream that _never ends_ as an infinite stream, e.g. `ZStream.iterate(1)(_ + 1)`.
-
-```scala mdoc:silent:nest
-import zio.stream.ZStream
-val emptyStream         : ZStream[Any, Nothing, Nothing]   = ZStream.empty
-val oneIntValueStream   : ZStream[Any, Nothing, Int]       = ZStream.succeed(4)
-val oneListValueStream  : ZStream[Any, Nothing, List[Int]] = ZStream.succeed(List(1, 2, 3))
-val finiteIntStream     : ZStream[Any, Nothing, Int]       = ZStream.range(1, 10)
-val infiniteIntStream   : ZStream[Any, Nothing, Int]       = ZStream.iterate(1)(_ + 1)
-```
-
-Another example of a stream is when we're pulling a Kafka topic or reading from a socket. There is no inherent definition of an end there. Stream elements arrive at some point, or even they might never arrive at any point.
-
-## Stream Types
-Based on type parameters of `ZStream`, there are 4 types of streams:
-
-1. `ZStream[Any, Nothing, O]` — A stream that emits `O` values and cannot fail.
-2. `ZStream[Any, Throwable, O]` — A stream that emits `O` values and can fail with `Throwable`.
-3. `ZStream[Any, Nothing, Nothing]` — A stream that emits no elements.
-4. `ZStream[R, E, O]` — A stream that requires access to the `R` service, can fail with error of type `E` and emits `O` values.
-
-## Chunking
-
-Every time we are working with streams, we are always working with chunks. There are no streams with individual elements, these streams have always chunks in their underlying implementation. So every time we evaluate a stream, when we pull an element out of a stream, we are actually pulling out a chunk of elements.
-
-So why streams are designed in this way? This is because of the **efficiency and performance** issues. Every I/O operation in the programming world works with batches. We never work with a single element. For example, whenever we are reading or writing from/to a file descriptor, or a socket we are reading or writing multiple elements at a time. This is also true when we are working with an HTTP server or even JDBC drivers. We always read and write multiple bytes to be more performant.
-
-So let's talk a bit about Chunk. Chunk is a ZIOs immutable array-backed collection. It is initially written for ZIO stream, but later it has been evolved into a very attractive general collection type which is also useful for other purposes. It is an immutable array-backed collection. Most importantly it tries to keep primitives unboxed. This is super important for the efficient processing of files and sockets. They are also very useful and efficient for encoding and decoding and writing transducers. To learn more about this data type, we have introduced that at the [Chunk](../misc/chunk.md) section.
-
-## Creating a Stream
-
-There are several ways to create ZIO Stream. In this section, we are going to enumerate some of the important ways of creating `ZStream`. 
-
-### Common Constructors
-
-**ZStream.apply** — Creates a pure stream from a variable list of values:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, Nothing, Int] = ZStream(1, 2, 3)
-```
-
-**ZStream.unit** — A stream that contains a single `Unit` value:
-
-```scala mdoc:silent:nest
-val unit: ZStream[Any, Nothing, Unit] = ZStream.unit
-```
-
-**ZStream.never** — A stream that produces no value or fails with an error:
-
-```scala mdoc:silent:nest
-val never: ZStream[Any, Nothing, Nothing] = ZStream.never
-```
-
-**ZStream.repeat** — Takes an initial value and applies the given function to the initial value iteratively. The initial value is the first value produced by the stream, followed by f(init), f(f(init)), ...
-
-```scala mdoc:silent:nest
-val nats: ZStream[Any, Nothing, Int] = 
-  ZStream.iterate(1)(_ + 1) // 1, 2, 3, ...
-```
-
-**ZStream.range** — A stream from a range of integers `[min, max)`:
-
-```scala mdoc:silent:nest
-val range: ZStream[Any, Nothing, Int] = ZStream.range(1, 5) // 1, 2, 3, 4
-```
-
-**ZStream.service[R]** — Create a stream that extract the requested service from the environment:
-
-```scala mdoc:compile-only
-trait Foo
-
-val fooStream: ZStream[Foo, Nothing, Foo] = ZStream.service[Foo]
-```
-
-**ZStream.scoped** — Creates a single-valued stream from a scoped resource:
-
-```scala mdoc:silent:nest
-val scopedStream: ZStream[Any, Throwable, BufferedReader] =
-  ZStream.scoped(
-    ZIO.fromAutoCloseable(
-      ZIO.attemptBlocking(
-        Files.newBufferedReader(java.nio.file.Paths.get("file.txt"))
-      )
-    )
-  )
-```
-
-### From Success and Failure
-
-Similar to `ZIO` data type, we can create a `ZStream` using `fail` and `succeed` methods:
-
-```scala mdoc:silent:nest
-val s1: ZStream[Any, String, Nothing] = ZStream.fail("Uh oh!")
-val s2: ZStream[Any, Nothing, Int]    = ZStream.succeed(5)
-```
-
-### From Chunks
-
-We can create a stream from a `Chunk`:
-
-```scala mdoc:nest
-val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-```
-
-Or from multiple `Chunks`:
-
-```scala mdoc:nest
-val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-```
-
-### From ZIO
-
-**ZStream.fromZIO** — We can create a stream from a ZIO workflow by using `ZStream.fromZIO` constructor. For example, the following stream is a stream that reads a line from a user:
-
-```scala mdoc:silent:nest
-val readline: ZStream[Any, IOException, String] = 
-  ZStream.fromZIO(Console.readLine)
-```
-
-A stream that produces one random number:
-
-```scala mdoc:silent:nest
-val randomInt: ZStream[Any, Nothing, Int] = 
-  ZStream.fromZIO(Random.nextInt)
-```
-
-**ZStream.fromZIOOption** — In some cases, depending on the result of the ZIO workflow, we should decide to emit an element or return an empty stream. In these cases, we can use `fromZIOOption` constructor:
-
-```scala 
-object ZStream {
-  def fromZIOOption[R, E, A](fa: ZIO[R, Option[E], A]): ZStream[R, E, A] = ???
-}
-```
-
-Let's see an example of using this constructor. In this example, we read a string from user input, and then decide to emit that or not; If the user enters an `EOF` string, we emit an empty stream, otherwise we emit the user input:  
-
-```scala mdoc:silent:nest
-val userInput: ZStream[Any, IOException, String] = 
-  ZStream.fromZIOOption(
-    Console.readLine.mapError(Option(_)).flatMap {
-      case "EOF" => ZIO.fail[Option[IOException]](None)
-      case o     => ZIO.succeed(o)
-    }
-  ) 
-```
-
-### From Asynchronous Callback
-
-Assume we have an asynchronous function that is based on callbacks. We would like to register a callbacks on that function and get back a stream of the results emitted by those callbacks. We have `ZStream.async` which can adapt functions that call their callbacks multiple times and emit the results over a stream:
-
-```scala mdoc:silent:nest
-// Asynchronous Callback-based API
-def registerCallback(
-    name: String,
-    onEvent: Int => Unit,
-    onError: Throwable => Unit
-): Unit = ???
-
-// Lifting an Asynchronous API to ZStream
-val stream = ZStream.async[Any, Throwable, Int] { cb =>
-  registerCallback(
-    "foo",
-    event => cb(ZIO.succeed(Chunk(event))),
-    error => cb(ZIO.fail(error).mapError(Some(_)))
-  )
-}
-```
-
-The error type of the `register` function is optional, so by setting the error to the `None` we can use it to signal the end of the stream.
-
-### From Iterators
-
-Iterators are data structures that allow us to iterate over a sequence of elements. Similarly, we can think of ZIO Streams as effectual Iterators; every `ZStream` represents a collection of one or more, but effectful values. 
-
-**ZStream.fromIteratorSucceed** — We can convert an iterator that does not throw exception to `ZStream` by using `ZStream.fromIteratorSucceed`:
-
-```scala mdoc:silent:nest
-val s1: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator(1, 2, 3))
-val s2: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.range(1, 4))
-val s3: ZStream[Any, Throwable, Int] = ZStream.fromIterator(Iterator.continually(0))
-```
-
-Also, there is another constructor called **`ZStream.fromIterator`** that creates a stream from an iterator which may throw an exception.
-
-**ZStream.fromIteratorZIO** — If we have an effectful Iterator that may throw Exception, we can use `fromIteratorZIO` to convert that to the ZIO Stream:
-
-```scala mdoc:silent:nest
-import scala.io.Source
-val lines: ZStream[Any, Throwable, String] = 
-  ZStream.fromIteratorZIO(ZIO.attempt(Source.fromFile("file.txt").getLines()))
-```
-
-Using this method is not good for resourceful effects like above, so it's better to rewrite that using `ZStream.fromIteratorScoped` function.
-
-**ZStream.fromIteratorScoped** — Using this constructor we can convert a scoped iterator to ZIO Stream:
-
-```scala mdoc:silent:nest
-val lines: ZStream[Any, Throwable, String] = 
-  ZStream.fromIteratorScoped(
-    ZIO.fromAutoCloseable(
-      ZIO.attempt(scala.io.Source.fromFile("file.txt"))
-    ).map(_.getLines())
-  )
-```
-
-**ZStream.fromJavaIterator** — It is the Java version of these constructors which create a stream from Java iterator that may throw an exception. We can convert any Java collection to an iterator and then lift them to the ZIO Stream.
-
-For example, to convert the Java Stream to the ZIO Stream, `ZStream` has a `fromJavaStream` constructor which convert the Java Stream to the Java Iterator and then convert that to the ZIO Stream using `ZStream.fromJavaIterator` constructor:
-
-```scala mdoc:silent:nest
-def fromJavaStream[A](stream: => java.util.stream.Stream[A]): ZStream[Any, Throwable, A] =
-  ZStream.fromJavaIterator(stream.iterator())
-```
-
-Similarly, `ZStream` has `ZStream.fromJavaIteratorSucceed`, `ZStream.fromJavaIteratorZIO` and `ZStream.fromJavaIteratorScoped` constructors.
-
-### From Iterables
-
-**ZStream.fromIterable** — We can create a stream from `Iterable` collection of values:
-
-```scala mdoc:silent
-val list = ZStream.fromIterable(List(1, 2, 3))
-```
-
-**ZStream.fromIterableZIO** — If we have an effect producing a value of type `Iterable` we can use `fromIterableZIO` constructor to create a stream of that effect.
-
-Assume we have a database that returns a list of users using `Task`:
-
-```scala mdoc:invisible
-import zio._
-case class User(name: String)
-```
-
-```scala mdoc:silent:nest
-trait Database {
-  def getUsers: Task[List[User]]
-}
-
-object Database {
-  def getUsers: ZIO[Database, Throwable, List[User]] = 
-    ZIO.serviceWithZIO[Database](_.getUsers)
-}
-```
-
-As this operation is effectful, we can use `ZStream.fromIterableZIO` to convert the result to the `ZStream`:
-
-```scala mdoc:silent:nest
-val users: ZStream[Database, Throwable, User] = 
-  ZStream.fromIterableZIO(Database.getUsers)
-```
-
-### From Repetition
-
-**ZStream.repeat** — Repeats the provided value infinitely:
-
-```scala mdoc:silent:nest
-val repeatZero: ZStream[Any, Nothing, Int] = ZStream.repeat(0)
-```
-
-**ZStream.repeatWith** — This is another variant of `repeat`, which repeats according to the provided schedule. For example, the following stream produce zero value every second:
-
-```scala mdoc:silent:nest
-import zio._
-import zio.Clock._
-import zio.Duration._
-import zio.Random._
-import zio.Schedule
-val repeatZeroEverySecond: ZStream[Any, Nothing, Int] = 
-  ZStream.repeatWithSchedule(0, Schedule.spaced(1.seconds))
-```
-
-**ZStream.repeatZIO** — Assume we have an effectful API, and we need to call that API and create a stream from the result of that. We can create a stream from that effect that repeats forever.
-
-Let's see an example of creating a stream of random numbers:
-
-```scala mdoc:silent:nest
-val randomInts: ZStream[Any, Nothing, Int] =
-  ZStream.repeatZIO(Random.nextInt)
-```
-
-**ZStream.repeatZIOOption** — We can repeatedly evaluate the given effect and terminate the stream based on some conditions. 
-
-Let's create a stream repeatedly from user inputs until user enter "EOF" string:
-
-```scala mdoc:silent:nest
-val userInputs: ZStream[Any, IOException, String] = 
-  ZStream.repeatZIOOption(
-    Console.readLine.mapError(Option(_)).flatMap {
-      case "EOF" => ZIO.fail[Option[IOException]](None)
-      case o     => ZIO.succeed(o)
-    }
-  )
-```
-
-Here is another interesting example of using `repeatZIOOption`; In this example, we are draining an `Iterator` to create a stream of that iterator:
-
-```scala mdoc:silent:nest
-def drainIterator[A](it: Iterator[A]): ZStream[Any, Throwable, A] =
-  ZStream.repeatZIOOption {
-    ZIO.attempt(it.hasNext).mapError(Some(_)).flatMap { hasNext =>
-      if (hasNext) ZIO.attempt(it.next()).mapError(Some(_))
-      else ZIO.fail(None)
-    }
-  }
-```
-
-**ZStream.tick** —  A stream that emits Unit values spaced by the specified duration:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, Nothing, Unit] = 
-  ZStream.tick(1.seconds)
-```
-
-There are some other variant of repetition API like `repeatZIOWith`, `repeatZIOOption`, `repeatZIOChunk` and `repeatZIOChunkOption`.
-
-### From Unfolding/Pagination
-
-In functional programming, `unfold` is dual to `fold`. 
-
-With `fold` we can process a data structure and build a return value. For example, we can process a `List[Int]` and return the sum of all its elements. 
-
-The `unfold` represents an operation that takes an initial value and generates a recursive data structure, one-piece element at a time by using a given state function. For example, we can create a natural number by using `one` as the initial element and the `inc` function as the state function.
-
-#### Unfold
-
-**ZStream.unfold** — `ZStream` has `unfold` function, which is defined as follows:
-
-```scala
-object ZStream {
-  def unfold[S, A](s: S)(f: S => Option[(A, S)]): ZStream[Any, Nothing, A] = ???
-}
-```
-
-- **s** — An initial state value
-- **f** — A state function `f` that will be applied to the initial state `s`. If the result of this application is `None` the stream will end, otherwise the result is `Some`, so the next element in the stream would be `A` and the current state of transformation changed to the new `S`, this new state is the basis of the next unfold process.
-
-For example, we can a stream of natural numbers using `ZStream.unfold`:
-
-```scala mdoc:silent
-val nats: ZStream[Any, Nothing, Int] = ZStream.unfold(1)(n => Some((n, n + 1)))
-```
-
-We can write `countdown` function using `unfold`:
-
-```scala mdoc:silent
-def countdown(n: Int) = ZStream.unfold(n) {
-  case 0 => None
-  case s => Some((s, s - 1))
-}
-```
-
-Running this function with an input value of 3 returns a `ZStream` which contains 3, 2, 1 values.
-
-**ZStream.unfoldZIO** — `unfoldZIO` is an effectful version of `unfold`. It helps us to perform _effectful state transformation_ when doing unfold operation.
-
-Let's write a stream of lines of input from a user until the user enters the `exit` command:
-
-```scala mdoc:silent
-val inputs: ZStream[Any, IOException, String] = ZStream.unfoldZIO(()) { _ =>
-  Console.readLine.map {
-    case "exit"  => None
-    case i => Some((i, ()))
-  } 
-}   
-```
-
-`ZStream.unfoldChunk`, and `ZStream.unfoldChunkZIO` are other variants of `unfold` operations but for `Chunk` data type.
-
-#### Pagination
-
-**ZStream.paginate** — This is similar to `unfold`, but allows the emission of values to end one step further. For example the following stream emits `0, 1, 2, 3` elements:
-
-```scala mdoc:silent:nest
-val stream = ZStream.paginate(0) { s =>
-  s -> (if (s < 3) Some(s + 1) else None)
-}
-```
-
-Similar to `unfold` API, `ZStream` has various other forms as well as `ZStream.paginateZIO`, `ZStream.paginateChunk` and `ZStream.paginateChunkZIO`.
-
-#### Unfolding vs. Pagination
-
-One might ask what is the difference between `unfold` and `paginate` combinators? When we should prefer one over another? So, let's find the answer to this question by doing another example.
-
-Assume we have a paginated API that returns an enormous amount of data in a paginated fashion. When we call that API, it returns a data type `ResultPage` which contains the first-page result and, it also contains a flag indicating whether that result is the last one, or we have more data on the next page:
-
-```scala mdoc:invisible
-case class RowData()
-```
-
-```scala mdoc:silent:nest
-case class PageResult(results: Chunk[RowData], isLast: Boolean)
-
-def listPaginated(pageNumber: Int): ZIO[Any, Throwable, PageResult] = ZIO.fail(???)
-```
-
-We want to convert this API to a stream of `RowData` events. For the first attempt, we might think we can do it by using `unfold` operation as below:
-
-```scala mdoc:silent:nest
-val firstAttempt: ZStream[Any, Throwable, RowData] = 
-  ZStream.unfoldChunkZIO(0) { pageNumber =>
-    for {
-      page <- listPaginated(pageNumber)
-    } yield
-      if (page.isLast) None
-      else Some((page.results, pageNumber + 1))
-  }
-```
-
-But it doesn't work properly; it doesn't include the last page result. So let's do a trick and to perform another API call to include the last page results:
-
-```scala mdoc:silent:nest
-val secondAttempt: ZStream[Any, Throwable, RowData] = 
-  ZStream.unfoldChunkZIO(Option[Int](0)) {
-    case None => ZIO.none // We already hit the last page
-    case Some(pageNumber) => // We did not hit the last page yet
-     for {
-        page <- listPaginated(pageNumber)
-      } yield Some(page.results, if (page.isLast) None else Some(pageNumber + 1))
-  }
-```
-
-This works and contains all the results of returned pages. It works but as we saw, `unfold` is not friendliness to retrieve data from paginated APIs. 
-
-We need to do some hacks and extra works to include results from the last page. This is where `ZStream.paginate` operation comes to play, it helps us to convert a paginated API to ZIO stream in a more ergonomic way. Let's rewrite this solution by using `paginate`:
-
-```scala mdoc:silent:nest
-val finalAttempt: ZStream[Any, Throwable, RowData] = 
-  ZStream.paginateChunkZIO(0) { pageNumber =>
-    for {
-      page <- listPaginated(pageNumber)
-    } yield page.results -> (if (!page.isLast) Some(pageNumber + 1) else None)
-  }
-```
-
-### From Wrapped Streams
-
-Sometimes we have an effect that contains a `ZStream`, we can unwrap the embedded stream and produce a stream from those effects. If the stream is wrapped with the `ZIO` effect, we use `unwrap`, and if it is wrapped with scoped `ZIO` we use `unwrapScoped`:
-
-```scala mdoc:silent:nest
-val wrappedWithZIO: UIO[ZStream[Any, Nothing, Int]] = 
-  ZIO.succeed(ZStream(1, 2, 3))
-val s1: ZStream[Any, Nothing, Int] = 
-  ZStream.unwrap(wrappedWithZIO)
-
-val wrappedWithZIOScoped = ZIO.succeed(ZStream(1, 2, 3))
-val s2: ZStream[Any, Nothing, Int] = 
-  ZStream.unwrapScoped(wrappedWithZIOScoped)
-```
-
-### From Java IO
-
-**ZStream.fromPath** — Create ZIO Stream from a file:
-
-```scala mdoc:silent:nest
-import java.nio.file.Paths
-val file: ZStream[Any, Throwable, Byte] = 
-  ZStream.fromPath(Paths.get("file.txt"))
-```
-
-**ZStream.fromInputStream** — Creates a stream from a `java.io.InputStream`:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStream(new FileInputStream("file.txt"))
-```
-
-Note that the InputStream will not be explicitly closed after it is exhausted. Use `ZStream.fromInputStreamZIO`, or `ZStream.fromInputStreamScoped` instead.
-
-**ZStream.fromInputStreamZIO** — Creates a stream from a `java.io.InputStream`. Ensures that the InputStream is closed after it is exhausted:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStreamZIO(
-    ZIO.attempt(new FileInputStream("file.txt"))
-      .refineToOrDie[IOException]
-  )
-```
-
-**ZStream.fromInputStreamScoped** — Creates a stream from a scoped `java.io.InputStream` value:
-
-```scala mdoc:silent:nest
-val scoped: ZIO[Scope, IOException, FileInputStream] =
-  ZIO.fromAutoCloseable(
-    ZIO.attempt(new FileInputStream("file.txt"))
-  ).refineToOrDie[IOException]
-
-val stream: ZStream[Any, IOException, Byte] = 
-  ZStream.fromInputStreamScoped(scoped)
-```
-
-**ZStream.fromResource** — Create a stream from resource file:
-```scala mdoc:silent:nest
-val stream: ZStream[Any, IOException, Byte] =
-  ZStream.fromResource("file.txt")
-```
-
-**ZStream.fromReader** — Creates a stream from a `java.io.Reader`:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, IOException, Char] = 
-   ZStream.fromReader(new FileReader("file.txt"))
-```
-
-ZIO Stream also has `ZStream.fromReaderZIO` and `ZStream.fromReaderScoped` variants.
-
-### From Java Stream
-
-We can use `ZStream.fromJavaStreamTotal` to convert a Java Stream to ZIO Stream:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, Throwable, Int] = 
-  ZStream.fromJavaStream(java.util.stream.Stream.of(1, 2, 3))
-```
-
-ZIO Stream also has `ZStream.fromJavaStream`, `ZStream.fromJavaStreamZIO` and `ZStream.fromJavaStreamScoped` variants.
-
-### From Queue and Hub
-
-`Queue` and `Hub` are two asynchronous messaging data types in ZIO that can be converted into the ZIO Stream:
-
-```scala
-object ZStream {
-  def fromQueue[O](
-    queue: Dequeue[O],
-    maxChunkSize: Int = DefaultChunkSize
-  ): ZStream[Any, Nothing, O] = ???
-
-  def fromHub[A](
-    hub: Hub[A]
-  ): ZStream[Any, Nothing, A] = ???
-}
-```
-
-If they contain `Chunk` of elements, we can use `ZStream.fromChunk...` constructors to create a stream from those elements (e.g. `ZStream.fromChunkQueue`):
-
-```scala mdoc:silent:nest
-for {
-  promise <- Promise.make[Nothing, Unit]
-  hub     <- Hub.unbounded[Chunk[Int]]
-  scoped = ZStream.fromChunkHubScoped(hub).tap(_ => promise.succeed(()))
-  stream  = ZStream.unwrapScoped(scoped)
-  fiber   <- stream.foreach(printLine(_)).fork
-  _       <- promise.await
-  _       <- hub.publish(Chunk(1, 2, 3))
-  _       <- fiber.join
-} yield ()
-```
-
-Also, If we need to shutdown a `Queue` or `Hub`, once the stream is closed, we should use `ZStream.from..Shutdown` constructors (e.g. `ZStream.fromQueueWithShutdown`).
-
-Also, we can lift a `TQueue` to the ZIO Stream:
-
-```scala mdoc:silent:nest
-for {
-  q <- STM.atomically(TQueue.unbounded[Int])
-  stream = ZStream.fromTQueue(q)
-  fiber <- stream.foreach(printLine(_)).fork
-  _     <- STM.atomically(q.offer(1))
-  _     <- STM.atomically(q.offer(2))
-  _     <- fiber.join
-} yield ()
-```
-
-### From Schedule
-
-We can create a stream from a `Schedule` that does not require any further input. The stream will emit an element for each value output from the schedule, continuing for as long as the schedule continues:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, Nothing, Long] =
-  ZStream.fromSchedule(Schedule.spaced(1.second) >>> Schedule.recurs(10))
-```
-
-### Resourceful Streams
-
-Most of the constructors of `ZStream` have a special variant to lift a scoped resource to a Stream (e.g. `ZStream.fromReaderScoped`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
-
-ZIO Stream also has `acquireRelease` and `finalizer` constructors which are similar to `ZIO.acquireRelease`. They allow us to clean up or finalizing before the stream ends:
-
-#### Acquire Release
-
-We can provide `acquire` and `release` actions to `ZStream.acquireReleaseWith` to create a resourceful stream:
-
-```scala
-object ZStream {
-  def acquireReleaseWith[R, E, A](
-    acquire: ZIO[R, E, A]
-  )(
-    release: A => URIO[R, Any]
-  ): ZStream[R, E, A] = ???
-```
-
-Let's see an example of using an acquire release when reading a file. In this example, by providing `acquire` and `release` actions to `ZStream.acquireReleaseWith`, it gives us a scoped stream of `BufferedSource`. As this stream is scoped, we can convert that `BufferedSource` to a stream of its lines and then run it, without worrying about resource leakage:
-
-```scala mdoc:silent:nest
-import zio.Console._
-
-val lines: ZStream[Any, Throwable, String] =
-  ZStream
-    .acquireReleaseWith(
-      ZIO.attempt(Source.fromFile("file.txt")) <* printLine("The file was opened.")
-    )(x => ZIO.succeed(x.close()) <* printLine("The file was closed.").orDie)
-    .flatMap { is =>
-      ZStream.fromIterator(is.getLines())
-    }
-```
-
-#### Finalization
-
-We can also create a stream that never fails and define a finalizer for it, so that finalizer will be executed before that stream ends. 
-
-```scala
-object ZStream {
-  def finalizer[R](
-    finalizer: URIO[R, Any]
-  ): ZStream[R, Nothing, Any] = ???
-}
-```
-
-It is useful when need to add a finalizer to an existing stream. Assume we need to clean up the temporary directory after our streaming application ends:
-
-```scala mdoc:silent:nest
-import zio.Console._
-
-def application: ZStream[Any, IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
-def deleteDir(dir: Path): ZIO[Any, IOException, Unit] = printLine("Deleting file.")
-
-val myApp: ZStream[Any, IOException, Any] =
-  application ++ ZStream.finalizer(
-    (deleteDir(Paths.get("tmp")) *>
-      printLine("Temporary directory was deleted.")).orDie
-  )
-```
-
-#### Ensuring
-
-We might want to run some code after the execution of the stream's finalization. To do so, we can use the `ZStream#ensuring` operator:
-
-```scala mdoc:silent:nest
-ZStream
-  .finalizer(Console.printLine("Finalizing the stream").orDie)
-  .ensuring(
-    printLine("Doing some other works after stream's finalization").orDie
-  )
-  
-// Output:
-// Finalizing the stream
-// Doing some other works after stream's finalization
-```
-
-## Operations
-
-### Tapping
-
-Tapping is an operation of running an effect on each emission of the ZIO Stream. We can think of `ZStream#tap` as an operation that allows us to observe each element of the stream, do some effectful operation and discard the result of this observation. The `tap` operation does not change elements of the stream, it does not affect the return type of the stream.
-
-For example, we can print each element of a stream by using the `tap` operation:
-
-```scala mdoc:silent:nest
 val stream: ZStream[Any, IOException, Int] =
   ZStream(1, 2, 3)
     .tap(x => printLine(s"before mapping: $x"))
@@ -701,7 +32,7 @@ val stream: ZStream[Any, IOException, Int] =
     .tap(x => printLine(s"after mapping: $x"))
 ```
 
-### Taking Elements
+## Taking Elements
 
 We can take a certain number of elements from a stream:
 
@@ -720,7 +51,7 @@ val s4 = s3.takeRight(3)
 // Output: 3, 4, 5
 ```
 
-### Mapping
+## Mapping
 
 **map** — Applies a given function to all element of this stream to produce another stream:
 ```scala mdoc:silent
@@ -742,7 +73,7 @@ def getUrls: Task[List[URL]] = ZIO.succeed(???)
 
 val pages = ZStream.fromIterableZIO(getUrls).mapZIOPar(8)(fetchUrl)  
 ```
-    
+
 **mapChunk** — Each stream is backed by some `Chunk`s. By using `mapChunk` we can batch the underlying stream and map every `Chunk` at once:
 
 ```scala mdoc:silent
@@ -788,7 +119,7 @@ val numbers: UStream[Int] =
 // Output: 1, 2, 3, 4, 5, 6
 ```
 
-The effectful version of `mapConcat` is `mapConcatZIO`. 
+The effectful version of `mapConcat` is `mapConcatZIO`.
 
 `ZStream` also has chunked versions of that which are `mapConcatChunk` and `mapConcatChunkZIO`.
 
@@ -801,7 +132,7 @@ val unitStream: ZStream[Any, Nothing, Unit] =
   ZStream.range(1, 5).as(())
 ```
 
-### Filtering
+## Filtering
 
 The `ZStream#filter` allows us to filter emitted elements:
 
@@ -820,7 +151,7 @@ val s3 = ZStream.range(1, 11).filterNot(_ % 2 == 0)
 // Output: 1, 3, 5, 7, 9
 ```
 
-### Scanning
+## Scanning
 
 Scans are like folds, but with a history. Like folds, they take a binary operator with an initial value. A fold combines elements of a stream and emits every intermediary result as an output of the stream:
 
@@ -839,7 +170,7 @@ val fold = ZStream(1, 2, 3, 4, 5).runFold(0)(_ + _)
 // Output: 10 (ZIO effect containing 10)
 ```
 
-### Draining
+## Draining
 
 Assume we have an effectful stream, which contains a sequence of effects; sometimes we might want to execute its effect without emitting any element, in these situations to discard the results we should use the `ZStream#drain` method. It removes all output values from the stream:
 
@@ -894,7 +225,7 @@ val stream = ZStream(1, 2, 3) ++ logging ++ ZStream(4, 5, 6)
 // Starting to merge with the next stream
 ```
 
-### Changes
+## Changes
 
 The `ZStream#changes` emits elements that are not equal to the previous element:
 
@@ -914,7 +245,7 @@ val events: ZStream[Any, Nothing, Event] = ZStream.fromIterable(???)
 val uniques = events.changesWith((e1, e2) => (e1.partition == e2.partition && e1.offset == e2.offset))
 ```
 
-### Collecting
+## Collecting
 
 We can perform `filter` and `map` operations in a single step using the `ZStream#collect` operation:
 
@@ -968,7 +299,7 @@ val pages = urls
   .collectSuccess
 ```
 
-### Zipping
+## Zipping
 
 We can zip two stream by using `ZStream.zip` or `ZStream#zipWith` operator:
 
@@ -1030,7 +361,7 @@ val indexedStream: ZStream[Any, Nothing, (String, Long)] =
 // Output: ("Mary", 0L), ("James", 1L), ("Robert", 2L), ("Patricia", 3L)
 ```
 
-### Cross Product
+## Cross Product
 
 ZIO stream has `ZStram#cross` and its variants to compute _Cartesian Product_ of two streams:
 
@@ -1058,12 +389,12 @@ Note that the right-hand side stream would be run multiple times, for every elem
 
 ZIO stream also has `ZStream.crossN` which takes streams up to four one.
 
-### Partitioning
+## Partitioning
 
-#### partition
+### partition
 `ZStream#partition` function splits the stream into tuple of streams based on the predicate. The first stream contains all element evaluated to true, and the second one contains all element evaluated to false.
 
-The faster stream may advance by up to `buffer` elements further than the slower one. Two streams are wrapped by `Scope` type. 
+The faster stream may advance by up to `buffer` elements further than the slower one. Two streams are wrapped by `Scope` type.
 
 In the example below, left stream consists of even numbers only:
 
@@ -1074,7 +405,7 @@ val partitionResult: ZIO[Scope, Nothing, (ZStream[Any, Nothing, Int], ZStream[An
     .partition(_ % 2 == 0, buffer = 50)
 ```
 
-#### partitionEither
+### partitionEither
 If we need to partition a stream using an effectful predicate we can use `ZStream.partitionEither`.
 
 ```scala
@@ -1095,9 +426,9 @@ val partitioned: ZIO[Scope, Nothing, (ZStream[Any, Nothing, Int], ZStream[Any, N
     .partitionEither(x => ZIO.succeed(if (x < 5) Left(x) else Right(x)))
 ```
 
-### GroupBy
+## GroupBy
 
-#### groupByKey
+### groupByKey
 
 To partition the stream by function result we can use `groupBy` by providing a function of type `O => K` which determines by which keys the stream should be partitioned.
 
@@ -1138,7 +469,7 @@ import zio.stream._
 `groupByKey` partition the stream by a simple function of type `O => K`; It is not an effectful function. In some cases we need to partition the stream by using an _effectful function_ of type `O => ZIO[R1, E1, (K, V)]`; So we can use `groupBy` which is the powerful version of `groupByKey` function.
 :::
 
-#### groupBy
+### groupBy
 It takes an effectful function of type `O => ZIO[R1, E1, (K, V)]`; ZIO Stream uses this function to partition the stream and gives us a new data type called `ZStream.GroupBy` which represent a grouped stream. `GroupBy` has an `apply` method, that takes a function of type `(K, ZStream[Any, E, V]) => ZStream[R1, E1, A]`; ZIO Runtime runs this function across all groups and then merges them in a non-deterministic fashion as a result.
 
 ```scala
@@ -1197,9 +528,9 @@ val classifyStudents: ZStream[Any, IOException, (String, Seq[String])] =
 // (C,List(Patricia, Rebecca))
 ```
 
-### Grouping
+## Grouping
 
-#### grouped
+### grouped
 To partition the stream results with the specified chunk size, we can use the `grouped` function.
 
 ```scala mdoc:silent:nest
@@ -1210,7 +541,7 @@ val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
 // Output: Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7, 8)
 ```
 
-#### groupedWithin
+### groupedWithin
 It allows grouping events by time or chunk size, whichever is satisfied first. In the example below every chunk consists of 30 elements and is produced every 3 seconds.
 
 ```scala mdoc:silent
@@ -1224,7 +555,7 @@ val groupedWithinResult: ZStream[Any, Nothing, Chunk[Int]] =
     .groupedWithin(30, 10.seconds)
 ```
 
-### Concatenation
+## Concatenation
 
 We can concatenate two streams by using `ZStream#++` or `ZStream#concat` operator which returns a stream that emits the elements from the left-hand stream and then emits the elements from the right stream:
 
@@ -1275,11 +606,11 @@ val allBooks: ZStream[Any, Throwable, Book]  =
 
 If we need to do the `flatMap` concurrently, we can use `ZStream#flatMapPar`, and also if the order of concatenation is not important for us, we can use the `ZStream#flatMapParSwitch` operator.
 
-### Merging
+## Merging
 
 Sometimes we need to interleave the emission of two streams and create another stream. In these cases, we can't use the `ZStream.concat` operation because the `concat` operation waits for the first stream to finish and then consumes the second stream. So we need a non-deterministic way of picking elements from different sources. ZIO Stream's `merge` operations does this for us. Let's discuss some variants of this operation:
 
-#### merge
+### merge
 
 The `ZSstream#merge` picks elements randomly from specified streams:
 
@@ -1294,7 +625,7 @@ val merged = s1 merge s2
 
 Merge operation always try to pull one chunk from each stream, if we chunk our streams equal or over 3 elements in the last example, we encounter a new stream containing one of the `1, 2, 3, 4, 5, 6` or `4, 5, 6, 1, 2, 3` elements.
 
-#### Termination Strategy
+### Termination Strategy
 
 When we merge two streams, we should think about the _termination strategy_ of this operation. Each stream has a specific lifetime. One stream may emit all its elements and finish its job, another stream may end after one hour of emission, one another may have a long-running lifetime and never end. So when we merge two streams with different lifetimes, what is the termination strategy of the resulting stream?
 
@@ -1317,7 +648,7 @@ val merged = s1.merge(s2, HaltStrategy.Left)
 
 We can also use `ZStream#mergeTerminateLeft`, `ZStream#mergeTerminateRight` or `ZStream#mergeTerminateEither` operations instead of specifying manually the termination strategy.
 
-#### mergeAll 
+### mergeAll
 
 Usually, micro-services or long-running applications are composed of multiple components that need to run infinitely in the background and if something happens to them, or they terminate abruptly we should crash the entire application.
 
@@ -1377,7 +708,7 @@ val myApp = ZIO.scoped(scopedApp).exitCode
 
 Using `ZStream.mergeAll` we can combine all these streaming components concurrently into one application.
 
-#### mergeWith
+### mergeWith
 
 Sometimes we need to merge two streams and after that, unify them and convert them to new element types. We can do this by using the `ZStream#mergeWith` operation:
 
@@ -1388,9 +719,9 @@ val s2 = ZStream(4.1, 5.3, 6.2)
 val merged = s1.mergeWith(s2)(_.toInt, _.toInt)
 ```
 
-### Interleaving
+## Interleaving
 
-When we `merge` two streams, the ZIO Stream picks elements from two streams randomly. But how to merge two streams deterministically? The answer is the `ZStream#interleave` operation. 
+When we `merge` two streams, the ZIO Stream picks elements from two streams randomly. But how to merge two streams deterministically? The answer is the `ZStream#interleave` operation.
 
 The `ZStream#interleave` operator pulls an element from each stream, one by one, and then returns an interleaved stream. When one stream is exhausted, all remaining values in the other stream will be pulled:
 
@@ -1415,7 +746,7 @@ val interleaved = s1.interleaveWith(s2)(ZStream(true, false, false).forever)
 
 `ZStream#interleaveWith` uses a stream of boolean to decide which stream to choose. If it reaches a true value, it will pick a value from the left-hand side stream, otherwise, it will pick from the right-hand side.
 
-### Interspersing
+## Interspersing
 
 We can intersperse any stream by using `ZStream#intersperse` operator:
 
@@ -1427,7 +758,7 @@ val s2 = ZStream("a", "b", "c", "d").intersperse("[", "-", "]")
 // Output: [, -, a, -, b, -, c, -, d]
 ```
 
-### Broadcasting
+## Broadcasting
 
 We can broadcast a stream by using `ZStream#broadcast`, it returns a scoped list of streams that have the same elements as the source stream. The `broadcast` operation emits each element to the inputs of returning streams. The upstream stream can emit events as much as `maximumLag`, then it decreases its speed by the slowest downstream stream.
 
@@ -1456,7 +787,8 @@ val stream: ZIO[Any, IOException, Unit] =
       }
   }
 ```
-### Distribution
+
+## Distribution
 
 The `ZStream#distributedWith` operator is a more powerful version of `ZStream#broadcast`. It takes a `decide` function, and based on that decide how to distribute incoming elements into the downstream streams:
 
@@ -1489,7 +821,7 @@ val partitioned: ZIO[Scope, Nothing, (UStream[Int], UStream[Int], UStream[Int])]
     }
 ```
 
-### Buffering
+## Buffering
 
 Since the ZIO streams are pull-based, it means the consumers do not need to message the upstream to slow down. Whenever a downstream stream pulls a new element, the upstream produces a new element. So, the upstream stream is as fast as the slowest downstream stream. Sometimes we need to run producer and consumer independently, in such a situation we can use an asynchronous non-blocking queue for communication between faster producer and slower consumer; the queue can buffer elements between two streams. ZIO stream also has a built-in `ZStream#buffer` operator which does the same thing for us.
 
@@ -1515,7 +847,7 @@ Based on the type of underlying queue we can use one the buffering operators:
 - **Sliding Queue** — `ZStream#bufferSliding(capacity: Int)`
 - **Dropping Queue** `ZStream#bufferDropping(capacity: Int)`
 
-### Debouncing
+## Debouncing
 
 The `ZStream#debounce` method debounces the stream with a minimum period of `d` between each element:
 
@@ -1529,11 +861,11 @@ val stream = (
 // Output: 3, 6
 ```
 
-### Aggregation
+## Aggregation
 
 Aggregation is the process of converting one or more elements of type `A` into elements of type `B`. This operation takes a transducer as an aggregation unit and returns another stream that is aggregated. We have two types of aggregation:
 
-#### Synchronous Aggregation
+### Synchronous Aggregation
 
 They are synchronous because the upstream emits an element when the _transducer_ emits one. To apply a synchronous aggregation to the stream we can use `ZStream#aggregate` or `ZStream#transduce` operations.
 
@@ -1589,7 +921,7 @@ Processing batch of events: Chunk(11,12)
 
 Elements are grouped into Chunks of 5 elements and then processed in a batch way.
 
-#### Asynchronous Aggregation
+### Asynchronous Aggregation
 
 Asynchronous aggregations, aggregate elements of upstream as long as the downstream operators are busy. To apply an asynchronous aggregation to the stream, we can use `ZStream#aggregateAsync`, `ZStream#aggregateAsyncWithin`, and `ZStream#aggregateAsyncWithinEither` operations.
 
@@ -1664,209 +996,4 @@ val schedule: Schedule[Any, Option[Chunk[Record]], Long] =
     
 dataStream
   .aggregateAsyncWithin(ZSink.collectAllN[Record](2000), schedule)
-```
-
-## Scheduling
-
-To schedule the output of a stream we use `ZStream#schedule` combinator.
-
-Let's space between each emission of the given stream:
-
-```scala mdoc:silent:nest
-val stream = ZStream(1, 2, 3, 4, 5).schedule(Schedule.spaced(1.second))
-```
-
-## Consuming a Stream
-
-```scala mdoc:silent
-import zio._
-import zio.Console._
-import zio.stream._
-
-val result: Task[Unit] = ZStream.fromIterable(0 to 100).foreach(printLine(_))
-```
-
-### Using a Sink
-
-To consume a stream using `ZSink` we can pass `ZSink` to the `ZStream#run` function:
-
-```scala mdoc:silent
-val sum: UIO[Int] = ZStream(1,2,3).run(ZSink.sum)
-```
-
-### Using fold
-
-The `ZStream#fold` method executes the fold operation over the stream of values and returns a `ZIO` effect containing the result:
-
-```scala mdoc:silent:nest
-val s1: ZIO[Any, Nothing, Int] = ZStream(1, 2, 3, 4, 5).runFold(0)(_ + _)
-val s2: ZIO[Any, Nothing, Int] = ZStream.iterate(1)(_ + 1).runFoldWhile(0)(_ <= 5)(_ + _)
-```
-
-### Using foreach
-
-Using `ZStream#foreach` is another way of consuming elements of a stream. It takes a callback of type `O => ZIO[R1, E1, Any]` which passes each element of a stream to this callback:
-
-```scala mdoc:silent:nest
-ZStream(1, 2, 3).foreach(printLine(_))
-```
-
-## Error Handling
-
-### Recovering from Failure
-
-If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#orElse` takes another stream, so when the failure occurs it will switch over to the provided stream:
-
-```scala mdoc:silent:nest
-val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
-val s2 = ZStream(7, 8, 9)
-
-val stream = s1.orElse(s2)
-// Output: 1, 2, 3, 7, 8, 9
-```
-
-Another variant of `orElse` is `ZStream#orElseEither`, which distinguishes elements of the two streams using the `Either` data type. Using this operator, the result of the previous example should be `Left(1), Left(2), Left(3), Right(6), Right(7), Right(8)`.
-
-ZIO stream has `ZStream#catchAll` which is powerful version of `ZStream#orElse`. By using `catchAll` we can decide what to do based on the type and value of the failure:
-
-```scala mdoc:silent:nest
-val first =
-  ZStream(1, 2, 3) ++
-    ZStream.fail("Uh Oh!") ++
-    ZStream(4, 5) ++
-    ZStream.fail("Ouch")
-
-val second = ZStream(6, 7, 8)
-val third = ZStream(9, 10, 11)
-
-val stream = first.catchAll {
-  case "Uh Oh!" => second
-  case "Ouch"   => third
-}
-// Output: 1, 2, 3, 6, 7, 8
-```
-
-### Recovering from Defects
-
-If we need to recover from all causes of failures including defects we should use the `ZStream#catchAllCause` method:
-
-```scala mdoc:silent:nest
-val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
-val s2 = ZStream(7, 8, 9)
-
-val stream = s1.catchAllCause(_ => s2)
-// Output: 1, 2, 3, 7, 8, 9
-```
-
-### Recovery from Some Errors
-
-If we need to recover from specific failure we should use `ZStream#catchSome`: 
-
-```scala mdoc:silent:nest
-val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
-val s2 = ZStream(7, 8, 9)
-val stream = s1.catchSome {
-  case "Oh! Error!" => s2
-}
-// Output: 1, 2, 3, 7, 8, 9
-```
-
-And, to recover from a specific cause, we should use `ZStream#catchSomeCause` method:
-
-```scala mdoc:silent:nest
-val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
-val s2 = ZStream(7, 8, 9)
-val stream = s1.catchSomeCause { case Die(value, _) => s2 }
-```
-
-### Recovering to ZIO Effect
-
-If our stream encounters an error, we can provide some cleanup task as ZIO effect to our stream by using the `ZStream#onError` method:
-
-```scala mdoc:silent:nest
-val stream = 
-  (ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5))
-    .onError(_ => printLine("Stream application closed! We are doing some cleanup jobs.").orDie)
-```
-
-### Retry a Failing Stream
-
-When a stream fails, it can be retried according to the given schedule to the `ZStream#retry` operator:
-
-```scala mdoc:silent:nest
-val numbers = ZStream(1, 2, 3) ++ 
-  ZStream
-    .fromZIO(
-      Console.print("Enter a number: ") *> Console.readLine
-        .flatMap(x =>
-          x.toIntOption match {
-            case Some(value) => ZIO.succeed(value)
-            case None        => ZIO.fail("NaN")
-          }
-        )
-    )
-    .retry(Schedule.exponential(1.second))
-```
-
-### From/To Either
-
-Sometimes, we might be working with legacy API which does error handling with the `Either` data type. We can _absolve_ their error types into the ZStream effect using `ZStream.absolve`:
-
-```scala mdoc:silent:nest
-def legacyFetchUrlAPI(url: URL): Either[Throwable, String] = ???
-
-def fetchUrl(
-    url: URL
-): ZStream[Any, Throwable, String] = 
-  ZStream.fromZIO(
-    ZIO.attemptBlocking(legacyFetchUrlAPI(url))
-  ).absolve
-```
-
-The type of this stream before absolving is `ZStream[Any, Throwable, Either[Throwable, String]]`, this operation let us submerge the error case of an `Either` into the `ZStream` error type.
-
-We can do the opposite by exposing an error of type `ZStream[R, E, A]` as a part of the `Either` by using `ZStream#either`:
-
-```scala mdoc:silent:nest
-val inputs: ZStream[Any, Nothing, Either[IOException, String]] = 
-  ZStream.fromZIO(Console.readLine).either
-```
-
-When we are working with streams of `Either` values, we might want to fail the stream as soon as the emission of the first `Left` value:
-
-```scala mdoc:silent:nest
-// Stream of Either values that cannot fail
-val eitherStream: ZStream[Any, Nothing, Either[String, Int]] =
-  ZStream(Right(1), Right(2), Left("failed to parse"), Right(4))
-
-// A Fails with the first emission of the left value
-val stream: ZStream[Any, String, Int] = eitherStream.rightOrFail("fail")
-```
-
-
-### Refining Errors
-
-We can keep one or some errors and terminate the fiber with the rest by using `ZStream#refineOrDie`:
-
-```scala mdoc:silent:nest
-val stream: ZStream[Any, Throwable, Int] =
-  ZStream.fail(new Throwable)
-
-val res: ZStream[Any, IllegalArgumentException, Int] =
-  stream.refineOrDie { case e: IllegalArgumentException => e }
-```
-
-### Timing Out
-
-We can timeout a stream if it does not produce a value after some duration using `ZStream#timeout`, `ZStream#timeoutFail` and `timeoutFailCause` operators:
-
-```scala mdoc:silent:nest
-stream.timeoutFail(new TimeoutException)(10.seconds)
-```
-
-Or we can switch to another stream if the first stream does not produce a value after some duration:
-
-```scala mdoc:silent:nest
-val alternative = ZStream.fromZIO(ZIO.attempt(???))
-stream.timeoutTo(10.seconds)(alternative)
 ```
