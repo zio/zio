@@ -19,18 +19,18 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
       },
       test("includes a failed test") {
         runSummary(test3).map(str => assertTrue(str == summarize(test3Expected)))
-      },
+      } @@ TestAspect.ignore,
       test("doesn't generate summary for a successful test suite") {
         assertZIO(runSummary(suite1))(equalTo(""))
       },
       test("correctly reports failed test suite") {
         assertZIO(runSummary(suite2))(equalTo(summarize(suite2Expected)))
-      },
+      } @@ TestAspect.ignore,
       test("correctly reports multiple test suites") {
         runSummary(suite3).map(str => assertTrue(str == summarize(suite3Expected)))
-      },
+      } @@ TestAspect.ignore,
       test("correctly reports failure of simple assertion") {
         runSummary(test5).map(str => assertTrue(str == summarize(test5Expected)))
-      }
-    ) @@ silent @@ TestAspect.ignore // TODO Restore in next PR
+      } @@ TestAspect.ignore
+    ) @@ silent // TODO Restore in next PR
 }
