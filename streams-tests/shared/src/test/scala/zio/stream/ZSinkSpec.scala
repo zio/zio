@@ -145,6 +145,22 @@ object ZSinkSpec extends ZIOBaseSpec {
             }(equalTo(Chunk(Right(3), Left("Aie"))))
           )
         ),
+        suite("ensuring") {
+          test("happy path") {
+            for {
+              ref    <- Ref.make(false)
+              _      <- ZStream(1, 2, 3, 4, 5).run(ZSink.drain.ensuring(ref.set(true)))
+              result <- ref.get
+            } yield assertTrue(result)
+          } +
+            test("error") {
+              for {
+                ref    <- Ref.make(false)
+                _      <- ZStream.fail("boom!").run(ZSink.drain.ensuring(ref.set(true))).ignore
+                result <- ref.get
+              } yield assertTrue(result)
+            }
+        },
         suite("environmentWithSink")(
           test("environmentWithSink") {
             assertZIO(

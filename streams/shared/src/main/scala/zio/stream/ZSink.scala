@@ -226,6 +226,30 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
   )(implicit trace: Trace): ZSink[R1, E1, In1, L, Z1] =
     contramapZIO(f).mapZIO(g)
 
+  /**
+   * Returns a new sink with an attached finalizer. The finalizer is guaranteed
+   * to be executed so long as the sink begins execution (and regardless of
+   * whether or not it completes).
+   */
+  final def ensuringWith[R1 <: R](
+    finalizer: Exit[E, Z] => URIO[R1, Any]
+  )(implicit trace: Trace): ZSink[R1, E, In, L, Z] =
+    new ZSink[R1, E, In, L, Z](
+      channel.ensuringWith(finalizer)
+    )
+
+  /**
+   * Returns a new sink with an attached finalizer. The finalizer is guaranteed
+   * to be executed so long as the sink begins execution (and regardless of
+   * whether or not it completes).
+   */
+  final def ensuring[R1 <: R](
+    finalizer: => URIO[R1, Any]
+  )(implicit trace: Trace): ZSink[R1, E, In, L, Z] =
+    new ZSink[R1, E, In, L, Z](
+      channel.ensuring(finalizer)
+    )
+
   /** Filters the sink's input with the given predicate */
   def filterInput[In1 <: In](p: In1 => Boolean)(implicit trace: Trace): ZSink[R, E, In1, L, Z] =
     contramapChunks(_.filter(p))
