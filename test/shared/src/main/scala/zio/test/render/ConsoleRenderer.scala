@@ -114,19 +114,25 @@ trait ConsoleRenderer extends TestRenderer {
       renderToStringLines(output ++ renderedAnnotations).mkString
     }
 
-  private def renderOutput(output: List[String]): Message =
+  private def renderOutput(output: List[ConsoleIO]): Message =
     if (output.isEmpty)
       Message.empty
     else
       Message(
-        Line.fromString("          Output Produced by Test         ".red.underlined, 2) +:
-          output.map(s => Line.fromString("| ".red + s.yellow, 2)) :+
-          Line.fromString("==========================================\n".red, 2)
+        Line.fromString("          Console IO Produced by Test         ".red.underlined, 2) +:
+          output.map(s => Line.fromString("| ".red + renderConsoleIO(s), 2)) :+
+          Line.fromString("==============================================\n".red, 2)
       )
+
+  private def renderConsoleIO(s: ConsoleIO) =
+    s match {
+      case ConsoleInput(line) => line.cyan
+      case ConsoleOutput(line) => line.yellow
+    }
 
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
-      val testOutput: List[String] = result.annotations.flatMap(_.get(TestAnnotation.output))
+      val testOutput: List[ConsoleIO] = result.annotations.flatMap(_.get(TestAnnotation.output))
       val message                  = (Message(result.summaryLines) ++ renderOutput(testOutput)).intersperse(Line.fromString("\n"))
 
       val output = result.resultType match {
