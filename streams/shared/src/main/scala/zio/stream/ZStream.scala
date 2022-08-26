@@ -1619,7 +1619,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 ZIO.foreachDiscard(ZStream.groupBy(in)(f)) { case (key, values) =>
                   map.get(key) match {
                     case Some(innerQueue) =>
-                      innerQueue.offer(Take.chunk(values))
+                      innerQueue.offer(Take.chunk(values)).catchSomeCause {
+                        case cause if cause.isInterruptedOnly => ZIO.unit
+                      }
                     case None =>
                       Queue.bounded[Take[E, A]](buffer).flatMap { innerQueue =>
                         ZIO.succeed(map += key -> innerQueue) *>
