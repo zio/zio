@@ -846,7 +846,7 @@ object Fiber extends FiberPlatformSpecific {
    * always be `None` unless called from within an executing effect and this
    * feature is enabled using [[Runtime.enableCurrentFiber]].
    */
-  def currentFiber()(unsafe: Unsafe): Option[Fiber[Any, Any]] =
+  def currentFiber()(implicit unsafe: Unsafe): Option[Fiber[Any, Any]] =
     Option(_currentFiber.get)
 
   private[zio] val _currentFiber: ThreadLocal[internal.FiberRuntime[_, _]] =
