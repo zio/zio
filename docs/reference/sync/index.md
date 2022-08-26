@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to ZIO's Synchronization Primitives"
 ---
 
 When we access shared resources in a concurrent environment, we should choose a proper synchronization mechanism to avoid incorrect results and data inconsistencies. ZIO provides a set of synchronization primitives and concurrent data structures in the `zio-concurrent` module that helps us to achieve the desired synchronization.

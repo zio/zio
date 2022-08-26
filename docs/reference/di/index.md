@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction To Dependency Injection"
+title: "Introduction to Dependency Injection in ZIO"
 ---
 
 ## What is Dependency?

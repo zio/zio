@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to ZIO Test"
 ---
 
 **ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. 

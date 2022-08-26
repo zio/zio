@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to Concurrent Programming in ZIO"
 ---
 
 ## Overview

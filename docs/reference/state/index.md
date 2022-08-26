@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to State Management in ZIO"
 ---
 
 When we write a program, more often we need to keep track of some sort of state during the execution of the program. If an object has a state, its behavior is influenced by passing the time.

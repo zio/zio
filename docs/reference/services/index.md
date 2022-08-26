@@ -1,6 +1,6 @@
 ---
 id: index
-title: "Introduction"
+title: "Introduction to ZIO's Built-in Services"
 ---
 
 ZIO already provides four built-in services:
