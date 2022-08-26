@@ -86,12 +86,14 @@ trait TimeVariants {
    * `LocalDate.MIN`.
    */
   final def localDate(implicit trace: Trace): Gen[Any, LocalDate] =
-    for {
-      year  <- year
-      month <- Gen.int(1, 12)
-      maxLen = if (!year.isLeap && month == 2) 28 else Month.of(month).maxLength
-      day   <- Gen.int(1, maxLen)
-    } yield LocalDate.of(year.getValue, month, day)
+    localDateTime.map(_.toLocalDate)
+
+  /**
+   * A generator for `java.time.LocalDate` values inside the specified range:
+   * [min, max]. Shrinks towards min.
+   */
+  final def localDate(min: LocalDate, max: LocalDate)(implicit trace: Trace): Gen[Any, LocalDate] =
+    localDateTime(min.atStartOfDay(), max.atTime(LocalTime.MAX)).map(_.toLocalDate)
 
   /**
    * A generator of `java.time.LocalDateTime` values. Shrinks toward
@@ -110,16 +112,18 @@ trait TimeVariants {
     instant(min.toInstant(utc), max.toInstant(utc)).map(LocalDateTime.ofInstant(_, utc))
 
   /**
+   * A generator of `java.time.LocalTime` values within the specified range:
+   * [min, max]. Shrinks toward `LocalTime.MIN`.
+   */
+  final def localTime(min: LocalTime, max: LocalTime)(implicit trace: Trace): Gen[Any, LocalTime] =
+    localDateTime(min.atDate(LocalDate.MIN), max.atDate(LocalDate.MIN)).map(_.toLocalTime)
+
+  /**
    * A generator of `java.time.LocalTime` values. Shrinks toward
    * `LocalTime.MIN`.
    */
   final def localTime(implicit trace: Trace): Gen[Any, LocalTime] =
-    for {
-      hour   <- Gen.int(0, 23)
-      minute <- Gen.int(0, 59)
-      second <- Gen.int(0, 59)
-      nanos  <- Gen.int(0, 999999999)
-    } yield LocalTime.of(hour, minute, second, nanos)
+    localTime(LocalTime.MIN, LocalTime.MAX)
 
   /**
    * A generator of `java.time.Month` values. Shrinks toward `Month.JANUARY`.
@@ -177,7 +181,7 @@ trait TimeVariants {
       val actualLocalDate  = actual.toLocalDate
       val minOffsetSeconds = if (minLocalDate == actualLocalDate) min.getOffset.getTotalSeconds else -18 * 3600
       val maxOffsetSeconds = if (maxLocalDate == actualLocalDate) max.getOffset.getTotalSeconds else 18 * 3600
-      Gen.int(minOffsetSeconds, maxOffsetSeconds).map(ZoneOffset.ofTotalSeconds(_))
+      Gen.int(minOffsetSeconds, maxOffsetSeconds).map(ZoneOffset.ofTotalSeconds)
     }
 
     for {
@@ -207,6 +211,13 @@ trait TimeVariants {
     } yield Period.of(years, months, days)
 
   /**
+   * A generator of `java.time.Year` values inside the specified range: [min,
+   * max]. Shrinks toward `min`.
+   */
+  final def year(min: Year, max: Year)(implicit trace: Trace): Gen[Any, Year] =
+    Gen.int(min.getValue, max.getValue).map(Year.of)
+
+  /**
    * A generator of `java.time.Year` values. Shrinks toward
    * `Year.of(Year.MIN_VALUE)`.
    */
@@ -221,7 +232,28 @@ trait TimeVariants {
     for {
       year  <- year
       month <- Gen.int(1, 12)
-    } yield YearMonth.of(year.getValue(), month)
+    } yield YearMonth.of(year.getValue, month)
+
+  /**
+   * A generator of `java.time.YearMonth` values within specified range: [min,
+   * max]. Shrinks toward `min`.
+   */
+  final def yearMonth(min: YearMonth, max: YearMonth)(implicit trace: Trace): Gen[Any, YearMonth] = {
+    def genMonth(min: YearMonth, max: YearMonth, year: Year) = {
+      val yearValue = year.getValue
+      (min.getYear, max.getYear) match {
+        case (`yearValue`, `yearValue`) => Gen.int(min.getMonthValue, max.getMonthValue)
+        case (_, `yearValue`)           => Gen.int(min.getMonthValue, max.getMonthValue)
+        case (`yearValue`, _)           => Gen.int(min.getMonthValue, max.getMonthValue)
+        case (_, _)                     => Gen.int(1, 12)
+      }
+    }
+
+    for {
+      year  <- year(Year.from(min), Year.from(max))
+      month <- genMonth(min, max, year)
+    } yield YearMonth.of(year.getValue, month)
+  }
 
   /**
    * A generator of `java.time.ZonedDateTime` values. Shrinks toward
@@ -230,6 +262,16 @@ trait TimeVariants {
   final def zonedDateTime(implicit trace: Trace): Gen[Any, ZonedDateTime] =
     for {
       dateTime <- localDateTime
+      zoneId   <- zoneId
+    } yield ZonedDateTime.of(dateTime, zoneId)
+
+  /**
+   * A generator of `java.time.ZonedDateTime` values within specified range:
+   * [min, max]. Shrinks toward `min`.
+   */
+  final def zonedDateTime(min: ZonedDateTime, max: ZonedDateTime)(implicit trace: Trace): Gen[Any, ZonedDateTime] =
+    for {
+      dateTime <- localDateTime(min.toLocalDateTime, max.toLocalDateTime)
       zoneId   <- zoneId
     } yield ZonedDateTime.of(dateTime, zoneId)
 
