@@ -37,7 +37,7 @@ def loadTestData: Task[List[((Int, Int), Int)]] =
       .fromResource("test-data.csv")
       .getLines()
       .toList
-      .map(_.split(',').map(_.strip()))
+      .map(_.split(',').map(_.trim))
       .map(i => ((i(0).toInt, i(1).toInt), i(2).toInt))
   )
   
