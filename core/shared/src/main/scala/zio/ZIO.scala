@@ -772,7 +772,16 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def forkIn(scope: => Scope)(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
     ZIO.uninterruptibleMask { restore =>
-      restore(self).forkDaemon.tap(fiber => scope.addFinalizer(fiber.interrupt))
+      def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
+        ZIO.fiberIdWith { fiberId =>
+          if (fiberId == fiber.id) ZIO.unit else fiber.interrupt
+        }
+
+      scope.fork.flatMap { child =>
+        restore(self).onExit(child.close(_)).forkDaemon.tap { fiber =>
+          child.addFinalizer(interrupt(fiber))
+        }
+      }
     }
 
   /**
@@ -787,20 +796,7 @@ sealed trait ZIO[-R, +E, +A]
    * Forks the fiber in a [[Scope]], interrupting it when the scope is closed.
    */
   final def forkScoped(implicit trace: Trace): ZIO[R with Scope, Nothing, Fiber.Runtime[E, A]] =
-    ZIO.uninterruptibleMask { restore =>
-      def interrupt(fiber: Fiber.Runtime[Any, Any]): ZIO[Any, Nothing, Any] =
-        ZIO.fiberIdWith { fiberId =>
-          if (fiberId == fiber.id) ZIO.unit else fiber.interrupt
-        }
-
-      ZIO.scopeWith { scope =>
-        scope.fork.flatMap { child =>
-          restore(self).onExit(child.close(_)).forkDaemon.tap { fiber =>
-            child.addFinalizer(interrupt(fiber))
-          }
-        }
-      }
-    }
+    ZIO.scopeWith(scope => self.forkIn(scope))
 
   /**
    * Like fork but handles an error with the provided handler.
