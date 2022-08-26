@@ -241,29 +241,30 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
         def scheduledAggregator(
           sinkFiber: Fiber.Runtime[E1, (Chunk[Chunk[A1]], B)],
-          scheduleFiber: Fiber.Runtime[None.type, C]
+          scheduleFiber: Fiber.Runtime[None.type, C],
+          scope: Scope
         ): ZChannel[R1, Any, Any, Any, E1, Chunk[Either[C, B]], Any] = {
 
           val forkSink =
             consumed.set(false) *> endAfterEmit
-              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.runScoped.forkScoped
+              .set(false) *> (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkIn(scope)
 
           def handleSide(leftovers: Chunk[Chunk[A1]], b: B, c: Option[C]) =
             ZChannel.unwrap(
               sinkLeftovers.set(leftovers.flatten) *>
                 sinkEndReason.get.map {
                   case ScheduleEnd =>
-                    ZChannel.unwrapScoped[R1] {
+                    ZChannel.unwrap {
                       for {
                         consumed      <- consumed.get
                         sinkFiber     <- forkSink
-                        scheduleFiber <- timeout(Some(b)).forkScoped
+                        scheduleFiber <- timeout(Some(b)).forkIn(scope)
                         toWrite        = c.fold[Chunk[Either[C, B]]](Chunk(Right(b)))(c => Chunk(Right(b), Left(c)))
                       } yield
                         if (consumed)
                           ZChannel
-                            .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber)
-                        else scheduledAggregator(sinkFiber, scheduleFiber)
+                            .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                        else scheduledAggregator(sinkFiber, scheduleFiber, scope)
                     }
                   case UpstreamEnd =>
                     ZChannel.unwrap {
@@ -306,10 +307,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
         ZStream.unwrapScoped[R1] {
           for {
-            _             <- (self.channel >>> handoffProducer).runScoped.forkScoped
-            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.runScoped.forkScoped
+            _             <- (self.channel >>> handoffProducer).run.forkScoped
+            sinkFiber     <- (handoffConsumer pipeToOrFail sink.channel).collectElements.run.forkScoped
             scheduleFiber <- timeout(None).forkScoped
-          } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber))
+            scope         <- ZIO.scope
+          } yield new ZStream(scheduledAggregator(sinkFiber, scheduleFiber, scope))
         }
     }
   }
