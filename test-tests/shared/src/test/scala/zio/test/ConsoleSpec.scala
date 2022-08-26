@@ -60,6 +60,18 @@ object ConsoleSpec extends ZIOBaseSpec {
           assert(input2)(equalTo("Input 2"))
         }
       },
+      test("does both") {
+        for {
+          _      <- feedLines("Input 1", "Input 2")
+          input1 <- readLine
+          _ <- printLine("Hi there")
+          input2 <- readLine
+          _ <- printLine("Hey")
+        } yield {
+          assert(input1)(equalTo("Input 1")) &&
+            assert(input2)(equalTo("Input X"))
+        }
+      },
       test("clears lines from input") {
         for {
           _      <- feedLines("Input 1", "Input 2")
