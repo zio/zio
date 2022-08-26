@@ -17,7 +17,7 @@
 package zio.test.poly
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 import zio.{Random, Trace}
 
 import scala.annotation.tailrec
@@ -36,7 +36,7 @@ object GenOrderingPoly {
    * Constructs an instance of `GenOrderingPoly` using the specified `Gen` and
    * `Ordering` instances, existentially hiding the underlying type.
    */
-  def apply[A](gen: Gen[Sized, A], ord: Ordering[A]): GenOrderingPoly =
+  def apply[A](gen: Gen[Any, A], ord: Ordering[A]): GenOrderingPoly =
     new GenOrderingPoly {
       type T = A
       val genT = gen

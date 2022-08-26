@@ -20,41 +20,41 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.{EndsWith, StartsWith, Uuid}
 import shapeless.Witness
 import zio.test.magnolia.DeriveGen
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 
 object string extends StringInstances
 
 trait StringInstances {
 
-  def endsWithStringGen[R <: Sized, S <: String](implicit
+  def endsWithStringGen[R, S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, EndsWith[S]]] = Gen.string(charGen).map(v => Refined.unsafeApply(v + ws.value))
 
-  def endsWithString1Gen[R <: Sized, S <: String](implicit
+  def endsWithString1Gen[R, S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, EndsWith[S]]] =
     Gen.string1(charGen).map(v => Refined.unsafeApply(v + ws.value)) //Only String can call `+` since scala 2.13.0.
 
-  def endsWithStringNGen[R <: Sized, S <: String, P](implicit
+  def endsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[String, EndsWith[S]]] =
     sizeGen.flatMap(s => Gen.stringN(s.value)(charGen).map(v => Refined.unsafeApply(v + ws.value)))
 
-  def startsWithStringGen[R <: Sized, S <: String](implicit
+  def startsWithStringGen[R, S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, StartsWith[S]]] = Gen.string(charGen).map(v => Refined.unsafeApply(ws.value + v))
 
-  def startsWithString1Gen[R <: Sized, S <: String](implicit
+  def startsWithString1Gen[R, S <: String](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char]
   ): Gen[R, Refined[String, StartsWith[S]]] = Gen.string1(charGen).map(v => Refined.unsafeApply(ws.value + v))
 
-  def startsWithStringNGen[R <: Sized, S <: String, P](implicit
+  def startsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char],
     sizeGen: Gen[R, Int Refined P]

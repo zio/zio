@@ -3,7 +3,7 @@ id: sized
 title: "Changing the Size of Sized Generators"
 ---
 
-To change the default _size_ used by [sized generators](../gen.md#sized-generators) we can use `sized` test aspect:
+To change the default _size_ used by [sized generators](../gen.md#sized-generators) we can use `size` test aspect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -13,7 +13,7 @@ test("generating small list of characters") {
   check(Gen.small(Gen.listOfN(_)(Gen.alphaNumericChar))) { n =>
     ZIO.attempt(n).debug *> Sized.size.map(s => assertTrue(s == 50))
   }
-} @@ TestAspect.sized(50) @@ TestAspect.samples(5)
+} @@ TestAspect.size(50) @@ TestAspect.samples(5)
 ```
 
 Sample output:

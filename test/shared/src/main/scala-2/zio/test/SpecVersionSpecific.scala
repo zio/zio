@@ -31,6 +31,7 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   spec.provideCustom(userRepoLayer, databaseLayer)
    * }}}
    */
+  @deprecated("use provide", "2.0.2")
   def provideCustom[E1 >: E](layer: ZLayer[_, E1, _]*): ZSpec[TestEnvironment, E1, TestSuccess] =
     macro LayerMacros.provideCustomImpl[ZSpec, TestEnvironment, R, E1, TestSuccess]
 
@@ -74,6 +75,7 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   spec.provideCustomShared(userRepoLayer, databaseLayer)
    * }}}
    */
+  @deprecated("use provideShared", "2.0.2")
   def provideCustomShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1] =
     macro SpecLayerMacros.provideCustomSharedImpl[R, E1]
 

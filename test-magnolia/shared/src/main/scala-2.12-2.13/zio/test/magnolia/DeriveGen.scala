@@ -18,7 +18,7 @@ package zio.test.magnolia
 
 import magnolia1._
 import zio.Chunk
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
@@ -32,14 +32,14 @@ import java.util.UUID
  * {{{
  * final case class Point(x: Double, y: Double)
  *
- * val genPoint: Gen[Sized, Point] = DeriveGen[Point]
+ * val genPoint: Gen[Any, Point] = DeriveGen[Point]
  *
  * sealed trait Color
  * case object Red   extends Color
  * case object Green extends Color
  * case object Blue  extends Color
  *
- * val genColor: Gen[Sized, Color] = DeriveGen[Color]
+ * val genColor: Gen[Any, Color] = DeriveGen[Color]
  * }}}
  *
  * You can derive generators that include your own custom types by providing an
@@ -47,7 +47,7 @@ import java.util.UUID
  * `instance` method.
  */
 trait DeriveGen[A] {
-  def derive: Gen[Sized, A]
+  def derive: Gen[Any, A]
 }
 
 object DeriveGen {
@@ -55,14 +55,14 @@ object DeriveGen {
   /**
    * Derives a generator of `A` values given an implicit `DeriveGen` instance.
    */
-  def apply[A](implicit ev: DeriveGen[A]): Gen[Sized, A] = ev.derive
+  def apply[A](implicit ev: DeriveGen[A]): Gen[Any, A] = ev.derive
 
   /**
    * Constructs a `DeriveGen` instance given a generator of `A` values.
    */
-  def instance[A](gen: Gen[Sized, A]): DeriveGen[A] =
+  def instance[A](gen: Gen[Any, A]): DeriveGen[A] =
     new DeriveGen[A] {
-      val derive: Gen[Sized, A] = gen
+      val derive: Gen[Any, A] = gen
     }
 
   implicit val genBoolean: DeriveGen[Boolean]             = instance(Gen.boolean)

@@ -120,7 +120,7 @@ object FrameworkSpecInstances {
   lazy val failingSpecFQN = SimpleFailingSharedSpec.getClass.getName
 
   object SimpleFailingSharedSpec extends ZIOSpecDefault {
-    def spec: Spec[Annotations, TestFailure[Any]] = zio.test.suite("some suite")(
+    def spec: Spec[Any, TestFailure[Any]] = zio.test.suite("some suite")(
       test("failing test") {
         zio.test.assert(1)(Assertion.equalTo(2))
       },

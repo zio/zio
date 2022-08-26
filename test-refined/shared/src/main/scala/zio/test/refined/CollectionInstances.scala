@@ -20,27 +20,27 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.collection.{NonEmpty, Size}
 import zio.test.Gen.{listOfN, vectorOfN}
 import zio.test.magnolia.DeriveGen
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 import zio.{Chunk, NonEmptyChunk}
 
 object collection extends CollectionInstances
 
 trait CollectionInstances {
 
-  def nonEmptyChunkRefinedGen[R <: Sized, T](implicit
+  def nonEmptyChunkRefinedGen[R, T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[NonEmptyChunk[T], NonEmpty]] =
     Gen.chunkOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyListRefinedGen[R <: Sized, T](implicit
+  def nonEmptyListRefinedGen[R, T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[List[T], NonEmpty]] = Gen.listOf1(genT).map(Refined.unsafeApply)
 
-  def nonEmptyVectorRefinedGen[R <: Sized, T](implicit
+  def nonEmptyVectorRefinedGen[R, T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[Vector[T], NonEmpty]] = Gen.vectorOf1(genT).map(Refined.unsafeApply)
 
-  def sizedChunkRefinedGen[R <: Sized, T, P](implicit
+  def sizedChunkRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Chunk[T], Size[P]]] =
@@ -48,7 +48,7 @@ trait CollectionInstances {
       Gen.chunkOfN(n.value)(genT)
     }.map(r => Refined.unsafeApply(r))
 
-  def listSizeRefinedGen[R <: Sized, T, P](implicit
+  def listSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[List[T], Size[P]]] =
@@ -56,7 +56,7 @@ trait CollectionInstances {
       listOfN(n.value)(genT)
     }.map(Refined.unsafeApply)
 
-  def vectorSizeRefinedGen[R <: Sized, T, P](implicit
+  def vectorSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
     sizeGen: Gen[R, Int Refined P]
   ): Gen[R, Refined[Vector[T], Size[P]]] = sizeGen.flatMap { n =>

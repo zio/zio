@@ -7,7 +7,7 @@ import eu.timepit.refined.types.string.{FiniteString, HexString, NonEmptyFiniteS
 import shapeless.Nat._1
 import shapeless.Witness
 import zio.test.magnolia.DeriveGen
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 
 object string extends StringInstance
 
@@ -22,13 +22,13 @@ trait StringInstance {
 
   def finiteStringGen[N <: Int]: FiniteStringPartiallyApplied[N, MaxSize[N]] =
     new FiniteStringPartiallyApplied[N, MaxSize[N]](0)
-  def nonEmptyStringGen[R](charGen: Gen[R, Char]): Gen[R with Sized, NonEmptyString] =
+  def nonEmptyStringGen[R](charGen: Gen[R, Char]): Gen[R, NonEmptyString] =
     Gen.string1(charGen).map(Refined.unsafeApply)
   def nonEmptyFiniteStringGen[N <: Int]: FiniteStringPartiallyApplied[N, Size[Interval.Closed[_1, N]]] =
     new FiniteStringPartiallyApplied[N, Size[Interval.Closed[_1, N]]](1)
-  def trimmedStringGen[R](charGen: Gen[R, Char]): Gen[R with Sized, TrimmedString] =
+  def trimmedStringGen[R](charGen: Gen[R, Char]): Gen[R, TrimmedString] =
     Gen.string(charGen).map(s => Refined.unsafeApply(s.trim))
-  def hexStringGen: Gen[Sized, HexString] =
+  def hexStringGen: Gen[Any, HexString] =
     Gen.oneOf(Gen.string(Gen.hexCharLower), Gen.string(Gen.hexCharUpper)).map(Refined.unsafeApply)
 
   implicit def finiteStringDeriveGen[N <: Int](implicit

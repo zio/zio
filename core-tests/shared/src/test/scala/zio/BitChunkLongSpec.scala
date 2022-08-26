@@ -5,15 +5,15 @@ import zio.test._
 
 object BitChunkLongSpec extends ZIOBaseSpec {
 
-  val genLongChunk: Gen[Sized, Chunk[Long]] =
+  val genLongChunk: Gen[Any, Chunk[Long]] =
     for {
       longs <- Gen.listOf(Gen.long)
     } yield Chunk.fromIterable(longs)
 
-  val genInt: Gen[Sized, Int] =
+  val genInt: Gen[Any, Int] =
     Gen.small(Gen.const(_))
 
-  val genEndianness: Gen[Sized, Chunk.BitChunk.Endianness] =
+  val genEndianness: Gen[Any, Chunk.BitChunk.Endianness] =
     Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
 
   def toBinaryString(endianness: Chunk.BitChunk.Endianness)(long: Long): String = {

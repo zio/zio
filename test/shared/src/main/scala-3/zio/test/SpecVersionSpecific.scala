@@ -34,6 +34,7 @@ trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   zio.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
+  @deprecated("use provide", "2.0.2")
   inline def provideCustom[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1] =
     ${SpecLayerMacros.provideImpl[TestEnvironment, R, E1]('self, 'layer)}
 
@@ -63,6 +64,7 @@ trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   zio.provideCustom(oldLadyLayer, flyLayer)
    * }}}
    */
+  @deprecated("use provideShared", "2.0.2")
   inline def provideCustomShared[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[TestEnvironment, E1] =
     ${SpecLayerMacros.provideSharedImpl[TestEnvironment, R, E1]('self, 'layer)}
 }

@@ -19,7 +19,7 @@ package zio.test.refined
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.boolean.Or
 import zio.test.magnolia.DeriveGen
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 import zio.Random
 
 object boolean extends BooleanInstances
@@ -29,10 +29,10 @@ trait BooleanInstances {
     raGen: DeriveGen[Refined[T, A]],
     rbGen: DeriveGen[Refined[T, B]]
   ): DeriveGen[Refined[T, A Or B]] = {
-    val genA: Gen[Sized, T] = raGen.derive.map(_.value)
-    val genB: Gen[Sized, T] = rbGen.derive.map(_.value)
+    val genA: Gen[Any, T] = raGen.derive.map(_.value)
+    val genB: Gen[Any, T] = rbGen.derive.map(_.value)
     DeriveGen.instance(
-      Gen.oneOf[Sized, T](genA, genB).map(Refined.unsafeApply)
+      Gen.oneOf[Any, T](genA, genB).map(Refined.unsafeApply)
     )
   }
 

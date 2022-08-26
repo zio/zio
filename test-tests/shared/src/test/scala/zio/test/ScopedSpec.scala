@@ -25,7 +25,7 @@ object ScopedSpec extends ZIOBaseSpec {
       ZIO.serviceWithZIO(_.incrementAndGet)
   }
 
-  def spec: Spec[Annotations, TestFailure[Any]] = suite("ScopedSpec")(
+  def spec: Spec[Any, TestFailure[Any]] = suite("ScopedSpec")(
     suite("scoped shared")(
       suite("first suite")(
         test("first test") {

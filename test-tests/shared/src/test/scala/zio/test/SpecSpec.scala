@@ -11,14 +11,6 @@ object SpecSpec extends ZIOBaseSpec {
     ZLayer.succeed(())
 
   def spec: Spec[TestEnvironment, TestFailure[Nothing]] = suite("SpecSpec")(
-    suite("provideCustomLayer")(
-      test("provides the part of the environment that is not part of the `TestEnvironment`") {
-        for {
-          _ <- ZIO.environment[TestEnvironment]
-          _ <- ZIO.service[Unit]
-        } yield assertCompletes
-      }.provideCustomLayer(specLayer)
-    ),
     suite("provideLayer")(
       test("does not have early initialization issues") {
         for {
@@ -49,7 +41,7 @@ object SpecSpec extends ZIOBaseSpec {
         for {
           ref      <- Ref.make(true)
           specLayer = ZLayer.fromZIO(ref.set(false).as(ref))
-          _        <- execute(spec.provideCustomLayerShared(specLayer) @@ ifEnvSet("foo"))
+          _        <- execute(spec.provideLayerShared(specLayer) @@ ifEnvSet("foo"))
           result   <- ref.get
         } yield assert(result)(isTrue)
       },
@@ -130,7 +122,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertZIO(update)(equalTo(2))
                      }
-                   ).provideCustomLayerShared(specLayer),
+                   ).provideLayerShared(specLayer),
                    suite("suite2")(
                      test("test1") {
                        assertZIO(update)(equalTo(1))
@@ -138,7 +130,7 @@ object SpecSpec extends ZIOBaseSpec {
                      test("test2") {
                        assertZIO(update)(equalTo(2))
                      }
-                   ).provideCustomLayerShared(specLayer)
+                   ).provideLayerShared(specLayer)
                  ) @@ sequential
           succeeded <- succeeded(spec)
           log       <- ref.get.map(_.reverse)
@@ -159,7 +151,7 @@ object SpecSpec extends ZIOBaseSpec {
                 }
               )
             )
-          ).provideCustomLayerShared(ZLayer.scoped[Any](ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
+          ).provideLayerShared(ZLayer.scoped[Any](ZIO.acquireRelease(Ref.make(0))(_.set(-1))))
         assertZIO(succeeded(spec))(isTrue)
       }
     ),

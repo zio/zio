@@ -62,12 +62,12 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Returns a new spec with the annotation map at each node.
    */
-  final def annotated(implicit trace: Trace): Spec[R with Annotations, E] =
-    transform[R with Annotations, E] {
+  final def annotated(implicit trace: Trace): Spec[R, E] =
+    transform[R, E] {
       case ExecCase(exec, spec)     => ExecCase(exec, spec)
       case LabeledCase(label, spec) => LabeledCase(label, spec)
       case ScopedCase(scoped) =>
-        ScopedCase[R with Annotations, E, Spec[R with Annotations, E]](
+        ScopedCase[R, E, Spec[R, E]](
           scoped
         )
       case MultipleCase(specs)         => MultipleCase(specs)
@@ -263,6 +263,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * val spec2 = spec.provideCustomLayer(loggingLayer)
    * }}}
    */
+  @deprecated("use provideLayer", "2.0.2")
   def provideCustomLayer[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: EnvironmentTag[R1],
@@ -283,6 +284,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * val spec2 = spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
+  @deprecated("use provideLayerShared", "2.0.2")
   def provideCustomLayerShared[E1 >: E, R1](layer: ZLayer[TestEnvironment, E1, R1])(implicit
     ev: TestEnvironment with R1 <:< R,
     tagged: EnvironmentTag[R1],
@@ -416,7 +418,7 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def when(
     b: => Boolean
-  )(implicit trace: Trace): Spec[R with Annotations, E] =
+  )(implicit trace: Trace): Spec[R, E] =
     whenZIO(ZIO.succeedNow(b))
 
   /**
@@ -424,14 +426,14 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    */
   final def whenZIO[R1 <: R, E1 >: E](
     b: ZIO[R1, E1, Boolean]
-  )(implicit trace: Trace): Spec[R1 with Annotations, E1] =
+  )(implicit trace: Trace): Spec[R1, E1] =
     caseValue match {
       case ExecCase(exec, spec) =>
         Spec.exec(exec, spec.whenZIO(b))
       case LabeledCase(label, spec) =>
         Spec.labeled(label, spec.whenZIO(b))
       case ScopedCase(scoped) =>
-        Spec.scoped[R1 with Annotations](
+        Spec.scoped[R1](
           b.mapError(TestFailure.fail).flatMap { b =>
             if (b) scoped
             else ZIO.succeedNow(Spec.empty)

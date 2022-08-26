@@ -17,7 +17,7 @@
 package zio.test.laws
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.{Gen, Sized}
+import zio.test.Gen
 import zio.Chunk
 import zio.Trace
 
@@ -41,9 +41,9 @@ object GenF {
   /**
    * A generator of `Chunk` values.
    */
-  val chunk: GenF[Sized, Chunk] =
-    new GenF[Sized, Chunk] {
-      def apply[R1 <: Sized, A](gen: Gen[R1, A])(implicit
+  val chunk: GenF[Any, Chunk] =
+    new GenF[Any, Chunk] {
+      def apply[R1, A](gen: Gen[R1, A])(implicit
         trace: Trace
       ): Gen[R1, Chunk[A]] =
         Gen.chunkOf(gen)
@@ -61,9 +61,9 @@ object GenF {
   /**
    * A generator of `List` values.
    */
-  val list: GenF[Sized, List] =
-    new GenF[Sized, List] {
-      def apply[R1 <: Sized, A](gen: Gen[R1, A])(implicit
+  val list: GenF[Any, List] =
+    new GenF[Any, List] {
+      def apply[R1, A](gen: Gen[R1, A])(implicit
         trace: Trace
       ): Gen[R1, List[A]] =
         Gen.listOf(gen)
@@ -72,7 +72,7 @@ object GenF {
   /**
    * A generator of `Map` values.
    */
-  def map[R <: Sized, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
+  def map[R, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
     new GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] {
       def apply[R1 <: R, B](b: Gen[R1, B])(implicit trace: Trace): Gen[R1, Map[A, B]] =
         Gen.mapOf(a, b)
@@ -90,18 +90,18 @@ object GenF {
   /**
    * A generator of `Set` values.
    */
-  val set: GenF[Sized, Set] =
-    new GenF[Sized, Set] {
-      def apply[R1 <: Sized, A](gen: Gen[R1, A])(implicit trace: Trace): Gen[R1, Set[A]] =
+  val set: GenF[Any, Set] =
+    new GenF[Any, Set] {
+      def apply[R1, A](gen: Gen[R1, A])(implicit trace: Trace): Gen[R1, Set[A]] =
         Gen.setOf(gen)
     }
 
   /**
    * A generator of `Vector` values.
    */
-  val vector: GenF[Sized, Vector] =
-    new GenF[Sized, Vector] {
-      def apply[R1 <: Sized, A](gen: Gen[R1, A])(implicit
+  val vector: GenF[Any, Vector] =
+    new GenF[Any, Vector] {
+      def apply[R1, A](gen: Gen[R1, A])(implicit
         trace: Trace
       ): Gen[R1, Vector[A]] =
         Gen.vectorOf(gen)

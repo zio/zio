@@ -5,7 +5,7 @@ import zio.test._
 
 object NonEmptyChunkSpec extends ZIOBaseSpec {
 
-  lazy val genChunk: Gen[Sized, Chunk[Int]] = Gen.chunkOf(genInt)
+  lazy val genChunk: Gen[Any, Chunk[Int]] = Gen.chunkOf(genInt)
 
   lazy val genInt: Gen[Any, Int] = Gen.int(-10, 10)
 
@@ -13,9 +13,9 @@ object NonEmptyChunkSpec extends ZIOBaseSpec {
 
   lazy val genIntFunction2: Gen[Any, (Any, Any) => Int] = Gen.function2(genInt)
 
-  lazy val genNonEmptyChunk: Gen[Sized, NonEmptyChunk[Int]] = Gen.chunkOf1(genInt)
+  lazy val genNonEmptyChunk: Gen[Any, NonEmptyChunk[Int]] = Gen.chunkOf1(genInt)
 
-  lazy val genNonEmptyChunkFunction: Gen[Sized, Any => NonEmptyChunk[Int]] =
+  lazy val genNonEmptyChunkFunction: Gen[Any, Any => NonEmptyChunk[Int]] =
     Gen.function(genNonEmptyChunk)
 
   def spec = suite("NonEmptyChunkSpec")(

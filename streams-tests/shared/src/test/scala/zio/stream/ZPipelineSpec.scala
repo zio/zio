@@ -155,7 +155,7 @@ object ZPipelineSpec extends ZIOBaseSpec {
       )
     )
 
-  val weirdStringGenForSplitLines: Gen[Sized, Chunk[String]] = Gen
+  val weirdStringGenForSplitLines: Gen[Any, Chunk[String]] = Gen
     .chunkOf(Gen.string(Gen.printableChar).map(_.filterNot(c => c == '\n' || c == '\r')))
     .map(l => if (l.nonEmpty && l.last == "") l ++ List("a") else l)
 

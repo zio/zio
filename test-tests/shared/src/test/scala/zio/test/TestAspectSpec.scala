@@ -249,7 +249,7 @@ object TestAspectSpec extends ZIOBaseSpec {
         value <- ref.get
       } yield assert(value)(equalTo(43))
     },
-    test("repeats sets the number of times to repeat a test to the specified value") {
+    test("retries sets the number of times to repeat a test to the specified value") {
       for {
         ref   <- Ref.make(0)
         spec   = test("test")(assertZIO(ref.update(_ + 1))(nothing)) @@ flaky @@ retries(42)
@@ -305,9 +305,9 @@ object TestAspectSpec extends ZIOBaseSpec {
         assert(n)(equalTo(n + 1))
       }
     } @@ shrinks(0) @@ failing,
-    test("sized sets the size to the specified value") {
+    test("size sets the size to the specified value") {
       assertZIO(Sized.size)(equalTo(42))
-    } @@ sized(42),
+    } @@ size(42),
     test("timeout makes tests fail after given duration") {
       assertZIO(ZIO.never *> ZIO.unit)(equalTo(()))
     } @@ timeout(1.nanos)

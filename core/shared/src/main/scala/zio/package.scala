@@ -29,6 +29,7 @@ package object zio
 
   type RuntimeFlags = Int
 
+  type ZAny >: Any
   type ZNothing <: Nothing
 
   type IO[+E, +A]   = ZIO[Any, E, A]         // Succeed with an `A`, may fail with `E`        , no requirements.

@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{URIO, ZIO, ZLayer}
+import zio.{Tag, URIO, ZIO, ZLayer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Trace
 
@@ -52,6 +52,10 @@ trait TestConfig extends Serializable {
 
 object TestConfig {
 
+  val tag: Tag[TestConfig] = Tag[TestConfig]
+
+  final case class Test(repeats: Int, retries: Int, samples: Int, shrinks: Int) extends TestConfig
+
   /**
    * Constructs a new `TestConfig` with the default settings.
    */
@@ -61,39 +65,35 @@ object TestConfig {
   /**
    * Constructs a new `TestConfig` service with the specified settings.
    */
-  def live(repeats0: Int, retries0: Int, samples0: Int, shrinks0: Int)(implicit
+  def live(repeats: Int, retries: Int, samples: Int, shrinks: Int)(implicit
     trace: Trace
   ): ZLayer[Any, Nothing, TestConfig] =
-    ZLayer.succeed {
-      new TestConfig {
-        val repeats = repeats0
-        val retries = retries0
-        val samples = samples0
-        val shrinks = shrinks0
-      }
+    ZLayer.scoped {
+      val testConfig = Test(repeats, retries, samples, shrinks)
+      withTestConfigScoped(testConfig).as(testConfig)
     }
 
   /**
    * The number of times to repeat tests to ensure they are stable.
    */
-  def repeats(implicit trace: Trace): URIO[TestConfig, Int] =
-    ZIO.serviceWith(_.repeats)
+  def repeats(implicit trace: Trace): URIO[Any, Int] =
+    testConfigWith(testConfig => ZIO.succeedNow(testConfig.repeats))
 
   /**
    * The number of times to retry flaky tests.
    */
-  def retries(implicit trace: Trace): URIO[TestConfig, Int] =
-    ZIO.serviceWith(_.retries)
+  def retries(implicit trace: Trace): URIO[Any, Int] =
+    testConfigWith(testConfig => ZIO.succeedNow(testConfig.retries))
 
   /**
    * The number of sufficient samples to check for a random variable.
    */
-  def samples(implicit trace: Trace): URIO[TestConfig, Int] =
-    ZIO.serviceWith(_.samples)
+  def samples(implicit trace: Trace): URIO[Any, Int] =
+    testConfigWith(testConfig => ZIO.succeedNow(testConfig.samples))
 
   /**
    * The maximum number of shrinkings to minimize large failures
    */
-  def shrinks(implicit trace: Trace): URIO[TestConfig, Int] =
-    ZIO.serviceWith(_.shrinks)
+  def shrinks(implicit trace: Trace): URIO[Any, Int] =
+    testConfigWith(testConfig => ZIO.succeedNow(testConfig.shrinks))
 }

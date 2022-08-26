@@ -4,7 +4,7 @@ import zio._
 import zio.test.Assertion._
 import zio.test.GenUtils._
 import zio.test.magnolia.DeriveGen._
-import zio.test.{Sized, _}
+import zio.test._
 
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
@@ -13,7 +13,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
 
   final case class Person(name: String, age: Int)
 
-  val genPerson: Gen[Sized, Person] = DeriveGen[Person]
+  val genPerson: Gen[Any, Person] = DeriveGen[Person]
 
   sealed trait Color
 
@@ -23,7 +23,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
     case object Blue  extends Color
   }
 
-  val genColor: Gen[Sized, Color] = DeriveGen[Color]
+  val genColor: Gen[Any, Color] = DeriveGen[Color]
 
   sealed trait NonEmptyList[+A] { self =>
     def foldLeft[S](s: S)(f: (S, A) => S): S =
@@ -42,7 +42,7 @@ object DeriveGenSpec extends ZIOSpecDefault {
     implicit def deriveGen[A: DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
   }
 
-  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Sized, NonEmptyList[A]] =
+  def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Any, NonEmptyList[A]] =
     DeriveGen[NonEmptyList[A]]
 
   def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes
