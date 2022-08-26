@@ -15,6 +15,9 @@ object ReportingTestUtils {
   def expectedFailure(label: String): String =
     red("- " + label) + "\n"
 
+  def expectedFailureZ(label: String): String =
+    red("- " + label)
+
   def expectedIgnored(label: String): String =
     yellow("- " + label) + " - " + TestAnnotation.ignored.identifier + " suite" + "\n"
 
@@ -94,6 +97,16 @@ object ReportingTestUtils {
     s"52 was not less than 10",
     s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
     assertSourceLocation()
+  )
+
+  def test3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
+    expectedFailureZ("Value falls within range"),
+    s"  ✗ 52 was not equal to 42",
+    s"  52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+    "  " + assertSourceLocation(),
+    s"  ✗ 52 was not less than 10",
+    s"  52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+    "  " + assertSourceLocation()
   )
 
   def test4(implicit sourceLocation: SourceLocation): Spec[Any, String] =
@@ -196,4 +209,7 @@ object ReportingTestUtils {
 
   def assertSourceLocation()(implicit sourceLocation: SourceLocation): String =
     cyan(s"at ${sourceLocation.path}:${sourceLocation.line}")
+
+  def assertSourceLocationZ()(implicit sourceLocation: SourceLocation): String =
+    cyan(s"at ${sourceLocation.path}:${sourceLocation.line - 4}")
 }

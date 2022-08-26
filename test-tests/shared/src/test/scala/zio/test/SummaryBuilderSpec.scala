@@ -7,10 +7,16 @@ import zio.test.TestAspect.silent
 object SummaryBuilderSpec extends ZIOBaseSpec {
 
   def summarize(log: Vector[String]): String =
-    log.filter(!_.contains(green("+"))).mkString.stripLineEnd + "\n"
+//     log.filter(!_.contains(green("+"))).mkString.stripLineEnd + "\n"
+    log.mkString("\n").stripLineEnd + "\n"
 
   def labelOnly(log: Vector[String]): String =
     log.take(1).mkString.stripLineEnd
+
+  import zio.internal.macros.StringUtils.StringOps
+//  import zio.internal.stacktracer.SourceLocation
+  def containsUnstyled(string: String, substring: String): TestResult =
+    assertTrue(string.unstyled.contains(substring.unstyled))
 
   def spec =
     suite("SummaryBuilderSpec")(
@@ -18,14 +24,22 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
         assertZIO(runSummary(test1))(equalTo(""))
       },
       test("includes a failed test") {
-        runSummary(test3).map(str => assertTrue(str == summarize(test3Expected)))
-      } @@ TestAspect.ignore,
+//        for {
+//         str <- runSummary(test3)
+//          _ <- ZIO.debug("RES: \n" + str.unstyled + "\n===========")
+//         _ <- ZIO.debug("EXPECTED: \n" + summarize(test3ExpectedZ).unstyled + "\n===========")
+//        } yield assertCompletes && containsUnstyled(str, summarize(test3ExpectedZ))
+
+        runSummary(test3).map(str => containsUnstyled(str, summarize(test3ExpectedZ)))
+//          _ <- ZIO.debug("RES: \n" + str.unstyled + "\n===========")
+//          _ <- ZIO.debug("EXPECTED: \n" + summarize(test3ExpectedZ).unstyled + "\n===========")
+      },
       test("doesn't generate summary for a successful test suite") {
         assertZIO(runSummary(suite1))(equalTo(""))
       },
       test("correctly reports failed test suite") {
         assertZIO(runSummary(suite2))(equalTo(summarize(suite2Expected)))
-      } @@ TestAspect.ignore,
+      },
       test("correctly reports multiple test suites") {
         runSummary(suite3).map(str => assertTrue(str == summarize(suite3Expected)))
       } @@ TestAspect.ignore,
