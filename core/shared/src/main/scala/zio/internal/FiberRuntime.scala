@@ -1381,6 +1381,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def startFork[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Unit =
     tell(FiberMessage.Resume(effect))
 
+  private def stealWork(depth: Int): Boolean = false
+
   /**
    * Attempts to steal work from the current executor, buying some time before
    * this fiber has to asynchronously suspend. Work stealing is only productive
