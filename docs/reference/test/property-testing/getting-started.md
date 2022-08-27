@@ -64,3 +64,28 @@ test("add is commutative") {
   }
 }
 ```
+
+## Number of Samples
+
+In the previous example, we used `check` to test if the `add` function is commutative. In other words, we try to generate samples of random pairs of integers and try to falsify the `is_add_commutative` predicate. If we find a pair of integers that falsifies the predicate, then we know that the property is violated.
+
+By default, the `check` function, try to generate 200 samples. We can change this by using the `sample` test aspect:
+
+```scala mdoc:invisible
+def add(a:Int, b:Int):Int = a + b
+```
+
+```scala mdoc:compile-only
+import zio.test._
+
+object AdditionSpec extends ZIOSpecDefault {
+  def spec =
+    test("add is commutative") {
+      check(Gen.int, Gen.int) { (a, b) =>
+        assertTrue(add(a, b) == add(b, a))
+      }
+    } @@ TestAspect.samples(10)
+}
+```
+
+To debug the test, we added a `println` statement inside the `check` function to see the generated samples.
