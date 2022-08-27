@@ -111,7 +111,6 @@ object ReportingTestUtils {
   )
 
   def test3ExpectedZNestedMore(parentId: String)(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    "",
     "    " + expectedFailureZ(s"$parentId / Value falls within range"),
     s"      ✗ 52 was not equal to 42",
     s"      52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
@@ -219,6 +218,12 @@ object ReportingTestUtils {
     test2Expected
   ) ++ test3ExpectedZNested("Suite2")
 
+  def suite2ExpectedStreaming(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
+    expectedSuccess("Suite2"),
+    test1Expected,
+    test2Expected
+  ) ++ test3Expected
+
 
   def suite2ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] =
     test3ExpectedZNested("Suite2")
@@ -232,7 +237,6 @@ object ReportingTestUtils {
     test3Expected
 
   def suite3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] =
-//    test3ExpectedZNotIndented
     test3ExpectedZNestedMore("Suite3 / Suite2")
 
   def suite4(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
@@ -254,6 +258,4 @@ object ReportingTestUtils {
   def assertSourceLocation()(implicit sourceLocation: SourceLocation): String =
     cyan(s"at ${sourceLocation.path}:${sourceLocation.line}")
 
-  def assertSourceLocationZ()(implicit sourceLocation: SourceLocation): String =
-    cyan(s"at ${sourceLocation.path}:${sourceLocation.line - 4}")
 }
