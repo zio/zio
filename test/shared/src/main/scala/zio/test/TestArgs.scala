@@ -28,7 +28,8 @@ final case class TestArgs(
 )
 
 object TestArgs {
-  def empty: TestArgs = TestArgs(List.empty[String], List.empty[String], None, None, printSummary = true)
+  def empty: TestArgs =
+    TestArgs(List.empty[String], List.empty[String], List.empty[String], None, None, printSummary = true)
 
   def parse(args: Array[String]): TestArgs = {
     // TODO: Add a proper command-line parser

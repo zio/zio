@@ -27,21 +27,23 @@ private[zio] object FilteredSpec {
 
   def apply[R, E](spec: Spec[R, E], args: TestArgs)(implicit trace: Trace): Spec[R, E] = {
     val testSearchedSpec = args.testSearchTerms match {
-      case Nil             => spec
-      case testSearchTerms => spec.filterTags(testSearchTerms.contains(_)).getOrElse(Spec.empty)
+      case Nil => spec
+      case testSearchTerms =>
+        spec.filterLabels(label => testSearchTerms.exists(term => label.contains(term))).getOrElse(Spec.empty)
     }
-    val tagSearchedSpec = args.tagSearchTerms match {
+    val tagIgnoredSpec = args.tagIgnoreTerms match {
       case Nil => testSearchedSpec
-      case tagSearchTerms =>
+      case tagIgnoreTerms =>
         testSearchedSpec
-          .filterLabels(label => tagSearchTerms.exists(term => label.contains(term)))
+          .filterNotTags(tag => tagIgnoreTerms.contains(tag))
           .getOrElse(Spec.empty)
     }
-    args.tagIgnoreTerms match {
-      case Nil => tagSearchedSpec
-      case tagIgnoreTerms =>
-        tagSearchedSpec
-          .filterLabels(label => !tagIgnoreTerms.exists(term => label.contains(term)))
+
+    args.tagSearchTerms match {
+      case Nil => tagIgnoredSpec
+      case tagSearchTerms =>
+        tagIgnoredSpec
+          .filterTags(tag => tagSearchTerms.contains(tag))
           .getOrElse(Spec.empty)
     }
   }
