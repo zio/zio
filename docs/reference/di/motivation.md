@@ -41,7 +41,7 @@ There are some problems with this approach:
 1. Users of the `Editor` service haven't any control over how dependencies will be created.
 2. Users of the `Editor` service cannot use different implementations of `Formatter` and `Compiler` services. For example, we would like to test the `Editor` service with a mock version of `Formatter` and `Compiler`. With this approach, mocking these dependencies is hard.
 3. The `Editor` service is tightly coupled with `Formatter` and `Compiler`. This means any change to these services, may introduce a new change in the `Editor` class.
-4. Creating the object graph is a manual process. //TODO: explain this
+4. Creating the object graph is a manual process. <!-- TODO: explain this -->
 
 Let's see how we can provide a solution to these problems. In the following sections, we will step by step solve these problems, and finally, we will see how ZIO solves the dependency injection problem.
 
