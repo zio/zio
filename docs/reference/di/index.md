@@ -95,7 +95,7 @@ Dependency injection in ZIO is very powerful which increases the developer produ
 
 2. **Type-Safe**— All the required dependencies should be provided at compile time. If we forget to provide the required services at compile time, we will get a compile error. So if our program compiles successfully, we are sure that we haven't runtime errors due to missing dependencies.
 
-3. **Effectful**— We build dependency graphs using `ZLayer. Since `ZLayer` is effectful, we can create a dependency graph in an effectful way.
+3. **Effectful**— We build dependency graphs using `ZLayer`. Since `ZLayer` is effectful, we can create a dependency graph in an effectful way.
 
 4. **Resourceful**— It also helps us to have resourceful dependencies, where we can manage the creation and release phases of the dependencies.
 
