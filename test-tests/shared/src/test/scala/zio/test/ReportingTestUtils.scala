@@ -90,15 +90,13 @@ object ReportingTestUtils {
   def test3(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
     test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
 
-  // TODO Dedup
   def test3Expected(parents: String*)(implicit sourceLocation: SourceLocation): Vector[String] = {
     val indent = " " * ((parents.length + 1) * 2)
-    val prefix = {
+    val prefix =
       if (parents.isEmpty)
         ""
       else
         parents.mkString(" / ") + " / "
-    }
     Vector(
       expectedFailureSummary(s"${prefix}Value falls within range"),
       s"${indent}✗ 52 was not equal to 42",

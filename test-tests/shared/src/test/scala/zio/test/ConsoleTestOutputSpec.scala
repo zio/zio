@@ -28,10 +28,14 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
           runLog(suite1).map(res => suite1Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
         },
         test("failed test suite") {
-          runLog(suite2).map(res => suite2ExpectedStreaming.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(suite2).map(res =>
+            suite2ExpectedStreaming.map(expected => containsUnstyled(res, expected)).reduce(_ && _)
+          )
         },
         test("multiple test suites") {
-          runLog(suite3).map(res => suite2ExpectedStreaming.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(suite3).map(res =>
+            suite2ExpectedStreaming.map(expected => containsUnstyled(res, expected)).reduce(_ && _)
+          )
         },
         test("empty test suite") {
           runLog(suite4).map(res => suite4Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))

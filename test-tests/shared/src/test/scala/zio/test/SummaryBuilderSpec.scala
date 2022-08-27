@@ -18,20 +18,20 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
 
   def spec =
     suite("SummaryBuilderSpec")(
-      test("doesn't generate summary for a successful test") (
+      test("doesn't generate summary for a successful test")(
         assertZIO(runSummary(test1))(equalTo(""))
       ),
-      test("includes a failed test") (
+      test("includes a failed test")(
         runSummary(test3).map(str => containsUnstyled(str, summarize(test3Expected())))
       ),
-      test("doesn't generate summary for a successful test suite") (
+      test("doesn't generate summary for a successful test suite")(
         assertZIO(runSummary(suite1))(equalTo(""))
       ),
       test("correctly reports failed test suite")(
-        runSummary(suite2).map(res => containsUnstyled( res, summarize(suite2ExpectedSummary)))
+        runSummary(suite2).map(res => containsUnstyled(res, summarize(suite2ExpectedSummary)))
       ),
-      test("correctly reports multiple test suites") (
-        runSummary(suite3).map(res => containsUnstyled( res, summarize(suite3ExpectedSummary)))
+      test("correctly reports multiple test suites")(
+        runSummary(suite3).map(res => containsUnstyled(res, summarize(suite3ExpectedSummary)))
       ),
       test("correctly reports failure of simple assertion")(
         runSummary(test5).map(str => containsUnstyled(str, summarize(test5Expected)))
