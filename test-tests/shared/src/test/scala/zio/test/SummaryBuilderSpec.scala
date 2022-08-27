@@ -22,7 +22,7 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
         assertZIO(runSummary(test1))(equalTo(""))
       ),
       test("includes a failed test") (
-        runSummary(test3).map(str => containsUnstyled(str, summarize(test3ExpectedZ)))
+        runSummary(test3).map(str => containsUnstyled(str, summarize(test3ExpectedZ(Seq()))))
       ),
       test("doesn't generate summary for a successful test suite") (
         assertZIO(runSummary(suite1))(equalTo(""))

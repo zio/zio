@@ -12,10 +12,10 @@ object ReportingTestUtils {
   def expectedSuccess(label: String): String =
     green("+") + " " + label + "\n"
 
-  def expectedFailure(label: String): String =
+  def expectedFailureStreaming(label: String): String =
     red("- " + label) + "\n"
 
-  def expectedFailureZ(label: String): String =
+  def expectedFailureSummary(label: String): String =
     red("- " + label)
 
   def expectedIgnored(label: String): String =
@@ -89,58 +89,37 @@ object ReportingTestUtils {
 
   def test3(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
     test("Value falls within range")(assert(52)(equalTo(42) || (isGreaterThan(5) && isLessThan(10))))
-  def test3Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailure("Value falls within range"),
-    s"52 was not equal to 42",
-    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    assertSourceLocation(),
-    s"52 was not less than 10",
-    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    assertSourceLocation()
-  )
+  def test3Expected(implicit sourceLocation: SourceLocation): Vector[String] =
+    test3ExpectedZ()
+//    Vector(
+//    expectedFailureStreaming("Value falls within range"),
+//    s"52 was not equal to 42",
+//    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+//    assertSourceLocation(),
+//    s"52 was not less than 10",
+//    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+//    assertSourceLocation()
+//  )
 
   // TODO Dedup
-  def test3ExpectedZNested(parentId: String)(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailureZ(s"$parentId / Value falls within range"),
-    s"    ✗ 52 was not equal to 42",
-    s"    52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "    " + assertSourceLocation(),
-    s"    ✗ 52 was not less than 10",
-    s"    52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "    " + assertSourceLocation()
-  )
-
-  def test3ExpectedZNestedMore(parentId: String)(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    "    " + expectedFailureZ(s"$parentId / Value falls within range"),
-    s"      ✗ 52 was not equal to 42",
-    s"      52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "      " + assertSourceLocation(),
-    s"      ✗ 52 was not less than 10",
-    s"      52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "      " + assertSourceLocation()
-  )
-
-  // TODO Dedup
-  def test3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailureZ("Value falls within range"),
-    s"  ✗ 52 was not equal to 42",
-    s"  52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "  " + assertSourceLocation(),
-    s"  ✗ 52 was not less than 10",
-    s"  52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "  " + assertSourceLocation()
-  )
-
-  // TODO Dedup
-  def test3ExpectedZNotIndented(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailureZ("Value falls within range"),
-    s"✗ 52 was not equal to 42",
-    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "" + assertSourceLocation(),
-    s"✗ 52 was not less than 10",
-    s"52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
-    "" + assertSourceLocation()
-  )
+  def test3ExpectedZ(parents: Seq[String] = Seq())(implicit sourceLocation: SourceLocation): Vector[String] = {
+    val indent = " " * ((parents.length + 1) * 2)
+    val prefix = {
+      if (parents.isEmpty)
+        ""
+      else
+        parents.mkString(" / ") + " / "
+    }
+    Vector(
+      expectedFailureSummary(s"${prefix}Value falls within range"),
+      s"${indent}✗ 52 was not equal to 42",
+      s"${indent}52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+      s"${indent}" + assertSourceLocation(),
+      s"${indent}✗ 52 was not less than 10",
+      s"${indent}52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+      s"${indent}" + assertSourceLocation()
+    )
+  }
 
   def test4(implicit sourceLocation: SourceLocation): Spec[Any, String] =
     Spec.labeled("Failing test", Spec.test(failed(Cause.fail("Test 4 Fail")), TestAnnotationMap.empty))
@@ -151,7 +130,7 @@ object ReportingTestUtils {
   def expressionIfNotRedundant(expr: String, value: Any): String =
     Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
   def test5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailureZ("Addition works fine"),
+    expectedFailureSummary("Addition works fine"),
     "  ✗ 2 was not equal to 3",
     "  1 + 1 did not satisfy equalTo(3)",
     "  1 + 1 = 2",
@@ -161,7 +140,7 @@ object ReportingTestUtils {
   def test6(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
     test("Multiple nested failures")(assert(Right(Some(3)))(isRight(isSome(isGreaterThan(4)))))
   def test6Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailure("Multiple nested failures"),
+    expectedFailureStreaming("Multiple nested failures"),
     "3 was not greater than 4",
     s"${blue(s"Right(Some(3))")} did not satisfy ${cyan("isRight(") + yellow("isSome(isGreaterThan(4))") + cyan(")")}",
     assertSourceLocation()
@@ -179,7 +158,7 @@ object ReportingTestUtils {
       assert(d)(isSome(equalTo(1)).label("fourth"))
   }
   def test7Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailure("labeled failures"),
+    expectedFailureStreaming("labeled failures"),
     s"0 was not equal to 1",
     s"""${blue("c")} did not satisfy isSome(equalTo(1)).label("third")""",
     assertSourceLocation()
@@ -189,7 +168,7 @@ object ReportingTestUtils {
     assert(100)(not(equalTo(100)))
   }
   def test8Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailure("Not combinator"),
+    expectedFailureStreaming("Not combinator"),
     "100 was equal to 100",
     s"${blue("100")} did not satisfy ${cyan("not(") + yellow("equalTo(100)") + cyan(")")}",
     assertSourceLocation()
@@ -216,28 +195,23 @@ object ReportingTestUtils {
     expectedSuccess("Suite2"),
     test1Expected,
     test2Expected
-  ) ++ test3ExpectedZNested("Suite2")
+  ) ++ test3ExpectedZ(Seq("Suite2"))
 
   def suite2ExpectedStreaming(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     expectedSuccess("Suite2"),
     test1Expected,
     test2Expected
-  ) ++ test3Expected
+  ) ++ test3ExpectedZ()
 
 
   def suite2ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] =
-    test3ExpectedZNested("Suite2")
+    test3ExpectedZ(Seq("Suite2"))
 
   def suite3(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
     suite("Suite3")(suite1, suite2, test3)
-  def suite3Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(expectedSuccess("Suite3")) ++
-    suite1Expected ++
-    suite2Expected ++
-    Vector("\n") ++
-    test3Expected
 
   def suite3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] =
-    test3ExpectedZNestedMore("Suite3 / Suite2")
+    test3ExpectedZ(Seq("Suite3", "Suite2"))
 
   def suite4(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
@@ -252,7 +226,7 @@ object ReportingTestUtils {
     Vector(expectedSuccess("Suite4")) ++
       suite1ExpectedLocal ++
       Vector(expectedSuccess("Empty")) ++
-      test3Expected
+      test3ExpectedZ()
   }
 
   def assertSourceLocation()(implicit sourceLocation: SourceLocation): String =
