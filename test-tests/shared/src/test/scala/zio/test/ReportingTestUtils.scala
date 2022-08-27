@@ -110,6 +110,17 @@ object ReportingTestUtils {
     "    " + assertSourceLocation()
   )
 
+  def test3ExpectedZNestedMore(parentId: String)(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
+    "",
+    "    " + expectedFailureZ(s"$parentId / Value falls within range"),
+    s"      ✗ 52 was not equal to 42",
+    s"      52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+    "      " + assertSourceLocation(),
+    s"      ✗ 52 was not less than 10",
+    s"      52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+    "      " + assertSourceLocation()
+  )
+
   // TODO Dedup
   def test3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     expectedFailureZ("Value falls within range"),
@@ -218,11 +229,9 @@ object ReportingTestUtils {
     Vector("\n") ++
     test3Expected
 
-  def suite3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] = Vector(expectedSuccess("Suite3 / Suite 2")) ++
-    suite1Expected ++
-    suite2Expected ++
-    Vector("\n") ++
-    test3ExpectedZNotIndented
+  def suite3ExpectedZ(implicit sourceLocation: SourceLocation): Vector[String] =
+//    test3ExpectedZNotIndented
+    test3ExpectedZNestedMore("Suite3 / Suite2")
 
   def suite4(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
     suite("Suite4")(suite1, suite("Empty")(), test3)
