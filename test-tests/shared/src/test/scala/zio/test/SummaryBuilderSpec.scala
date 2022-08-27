@@ -45,7 +45,7 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
 //        runSummary(suite3).map{str => println(str.unstyled); println(summarize(suite3ExpectedZ).unstyled); assertTrue(str == summarize(suite3ExpectedZ))}
       },
       test("correctly reports failure of simple assertion") {
-        runSummary(test5).map(str => assertTrue(str == summarize(test5Expected)))
-      } @@ TestAspect.ignore
+        runSummary(test5).map(str => containsUnstyled(str, summarize(test5Expected)))
+      }
     ) @@ silent // TODO Restore in next PR
 }

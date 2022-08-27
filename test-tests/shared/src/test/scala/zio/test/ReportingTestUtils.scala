@@ -152,9 +152,11 @@ object ReportingTestUtils {
   def expressionIfNotRedundant(expr: String, value: Any): String =
     Option(expr).filterNot(_ == value.toString).fold(value.toString)(e => s"`$e` = $value")
   def test5Expected(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
-    expectedFailure("Addition works fine"),
-    "2 was not equal to 3",
-    assertSourceLocation()
+    expectedFailureZ("Addition works fine"),
+    "  ✗ 2 was not equal to 3",
+    "  1 + 1 did not satisfy equalTo(3)",
+    "  1 + 1 = 2",
+    "  " + assertSourceLocation()
   )
 
   def test6(implicit sourceLocation: SourceLocation): Spec[Any, Nothing] =
