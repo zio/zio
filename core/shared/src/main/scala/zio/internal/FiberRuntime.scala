@@ -305,6 +305,35 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   /**
+   * Drains the fiber's message queue immediately after initiating an async
+   * operation, returning the continuation of the async operation, if available,
+   * or null, otherwise.
+   *
+   * '''NOTE''': This method must be invoked by the fiber itself.
+   */
+  private def drainQueueAfterAsync()(implicit unsafe: Unsafe): ZIO[Any, Any, Any] = {
+    var resumption: ZIO[Any, Any, Any] = null
+
+    var continue = true
+
+    while (continue) {
+      if (queue.isEmpty) {
+        continue = false
+      } else {
+        val next = evaluateMessageAfterAsync(queue.poll())
+
+        if (next ne null) {
+          assert(resumption eq null)
+
+          resumption = next
+        }
+      }
+    }
+
+    resumption
+  }
+
+  /**
    * Evaluates an effect until completion, potentially asynchronously.
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
@@ -420,11 +449,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       case FiberMessage.InterruptSignal(cause) =>
         processNewInterruptSignal(cause)
 
-        if (asyncInterruptor != null) {
-          asyncInterruptor(Exit.Failure(cause))
-          asyncInterruptor = null
-        }
-
         EvaluationSignal.Continue
 
       case FiberMessage.GenStackTrace(onTrace) =>
@@ -433,12 +457,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         EvaluationSignal.Continue
 
       case FiberMessage.Stateful(onFiber) =>
-        val status =
-          if (_exitValue ne null) Fiber.Status.Done
-          else if (self.asyncTrace == null) Fiber.Status.Running(self._runtimeFlags, Trace.empty)
-          else Fiber.Status.Suspended(self._runtimeFlags, self.asyncTrace, self.asyncBlockingOn)
-
-        processStatefulMessage(onFiber, status)
+        processStatefulMessage(onFiber, getStatus())
 
         EvaluationSignal.Continue
 
@@ -454,6 +473,38 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         EvaluationSignal.Continue
 
       case FiberMessage.YieldNow => EvaluationSignal.YieldNow
+    }
+  }
+
+  private def evaluateMessageAfterAsync(fiberMessage: FiberMessage)(implicit unsafe: Unsafe): ZIO[Any, Any, Any] = {
+    assert(running.get)
+
+    fiberMessage match {
+      case FiberMessage.InterruptSignal(cause) =>
+        processNewInterruptSignal(cause)
+
+        null
+
+      case FiberMessage.GenStackTrace(onTrace) =>
+        onTrace(generateStackTrace())
+
+        null
+
+      case FiberMessage.Stateful(onFiber) =>
+        processStatefulMessage(onFiber, getStatus())
+
+        null
+
+      case FiberMessage.Resume(nextEffect0) =>
+        val nextEffect = nextEffect0.asInstanceOf[ZIO[Any, Any, Any]]
+
+        self.asyncInterruptor = null
+        self.asyncTrace = null.asInstanceOf[Trace]
+        self.asyncBlockingOn = null
+
+        nextEffect
+
+      case FiberMessage.YieldNow => null // We are about to yield anyway
     }
   }
 
@@ -572,6 +623,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private[zio] def getReportFatal()(implicit unsafe: Unsafe): Throwable => Nothing =
     getFiberRef(FiberRef.currentReportFatal)
+
+  private[zio] def getStatus()(implicit unsafe: Unsafe): Fiber.Status =
+    if (_exitValue ne null) Fiber.Status.Done
+    else if (self.asyncTrace == null) Fiber.Status.Running(self._runtimeFlags, Trace.empty)
+    else Fiber.Status.Suspended(self._runtimeFlags, self.asyncTrace, self.asyncBlockingOn)
 
   /**
    * Retrieves the current supervisor the fiber uses for supervising effects.
@@ -740,7 +796,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def processNewInterruptSignal(cause: Cause[Nothing])(implicit unsafe: Unsafe): Unit = {
     self.addInterruptedCause(cause)
-    sendInterruptSignalToAllChildren()
+    self.sendInterruptSignalToAllChildren()
+
+    if (self.asyncInterruptor != null) {
+      self.asyncInterruptor(Exit.Failure(cause))
+      self.asyncInterruptor = null
+    }
   }
 
   /**
@@ -914,7 +975,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               initiateAsync(runtimeFlags, effect.registerCallback)
 
-              throw AsyncJump
+              cur = drainQueueAfterAsync()
+
+              if (cur eq null) throw AsyncJump
 
             case effect: UpdateRuntimeFlagsWithin[_, _, _] =>
               val updateFlags     = effect.update
