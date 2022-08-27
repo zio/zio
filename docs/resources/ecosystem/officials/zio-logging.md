@@ -22,7 +22,7 @@ Key features of ZIO Logging:
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-logging" % "0.5.14" 
+libraryDependencies += "dev.zio" %% "zio-logging" % "2.1.0" 
 ```
 
 There are also some optional dependencies:
