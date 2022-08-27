@@ -19,7 +19,7 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
           runLog(test1).map(res => assertTrue(test1Expected == res))
         },
         test("a failed test") {
-          runLog(test3).map(r => test3ExpectedZ().map(ex => containsUnstyled(r, ex)).reduce(_ && _))
+          runLog(test3).map(r => test3Expected().map(ex => containsUnstyled(r, ex)).reduce(_ && _))
         },
         test("an error in a test") {
           runLog(test4).map(log => assertTrue(log.contains("Test 4 Fail")))

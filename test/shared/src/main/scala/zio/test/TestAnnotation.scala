@@ -57,7 +57,7 @@ object TestAnnotation {
   /**
    * An annotation which tracks output produced by a test.
    */
-  val output: TestAnnotation[Chunk[ConsoleIO]] =
+  val output: TestAnnotation[Chunk[String]] =
     TestAnnotation("output", Chunk.empty, _ ++ _)
 
   /**
