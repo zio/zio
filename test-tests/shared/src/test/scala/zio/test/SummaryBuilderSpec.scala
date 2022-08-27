@@ -42,7 +42,7 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
       } @@ TestAspect.ignore,
       test("correctly reports multiple test suites") {
         runSummary(suite3).map{str => println(str.unstyled); println(summarize(suite3ExpectedZ).unstyled); assertTrue(str == summarize(suite3ExpectedZ))}
-      },
+      } @@ TestAspect.ignore,
       test("correctly reports failure of simple assertion") {
         runSummary(test5).map(str => assertTrue(str == summarize(test5Expected)))
       } @@ TestAspect.ignore
