@@ -38,8 +38,8 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
         assertZIO(runSummary(suite1))(equalTo(""))
       },
       test("correctly reports failed test suite") {
-        assertZIO(runSummary(suite2))(equalTo(summarize(suite2Expected)))
-      } @@ TestAspect.ignore,
+        runSummary(suite2).map(res => containsUnstyled( res, summarize(suite2ExpectedZ)))
+      },
       test("correctly reports multiple test suites") {
         runSummary(suite3).map{str => println(str.unstyled); println(summarize(suite3ExpectedZ).unstyled); assertTrue(str == summarize(suite3ExpectedZ))}
       } @@ TestAspect.ignore,
