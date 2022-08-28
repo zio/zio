@@ -60,6 +60,8 @@ object RuntimeFlag {
    * negatively impact performance and generate massive volumes of ultra-fine
    * debug logs. Only recommended for debugging.
    */
+
+  //this doesn't actually do anything but can't be removed without breaking binary compatibility.
   case object OpLog extends RuntimeFlag {
     final val index   = 2
     final val mask    = 1 << index
@@ -70,7 +72,7 @@ object RuntimeFlag {
    * The op supervision flag determines whether or not the IO runtime system
    * will supervise all operations of the ZIO runtime. Use of this flag will
    * negatively impact performance, but is required for some operations, such as
-   * profiling.
+   * profiling and op logging.
    */
   case object OpSupervision extends RuntimeFlag {
     final val index   = 3

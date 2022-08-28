@@ -64,6 +64,37 @@ abstract class Supervisor[+A] { self =>
   def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
   def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+
+  private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+    def mapEffect[E, A](fiber: Fiber.Runtime[E, A], effect: Erased)(implicit unsafe: Unsafe): Erased = {
+      self.onEffect(fiber, effect)
+      effect
+    }
+  }
+
+  private[zio] trait UnsafeAPI {
+
+    /**
+     * Allows the supervisor to map the effect which is about to be executed to
+     * a new effect.
+     *
+     * Implementers of this method must ensure:
+     *   - The new effect returns the same type as the original effect (to avoid
+     *     'ClassCastException's)
+     *   - The implementation will not cause an infinite loop
+     *
+     * To avoid unexpected behavior:
+     *   - The returned effect should return the same value as the original
+     *     effect
+     *   - The implementation should call self.onEffect with the new effect
+     *     immediately before returning it (unless self.onEffect is known to be
+     *     a no-op)
+     */
+
+    type Erased = ZIO[Any, Any, Any]
+
+    def mapEffect[E, A](fiber: Fiber.Runtime[E, A], effect: Erased)(implicit unsafe: Unsafe): Erased
+  }
 }
 object Supervisor {
 
@@ -134,6 +165,44 @@ object Supervisor {
     def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
   }
 
+  /**
+   * A supervisor that logs operations at the trace logging level
+   */
+  def opLogger(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _]) => String): UIO[Supervisor[Unit]] =
+    ZIO.succeedNow(new OpLoggingSupervisor(logFn))
+
+  private class OpLoggingSupervisor(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _]) => String) extends Supervisor[Unit] {
+    self =>
+    def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
+
+    def onStart[R, E, A](
+      environment: ZEnvironment[R],
+      effect: ZIO[R, E, A],
+      parent: Option[Fiber.Runtime[Any, Any]],
+      fiber: Fiber.Runtime[E, A]
+    )(implicit unsafe: Unsafe): Unit = ()
+
+    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+
+    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+      def mapEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[Any, Any, Any])(implicit
+        unsafe: Unsafe
+      ): ZIO[Any, Any, Any] = {
+        val newEffect =
+          if (effect.trace ne Trace.empty) {
+            //this should prevent an infinite loop by inserting the logging effect with an empty trace
+            //and only modifying the operation if the trace is non-empty but... it doesn't
+            implicit val trace = Trace.empty
+            Console.printLine(logFn(fiber, effect)).flatMap(_ => effect)
+          } else {
+            effect
+          }
+        self.onEffect(fiber, newEffect)
+        newEffect
+      }
+    }
+  }
+
   private[zio] object unsafe {
     def track(weak: Boolean)(implicit unsafe: Unsafe): Supervisor[Chunk[Fiber.Runtime[Any, Any]]] = {
       val set: java.util.Set[Fiber.Runtime[Any, Any]] =
@@ -185,6 +254,13 @@ object Supervisor {
 
     override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit =
       underlying.onResume(fiber)
+
+    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+      def mapEffect[E, A](fiber: Fiber.Runtime[E, A], effect: Erased)(implicit unsafe: Unsafe): Erased = {
+        underlying.onEffect(fiber, effect)
+        effect
+      }
+    }
   }
 
   sealed trait Patch { self =>
@@ -277,6 +353,14 @@ object Supervisor {
     override def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = {
       left.onResume(fiber)
       right.onResume(fiber)
+    }
+
+    override private[zio] val unsafe: UnsafeAPI = new UnsafeAPI {
+      def mapEffect[E, A](fiber: Fiber.Runtime[E, A], effect: Erased)(implicit unsafe: Unsafe): Erased = {
+        val leftEffect  = left.unsafe.mapEffect(fiber, effect)
+        val rightEffect = right.unsafe.mapEffect(fiber, leftEffect)
+        rightEffect
+      }
     }
   }
 

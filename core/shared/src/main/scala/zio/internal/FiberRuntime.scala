@@ -699,7 +699,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         } else {
           log(
             () =>
-              s"An unexpected error was encountered while processing statefulf iber message with callback ${onFiber}",
+              s"An unexpected error was encountered while processing stateful fiber message with callback ${onFiber}",
             Cause.die(throwable),
             ZIO.someError,
             id.location
@@ -790,14 +790,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     while (cur ne null) {
-      if (RuntimeFlags.opSupervision(runtimeFlags)) {
-        self.getSupervisor().onEffect(self, cur)
-      }
-
       val nextTrace = cur.trace
       if (nextTrace ne Trace.empty) lastTrace = nextTrace
 
       cur = drainQueueWhileRunning(runtimeFlags, lastTrace, cur)
+
+      if (RuntimeFlags.opSupervision(runtimeFlags)) {
+        val oldCur = cur
+        cur = self.getSupervisor().unsafe.mapEffect(self, cur).asInstanceOf[Erased]
+      }
 
       ops += 1
 
