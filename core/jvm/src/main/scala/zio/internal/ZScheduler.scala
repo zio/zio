@@ -119,7 +119,7 @@ private final class ZScheduler extends Executor {
         if (runnable.isInstanceOf[FiberRunnable]) {
           val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
           worker.currentRunnable = fiberRunnable
-          fiberRunnable.run(depth)
+          fiberRunnable.run(depth + 1)
         } else {
           runnable.run()
         }
