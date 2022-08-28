@@ -73,6 +73,70 @@ Gen.fromIterable(List(1, 2, 3))
 
 So we can see that the `Gen` data type is nothing more than the stream of random/constant values.
 
+## Two Types of Generators
+
+We have two types of generators:
+
+1. **Deterministic Generators**— Generators that produce constant fixed values, such as `Gen.empty`, `Gen.const(42)` and `Gen.fromIterable(List(1, 2, 3))`.
+2. **Random Generators**— Generators that produce random values, such as `Gen.boolean`, `Gen.int`, and `Gen.elements(1, 2, 3)`.
+
+## Random Generators Are Deterministic by Default
+
+The important fact about random generators is that they produce deterministic values by default. This means that if we run the same random generator multiple times, it will always produce the same sequence of values to achieve reproducibility.
+
+So the let's add some debugging print lines inside a test and see what values are produced:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.TestAspect._
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5)
+}
+```
+
+We can see, even though the `Gen.int` is a non-deterministic generator, every time we run the test, the generator will produce the same sequence of values:
+
+```scala
+runSpec
+9
+3
+0
+9
+6
++ example test
+```
+
+This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm.
+
+The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values.
+
+For more information, there is a separate page about this on [TestRandom](../services/random.md) which is the underlying service for generating test values.
+
+This behavior helps us to have reproducible tests. However, if we need non-deterministic tests values, we can use the `TestAspect.nondeterministic` to change the default behavior:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.TestAspect._
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5) @@ nondeterministic
+}
+```
+
+
 ## How Samples Are Generated?
 
 When we run the `check` function, the `check` function repeatedly run the underlying stream of generators (using the `forever` combinator), and then it takes `n` samples from the stream, where `n` is by default 200.
@@ -159,62 +223,6 @@ import zio.stream._
     b <- ZStream.fromIterable(List("a", "b", "c"))
   } yield (a, b)
 }.forever.take(5).runCollect.debug
-```
-
-## Random Generators Are Deterministic by Default
-
-The important fact about random generators is that they produce deterministic values by default. This means that if we run the same random generator multiple times, it will always produce the same sequence of values to achieve reproducibility.
-
-So the let's add some debugging print lines inside a test and see what values are produced:
-
-```scala mdoc:compile-only
-import zio.test._
-import zio.test.TestAspect._
-
-object ExampleSpec extends ZIOSpecDefault {
-  def spec =
-    test("example test") {
-      check(Gen.int(0, 10)) { n =>
-        println(n)
-        assertTrue(n + n == 2 * n)
-      }
-    } @@ samples(5)
-}
-```
-
-We can see, even though the `Gen.int` is a non-deterministic generator, every time we run the test, the generator will produce the same sequence of values:
-
-```scala
-runSpec
-9
-3
-0
-9
-6
-+ example test
-```
-
-This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm.
-
-The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values.
-
-For more information, there is a separate page about this on [TestRandom](../services/random.md) which is the underlying service for generating test values.
-
-This behavior helps us to have reproducible tests. However, if we need non-deterministic tests values, we can use the `TestAspect.nondeterministic` to change the default behavior:
-
-```scala mdoc:compile-only
-import zio.test._
-import zio.test.TestAspect._
-
-object ExampleSpec extends ZIOSpecDefault {
-  def spec =
-    test("example test") {
-      check(Gen.int(0, 10)) { n =>
-        println(n)
-        assertTrue(n + n == 2 * n)
-      }
-    } @@ samples(5) @@ nondeterministic
-}
 ```
 
 ## Running a Generator For Debugging Purpose
