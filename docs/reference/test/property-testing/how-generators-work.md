@@ -39,21 +39,21 @@ case class Gen[R, A](sample: ZStream[R, Nothing, A]) {
 }
 
 object Gen {
-  // A constant generator of the specified value (deterministic).
+  // A constant generator of the specified value.
   def const[A](a: => A): Gen[Any, A] = 
     Gen(ZStream.succeed(a))
   
-  // A random generator of integers (non-deterministic).
+  // A random generator of integers.
   def int: Gen[Any, Int] = 
     Gen(ZStream.fromZIO(Random.nextInt))
   def int(min: Int, max: Int): Gen[Any, Int] = 
     ???
   
-  // A random generator of specified values (non-deterministic).
+  // A random generator of specified values.
   def elements[A](as: A*): Gen[Any, A] = 
     if (as.isEmpty) Gen(ZStream.empty) else int(0, as.length - 1).map(as)
   
-  // A deterministic generator of specified fixed values (deterministic).
+  // A constant generator of fixed values.
   def fromIterable[A](xs: Iterable[A]): Gen[Any, A] = 
     Gen(ZStream.fromIterable(xs))
 }
