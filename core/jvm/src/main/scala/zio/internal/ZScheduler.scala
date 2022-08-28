@@ -101,7 +101,7 @@ private final class ZScheduler extends Executor {
     Some(metrics)
   }
 
-  override def stealWork(depth: Int)(implicit unsafe: Unsafe): Unit = {
+  override def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean = {
     val currentThread = Thread.currentThread
     if (currentThread.isInstanceOf[ZScheduler.Worker]) {
       val worker   = currentThread.asInstanceOf[ZScheduler.Worker]
@@ -115,15 +115,21 @@ private final class ZScheduler extends Executor {
           runnable = globalQueue.poll(null)
         }
       }
+
       if (runnable ne null) {
         if (runnable.isInstanceOf[FiberRunnable]) {
           val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
           worker.currentRunnable = fiberRunnable
-          fiberRunnable.run(depth + 1)
+          fiberRunnable.run(depth)
         } else {
           runnable.run()
         }
+        true
+      } else {
+        false
       }
+    } else {
+      false
     }
   }
 
