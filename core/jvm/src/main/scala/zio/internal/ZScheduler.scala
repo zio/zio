@@ -126,6 +126,7 @@ private final class ZScheduler extends Executor {
         }
         true
       } else {
+        worker.nextRunnable = runnable
         false
       }
     } else {
