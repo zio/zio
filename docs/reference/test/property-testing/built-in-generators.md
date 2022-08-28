@@ -1,6 +1,6 @@
 ---
-id: generators
-title: "Generators"
+id: built-in-generators
+title: "Built-in Generators"
 ---
 
 In the companion object of the `Gen` data type, there are tons of generators for various data types.
