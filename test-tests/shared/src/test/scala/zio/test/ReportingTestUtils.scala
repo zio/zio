@@ -184,7 +184,7 @@ object ReportingTestUtils {
     test2Expected
   ) ++ test3Expected("Suite2")
 
-  def suite2ExpectedStreaming(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
+  def suite2Streaming(implicit sourceLocation: SourceLocation): Vector[String] = Vector(
     expectedSuccess("Suite2"),
     test1Expected,
     test2Expected
