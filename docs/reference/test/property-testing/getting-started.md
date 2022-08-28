@@ -94,12 +94,16 @@ To debug the test, we added a `println` statement inside the `check` function to
 
 We have two types of generators:
 
-- **Deterministic** generators are used to generate fixed samples. For example, `Gen.const(1)` is a deterministic generator that always produces `1`.
-- **Non-deterministic** generators are used to generate random samples. For example, `Gen.int` is a non-deterministic generator that produces random integers.
+- **Deterministic generators** or random generators are used to generate fixed samples. For example, `Gen.const(1)` is a deterministic generator that always produces `1`.
+- **Non-deterministic generators** are used to generate random samples. For example, `Gen.int` is a non-deterministic generator that produces random integers.
 
 We can think of `Gen[R, A]` as a `ZStream[R, Nothing, A]`. For example the `Gen.int` is a stream of random integers `ZStream.fromZIO(Random.nextInt)`.
 
-To find out how a generator works, Let's take a look at the following snippet.  It shows how the `Gen` data type is implemented. Note that it is a simplified version of the `Gen` data type but the API is the same:
+To find out how a generator works, Let's take a look at the following snippet.  It shows how the `Gen` data type is implemented.
+
+:::caution
+Although it doesn't provide the exact implementation, this condensed edition of the "Gen" data type is sufficient to grasp how generators operate.
+:::
 
 ```scala mdoc:compile-only
 import zio._
@@ -235,4 +239,60 @@ import zio.stream._
     b <- ZStream.fromIterable(List("a", "b", "c"))
   } yield (a, b)
 }.forever.take(5).runCollect.debug
+```
+
+## Random Generators Are Deterministic by Default
+
+The important fact about random generators is that they produce deterministic values by default. This means that if we run the same random generator multiple times, it will always produce the same sequence of values to achieve reproducibility.
+
+So the let's add some debugging print lines inside a test and see what values are produced:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.TestAspect._
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5)
+}
+```
+
+We can see, even though the `Gen.int` is a non-deterministic generator, every time we run the test, the generator will produce the same sequence of values:
+
+```scala
+runSpec
+9
+3
+0
+9
+6
++ example test
+```
+
+This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm.
+
+The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values.
+
+For more information, there is a separate page about this on [TestRandom](../services/random.md) which is the underlying service for generating test values.
+
+This behavior helps us to have reproducible tests. However, if we need non-deterministic tests values, we can use the `TestAspect.nondeterministic` to change the default behavior:
+
+```scala mdoc:compile-only
+import zio.test._
+import zio.test.TestAspect._
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5) @@ nondeterministic
+}
 ```
