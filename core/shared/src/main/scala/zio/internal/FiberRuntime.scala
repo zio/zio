@@ -978,13 +978,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               initiateAsync(runtimeFlags, effect.registerCallback)
 
-              var loop = true
+              cur = null
 
-              while (loop) {
+              while (cur eq null) {
                 cur = drainQueueAfterAsync()
 
-                if (cur ne null) loop = false
-                else {
+                if (cur eq null) {
                   if (!stealWork(currentDepth)) throw AsyncJump
                 }
               }
@@ -1168,9 +1167,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case yieldNow: ZIO.YieldNow =>
-              self.reifiedStack += EvaluationStep.UpdateTrace(yieldNow.trace)
+              if (!stealWork(currentDepth)) {
+                self.reifiedStack += EvaluationStep.UpdateTrace(yieldNow.trace)
 
-              throw Trampoline(ZIO.unit, true)
+                throw Trampoline(ZIO.unit, true)
+              } else {
+                cur = ZIO.unit
+              }
           }
         } catch {
           case zioError: ZIOError =>
@@ -1333,7 +1336,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def startFork[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Unit =
     tell(FiberMessage.Resume(effect))
 
-  private def stealWork(depth: Int): Boolean = false
+  private def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean =
+    depth < 250 && getCurrentExecutor().stealWork(depth)
 
   /**
    * Adds a message to be processed by the fiber on the fiber.
