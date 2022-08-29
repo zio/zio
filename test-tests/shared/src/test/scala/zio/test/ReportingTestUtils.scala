@@ -46,10 +46,9 @@ object ReportingTestUtils {
     ) + "\n"
   }
 
-  // TODO de-dup layers?
   def runLog(
     spec: Spec[TestEnvironment, String]
-  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment with Scope, Nothing, String] =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
       _       <- TestTestRunner(testEnvironment, sinkLayer(console, ConsoleEventRenderer)).run(spec)
@@ -65,14 +64,14 @@ object ReportingTestUtils {
     } yield summary.failureDetails
 
   private[test] def TestTestRunner(
-    testEnvironment: ZLayer[Scope, Nothing, TestEnvironment],
+    testEnvironment: ZLayer[Any, Nothing, TestEnvironment],
     sinkLayer: ULayer[ExecutionEventSink]
   )(implicit
     trace: Trace,
     sourceLocation: SourceLocation
   ) = TestRunner[TestEnvironment, String](
     executor = TestExecutor.default[TestEnvironment, String](
-      Scope.default >>> testEnvironment,
+      testEnvironment,
       (liveEnvironment ++ Scope.default) >+> TestEnvironment.live ++ ZIOAppArgs.empty,
       sinkLayer,
       ZTestEventHandler.silent
