@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.Supervisor.logOperations
 
 object LoggingSpec extends ZIOBaseSpec {
 
@@ -71,6 +72,19 @@ object LoggingSpec extends ZIOBaseSpec {
           } yield assertTrue(output.length == 1) &&
             assertTrue(output(0).context.get(ref).contains(value))
         )
+      },
+      test("op logging") {
+        //the effect is not important, just want to make sure there's some meat in the log
+        val effect = {
+          for {
+            one    <- ZIO.succeed(1)
+            two    <- ZIO.succeed(one * 2)
+            _      <- Console.printLine(two)
+            output <- ZTestLogger.logOutput
+          } yield (output)
+        } @@ logOperations((_, op, result) => s"${op.trace.toString().padTo(50, ' ')}: $result")
+
+        effect.map(output => assertTrue(output.length > 10))
       }
     )
 }

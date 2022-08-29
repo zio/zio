@@ -22,16 +22,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 import scala.collection.immutable.SortedSet
 import zio.ZIO.OnSuccess
-import zio.ZIO.OnSuccessAndFailure
-import zio.ZIO.Async
-import zio.ZIO.YieldNow
-import zio.ZIO.UpdateRuntimeFlags
-import zio.ZIO.UpdateRuntimeFlagsWithin.Interruptible
-import zio.ZIO.UpdateRuntimeFlagsWithin.Uninterruptible
-import zio.ZIO.WhileLoop
-import zio.ZIO.Stateful
-import zio.ZIO.GenerateStackTrace
-import zio.ZIO.OnFailure
 
 /**
  * A `Supervisor[A]` is allowed to supervise the launching and termination of
@@ -176,13 +166,31 @@ object Supervisor {
     def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
   }
 
+  // should this move to ZIO companion object?
+  def logOperations[R1, E1, A1](
+    logFn: (Fiber.Runtime[_, _], ZIO[_, _, _], Any) => String
+  ): ZIOAspect[Nothing, R1, Nothing, E1, Nothing, A1] =
+    new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, A1] {
+      def apply[R <: R1, E <: E1, A <: A1](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        for {
+          opLogger <- Supervisor.opLogger(logFn)
+          x <- ZIO.logLevel(LogLevel.Trace) {
+                 zio
+                   .withRuntimeFlags(RuntimeFlags.enable(RuntimeFlag.OpSupervision))
+                   .supervised(opLogger)
+                   .flatMap(ZIO.succeed(_))
+               }
+        } yield (x)
+    }
+
   /**
    * A supervisor that logs operations at the trace logging level
    */
   def opLogger(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _], Any) => String): UIO[Supervisor[Unit]] =
     ZIO.succeedNow(new OpLoggingSupervisor(logFn))
 
-  private class OpLoggingSupervisor(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _], Any) => String) extends Supervisor[Unit] {
+  private class OpLoggingSupervisor(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _], Any) => String)
+      extends Supervisor[Unit] {
     self =>
     def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
@@ -205,7 +213,7 @@ object Supervisor {
               implicit val trace = Trace.empty
               for {
                 result  <- first
-                _       <- Console.printLine(logFn(fiber, effect, result))
+                _       <- ZIO.logTrace(logFn(fiber, effect, result))
                 success <- successK(result)
               } yield success
             case _ => effect
