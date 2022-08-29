@@ -10,13 +10,16 @@ In this page, we will focus on essential parts of dependency injection in ZIO. S
 In real world applications, we encourage to use [service pattern](../service-pattern/service-pattern.md) to write ZIO services.
 :::
 
+## Essential Steps of Dependency Injection in ZIO
+
 We can achieve dependency injection through these three simple steps:
+
 1. Accessing services from the ZIO environment through the `ZIO.serviceXYZ` operations.
 2. Writing application logic using services and composing them together.
 3. Building the dependency graph using manual or automatic layer construction (optional).
 4. Providing dependencies to the ZIO environment through the `ZIO.provideXYZ` operations.
 
-## Step 1: Accessing Services From The ZIO Environment
+### Step 1: Accessing Services From The ZIO Environment
 
 To write application logic, we need to access services from the ZIO environment. We can do this by using the `ZIO.serviceXYZ` operation.
 
@@ -58,7 +61,7 @@ object B {
 }
 ```
 
-## Step 2: Writing Application Logic Using Services
+### Step 2: Writing Application Logic Using Services
 
 ZIO is a composable data type on its environment type parameter. So when we have an effect that requires the `A` service, and also we have another effect that requires the `B` service; when we compose these two services together, the resulting effect requires both `A` and `B` services:
 
@@ -80,7 +83,7 @@ Now the `myApp` effect requires `A` and `B` services to fulfill its functionalit
 
 In the next step, we are going to build a dependency graph that holds two `A` and `B` services.
 
-## Step 2: Building The Dependency Graph (Optional)
+### Step 2: Building The Dependency Graph (Optional)
 
 To be able to run our application, we need to build the dependency graph that it needs. This can be done using the `ZLayer` data type. It allows us to build up the whole application's dependency graph by composing layers manually or automatically.
 
@@ -122,7 +125,7 @@ val appLayer: ZLayer[Any, Nothing, A with B] =
 Automatic layer construction is useful when the dependency graph is large and complex. So in simple cases, it doesn't demonstrate the power of automatic layer construction.
 :::
 
-## Step 3: Providing Dependencies to the ZIO Environment
+### Step 3: Providing Dependencies to the ZIO Environment
 
 To run our application, we need to provide (inject) all dependencies to the ZIO environment. This can be done by using one of the `ZIO.provideXYZ` operations. This allows us to propagate dependencies from button to top:
 
