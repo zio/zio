@@ -31,7 +31,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
     Chunk(TestAspect.fibers)
 
-  def bootstrap: ZLayer[Scope, Any, Environment]
+  def bootstrap: ZLayer[Any, Any, Environment]
 
   final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace = Trace.empty
@@ -46,7 +46,7 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment
 
-      def bootstrap: ZLayer[Scope, Any, Environment] =
+      def bootstrap: ZLayer[Any, Any, Environment] =
         self.bootstrap +!+ that.bootstrap
 
       def spec: Spec[Environment with TestEnvironment with Scope, Any] =

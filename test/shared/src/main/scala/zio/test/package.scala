@@ -804,7 +804,7 @@ package object test extends CompileVariants {
     TestRunner(
       TestExecutor.default(
         testEnvironment,
-        Scope.default.debug("defaultTestRunner.2") ++ testEnvironment,
+        Scope.default ++ testEnvironment,
         sinkLayer(Console.ConsoleLive, ConsoleEventRenderer),
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
