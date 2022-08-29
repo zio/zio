@@ -367,3 +367,12 @@ object MainApp extends ZIOAppDefault {
   )
 }
 ```
+
+## Conclusion
+
+Following is a summary of some essential points when using dependency injection in ZIO:
+
+1. For each service, we should write a layer that contains the recipe for creating the service.
+2. We use class constructors to pass dependencies to our services. So inside the service, it is not idiomatic to use `ZIO.service` to access dependent services.
+3. When writing a layer for a service that is dependent on other services, we use `ZIO.service` to access required services from the environment and then pass them to the service's constructor.
+4. We use layers to compose and wire them together to create the dependency graph.
