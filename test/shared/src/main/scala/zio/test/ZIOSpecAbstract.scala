@@ -136,35 +136,20 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     testEventHandler: ZTestEventHandler
   )(implicit
     trace: Trace
-  ): URIO[
-    TestEnvironment with Scope,
-    Summary
-  ] = {
+  ): UIO[Summary] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val castedRuntime: Runtime[Environment with Scope with ExecutionEventSink] =
-      runtime.asInstanceOf[Runtime[Environment with Scope with ExecutionEventSink]]
+    val castedRuntime: Runtime[Environment with ExecutionEventSink] =
+      runtime.asInstanceOf[Runtime[Environment with ExecutionEventSink]]
 
-    for {
-      _                                <- ZIO.unit
-      environment1: ZEnvironment[Scope] = castedRuntime.environment
-      sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
-        ZLayer.succeedEnvironment(castedRuntime.environment)
-      perTestLayer: ZLayer[Any, Nothing, TestEnvironment with Scope] =
-        (ZLayer.succeedEnvironment(environment1) ++ liveEnvironment) >>> (TestEnvironment.live ++ ZLayer
-          .environment[Scope])
-
-      runner =
-        TestRunner(
-          TestExecutor
-            .default[Environment, Any](
-              sharedLayer,
-              perTestLayer,
-              sharedLayer,
-              testEventHandler
-            )
+    TestRunner(
+      TestExecutor
+        .default[Environment, Any](
+          ZLayer.succeedEnvironment(castedRuntime.environment),
+          testEnvironment ++ Scope.default,
+          ZLayer.succeedEnvironment(castedRuntime.environment),
+          testEventHandler
         )
-      summary <- runner.run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
-    } yield summary
+    ).run(aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
   }
 }
