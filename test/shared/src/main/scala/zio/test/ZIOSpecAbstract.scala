@@ -142,12 +142,11 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   ] = {
     val filteredSpec = FilteredSpec(spec, testArgs)
 
-    val castedRuntime: Runtime[Environment with Scope with ExecutionEventSink] =
-      runtime.asInstanceOf[Runtime[Environment with Scope with ExecutionEventSink]]
+    val castedRuntime: Runtime[Environment with ExecutionEventSink] =
+      runtime.asInstanceOf[Runtime[Environment with ExecutionEventSink]]
 
     for {
-      _                                <- ZIO.unit
-      environment1: ZEnvironment[Scope] = castedRuntime.environment
+      environment1 <- ZIO.environment[Scope]
       sharedLayer: ZLayer[Any, Nothing, Environment with ExecutionEventSink] =
         ZLayer.succeedEnvironment(castedRuntime.environment)
       perTestLayer: ZLayer[Any, Nothing, TestEnvironment with Scope] =
