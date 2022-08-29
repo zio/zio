@@ -156,3 +156,88 @@ object MainApp extends ZIOAppDefault {
   def run = myApp.provide(A.layer, B.layer)
 }
 ```
+
+```scala mdoc:invisible:reset
+
+```
+
+## Dependency Injection When Writing Services
+
+When writing services, we might want to use other services. In such cases, we would like dependent services injected into our service. This is where we need to use dependency injection in order to write services.
+
+In ZIO, when we write services, we use class constructors to pass dependencies to the service. This is similar to the object-oriented style.
+
+For example, assume we have written the following `A` and `B` services:
+
+
+```scala mdoc:silent
+import zio._
+
+final class A {
+  def foo: ZIO[Any, Nothing, String] = ZIO.succeed("Hello!")
+}
+
+object A {
+  def foo: ZIO[A, Nothing, String] = ZIO.serviceWithZIO[A](_.foo)
+
+  val layer: ZLayer[Any, Nothing, A] = ZLayer.succeed(new A)
+}
+
+final class B {
+  def bar: ZIO[Any, Nothing, Int] = ZIO.succeed(42)
+}
+
+object B {
+  def bar: ZIO[B, Nothing, Int] = ZIO.serviceWithZIO[B](_.bar)
+
+  val layer: ZLayer[Any, Nothing, B] = ZLayer.succeed(new B)
+}
+```
+
+In order to write a service that depends on `A` and `B` services, we use the class constructor to pass dependencies to our service:
+
+```scala mdoc:silent
+final case class C(a: A, b: B) {
+  def baz: ZIO[Any, Nothing, Unit] =
+    for {
+      _ <- a.foo
+      _ <- b.bar
+    } yield ()
+}
+```
+
+To write a layer for our `C` service, we can use `ZIO.service` to access dependent services effectfully and pass them to the service's constructor:
+
+```scala mdoc:silent
+object C {
+  def baz: ZIO[C, Nothing, Unit] = ZIO.serviceWithZIO[C](_.baz)
+
+  val layer: ZLayer[A with B, Nothing, C] =
+    ZLayer {
+      for {
+        a <- ZIO.service[A]
+        b <- ZIO.service[B]
+      } yield C(a, b)
+    }
+}
+```
+
+Now, assume we have the following application logic:
+
+```scala mdoc:silent
+val myApp: ZIO[A with B with C, Nothing, Unit] =
+  for {
+    _ <- A.foo
+    _ <- C.baz
+  } yield ()
+```
+
+We can provide all dependencies to run our application:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = myApp.provide(A.layer, B.layer, C.layer)
+}
+```
