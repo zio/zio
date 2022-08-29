@@ -9,8 +9,10 @@ import zio.{StackTrace, ZIO}
 
 object ConsoleTestOutputSpec extends ZIOBaseSpec {
 
-  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult =
-    assertTrue(string.unstyled.contains(substring.unstyled))
+  private def containsUnstyled(result: String, expected: Vector[String])(implicit
+    sourceLocation: SourceLocation
+  ): TestResult =
+    expected.map(ex => assertTrue(result.unstyled.contains(ex.unstyled))).reduce(_ && _)
 
   def spec =
     suite("ConsoleTestOutputSpec")(
@@ -19,31 +21,31 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
           runLog(test1).map(res => assertTrue(test1Expected == res))
         },
         test("a failed test") {
-          runLog(test3).map(r => test3Expected.map(ex => containsUnstyled(r, ex)).reduce(_ && _))
+          runLog(test3).map(r => containsUnstyled(r, test3Expected()))
         },
         test("an error in a test") {
           runLog(test4).map(log => assertTrue(log.contains("Test 4 Fail")))
         },
         test("successful test suite") {
-          runLog(suite1).map(res => suite1Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(suite1).map(res => containsUnstyled(res, suite1Expected))
         },
         test("failed test suite") {
-          runLog(suite2).map(res => suite2Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(suite2).map(res => containsUnstyled(res, suite2Streaming))
         },
         test("multiple test suites") {
-          runLog(suite3).map(res => suite3Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(suite3).map(res => containsUnstyled(res, suite2Streaming))
         },
         test("empty test suite") {
-          runLog(suite4).map(res => suite4Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(suite4).map(res => containsUnstyled(res, suite4Expected))
         },
         test("failure of simple assertion") {
-          runLog(test5).map(res => test5Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(test5).map(res => containsUnstyled(res, test5Expected))
         },
         test("multiple nested failures") {
-          runLog(test6).map(res => test6Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(test6).map(res => containsUnstyled(res, test6Expected))
         },
         test("labeled failures") {
-          runLog(test7).map(res => test7Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(test7).map(res => containsUnstyled(res, test7Expected))
         },
         test("labeled failures for assertTrue") {
           for {
@@ -51,7 +53,7 @@ object ConsoleTestOutputSpec extends ZIOBaseSpec {
           } yield assertTrue(log.contains("third"), log.contains("fourth"))
         },
         test("negated failures") {
-          runLog(test8).map(res => test8Expected.map(expected => containsUnstyled(res, expected)).reduce(_ && _))
+          runLog(test8).map(res => containsUnstyled(res, test8Expected))
         }
       ),
       suite("Runtime exception reporting")(
