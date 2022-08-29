@@ -13,8 +13,10 @@ object SummaryBuilderSpec extends ZIOBaseSpec {
   def labelOnly(log: Vector[String]): String =
     log.take(1).mkString.stripLineEnd
 
-  def containsUnstyled(string: String, substring: String): TestResult =
-    assertTrue(string.unstyled.contains(substring.unstyled))
+  def containsUnstyled(string: String, substring: String): TestResult = {
+    substring.unstyled.split("\n").map(line => assertTrue(string.unstyled.contains(line))).reduce(_ && _)
+//    assertTrue(string.unstyled.contains(substring.unstyled))
+  }
 
   def spec =
     suite("SummaryBuilderSpec")(

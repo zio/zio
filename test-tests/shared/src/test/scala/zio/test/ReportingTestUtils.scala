@@ -100,10 +100,10 @@ object ReportingTestUtils {
     Vector(
       expectedFailureSummary(s"${prefix}Value falls within range"),
       s"${indent}✗ 52 was not equal to 42",
-      s"${indent}52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+      s"${indent}52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
       s"${indent}" + assertSourceLocation(),
       s"${indent}✗ 52 was not less than 10",
-      s"${indent}52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10))",
+      s"${indent}52 did not satisfy equalTo(42) || (isGreaterThan(5) && isLessThan(10)",
       s"${indent}" + assertSourceLocation()
     )
   }

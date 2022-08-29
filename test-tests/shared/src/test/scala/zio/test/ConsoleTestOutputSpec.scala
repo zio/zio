@@ -9,8 +9,16 @@ import zio.{StackTrace, ZIO}
 
 object ConsoleTestOutputSpec extends ZIOBaseSpec {
 
-  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult =
-    assertTrue(string.unstyled.contains(substring.unstyled))
+//  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult =
+//    assertTrue(string.unstyled.contains(substring.unstyled))
+
+  def containsUnstyled(string: String, substring: String)(implicit sourceLocation: SourceLocation): TestResult = {
+    val result = string.unstyled
+    println("Result: \n" + result)
+    val expected = substring.unstyled
+    println("Expected: \n" + expected)
+    assertTrue(result.contains(expected))
+  }
 
   def spec =
     suite("ConsoleTestOutputSpec")(
