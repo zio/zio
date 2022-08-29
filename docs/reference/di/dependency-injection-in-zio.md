@@ -5,7 +5,7 @@ sidebar_label: "Getting Started"
 ---
 
 :::caution
-In this page, we will focus on essential parts of dependency injection in ZIO. So we are not going to cover all the best practices for writing ZIO services.
+In this page, we will focus on essential parts of dependency injection in ZIO. So in some examples we are not going to cover all the best practices for writing ZIO services.
 
 In real world applications, we encourage to use [service pattern](../service-pattern/service-pattern.md) to write ZIO services.
 :::
@@ -239,5 +239,131 @@ import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = myApp.provide(A.layer, B.layer, C.layer)
+}
+```
+
+```scala mdoc:invisible:reset
+
+```
+
+## Dependency Injection When Writing Services Using Interfaces
+
+Although dependency injection is not about coding to the interface, it is a good pattern to have testable and configurable programs. 
+
+When we code to the interface, our application logic will not dependent on any concrete implementation. So we can replace implementations, without changing the application. This is what [Service Pattern](../service-pattern/service-pattern.md) encourages us when writing services.
+
+Let's try an example. Assume we have the following service interfaces for `A`, `B`, and `C` services:
+
+```scala mdoc:silent
+import zio._
+
+trait A {
+  def foo: ZIO[Any, Nothing, Int]
+}
+
+object A {
+  def foo: ZIO[A, Nothing, Int] = ZIO.serviceWithZIO[A](_.foo)
+}
+
+trait B {
+  def bar: ZIO[Any, Nothing, String]
+}
+
+object B {
+  def bar = ZIO.serviceWithZIO[B](_.bar)
+}
+
+trait C {
+  def baz: ZIO[Any, Nothing, Unit]
+}
+
+object C {
+  def baz: ZIO[C, Nothing, Unit] = ZIO.serviceWithZIO[C](_.baz)
+}
+```
+
+We can extend all of these interfaces and implement them, using the same pattern we have learned until now:
+
+```scala mdoc:silent
+final case class ALive() extends A {
+  def foo = ZIO.succeed(42)
+}
+
+object ALive {
+  val layer: ZLayer[Any, Nothing, ALive] = ZLayer.succeed(ALive())
+}
+
+final case class BLive() extends B {
+  def bar: ZIO[Any, Nothing, String] = ZIO.succeed("Hello!")
+}
+
+object BLive {
+  val layer: ZLayer[Any, Nothing, BLive] = ZLayer.succeed(BLive())
+}
+
+final case class CLive(a: A, b: B) extends C {
+  def baz: ZIO[Any, Nothing, Unit] =
+    for {
+      _ <- a.foo
+      _ <- b.bar
+    } yield ()
+}
+
+object CLive {
+  val layer: ZLayer[B with A, Nothing, CLive] =
+    ZLayer {
+      for {
+        a <- ZIO.service[A]
+        b <- ZIO.service[B]
+      } yield CLive(a, b)
+    }
+}
+```
+
+Finally, assume we have the following application logic:
+
+```scala mdoc:silent
+import zio._
+
+val myApp: ZIO[A with C, Nothing, Unit] =
+  for {
+    _ <- A.foo
+    _ <- C.baz
+  } yield ()
+```
+
+We can run our application, by providing live layers:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = myApp.provide(
+    ALive.layer,
+    BLive.layer,
+    CLive.layer
+  )
+}
+```
+
+For any purpose, if we decided to use another implementation for the `A` service, we can replace it easily without changing our application logic:
+
+```scala mdoc:silent
+import zio._
+
+final case class ACustom() extends A {
+  def foo = ZIO.succeed(84)
+}
+
+object ACustom {
+  val layer: ZLayer[Any, Nothing, A] = ZLayer.succeed(ACustom())
+}
+
+object MainApp extends ZIOAppDefault {
+  def run = myApp.provide(
+    ACustom.layer,
+    BLive.layer,
+    CLive.layer
+  )
 }
 ```
