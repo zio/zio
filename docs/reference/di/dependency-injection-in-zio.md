@@ -83,7 +83,7 @@ Now the `myApp` effect requires `A` and `B` services to fulfill its functionalit
 
 In the next step, we are going to build a dependency graph that holds two `A` and `B` services.
 
-### Step 2: Building The Dependency Graph (Optional)
+### Step 3: Building The Dependency Graph (Optional)
 
 To be able to run our application, we need to build the dependency graph that it needs. This can be done using the `ZLayer` data type. It allows us to build up the whole application's dependency graph by composing layers manually or automatically.
 
@@ -125,7 +125,7 @@ val appLayer: ZLayer[Any, Nothing, A with B] =
 Automatic layer construction is useful when the dependency graph is large and complex. So in simple cases, it doesn't demonstrate the power of automatic layer construction.
 :::
 
-### Step 3: Providing Dependencies to the ZIO Environment
+### Step 4: Providing Dependencies to the ZIO Environment
 
 To run our application, we need to provide (inject) all dependencies to the ZIO environment. This can be done by using one of the `ZIO.provideXYZ` operations. This allows us to propagate dependencies from button to top:
 
