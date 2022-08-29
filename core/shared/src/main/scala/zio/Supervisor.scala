@@ -21,6 +21,17 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.{AtomicReference, LongAdder}
 import scala.collection.immutable.SortedSet
+import zio.ZIO.OnSuccess
+import zio.ZIO.OnSuccessAndFailure
+import zio.ZIO.Async
+import zio.ZIO.YieldNow
+import zio.ZIO.UpdateRuntimeFlags
+import zio.ZIO.UpdateRuntimeFlagsWithin.Interruptible
+import zio.ZIO.UpdateRuntimeFlagsWithin.Uninterruptible
+import zio.ZIO.WhileLoop
+import zio.ZIO.Stateful
+import zio.ZIO.GenerateStackTrace
+import zio.ZIO.OnFailure
 
 /**
  * A `Supervisor[A]` is allowed to supervise the launching and termination of
@@ -168,10 +179,10 @@ object Supervisor {
   /**
    * A supervisor that logs operations at the trace logging level
    */
-  def opLogger(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _]) => String): UIO[Supervisor[Unit]] =
+  def opLogger(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _], Any) => String): UIO[Supervisor[Unit]] =
     ZIO.succeedNow(new OpLoggingSupervisor(logFn))
 
-  private class OpLoggingSupervisor(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _]) => String) extends Supervisor[Unit] {
+  private class OpLoggingSupervisor(logFn: (Fiber.Runtime[_, _], ZIO[_, _, _], Any) => String) extends Supervisor[Unit] {
     self =>
     def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
 
@@ -189,14 +200,17 @@ object Supervisor {
         unsafe: Unsafe
       ): ZIO[Any, Any, Any] = {
         val newEffect =
-          if (effect.trace ne Trace.empty) {
-            //this should prevent an infinite loop by inserting the logging effect with an empty trace
-            //and only modifying the operation if the trace is non-empty but... it doesn't
-            implicit val trace = Trace.empty
-            Console.printLine(logFn(fiber, effect)).flatMap(_ => effect)
-          } else {
-            effect
+          effect match {
+            case OnSuccess(trace, first, successK) if (effect.trace ne Trace.empty) =>
+              implicit val trace = Trace.empty
+              for {
+                result  <- first
+                _       <- Console.printLine(logFn(fiber, effect, result))
+                success <- successK(result)
+              } yield success
+            case _ => effect
           }
+
         self.onEffect(fiber, newEffect)
         newEffect
       }

@@ -10,7 +10,7 @@ object Test extends ZIOAppDefault {
     } yield ()
   def run =
     for {
-      opLogger <- Supervisor.opLogger((_, op) => op.trace.toString())
+      opLogger <- Supervisor.opLogger((_, op, result) => s"${op.trace.toString().padTo(50, ' ')}: $result")
       _ <- ZIO.logLevel(LogLevel.Trace) {
              effect.withRuntimeFlags(RuntimeFlags.enable(RuntimeFlag.OpSupervision)).supervised(opLogger)
            }
