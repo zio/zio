@@ -11,61 +11,96 @@ In real world applications, we encourage to use [service pattern](../service-pat
 :::
 
 We can achieve dependency injection through these three simple steps:
-1. Accessing services from the ZIO environment through the `ZIO.service` operation.
-2. Building the dependency graph using manual or automatic layer construction.
-3. Providing dependencies to the ZIO environment through the `ZIO.provideXYZ` operations.
+1. Accessing services from the ZIO environment through the `ZIO.serviceXYZ` operations.
+2. Writing application logic using services and composing them together.
+3. Building the dependency graph using manual or automatic layer construction (optional).
+4. Providing dependencies to the ZIO environment through the `ZIO.provideXYZ` operations.
 
 ## Step 1: Accessing Services From The ZIO Environment
 
-To write application logic, we need to access services from the ZIO environment. We can do this by using the `ZIO.service` operation.
-
-- When we call `ZIO.service[A]`, we are asking the ZIO environment for the `A` service. So then we can access all the functionality of the `A` service.
-- Accordingly, we can access all services that we need and use them in our application. Because the ZIO environment is composable, finally the type of our application will denote all the services that it needs.
+To write application logic, we need to access services from the ZIO environment. We can do this by using the `ZIO.serviceXYZ` operation.
 
 For example, assume we have the following services:
 
 ```scala mdoc:silent
 import zio._
 
-trait A {
-  def foo(): UIO[String]
+final class A {
+  def foo: UIO[String] = ZIO.succeed("Hello!")
 }
 
-trait B {
-  def bar(i: String): UIO[Int]
+final class B {
+  def bar: UIO[Int] = ZIO.succeed(42)
 }
 ```
 
-We can write the following application logic:
+When we call `ZIO.service[A]`, we are asking the ZIO environment for the `A` service. So then we can access all the functionality of the `A` service:
 
-```scala mdoc:silent
-import zio._
-
-// myApp requires A and B services to fulfill its functionality
-val myApp: ZIO[A with B, Nothing, Int] =
+```scala mdoc:compile-only
+val effect: ZIO[A, Nothing, String] =
   for {
     a <- ZIO.service[A] 
-    r <- a.foo()
-    b <- ZIO.service[B]
-    o <- b.bar(r)
-  } yield o
+    r <- a.foo
+  } yield r
 ```
 
-## Step 2: Building The Dependency Graph
+The signature of the above effect, says that in order to produce a value of type `String`, I need the `A` service from the ZIO environment.
+
+We can also use `ZIO.serviceWith`/`ZIO.srviceWithZIO` to directly access one of the service functionalities:
+
+```scala mdoc:silent
+object A {
+  def foo: ZIO[A, Nothing, String] = ZIO.serviceWithZIO[A](_.foo) 
+}
+
+object B {
+  def bar: ZIO[B, Nothing, Int] = ZIO.serviceWithZIO[B](_.bar)
+}
+```
+
+## Step 2: Writing Application Logic Using Services
+
+ZIO is a composable data type on its environment type parameter. So when we have an effect that requires the `A` service, and also we have another effect that requires the `B` service; when we compose these two services together, the resulting effect requires both `A` and `B` services:
+
+```scala mdoc:silent
+// Sequential Composition Example
+val myApp: ZIO[A with B, Nothing, (String, Int)] =
+  for {
+    a <- A.foo
+    b <- B.bar
+  } yield (a, b)
+```
+
+```scala mdoc:silent:nest
+// Parallel Composition Example
+val myApp: ZIO[A with B, Nothing, (String, Int)] = A.foo <&> B.bar
+```
+
+Now the `myApp` effect requires `A` and `B` services to fulfill its functionality. We can see that we are writing application logic, we are not concerned about how services will be created! We are focused on using services to write the application logic.
+
+In the next step, we are going to build a dependency graph that holds two `A` and `B` services.
+
+## Step 2: Building The Dependency Graph (Optional)
 
 To be able to run our application, we need to build the dependency graph that it needs. This can be done using the `ZLayer` data type. It allows us to build up the whole application's dependency graph by composing layers manually or automatically.
 
 Assume each of these services has its own layer like the below:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 object A {
+  def foo: ZIO[A, Nothing, String] = 
+    ZIO.serviceWithZIO[A](_.foo) 
+  
   val layer: ZLayer[Any, Nothing, A] = 
-    ZLayer.succeed(???) 
+    ZLayer.succeed(new A) 
 }
 
 object B {
+  def bar: ZIO[B, Nothing, Int] = 
+    ZIO.serviceWithZIO[B](_.bar)
+  
   val layer: ZLayer[Any, Nothing, B] = 
-    ZLayer.succeed(???)
+    ZLayer.succeed(new B)
 }
 ```
 
@@ -94,7 +129,7 @@ To run our application, we need to provide (inject) all dependencies to the ZIO 
 Let's provide our application with the `appLayer`:
 
 ```scala mdoc:silent
-val result: ZIO[Any, Nothing, Int] = myApp.provideLayer(appLayer)
+val result: ZIO[Any, Nothing, (String, Int)] = myApp.provideLayer(appLayer)
 ```
 
 Here the `ZLayer` data types act as a dependency/environment eliminator. By providing required dependencies to our ZIO application, `ZLayer` eliminates all dependencies from the environment of our application.
