@@ -232,7 +232,7 @@ val myApp: ZIO[A with B with C, Nothing, Unit] =
   } yield ()
 ```
 
-We can provide all dependencies to run our application:
+In order to run the application, we should provide the `A`, `B` and `C` services:
 
 ```scala mdoc:compile-only
 import zio._
