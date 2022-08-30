@@ -803,8 +803,8 @@ package object test extends CompileVariants {
     implicit val trace = Trace.empty
     TestRunner(
       TestExecutor.default(
-        Scope.default >>> testEnvironment,
-        (Scope.default >+> testEnvironment) ++ ZIOAppArgs.empty,
+        testEnvironment,
+        Scope.default ++ testEnvironment,
         sinkLayer(Console.ConsoleLive, ConsoleEventRenderer),
         ZTestEventHandler.silent // The default test runner handles its own events, writing their output to the provided sink.
       )
