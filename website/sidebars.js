@@ -441,10 +441,10 @@ module.exports = {
           label: "Property Testing",
           link: { type: "doc", id: "reference/test/property-testing/index" },
           items: [
-            "reference/test/property-testing/gen",
-            "reference/test/property-testing/operators",
+            "reference/test/property-testing/getting-started",
+            "reference/test/property-testing/how-generators-work",
+            "reference/test/property-testing/built-in-generators",
             "reference/test/property-testing/shrinking",
-            "reference/test/property-testing/generators",
           ]
         }
       ]
