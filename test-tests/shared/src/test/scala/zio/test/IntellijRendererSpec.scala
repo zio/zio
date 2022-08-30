@@ -4,7 +4,7 @@ import zio.internal.stacktracer.SourceLocation
 import zio.test.Assertion.equalTo
 import zio.test.ReportingTestUtils._
 import zio.test.render.IntelliJRenderer
-import zio.{Chunk, ExecutionStrategy, Scope, Trace, ZIO}
+import zio.{Chunk, ExecutionStrategy, Trace, ZIO}
 
 object IntellijRendererSpec extends ZIOBaseSpec {
   import IntelliJRenderUtils._
@@ -190,7 +190,7 @@ object IntelliJRenderUtils {
 
   def runLog(
     spec: Spec[TestEnvironment, String]
-  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment with Scope, Nothing, String] =
+  )(implicit trace: Trace, sourceLocation: SourceLocation): ZIO[TestEnvironment, Nothing, String] =
     for {
       console <- ZIO.console
       _ <- TestTestRunner(testEnvironment, sinkLayer(console, TestRenderer))

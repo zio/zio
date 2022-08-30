@@ -1,8 +1,7 @@
 package zio.test.sbt
 
-import sbt.testing.{Event, EventHandler, Logger, Status, Task, TaskDef}
-import zio.{CancelableFuture, Console, Runtime, Scope, Trace, UIO, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
-import zio.test.render.ConsoleRenderer
+import sbt.testing.{EventHandler, Logger, Task, TaskDef}
+import zio.{CancelableFuture, Scope, Trace, Unsafe, ZEnvironment, ZIO, ZIOAppArgs, ZLayer}
 import zio.test._
 
 import scala.concurrent.Await
@@ -22,11 +21,8 @@ abstract class BaseTestTask[T](
 
   protected def sharedFilledTestLayer(implicit
     trace: Trace
-  ): ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope] = {
-    ZIOAppArgs.empty +!+ (
-      (liveEnvironment ++ Scope.default) >>> TestEnvironment.live
-    )
-  } +!+ Scope.default
+  ): ZLayer[Any, Nothing, TestEnvironment with ZIOAppArgs with Scope] =
+    ZIOAppArgs.empty +!+ testEnvironment +!+ Scope.default
 
   private[zio] def run(
     eventHandlerZ: ZTestEventHandler
