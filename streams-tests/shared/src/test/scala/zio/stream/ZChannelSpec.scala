@@ -2,8 +2,9 @@ package zio.stream
 
 import zio._
 import zio.stream.ZChannel.{ChildExecutorDecision, UpstreamPullRequest, UpstreamPullStrategy}
-import zio.test.Assertion._
 import zio.test._
+import zio.test.Assertion._
+import zio.test.TestAspect.timeout
 
 object ZChannelSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -509,6 +510,14 @@ object ZChannelSpec extends ZIOBaseSpec {
           } @@ zioTag(errors)
         ) @@ zioTag(interruption)
       ),
+      test("pure streams can be interrupted")(
+        for {
+          latch <- Promise.make[Nothing, Unit]
+          fiber <- ZIO.uninterruptibleMask(restore => latch.succeed(()) *> restore(ZStream.repeat("1").runDrain)).fork
+          _     <- latch.await
+          _     <- fiber.interrupt
+        } yield (assertCompletes)
+      ) @@ timeout(1.second) @@ zioTag(interruption),
       suite("reads")(
         test("simple reads") {
           case class Whatever(i: Int)
