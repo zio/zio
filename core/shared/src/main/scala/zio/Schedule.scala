@@ -18,7 +18,7 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.time.OffsetDateTime
+import java.time.{Instant, OffsetDateTime}
 import java.time.temporal.ChronoField._
 import java.time.temporal.{ChronoField, TemporalAdjusters}
 import java.util.concurrent.TimeUnit
@@ -1204,31 +1204,31 @@ object Schedule {
       import java.time.Duration
       type State = (Option[(Long, Long)], Long)
       val initial        = (None, 0L)
-      val intervalMillis = interval.toMillis()
+      val intervalNanos = interval.toNanos()
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
         ZIO.succeed(state match {
-          case (Some((startMillis, lastRun)), n) =>
-            val nowMillis     = now.toInstant.toEpochMilli()
-            val runningBehind = nowMillis > (lastRun + intervalMillis)
+          case (Some((startNanos, lastRun)), n) =>
+            val nowNanos     = Duration.between(Instant.EPOCH, now).toNanos()
+            val runningBehind = nowNanos > (lastRun + intervalNanos)
             val boundary =
               if (interval.isZero) interval
-              else Duration.ofMillis(intervalMillis - ((nowMillis - startMillis) % intervalMillis))
+              else Duration.ofNanos(intervalNanos - ((nowNanos - startNanos) % intervalNanos))
             val sleepTime = if (boundary.isZero) interval else boundary
             val nextRun   = if (runningBehind) now else now.plus(sleepTime)
 
             (
-              (Some((startMillis, nextRun.toInstant.toEpochMilli)), n + 1L),
+              (Some((startNanos, Duration.between(Instant.EPOCH, nextRun.toInstant).toNanos())), n + 1L),
               n,
               Decision.Continue(Interval.after(nextRun))
             )
           case (None, n) =>
-            val nowMillis = now.toInstant.toEpochMilli
+            val nowNanos = Duration.between(Instant.EPOCH, now.toInstant).toNanos
             val nextRun   = now.plus(interval)
 
             (
-              (Some((nowMillis, nextRun.toInstant().toEpochMilli())), n + 1L),
+              (Some((nowNanos, Duration.between(Instant.EPOCH, nextRun.toInstant).toNanos())), n + 1L),
               n,
               Decision.Continue(Interval.after(nextRun))
             )
@@ -1388,29 +1388,29 @@ object Schedule {
     new Schedule[Any, Any, Long] {
       type State = (Option[Long], Long)
       val initial = (None, 0L)
-      val millis  = interval.toMillis
+      val nanos  = interval.toNanos
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
         ZIO.succeed(state match {
-          case (Some(startMillis), n) =>
+          case (Some(startNanos), n) =>
             (
-              (Some(startMillis), n + 1),
+              (Some(startNanos), n + 1),
               n,
               Decision.Continue(
                 Interval.after(
                   now.plus(
-                    millis - (now.toInstant.toEpochMilli - startMillis) % millis,
-                    java.time.temporal.ChronoUnit.MILLIS
+                    nanos - (Duration.fromInterval(Instant.EPOCH, now.toInstant).toNanos - startNanos) % nanos,
+                    java.time.temporal.ChronoUnit.NANOS
                   )
                 )
               )
             )
           case (None, n) =>
             (
-              (Some(now.toInstant.toEpochMilli), n + 1),
+              (Some(Duration.fromInterval(Instant.EPOCH, now.toInstant).toNanos), n + 1),
               n,
-              Decision.Continue(Interval.after(now.plus(millis, java.time.temporal.ChronoUnit.MILLIS)))
+              Decision.Continue(Interval.after(now.plus(nanos, java.time.temporal.ChronoUnit.NANOS)))
             )
         })
     }
