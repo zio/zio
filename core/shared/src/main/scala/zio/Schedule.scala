@@ -380,8 +380,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
           case (state, _, Done) =>
             ZIO.succeedNow((state, Duration.Zero, Done))
           case (state, _, Continue(interval)) =>
-            val delay =
-              Duration(interval.start.toInstant.toEpochMilli - now.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+            val delay = Duration.fromInterval(now, interval.start)
             ZIO.succeedNow((state, delay, Continue(interval)))
         }
     }
@@ -1156,8 +1155,7 @@ object Schedule {
           state match {
             case None => (Some(now), Duration.Zero, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
             case Some(start) =>
-              val duration =
-                Duration(now.toInstant.toEpochMilli - start.toInstant.toEpochMilli, TimeUnit.MILLISECONDS)
+              val duration = Duration.fromInterval(start, now)
 
               (Some(start), duration, Decision.Continue(Interval(now, OffsetDateTime.MAX)))
           }
