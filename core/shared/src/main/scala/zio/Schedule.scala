@@ -1209,12 +1209,13 @@ object Schedule {
       type State = (Option[(Long, Long)], Long)
       val initial        = (None, 0L)
       val intervalMillis = interval.toMillis()
+      val intervalNanos  = interval.toNanos()
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
-        if (intervalMillis == 0) {
+        if (intervalMillis == 0 && intervalNanos != 0) {
           ZIO.die(
-            new IllegalArgumentException(s"Invalid argument in `fixed($interval)`. Must be in range 0...59")
+            new IllegalArgumentException(s"Nanosecond precision is not currently supported.")
           )
         } else {
         ZIO.succeed(state match {
@@ -1401,12 +1402,13 @@ object Schedule {
       type State = (Option[Long], Long)
       val initial = (None, 0L)
       val millis  = interval.toMillis
+      val nanos   = interval.toNanos
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
-        if (millis == 0) {
+        if (millis == 0 && nanos != 0) {
           ZIO.die(
-            new IllegalArgumentException(s"Invalid argument in `windowed($interval)`. Must be greater than or equal to 1 millisecond.")
+            new IllegalArgumentException(s"Nanosecond precision is not currently supported.")
           )
         } else {
         ZIO.succeed(state match {
