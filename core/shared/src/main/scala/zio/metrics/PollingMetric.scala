@@ -142,6 +142,11 @@ object PollingMetric {
 
               override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Chunk[Out] =
                 ins.map(_.metric.unsafe.value(extraTags))
+
+              override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+                ins.zip(in).foreach { case (pollingmetric, input) =>
+                  pollingmetric.metric.unsafe.modify(input.asInstanceOf[pollingmetric.In])
+                }
             }
         }
 

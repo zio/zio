@@ -23,13 +23,13 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     var sum = 0.0
 
-    MetricHook(v => sum += v, () => MetricState.Counter(sum))
+    MetricHook(v => sum += v, () => MetricState.Counter(sum), v => sum += v)
   }
 
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge = {
     var value = startAt
 
-    MetricHook(v => value = v, () => MetricState.Gauge(value))
+    MetricHook(v => value = v, () => MetricState.Gauge(value), v => value += v)
   }
 
   def histogram(key: MetricKey.Histogram): MetricHook.Histogram = {
@@ -82,7 +82,8 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
     MetricHook(
       update,
-      () => MetricState.Histogram(getBuckets(), count, min, max, sum)
+      () => MetricState.Histogram(getBuckets(), count, min, max, sum),
+      update
     )
   }
 
@@ -157,7 +158,8 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
           getMin(),
           getMax(),
           getSum()
-        )
+        ),
+      t => observe(t._1, t._2)
     )
   }
 
@@ -183,6 +185,6 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       builder.toMap
     }
 
-    MetricHook(update, () => MetricState.Frequency(snapshot()))
+    MetricHook(update, () => MetricState.Frequency(snapshot()), update)
   }
 }

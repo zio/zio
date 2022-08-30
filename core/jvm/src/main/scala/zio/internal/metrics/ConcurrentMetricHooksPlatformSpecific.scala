@@ -26,13 +26,22 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     val adder = new DoubleAdder
 
-    MetricHook(v => adder.add(v), () => MetricState.Counter(adder.sum()))
+    MetricHook(v => adder.add(v), () => MetricState.Counter(adder.sum()), v => adder.add(v))
+  }
+
+  private def incrementBy(atomic: AtomicDouble, value: Double): Unit = {
+    var loop = true
+
+    while (loop) {
+      val current = atomic.get()
+      loop = !atomic.compareAndSet(current, current + value)
+    }
   }
 
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge = {
-    val ref: AtomicReference[Double] = new AtomicReference[Double](startAt)
+    val ref: AtomicDouble = AtomicDouble.make(startAt)
 
-    MetricHook(v => ref.set(v), () => MetricState.Gauge(ref.get()))
+    MetricHook(v => ref.set(v), () => MetricState.Gauge(ref.get()), v => incrementBy(ref, v))
   }
 
   private def updateMin(atomic: AtomicDouble, value: Double): Unit = {
@@ -107,7 +116,8 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
     MetricHook(
       update,
-      () => MetricState.Histogram(getBuckets(), count.longValue(), min.get(), max.get(), sum.doubleValue())
+      () => MetricState.Histogram(getBuckets(), count.longValue(), min.get(), max.get(), sum.doubleValue()),
+      update
     )
   }
 
@@ -186,7 +196,8 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
           getMin(),
           getMax(),
           getSum()
-        )
+        ),
+      observe(_)
     )
   }
 
@@ -216,7 +227,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       builder.toMap
     }
 
-    MetricHook(update, () => MetricState.Frequency(snapshot()))
+    MetricHook(update, () => MetricState.Frequency(snapshot()), update)
   }
 
   /**
@@ -233,8 +244,12 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
    * and unboxing overhead that can be incurred with `AtomicReference`.
    */
   private final class AtomicDouble private (private val ref: AtomicLong) {
+
     def get(): Double =
       JDouble.longBitsToDouble(ref.get())
+
+    def set(newValue: Double): Unit =
+      ref.set(JDouble.doubleToLongBits(newValue))
 
     def compareAndSet(expected: Double, newValue: Double): Boolean =
       ref.compareAndSet(JDouble.doubleToLongBits(expected), JDouble.doubleToLongBits(newValue))

@@ -148,6 +148,13 @@ object MetricSpec extends ZIOBaseSpec {
           _     <- ZIO.succeed(3) @@ g
           state <- g.value
         } yield assertTrue(state == MetricState.Gauge(3.0))
+      },
+      test("increment gauge") {
+        val g = Metric.gauge("g8").tagged(labels1).contramap[Int](_.toDouble)
+        for {
+          _     <- ZIO.collectAllPar(Chunk.fill(100)(g.increment))
+          state <- g.value
+        } yield assertTrue(state == MetricState.Gauge(100.0))
       }
     ),
     suite("Histogram")(
