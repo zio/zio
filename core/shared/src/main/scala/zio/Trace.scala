@@ -28,6 +28,8 @@ object Trace {
     (left, right) match {
       case (Trace(_, leftFile, leftLine), Trace(_, rightFile, rightLine)) =>
         leftFile == rightFile && leftLine == rightLine
+      case _ =>
+        false
     }
 
   val empty: Trace =
