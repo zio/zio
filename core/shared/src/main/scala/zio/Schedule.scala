@@ -1195,6 +1195,8 @@ object Schedule {
    *
    * If the action run between updates takes longer than the interval, then the
    * action will be run immediately, but re-runs will not "pile up".
+   * 
+   * Nanosecond precision intervals are not currently supported.
    *
    * <pre>
    * |-----interval-----|-----interval-----|-----interval-----|
@@ -1210,6 +1212,11 @@ object Schedule {
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (intervalMillis == 0) {
+          ZIO.die(
+            new IllegalArgumentException(s"Invalid argument in `fixed($interval)`. Must be in range 0...59")
+          )
+        } else {
         ZIO.succeed(state match {
           case (Some((startMillis, lastRun)), n) =>
             val nowMillis     = now.toInstant.toEpochMilli()
@@ -1235,6 +1242,7 @@ object Schedule {
               Decision.Continue(Interval.after(nextRun))
             )
         })
+      }
     }
 
   /**
@@ -1378,6 +1386,8 @@ object Schedule {
   /**
    * A schedule that divides the timeline to `interval`-long windows, and sleeps
    * until the nearest window boundary every time it recurs.
+   * 
+   * Nanosecond precision intervals are not currently supported.
    *
    * For example, `windowed(10.seconds)` would produce a schedule as follows:
    * <pre>
@@ -1394,6 +1404,11 @@ object Schedule {
       def step(now: OffsetDateTime, in: Any, state: State)(implicit
         trace: Trace
       ): ZIO[Any, Nothing, (State, Long, Decision)] =
+        if (millis == 0) {
+          ZIO.die(
+            new IllegalArgumentException(s"Invalid argument in `windowed($interval)`. Must be greater than or equal to 1 millisecond.")
+          )
+        } else {
         ZIO.succeed(state match {
           case (Some(startMillis), n) =>
             (
@@ -1415,6 +1430,7 @@ object Schedule {
               Decision.Continue(Interval.after(now.plus(millis, java.time.temporal.ChronoUnit.MILLIS)))
             )
         })
+      }
     }
 
   /**
