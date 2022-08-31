@@ -172,6 +172,7 @@ Unsafe.unsafe { implicit unsafe =>
 }
 ```
 
+
 ## Top-level Runtime vs. Local Runtimes
 
 In ZIO, we have two types of runtimes:
@@ -183,6 +184,65 @@ In ZIO, we have two types of runtimes:
 ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime, enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Assume we want to read some configuration information from a file or a database to customize the runtime.
 
 In most cases, it is sufficient to customize application runtime using the `bootstrap` layer or providing a custom configuration directly to our application:
+
+## Locally Scoped Runtime Configuration
+
+When we access a `Runtime` using `ZIO.runtime` it will inherit all the configuration of the current workflow so if we use it to run effects they will be run with the same logger and so on:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  def run =
+    Runtime.removeDefaultLoggers {
+      for {
+        _ <- for {
+               rt <- ZIO.runtime[Any]
+               _  <- rt.run(ZIO.log("This line will never get logged"))
+             } yield ()
+        _ <- addSimpleLogger {
+               for {
+                 rt <- ZIO.runtime[Any]
+                 _  <- rt.run(ZIO.log("This line will get logged"))
+               } yield ()
+             }
+        r <- for {
+               rt <- ZIO.runtime[Any]
+               _  <- rt.run(ZIO.log("This line will never get logged"))
+             } yield ()
+      } yield r
+    }
+}
+```
+
+The output:
+
+```
+This line will be logged.
+```
+
+In the above example, we used the `ZIO.runtime` to demonstrate the local runtime configuration explicitly. We can rewrite the above example like this:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  def run =
+    Runtime.removeDefaultLoggers {
+      for {
+        _ <- ZIO.log("This line will never be logged.")
+        _ <- addSimpleLogger(ZIO.log("This line will be logged."))
+        - <- ZIO.log("This line will never be logged.")
+      } yield ()
+    }
+}
+```
 
 ### Configuring Runtime Using `bootstrap` Layer
 
