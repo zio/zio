@@ -180,7 +180,7 @@ In ZIO, we have two types of runtimes:
 
 - **Local Runtimes** are used during the execution of the ZIO application. They are local to a specific region of the code. Assume that in the middle of a ZIO application, we want to import an effectful or side-effecting application with a specific runtime.
 
-ZLayer provides a consistent way to customize and configure runtimes. A configuration workflow can be pure, effectful, or resourceful. So even runtime configuration can be done using ZIO workflows, e.g. reading configuration from a file, or a database.
+ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime, enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Assume we want to read some configuration information from a file or a database to customize the runtime.
 
 In most cases, it is sufficient to customize application runtime using the `bootstrap` layer or providing a custom configuration directly to our application:
 
