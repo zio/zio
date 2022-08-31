@@ -802,7 +802,7 @@ object Fiber extends FiberPlatformSpecific {
    *   `UIO[Unit]`
    */
   def interruptAllAs(fiberId: Fiber.Id)(fs: Iterable[Fiber[Any, Any]]): UIO[Unit] =
-    fs.foldLeft(IO.unit)((io, f) => io <* f.interruptAs(fiberId))
+    ZIO.foreach(fs)(_.interruptAs(fiberId).fork).flatMap(fs => ZIO.foreach_(fs)(_.await))
 
   /**
    * A fiber that is already interrupted.
