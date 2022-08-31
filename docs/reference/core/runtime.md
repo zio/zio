@@ -71,7 +71,8 @@ ZIO contains a default runtime called `Runtime.default` designed to work well fo
 
 ```scala
 object Runtime {
-  lazy val default: Runtime[Any] = Runtime(ZEnvironment.empty)
+  val default: Runtime[Any] =
+    Runtime(ZEnvironment.empty, FiberRefs.empty, RuntimeFlags.default)
 }
 ```
 
@@ -82,7 +83,9 @@ We can easily access the default `Runtime` to run an effect:
 ```scala mdoc:compile-only
 object MainApp extends scala.App {
   val myAppLogic = ZIO.succeed(???)
+
   val runtime = Runtime.default
+
   Unsafe.unsafe { implicit unsafe =>
     runtime.unsafe.run(myAppLogic).getOrThrowFiberFailure()
   }
