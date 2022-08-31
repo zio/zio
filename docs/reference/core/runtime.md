@@ -171,3 +171,99 @@ Unsafe.unsafe { implicit unsafe =>
     ).getOrThrowFiberFailure()
 }
 ```
+
+## Top-level Runtime vs. Local Runtimes
+
+In ZIO, we have two types of runtimes:
+
+- **Top-level Runtime** is the one that is used to run the entire ZIO application from the beginning to the end. There is only one top-level runtime when running a ZIO application.
+
+- **Local Runtimes** are used during the execution of the ZIO application. They are local to a specific region of the code. Assume that in the middle of a ZIO application, we want to import an effectful or side-effecting application with a specific runtime.
+
+ZLayer provides a consistent way to customize and configure runtimes. A configuration workflow can be pure, effectful, or resourceful. So even runtime configuration can be done using ZIO workflows, e.g. reading configuration from a file, or a database.
+
+In most cases, it is sufficient to customize application runtime using the `bootstrap` layer or providing a custom configuration directly to our application:
+
+### Configuring Runtime Using `bootstrap` Layer
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  override val bootstrap: ZLayer[Any, Nothing, Unit] =
+    Runtime.removeDefaultLoggers ++ addSimpleLogger
+
+  def run =
+    for {
+      _ <- ZIO.log("Application started!")
+      _ <- ZIO.log("Application is about to exit!")
+    } yield ()
+}
+```
+
+The output:
+
+```
+Application started!
+Application is about to exit!
+```
+
+### Configuring Runtime by Providing Configuration Layers
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  def run = {
+    for {
+      _ <- ZIO.log("Application started!")
+      _ <- ZIO.log("Application is about to exit!")
+    } yield ()
+  }.provide(Runtime.removeDefaultLoggers ++ addSimpleLogger)
+}
+```
+
+The output:
+
+```
+Application started!
+Application is about to exit!
+```
+
+We can also provide configuration to a specific region of a ZIO application:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  def run =
+    for {
+      _ <- ZIO.log("Application started!")
+      _ <- {
+        for {
+          _ <- ZIO.log("I'm not going to be logged!")
+          _ <- ZIO.log("I will be logged by the simple logger.").provide(addSimpleLogger)
+          _ <- ZIO.log("Reset back to the previous configuration, so I won't be logged.")
+        } yield ()
+      }.provide(Runtime.removeDefaultLoggers)
+      _ <- ZIO.log("Application is about to exit!")
+    } yield ()
+}
+```
+
+The output:
+
+```
+timestamp=2022-08-31T14:28:34.711461Z level=INFO thread=#zio-fiber-6 message="Application started!" location=<empty>.MainApp.run file=ZIOApp.scala line=9
+I will be logged by the simple logger.
+timestamp=2022-08-31T14:28:34.832035Z level=INFO thread=#zio-fiber-6 message="Application is about to exit!" location=<empty>.MainApp.run file=ZIOApp.scala line=17
+```
