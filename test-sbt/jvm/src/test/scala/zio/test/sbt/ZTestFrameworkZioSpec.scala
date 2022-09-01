@@ -132,6 +132,28 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
           )
 
       } yield assertTrue(output.equals(expected))
+    },
+    test("only execute test with specified tag") {
+      for {
+        _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-tags", "IntegrationTest"))
+        output <- testOutput
+        expected =
+          List(
+            s"${green("+")} tag suite\n",
+            s"""  ${green("+")} integration test - tagged: "IntegrationTest"\n"""
+          )
+      } yield assertTrue(output.equals(expected))
+    },
+    test("do not execute test with ignored tag") {
+      for {
+        _      <- loadAndExecute(FrameworkSpecInstances.TagsSpec, testArgs = Array("-ignore-tags", "IntegrationTest"))
+        output <- testOutput
+        expected =
+          List(
+            s"${green("+")} tag suite\n",
+            s"""  ${green("+")} unit test - tagged: "UnitTest"\n"""
+          )
+      } yield assertTrue(output.equals(expected))
     }
   )
 

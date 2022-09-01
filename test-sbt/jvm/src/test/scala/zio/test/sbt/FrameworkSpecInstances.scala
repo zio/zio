@@ -133,4 +133,15 @@ object FrameworkSpecInstances {
     )
   }
 
+  object TagsSpec extends ZIOSpecDefault {
+    def spec: Spec[Any, TestFailure[Any]] = zio.test.suite("tag suite")(
+      test("integration test") {
+        zio.test.assertCompletes
+      }.annotate(TestAnnotation.tagged, Set("IntegrationTest")),
+      test("unit test") {
+        zio.test.assert(1)(Assertion.equalTo(1))
+      }.annotate(TestAnnotation.tagged, Set("UnitTest"))
+    )
+  }
+
 }
