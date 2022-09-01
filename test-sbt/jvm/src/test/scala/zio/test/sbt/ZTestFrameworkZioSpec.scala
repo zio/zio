@@ -140,7 +140,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         expected =
           List(
             s"${green("+")} tag suite\n",
-            s"  ${green("+")} integration test - tagged: \"IntegrationTest\"\n"
+            s"""  ${green("+")} integration test - tagged: "IntegrationTest"\n"""
           )
       } yield assertTrue(output.equals(expected))
     },
@@ -151,7 +151,7 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
         expected =
           List(
             s"${green("+")} tag suite\n",
-            s"  ${green("+")} unit test - tagged: \"UnitTest\"\n"
+            s"""  ${green("+")} unit test - tagged: "UnitTest"\n"""
           )
       } yield assertTrue(output.equals(expected))
     }
