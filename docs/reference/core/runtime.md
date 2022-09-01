@@ -328,7 +328,7 @@ Application started!
 Application is about to exit!
 ```
 
-### Top-level Runtime Configuration
+## Top-level Runtime Configuration
 
 When we write a ZIO application using the `ZIOAppDefault` trait, a default top-level runtime is created and used to run the application automatically under the hood. Further, we can customize the rest of the ZIO application by providing locally scoped configuration layers using [`provideXYZ` operations](#configuring-runtime-by-providing-configuration-layers) or [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer).
 
