@@ -1,9 +1,11 @@
 ---
 id: articles 
-title:  "Articles"
+title: "Articles"
 ---
 
-_These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant._
+:::caution
+These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant.
+:::
 
 ## ZIO Core
 - [Beautiful, Simple, Testable Functional Effects for Scala](http://degoes.net/articles/zio-environment) (introducing ZIO Environment) by John De Goes (February 2019)
