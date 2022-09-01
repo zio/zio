@@ -154,7 +154,19 @@ object FiberSpec extends ZIOBaseSpec {
                             .eventually
           } yield assertTrue(blockingOn.toSet.size == 2)
         }
-      )
+      ),
+      test("interruptAll interrupts fibers in parallel") {
+        for {
+          promise1 <- Promise.make[Nothing, Unit]
+          promise2 <- Promise.make[Nothing, Unit]
+          fiber1   <- (promise1.succeed(()) *> ZIO.never).forkDaemon
+          fiber2   <- (ZIO.uninterruptible(promise2.succeed(()) *> fiber1.await)).forkDaemon
+          _        <- promise1.await
+          _        <- promise2.await
+          _        <- Fiber.interruptAll(List(fiber2, fiber1))
+          _        <- fiber2.await
+        } yield assertCompletes
+      } @@ TestAspect.nonFlaky
     )
 
   val (initial, update)                            = ("initial", "update")
