@@ -126,14 +126,14 @@ trait ConsoleRenderer extends TestRenderer {
 
   private def renderConsoleIO(s: ConsoleIO) =
     s match {
-      case ConsoleInput(line) => line.cyan
-      case ConsoleOutput(line) => line.yellow
+      case ConsoleIO.Input(line)  => line.magenta
+      case ConsoleIO.Output(line) => line.yellow
     }
 
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
       val testOutput: List[ConsoleIO] = result.annotations.flatMap(_.get(TestAnnotation.output))
-      val message                  = (Message(result.summaryLines) ++ renderOutput(testOutput)).intersperse(Line.fromString("\n"))
+      val message                     = (Message(result.summaryLines) ++ renderOutput(testOutput)).intersperse(Line.fromString("\n"))
 
       val output = result.resultType match {
         case ResultType.Suite =>

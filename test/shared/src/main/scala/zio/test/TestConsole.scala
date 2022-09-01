@@ -120,7 +120,7 @@ object TestConsole extends Serializable {
      */
     def readLine(implicit trace: Trace): IO[IOException, String] =
       ZIO.attempt(unsafe.readLine()(Unsafe.unsafe)).refineToOrDie[IOException].tap { line =>
-        annotations.annotate(TestAnnotation.output, Chunk(ConsoleInput(line)))
+        annotations.annotate(TestAnnotation.output, Chunk(ConsoleIO.Input(line)))
       }
 
     /**
@@ -156,7 +156,7 @@ object TestConsole extends Serializable {
      * character.
      */
     override def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
-      annotations.annotate(TestAnnotation.output, Chunk(ConsoleOutput(line.toString))) *>
+      annotations.annotate(TestAnnotation.output, Chunk(ConsoleIO.Output(line.toString))) *>
         ZIO.succeed(unsafe.printLine(line)(Unsafe.unsafe)) *>
         live.provide(Console.printLine(line)).whenZIO(debugState.get).unit
 
