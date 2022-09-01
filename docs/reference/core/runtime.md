@@ -244,33 +244,6 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-### Configuring Runtime Using `bootstrap` Layer
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
-    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
-
-  override val bootstrap: ZLayer[Any, Nothing, Unit] =
-    Runtime.removeDefaultLoggers ++ addSimpleLogger
-
-  def run =
-    for {
-      _ <- ZIO.log("Application started!")
-      _ <- ZIO.log("Application is about to exit!")
-    } yield ()
-}
-```
-
-The output:
-
-```
-Application started!
-Application is about to exit!
-```
-
 ### Configuring Runtime by Providing Configuration Layers
 
 ```scala mdoc:compile-only
@@ -326,6 +299,33 @@ The output:
 timestamp=2022-08-31T14:28:34.711461Z level=INFO thread=#zio-fiber-6 message="Application started!" location=<empty>.MainApp.run file=ZIOApp.scala line=9
 I will be logged by the simple logger.
 timestamp=2022-08-31T14:28:34.832035Z level=INFO thread=#zio-fiber-6 message="Application is about to exit!" location=<empty>.MainApp.run file=ZIOApp.scala line=17
+```
+
+### Configuring Runtime Using `bootstrap` Layer
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  override val bootstrap: ZLayer[Any, Nothing, Unit] =
+    Runtime.removeDefaultLoggers ++ addSimpleLogger
+
+  def run =
+    for {
+      _ <- ZIO.log("Application started!")
+      _ <- ZIO.log("Application is about to exit!")
+    } yield ()
+}
+```
+
+The output:
+
+```
+Application started!
+Application is about to exit!
 ```
 
 ### Top-level Runtime Configuration
