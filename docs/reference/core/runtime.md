@@ -327,3 +327,84 @@ timestamp=2022-08-31T14:28:34.711461Z level=INFO thread=#zio-fiber-6 message="Ap
 I will be logged by the simple logger.
 timestamp=2022-08-31T14:28:34.832035Z level=INFO thread=#zio-fiber-6 message="Application is about to exit!" location=<empty>.MainApp.run file=ZIOApp.scala line=17
 ```
+
+### Top-level Runtime Configuration
+
+When we write a ZIO application using the `ZIOAppDefault` trait, a default top-level runtime is created and used to run the application automatically under the hood. Further, we can customize the rest of the ZIO application by providing locally scoped configuration layers using [`provideXYZ` operations](#configuring-runtime-by-providing-configuration-layers) or [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer).
+
+This is usually sufficient for lots of ZIO applications, but it is not always the case. There are cases where we want to customize the runtime of the entire ZIO application from the top level.
+
+In such cases, we need to create a top-level runtime by unsafely running the configuration layer to convert that configuration to the `Runtime` by using the `Runtime.unsafe.fromLayer` operator:
+
+```scala mdoc:invisible
+import zio._
+val layer = ZLayer.empty
+```
+
+```scala mdoc:compile-only
+val runtime: Runtime[Any] =
+  Unsafe.unsafe { implicit unsafe =>
+    Runtime.unsafe.fromLayer(layer)
+  }
+```
+
+Let's try a fully working example:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  // In a real-world application we might need to implement a `sl4jlogger` layer
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+
+  val layer: ZLayer[Any, Nothing, Unit] =
+    Runtime.removeDefaultLoggers ++ addSimpleLogger
+
+  override val runtime: Runtime[Any] =
+    Unsafe.unsafe { implicit unsafe =>
+      Runtime.unsafe.fromLayer(layer)
+    }
+
+  def run = ZIO.log("Application started!")
+}
+```
+
+This is useful when we want to install a custom monitoring or supervisor from the very beginning of the application.
+
+:::caution
+Keep in mind that only the "bootstrap" layer of applications will be combined when we compose two ZIO applications. Therefore, when we compose two ZIO programs, top-level runtime configurations won't be integrated.
+:::
+
+Another use-case of top-level runtimes is when we want to integrate our ZIO application inside a legacy application:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp {
+  val sl4jlogger: ZLogger[String, Any] = ???
+
+  def legacyApplication(input: Int): Unit = ???
+
+  val zioWorkflow: ZIO[Any, Nothing, Int] = ???
+
+  def zioApplication(): Int =
+      Unsafe.unsafe { implicit unsafe =>
+        Runtime
+          .unsafe
+          .fromLayer(
+            Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+          )
+          .unsafe
+          .run(zioWorkflow)
+          .getOrThrowFiberFailure()
+      }
+
+  def main(args: Array[String]): Unit = {
+    val result = zioApplication()
+    legacyApplication(result)
+  }  
+
+}
+```
