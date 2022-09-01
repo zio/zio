@@ -776,7 +776,7 @@ object Fiber extends FiberPlatformSpecific {
    *   `UIO[Unit]`
    */
   def interruptAllAs(fiberId: FiberId)(fs: Iterable[Fiber[Any, Any]])(implicit trace: Trace): UIO[Unit] =
-    fs.foldLeft(ZIO.unit)((io, f) => io <* f.interruptAs(fiberId))
+    ZIO.foreachDiscard(fs)(_.interruptAsFork(fiberId)) *> ZIO.foreachDiscard(fs)(_.await)
 
   /**
    * A fiber that is already interrupted.
