@@ -232,6 +232,11 @@ object ScheduleSpec extends ZIOBaseSpec {
           equalTo(Chunk.fill(5)(Duration.Zero))
         )
       },
+      test("fixed delay with nanosecond delay") {
+        assertZIO(run(Schedule.fixed(100.nanos) >>> Schedule.elapsed)(List.fill(5)(())))(
+          equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).nanos))
+        )
+      },
       test("windowed") {
         assertZIO(run(Schedule.windowed(100.millis) >>> Schedule.elapsed)(List.fill(5)(())))(
           equalTo(Chunk(0, 1, 2, 3, 4).map(i => (i * 100).millis))
