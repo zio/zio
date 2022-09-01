@@ -172,18 +172,22 @@ Unsafe.unsafe { implicit unsafe =>
 }
 ```
 
-
-## Top-level Runtime vs. Local Runtimes
+## Top-level And Locally Scoped Runtimes
 
 In ZIO, we have two types of runtimes:
 
-- **Top-level Runtime** is the one that is used to run the entire ZIO application from the beginning to the end. There is only one top-level runtime when running a ZIO application.
+- **Top-level runtime** is the one that is used to run the entire ZIO application from the very beginning. There is only one top-level runtime when running a ZIO application.
 
-- **Local Runtimes** are used during the execution of the ZIO application. They are local to a specific region of the code. Assume that in the middle of a ZIO application, we want to import an effectful or side-effecting application with a specific runtime.
+- **Locally scoped runtimes** are used during the execution of the ZIO application. They are local to a specific region of the code. Suppose we want to change the runtime configurations in the middle of a ZIO application. In such cases, we use locally scoped runtimes, for example:
+- When we want to import an effectful or side-effecting application with a specific runtime.
+- In some performance-critical regions, we want to disable logging temporarily.
+- When we want to have a customized executor for running a portion of our code.
 
-ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime, enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Assume we want to read some configuration information from a file or a database to customize the runtime.
+ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime, enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Let's say we want to customize the runtime based on configuration information from a file or database.
 
-In most cases, it is sufficient to customize application runtime using the `bootstrap` layer or providing a custom configuration directly to our application:
+In most cases, it is sufficient to customize application runtime using the [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer) or [providing a custom configuration](#configuring-runtime-by-providing-configuration-layers) directly to our application. If none of these solutions fit to our problem, we can use [top-level runtime configurations](#top-level-runtime-configuration).
+
+Let's talk about each solution in detail.
 
 ## Locally Scoped Runtime Configuration
 
