@@ -138,6 +138,15 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
 
   /**
+   * Returns a new spec with only those suites and tests except for the ones
+   * with tags satisfying the predicate. If all tests or suites have tags that
+   * satisfy the specified predicate then returns `Some` with an empty suite
+   * with the root label if this is a suite or `None` otherwise.
+   */
+  final def filterNotTags(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
+    filterAnnotations(TestAnnotation.tagged)(!_.exists(f))
+
+  /**
    * Effectfully folds over all nodes according to the execution strategy of
    * suites, utilizing the specified default for other cases.
    */
