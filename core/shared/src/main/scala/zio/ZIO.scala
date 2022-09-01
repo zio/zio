@@ -762,9 +762,7 @@ sealed trait ZIO[-R, +E, +A]
    * }}}
    */
   final def fork(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (fiberState, status) =>
-      ZIO.succeedNow(ZIO.unsafe.fork(trace, self, fiberState, status.runtimeFlags)(Unsafe.unsafe))
-    }
+    self.forkWithScopeOverride(null)
 
   /**
    * Forks the effect in the specified scope. The fiber will be interrupted when
@@ -790,7 +788,7 @@ sealed trait ZIO[-R, +E, +A]
    * returned effect terminates, the forked fiber will continue running.
    */
   final def forkDaemon(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    self.fork.daemonChildren
+    self.forkWithScopeOverride(FiberScope.global)
 
   /**
    * Forks the fiber in a [[Scope]], interrupting it when the scope is closed.
@@ -805,6 +803,15 @@ sealed trait ZIO[-R, +E, +A]
     trace: Trace
   ): URIO[R1, Fiber.Runtime[E, A]] =
     onError(c => c.failureOrCause.fold(handler, ZIO.refailCause(_))).fork
+
+  private[zio] final def forkWithScopeOverride(
+    scopeOverride: FiberScope
+  )(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
+    ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (parentFiber, parentFlags) =>
+      ZIO.unitsucceedNow(
+        ZIO.unsafe.fork(trace, self, parentFiber, parentFlags.runtimeFlags, scopeOverride)(Unsafe.unsafe)
+      )
+    }
 
   /**
    * Unwraps the optional error, defaulting to the provided value.
@@ -1375,8 +1382,8 @@ sealed trait ZIO[-R, +E, +A]
 
       val raceIndicator = new AtomicBoolean(true)
 
-      val leftFiber  = ZIO.unsafe.forkUnstarted(trace, self, parentState, parentRuntimeFlags)(Unsafe.unsafe)
-      val rightFiber = ZIO.unsafe.forkUnstarted(trace, right, parentState, parentRuntimeFlags)(Unsafe.unsafe)
+      val leftFiber  = ZIO.unsafe.makeChildFiber(trace, self, parentState, parentRuntimeFlags, null)(Unsafe.unsafe)
+      val rightFiber = ZIO.unsafe.makeChildFiber(trace, right, parentState, parentRuntimeFlags, null)(Unsafe.unsafe)
 
       leftFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))(Unsafe.unsafe)
       rightFiber.setFiberRef(FiberRef.forkScopeOverride, Some(parentState.scope))(Unsafe.unsafe)
@@ -2475,20 +2482,22 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       trace: Trace,
       effect: ZIO[R, E1, A],
       parentFiber: internal.FiberRuntime[E2, B],
-      parentRuntimeFlags: RuntimeFlags
+      parentRuntimeFlags: RuntimeFlags,
+      overrideScope: FiberScope = null
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
-      val childFiber = ZIO.unsafe.forkUnstarted(trace, effect, parentFiber, parentRuntimeFlags)
+      val childFiber = ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentRuntimeFlags, overrideScope)
 
       childFiber.startFork(effect)
 
       childFiber
     }
 
-    def forkUnstarted[R, E1, E2, A, B](
+    def makeChildFiber[R, E1, E2, A, B](
       trace: Trace,
       effect: ZIO[R, E1, A],
       parentFiber: internal.FiberRuntime[E2, B],
-      parentRuntimeFlags: RuntimeFlags
+      parentRuntimeFlags: RuntimeFlags,
+      overrideScope: FiberScope
     )(implicit unsafe: Unsafe): internal.FiberRuntime[E1, A] = {
       val childId         = FiberId.make(trace)
       val parentFiberRefs = parentFiber.getFiberRefs()
@@ -2501,16 +2510,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       val supervisor = childFiber.getSupervisor()
 
-      supervisor.onStart(
-        childEnvironment,
-        effect.asInstanceOf[ZIO[Any, Any, Any]],
-        Some(parentFiber),
-        childFiber
-      )
+      if (supervisor ne Supervisor.none) {
+        supervisor.onStart(
+          childEnvironment,
+          effect.asInstanceOf[ZIO[Any, Any, Any]],
+          Some(parentFiber),
+          childFiber
+        )
 
-      childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
+        childFiber.addObserver(exit => supervisor.onEnd(exit, childFiber))
+      }
 
-      val parentScope = parentFiber.getFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
+      val parentScope =
+        if (overrideScope ne null) overrideScope
+        else parentFiber.getFiberRef(FiberRef.forkScopeOverride).getOrElse(parentFiber.scope)
 
       parentScope.add(parentRuntimeFlags, childFiber)(trace, unsafe)
 

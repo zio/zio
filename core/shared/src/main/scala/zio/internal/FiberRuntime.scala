@@ -215,10 +215,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     assert(running.get)
 
     var evaluationSignal: EvaluationSignal = EvaluationSignal.Continue
-
-    if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(self)
-
     try {
+      if (RuntimeFlags.currentFiber(_runtimeFlags)) Fiber._currentFiber.set(self)
+
       while (evaluationSignal == EvaluationSignal.Continue) {
         evaluationSignal =
           if (queue.isEmpty) EvaluationSignal.Done
@@ -344,7 +343,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   )(implicit unsafe: Unsafe): Exit[E, A] = {
     assert(running.get)
 
-    getSupervisor().onResume(self)
+    val supervisor = getSupervisor()
+
+    if (supervisor ne Supervisor.none) supervisor.onResume(self)
 
     try {
       // Possible the fiber has been interrupted before it begins. Check here:
@@ -432,7 +433,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       finalExit
     } finally {
-      getSupervisor().onSuspend(self)
+      val supervisor = getSupervisor()
+
+      if (supervisor ne Supervisor.none) supervisor.onSuspend(self)
     }
   }
 
@@ -853,7 +856,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     var lastTrace    = Trace.empty
     var ops          = 0
 
-    if (currentDepth >= 500) {
+    if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
       self.reifiedStack.ensureCapacity(currentDepth)
 
       self.reifiedStack ++= localStack
@@ -984,7 +987,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = drainQueueAfterAsync()
 
                 if (cur eq null) {
-                  if (!stealWork(currentDepth)) throw AsyncJump
+                  if (!stealWork(currentDepth, runtimeFlags)) throw AsyncJump
                 }
               }
 
@@ -1167,7 +1170,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               }
 
             case yieldNow: ZIO.YieldNow =>
-              if (!stealWork(currentDepth)) {
+              if (!stealWork(currentDepth, runtimeFlags)) {
                 self.reifiedStack += EvaluationStep.UpdateTrace(yieldNow.trace)
 
                 throw Trampoline(ZIO.unit, true)
@@ -1336,8 +1339,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def startFork[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Unit =
     tell(FiberMessage.Resume(effect))
 
-  private def stealWork(depth: Int)(implicit unsafe: Unsafe): Boolean =
-    depth < 250 && getCurrentExecutor().stealWork(depth)
+  /**
+   * Attempts to steal work from the current executor, buying some time before
+   * this fiber has to asynchronously suspend. Work stealing is only productive
+   * if there is "sufficient" space left on the stack, since otherwise, the
+   * stolen work would itself immediately trampoline, defeating the potential
+   * gains of work stealing.
+   */
+  private def stealWork(depth: Int, flags: RuntimeFlags)(implicit unsafe: Unsafe): Boolean =
+    RuntimeFlags.workStealing(flags) && depth < FiberRuntime.MaxWorkStealingDepth && getCurrentExecutor().stealWork(
+      depth
+    )
 
   /**
    * Adds a message to be processed by the fiber on the fiber.
@@ -1375,8 +1387,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 }
 
 object FiberRuntime {
-  private[zio] val MaxTrampolinesBeforeYield = 5
-  private[zio] val MaxOperationsBeforeYield  = 1024
+  private[zio] final val MaxTrampolinesBeforeYield = 5
+  private[zio] final val MaxOperationsBeforeYield  = 1024
+  private[zio] final val MaxDepthBeforeTrampoline  = 500
+  private[zio] final val MaxWorkStealingDepth      = MaxDepthBeforeTrampoline / 2
 
   private[zio] sealed trait EvaluationSignal
   private[zio] object EvaluationSignal {
