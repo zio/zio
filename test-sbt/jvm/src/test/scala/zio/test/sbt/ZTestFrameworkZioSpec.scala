@@ -142,9 +142,6 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             s"${green("+")} tag suite\n",
             s"  ${green("+")} integration test - tagged: \"IntegrationTest\"\n"
           )
-        _ <- ZIO.debug(output)
-        _ <- ZIO.debug(expected)
-
       } yield assertTrue(output.equals(expected))
     },
     test("do not execute test with ignored tag") {
@@ -156,9 +153,6 @@ object ZTestFrameworkZioSpec extends ZIOSpecDefault {
             s"${green("+")} tag suite\n",
             s"  ${green("+")} unit test - tagged: \"UnitTest\"\n"
           )
-        _ <- ZIO.debug(output)
-        _ <- ZIO.debug(expected)
-
       } yield assertTrue(output.equals(expected))
     }
   )
