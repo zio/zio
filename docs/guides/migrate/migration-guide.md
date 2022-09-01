@@ -821,15 +821,15 @@ object MainApp {
 
 This way it is easy to distinguish between _safe_ and _unsafe_ variants of the same operator. 
 
-To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafe` operator to create a block of code in which we can freely call unsafe operators:
+To run an unsafe operator, we need implicit value of `Unsafe` in scope. This works particularly well in Scala 3 due to its support for implicit function types championed by Martin Odersky. In Scala 3 we can use the `Unsafe.unsafely` operator to create a block of code in which we can freely call unsafe operators:
 
 ```scala
-Unsafe.unsafe {
+Unsafe.unsafely {
   Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
 }
 ```
 
-If we want to support Scala 2 we need to use a slightly more verbose syntax:
+If we want to support Scala 2 we need to use a slightly more verbose syntax with `unsafe` and a lambda that takes an implicit value of `Unsafe`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -844,7 +844,7 @@ In summary, here are the rules for migrating from ZIO 1.x to ZIO 2.x correspondi
 |         | ZIO 1.0                | ZIO 2.x                                                                               |
 |---------|------------------------|---------------------------------------------------------------------------------------|
 | Scala 2 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { implicit unsafe => runtime.unsafe.run(x).getOrThrowFiberFailure() }` |
-| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafe { runtime.unsafe.run(x).getOrThrowFiberFailure() }`                    |
+| Scala 3 | `runtime.unsafeRun(x)` | `Unsafe.unsafely { runtime.unsafe.run(x).getOrThrowFiberFailure() }`                    |
 
 ### Unsafe Variants
 
