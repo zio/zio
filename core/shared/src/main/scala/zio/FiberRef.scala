@@ -481,7 +481,7 @@ object FiberRef {
   }
 
   private[zio] val forkScopeOverride: FiberRef[Option[FiberScope]] =
-    FiberRef.unsafe.make[Option[FiberScope]](None, _ => None)(Unsafe.unsafe) // Do not inherit on `fork`
+    FiberRef.unsafe.make[Option[FiberScope]](None, _ => None, (parent, _) => parent)(Unsafe.unsafe)
 
   private[zio] val overrideExecutor: FiberRef[Option[Executor]] =
     FiberRef.unsafe.make[Option[Executor]](None)(Unsafe.unsafe)
