@@ -191,64 +191,13 @@ Let's talk about each solution in detail.
 
 ## Locally Scoped Runtime Configuration
 
-When we access a `Runtime` using `ZIO.runtime` it will inherit all the configuration of the current workflow so if we use it to run effects they will be run with the same logger and so on:
+In ZIO all runtime configurations are inherited from their parent workflows. So whenever we access a runtime configuration, or obtain a runtime inside a workflow, we are accessing the runtime of the parent workflow. We can override the runtime configuration of the parent workflow by providing a new configuration to a region of the code. This is called locally scoped runtime configuration. When the execution of that region is finished, the runtime configuration will be restored to its original value.
 
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
-    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
-
-  def run =
-    Runtime.removeDefaultLoggers {
-      for {
-        _ <- for {
-               rt <- ZIO.runtime[Any]
-               _  <- rt.run(ZIO.log("This line will never get logged"))
-             } yield ()
-        _ <- addSimpleLogger {
-               for {
-                 rt <- ZIO.runtime[Any]
-                 _  <- rt.run(ZIO.log("This line will get logged"))
-               } yield ()
-             }
-        r <- for {
-               rt <- ZIO.runtime[Any]
-               _  <- rt.run(ZIO.log("This line will never get logged"))
-             } yield ()
-      } yield r
-    }
-}
-```
-
-The output:
-
-```
-This line will be logged.
-```
-
-In the above example, we used the `ZIO.runtime` to demonstrate the local runtime configuration explicitly. We can rewrite the above example like this:
-
-```scala mdoc:compile-only
-import zio._
-
-object MainApp extends ZIOAppDefault {
-  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
-    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
-
-  def run =
-    Runtime.removeDefaultLoggers {
-      for {
-        _ <- ZIO.log("This line will never be logged.")
-        _ <- addSimpleLogger(ZIO.log("This line will be logged."))
-        - <- ZIO.log("This line will never be logged.")
-      } yield ()
-    }
-}
-```
+We mainly use `ZIO#provideXYZ` operators to provide a new runtime configuration to a specific region of the code:
 
 ### Configuring Runtime by Providing Configuration Layers
+
+By providing (`ZIO#provideXYZ`) runtime configuration layers to a ZIO workflow, we can change the runtime configs easily:
 
 ```scala mdoc:compile-only
 import zio._
@@ -268,12 +217,12 @@ object MainApp extends ZIOAppDefault {
 
 The output:
 
-```
+```scala
 Application started!
 Application is about to exit!
 ```
 
-We can also provide configuration to a specific region of a ZIO application:
+To provide runtime configuration to a specific region of a ZIO application, we should provide the configuration layer only to that specific region:
 
 ```scala mdoc:compile-only
 import zio._
@@ -299,13 +248,17 @@ object MainApp extends ZIOAppDefault {
 
 The output:
 
-```
+```scala
 timestamp=2022-08-31T14:28:34.711461Z level=INFO thread=#zio-fiber-6 message="Application started!" location=<empty>.MainApp.run file=ZIOApp.scala line=9
 I will be logged by the simple logger.
 timestamp=2022-08-31T14:28:34.832035Z level=INFO thread=#zio-fiber-6 message="Application is about to exit!" location=<empty>.MainApp.run file=ZIOApp.scala line=17
 ```
 
 ### Configuring Runtime Using `bootstrap` Layer
+
+The `bootstrap` layer is a special layer that is mainly used to acquiring and releasing services that are necessary for the application to run. However, it can also be applied to runtime customization as well.
+
+By using this technique, after initialization of the top-level runtime, it will provide the `bootstrap` layer to the ZIO application given through the `run` method.
 
 ```scala mdoc:compile-only
 import zio._
@@ -327,7 +280,40 @@ object MainApp extends ZIOAppDefault {
 
 The output:
 
+```scala
+Application started!
+Application is about to exit!
 ```
+
+Although using this method will apply the configuration layer to the whole ZIO application, it is categorized as local runtime configuration, because the `bootstrap` layer is evaluated and applied after the top-level runtime is initialized. So it will only be applied to the ZIO application given through the `run` method.
+
+To elaborate more on this, let's look at the following example:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
+    Runtime.addLogger((_, _, _, message: () => Any, _, _, _, _) => println(message()))
+  
+  val effectfulConfiguration: ZLayer[Any, Nothing, Unit] =
+    ZLayer.fromZIO(ZIO.log("Started effectful workflow to customize runtime configuration"))
+
+  override val bootstrap: ZLayer[Any, Nothing, Unit] =
+    Runtime.removeDefaultLoggers ++ addSimpleLogger ++ effectfulConfiguration
+
+  def run =
+    for {
+      _ <- ZIO.log("Application started!")
+      _ <- ZIO.log("Application is about to exit!")
+    } yield ()
+}
+```
+
+What do we expect to see as the output? We have a `Runtime.removeDefaultLoggers` which removes the default logger from the runtime. So we expect to see log messages only from the simple logger. But that is not the case. We have an effectful configuration layer that is evaluated after the top-level runtime is initialized. So we can see the log message related to the initialization of `effectfulConfiguration` layer from the default logger:
+
+```scala
+timestamp=2022-09-01T08:07:47.870219Z level=INFO thread=#zio-fiber-6 message="Started effectful workflow to customize runtime configuration" location=<empty>.MainApp.effectfulConfiguration file=ZIOApp.scala line=8
 Application started!
 Application is about to exit!
 ```
