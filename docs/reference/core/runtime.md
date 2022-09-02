@@ -178,7 +178,7 @@ timestamp=2022-08-31T14:28:34.832035Z level=INFO thread=#zio-fiber-6 message="Ap
 
 ### Configuring Runtime Using `bootstrap` Layer
 
-The `bootstrap` layer is a special layer that is mainly used to acquiring and releasing services that are necessary for the application to run. However, it can also be applied to runtime customization as well.
+The `bootstrap` layer is a special layer that is mainly used to acquiring and releasing services that are necessary for the application to run. However, it can also be applied to runtime customization as well. This solution requires us to override the `bootstrap` layer from the `ZIOApp` trait.
 
 By using this technique, after initialization of the top-level runtime, it will provide the `bootstrap` layer to the ZIO application given through the `run` method.
 
