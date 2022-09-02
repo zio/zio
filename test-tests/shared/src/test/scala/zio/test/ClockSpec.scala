@@ -171,10 +171,10 @@ object ClockSpec extends ZIOBaseSpec {
           result  <- (effect <* promise.succeed(())) <&> (promise.await *> effect)
         } yield assert(result)(equalTo((1L, 2L)))
       },
-      test("zipWithLatest example from documentation") {
+      test("zipLatest example from documentation") {
         val s1 = ZStream.iterate(0)(_ + 1).schedule(Schedule.fixed(100.milliseconds))
         val s2 = ZStream.iterate(0)(_ + 1).schedule(Schedule.fixed(70.milliseconds))
-        val s3 = s1.zipWithLatest(s2)((_, _))
+        val s3 = s1.zipLatest(s2)
 
         for {
           q      <- Queue.unbounded[(Int, Int)]

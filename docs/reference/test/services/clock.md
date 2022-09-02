@@ -162,10 +162,10 @@ import zio.test.{test, _}
 import zio.stream._
 import zio.test.Assertion.equalTo
 
-test("zipWithLatest") {
+test("zipLatest") {
   val s1 = ZStream.iterate(0)(_ + 1).schedule(Schedule.fixed(100.milliseconds))
   val s2 = ZStream.iterate(0)(_ + 1).schedule(Schedule.fixed(70.milliseconds))
-  val s3 = s1.zipWithLatest(s2)((_, _))
+  val s3 = s1.zipLatest(s2)
 
   for {
     q      <- Queue.unbounded[(Int, Int)]

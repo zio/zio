@@ -327,7 +327,7 @@ val s2 = ZStream(1, 2, 3).zipAllWith(
 // Output: (1, a), (2, b), (3, c), (0, d), (0, e)
 ```
 
-Sometimes we want to zip streams, but do not want to zip two elements one by one. For example, we may have two streams producing elements at different speeds, and do not want to wait for the slower one when zipping elements. When we need to zip elements with the latest element of the slower stream, `ZStream#zipWithLatest` will do this for us. It zips two streams so that when a value is emitted by either of the two streams, it is combined with the latest value from the other stream to produce a result:
+Sometimes we want to zip streams, but do not want to zip two elements one by one. For example, we may have two streams producing elements at different speeds, and do not want to wait for the slower one when zipping elements. When we need to zip elements with the latest element of the slower stream, `ZStream#zipLatest` or `ZStream#zipLatestWith` will do this for us. It zips two streams so that when a value is emitted by either of the two streams, it is combined with the latest value from the other stream to produce a result:
 
 ```scala mdoc:silent:nest
 val s1 = ZStream(1, 2, 3)
@@ -337,7 +337,7 @@ val s2 = ZStream("a", "b", "c", "d")
   .schedule(Schedule.spaced(500.milliseconds))
   .rechunk(3)
 
-s1.zipWithLatest(s2)((a, b) => (a, b))
+s1.zipLatest(s2)
 
 // Output: (1, a), (1, b), (1, c), (1, d), (2, d), (3, d)
 ```
