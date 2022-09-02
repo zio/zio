@@ -96,12 +96,14 @@ object MainApp extends scala.App {
 
 In ZIO, we have two types of runtimes:
 
-- **Top-level runtime** is the one that is used to run the entire ZIO application from the very beginning. There is only one top-level runtime when running a ZIO application.
+- **Top-level runtime** is the one that is used to run the entire ZIO application from the very beginning. There is only one top-level runtime when running a ZIO application. Here are some use-cases:
+  - Creating a top level runtime in a mixed application. For example, if we are using an HTTP library that does not have direct support for ZIO we may need to use `Runtime.unsafe.run` in the implementations of each of our routes.
+  - Another use-case is when we want to install a custom monitoring or supervisor from the very beginning of the application.
 
 - **Locally scoped runtimes** are used during the execution of the ZIO application. They are local to a specific region of the code. Suppose we want to change the runtime configurations in the middle of a ZIO application. In such cases, we use locally scoped runtimes, for example:
-- When we want to import an effectful or side-effecting application with a specific runtime.
-- In some performance-critical regions, we want to disable logging temporarily.
-- When we want to have a customized executor for running a portion of our code.
+  - When we want to import an effectful or side-effecting application with a specific runtime.
+  - In some performance-critical regions, we want to disable logging temporarily.
+  - When we want to have a customized executor for running a portion of our code.
 
 ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime, enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Let's say we want to customize the runtime based on configuration information from a file or database.
 
@@ -280,8 +282,6 @@ object MainApp extends ZIOAppDefault {
   def run = ZIO.log("Application started!")
 }
 ```
-
-This is useful when we want to install a custom monitoring or supervisor from the very beginning of the application.
 
 :::caution
 Keep in mind that only the "bootstrap" layer of applications will be combined when we compose two ZIO applications. Therefore, when we compose two ZIO programs, top-level runtime configurations won't be integrated.
