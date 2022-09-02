@@ -299,22 +299,25 @@ object MainApp {
 
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
 
+  val runtime: Runtime[Unit] =
+    Unsafe.unsafe { implicit unsafe =>
+      Runtime.unsafe
+        .fromLayer(
+          Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
+        )
+    }
+
   def zioApplication(): Int =
-      Unsafe.unsafe { implicit unsafe =>
-        Runtime
-          .unsafe
-          .fromLayer(
-            Runtime.removeDefaultLoggers ++ Runtime.addLogger(sl4jlogger)
-          )
-          .unsafe
-          .run(zioWorkflow)
-          .getOrThrowFiberFailure()
-      }
+    Unsafe.unsafe { implicit unsafe =>
+      runtime.unsafe
+        .run(zioWorkflow)
+        .getOrThrowFiberFailure()
+    }
 
   def main(args: Array[String]): Unit = {
     val result = zioApplication()
     legacyApplication(result)
-  }  
+  }
 
 }
 ```
