@@ -52,9 +52,7 @@ private[zio] object FiberScope {
       unsafe: Unsafe
     ): Unit =
       if (RuntimeFlags.fiberRoots(runtimeFlags)) {
-        val childRef = Fiber._roots.add(child)
-
-        child.addObserver(_ => childRef.clear())
+        Fiber._roots.add(child)
       }
   }
 

@@ -709,6 +709,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         .whileLoop(iterator.hasNext)(body())(_ => ())(id.location)
     } else null
 
+  private[zio] def isAlive()(implicit unsafe: Unsafe): Boolean =
+    _exitValue eq null
+
   /**
    * Determines if the specified throwable is fatal, based on the fatal errors
    * tracked by the fiber's state.

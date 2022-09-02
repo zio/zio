@@ -807,9 +807,9 @@ sealed trait ZIO[-R, +E, +A]
   private[zio] final def forkWithScopeOverride(
     scopeOverride: FiberScope
   )(implicit trace: Trace): URIO[R, Fiber.Runtime[E, A]] =
-    ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (parentFiber, parentFlags) =>
+    ZIO.withFiberRuntime[R, Nothing, Fiber.Runtime[E, A]] { (parentFiber, parentStatus) =>
       ZIO.succeedNow(
-        ZIO.unsafe.fork(trace, self, parentFiber, parentFlags.runtimeFlags, scopeOverride)(Unsafe.unsafe)
+        ZIO.unsafe.fork(trace, self, parentFiber, parentStatus.runtimeFlags, scopeOverride)(Unsafe.unsafe)
       )
     }
 

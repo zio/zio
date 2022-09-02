@@ -1,9 +1,8 @@
 package zio.internal
 
 import zio.test._
-import zio.test.TestAspect.flaky
+import zio.test.TestAspect.{ flaky, jvmOnly }
 import zio.ZIOBaseSpec
-import java.lang.ref.WeakReference
 
 object WeakConcurrentBagSpec extends ZIOBaseSpec {
   final case class Wrapper[A](value: A)
@@ -19,7 +18,7 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
 
         assertTrue(bag.size == 1)
       } +
-        test("iteration over 100 (buckets: 100)") {
+        test("iteration over 100 (nursery size: 100)") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
           var hard = Set.empty[Wrapper[String]]
@@ -35,20 +34,23 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
         test("manual gc") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
-          var hard = Map.empty[Int, WeakReference[Wrapper[String]]]
+          val hard = scala.collection.mutable.Map.empty[Int, Wrapper[String]]
 
           (1 to 100).foreach { int =>
             val str = Wrapper(int.toString)
 
-            val ref = bag.add(str)
+            bag.add(str)
 
-            hard = hard.updated(int, ref)
+            hard.update(int, str)
           }
+
+          bag.graduate()
 
           (1 to 100).foreach { i =>
-            if (i % 2 == 0) hard(i).clear()
+            if (i % 2 == 0) hard.remove(i)
           }
 
+          System.gc()
           bag.gc()
 
           assertTrue(bag.size == 50)
@@ -59,12 +61,14 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
           (1 to 10000).foreach { _ =>
             val str = Wrapper(scala.util.Random.nextString(10))
 
-            val ref = bag.add(str)
-
-            ref.clear()
+            bag.add(str)
           }
+
+          bag.graduate()
+
+          System.gc()
 
           assertTrue(bag.size < 100)
         } @@ flaky
-    }
+    } @@ jvmOnly
 }

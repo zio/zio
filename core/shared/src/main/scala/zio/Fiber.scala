@@ -879,5 +879,5 @@ object Fiber extends FiberPlatformSpecific {
     new ThreadLocal[internal.FiberRuntime[_, _]]()
 
   private[zio] val _roots: WeakConcurrentBag[internal.FiberRuntime[_, _]] =
-    WeakConcurrentBag(10000)
+    WeakConcurrentBag(10000, _.isAlive()(Unsafe.unsafe))
 }
