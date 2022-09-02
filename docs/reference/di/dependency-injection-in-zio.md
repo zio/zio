@@ -161,6 +161,8 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
+## Dependency Injection and Service Pattern
+
 ## Dependency Injection When Writing Services
 
 When writing services, we might want to use other services. In such cases, we would like dependent services injected into our service. This is where we need to use dependency injection in order to write services.
@@ -252,7 +254,9 @@ Although dependency injection is not about coding to the interface, it is a good
 
 When we code to the interface, our application logic will not dependent on any concrete implementation. So we can replace implementations, without changing the application. This is what [Service Pattern](../service-pattern/service-pattern.md) encourages us when writing services.
 
-Let's try an example. Assume we have the following service interfaces for `A`, `B`, and `C` services:
+Let's try an example. Assume we want to implement service `C` which is implemented in terms of `A` and `B` services. We want to keep our code modular and testable.
+
+The first step is to define interfaces for each service. This gives us the contract for how our services work together and lets us figure out our architecture and divide and conquer:
 
 ```scala mdoc:silent
 import zio._
@@ -261,44 +265,24 @@ trait A {
   def foo: ZIO[Any, Nothing, Int]
 }
 
-object A {
-  def foo: ZIO[A, Nothing, Int] = ZIO.serviceWithZIO[A](_.foo)
-}
-
 trait B {
   def bar: ZIO[Any, Nothing, String]
-}
-
-object B {
-  def bar = ZIO.serviceWithZIO[B](_.bar)
 }
 
 trait C {
   def baz: ZIO[Any, Nothing, Unit]
 }
-
-object C {
-  def baz: ZIO[C, Nothing, Unit] = ZIO.serviceWithZIO[C](_.baz)
-}
 ```
 
-We can extend all of these interfaces and implement them, using the same pattern we have learned until now:
+The next step is to create implementations of our services taking their dependencies as constructor parameters. It's just constructor-based dependency injection:
 
 ```scala mdoc:silent
 final case class ALive() extends A {
   def foo = ZIO.succeed(42)
 }
 
-object ALive {
-  val layer: ZLayer[Any, Nothing, ALive] = ZLayer.succeed(ALive())
-}
-
 final case class BLive() extends B {
   def bar: ZIO[Any, Nothing, String] = ZIO.succeed("Hello!")
-}
-
-object BLive {
-  val layer: ZLayer[Any, Nothing, BLive] = ZLayer.succeed(BLive())
 }
 
 final case class CLive(a: A, b: B) extends C {
@@ -307,6 +291,20 @@ final case class CLive(a: A, b: B) extends C {
       _ <- a.foo
       _ <- b.bar
     } yield ()
+}
+```
+
+Now, we need to create layers for each of our implementations. This lets ZIO automatically wire them together. It also lets us take care of any setup or teardown. We use `ZIO.service` to grab things from the environment:
+
+```scala modc:silent
+import zio._
+
+object ALive {
+  val layer: ZLayer[Any, Nothing, ALive] = ZLayer.succeed(ALive())
+}
+
+object BLive {
+  val layer: ZLayer[Any, Nothing, BLive] = ZLayer.succeed(BLive())
 }
 
 object CLive {
@@ -320,9 +318,39 @@ object CLive {
 }
 ```
 
-Finally, assume we have the following application logic:
+Finally, it is time to write our application logic in terms of our services.  We use `ZIO.service` once more in our main application to actually access the service that contains our main application logic and call it:
 
 ```scala mdoc:silent
+import zio._
+
+val myApp: ZIO[A with C, Nothing, Unit] =
+  for {
+    a <- ZIO.service[A]
+    _ <- a.foo
+    c <- ZIO.service[C]
+    _ <- c.baz
+  } yield ()
+```
+
+To make our services more ergonomic, it is better to write an accessor method for each capability of our services. We put them in the companion object of the service interfaces:
+
+```scala mdoc:silent
+object A {
+  def foo: ZIO[A, Nothing, Int] = ZIO.serviceWithZIO[A](_.foo)
+}
+
+object B {
+  def bar = ZIO.serviceWithZIO[B](_.bar)
+}
+
+object C {
+  def baz: ZIO[C, Nothing, Unit] = ZIO.serviceWithZIO[C](_.baz)
+}
+```
+
+Let's rewrite the previous application logic with accessor methods:
+
+```scala mdoc:silent:nest
 import zio._
 
 val myApp: ZIO[A with C, Nothing, Unit] =
@@ -332,9 +360,9 @@ val myApp: ZIO[A with C, Nothing, Unit] =
   } yield ()
 ```
 
-We can run our application, by providing live layers:
+Now, in order to run our application, we wire all of our services together with `ZIO#provide` and inject them to our application:
 
-```scala mdoc:compile-only
+```scala
 import zio._
 
 object MainApp extends ZIOAppDefault {
@@ -348,7 +376,7 @@ object MainApp extends ZIOAppDefault {
 
 For any purpose, if we decided to use another implementation for the `A` service, we can replace it easily without changing our application logic:
 
-```scala mdoc:silent
+```scala
 import zio._
 
 final case class ACustom() extends A {
