@@ -13,7 +13,10 @@ private[internal] trait OpLogger {
     localStack: Chunk[ZIO.EvaluationStep],
     runtimeFlags0: RuntimeFlags
   )(implicit trace: Trace, logTrace: Trace): Unit
-  def logInterruptChild(signal: FiberMessage.InterruptSignal)(trace: Trace, logTrace: Trace): Unit
+  def logInterruptChild(signal: FiberMessage.InterruptSignal, fiberRuntime: FiberRuntime[_, _])(
+    trace: Trace,
+    logTrace: Trace
+  ): Unit
   def logInterrupt(cause: Cause[Any])(trace: Trace, logTrace: Trace): Unit
   def logMessage(message: String)(trace: Trace, logTrace: Trace): Unit
   def logEffect(effect: Any)(trace: Trace, logTrace: Trace): Unit
@@ -28,10 +31,10 @@ object OpLogger {
     val traceLevel = Some(LogLevel.Trace)
 
     override def logAsk[A](f: Unsafe => (FiberRuntime[_, _], Fiber.Status) => A)(trace: Trace, logTrace: Trace): Unit =
-      logFn(() => s"Oplog: ask ${logTrace.toString()} $f", Cause.empty, traceLevel, trace)
+      logFn(() => s"Oplog: ${logTrace.toString()} f", Cause.empty, traceLevel, trace)
 
     override def logTell(message: FiberMessage)(trace: Trace, logTrace: Trace): Unit =
-      logFn(() => s"OpLog: tell ${logTrace.toString()} $message", Cause.empty, traceLevel, Trace.empty)
+      logFn(() => s"OpLog: ${logTrace.toString()} $message", Cause.empty, traceLevel, trace)
 
     override def logRunLoop(
       message: String,
@@ -41,15 +44,26 @@ object OpLogger {
       runtimeFlags0: RuntimeFlags
     )(implicit trace: Trace, logTrace: Trace): Unit =
       logFn(
-        () => s"Oplog: runLoop ${logTrace.toString} $message, $effect, $currentDepth, $localStack $runtimeFlags0",
+        () => s"Oplog: ${logTrace.toString} $message, effect, currentDepth, localStack runtimeFlags0",
         Cause.empty,
         traceLevel,
         trace
       )
-    def logInterruptChild(signal: FiberMessage.InterruptSignal)(trace: Trace, logTrace: Trace): Unit = ???
-    def logInterrupt(cause: Cause[Any])(trace: Trace, logTrace: Trace): Unit                         = ???
-    def logMessage(message: String)(trace: Trace, logTrace: Trace): Unit                             = ???
-    def logEffect(effect: Any)(trace: Trace, logTrace: Trace): Unit                                  = ???
+    def logInterruptChild(signal: FiberMessage.InterruptSignal, fiberRuntime: FiberRuntime[_, _])(
+      trace: Trace,
+      logTrace: Trace
+    ): Unit = logFn(
+      () => s"Oplog: ${logTrace.toString} , signal, fiberRuntime",
+      Cause.empty,
+      traceLevel,
+      trace
+    )
+    def logInterrupt(cause: Cause[Any])(trace: Trace, logTrace: Trace): Unit =
+      logFn(() => s"Oplog: ${logTrace.toString} , cause", cause, traceLevel, trace)
+    def logMessage(message: String)(trace: Trace, logTrace: Trace): Unit =
+      logFn(() => s"Oplog: ${logTrace.toString} , message", Cause.empty, traceLevel, trace)
+    def logEffect(effect: Any)(trace: Trace, logTrace: Trace): Unit =
+      logFn(() => s"Oplog: ${logTrace.toString} , effect", Cause.empty, traceLevel, trace)
   }
 
 }

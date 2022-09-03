@@ -64,7 +64,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * without locks or immutable data.
    */
   def ask[A](f: Unsafe => (FiberRuntime[_, _], Fiber.Status) => A)(implicit trace: Trace): UIO[A] = {
-    if (RuntimeFlags.opLog(_runtimeFlags)) opLogger.logAsk(f)
+    if (RuntimeFlags.opLog(_runtimeFlags)) opLogger.logAsk(f)(trace, newTrace)
+
     ZIO.suspendSucceed {
       val promise = zio.Promise.unsafe.make[Nothing, A](fiberId)(Unsafe.unsafe)
 
@@ -812,7 +813,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         val oldCur = cur
         val trace  = lastTrace
         if (RuntimeFlags.opLog(_runtimeFlags))
-          opLogger.logRunLoop("runLoop yielding", cur, currentDepth, localStack, _runtimeFlagsy)(trace, newTrace)
+          opLogger.logRunLoop("runLoop yielding", cur, currentDepth, localStack, _runtimeFlags)(trace, newTrace)
         cur = ZIO.yieldNow(trace).flatMap(_ => oldCur)(trace)
       } else {
         try {
@@ -850,7 +851,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                 if (RuntimeFlags.opLog(_runtimeFlags))
                   opLogger.logRunLoop(
-                    s"Sync - success ${value.toString().substring(0, 20).padTo(20, " ")}",
+                    s"Sync - success (value)",
                     effect,
                     currentDepth,
                     localStack,
@@ -891,11 +892,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               } catch {
                 case zioError: ZIOError =>
                   if (RuntimeFlags.opLog(_runtimeFlags))
-                    opLogger.logRunLoop("Sync - failure", effect, currentDepth, localStack, _runtimeFlags, newTrace)
+                    opLogger.logRunLoop("Sync - failure", effect, currentDepth, localStack, _runtimeFlags)(
+                      effect.trace,
+                      newTrace
+                    )
                   cur = zioError.toEffect(effect.trace)
                 case throwable =>
                   if (RuntimeFlags.opLog(_runtimeFlags))
-                    opLogger.logRunLoop("Sync - defect", effect, currentDepth, localStack, _runtimeFlags, newTrace)
+                    opLogger.logRunLoop("Sync - defect", effect, currentDepth, localStack, _runtimeFlags)(
+                      effect.trace,
+                      newTrace
+                    )
                   cur = ZIO.failCause(Cause.die(throwable))(effect.trace)
               }
 
@@ -1160,7 +1167,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         if (next ne null) {
           next.tell(interruptSignal)
-          opLogger.logInterruptChild(interruptSignal)
+          opLogger.logInterruptChild(interruptSignal, next)(Trace.empty, newTrace)
           told = true
         }
       }
@@ -1285,7 +1292,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * Adds a message to be processed by the fiber on the fiber.
    */
   private[zio] def tell(message: FiberMessage)(implicit unsafe: Unsafe): Unit = {
-    if (RuntimeFlags.opLog(_runtimeFlags)) opLogger.logTell(message)
+    if (RuntimeFlags.opLog(_runtimeFlags)) opLogger.logTell(message)(Trace.empty, newTrace)
     queue.add(message)
 
     // Attempt to spin up fiber, if it's not already running:

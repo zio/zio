@@ -26,6 +26,7 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import izumi.reflect.macrortti.LightTypeTag
+import zio.internal.OpLogger
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that
@@ -3675,6 +3676,17 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   def loggersWith[R, E, A](f: Set[ZLogger[String, Any]] => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     FiberRef.currentLoggers.getWith(f)
+
+  /**
+   * An aspect that enables op logging using the specified OpLogger.
+   */
+  def logOperations[R1, E1, A1] /* (
+    opLogger: OpLogger ignored for now
+  ) */: ZIOAspect[Nothing, R1, Nothing, E1, Nothing, A1] =
+    new ZIOAspect[Nothing, R1, Nothing, E1, Nothing, A1] {
+      def apply[R <: R1, E <: E1, A <: A1](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        zio.withRuntimeFlags(RuntimeFlags.enable(RuntimeFlag.OpLog))
+    }
 
   /**
    * Loops with the specified effectual function, collecting the results into a

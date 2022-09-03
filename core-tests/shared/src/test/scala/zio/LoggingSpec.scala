@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import zio.ZIO.logOperations
 
 object LoggingSpec extends ZIOBaseSpec {
 
@@ -17,14 +18,6 @@ object LoggingSpec extends ZIOBaseSpec {
       test("change log level in region") {
         for {
           _      <- LogLevel.Warning(ZIO.log("It's alive!"))
-          output <- ZTestLogger.logOutput
-        } yield assertTrue(output.length == 1) &&
-          assertTrue(output(0).message() == "It's alive!") &&
-          assertTrue(output(0).logLevel == LogLevel.Warning)
-      },
-      test("log at a different log level") {
-        for {
-          _      <- ZIO.logWarning("It's alive!")
           output <- ZTestLogger.logOutput
         } yield assertTrue(output.length == 1) &&
           assertTrue(output(0).message() == "It's alive!") &&
@@ -71,6 +64,21 @@ object LoggingSpec extends ZIOBaseSpec {
           } yield assertTrue(output.length == 1) &&
             assertTrue(output(0).context.get(ref).contains(value))
         )
+      },
+      test("op logging") {
+        //the effect is not important, just want to make sure there's some meat in the log
+        val effect = {
+          for {
+            one <- ZIO.succeed(1)
+            two <- ZIO.succeed(one * 2)
+            _   <- Console.printLine(two)
+          } yield (ZIO.unit)
+        }
+
+        for {
+          _      <- effect @@ logOperations
+          output <- ZTestLogger.logOutput
+        } yield assertTrue(output.filter(_.logLevel == LogLevel.Trace).length > 30)
       }
     )
 }
