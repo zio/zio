@@ -4205,7 +4205,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.service[Scope]
 
   /**
-   * Scopes all resources uses in this effect to the lifetime of the effect,
+   * Scopes all resources used in this effect to the lifetime of the effect,
    * ensuring that their finalizers are run as soon as this effect completes
    * execution, whether by success, failure, or interruption.
    *
