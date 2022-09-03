@@ -47,7 +47,7 @@ trait ZLayerCompanionVersionSpecific {
    * case class Car(engine: Engine, wheels: Wheels)
    * val derivedLayer: ZLayer[Engine & Wheels, Nothing, Car] = ZLayer.deriveLayer[Car]
    * // equivalent to:
-   * val manualLayer: ZLayer[Engine with Wheels, Nothing, Car] =
+   * val manualLayer: ZLayer[Engine & Wheels, Nothing, Car] =
    *   ZLayer.fromFunction(Car(_, _))
    * }}}
    *
