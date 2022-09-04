@@ -26,7 +26,6 @@ import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
 import scala.util.control.NoStackTrace
 import izumi.reflect.macrortti.LightTypeTag
-import zio.internal.OpLogger
 
 /**
  * A `ZIO[R, E, A]` value is an immutable value (called an "effect") that

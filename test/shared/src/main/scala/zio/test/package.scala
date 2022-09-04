@@ -196,7 +196,7 @@ package object test extends CompileVariants {
             val quotedLabel = "\"" + label + "\""
             val warning =
               s"Warning: ZIO Test is attempting to interrupt fiber " +
-                s"${child.id} forked in test ${quotedLabel} due to automatic, " +
+                s"${child.id} forked in test ${quotedLabel} due to automatic " +
                 "supervision, but interruption has taken more than 10 " +
                 "seconds to complete. This may indicate a resource leak. " +
                 "Make sure you are not forking a fiber in an " +
