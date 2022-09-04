@@ -1,7 +1,9 @@
 package zio
 
 import zio.internal.macros.LayerMacros
+import zio.internal.macros.LayerMacroUtils
 import zio.internal.macros.ProvideMethod
+import scala.deriving._
 
 final class WirePartiallyApplied[R](val dummy: Boolean = true) extends AnyVal {
   inline def apply[E](inline layer: ZLayer[_, E, _]*): ZLayer[Any, E, R] =
@@ -38,4 +40,20 @@ trait ZLayerCompanionVersionSpecific {
    */
   def makeSome[R0, R] =
     new WireSomePartiallyApplied[R0, R]
+
+  /**
+   * Derives a simple layer for a case class given as a type parameter.
+   * {{{
+   * case class Car(engine: Engine, wheels: Wheels)
+   * val derivedLayer: ZLayer[Engine & Wheels, Nothing, Car] = ZLayer.deriveLayer[Car]
+   * // equivalent to:
+   * val manualLayer: ZLayer[Engine & Wheels, Nothing, Car] =
+   *   ZLayer.fromFunction(Car(_, _))
+   * }}}
+   *
+   */
+   inline def derive[A](
+    using inline m: Mirror.ProductOf[A]
+  ): URLayer[LayerMacroUtils.Env[m.MirroredElemTypes], A] =
+    LayerMacroUtils.genLayer[m.MirroredElemTypes, A]
 }
