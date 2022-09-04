@@ -173,10 +173,10 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case q"!($inner)" =>
         AST.Not(parseExpr(inner), pos.getPos(tree), pos.getPos(inner))
 
-      case q"$lhs && $rhs" =>
+      case q"$lhs && $rhs" if lhs.tpe == typeOf[Boolean] =>
         AST.And(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
-      case q"$lhs || $rhs" =>
+      case q"$lhs || $rhs" if lhs.tpe == typeOf[Boolean] =>
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
       case MethodCall(lhs, name, tpes, args) =>
