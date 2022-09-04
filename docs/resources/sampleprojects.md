@@ -27,3 +27,4 @@ title:  "Sample Projects"
 - [Akka Microservice using DDD with ZIO Streams Tapir AkkaHTTP Integration](https://github.com/mvillafuertem/scalcite) by [Miguel Villafuerte](https://github.com/mvillafuertem)
 - [Simple ZIO ScalaJS Skeleton](https://github.com/sb-dev/zio-scalajs) by [Samir Benzenine](https://github.com/sb-dev)
 - [Full ZIO Stack: A sample IM that uses zio, zio-redis, zio-actors, zio-schema, zio-streams, zio-crypto, tapir, akka-http](https://github.com/bitlap/zim) by [bitlap](https://github.com/bitlap/zim) (Notes in Chinese)
+- [JWT Auth based persisent (reactive MongoDB) RESTful API for managing notes with ZIO 2.0, Scala 3 and ZLayers] by [Anzori (Nika) Ghurtchumelia](https://github.com/Ghurtchu/notes-rest-api)
