@@ -512,9 +512,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   ): Gen[R, A] =
     size.flatMap(max => int(min, max)).flatMap(f)
 
+  /**
+    * A sized generator of lists.
+    */
   def listOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
+  /**
+   * A sized generator of non-empty lists.
+   */
   def listOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
     for {
       h <- g
@@ -529,6 +535,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   ): Gen[R, List[A]] =
     bounded(min, max)(listOfN(_)(g))
 
+  /**
+   * A generator of lists of the specified size.
+   */
   def listOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     collectAll(List.fill(n)(g))
 
@@ -733,9 +742,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def string(implicit trace: Trace): Gen[Any, String] =
     Gen.string(Gen.unicodeChar)
 
+  /**
+   * A sized generator of strings.
+   */
   def string[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf(char).map(_.mkString)
 
+  /**
+   * A sized generator of non-empty strings.
+   */
   def string1[R](char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOf1(char).map(_.mkString)
 
@@ -747,6 +762,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   ): Gen[R, String] =
     bounded(min, max)(stringN(_)(g))
 
+  /**
+   * A generator of strings of the specified size.
+   */
   def stringN[R](n: Int)(char: Gen[R, Char])(implicit trace: Trace): Gen[R, String] =
     listOfN(n)(char).map(_.mkString)
 
@@ -809,9 +827,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def uuid(implicit trace: Trace): Gen[Any, UUID] =
     Gen.fromZIO(nextUUID)
 
+  /**
+   * A sized generator of vectors.
+   */
   def vectorOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf(g).map(_.toVector)
 
+  /**
+   * A sized generator of non-empty vectors.
+   */
   def vectorOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOf1(g).map(_.toVector)
 
@@ -823,6 +847,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   ): Gen[R, Vector[A]] =
     bounded(min, max)(vectorOfN(_)(g))
 
+  /**
+   * A generator of vectors of the specified size.
+   */
   def vectorOfN[R, A](n: Int)(g: Gen[R, A])(implicit trace: Trace): Gen[R, Vector[A]] =
     listOfN(n)(g).map(_.toVector)
 
