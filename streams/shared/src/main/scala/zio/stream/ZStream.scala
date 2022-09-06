@@ -3597,34 +3597,6 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     filter(predicate)
 
   /**
-   * Zips this stream with another point-wise, but keeps only the outputs of
-   * this stream.
-   *
-   * The new stream will end when one of the sides ends.
-   */
-  def zipLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A] =
-    zipWithChunks(that)((cl, cr) =>
-      if (cl.size > cr.size)
-        (cl.take(cr.size), Left(cl.drop(cr.size)))
-      else
-        (cl, Right(cr.drop(cl.size)))
-    )
-
-  /**
-   * Zips this stream with another point-wise, but keeps only the outputs of the
-   * other stream.
-   *
-   * The new stream will end when one of the sides ends.
-   */
-  def zipRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
-    zipWithChunks(that)((cl, cr) =>
-      if (cl.size > cr.size)
-        (cr, Left(cl.drop(cr.size)))
-      else
-        (cr.take(cl.size), Right(cr.drop(cl.size)))
-    )
-
-  /**
    * Zips this stream with another point-wise and emits tuples of elements from
    * both streams.
    *
@@ -3781,6 +3753,99 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   }
 
   /**
+   * Zips the two streams so that when a value is emitted by either of the two
+   * streams, it is combined with the latest value from the other stream to
+   * produce a result.
+   *
+   * Note: tracking the latest value is done on a per-chunk basis. That means
+   * that emitted elements that are not the last value in chunks will never be
+   * used for zipping.
+   */
+  def zipLatest[R1 <: R, E1 >: E, A2, A3](
+    that: => ZStream[R1, E1, A2]
+  )(implicit zippable: Zippable[A, A2], trace: Trace): ZStream[R1, E1, zippable.Out] =
+    self.zipLatestWith(that)(zippable.zip(_, _))
+
+  /**
+   * Zips the two streams so that when a value is emitted by either of the two
+   * streams, it is combined with the latest value from the other stream to
+   * produce a result.
+   *
+   * Note: tracking the latest value is done on a per-chunk basis. That means
+   * that emitted elements that are not the last value in chunks will never be
+   * used for zipping.
+   */
+  def zipLatestWith[R1 <: R, E1 >: E, A2, A3](
+    that: => ZStream[R1, E1, A2]
+  )(f: (A, A2) => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
+    def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
+      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else ZIO.succeedNow(chunk))
+
+    ZStream.fromPull[R1, E1, A3] {
+      for {
+        left  <- self.toPull.map(pullNonEmpty(_))
+        right <- that.toPull.map(pullNonEmpty(_))
+        pull <- (ZStream.fromZIOOption {
+                  left.raceWith(right)(
+                    (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
+                    (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
+                  )
+                }.flatMap { case (l, r, leftFirst) =>
+                  ZStream.fromZIO(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
+                    ZStream.fromChunk(
+                      if (leftFirst) r.map(f(l(l.size - 1), _))
+                      else l.map(f(_, r(r.size - 1)))
+                    ) ++
+                      ZStream
+                        .repeatZIOOption(left)
+                        .mergeEither(ZStream.repeatZIOOption(right))
+                        .mapZIO {
+                          case Left(leftChunk) =>
+                            latest.modify { case (_, rightLatest) =>
+                              (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
+                            }
+                          case Right(rightChunk) =>
+                            latest.modify { case (leftLatest, _) =>
+                              (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
+                            }
+                        }
+                        .flatMap(ZStream.fromChunk(_))
+                  }
+                }).toPull
+
+      } yield pull
+    }
+  }
+
+  /**
+   * Zips this stream with another point-wise, but keeps only the outputs of
+   * this stream.
+   *
+   * The new stream will end when one of the sides ends.
+   */
+  def zipLeft[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A] =
+    zipWithChunks(that)((cl, cr) =>
+      if (cl.size > cr.size)
+        (cl.take(cr.size), Left(cl.drop(cr.size)))
+      else
+        (cl, Right(cr.drop(cl.size)))
+    )
+
+  /**
+   * Zips this stream with another point-wise, but keeps only the outputs of the
+   * other stream.
+   *
+   * The new stream will end when one of the sides ends.
+   */
+  def zipRight[R1 <: R, E1 >: E, A2](that: => ZStream[R1, E1, A2])(implicit trace: Trace): ZStream[R1, E1, A2] =
+    zipWithChunks(that)((cl, cr) =>
+      if (cl.size > cr.size)
+        (cr, Left(cl.drop(cr.size)))
+      else
+        (cr.take(cl.size), Right(cr.drop(cl.size)))
+    )
+
+  /**
    * Zips this stream with another point-wise and applies the function to the
    * paired elements.
    *
@@ -3890,47 +3955,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * that emitted elements that are not the last value in chunks will never be
    * used for zipping.
    */
+  @deprecated("use zipLatestWith", "2.0.3")
   def zipWithLatest[R1 <: R, E1 >: E, A2, A3](
     that: => ZStream[R1, E1, A2]
-  )(f: (A, A2) => A3)(implicit trace: Trace): ZStream[R1, E1, A3] = {
-    def pullNonEmpty[R, E, O](pull: ZIO[R, Option[E], Chunk[O]]): ZIO[R, Option[E], Chunk[O]] =
-      pull.flatMap(chunk => if (chunk.isEmpty) pullNonEmpty(pull) else ZIO.succeedNow(chunk))
-
-    ZStream.fromPull[R1, E1, A3] {
-      for {
-        left  <- self.toPull.map(pullNonEmpty(_))
-        right <- that.toPull.map(pullNonEmpty(_))
-        pull <- (ZStream.fromZIOOption {
-                  left.raceWith(right)(
-                    (leftDone, rightFiber) => ZIO.done(leftDone).zipWith(rightFiber.join)((_, _, true)),
-                    (rightDone, leftFiber) => ZIO.done(rightDone).zipWith(leftFiber.join)((r, l) => (l, r, false))
-                  )
-                }.flatMap { case (l, r, leftFirst) =>
-                  ZStream.fromZIO(Ref.make(l(l.size - 1) -> r(r.size - 1))).flatMap { latest =>
-                    ZStream.fromChunk(
-                      if (leftFirst) r.map(f(l(l.size - 1), _))
-                      else l.map(f(_, r(r.size - 1)))
-                    ) ++
-                      ZStream
-                        .repeatZIOOption(left)
-                        .mergeEither(ZStream.repeatZIOOption(right))
-                        .mapZIO {
-                          case Left(leftChunk) =>
-                            latest.modify { case (_, rightLatest) =>
-                              (leftChunk.map(f(_, rightLatest)), (leftChunk(leftChunk.size - 1), rightLatest))
-                            }
-                          case Right(rightChunk) =>
-                            latest.modify { case (leftLatest, _) =>
-                              (rightChunk.map(f(leftLatest, _)), (leftLatest, rightChunk(rightChunk.size - 1)))
-                            }
-                        }
-                        .flatMap(ZStream.fromChunk(_))
-                  }
-                }).toPull
-
-      } yield pull
-    }
-  }
+  )(f: (A, A2) => A3)(implicit trace: Trace): ZStream[R1, E1, A3] =
+    zipLatestWith(that)(f)
 
   /**
    * Zips each element with the next element if present.

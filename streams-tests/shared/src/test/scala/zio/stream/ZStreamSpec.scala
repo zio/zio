@@ -2246,7 +2246,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _       <- queue2.offer(Chunk(4)).fork
               s1       = ZStream.fromChunkQueue(queue1)
               s2       = ZStream.fromChunkQueue(queue2)
-              s3       = s1.zipWithLatest(s2)((_, _)).interruptWhen(promise.await).take(3)
+              s3       = s1.zipLatest(s2).interruptWhen(promise.await).take(3)
               _       <- s3.runDrain
             } yield assertCompletes
           } @@ nonFlaky,
@@ -2291,7 +2291,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- queue2.offer(Chunk(4)).fork
               s1      = ZStream.fromChunkQueue(queue1)
               s2      = ZStream.fromChunkQueue(queue2)
-              s3      = s1.zipWithLatest(s2)((_, _)).interruptWhen(ZIO.never).take(3)
+              s3      = s1.zipLatest(s2).interruptWhen(ZIO.never).take(3)
               _      <- s3.runDrain
             } yield assertCompletes
           } @@ nonFlaky
@@ -4153,14 +4153,14 @@ object ZStreamSpec extends ZIOBaseSpec {
             res2 <- (s.runCollect.map(_.zipWithIndex.map(t => (t._1, t._2.toLong))))
           } yield assert(res1)(equalTo(res2))
         }),
-        suite("zipWithLatest")(
+        suite("zipLatestWith")(
           test("succeed") {
             for {
               left  <- Queue.unbounded[Chunk[Int]]
               right <- Queue.unbounded[Chunk[Int]]
               out   <- Queue.bounded[Take[Nothing, (Int, Int)]](1)
               _ <-
-                ZStream.fromChunkQueue(left).zipWithLatest(ZStream.fromChunkQueue(right))((_, _)).runIntoQueue(out).fork
+                ZStream.fromChunkQueue(left).zipLatest(ZStream.fromChunkQueue(right)).runIntoQueue(out).fork
               _      <- left.offer(Chunk(0))
               _      <- right.offerAll(List(Chunk(0), Chunk(1)))
               chunk1 <- ZIO.replicateZIO(2)(out.take.flatMap(_.done)).map(_.flatten)
@@ -4177,7 +4177,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 promise <- Promise.make[Nothing, Int]
                 latch   <- Promise.make[Nothing, Unit]
                 fiber <- (stream0 ++ ZStream.fromZIO(promise.await) ++ ZStream(2))
-                           .zipWithLatest(ZStream(1, 1).ensuring(latch.succeed(())) ++ stream1)((_, x) => x)
+                           .zipLatestWith(ZStream(1, 1).ensuring(latch.succeed(())) ++ stream1)((_, x) => x)
                            .take(3)
                            .runCollect
                            .fork
@@ -4193,7 +4193,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                 .unfold(0)(n => Some((if (n < 3) Chunk.empty else Chunk.single(2), n + 1)))
                 .flattenChunks
                 .forever
-                .zipWithLatest(ZStream(1).forever)((_, x) => x)
+                .zipLatestWith(ZStream(1).forever)((_, x) => x)
                 .take(3)
                 .runCollect
             )(equalTo(Chunk(1, 1, 1)))
@@ -4205,7 +4205,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield ZStream.fromChunks(chunks: _*)
             check(genSortedStream, genSortedStream) { (left, right) =>
               for {
-                out <- left.zipWithLatest(right)(_ + _).runCollect
+                out <- left.zipLatestWith(right)(_ + _).runCollect
               } yield assert(out)(isSorted)
             }
           }
