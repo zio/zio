@@ -7,7 +7,7 @@ sidebar_label: "Getting Started"
 :::caution
 In this page, we will focus on essential parts of dependency injection in ZIO. So in some examples we are not going to cover all the best practices for writing ZIO services.
 
-In real world applications, we encourage to use [service pattern](../service-pattern/service-pattern.md) to write ZIO services.
+In real world applications, we encourage to use [service pattern](../architecture/service-pattern.md) to write ZIO services.
 :::
 
 ## Essential Steps of Dependency Injection in ZIO
@@ -252,7 +252,7 @@ object MainApp extends ZIOAppDefault {
 
 Although dependency injection is not about coding to the interface, it is a good pattern to have testable and configurable programs. 
 
-When we code to the interface, our application logic will not dependent on any concrete implementation. So we can replace implementations, without changing the application. This is what [Service Pattern](../service-pattern/service-pattern.md) encourages us when writing services.
+When we code to the interface, our application logic will not dependent on any concrete implementation. So we can replace implementations, without changing the application. This is what [Service Pattern](../architecture/service-pattern.md) encourages us when writing services.
 
 Let's try an example. Assume we want to implement service `C` which is implemented in terms of `A` and `B` services. We want to keep our code modular and testable.
 

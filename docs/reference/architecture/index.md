@@ -1,7 +1,6 @@
 ---
 id: introduction 
-title: "Introduction to Writing ZIO Services"
-slug: introduction
+title: "Introduction to The ZIO Application Architecture"
 ---
 
 Defining services in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using _Service Pattern_, which is quite similar to the object-oriented style.

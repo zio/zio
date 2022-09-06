@@ -121,13 +121,13 @@ module.exports = {
     },
     {
       type: "category",
-      label: "Writing ZIO Services",
-      link: { type: "doc", id: "reference/service-pattern/introduction" },
+      label: "Application Architecture",
+      link: { type: "doc", id: "reference/architecture/introduction" },
       items: [
-        "reference/service-pattern/service-pattern",
-        "reference/service-pattern/defining-polymorphic-services-in-zio",
-        "reference/service-pattern/generating-accessor-methods-using-macros",
-        "reference/service-pattern/the-three-laws-of-zio-environment"
+        "reference/architecture/service-pattern",
+        "reference/architecture/defining-polymorphic-services-in-zio",
+        "reference/architecture/generating-accessor-methods-using-macros",
+        "reference/architecture/the-three-laws-of-zio-environment"
       ]
     },
     {
