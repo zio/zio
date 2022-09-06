@@ -513,8 +513,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     size.flatMap(max => int(min, max)).flatMap(f)
 
   /**
-    * A sized generator of lists.
-    */
+   * A sized generator of lists.
+   */
   def listOf[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, List[A]] =
     small(listOfN(_)(g))
 
