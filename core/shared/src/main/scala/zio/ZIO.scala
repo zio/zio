@@ -1194,7 +1194,7 @@ sealed trait ZIO[-R, +E, +A]
    * its dependency on `R`.
    */
   final def provideEnvironment(r: => ZEnvironment[R])(implicit trace: Trace): IO[E, A] =
-    FiberRef.currentEnvironment.locallyWith(_.unionAll(r))(self.asInstanceOf[ZIO[Any, E, A]])
+    FiberRef.currentEnvironment.locally(r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
    * Provides a layer to the ZIO effect, which translates it to another level.
