@@ -114,7 +114,7 @@ object SmartAssertions {
 
         TestTrace.Node(
           Result.succeed(failures.isEmpty),
-          M.pretty(failures.size) + M.choice(s"$elements failed the predicate", s"$elements failed the predicate"),
+          M.pretty(failures.size) + M.text(s"$elements failed the predicate"),
           children = if (failures.isEmpty) None else Some(failures.reduce(_ && _))
         )
       }
@@ -122,16 +122,21 @@ object SmartAssertions {
   def existsIterable[A](predicate: TestArrow[A, Boolean]): TestArrow[Iterable[A], Boolean] =
     TestArrow
       .make[Iterable[A], Boolean] { seq =>
-        val results = seq.map(a => TestArrow.run(predicate, Right(a)))
+        val result = seq.view.map(a => TestArrow.run(predicate, Right(a))).find(tt => tt.isSuccess || tt.isDie)
 
-        val successes = results.filter(_.isSuccess)
-        val elements  = if (successes.size == 1) "element" else "elements"
+        val success  = result.filter(_.isSuccess)
+        val elements = if (success.nonEmpty) "element" else "elements"
+
+        val elementsSatisfiedPredicateMsg =
+          if (result.exists(_.isDie))
+            M.text(s"$elements satisfied the predicate before it threw an exception")
+          else
+            M.text(s"$elements satisfied the predicate")
 
         TestTrace.Node(
-          Result.succeed(successes.nonEmpty),
-          M.pretty(successes.size) + M
-            .choice(s"$elements satisfied the predicate", s"$elements satisfied the predicate"),
-          children = if (successes.isEmpty) None else Some(successes.reduce(_ && _))
+          Result.succeed(success.nonEmpty),
+          M.pretty(success.size) + elementsSatisfiedPredicateMsg,
+          children = result
         )
       }
 
