@@ -712,8 +712,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that maps elements with the specified function that
    * returns a stream.
    */
-  def mapStream[Env, Err, In, Out](f: In => ZStream[Env, Err, Out])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].concatMap(_.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _)))
+  def mapStream[Env, Err, In, Out](
+    f: In => ZStream[Env, Err, Out]
+  )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline(
+      ZChannel.identity[Nothing, Chunk[In], Any].concatMap(_.map(f).map(_.channel).fold(ZChannel.unit)(_ *> _))
+    )
 
   /**
    * Creates a pipeline that maps elements with the specified effectful
