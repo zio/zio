@@ -4,6 +4,7 @@ import sbt._
 import sbtbuildinfo.BuildInfoKeys._
 import sbtbuildinfo._
 import sbtcrossproject.CrossPlugin.autoImport._
+import scalajscrossproject._
 
 object BuildHelper {
   private val versions: Map[String, String] = {
@@ -220,7 +221,7 @@ object BuildHelper {
     autoAPIMappings := true,
     unusedCompileDependenciesFilter -= moduleFilter("org.scala-js", "scalajs-library"),
     Compile / fork := true,
-    Test / fork    := true,
+    Test / fork    := true, // set fork to `true` to improve log readability
     // For compatibility with Java 9+ module system;
     // without Automatic-Module-Name, the module name is derived from the jar file which is invalid because of the scalaVersion suffix.
     Compile / packageBin / packageOptions +=
@@ -259,6 +260,10 @@ object BuildHelper {
 
   def nativeSettings = Seq(
     Test / test := (Test / compile).value
+  )
+
+  def jsSettings: List[Def.Setting[_]] = List(
+    Test / fork := crossProjectPlatform.value != JSPlatform // set fork to `true` for non-JS platforms to improve log readability, JS needs `false`
   )
 
   def welcomeMessage = onLoadMessage := {
