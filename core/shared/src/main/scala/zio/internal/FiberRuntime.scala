@@ -924,7 +924,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     effect.onFailure(zioError.cause)
 
                   case reifyStack: ReifyStack =>
-                    logOp("ReifyStack", _runtimeFlags, effect.trace)(newTrace)
                     self.reifiedStack += effect
 
                     throw reifyStack
@@ -943,7 +942,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     effect.failureK(zioError.cause)
 
                   case reifyStack: ReifyStack =>
-                    logOp("ReifyStack", _runtimeFlags, effect.trace)(newTrace)
                     self.reifiedStack += effect
 
                     throw reifyStack
@@ -1007,7 +1005,6 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                       Exit.Failure(zioError.cause)
 
                     case reifyStack: ReifyStack =>
-                      logOp("ReifyStack", _runtimeFlags, effect.trace)(newTrace)
                       self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(revertFlags) // Go backward, on the heap
 
                       throw reifyStack

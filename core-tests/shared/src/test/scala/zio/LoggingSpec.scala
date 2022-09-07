@@ -68,15 +68,15 @@ object LoggingSpec extends ZIOBaseSpec {
       test("op logging") {
         //the effect is not important, just want to make sure there's some meat in the log
         val effect = {
-          for {
+          (for {
             one <- ZIO.succeed(1)
             two <- ZIO.succeed(one * 2)
             _   <- Console.printLine(two)
-          } yield (ZIO.unit)
+          } yield (ZIO.unit)).provide(Runtime.addLogger(ZLogger.default.map(println)))
         }
 
         for {
-          _      <- effect @@ logOperations
+          _      <- effect.provideSome(Runtime.addLogger(ZLogger.default.map(println))) @@ logOperations
           output <- ZTestLogger.logOutput
         } yield assertTrue(output.filter(_.logLevel == LogLevel.Trace).length > 30)
       }
