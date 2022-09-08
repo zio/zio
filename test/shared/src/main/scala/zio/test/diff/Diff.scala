@@ -8,7 +8,7 @@ import zio.{Chunk, NonEmptyChunk}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.util.Try
 
-trait Diff[A] {
+trait Diff[-A] {
   def diff(x: A, y: A): DiffResult
 
   def isLowPriority: Boolean = false
@@ -22,6 +22,15 @@ object Diff extends DiffInstances {
 
   implicit final class DiffOps[A](private val self: A)(implicit diff: Diff[A]) {
     def diffed(that: A): DiffResult = diff.diff(self, that)
+  }
+
+  def approximate[A](tolerance: A)(implicit numeric: Numeric[A]): Diff[A] = new Diff[A] {
+    override def diff(x: A, y: A): DiffResult = {
+      val diff = numeric.minus(x, y)
+      // diff <= tolerance
+      if (numeric.lteq(numeric.abs(diff), tolerance)) DiffResult.Identical(x)
+      else DiffResult.Different(s"$x", s"$y")
+    }
   }
 }
 

@@ -23,7 +23,7 @@ trait DeriveDiff extends LowPri {
       case _                              => DiffResult.Different(x, y)
     }
 
-  implicit def gen[A]: Typeclass[A] = macro Magnolia.gen[A]
+  implicit def gen[A]: Diff[A] = macro Magnolia.gen[A]
 }
 
 trait LowPri {

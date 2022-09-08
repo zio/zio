@@ -1,7 +1,7 @@
 package zio.test.magnolia
 
 import zio.test._
-
+import zio.test.diff.Diff
 import DeriveDiff.gen
 import java.time.Instant
 
@@ -76,7 +76,26 @@ Really
 Doing
             """.trim
         assertTrue(string1 == string2)
-      } @@ TestAspect.failing
+      } @@ TestAspect.failing,
+      test("fuzzy equality using diffs") {
+        val tree1 = Branch(Leaf(1.0), Leaf(2.0))
+        val tree2 = Branch(Leaf(1.01), Leaf(2.0))
+        val tree3 = Branch(Leaf(1.02), Leaf(2.0))
+
+        implicit lazy val fuzzyDoubleDiff: Diff[Double] =
+          Diff.approximate(0.015)
+
+        assertTrue(
+          tree1 == tree2,
+          tree1 != tree3
+        )
+      }
     )
   )
+
+  sealed trait Tree[+A]
+
+  final case class Branch[+A](left: Tree[A], right: Tree[A]) extends Tree[A]
+  final case class Leaf[+A](value: A)                        extends Tree[A]
+
 }
