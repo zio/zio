@@ -44,6 +44,7 @@ object GenSpec extends ZIOBaseSpec {
             val p = (as ++ bs).reverse == (as.reverse ++ bs.reverse)
             if (p) assert(())(Assertion.anything) else assert((as, bs))(Assertion.nothing)
         }
+
         assertM(CheckN(100)(gen)(test).map { result =>
           result.failures.fold(false) {
             case BoolAlgebra.Value(FailureDetailsResult(failureDetails, _)) =>
@@ -254,6 +255,22 @@ object GenSpec extends ZIOBaseSpec {
         val min = Instant.ofEpochSecond(-38457693893669L, 435345)
         val max = Instant.ofEpochSecond(74576982873324L, 345345345)
         checkSample(Gen.instant(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
+      testM("instant generates values in range when upper and lower bound share same second ") {
+        val min = Instant.ofEpochSecond(1, 2)
+        val max = Instant.ofEpochSecond(1, 3)
+        checkSample(Gen.instant(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
+      testM("instant generates values in range when upper bound nano part is smaller than lower bound one") {
+        val min = Instant.ofEpochSecond(2, 1)
+        val max = Instant.ofEpochSecond(3, 9)
+        checkSample(Gen.instant(min, max))(forall(isGreaterThanEqualTo(min) && isLessThanEqualTo(max)))
+      },
+      testM("instant generates one value when upper and lower bound are equals") {
+        val anInstant = Instant.ofEpochSecond(1, 1)
+        checkSample(Gen.instant(anInstant, anInstant))(
+          forall(equalTo(anInstant))
+        )
       },
       testM("int generates values in range") {
         checkSample(smallInt)(forall(isGreaterThanEqualTo(-10) && isLessThanEqualTo(10)))
@@ -750,7 +767,8 @@ object GenSpec extends ZIOBaseSpec {
       case object Pop                   extends Command
       final case class Push(value: Int) extends Command
 
-      val genPop: Gen[Any, Command]     = Gen.const(Pop)
+      val genPop: Gen[Any, Command] = Gen.const(Pop)
+
       def genPush: Gen[Random, Command] = Gen.anyInt.map(value => Push(value))
 
       val genCommands: Gen[Random with Sized, List[Command]] =
