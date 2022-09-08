@@ -253,6 +253,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     mimaSettings(failOnProblem = true)
   )
   .jsSettings(
+    jsSettings,
     libraryDependencies ++= List(
       "org.scala-js"  %%% "scala-js-macrotask-executor" % "1.0.0",
       ("org.scala-js" %%% "scalajs-weakreferences"      % "1.0.0").cross(CrossVersion.for3Use2_13),
@@ -291,6 +292,7 @@ lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jvmConfigure(_.enablePlugins(JCStressPlugin))
   .jvmSettings(replSettings)
   .jsSettings(
+    jsSettings,
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -357,6 +359,7 @@ lazy val macros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -371,6 +374,7 @@ lazy val macrosTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio"))
   .settings(publish / skip := true)
   .enablePlugins(BuildInfoPlugin)
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -399,6 +403,7 @@ lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     }
   )
   .jvmSettings(mimaSettings(failOnProblem = true))
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -417,6 +422,7 @@ lazy val streamsTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .enablePlugins(BuildInfoPlugin)
   .jvmConfigure(_.dependsOn(coreTests.jvm % "test->compile"))
   .jsSettings(
+    jsSettings,
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -450,6 +456,7 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .jvmSettings(mimaSettings(failOnProblem = false))
   .jsSettings(
+    jsSettings,
     libraryDependencies ++= List(
       "io.github.cquiroz" %%% "scala-java-time"      % "2.4.0-M3",
       "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.4.0-M3"
@@ -475,6 +482,7 @@ lazy val testTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(macroExpansionSettings)
   .enablePlugins(BuildInfoPlugin)
   .jsSettings(
+    jsSettings,
     libraryDependencies ++= List(
       ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
     )
@@ -508,6 +516,7 @@ lazy val testMagnolia = crossProject(JVMPlatform, JSPlatform)
         )
     }
   )
+  .jsSettings(jsSettings)
 
 lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .in(file("test-magnolia-tests"))
@@ -522,6 +531,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
     publish / skip := true,
     crossScalaVersions --= Seq(Scala211)
   )
+  .jsSettings(jsSettings)
   .enablePlugins(BuildInfoPlugin)
 
 lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
@@ -537,6 +547,7 @@ lazy val testRefined = crossProject(JVMPlatform, JSPlatform)
         ("eu.timepit" %% "refined" % "0.9.27").cross(CrossVersion.for3Use2_13)
       )
   )
+  .jsSettings(jsSettings)
 
 lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-scalacheck"))
@@ -549,6 +560,7 @@ lazy val testScalaCheck = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       ("org.scalacheck" %%% "scalacheck" % "1.16.0")
     )
   )
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -559,6 +571,7 @@ lazy val stacktracer = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(buildInfoSettings("zio.internal.stacktracer"))
   .enablePlugins(BuildInfoPlugin)
   .jvmSettings(replSettings)
+  .jsSettings(jsSettings)
   .nativeSettings(
     nativeSettings,
     scalacOptions -= "-Xfatal-warnings" // Issue 3112
@@ -582,6 +595,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(tests)
   .jvmSettings(libraryDependencies ++= Seq("org.scala-sbt" % "test-interface" % "1.0"))
   .jsSettings(
+    jsSettings,
     libraryDependencies ++= Seq(
       ("org.scala-js" %% "scalajs-test-interface" % scalaJSVersion).cross(CrossVersion.for3Use2_13)
     )
@@ -655,6 +669,7 @@ lazy val concurrent = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(testRunner % Test)
   .settings(testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"))
   .jvmSettings(mimaSettings(failOnProblem = false))
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 /**
@@ -673,6 +688,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .dependsOn(macros, testRunner)
   .jvmConfigure(_.dependsOn(testJunitRunner))
   .jsSettings(
+    jsSettings,
     libraryDependencies ++= List(
       ("org.scala-js" %%% "scalajs-java-securerandom" % "1.0.0").cross(CrossVersion.for3Use2_13)
     )
