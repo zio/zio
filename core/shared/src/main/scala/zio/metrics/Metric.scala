@@ -187,7 +187,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
           },
           a => {
             unsafe.update(in)(Unsafe.unsafe)
-            ZIO.succeed(a)
+            ZIO.succeedNow(a)
           }
         )
     }
