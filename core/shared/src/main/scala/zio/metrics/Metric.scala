@@ -180,10 +180,16 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
   final def trackAll(in: => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-        zio.map { a =>
-          unsafe.update(in)(Unsafe.unsafe)
-          a
-        }
+        zio.foldCauseZIO(
+          cause => {
+            unsafe.update(in)(Unsafe.unsafe)
+            ZIO.refailCause(cause)
+          },
+          a => {
+            unsafe.update(in)(Unsafe.unsafe)
+            ZIO.succeedNow(a)
+          }
+        )
     }
 
   /**
