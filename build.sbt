@@ -323,6 +323,7 @@ lazy val managed = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jvmSettings(
     mimaSettings(failOnProblem = false)
   )
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 lazy val managedTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -342,6 +343,7 @@ lazy val managedTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .jvmConfigure(_.enablePlugins(JCStressPlugin))
   .jvmSettings(replSettings)
   .jsSettings(
+    jsSettings,
     scalacOptions ++= {
       if (scalaVersion.value == Scala3) {
         List()
@@ -383,6 +385,7 @@ lazy val internalMacros = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(crossProjectSettings)
   .settings(macroDefinitionSettings)
   .settings(macroExpansionSettings)
+  .jsSettings(jsSettings)
   .nativeSettings(nativeSettings)
 
 lazy val streams = crossProject(JSPlatform, JVMPlatform, NativePlatform)
