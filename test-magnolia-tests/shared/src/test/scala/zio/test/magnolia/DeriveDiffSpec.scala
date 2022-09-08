@@ -82,8 +82,10 @@ Doing
         val tree2 = Branch(Leaf(1.01), Leaf(2.0))
         val tree3 = Branch(Leaf(1.02), Leaf(2.0))
 
-        implicit lazy val fuzzyDoubleDiff: Diff[Double] =
+        implicit lazy val approximateDoubleDiff: Diff[Double] =
           Diff.approximate(0.015)
+
+        val _ = approximateDoubleDiff
 
         assertTrue(
           tree1 == tree2,
