@@ -3,18 +3,18 @@ id: sharing-layers-within-the-same-file
 title: "Sharing Layers within the Same File"
 ---
 
-The `Spec` data type has a very nice mechanism to share layers within all tests in a suite. So instead of acquiring and releasing dependencies for each test, we can share the layer within all tests. The test framework acquires that layer for once and shares that between all tests. When the execution of all tests is finished, that layer will be released. To share layers between multiple specs we can use `Spec#provideXYZShared` methods:
+The `Spec` data type has a very nice mechanism to share layers within all tests in a suite. So instead of acquiring and releasing dependencies for each test, we can share the layer within all tests. The test framework acquires that layer for once and shares that between all tests. When the execution of all tests is finished, that layer will be released. To share layers between multiple specs we can use one of the provide methods ending with `Shared` (`provideShared`/`provideCustomShared`/`provideSomeShared`/`provideLayerShared`/`provideCustomLayerShared`/`provideSomeLayerShared`):
 
 ```scala
 {
   test("test1")(???) +
     test("test2")(???)
-}.provideZYZShared(sharedLayer)
+}.provideShared(sharedLayer)
 
 suite("suite1")(
   test("test1")(???),
   test("test2")(???)
-).provideZYZShared(sharedLayer)
+).provideShared(sharedLayer)
 
 suite("all suites")(
   suite("suite1")(
@@ -25,7 +25,7 @@ suite("all suites")(
     test("test2")(???),
     test("test3")(???)
   )
-).provideXYZShared(sharedLayer)
+).provideShared(sharedLayer)
 ```
 
 To demonstrate this, let's try an example. In this example, instead of using the built-in features of the ZIO Test, we want to write our own basic solution to count the number of times tests are executed.
