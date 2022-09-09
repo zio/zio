@@ -67,7 +67,7 @@ trait TimeVariants {
   final def instant(min: Instant, max: Instant)(implicit trace: Trace): Gen[Any, Instant] = {
 
     def genSecond(min: Instant, max: Instant): Gen[Any, Long] =
-      Gen.long(min.getEpochSecond, max.getEpochSecond - 1)
+      Gen.long(min.getEpochSecond, max.getEpochSecond)
 
     def genNano(min: Instant, max: Instant, second: Long): Gen[Any, Long] = {
       val minNano = if (min.getEpochSecond == second) min.getNano.toLong else 0L
