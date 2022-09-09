@@ -192,7 +192,7 @@ trait TimeVariants {
    */
   final def instant(min: Instant, max: Instant): Gen[Random, Instant] = {
 
-    def genSecond(min: Instant, max: Instant): Gen[Random, Long] = Gen.long(min.getEpochSecond, max.getEpochSecond - 1)
+    def genSecond(min: Instant, max: Instant): Gen[Random, Long] = Gen.long(min.getEpochSecond, max.getEpochSecond)
 
     def genNano(min: Instant, max: Instant, second: Long): Gen[Random, Long] = {
       val minNano = if (min.getEpochSecond == second) min.getNano.toLong else 0L
