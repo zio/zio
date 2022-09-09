@@ -197,7 +197,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * of the effects that it is applied to. To call this method, the input type
    * of the metric must be `Throwable`.
    */
-  final def trackDefect(implicit ev: Throwable <:< In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
+  final def trackDefect(implicit ev: Throwable <:< In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     trackDefectWith(identity(_))
 
   /**
@@ -205,12 +205,12 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
    * applying the specified function to the defect throwables of the effects
    * that the aspect is applied to.
    */
-  final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] =
-    new ZIOAspect[Nothing, Any, Nothing, Throwable, Nothing, Any] {
+  final def trackDefectWith(f: Throwable => In): ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZIOAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       val updater: Throwable => Unit =
         defect => unsafe.update(f(defect))(Unsafe.unsafe)
 
-      def apply[R, E <: Throwable, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         zio.tapDefect(cause => ZIO.succeed(cause.defects.foreach(updater)))
     }
 
