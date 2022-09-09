@@ -518,7 +518,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
         @tailrec
         def loop(die: Cause.Die, result: List[Unified]): List[Unified] = {
           val extra =
-            if (stackless) Chunk.empty else Chunk.fromIterable(die.value.getStackTrace.headOption)
+            if (stackless) Chunk.empty
+            else Chunk.fromArray(die.value.getStackTrace.takeWhile(_.getClassName != "zio.internal.FiberRuntime"))
 
           val unified =
             Unified(die.trace.fiberId, die.value.getClass.getName(), die.value.getMessage(), extra ++ die.trace.toJava)
