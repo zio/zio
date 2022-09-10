@@ -86,7 +86,7 @@ val stream : ZIO[Any, IOException, Unit]             =
 
 Similar to the `ZStream` data type, we can create a `ZSink` using `fail` and `succeed` methods.
 
-A sink that doesn't consume any element from its upstream and successes with a value of `Int` type:
+A sink that doesn't consume any element from its upstream and succeeds with a value of `Int` type:
 
 ```scala mdoc:silent:nest
 val succeed: ZSink[Any, Any, Any, Nothing, Int] = ZSink.succeed(5)
