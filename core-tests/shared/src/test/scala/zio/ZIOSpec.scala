@@ -2606,6 +2606,7 @@ object ZIOSpec extends ZIOBaseSpec {
                           step.await *> ZIO.succeed(k(unexpectedPlace.update(1 :: _)))
                         }
                       }
+                      ()
                     }
                     .ensuring(ZIO.async[Any, Nothing, Unit] { _ =>
                       Unsafe.unsafe { implicit unsafe =>
@@ -2613,6 +2614,7 @@ object ZIOSpec extends ZIOBaseSpec {
                           step.succeed(())
                         }
                       }
+                      ()
                     //never complete
                     })
                     .ensuring(unexpectedPlace.update(2 :: _))

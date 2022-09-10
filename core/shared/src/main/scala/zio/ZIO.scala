@@ -507,6 +507,8 @@ sealed trait ZIO[-R, +E, +A]
    * logic built on `ensuring`, see `ZIO#acquireReleaseWith`.
    */
   final def ensuring[R1 <: R](finalizer: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
+    ZIO.Ensuring(trace, self, () => finalizer)
+    /*
     ZIO.uninterruptibleMask { restore =>
       restore(self).foldCauseZIO(
         cause1 =>
@@ -514,7 +516,7 @@ sealed trait ZIO[-R, +E, +A]
             .foldCauseZIO(cause2 => ZIO.refailCause(cause1 ++ cause2), _ => ZIO.refailCause(cause1)),
         a => finalizer.map(_ => a)
       )
-    } // FIXME: This has to be interned to avoid this overhead
+    }*/ // FIXME: This has to be interned to avoid this overhead
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
@@ -5444,10 +5446,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         }
 
       case object MakeInterruptible extends UpdateRuntimeFlags {
-        val update: RuntimeFlags.Patch = RuntimeFlags.enable(RuntimeFlag.Interruption)
+        final val update = RuntimeFlags.enable(RuntimeFlag.Interruption)
       }
       case object MakeUninterruptible extends UpdateRuntimeFlags {
-        val update: RuntimeFlags.Patch = RuntimeFlags.disable(RuntimeFlag.Interruption)
+        final val update = RuntimeFlags.disable(RuntimeFlag.Interruption)
       }
     }
     final case class UpdateTrace(trace: Trace) extends EvaluationStep
@@ -5459,13 +5461,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       def fromFailure[R, E1, E2, A](
         f: Cause[E1] => ZIO[R, E2, A]
       )(implicit trace0: Trace): EvaluationStep = ZIO.OnFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], f)
+
+      def fromSuccessAndFailure[R, E1, E2, A, B](successK: A => ZIO[R, E2, B], failureK: Cause[E1] => ZIO[R, E2, B])(implicit trace0: Trace): EvaluationStep = 
+        ZIO.OnSuccessAndFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], successK, failureK)
     }
   }
 
   private[zio] final case class Sync[A](trace: Trace, eval: () => A) extends ZIO[Any, Nothing, A]
   private[zio] final case class Async[R, E, A](
     trace: Trace,
-    registerCallback: (ZIO[R, E, A] => Unit) => Any,
+    registerCallback: (ZIO[R, E, A] => Unit) => ZIO[R, E, A],
     blockingOn: () => FiberId
   ) extends ZIO[R, E, A]
   private[zio] final case class OnSuccessAndFailure[R, E1, E2, A, B](
@@ -5535,6 +5540,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     process: A => Any
   ) extends ZIO[R, E, Unit]
   private[zio] final case class YieldNow(trace: Trace) extends ZIO[Any, Nothing, Unit]
+  private[zio] final case class Ensuring[R, E, A](trace: Trace, effect: ZIO[R, E, A], finalizer0: () => URIO[R, Any]) extends ZIO[R, E, A] {
+    def finalizer = finalizer0()
+  }
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]

@@ -663,9 +663,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def initiateAsync(runtimeFlags: RuntimeFlags, asyncRegister: (ZIO[Any, Any, Any] => Unit) => Any)(implicit
+  private def initiateAsync(runtimeFlags: RuntimeFlags, asyncRegister: (ZIO[Any, Any, Any] => Unit) => ZIO[Any, Any, Any])(implicit
     unsafe: Unsafe
-  ): Unit = {
+  ): ZIO[Any, Any, Any] = {
     val alreadyCalled = new AtomicBoolean(false)
 
     val callback = (effect: ZIO[Any, Any, Any]) => {
@@ -677,11 +677,28 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (RuntimeFlags.interruptible(runtimeFlags)) self.asyncInterruptor = callback
 
     try {
-      asyncRegister(callback)
+      val sync = asyncRegister(callback)
+
+      if (sync ne null) {
+        if (alreadyCalled.compareAndSet(false, true)) sync 
+        else {
+          log(
+            () =>
+              s"Async operation attempted synchronous resumption, but its callback was already invoked; synchronous value will be discarded",
+            Cause.empty,
+            ZIO.someError,
+            id.location
+          )
+
+          null.asInstanceOf[ZIO[Any, Any, Any]]
+        }
+      } else sync 
     } catch {
       case throwable: Throwable =>
         if (isFatal(throwable)) handleFatalError(throwable)
         else callback(Exit.Failure(Cause.die(throwable)))
+
+        null.asInstanceOf[ZIO[Any, Any, Any]]
     }
   }
 
@@ -711,6 +728,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
   private[zio] def isAlive()(implicit unsafe: Unsafe): Boolean =
     _exitValue eq null
+
+  private[zio] def isDone()(implicit unsafe: Unsafe): Boolean =
+    _exitValue ne null
 
   /**
    * Determines if the specified throwable is fatal, based on the fatal errors
@@ -982,9 +1002,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               self.asyncTrace = lastTrace
               self.asyncBlockingOn = effect.blockingOn()
 
-              initiateAsync(runtimeFlags, effect.registerCallback)
-
-              cur = null
+              cur = initiateAsync(runtimeFlags, effect.registerCallback)
 
               while (cur eq null) {
                 cur = drainQueueAfterAsync()
@@ -1180,6 +1198,115 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               } else {
                 cur = ZIO.unit
               }
+
+            case ensuring: Ensuring[_, _, _] => 
+              val effect = ensuring.effect.asInstanceOf[ZIO[Any, Any, Any]]
+
+              // The finalizer needs to disable interruption, so we do some prep work here to 
+              // compute both what the new runtime flags will be (during finalization) and to 
+              // compute what the reversion of the runtime flags will be (after finalization):
+              val disableInterrupt = RuntimeFlags.disable(RuntimeFlag.Interruption)
+              val newRuntimeFlags  = RuntimeFlags.patch(disableInterrupt)(runtimeFlags)
+              
+              val revertFlags = RuntimeFlags.diff(newRuntimeFlags, runtimeFlags)
+
+              cur =
+                try {
+                  // Execute the main effect using the current runtime flags:
+                  var result: Exit[Any, Any] = 
+                    Exit.succeed(runLoop(effect, currentDepth + 1, Chunk.empty, runtimeFlags))
+
+                  try {
+                    // Now disable interruption:
+                    runtimeFlags = patchRuntimeFlags(runtimeFlags, disableInterrupt)
+
+                    // Now execute the finalizer with the new runtime flags (where interruption 
+                    // has been temporarily disabled):
+                    runLoop(ensuring.finalizer, currentDepth + 1, Chunk.empty, newRuntimeFlags)
+
+                    // Finally, revert the act of disabling interruption:
+                    runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
+                  } catch {
+                    case zioError: ZIOError => 
+                      // The finalizer failed, so we need to revert the act of disabling 
+                      // interruption, and then fail with the cause of the finalizer:
+                      runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
+
+                      result = Exit.failCause(zioError.cause)
+
+                    case reifyStack: ReifyStack => 
+                      // In this branch, the effect succeeded, but the finalizer cannot complete
+                      // synchronously, due to a trampoline, async boundary, or other operation.
+                      // So we encode (on the heap) the reversion of the act of disabling 
+                      // interruption, which will happen after the completion of the finalizer:
+                      self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(revertFlags)
+
+                      throw reifyStack 
+                  }
+
+                  result
+                } catch {
+                  case zioError1: ZIOError => 
+                    // The effect failed to execute due to error or interruption. We still 
+                    // have to run the finalizer. First, disable interruption so we can run 
+                    // the finalizer safely:
+                    runtimeFlags = patchRuntimeFlags(runtimeFlags, disableInterrupt)
+
+                    try {
+                      // Now, in the happy path, we can execute the finalizer on the stack, using
+                      // the interruption-disabled runtime flags:
+                      runLoop(ensuring.finalizer, currentDepth + 1, Chunk.empty, newRuntimeFlags)
+
+                      // We succeeded to execute the finalizer. So revert the act of disabling
+                      // interruption:
+                      runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
+
+                      // Finally, rethrow the failure of the original effect:
+                      Exit.failCause(zioError1.cause)
+                    } catch {
+                      case zioError2: ZIOError => 
+                        // The finalizer had an error. So we need to immediately revert the act of 
+                        // disabling interruption:
+                        runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
+
+                        // Now we fail with a new error that includes the cause of the original 
+                        // effect's failure, together with the finalizer's failure:
+                        ZIO.refailCause(zioError1.cause ++ zioError2.cause)(ensuring.trace)
+
+                      case reifyStack: ReifyStack => 
+                        // In this branch, the effect failed, but the finalizer cannot continue to 
+                        // execute synchronously, because of a trampoline, async boundary, or other
+                        // operation. So we have to encode the reversion of the act of disabling
+                        // interruption, followed by rethrowing the original effect's failure, 
+                        // possibly with a new failure of the finalizer (if it fails):
+                        self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(revertFlags)
+                        self.reifiedStack += EvaluationStep.Continuation.fromSuccessAndFailure(
+                          (cause2: Cause[Any]) => ZIO.refailCause(zioError1.cause ++ cause2)(ensuring.trace),
+                          (_ : Any) => ZIO.refailCause(zioError1.cause)(ensuring.trace)
+                        )(ensuring.trace)
+
+                        throw reifyStack 
+                    }
+
+                  case reifyStack: ReifyStack =>
+                    // In this branch, the original effect could not continue execution, because of 
+                    // a trampoline, async boundary, or other operation. So we have to encode the 
+                    // entire finalization process on the heap, which consists of waiting until 
+                    // the effect is done executing, then disabling interruption, then executing
+                    // the finalizer (aggregating failures if necessary), then reverting the act of 
+                    // disabling interruption.
+                    self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(disableInterrupt)
+                    self.reifiedStack += EvaluationStep.Continuation.fromSuccessAndFailure(
+                      (success: Any) => ensuring.finalizer.map(_ => success)(ensuring.trace),
+                      (cause1: Cause[Any]) => ensuring.finalizer.foldCauseZIO(
+                        (cause2: Cause[Any]) => ZIO.refailCause(cause1 ++ cause2)(ensuring.trace),
+                        ( _ : Any)  => ZIO.refailCause(cause1)(ensuring.trace)
+                      )(ensuring.trace)
+                    )(ensuring.trace)
+                    self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(revertFlags)
+
+                    throw reifyStack 
+                }
           }
         } catch {
           case zioError: ZIOError =>
@@ -1393,7 +1520,7 @@ object FiberRuntime {
   private[zio] final val MaxTrampolinesBeforeYield = 5
   private[zio] final val MaxOperationsBeforeYield  = 1024
   private[zio] final val MaxDepthBeforeTrampoline  = 500
-  private[zio] final val MaxWorkStealingDepth      = MaxDepthBeforeTrampoline / 2
+  private[zio] final val MaxWorkStealingDepth      = 100 //MaxDepthBeforeTrampoline / 2
 
   private[zio] sealed trait EvaluationSignal
   private[zio] object EvaluationSignal {
