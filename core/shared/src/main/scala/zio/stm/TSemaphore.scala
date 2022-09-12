@@ -48,26 +48,69 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
+  private case class RequestResult(requested: Long, available: Long)
+
+  private sealed trait Request extends (ZSTM.internal.Journal => RequestResult)
+
+  private object Request {
+    def apply(min: Long, max: Long): Request = {
+      if (min == max) {
+        Const(min)
+      } else {
+        Range(min, max)
+      }
+    }
+  }
+
+  private case class Const(requested: Long) extends Request {
+    override def apply(journal: ZSTM.internal.Journal): RequestResult = {
+      assertNonNegative(requested)
+      val available: Long = permits.unsafeGet(journal)
+      RequestResult(requested, available)
+    }
+  }
+
+  private case class Range(min: Long, max: Long) extends Request {
+    override def apply(journal: ZSTM.internal.Journal): RequestResult = {
+      require(min <= max, s"Unexpected `$min > $max` passed to acquireRange.")
+
+      val available: Long = permits.unsafeGet(journal)
+      if (available < min) {
+        throw ZSTM.RetryException
+      }
+      val requested: Long = available.min(max)
+      assertNonNegative(requested)
+      RequestResult(requested, available)
+    }
+  }
+
   /**
    * Acquires a single permit in transactional context.
    */
   def acquire: USTM[Unit] =
     acquireN(1L)
 
-  /**
-   * Acquires the specified number of permits in a transactional context.
-   */
-  def acquireN(n: Long): USTM[Unit] =
+  private def acquireN(request: Request): USTM[Long] =
     ZSTM.Effect { (journal, _, _) =>
-      assertNonNegative(n)
-
-      val value = permits.unsafeGet(journal)
+      val RequestResult(n, value) = request(journal)
 
       if (value < n) throw ZSTM.RetryException
       else {
         permits.unsafeSet(journal, value - n)
+        n
       }
     }
+
+  /**
+   * Acquires the specified number of permits in a transactional context.
+   */
+  def acquireN(n: Long): USTM[Unit] = {
+    acquireN(Const(n)).unit
+  }
+
+  def acquireRange(min: Long, max: Long): USTM[Long] = {
+    acquireN(Request(min, max))
+  }
 
   /**
    * Returns the number of available permits in a transactional context.
@@ -117,11 +160,27 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     ZSTM.acquireReleaseWith(acquireN(n))(_ => releaseN(n).commit)(_ => zio)
 
   /**
+   * Executes the specified effect, acquiring up to the specified number of permits
+   * immediately before the effect begins execution and releasing them
+   * immediately after the effect completes execution, whether by success,
+   * failure, or interruption.
+   */
+  def withPermitsRange[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZSTM.acquireReleaseWith(acquireRange(min, max))((actualN: Long) => releaseN(actualN).commit)(zio)
+
+  /**
    * Returns a scoped effect that describes acquiring the specified number of
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZSTM.acquireReleaseWith(acquireN(n))(_ => Scope.addFinalizer(releaseN(n).commit))(_ => ZIO.unit)
+
+  /**
+   * Returns a scoped effect that describes acquiring up to the specified number of
+   * permits and releasing them when the scope is closed.
+   */
+  def withPermitsRangeScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
+    ZSTM.acquireReleaseWith(acquireRange(min, max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(ZIO.succeedNow)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")

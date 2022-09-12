@@ -55,10 +55,24 @@ sealed trait Semaphore extends Serializable {
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
+   * Executes the specified workflow, acquiring at least `min` and up to `max` permits
+   * immediately before the workflow begins execution and releasing them
+   * immediately after the workflow completes execution, whether by success,
+   * failure, or interruption.
+   */
+  def withPermitsRange[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+
+  /**
    * Returns a scoped workflow that describes acquiring the specified number of
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
+
+  /**
+   * Returns a scoped workflow that describes acquiring at least `min` and at most `max`
+   * permits and releasing them when the scope is closed.
+   */
+  def withPermitsRangeScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long]
 }
 
 object Semaphore {
@@ -78,7 +92,11 @@ object Semaphore {
         semaphore.withPermitScoped
       def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         semaphore.withPermits(n)(zio)
+      override def withPermitsRange[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+        semaphore.withPermitsRange(min, max)(zio)
       def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
         semaphore.withPermitsScoped(n)
+      override def withPermitsRangeScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
+        semaphore.withPermitsRangeScoped(min, max)
     }
 }

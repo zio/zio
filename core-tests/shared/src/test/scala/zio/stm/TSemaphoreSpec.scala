@@ -1,6 +1,6 @@
 package zio.stm
 
-import zio.{Promise, ZIO, ZIOBaseSpec}
+import zio.{Promise, ZIO, ZIOBaseSpec, durationInt}
 import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
@@ -73,7 +73,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           fiber     <- effect.fork
           _         <- promise.await
           _         <- fiber.interrupt
-          permits   <- semaphore.permits.get.commit
+          permits   <- semaphore.available.commit
         } yield assert(permits)(equalTo(1L))
       } @@ nonFlaky,
       test("withPermit acquire is interruptible") {
@@ -88,9 +88,45 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         for {
           semaphore <- TSemaphore.make(2L).commit
           _         <- ZIO.scoped(semaphore.withPermitsScoped(2))
-          permits   <- semaphore.permits.get.commit
+          permits   <- semaphore.available.commit
         } yield assertTrue(permits == 2L)
-      }
+      },
+      test("acquireRange doesn't necessarily give the max requested number of permits") {
+        for {
+          semaphore <- TSemaphore.make(2L)
+          actual    <- semaphore.acquireRange(0L, 5L)
+          remaining <- semaphore.available
+        } yield {
+          assertTrue(actual == 2L)
+          assertTrue(remaining == 0L)
+        }
+      },
+      test("withPermitsRange passes the number of permits actually allotted") {
+        val maxPermits = 2L
+        for {
+          semaphore <- TSemaphore.make(maxPermits).commit
+          actualAndRemainingInEffect <-
+            semaphore.withPermitsRange(0L, 5L) { (actual: Long) =>
+              for (remainingInEffect <- semaphore.available.commit) yield {
+                (actual, remainingInEffect)
+              }
+            }
+          remainingWhenComplete <- semaphore.available.commit
+        } yield {
+          val (actual, remainingInEffect) = actualAndRemainingInEffect
+          assertTrue(actual == maxPermits)
+          assertTrue(remainingInEffect == 0L)
+          assertTrue(remainingWhenComplete == maxPermits)
+        }
+      },
+      test("withPermitsRange fails if the minimum number of permits is unavailable.") {
+        val transaction =
+          for {
+            semaphore <- TSemaphore.make(2L)
+            actual <- semaphore.acquireRange(3L, 5L)
+          } yield actual
+        transaction.commitEither *> assertTrue(false)
+      } @@ timeout(1.second) @@ failing
     )
   )
 
