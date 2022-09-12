@@ -43,7 +43,7 @@ trait ZIOCompanionVersionSpecific {
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
-      val cancelerRef = Ref.unsafe.make[URIO[R, Any]](ZIO.unit)(Unsafe.unsafe)
+      val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
 
       ZIO
         .Async[R, E, A](
@@ -52,13 +52,13 @@ trait ZIOCompanionVersionSpecific {
             val result = register(k(_))
 
             result match {
-              case Left(canceler) => cancelerRef.unsafe.set(canceler)(Unsafe.unsafe); null.asInstanceOf[ZIO[R, E, A]] 
+              case Left(canceler) => cancelerRef.set(canceler); null.asInstanceOf[ZIO[R, E, A]]
               case Right(done)    => done
             }
           },
           () => blockingOn
         )
-        .onInterrupt(cancelerRef.unsafe.get(Unsafe.unsafe))
+        .onInterrupt(cancelerRef.get())
     }
 
   /**

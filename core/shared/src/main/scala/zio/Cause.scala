@@ -599,8 +599,8 @@ object Cause extends Serializable {
       def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Boolean           = false
       def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Boolean = true
 
-      def bothCase(context: Any, left: Boolean, right: Boolean): Boolean               = left && right
-      def thenCase(context: Any, left: Boolean, right: Boolean): Boolean               = left && right
+      def bothCase(context: Any, left: Boolean, right: Boolean): Boolean           = left && right
+      def thenCase(context: Any, left: Boolean, right: Boolean): Boolean           = left && right
       def stacklessCase(context: Any, value: Boolean, stackless: Boolean): Boolean = value
     }
 

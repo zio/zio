@@ -507,16 +507,7 @@ sealed trait ZIO[-R, +E, +A]
    * logic built on `ensuring`, see `ZIO#acquireReleaseWith`.
    */
   final def ensuring[R1 <: R](finalizer: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.Ensuring(trace, self, () => finalizer)
-    /*
-    ZIO.uninterruptibleMask { restore =>
-      restore(self).foldCauseZIO(
-        cause1 =>
-          finalizer
-            .foldCauseZIO(cause2 => ZIO.refailCause(cause1 ++ cause2), _ => ZIO.refailCause(cause1)),
-        a => finalizer.map(_ => a)
-      )
-    }*/ // FIXME: This has to be interned to avoid this overhead
+    ZIO.Ensuring[R1, E, A](trace, self, (_, _) => finalizer)
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
@@ -1069,25 +1060,26 @@ sealed trait ZIO[-R, +E, +A]
    * or is interrupted.
    */
   final def onExit[R1 <: R](cleanup: Exit[E, A] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.acquireReleaseExitWith(ZIO.unit)((_, exit: Exit[E, A]) => cleanup(exit))(_ => self)
+    ZIO.Ensuring[R1, E, A](trace, self, (exit, _) => cleanup(exit))
 
   /**
    * Runs the specified effect if this effect is interrupted.
    */
   final def onInterrupt[R1 <: R](cleanup: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    onInterrupt(_ => cleanup)
+    onExit {
+      case Exit.Failure(cause) => if (cause.isInterruptedOnly) cleanup else ZIO.unit
+      case _                   => ZIO.unit
+    }
 
   /**
    * Calls the specified function, and runs the effect it returns, if this
    * effect is interrupted.
    */
   final def onInterrupt[R1 <: R](cleanup: Set[FiberId] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.uninterruptibleMask { restore =>
-      restore(self).foldCauseZIO(
-        cause =>
-          if (cause.isInterrupted) cleanup(cause.interruptors) *> ZIO.refailCause(cause) else ZIO.refailCause(cause),
-        a => ZIO.succeedNow(a)
-      )
+    // TODO: isInterrupted or isInterruptedOnly?
+    onExit {
+      case Exit.Failure(cause) => if (cause.isInterruptedOnly) cleanup(cause.interruptors) else ZIO.unit
+      case _                   => ZIO.unit
     }
 
   /**
@@ -1097,12 +1089,12 @@ sealed trait ZIO[-R, +E, +A]
   final def onTermination[R1 <: R](
     cleanup: Cause[Nothing] => URIO[R1, Any]
   )(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.acquireReleaseExitWith(ZIO.unit)((_, eb: Exit[E, A]) =>
-      eb match {
-        case Exit.Failure(cause) => cause.failureOrCause.fold(_ => ZIO.unit, cleanup)
-        case _                   => ZIO.unit
-      }
-    )(_ => self)
+    onExit {
+      case Exit.Success(_) => ZIO.unit
+      case Exit.Failure(cause) =>
+        if (cause.isFailure) ZIO.unit
+        else cleanup(cause.asInstanceOf[Cause[Nothing]])
+    }
 
   /**
    * Executes this effect, skipping the error but returning optionally the
@@ -5462,7 +5454,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         f: Cause[E1] => ZIO[R, E2, A]
       )(implicit trace0: Trace): EvaluationStep = ZIO.OnFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], f)
 
-      def fromSuccessAndFailure[R, E1, E2, A, B](successK: A => ZIO[R, E2, B], failureK: Cause[E1] => ZIO[R, E2, B])(implicit trace0: Trace): EvaluationStep = 
+      def fromSuccessAndFailure[R, E1, E2, A, B](successK: A => ZIO[R, E2, B], failureK: Cause[E1] => ZIO[R, E2, B])(
+        implicit trace0: Trace
+      ): EvaluationStep =
         ZIO.OnSuccessAndFailure(trace0, null.asInstanceOf[ZIO[R, E1, A]], successK, failureK)
     }
   }
@@ -5540,9 +5534,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     process: A => Any
   ) extends ZIO[R, E, Unit]
   private[zio] final case class YieldNow(trace: Trace) extends ZIO[Any, Nothing, Unit]
-  private[zio] final case class Ensuring[R, E, A](trace: Trace, effect: ZIO[R, E, A], finalizer0: () => URIO[R, Any]) extends ZIO[R, E, A] {
-    def finalizer = finalizer0()
-  }
+  private[zio] final case class Ensuring[R, E, A](
+    trace: Trace,
+    effect: ZIO[R, E, A],
+    finalizer: (Exit[E, A], Fiber.Runtime[Any, A]) => URIO[R, Any]
+  ) extends ZIO[R, E, A]
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
@@ -5821,6 +5817,11 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   final def isInterrupted: Boolean = self match {
     case Success(_) => false
     case Failure(c) => c.isInterrupted
+  }
+
+  final def isInterruptedOnly: Boolean = self match {
+    case Success(_) => false
+    case Failure(c) => c.isInterruptedOnly
   }
 
   /**
