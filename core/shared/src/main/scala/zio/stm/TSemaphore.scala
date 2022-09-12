@@ -160,7 +160,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     ZSTM.acquireReleaseWith(acquireN(n))(_ => releaseN(n).commit)(_ => zio)
 
   /**
-   * Executes the specified effect, acquiring up to the specified number of permits
+   * Executes the specified effect, acquiring at least `min` and at most `max` permits
    * immediately before the effect begins execution and releasing them
    * immediately after the effect completes execution, whether by success,
    * failure, or interruption.
@@ -176,7 +176,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     ZSTM.acquireReleaseWith(acquireN(n))(_ => Scope.addFinalizer(releaseN(n).commit))(_ => ZIO.unit)
 
   /**
-   * Returns a scoped effect that describes acquiring up to the specified number of
+   * Returns a scoped effect that describes acquiring at least `min` and at most `max`
    * permits and releasing them when the scope is closed.
    */
   def withPermitsRangeScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =

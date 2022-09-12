@@ -55,7 +55,7 @@ sealed trait Semaphore extends Serializable {
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
-   * Executes the specified workflow, acquiring at least `min` and up to `max` permits
+   * Executes the specified workflow, acquiring at least `min` and at most `max` permits
    * immediately before the workflow begins execution and releasing them
    * immediately after the workflow completes execution, whether by success,
    * failure, or interruption.
