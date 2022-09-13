@@ -58,4 +58,14 @@ There are also several integration libraries for Akka that cover a wide range of
 | Json                 | Alpakka JSON Streaming       | ZIO JSON           |
 | OrientDB             | Alpakka OrientDB             | ZIO Quill OrientDB |
 
-We also have several other libraries that may not be covered by the Akka ecosystem, but you can still use them. So we encourage you to check the ecosystem section of the ZIO website; take a look at the librarie, and see if they are suitable for your requirements for the migration process.
+We also have several other libraries that may not be covered by the Akka ecosystem, but you can still use them. So we encourage you to check the ecosystem section of the ZIO website; take a look at the libraries, and see if they are suitable for your requirements for the migration process.
+
+## Akka Actor Is Not Composable
+
+## Modeling Actors Using ZIO
+
+### Parallelism
+
+### Concurrent State (Low Contention)
+
+### Concurrent State (High Contention)
