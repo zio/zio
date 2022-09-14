@@ -154,7 +154,9 @@ ZIO.withParallelism(4) {
 } 
 ```
 
-### Concurrent State Management
+## Concurrent State Management
+
+### State Management in Akka
 
 The main purpose of Akka actors is to write concurrent stateful applications. Using Akka actors, we can have stateful actors without worrying about concurrent access to the shared state. In the following example, we have a simple `Counter` actor which accepts `inc` and `dec` messages and increments or decrements its internal state:
 
@@ -209,7 +211,40 @@ object MainApp extends App {
 
 Outside the actor, we haven't access to its internal states, so we can't modify it directly. We can only send messages to the actor and let it handle the state management on its own. Using this approach, we can have safe concurrent state management. If multiple actors send messages to this actor concurrently, they can't make the state inconsistent.
 
-### Event Sourcing
+### State Management in ZIO
+
+State management is very easy in ZIO in presence of the `Ref` data type. `Ref` models a mutable state which is safe for concurrent access:
+
+```scala mdoc:silent
+import zio._
+
+case class Counter(state: Ref[Int]) {
+  def inc = state.update(_ + 1)
+  def dec = state.update(_ - 1)
+  def get = state.get
+}
+
+object Counter {
+  def make = Ref.make(0).map(Counter(_))
+}
+```
+
+That's it! Very simple! We now we can use the counter in a program:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      c <- Counter.make
+      _ <- c.inc <&> c.inc <&> c.inc <&> c.dec
+      _ <- c.get.debug("The current value of the counter")
+    } yield ()
+}
+```
+
+## Event Sourcing
 
 Actors are a good fit for event sourcing. In event sourcing, we store the events that happened in the past and use them to reconstruct the current state of the application. Akka has a built-in solution called Akka Persistence.
 
