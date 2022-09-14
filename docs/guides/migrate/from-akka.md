@@ -85,6 +85,43 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 
 Let's see an example of each use-case in a simple application using Akka.
 
+### Parallelism
+
+We can achieve parallelism in Akka by creating multiple instances of an actor and sending messages to them. Akka takes care of how to route messages to these actors. In the following example, we have a simple `JobRunner` actor which accepts `Job` messages and runs them one by one:
+
+```scala mdoc:silent
+import akka.actor._
+
+case class Job(n: Int)
+
+class JobRunner extends Actor {
+  override def receive = { case Job(n) =>
+    println(s"job$n — started")
+    Thread.sleep(1000)
+    println(s"job$n — finished")
+  }
+}
+```
+
+If we have plenty of jobs to run, we can create a pool of `JobRunner` actors and send them jobs to make them run in parallel:
+
+```scala mdoc:compile-only
+import akka.actor._
+import akka.routing.RoundRobinPool
+
+object MainApp extends scala.App {
+  val actorSystem = ActorSystem("parallel-app")
+  val jobRunner = actorSystem.actorOf(
+    Props[JobRunner].withRouter(RoundRobinPool(4)),
+    "job-runner"
+  )
+
+  for (job <- (1 to 10).map(Job)) {
+    jobRunner ! job
+  }
+}
+```
+
 ## Modeling Actors Using ZIO
 
 ### Parallelism
