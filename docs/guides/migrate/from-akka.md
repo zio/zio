@@ -122,10 +122,60 @@ object MainApp extends scala.App {
 }
 ```
 
+### Concurrent State Management
+
+The main purpose of Akka actors is to write concurrent stateful applications. Using Akka actors, we can have stateful actors without worrying about concurrent access to the shared state. In the following example, we have a simple `Counter` actor which accepts `inc` and `dec` messages and increments or decrements its internal state:
+
+```scala mdoc:silent
+import akka.actor.Actor
+
+class Counter extends Actor {
+  private var state = 0
+
+  override def receive: Receive = {
+    case "inc" =>
+      state += 1
+    case "dec" =>
+      state -= 1
+    case "get" =>
+      sender() ! state
+  }
+}
+```
+
+Now we can create an instance of the `Counter` actor and send it `inc` and `dec` messages to increment and decrement its internal state:
+
+```scala mdoc:compile-only
+import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.util.{Failure, Success}
+
+object MainApp extends App {
+  val system = ActorSystem("counter-app")
+  val counterActor = system.actorOf(Props[Counter], "counter")
+
+  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  implicit val timeout: Timeout = Timeout(1.second)
+
+  counterActor ! "inc"
+  counterActor ! "inc"
+  counterActor ! "inc"
+  counterActor ! "dec"
+
+  (counterActor ? "get").onComplete {
+    case Success(v) =>
+      println(s"The current value of counter: $v")
+    case Failure(e) =>
+      println(s"Failed to receive the result from the counter: ${e.getMessage}")
+  }
+
+}
+```
+
+Outside the actor, we haven't access to its internal states, so we can't modify it directly. We can only send messages to the actor and let it handle the state management on its own. Using this approach, we can have safe concurrent state management. If multiple actors send messages to this actor concurrently, they can't make the state inconsistent.
+
 ## Modeling Actors Using ZIO
 
-### Parallelism
-
-### Concurrent State (Low Contention)
-
-### Concurrent State (High Contention)
