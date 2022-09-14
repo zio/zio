@@ -85,7 +85,9 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 
 Let's see an example of each use-case in a simple application using Akka.
 
-### Parallelism
+## Parallelism
+
+### Parallelism in Akka
 
 We can achieve parallelism in Akka by creating multiple instances of an actor and sending messages to them. Akka takes care of how to route messages to these actors. In the following example, we have a simple `JobRunner` actor which accepts `Job` messages and runs them one by one:
 
@@ -120,6 +122,36 @@ object MainApp extends scala.App {
     jobRunner ! job
   }
 }
+```
+
+### Parallelism in ZIO
+
+In ZIO we can achieve the same functionality easily by using `ZIO.foreachPar` operators:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  def jobRunner(n: Int) =
+    for {
+      _ <- Console.printLine(s"job$n - started")
+      _ <- ZIO.sleep(1.second)
+      _ <- Console.printLine(s"job$n - finished")
+    } yield ()
+
+  val jobs = (1 to 10)
+  
+  def run = ZIO.foreachParDiscard(jobs)(jobRunner)
+}
+```
+
+We use `ZIO.withParallelism` operator to change the default parallelism factor:
+
+```scala
+ZIO.withParallelism(4) {
+  ZIO.foreachParDiscard(jobs)(jobRunner)
+} 
 ```
 
 ### Concurrent State Management
@@ -183,7 +215,7 @@ Actors are a good fit for event sourcing. In event sourcing, we store the events
 
 In the following example, we have a simple `PersistentCounter` actor which accepts `inc` and `dec` messages and increments or decrements in its internal state and also sores incoming events in persistent storage. When the actor is restarted, it will recover its state from the persistent storage:
 
-```scala mdoc:silent
+```scala mdoc:compile-only
 import akka.actor.{ActorSystem, Props}
 import akka.pattern.ask
 import akka.persistence._
@@ -233,6 +265,10 @@ object MainApp extends App {
 
 }
 ```
+
+### Clustering
+
+
 
 ## Modeling Actors Using ZIO
 
