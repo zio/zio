@@ -163,7 +163,7 @@ object MainApp extends ZIOAppDefault {
 
 ## Dependency Injection and Service Pattern
 
-## Dependency Injection When Writing Services
+### Dependency Injection When Writing Services
 
 When writing services, we might want to use other services. In such cases, we would like dependent services injected into our service. This is where we need to use dependency injection in order to write services.
 
@@ -248,7 +248,7 @@ object MainApp extends ZIOAppDefault {
 
 ```
 
-## Dependency Injection When Writing Services Using Interfaces
+### Dependency Injection When Writing Services Using Interfaces
 
 Although dependency injection is not about coding to the interface, it is a good pattern to have testable and configurable programs. 
 
