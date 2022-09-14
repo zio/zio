@@ -60,7 +60,17 @@ There are also several integration libraries for Akka that cover a wide range of
 
 We also have several other libraries that may not be covered by the Akka ecosystem, but you can still use them. So we encourage you to check the ecosystem section of the ZIO website; take a look at the libraries, and see if they are suitable for your requirements for the migration process.
 
-## Akka Actor Is Not Composable
+## Akka Actors Are Not Composable
+
+Akka actors are modeled as a partial function from `Any` to `Unit`:
+
+```scala
+type Actor = PartialFunction[Any, Unit]
+```
+
+In other words, an actor accepts something and does something with it. Both its input and output are not well typed. It is just like a blackbox:
+
+We know that having these types of functions is not composable. So it is hard to write small pieces of actors and compose them together to build large applications.
 
 ## Modeling Actors Using ZIO
 
