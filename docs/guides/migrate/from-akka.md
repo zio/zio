@@ -72,6 +72,19 @@ In other words, an actor accepts something and does something with it. Both its 
 
 We know that having these types of functions is not composable. So it is hard to write small pieces of actors and compose them together to build large applications.
 
+## Akka Use-cases
+
+Before starting the migration, we need to understand what types of use-cases developers use Akka for.
+
+Akka is a toolkit for building highly concurrent, distributed, and resilient message-driven applications. Here are the most common use-cases for Akka among developers:
+
+1. Parallelism
+2. Concurrent State Management
+3. Event Sourcing
+4. Distributed Computing
+
+Let's see an example of each use-case in a simple application using Akka.
+
 ## Modeling Actors Using ZIO
 
 ### Parallelism
