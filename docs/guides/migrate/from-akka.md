@@ -177,5 +177,62 @@ object MainApp extends App {
 
 Outside the actor, we haven't access to its internal states, so we can't modify it directly. We can only send messages to the actor and let it handle the state management on its own. Using this approach, we can have safe concurrent state management. If multiple actors send messages to this actor concurrently, they can't make the state inconsistent.
 
+### Event Sourcing
+
+Actors are a good fit for event sourcing. In event sourcing, we store the events that happened in the past and use them to reconstruct the current state of the application. Akka has a built-in solution called Akka Persistence.
+
+In the following example, we have a simple `PersistentCounter` actor which accepts `inc` and `dec` messages and increments or decrements in its internal state and also sores incoming events in persistent storage. When the actor is restarted, it will recover its state from the persistent storage:
+
+```scala mdoc:silent
+import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
+import akka.persistence._
+import akka.util.Timeout
+
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.util.{Failure, Success}
+
+class PersistentCounter extends PersistentActor {
+  private var state: Int = 0
+
+  override def receive = {
+    case "inc" => persist("inc")(_ => state += 1)
+    case "dec" => persist("dec")(_ => state -= 1)
+    case "get" => sender() ! state
+  }
+
+  override def receiveRecover = {
+    case "inc" => state += 1
+    case "dec" => state -= 1
+  }
+
+  override def receiveCommand: Receive = _ => ()
+
+  override def persistenceId: String = "my-persistence-id"
+}
+
+object MainApp extends App {
+  val system = ActorSystem("counter-app")
+  val counterActor = system.actorOf(Props[PersistentCounter], "counter")
+
+  implicit val ec: ExecutionContextExecutor = ExecutionContext.global
+  implicit val timeout: Timeout = Timeout(1.second)
+
+  counterActor ! "inc"
+  counterActor ! "inc"
+  counterActor ! "inc"
+  counterActor ! "dec"
+
+  (counterActor ? "get").onComplete {
+    case Success(v) =>
+      println(s"Current value of the counter: $v")
+    case Failure(e) =>
+      println(s"Failed to receive the result from the counter: ${e.getMessage}")
+  }
+
+}
+```
+
 ## Modeling Actors Using ZIO
 
