@@ -39,8 +39,7 @@ object Annotations {
     def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
       trace: Trace
     ): ZIO[R, TestFailure[E], TestSuccess] =
-      ref.get.tap(map => if (map != TestAnnotationMap.empty) ZIO.dieMessage("die") else ZIO.unit) *>
-        zio.foldZIO(e => ref.get.map(e.annotated).flip, a => ref.get.map(a.annotated))
+      zio.foldZIO(e => ref.get.map(e.annotated).flip, a => ref.get.map(a.annotated))
     def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
       ZIO.descriptorWith { descriptor =>
         get(TestAnnotation.fibers).flatMap {
