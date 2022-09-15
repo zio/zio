@@ -312,7 +312,7 @@ object MainApp extends ZIOAppDefault {
   def run = ZIO.scoped {
     for {
       actor <- Actor.make[Int](n => ZIO.debug(s"processing job-$n").delay(1.second))
-      _     <- ZIO.foreachParDiscard(1 to 100)(actor.tell)
+      _     <- ZIO.foreachParDiscard(1 to 1000)(actor.tell)
       _     <- ZIO.debug("All messages were sent to the actor!")
     } yield ()
   }
