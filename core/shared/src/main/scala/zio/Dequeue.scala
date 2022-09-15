@@ -47,7 +47,8 @@ trait Dequeue[+A] extends Serializable {
   /**
    * Retrieves the size of the queue, which is equal to the number of elements
    * in the queue. This may be negative if fibers are suspended waiting for
-   * elements to be added to the queue.
+   * elements to be added to the queue. It may be greater than the capacity if
+   * fibers are suspended waiting for elements to be removed from the queue.
    */
   def size(implicit trace: Trace): UIO[Int]
 
