@@ -80,8 +80,9 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 
 1. Parallelism
 2. Concurrent State Management
-3. Event Sourcing
-4. Distributed Computing
+3. Managing Highly Congestion Workflows
+4. Event Sourcing
+5. Distributed Computing
 
 Let's see an example of each use-case in a simple application using Akka.
 
@@ -215,7 +216,7 @@ Outside the actor, we haven't access to its internal states, so we can't modify 
 
 State management is very easy in ZIO in presence of the `Ref` data type. `Ref` models a mutable state which is safe for concurrent access:
 
-```scala mdoc:silent
+```scala mdoc:silent:nest
 import zio._
 
 case class Counter(state: Ref[Int]) {
@@ -244,11 +245,89 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+## Buffering in Highly Congestion Workloads
+
+Sometimes we have to deal with a high volume of incoming requests. In spite of parallelism and concurrency, we may not be able to handle all incoming requests within a short period of time. In such cases, we can use a buffer to store incoming requests temporarily and process them later.
+
+### Buffering Workloads in Akka
+
+Each actor in Akka has a mailbox that is used to store incoming messages. The mailbox is a FIFO queue. Actors only process one message at a time. If an actor receives more messages than it can process, the messages will be pending in the mailbox:
+
+```scala
+object MainApp extends scala.App {
+  val actorSystem = ActorSystem("parallel-app")
+  val worker = actorSystem.actorOf(Props[JobRunner], "worker")
+
+  val jobs = (1 to 1000).map(Job)
+
+  for (job <- jobs) {
+    worker ! job
+  }
+
+  println("All messages were sent to the actor!")
+}
+```
+
+If we run the above example, we can see that all messages are sent to the actor before, and the actor still processing messages from the mailbox one by one. By default, the mailbox is an unbounded FIFO queue. But we can also use a bounded mailbox or a custom priority mailbox.
+
+### Buffering Workloads in ZIO
+
+ZIO has a built-in data type called `Hub` which is useful for buffering workloads:
+
+```scala mdoc:silent
+import zio._
+import zio.stream._
+
+class Actor[I] private (private val hub: Hub[I]) {
+  def tell(i: I): UIO[Boolean] = hub.publish(i)
+}
+
+object Actor {
+  def make[I](receive: I => UIO[Unit]): ZIO[Scope, Nothing, Actor[I]] =
+    ZIO.acquireRelease {
+      for {
+        hub     <- Hub.unbounded[I]
+        promise <- Promise.make[Nothing, Unit]
+        startActor =
+          ZStream
+            .unwrapScoped(
+              ZStream.fromHubScoped(hub) <* promise.succeed(())
+            )
+            .mapZIO(receive)
+            .runDrain
+            .forever
+        fiber <- startActor.forkScoped
+        _ <- promise.await
+      } yield (new Actor(hub), fiber)
+    }(_._2.join).map(_._1)
+}
+```
+
+Now we can send a high load of messages to the actor and the actor will process them one by one:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run = ZIO.scoped {
+    for {
+      actor <- Actor.make[Int](n => ZIO.debug(s"processing job-$n").delay(1.second))
+      _     <- ZIO.foreachParDiscard(1 to 100)(actor.tell)
+      _     <- ZIO.debug("All messages were sent to the actor!")
+    } yield ()
+  }
+}
+```
+
 ## Event Sourcing
 
 Actors are a good fit for event sourcing. In event sourcing, we store the events that happened in the past and use them to reconstruct the current state of the application. Akka has a built-in solution called Akka Persistence.
 
 In the following example, we have a simple `PersistentCounter` actor which accepts `inc` and `dec` messages and increments or decrements in its internal state and also sores incoming events in persistent storage. When the actor is restarted, it will recover its state from the persistent storage:
+
+```scala mdoc:invisible:reset
+
+```
 
 ```scala mdoc:compile-only
 import akka.actor.{ActorSystem, Props}
@@ -281,17 +360,17 @@ class PersistentCounter extends PersistentActor {
 
 object MainApp extends App {
   val system = ActorSystem("counter-app")
-  val counterActor = system.actorOf(Props[PersistentCounter], "counter")
+  val counter = system.actorOf(Props[PersistentCounter], "counter")
 
   implicit val ec: ExecutionContextExecutor = ExecutionContext.global
   implicit val timeout: Timeout = Timeout(1.second)
 
-  counterActor ! "inc"
-  counterActor ! "inc"
-  counterActor ! "inc"
-  counterActor ! "dec"
+  counter ! "inc"
+  counter ! "inc"
+  counter ! "inc"
+  counter ! "dec"
 
-  (counterActor ? "get").onComplete {
+  (counter ? "get").onComplete {
     case Success(v) =>
       println(s"Current value of the counter: $v")
     case Failure(e) =>
@@ -303,7 +382,4 @@ object MainApp extends App {
 
 ### Clustering
 
-
-
 ## Modeling Actors Using ZIO
-
