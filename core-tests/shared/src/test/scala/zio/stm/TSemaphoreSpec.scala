@@ -94,7 +94,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
       test("acquireRange doesn't necessarily give the max requested number of permits") {
         for {
           semaphore <- TSemaphore.make(2L)
-          actual    <- semaphore.acquireRange(0L, 5L)
+          actual    <- semaphore.acquireBetween(0L, 5L)
           remaining <- semaphore.available
         } yield {
           assertTrue(actual == 2L)
@@ -106,7 +106,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         for {
           semaphore <- TSemaphore.make(maxPermits).commit
           actualAndRemainingInEffect <-
-            semaphore.withPermitsRange(0L, 5L) { (actual: Long) =>
+            semaphore.withPermitsBetween(0L, 5L) { (actual: Long) =>
               for (remainingInEffect <- semaphore.available.commit) yield {
                 (actual, remainingInEffect)
               }
@@ -119,11 +119,11 @@ object TSemaphoreSpec extends ZIOBaseSpec {
           assertTrue(remainingWhenComplete == maxPermits)
         }
       },
-      test("withPermitsRange fails if the minimum number of permits is unavailable.") {
+      test("withPermitsBetween fails if the minimum number of permits is unavailable.") {
         val transaction =
           for {
             semaphore <- TSemaphore.make(2L)
-            actual <- semaphore.acquireRange(3L, 5L)
+            actual <- semaphore.acquireBetween(3L, 5L)
           } yield actual
         transaction.commitEither *> assertTrue(false)
       } @@ timeout(1.second) @@ failing

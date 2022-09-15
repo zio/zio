@@ -57,7 +57,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
       if (min == max) {
         Const(min)
       } else {
-        Range(min, max)
+        Between(min, max)
       }
     }
   }
@@ -70,7 +70,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     }
   }
 
-  private case class Range(min: Long, max: Long) extends Request {
+  private case class Between(min: Long, max: Long) extends Request {
     override def apply(journal: ZSTM.internal.Journal): RequestResult = {
       require(min <= max, s"Unexpected `$min > $max` passed to acquireRange.")
 
@@ -108,7 +108,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     acquireN(Const(n)).unit
   }
 
-  def acquireRange(min: Long, max: Long): USTM[Long] = {
+  def acquireBetween(min: Long, max: Long): USTM[Long] = {
     acquireN(Request(min, max))
   }
 
@@ -165,8 +165,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * immediately after the effect completes execution, whether by success,
    * failure, or interruption.
    */
-  def withPermitsRange[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZSTM.acquireReleaseWith(acquireRange(min, max))((actualN: Long) => releaseN(actualN).commit)(zio)
+  def withPermitsBetween[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZSTM.acquireReleaseWith(acquireBetween(min, max))((actualN: Long) => releaseN(actualN).commit)(zio)
 
   /**
    * Returns a scoped effect that describes acquiring the specified number of
@@ -179,8 +179,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Returns a scoped effect that describes acquiring at least `min` and at most `max`
    * permits and releasing them when the scope is closed.
    */
-  def withPermitsRangeScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
-    ZSTM.acquireReleaseWith(acquireRange(min, max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(ZIO.succeedNow)
+  def withPermitsBetweenScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
+    ZSTM.acquireReleaseWith(acquireBetween(min, max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(ZIO.succeedNow)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
