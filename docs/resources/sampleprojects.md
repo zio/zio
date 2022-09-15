@@ -28,3 +28,4 @@ title:  "Sample Projects"
 - [Simple ZIO ScalaJS Skeleton](https://github.com/sb-dev/zio-scalajs) by [Samir Benzenine](https://github.com/sb-dev)
 - [Full ZIO Stack: A sample IM that uses zio, zio-redis, zio-actors, zio-schema, zio-streams, zio-crypto, tapir, akka-http](https://github.com/bitlap/zim) by [bitlap](https://github.com/bitlap/zim) (Notes in Chinese)
 - [JWT Auth based persisent (reactive MongoDB) RESTful API for managing notes with ZIO 2.0, Scala 3 and ZLayers](https://github.com/Ghurtchu/notes-rest-api) by [Anzori (Nika) Ghurtchumelia](https://github.com/Ghurtchu)
+- [ZIO 2.0 Restful webservice example using zio, zio-http, zio-json, quill, H2, twirl, zio-streams, zio-cache, zio-logging](https://github.com/Fancellu/zio-restful-webservice) by [Dino Fancellu](https://github.com/Fancellu)
