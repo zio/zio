@@ -18,7 +18,8 @@ package zio.internal.metrics
 
 private[zio] final case class MetricHook[-In, +Out](
   update: In => Unit,
-  get: () => Out
+  get: () => Out,
+  modify: In => Unit
 )
 
 private[zio] object MetricHook {

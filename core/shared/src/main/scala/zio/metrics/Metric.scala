@@ -74,6 +74,9 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
 
           override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
             self.unsafe.value(extraTags)
+
+          override def modify(in: In2, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.modify(f(in), extraTags)
         }
     }
 
@@ -101,6 +104,9 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
 
           override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out2 =
             f(self.unsafe.value(extraTags))
+
+          override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.modify(in, extraTags)
         }
     }
 
@@ -115,8 +121,19 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
 
           override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
             self.unsafe.value(extraTags)
+
+          override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.modify(in, extraTags)
         }
     }
+
+  /**
+   * Modifies the metric with the specified update message. For example, if the
+   * metric were a gauge, the update would increment the method by the provided
+   * amount.
+   */
+  final def modify(in: => In)(implicit trace: Trace): UIO[Unit] =
+    ZIO.succeed(unsafe.modify(in, Set.empty)(Unsafe.unsafe))
 
   /**
    * Returns a new metric, which is identical in every way to this one, except
@@ -147,6 +164,9 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
 
           override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
             self.unsafe.value(extraTags0 ++ extraTags)
+
+          override def modify(in: In, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.modify(in, extraTags0 ++ extraTags)
         }
     }
 
@@ -169,6 +189,9 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
 
           override def value(extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Out =
             self.unsafe.value(extraTags)
+
+          override def modify(in: In1, extraTags: Set[MetricLabel])(implicit unsafe: Unsafe): Unit =
+            self.unsafe.modify(in, f(in) ++ extraTags)
         }
     }.map(_ => ())
 
@@ -301,6 +324,7 @@ trait Metric[+Type, -In, +Out] extends ZIOAspect[Nothing, Any, Nothing, Any, Not
   private[zio] trait UnsafeAPI {
     def update(in: In, extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Unit
     def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Out
+    def modify(in: In, extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Unit
   }
 
   private[zio] def unsafe: UnsafeAPI
@@ -331,6 +355,12 @@ object Metric {
 
             def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): z2.Out =
               z2.zip(self.unsafe.value(extraTags), that.unsafe.value(extraTags))
+
+            def modify(in: uz.In, extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Unit = {
+              val (l, r) = uz.unzip(in)
+              self.unsafe.modify(l, extraTags)
+              that.unsafe.modify(r, extraTags)
+            }
           }
       }
   }
@@ -342,6 +372,14 @@ object Metric {
   }
 
   implicit class GaugeSyntax[In](gauge: Metric[MetricKeyType.Gauge, In, Any]) {
+    def decrement(implicit numeric: Numeric[In]): UIO[Unit] = gauge.modify(numeric.fromInt(-1))
+
+    def decrementBy(value: => In)(implicit numeric: Numeric[In]): UIO[Unit] = gauge.modify(numeric.negate(value))
+
+    def increment(implicit numeric: Numeric[In]): UIO[Unit] = gauge.modify(numeric.fromInt(1))
+
+    def incrementBy(value: => In)(implicit numeric: Numeric[In]): UIO[Unit] = gauge.modify(value)
+
     def set(value: => In): UIO[Unit] = gauge.update(value)
   }
 
@@ -403,6 +441,11 @@ object Metric {
 
           def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): key.keyType.Out =
             hook(extraTags).get()
+
+          def modify(in: key.keyType.In, extraTags: Set[MetricLabel] = Set.empty)(implicit
+            unsafe: Unsafe
+          ): Unit =
+            hook(extraTags).modify(in)
         }
 
       def hook(extraTags: Set[MetricLabel]): MetricHook[key.keyType.In, key.keyType.Out] = {
@@ -440,6 +483,10 @@ object Metric {
 
           def value(extraTags: Set[MetricLabel] = Set.empty)(implicit unsafe: Unsafe): Out =
             out
+
+          def modify(in: Any, extraTags: Set[MetricLabel] = Set.empty)(implicit
+            unsafe: Unsafe
+          ): Unit = ()
         }
     }
 
