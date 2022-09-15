@@ -21,23 +21,25 @@ trait Annotations extends Serializable {
     trace: Trace
   ): ZIO[R, TestFailure[E], TestSuccess]
   def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]]
+  private[zio] def unsafe: UnsafeAPI
+  private[zio] trait UnsafeAPI {
+    def annotate[V](key: TestAnnotation[V], value: V)(implicit unsafe: Unsafe): Unit
+  }
 }
 
 object Annotations {
 
   val tag: Tag[Annotations] = Tag[Annotations]
 
-  final case class Test(fiberRef: FiberRef[TestAnnotationMap]) extends Annotations {
+  final case class Test(ref: Ref.Atomic[TestAnnotationMap]) extends Annotations {
     def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit] =
-      fiberRef.update(_.annotate(key, value))
+      ref.update(_.annotate(key, value))
     def get[V](key: TestAnnotation[V])(implicit trace: Trace): UIO[V] =
-      fiberRef.get.map(_.get(key))
+      ref.get.map(_.get(key))
     def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
       trace: Trace
     ): ZIO[R, TestFailure[E], TestSuccess] =
-      fiberRef.locally(TestAnnotationMap.empty) {
-        zio.foldZIO(e => fiberRef.get.map(e.annotated).flip, a => fiberRef.get.map(a.annotated))
-      }
+      zio.foldZIO(e => ref.get.map(e.annotated).flip, a => ref.get.map(a.annotated))
     def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
       ZIO.descriptorWith { descriptor =>
         get(TestAnnotation.fibers).flatMap {
@@ -48,6 +50,11 @@ object Annotations {
               .map(_.foldLeft(SortedSet.empty[Fiber.Runtime[Any, Any]])(_ ++ _))
               .map(_.filter(_.id != descriptor.id))
         }
+      }
+    private[zio] def unsafe: UnsafeAPI =
+      new UnsafeAPI {
+        def annotate[V](key: TestAnnotation[V], value: V)(implicit unsafe: Unsafe): Unit =
+          ref.unsafe.update(_.annotate(key, value))
       }
   }
 
@@ -78,8 +85,8 @@ object Annotations {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
       for {
-        fiberRef   <- FiberRef.make(TestAnnotationMap.empty)
-        annotations = Test(fiberRef)
+        ref        <- ZIO.succeed(Unsafe.unsafe(Ref.unsafe.make(TestAnnotationMap.empty)(_)))
+        annotations = Test(ref)
         _          <- withAnnotationsScoped(annotations)
       } yield annotations
     }

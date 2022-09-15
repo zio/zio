@@ -6,16 +6,6 @@ import zio.test.Assertion._
 object AnnotationsSpec extends ZIOBaseSpec {
 
   def spec = suite("annotationsSpec")(
-    test("withAnnotation executes specified effect with an empty annotation map") {
-      for {
-        _ <- Annotations.annotate(count, 1)
-        a <- Annotations.get(count)
-        map <- Annotations
-                 .withAnnotation(Annotations.annotate(count, 2) *> ZIO.succeed(TestSuccess.Ignored()))
-                 .map(_.annotations)
-        b = map.get(count)
-      } yield assert(a)(equalTo(1)) && assert(b)(equalTo(2))
-    },
     test("withAnnotation returns annotation map with result") {
       for {
         map <- Annotations
