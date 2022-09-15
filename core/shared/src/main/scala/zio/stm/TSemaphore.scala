@@ -118,15 +118,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
   /**
    * Acquire at most `max` permits in a transactional context.
    */
-  def acquireAtMost(max: Long): USTM[Long] = {
+  def acquireUpTo(max: Long): USTM[Long] = {
     acquireBetween(0, max)
-  }
-
-  /**
-   * Acquire at least `min` permits in a transactional context.
-   */
-  def acquireAtLeast(min: Long): USTM[Long] = {
-    acquireBetween(min, Long.MaxValue)
   }
 
   /**
@@ -191,17 +184,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * immediately after the effect completes execution, whether by success,
    * failure, or interruption.
    */
-  def withPermitsAtMost[R, E, A](max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZSTM.acquireReleaseWith(acquireAtMost(max))((actualN: Long) => releaseN(actualN).commit)(zio)
-
-  /**
-   * Executes the specified effect, acquiring at least the specified number of permits
-   * immediately before the effect begins execution and releasing them
-   * immediately after the effect completes execution, whether by success,
-   * failure, or interruption.
-   */
-  def withPermitsAtLeast[R, E, A](min: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZSTM.acquireReleaseWith(acquireAtLeast(min))((actualN: Long) => releaseN(actualN).commit)(zio)
+  def withPermitsUpTo[R, E, A](max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZSTM.acquireReleaseWith(acquireUpTo(max))((actualN: Long) => releaseN(actualN).commit)(zio)
 
   /**
    * Returns a scoped effect that describes acquiring the specified number of
@@ -221,15 +205,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Returns a scoped effect that describes acquiring at most `max`
    * permits and releasing them when the scope is closed.
    */
-  def withPermitsAtMostScoped(max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
-    ZSTM.acquireReleaseWith(acquireAtMost(max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(ZIO.succeedNow)
-
-  /**
-   * Returns a scoped effect that describes acquiring at least `min`
-   * permits and releasing them when the scope is closed.
-   */
-  def withPermitsAtLeastScoped(min: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
-    ZSTM.acquireReleaseWith(acquireAtLeast(min))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(ZIO.succeedNow)
+  def withPermitsUpToScoped(max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
+    ZSTM.acquireReleaseWith(acquireUpTo(max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(ZIO.succeedNow)
 
   private def assertNonNegative(n: Long): Unit =
     require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
