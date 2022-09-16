@@ -123,7 +123,7 @@ object TSemaphoreSpec extends ZIOBaseSpec {
         val transaction =
           for {
             semaphore <- TSemaphore.make(2L)
-            actual <- semaphore.acquireBetween(3L, 5L)
+            actual    <- semaphore.acquireBetween(3L, 5L)
           } yield actual
         transaction.commitEither *> assertTrue(false)
       } @@ timeout(1.second) @@ failing,
