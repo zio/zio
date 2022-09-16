@@ -3378,8 +3378,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * composite fiber that produces unit. This version is faster than [[forkAll]]
    * in cases where the results of the forked fibers are not needed.
    */
-  def forkAllDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: Trace): URIO[R, Unit] =
-    ZIO.suspendSucceed(as.foldRight[URIO[R, Unit]](ZIO.unit)(_.fork *> _))
+  def forkAllDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: Trace): URIO[R, Fiber[E, Unit]] =
+    ZIO.suspendSucceed(as.foldRight[URIO[R, Fiber[E, Unit]]](ZIO.succeedNow(Fiber.unit))(_.fork.zipWith(_)(_ *> _)))
 
   /**
    * Constructs a `ZIO` value of the appropriate type for the specified input.
