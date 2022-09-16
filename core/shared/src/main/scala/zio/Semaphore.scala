@@ -55,17 +55,16 @@ sealed trait Semaphore extends Serializable {
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
-   * Executes the specified workflow, acquiring at least `min` and at most `max` permits
-   * immediately before the workflow begins execution and releasing them
+   * Executes the specified workflow, acquiring at least `min` and at most `max`
+   * permits immediately before the workflow begins execution and releasing them
    * immediately after the workflow completes execution, whether by success,
    * failure, or interruption.
    */
   def withPermitsBetween[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
-
   /**
-   * Executes the specified effect, acquiring at most the specified number of permits
-   * immediately before the effect begins execution and releasing them
+   * Executes the specified effect, acquiring at most the specified number of
+   * permits immediately before the effect begins execution and releasing them
    * immediately after the effect completes execution, whether by success,
    * failure, or interruption.
    */
@@ -78,14 +77,14 @@ sealed trait Semaphore extends Serializable {
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 
   /**
-   * Returns a scoped workflow that describes acquiring at least `min` and at most `max`
-   * permits and releasing them when the scope is closed.
+   * Returns a scoped workflow that describes acquiring at least `min` and at
+   * most `max` permits and releasing them when the scope is closed.
    */
   def withPermitsBetweenScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long]
 
   /**
-   * Returns a scoped effect that describes acquiring at most `max`
-   * permits and releasing them when the scope is closed.
+   * Returns a scoped effect that describes acquiring at most `max` permits and
+   * releasing them when the scope is closed.
    */
   def withPermitsUpToScoped(max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long]
 }
@@ -107,7 +106,9 @@ object Semaphore {
         semaphore.withPermitScoped
       override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         semaphore.withPermits(n)(zio)
-      override def withPermitsBetween[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      override def withPermitsBetween[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit
+        trace: Trace
+      ): ZIO[R, E, A] =
         semaphore.withPermitsBetween(min, max)(zio)
       override def withPermitsUpTo[R, E, A](max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         semaphore.withPermitsUpTo(max)(zio)
