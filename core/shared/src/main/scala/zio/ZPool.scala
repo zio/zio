@@ -145,7 +145,7 @@ object ZPool {
       ZIO.done(result)
   }
 
-  private case class DefaultPool[R, E, A, S](
+  private case class DefaultPool[R, E, A](
     creator: ZIO[Scope, E, A],
     range: Range,
     isShuttingDown: Ref[Boolean],
