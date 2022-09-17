@@ -8,55 +8,53 @@ sidebar_label: "Migration from Akka"
 
 Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding features in ZIO:
 
-| Concerns                | Akka                  | ZIO                                   |
-|-------------------------|-----------------------|---------------------------------------|
-| Concurrency             | Akka Actor            | ZIO + Concurrent Data Types           |
-| Streaming               | Akka Streams          | ZIO Streams                           |
-| Event Sourcing and CQRS | Lagom Framework       | ZIO Entity                            |
-| Scheduling              | Akka Scheduler        | Built-in Support (Schedule data type) |
-| Cron-like Scheduling    | Akka Quartz Scheduler | Built-in Support (Schedule data type) |
-| Resiliency              | Akka CircuitBreaker   | Rezilience                            |
-| Logging                 | Built-in Support      | Built-in Support (ZLogger)            |
-| Testing                 | Akka Testkit          | ZIO Test                              |
-| Testing Streams         | Akka Stream Testkit   | ZIO Test                              |
-| Logging                 | Akka SL4J             | ZIO Logging SLF4J                     |
-| Caching                 | Akka HTTP Caching     | ZIO Cache                             |
-| Metrics                 | Yes                   | Yes                                   |
-| Supervison              | Yes                   | Yes                                   |
-| Monitoring              | Yes                   | Yes                                   |
+| Concerns                | Akka                                        | ZIO                                   |
+|-------------------------|---------------------------------------------|---------------------------------------|
+| Concurrency             | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3] |
+| Streaming               | [Akka Streams][4]                           | [ZIO Streams][5]                      |
+| Event Sourcing and CQRS | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]         |
+| Scheduling              | [Akka Scheduler][10]                        | [Schedule data type][11]              |
+| Cron-like Scheduling    | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]              |
+| Resiliency              | [Akka CircuitBreaker][13]                   | [Rezilience][14]                      |
+| Logging                 | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]      |
+| Testing                 | [Akka Testkit][17]                          | [ZIO Test][18]                        |
+| Testing Streams         | [Akka Stream Testkit][19]                   | [ZIO Test][18]                        |
+| Metrics                 | [Cluster Metric Extension][20]              | [Metrics][21]                         |
+| Supervision             | [Yes][22]                                   | Yes                                   |
+| Monitoring              | [Yes][22]                                   | Yes                                   |
 
 There are also several integration libraries for Akka that cover a wide range of technologies. If you use any of these technologies, you have a chance to use the equivalent of them in the ZIO ecosystem:
 
-| Tools                | Alpakka                      | ZIO Connect        |
-|----------------------|------------------------------|--------------------|
-| gRPC                 | Akka gRPC                    | ZIO gRPC           |
-| GraphQL              | Sangria                      | Caliban            |
-| Apache Kafka         | Akka Stream Kafka            | ZIO Kafka          |
-| AWS S3               | Alpakka S3                   | ZIO AWS S3         |
-| AWS SNS              | Alpakka SNS                  | ZIO AWS SNS        |
-| AWS SQS              | Alpakka SQA                  | ZIO SQS            |
-| AMQP                 | Alpakka AMQP                 | ZIO AMQP           |
-| AWS Kinesis          | Alpakka Kinesis              | ZIO Kinesis        |
-| AWS DynamoDB         | Alpakka DynamoDB             | ZIO DynamoDB       |
-| Pulsar               | Pulsar4s                     | ZIO Pulsar         |
-| AWS Lambda           | Alpakka AWS Lambda           | ZIO AWS Lambda     |
-|                      | Alpakka Cassandra            | ZIO Cassandra      |
-| Elasticsearch        | Alpakka Elasticsearch        | ZIO Elasticsearch  |
-| FTP                  | Alpakka  FTP                 | ZIO FTP            |
-|                      |                              | ZIO MongoDB        |
-| Redis                |                              | ZIO Redis          |
-| Data Codecs          | Alpakka Avro Parquet         | ZIO Schema         |
-| HTTP                 | Akka Http                    | ZIO HTTP           |
-|                      |                              | ZIO NIO            |
-| Slick                | Alpakka Slick                | ZIO Slick Interop  |
-| Streaming TCP        | Akka TCP                     | ZIO TCP            |
-|                      |                              | ZIO GCP Firestore  |
-| Google Cloud Pub/Sub | Alpakka Google Cloud Pub/Sub | ZIO GCP Pub/Sub    |
-|                      |                              | ZIO GCP Redis      |
-| Google Cloud Storage | Alpakka Google Cloud Storage | ZIO GCP Storage    |
-|                      | Alpakka Influxdb             | anakos/influx      |
-| Json                 | Alpakka JSON Streaming       | ZIO JSON           |
-| OrientDB             | Alpakka OrientDB             | ZIO Quill OrientDB |
+| Tools                | Alpakka                            | ZIO Connect                            |
+|----------------------|------------------------------------|----------------------------------------|
+| gRPC                 | [Akka gRPC][23]                    | [ZIO gRPC][24]                         |
+| GraphQL              | [Sangria][25]                      | [Caliban][26]                          |
+| Apache Kafka         | [Alpakka Kafka][27]                | [ZIO Kafka][28]                        |
+| AWS                  |                                    | [ZIO AWS][30]                          |
+| AWS S3               | [Alpakka S3][29]                   | [ZIO S3][32]                           |
+| AWS SNS              | [Alpakka SNS][31]                  | [ZIO AWS SNS][30]                      |
+| AWS SQS              | [Alpakka SQS][33]                  | [ZIO SQS][34], [ZIO AWS SQS][30]       |
+| AMQP                 | [Alpakka AMQP][35]                 | [ZIO AMQP][36]                         |
+| AWS Kinesis          | [Alpakka Kinesis][37]              | [ZIO Kinesis][38]                      |
+| AWS DynamoDB         | [Alpakka DynamoDB][39]             | [ZIO DynamoDB][40]                     |
+| Pulsar               | [Pulsar4s][41]                     | [ZIO Pulsar][42]                       |
+| AWS Lambda           | [Alpakka AWS Lambda][43]           | [ZIO Lambda][44], [ZIO AWS Lambda][30] |
+|                      | [Alpakka Cassandra][45]            | [ZIO Cassandra][46]                    |
+| Elasticsearch        | [Alpakka Elasticsearch][47]        | [ZIO Elasticsearch][48]                |
+| FTP                  | [Alpakka FTP][49]                  | [ZIO FTP][50]                          |
+|                      |                                    | [ZIO MongoDB][51]                      |
+| Redis                |                                    | [ZIO Redis][52]                        |
+| Data Codecs          | [Alpakka Avro Parquet][53]         | [ZIO Schema][54]                       |
+| HTTP                 | [Akka Http][55]                    | [ZIO HTTP][56]                         |
+|                      |                                    | [ZIO NIO][57]                          |
+| Slick                | [Alpakka Slick][58]                | [ZIO Slick Interop][59]                |
+| Streaming TCP        | [Akka TCP][60]                     | [ZIO TCP][61]                          |
+| Google Cloud Pub/Sub | [Alpakka Google Cloud Pub/Sub][62] | [ZIO GCP Pub/Sub][63]                  |
+| Google Cloud Storage | [Alpakka Google Cloud Storage][64] | [ZIO GCP Storage][63]                  |
+| Json                 | [Alpakka JSON Streaming][65]       | [ZIO JSON][66]                         |
+| OrientDB             | [Alpakka OrientDB][67]             | [ZIO Quill OrientDB][68]               |
+| Logging              | [Akka SL4J][69]                    | [ZIO Logging SLF4J][70]                |
+| Caching              | [Akka HTTP Caching][71]            | [ZIO Cache][72]                        |
 
 We also have several other libraries that may not be covered by the Akka ecosystem, but you can still use them. So we encourage you to check the ecosystem section of the ZIO website; take a look at the libraries, and see if they are suitable for your requirements for the migration process.
 
@@ -598,3 +596,76 @@ That's it! By using functional programming instead of Akka actors, we implemente
 ## Clustering
 
 ## Modeling Actors Using ZIO
+
+[1]: https://doc.akka.io/docs/akka/current/index.html
+[2]: https://zio.dev/reference/core/zio/
+[3]: https://zio.dev/reference/concurrency/
+[4]: https://doc.akka.io/docs/akka/current/stream/index.html
+[5]: ../../reference/stream
+[6]: https://www.lagomframework.com/
+[7]: https://github.com/thehonesttech/zio-entity
+[8]: https://doc.akka.io/docs/akka/current/persistence.html
+[9]: https://edomata.ir/
+[10]: https://doc.akka.io/docs/akka/2.5.32/scheduler.html
+[11]: ../../reference/schedule
+[12]: https://github.com/enragedginger/akka-quartz-scheduler
+[13]: https://doc.akka.io/docs/akka/current/common/circuitbreaker.html
+[14]: https://www.vroste.nl/rezilience/
+[15]: https://doc.akka.io/docs/akka/current/logging.html
+[16]: ../../guides/tutorials/enable-logging-in-a-zio-application.md
+[17]: https://doc.akka.io/docs/akka/current/typed/testing.html
+[18]: ../../reference/test
+[19]: https://doc.akka.io/docs/akka/current/stream/stream-testkit.html
+[20]: https://doc.akka.io/docs/akka/current/cluster-metrics.html
+[21]: ../../reference/metrics
+[22]: https://doc.akka.io/docs/akka/current/general/supervision.html
+[23]: https://doc.akka.io/docs/akka-grpc/current/index.html
+[24]: ../../ecosystem/community/zio-grpc.md
+[25]: https://github.com/sangria-graphql/sangria-akka-http-example
+[26]: ../../ecosystem/community/caliban.md
+[27]: https://doc.akka.io/docs/alpakka-kafka/current/home.html
+[28]: ../../ecosystem/officials/zio-kafka.md
+[29]: https://doc.akka.io/docs/alpakka/current/s3.html
+[30]: ../../ecosystem/officials/zio-aws.md
+[31]: https://doc.akka.io/docs/alpakka/current/sns.html
+[32]: https://github.com/zio/zio-s3
+[33]: https://doc.akka.io/docs/alpakka/current/sqs.html
+[34]: ../../ecosystem/officials/zio-sqs.md
+[35]: https://doc.akka.io/docs/alpakka/current/amqp.html
+[36]: ../../ecosystem/community/zio-amqp.md
+[37]: https://doc.akka.io/docs/alpakka/current/kinesis.html
+[38]: ../../ecosystem/community/zio-kinesis.md
+[39]: https://doc.akka.io/docs/alpakka/current/dynamodb.html
+[40]: https://github.com/zio/zio-dynamodb
+[41]: https://doc.akka.io/docs/alpakka/current/external/pulsar.html
+[42]: ../../ecosystem/community/zio-pulsar.md
+[43]: https://doc.akka.io/docs/alpakka/current/awslambda.html
+[44]: https://github.com/zio/zio-lambda
+[45]: https://doc.akka.io/docs/alpakka/current/cassandra.html
+[46]: https://github.com/palanga/zio-cassandra
+[47]: https://doc.akka.io/docs/alpakka/current/elasticsearch.html 
+[48]: https://github.com/aparo/zio-elasticsearch
+[49]: https://doc.akka.io/docs/alpakka/current/ftp.html
+[50]: ../../ecosystem/officials/zio-ftp.md
+[51]: https://github.com/mbannour/zio-mongodb
+[52]: ../../ecosystem/officials/zio-redis.md
+[53]: https://doc.akka.io/docs/alpakka/current/avroparquet.html
+[54]: ../../ecosystem/officials/zio-schema.md
+[55]: https://doc.akka.io/docs/akka-http/current/index.html
+[56]: ../../ecosystem/community/zio-http.md
+[57]: ../../ecosystem/officials/zio-nio.md
+[58]: https://doc.akka.io/docs/alpakka/current/slick.html
+[59]: ../../ecosystem/community/zio-slick-interop.md
+[60]: https://doc.akka.io/docs/alpakka/current/external/tcp.html
+[61]: https://github.com/searler/zio-tcp
+[62]: https://doc.akka.io/docs/alpakka/current/google-cloud-pub-sub.html
+[63]: https://github.com/zio/zio-gcp 
+[64]: https://doc.akka.io/docs/alpakka/current/google-cloud-storage.html
+[65]: https://doc.akka.io/docs/alpakka/current/data-transformations/json.html
+[66]: ../../ecosystem/officials/zio-json.md
+[67]: https://doc.akka.io/docs/alpakka/current/orientdb.html
+[68]: ../../ecosystem/community/quill.md
+[69]: https://doc.akka.io/docs/akka/current/typed/logging.html
+[70]: ../../ecosystem/officials/zio-logging.md
+[71]: https://doc.akka.io/docs/akka-http/current/common/caching.html
+[72]: ../../ecosystem/officials/zio-cache.md
