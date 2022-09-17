@@ -384,7 +384,7 @@ object MainApp extends App {
 
 ### Event Sourcing in ZIO
 
-In the ZIO ecosystem, we have a library called ZIO Entity which aims to provide a distributed event-sourcing solution. Although it is not production-ready yet, there is nothing to worry about. We can write our toolbox or use other libraries from other functional effect ecosystems using ZIO Interop.
+In the ZIO ecosystem, we have a community library called [ZIO Entity](https://github.com/thehonesttech/zio-entity) which aims to provide a distributed event-sourcing solution. Although it is not production-ready yet, there is nothing to worry about. We can write our toolbox or use other libraries from other functional effect ecosystems using ZIO Interop.
 
 Note that based on your use case, you may don't need any event-sourcing framework or library. So before using any library, you should consider if you really need it or not. In many cases, this is very dependent on our domain and business requirements, and using a library may mislead you in the wrong direction.
 
