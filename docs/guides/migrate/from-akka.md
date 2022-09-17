@@ -595,6 +595,6 @@ object ZIOStateAndHistory extends ZIOAppDefault {
 
 That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
 
-### Clustering
+## Clustering
 
 ## Modeling Actors Using ZIO
