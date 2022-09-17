@@ -388,7 +388,7 @@ In the ZIO ecosystem, we have a community library called [ZIO Entity](https://gi
 
 Note that based on your use case, you may don't need any event-sourcing framework or library. So before using any library, you should consider if you really need it or not. In many cases, this is very dependent on our domain and business requirements, and using a library may mislead you in the wrong direction.
 
-Anyway, there is a purely functional library called Edomata which provides a simple solution for event sourcing. It is written in a tagless final style with the Cats Effect. We can use ZIO Interop to use the ZIO effect to run an Edomaton.
+Anyway, there is a purely functional library called [Edomata](https://edomata.ir/) which provides a simple solution for event sourcing. It is written in a tagless final style using [Cats Effect](https://typelevel.org/cats-effect/) and [Fs2](https://fs2.io/). We can use ZIO Interop to use the ZIO effect to run an Edomaton.
 
 In the following example, we are going to use Edomata to implement a simple counter which is event sourced. To do so, we need to define Events, Commands, State, Rejections, and Transitions:
 
