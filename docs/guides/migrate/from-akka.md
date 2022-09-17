@@ -321,7 +321,9 @@ object MainApp extends ZIOAppDefault {
 
 ## Event Sourcing
 
-Actors are a good fit for event sourcing. In event sourcing, we store the events that happened in the past and use them to reconstruct the current state of the application. Akka has a built-in solution called Akka Persistence.
+### Event Sourcing in Akka
+
+In event sourcing, we store the events that happened in the past and use them to reconstruct the current state of the application. Akka has a built-in solution called Akka Persistence.
 
 In the following example, we have a simple `PersistentCounter` actor which accepts `inc` and `dec` messages and increments or decrements in its internal state and also sores incoming events in persistent storage. When the actor is restarted, it will recover its state from the persistent storage:
 
@@ -379,6 +381,219 @@ object MainApp extends App {
 
 }
 ```
+
+### Event Sourcing in ZIO
+
+In the ZIO ecosystem, we have a library called ZIO Entity which aims to provide a distributed event-sourcing solution. Although it is not production-ready yet, there is nothing to worry about. We can write our toolbox or use other libraries from other functional effect ecosystems using ZIO Interop.
+
+Note that based on your use case, you may don't need any event-sourcing framework or library. So before using any library, you should consider if you really need it or not. In many cases, this is very dependent on our domain and business requirements, and using a library may mislead you in the wrong direction.
+
+Anyway, there is a purely functional library called Edomata which provides a simple solution for event sourcing. It is written in a tagless final style with the Cats Effect. We can use ZIO Interop to use the ZIO effect to run an Edomaton.
+
+In the following example, we are going to use Edomata to implement a simple counter which is event sourced. To do so, we need to define Events, Commands, State, Rejections, and Transitions:
+
+After finding out domain events, we can define them using enum or sealed traits. In this example, we have two `Increased` and `Decreased` events:
+
+```scala
+enum Event {
+  case Increased, Decreased
+}
+```
+
+Then we should define the commands our domain can handle:
+
+```scala
+enum Command {
+  case Inc, Dec
+}
+```
+
+To notify some information data to the outside world, we can use `Notification`s, let's define a simple notification data type:
+
+```scala
+case class Notification(message: String)
+```
+
+Now it's time to define the domain model and the state of the counter:
+
+```scala
+import cats.data.ValidatedNec
+import edomata.core.{Decision, DomainModel}
+import cats.implicits.*
+import edomata.syntax.all.*
+
+case class Counter(state: Int) {
+  def inc = this.perform { Decision.accept(Event.Increased) }
+  def dec = this.perform {
+    if (state > 0) Decision.accept(Event.Decreased) else "decision rejected".reject
+  }
+}
+
+object Counter extends DomainModel[Counter, Event, String] {
+  override def initial: Counter = Counter(0)
+
+  override def transition = {
+    case Event.Increased => state => state.copy(state = state.state + 1).validNec
+    case Event.Decreased => state => state.copy(state = state.state - 1).validNec
+  }
+}
+```
+
+We are ready to define the `CounterService`:
+
+```scala
+object CounterService extends Counter.Service[Command, Notification] {
+  import App._
+  def apply(): PureApp[Unit] = router {
+    case Command.Inc =>
+      for {
+        counter <- state.decide(_.inc)
+        _ <- publish(Notification(s"state is going to become ${counter.state}"))
+      } yield ()
+    case Command.Dec => state.decide(_.dec).void
+  }
+}
+```
+
+So far, we have defined an edomaton called `CounterService`. To run it, we need a backend:
+
+```scala
+import scala.concurrent.duration._
+import cats.effect.std.Console
+import cats.effect.{Async, Concurrent, Resource}
+import edomata.core.{CommandMessage, DomainService}
+import edomata.skunk.{BackendCodec, CirceCodec, SkunkBackend}
+import edomata.backend.Backend
+import edomata.syntax.all.liftTo
+import fs2.io.net.Network
+import skunk.Session
+import io.circe.generic.auto.*
+import natchez.Trace
+import natchez.Trace.Implicits.noop
+
+object BackendService {
+  given BackendCodec[Event] = CirceCodec.jsonb // or .json
+  given BackendCodec[Notification] = CirceCodec.jsonb
+  given BackendCodec[Counter] = CirceCodec.jsonb
+
+  def backend[F[_]: Async: Concurrent: Trace: Console] =
+    SkunkBackend(
+      Session
+        .single[F]("localhost", 5432, "postgres", "postgres", Some("postgres"))
+    )
+
+  def buildBackend[F[_]: Async: Concurrent: Network: Console]
+      : Resource[F, Backend[F, Counter, Event, String, Notification]] =
+    backend
+      .builder(CounterService, "counter")
+      .withRetryConfig(retryInitialDelay = 2.seconds)
+      .persistedSnapshot(200)
+      .build
+
+  def service[F[_]: Async: Concurrent: Network: Console]
+      : Resource[F, DomainService[F, CommandMessage[Command], String]] =
+    buildBackend
+      .map(_.compile(CounterService().liftTo[F]))
+}
+```
+
+To demonstrate how the backend works, we can write a simple web service that accepts `Inc` and `Dec` commands:
+
+```scala
+import zio.*
+import zhttp.http.*
+
+import cats.data.EitherNec
+import edomata.core.CommandMessage
+
+import java.time.Instant
+
+type Service = CommandMessage[Command] => RIO[Scope, EitherNec[String, Unit]]
+
+object ZIOCounterHttpApp {
+
+  def apply(service: Service) =
+    Http.collectZIO[Request] {
+      // command: inc or dec
+      // GET /{edomaton address}/{command}/{command id}
+      case Method.GET -> !! / address / command / commandId =>
+        val cmd = command match {
+          case "inc" => Command.Inc
+          case "dec" => Command.Dec
+        }
+
+        service(CommandMessage(commandId, Instant.now, address, cmd))
+          .map(r => Response.text(r.toString))
+          .orDie
+    }
+}
+```
+
+Now we can wire everything and run the application:
+
+```scala
+import zio.*
+import zio.interop.catz.*
+import zhttp.http.*
+import zhttp.service.Server
+import cats.effect.std.Console
+
+object MainApp extends ZIOAppDefault {
+  given Console[Task] = Console.make[Task]
+
+  def run =
+    ZIO.scoped {
+      for {
+        backendService <- BackendService.service.toScopedZIO
+        _ <- Server.start(8090, ZIOCounterHttpApp(backendService))
+      } yield ()
+    }
+}
+```
+
+To test the application, we can send the following requests:
+
+```http
+GET /FooCounter/inc/cf2209c9-6b41-44da-8c52-7e0dce109dc3
+GET /FooCounter/inc/11aa920d-254e-4aa7-86f2-8002df80533b
+GET /FooCounter/dec/b2e8a02c-77db-463d-8213-d462fc5a9439
+GET /FooCounter/inc/9ac51e44-36d0-4daa-ac23-28e624bec174
+```
+
+If multiple commands with the same command id are sent, the backend only processes the first one and ignores the rest. If the command is rejected, the backend will not accept any subsequent commands.
+
+To see all the events or the current state associated with the `FooCounter` adomaton, we can use the `Backend#repository` to query the database:
+
+```scala
+import zio.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z._
+import cats.effect.std.Console
+
+object ZIOStateAndHistory extends ZIOAppDefault {
+  given Console[Task] = Console.make[Task]
+
+  def run =
+    ZIO.scoped {
+      for {
+        backendService <- BackendService.buildBackend.toScopedZIO.orDie
+        history <- backendService.repository
+          .history("FooCounter")
+          .toZStream()
+          .runCollect
+        state <- backendService.repository.get("FooCounter")
+        _ <- ZIO.debug(s"FooCounter History: $history")
+        _ <- ZIO.debug(s"FooCounter State: $state")
+      } yield ()
+    }
+}
+
+// Output:
+// FooCounter History: Chunk(Valid(Counter(0),0),Valid(Counter(1),1),Valid(Counter(2),2),Valid(Counter(1),3),Valid(Counter(2),4))
+// FooCounter State: Valid(Counter(2),4)
+```
+
+That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
 
 ### Clustering
 
