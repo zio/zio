@@ -42,13 +42,6 @@ object TestSpec extends ZIOBaseSpec {
         _ <- execute(spec)
       } yield assert(n)(equalTo(1))
     },
-    test("test does not wait to interrupt children") {
-      for {
-        promise <- Promise.make[Nothing, Unit]
-        _       <- (promise.succeed(()) *> Live.live(ZIO.sleep(20.seconds))).uninterruptible.fork
-        _       <- promise.await
-      } yield assertCompletes
-    } @@ timeout(10.seconds),
     test("scoped effects can be tested") {
       for {
         ref   <- Ref.make(false)
