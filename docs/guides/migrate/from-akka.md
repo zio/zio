@@ -270,33 +270,27 @@ If we run the above example, we can see that all messages are sent to the actor 
 
 ### Buffering Workloads in ZIO
 
-ZIO has a built-in data type called `Hub` which is useful for buffering workloads:
+ZIO has a data type called `Queue` which is useful for buffering workloads:
 
 ```scala mdoc:silent
 import zio._
 import zio.stream._
 
-class Actor[I] private (private val hub: Hub[I]) {
-  def tell(i: I): UIO[Boolean] = hub.publish(i)
+trait Actor[-In] {
+  def tell(i: In): UIO[Boolean]
 }
 
 object Actor {
-  def make[I](receive: I => UIO[Unit]): ZIO[Scope, Nothing, Actor[I]] =
+  def make[In](receive: In => UIO[Unit]): ZIO[Scope, Nothing, Actor[In]] =
     ZIO.acquireRelease {
       for {
-        hub     <- Hub.unbounded[I]
-        promise <- Promise.make[Nothing, Unit]
-        startActor =
-          ZStream
-            .unwrapScoped(
-              ZStream.fromHubScoped(hub) <* promise.succeed(())
-            )
-            .mapZIO(receive)
-            .runDrain
-            .forever
-        fiber <- startActor.forkScoped
-        _ <- promise.await
-      } yield (new Actor(hub), fiber)
+        queue <- Queue.unbounded[In]
+        fiber <- queue.take.flatMap(receive).forever.fork
+        actor = new Actor[In] {
+                  override def tell(i: In): UIO[Boolean] =
+                    queue.offer(i)
+                }
+      } yield (actor, fiber)
     }(_._2.join).map(_._1)
 }
 ```
