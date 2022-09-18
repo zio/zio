@@ -25,6 +25,9 @@ import zio.stm.TSemaphore
  * by different parties. Attempts to acquire more permits than available result
  * in the acquiring fiber being suspended until the specified number of permits
  * become available.
+ *
+ * If you need functionality that `Semaphore` doesnt' provide, use a
+ * [[TSemaphore]] and define it in a [[zio.stm.ZSTM]] transaction.
  */
 sealed trait Semaphore extends Serializable {
 
