@@ -5,7 +5,7 @@ import zio.Clock._
 import zio.internal.macros.StringUtils.StringOps
 import zio.stm.STM
 import zio.test.Assertion._
-import zio.test.TestAspect.{failing, timeout}
+import zio.test.TestAspect._
 import zio.test.TestUtils.execute
 
 object TestSpec extends ZIOBaseSpec {
