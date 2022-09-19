@@ -647,6 +647,32 @@ object Fiber extends FiberPlatformSpecific {
     }
 
   /**
+   * Collects all fibers into a single fiber discarding their results.
+   */
+  def collectAllDiscard[E, A](fibers: Iterable[Fiber[E, A]]): Fiber.Synthetic[E, Unit] =
+    new Fiber.Synthetic[E, Unit] {
+      def await(implicit trace: Trace): UIO[Exit[E, Unit]] =
+        ZIO.foreachParDiscard(fibers)(_.await.flatMap(ZIO.done(_))).exit
+      final def children(implicit trace: Trace): UIO[Chunk[Fiber.Runtime[_, _]]] =
+        ZIO.foreachPar(Chunk.fromIterable(fibers))(_.children).map(_.flatten)
+
+      final def id: FiberId = fibers.foldLeft(FiberId.None: FiberId)(_ <> _.id)
+
+      def inheritAll(implicit trace: Trace): UIO[Unit] =
+        ZIO.foreachDiscard(fibers)(_.inheritAll)
+      def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
+        ZIO
+          .foreachDiscard(fibers)(_.interruptAsFork(fiberId))
+      def poll(implicit trace: Trace): UIO[Option[Exit[E, Unit]]] =
+        ZIO
+          .foreach[Any, Nothing, Fiber[E, A], Option[Exit[E, A]], Iterable](fibers)(_.poll)
+          .map(_.foldRight[Option[Exit[E, Unit]]](Some(Exit.succeed(Nil))) {
+            case (Some(ra), Some(rb)) => Some(ra.zipWith(rb)((_, b) => b, _ && _))
+            case _                    => None
+          })
+    }
+
+  /**
    * A fiber that is done with the specified [[zio.Exit]] value.
    *
    * @param exit

@@ -3379,7 +3379,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * in cases where the results of the forked fibers are not needed.
    */
   def forkAllDiscard[R, E, A](as: => Iterable[ZIO[R, E, A]])(implicit trace: Trace): URIO[R, Fiber[E, Unit]] =
-    ZIO.suspendSucceed(as.foldRight[URIO[R, Fiber[E, Unit]]](ZIO.succeedNow(Fiber.unit))(_.fork.zipWith(_)(_ *> _)))
+    ZIO
+      .foreach[R, Nothing, ZIO[R, E, A], Fiber[E, A], Iterable](as)(_.fork)
+      .map(Fiber.collectAllDiscard(_))
 
   /**
    * Constructs a `ZIO` value of the appropriate type for the specified input.
