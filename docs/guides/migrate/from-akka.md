@@ -81,6 +81,7 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 3. Managing Highly Congestion Workflows
 4. Event Sourcing
 5. Distributed Computing
+6. Streaming
 
 Let's see an example of each use-case in a simple application using Akka.
 
@@ -587,7 +588,74 @@ object ZIOStateAndHistory extends ZIOAppDefault {
 
 That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
 
-## Clustering
+
+
+## Streaming
+
+### Streaming with Akka
+
+Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
+
+1. Source
+2. Sink
+3. Flow
+
+Here is a simple example of how to have a streaming app in Akka:
+
+```scala
+import akka.actor.ActorSystem
+import akka.stream.scaladsl._
+import akka.util.ByteString
+
+import java.nio.file.Paths
+import scala.concurrent._
+
+object AkkaFactorialApp extends App {
+  implicit val system: ActorSystem = ActorSystem("stream")
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+
+  val source = Source(1 to 100)
+  val factorial = Flow[Int].scan(BigInt(1))((acc, next) => acc * next)
+  val serialize = Flow[BigInt].map(num => ByteString(s"$num\n"))
+  val sink = FileIO.toPath(Paths.get("factorials.txt"))
+
+  source
+    .via(factorial)
+    .via(serialize)
+    .runWith(sink)
+    .onComplete(_ => system.terminate())
+}
+```
+
+### Streaming in ZIO
+
+ZIO stream is a purely functional, composable, effectful, and resourceful streaming data type for Scala. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and provides a way to model streaming data processing as a pure function.
+
+Like the Akka terminology, ZIO streams have three main components:
+
+1. [ZStream](../../reference/stream/zstream/index.md)
+2. [ZPipeline](../../reference/stream/zpipeline.md)
+3. [ZSink](../../reference/stream/zsink/index.md)
+
+Let's see how to implement the same example in ZIO:
+
+```scala
+import zio._
+import zio.stream._
+
+object FactorialExample2 extends ZIOAppDefault {
+  val source    = ZStream.fromIterable(1 to 100)
+  val factorial = ZPipeline.scan(BigInt(1))((acc, next: Int) => acc * next)
+  val serialize = ZPipeline.map((num: BigInt) => Chunk.fromArray(s"$num".getBytes))
+  val sink      = ZSink.fromFileName("factorials.txt")
+
+  def run = 
+    source
+      .via(factorial)
+      .via(serialize).flattenChunks
+      .run(sink)
+}
+```
 
 ## Modeling Actors Using ZIO
 
