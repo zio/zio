@@ -628,7 +628,7 @@ object AkkaStreamApp extends App {
 
 ### Streaming in ZIO
 
-ZIO stream is a purely functional, composable, effectful, and resourceful streaming data type for Scala. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and provides a way to model streaming data processing as a pure function.
+ZIO Streams is a purely functional, composable, effectful, and resourceful streaming library. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and supports backpressure using a pull-based model.
 
 Like the Akka terminology, ZIO streams have three main components:
 
