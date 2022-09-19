@@ -48,70 +48,36 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
-  private case class RequestResult(requested: Long, available: Long)
-
-  private sealed trait Request extends (ZSTM.internal.Journal => RequestResult)
-
-  private object Request {
-    def apply(min: Long, max: Long): Request =
-      if (min == max) {
-        Const(min)
-      } else {
-        Between(min, max)
-      }
-  }
-
-  private case class Const(requested: Long) extends Request {
-    override def apply(journal: ZSTM.internal.Journal): RequestResult = {
-      assertNonNegative(requested)
-      val available: Long = permits.unsafeGet(journal)
-      RequestResult(requested, available)
-    }
-  }
-
-  private case class Between(min: Long, max: Long) extends Request {
-    override def apply(journal: ZSTM.internal.Journal): RequestResult = {
-      require(min <= max, s"Unexpected `$min > $max` passed to acquireRange.")
-
-      val available: Long = permits.unsafeGet(journal)
-      if (available < min) {
-        throw ZSTM.RetryException
-      }
-      val requested: Long = available.min(max)
-      assertNonNegative(requested)
-      RequestResult(requested, available)
-    }
-  }
-
   /**
    * Acquires a single permit in transactional context.
    */
   def acquire: USTM[Unit] =
-    acquireN(1L)
-
-  private def acquireN(request: Request): USTM[Long] =
-    ZSTM.Effect { (journal, _, _) =>
-      val RequestResult(n, value) = request(journal)
-
-      if (value < n) throw ZSTM.RetryException
-      else {
-        permits.unsafeSet(journal, value - n)
-        n
-      }
-    }
+    acquireBetween(1L, 1L).unit
 
   /**
    * Acquires the specified number of permits in a transactional context.
    */
   def acquireN(n: Long): USTM[Unit] =
-    acquireN(Const(n)).unit
+    acquireBetween(n, n).unit
 
   /**
    * Acquire at least `min` permits and at most `max` permits in a transactional
    * context.
    */
   def acquireBetween(min: Long, max: Long): USTM[Long] =
-    acquireN(Request(min, max))
+    ZSTM.Effect { (journal, _, _) =>
+      require(min <= max, s"Unexpected `$min` > `$max` passed to acquireRange.")
+      assertNonNegative(min)
+      assertNonNegative(max)
+
+      val available: Long = permits.unsafeGet(journal)
+      if (available < min) {
+        throw ZSTM.RetryException
+      }
+      val requested: Long = available.min(max)
+      permits.unsafeSet(journal, available - requested)
+      requested
+    }
 
   /**
    * Acquire at most `max` permits in a transactional context.
@@ -212,7 +178,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     )
 
   private def assertNonNegative(n: Long): Unit =
-    require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
+    require(n >= 0, s"Unexpected negative `$n` permits requested.")
 }
 
 object TSemaphore {
