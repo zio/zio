@@ -589,7 +589,6 @@ object ZIOStateAndHistory extends ZIOAppDefault {
 That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
 
 
-
 ## Streaming
 
 ### Streaming with Akka
@@ -602,7 +601,7 @@ Akka stream is developed on top of Akka actors with backpressure support. There 
 
 Here is a simple example of how to have a streaming app in Akka:
 
-```scala
+```scala mdoc:compile-only
 import akka.actor.ActorSystem
 import akka.stream.scaladsl._
 import akka.util.ByteString
@@ -610,7 +609,7 @@ import akka.util.ByteString
 import java.nio.file.Paths
 import scala.concurrent._
 
-object AkkaFactorialApp extends App {
+object AkkaStreamApp extends App {
   implicit val system: ActorSystem = ActorSystem("stream")
   implicit val ec: ExecutionContextExecutor = system.dispatcher
 
@@ -639,11 +638,11 @@ Like the Akka terminology, ZIO streams have three main components:
 
 Let's see how to implement the same example in ZIO:
 
-```scala
+```scala mdoc:compile-only
 import zio._
 import zio.stream._
 
-object FactorialExample2 extends ZIOAppDefault {
+object ZIOStreamApp extends ZIOAppDefault {
   val source    = ZStream.fromIterable(1 to 100)
   val factorial = ZPipeline.scan(BigInt(1))((acc, next: Int) => acc * next)
   val serialize = ZPipeline.map((num: BigInt) => Chunk.fromArray(s"$num".getBytes))
