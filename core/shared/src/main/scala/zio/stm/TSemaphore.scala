@@ -52,22 +52,38 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
    * Acquires a single permit in transactional context.
    */
   def acquire: USTM[Unit] =
-    acquireN(1L)
+    acquireBetween(1L, 1L).unit
 
   /**
    * Acquires the specified number of permits in a transactional context.
    */
   def acquireN(n: Long): USTM[Unit] =
+    acquireBetween(n, n).unit
+
+  /**
+   * Acquire at least `min` permits and at most `max` permits in a transactional
+   * context.
+   */
+  def acquireBetween(min: Long, max: Long): USTM[Long] =
     ZSTM.Effect { (journal, _, _) =>
-      assertNonNegative(n)
+      require(min <= max, s"Unexpected `$min` > `$max` passed to acquireRange.")
+      assertNonNegative(min)
+      assertNonNegative(max)
 
-      val value = permits.unsafeGet(journal)
-
-      if (value < n) throw ZSTM.RetryException
-      else {
-        permits.unsafeSet(journal, value - n)
+      val available: Long = permits.unsafeGet(journal)
+      if (available < min) {
+        throw ZSTM.RetryException
       }
+      val requested: Long = available.min(max)
+      permits.unsafeSet(journal, available - requested)
+      requested
     }
+
+  /**
+   * Acquire at most `max` permits in a transactional context.
+   */
+  def acquireUpTo(max: Long): USTM[Long] =
+    acquireBetween(0, max)
 
   /**
    * Returns the number of available permits in a transactional context.
@@ -117,14 +133,52 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     ZSTM.acquireReleaseWith(acquireN(n))(_ => releaseN(n).commit)(_ => zio)
 
   /**
+   * Executes the specified effect, acquiring at least `min` and at most `max`
+   * permits immediately before the effect begins execution and releasing them
+   * immediately after the effect completes execution, whether by success,
+   * failure, or interruption.
+   */
+  def withPermitsBetween[R, E, A](min: Long, max: Long)(zio: Long => ZIO[R, E, A])(implicit
+    trace: Trace
+  ): ZIO[R, E, A] =
+    ZSTM.acquireReleaseWith(acquireBetween(min, max))((actualN: Long) => releaseN(actualN).commit)(zio)
+
+  /**
+   * Executes the specified effect, acquiring at most the specified number of
+   * permits immediately before the effect begins execution and releasing them
+   * immediately after the effect completes execution, whether by success,
+   * failure, or interruption.
+   */
+  def withPermitsUpTo[R, E, A](max: Long)(zio: Long => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    ZSTM.acquireReleaseWith(acquireUpTo(max))((actualN: Long) => releaseN(actualN).commit)(zio)
+
+  /**
    * Returns a scoped effect that describes acquiring the specified number of
    * permits and releasing them when the scope is closed.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     ZSTM.acquireReleaseWith(acquireN(n))(_ => Scope.addFinalizer(releaseN(n).commit))(_ => ZIO.unit)
 
+  /**
+   * Returns a scoped effect that describes acquiring at least `min` and at most
+   * `max` permits and releasing them when the scope is closed.
+   */
+  def withPermitsBetweenScoped(min: Long, max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
+    ZSTM.acquireReleaseWith(acquireBetween(min, max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(
+      ZIO.succeedNow
+    )
+
+  /**
+   * Returns a scoped effect that describes acquiring at most `max` permits and
+   * releasing them when the scope is closed.
+   */
+  def withPermitsUpToScoped(max: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Long] =
+    ZSTM.acquireReleaseWith(acquireUpTo(max))((actualN: Long) => Scope.addFinalizer(releaseN(actualN).commit))(
+      ZIO.succeedNow
+    )
+
   private def assertNonNegative(n: Long): Unit =
-    require(n >= 0, s"Unexpected negative value `$n` passed to acquireN or releaseN.")
+    require(n >= 0, s"Unexpected negative `$n` permits requested.")
 }
 
 object TSemaphore {

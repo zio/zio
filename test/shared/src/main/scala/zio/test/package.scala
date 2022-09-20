@@ -308,42 +308,42 @@ package object test extends CompileVariants {
     def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult])(implicit
       trace: Trace
     ): ZIO[R, TestFailure[E], TestSuccess] =
-      ZIO
-        .suspendSucceed(assertion)
-        .daemonChildren
-        .ensuringChildren { children =>
-          ZIO.foreach(children) { child =>
-            val quotedLabel = "\"" + label + "\""
-            val warning =
-              s"Warning: ZIO Test is attempting to interrupt fiber " +
-                s"${child.id} forked in test ${quotedLabel} due to automatic, " +
-                "supervision, but interruption has taken more than 10 " +
-                "seconds to complete. This may indicate a resource leak. " +
-                "Make sure you are not forking a fiber in an " +
-                "uninterruptible region."
-            for {
-              fiber <- ZIO
-                         .logWarning(warning)
-                         .delay(10.seconds)
-                         .withClock(Clock.ClockLive)
-                         .interruptible
-                         .forkDaemon
-              _ <- (child.interrupt *> fiber.interrupt).forkDaemon
-            } yield ()
-          }
-        }
-        .foldCauseZIO(
-          cause =>
-            cause.dieOption match {
-              case Some(TestResult.Exit(assert)) => ZIO.fail(TestFailure.Assertion(assert))
-              case _                             => ZIO.fail(TestFailure.Runtime(cause))
-            },
-          assert =>
-            if (assert.isFailure)
-              ZIO.fail(TestFailure.Assertion(assert))
-            else
-              ZIO.succeedNow(TestSuccess.Succeeded())
-        )
+      for {
+        promise <- Promise.make[TestFailure[E], TestSuccess]
+        child <- ZIO
+                   .suspendSucceed(assertion)
+                   .foldCauseZIO(
+                     cause =>
+                       cause.dieOption match {
+                         case Some(TestResult.Exit(assert)) => ZIO.fail(TestFailure.Assertion(assert))
+                         case _                             => ZIO.fail(TestFailure.Runtime(cause))
+                       },
+                     assert =>
+                       if (assert.isFailure)
+                         ZIO.fail(TestFailure.Assertion(assert))
+                       else
+                         ZIO.succeedNow(TestSuccess.Succeeded())
+                   )
+                   .intoPromise(promise)
+                   .forkDaemon
+        result     <- promise.await
+        _          <- child.inheritAll
+        quotedLabel = "\"" + label + "\""
+        warning =
+          s"Warning: ZIO Test is attempting to interrupt fiber " +
+            s"${child.id} forked in test ${quotedLabel} due to automatic, " +
+            "supervision, but interruption has taken more than 10 " +
+            "seconds to complete. This may indicate a resource leak. " +
+            "Make sure you are not forking a fiber in an " +
+            "uninterruptible region."
+        fiber <- ZIO
+                   .logWarning(warning)
+                   .delay(10.seconds)
+                   .withClock(Clock.ClockLive)
+                   .interruptible
+                   .forkDaemon
+        _ <- (child.interrupt *> fiber.interrupt).forkDaemon
+      } yield result
   }
 
   private[zio] def assertImpl[A](
