@@ -16,15 +16,20 @@ class ForkAllDiscardBenchmark {
   @Param(Array("1", "128", "1024"))
   var count: Int = 0
 
-  @Benchmark
-  def run(): Unit = {
+  var z: ZIO[Any, Nothing, Unit] = _
+
+  @Setup
+  def setup(): Unit = {
     val tasks =
       Chunk.fill(count) {
         ZIO.succeed(())
       }
-    val result = ZIO.forkAllDiscard(tasks)
+    z = ZIO.forkAllDiscard(tasks)
+  }
 
-    unsafeRun(result)
+  @Benchmark
+  def run(): Unit = {
+    unsafeRun(z)
   }
 
 }

@@ -16,15 +16,20 @@ class ForkAllBenchmark {
   @Param(Array("1", "128", "1024"))
   var count: Int = 0
 
-  @Benchmark
-  def run(): Chunk[Unit] = {
+  var z: ZIO[Any, Nothing, Chunk[Unit]] = _
+
+  @Setup
+  def setup(): Unit = {
     val tasks =
       Chunk.fill(count) {
         ZIO.succeed(())
       }
-    val result: ZIO[Any, Throwable, Chunk[Unit]] = ZIO.forkAll(tasks).flatMap(_.join)
+    z = ZIO.forkAll(tasks).flatMap(_.join)
+  }
 
-    unsafeRun(result)
+  @Benchmark
+  def run(): Chunk[Unit] = {
+    unsafeRun(z)
   }
 
 }
