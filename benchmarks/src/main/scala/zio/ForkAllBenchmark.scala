@@ -20,7 +20,7 @@ class ForkAllBenchmark {
   def run(): Chunk[Unit] = {
     val tasks =
       Chunk.fill(count) {
-        ZIO.attempt(())
+        ZIO.succeed(())
       }
     val result: ZIO[Any, Throwable, Chunk[Unit]] = ZIO.forkAll(tasks).flatMap(_.join)
 

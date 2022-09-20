@@ -20,7 +20,7 @@ class ForkAllDiscardBenchmark {
   def run(): Unit = {
     val tasks =
       Chunk.fill(count) {
-        ZIO.attempt(())
+        ZIO.succeed(())
       }
     val result = ZIO.forkAllDiscard(tasks)
 
