@@ -24,7 +24,7 @@ class ForkAllDiscardBenchmark {
       Chunk.fill(count) {
         ZIO.succeed(())
       }
-    z = ZIO.forkAllDiscard(tasks)
+    z = ZIO.forkAllDiscard(tasks).flatMap(_.join)
   }
 
   @Benchmark
