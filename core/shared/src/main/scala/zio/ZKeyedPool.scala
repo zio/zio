@@ -153,7 +153,7 @@ object ZKeyedPool {
                             }
                           }
       activePools = ZIO.suspendSucceed {
-                      ZIO.foreach(Chunk.fromJavaIterable(map.values)) {
+                      ZIO.foreach(Chunk.fromJavaIterator(map.values.iterator)) {
                         case MapValue.Complete(pool)   => ZIO.succeedNow(pool)
                         case MapValue.Pending(promise) => promise.await
                       }
