@@ -3418,6 +3418,18 @@ object ZIOSpec extends ZIOBaseSpec {
           test <- r.get
         } yield assertTrue(test == true))
       },
+      test("disconnect does not allow interruption to be observed in uninterruptible regions") {
+        for {
+          promise <- Promise.make[Nothing, Unit]
+          ref     <- Ref.make(false)
+          fiber <- (promise.succeed(()) *> ZIO.never)
+                     .ensuring(ZIO.unit.disconnect *> ref.set(true))
+                     .forkDaemon
+          _     <- promise.await
+          _     <- fiber.interrupt
+          value <- ref.get
+        } yield assertTrue(value)
+      },
       test("cause reflects interruption") {
         for {
           fiber <- withLatch(release => (release *> ZIO.fail("foo")).fork)

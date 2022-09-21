@@ -477,7 +477,7 @@ sealed trait ZIO[-R, +E, +A]
       ZIO.fiberIdWith(fiberId =>
         for {
           fiber <- restore(self).forkDaemon
-          a     <- fiber.join.interruptible.onInterrupt(fiber.interruptAsFork(fiberId))
+          a     <- restore(fiber.join).onInterrupt(fiber.interruptAsFork(fiberId))
         } yield a
       )
     )
@@ -1244,7 +1244,13 @@ sealed trait ZIO[-R, +E, +A]
    * interrupt losers.
    */
   final def race[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
-    self.disconnect.raceAwait(that.disconnect)
+    ZIO.checkInterruptible { status =>
+      def disconnect[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
+        if (status.isInterruptible) zio.disconnect
+        else zio.uninterruptible.disconnect.interruptible
+
+      disconnect(self).raceAwait(disconnect(that))
+    }
 
   final def raceAwait[R1 <: R, E1 >: E, A1 >: A](that: => ZIO[R1, E1, A1])(implicit trace: Trace): ZIO[R1, E1, A1] =
     ZIO.fiberIdWith { parentFiberId =>
