@@ -114,6 +114,12 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self orElse that
 
   /**
+   * A symbolic alias for `orDie`.
+   */
+  def !(implicit ev1: E <:< Throwable, ev2: CanFail[E], trace: Trace): ZStream[R, Nothing, A] =
+    self.orDie
+
+  /**
    * Returns a stream that submerges the error case of an `Either` into the
    * `ZStream`.
    */
@@ -2180,6 +2186,20 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           else ZIO.unshift
         }
     }
+
+  /**
+   * Translates any failure into a stream termination, making the stream
+   * infallible and all failures unchecked.
+   */
+  def orDie(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: Trace): ZStream[R, Nothing, A] =
+    self.orDieWith(ev1)
+
+  /**
+   * Keeps none of the errors, and terminates the stream with them, using the
+   * specified function to convert the `E` into a `Throwable`.
+   */
+  def orDieWith(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): ZStream[R, Nothing, A] =
+    new ZStream(self.channel.orDieWith(f))
 
   /**
    * Switches to the provided stream in case this one fails with a typed error.
