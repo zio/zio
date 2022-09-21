@@ -259,10 +259,11 @@ object BuildHelper {
   )
 
   def nativeSettings = Seq(
+    Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
   def jsSettings: List[Def.Setting[_]] = List(
-    Test / fork := crossProjectPlatform.value != JSPlatform // set fork to `true` for non-JS platforms to improve log readability, JS needs `false`
+    Test / fork := crossProjectPlatform.value == JVMPlatform // set fork to `true` on JVM to improve log readability, JS and Native need `false`
   )
 
   def welcomeMessage = onLoadMessage := {
