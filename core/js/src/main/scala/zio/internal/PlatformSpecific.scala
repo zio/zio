@@ -87,5 +87,7 @@ private[zio] trait PlatformSpecific {
 
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
 
+  final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
+
   final def newWeakReference[A](value: A)(implicit unsafe: zio.Unsafe): () => A = { () => value }
 }
