@@ -1,6 +1,5 @@
 package zio
 
-import zio.test.TestAspect.{diagnose, timeout}
 import zio.test._
 
 object ZKeyedPoolSpec extends ZIOSpecDefault {
@@ -41,5 +40,5 @@ object ZKeyedPoolSpec extends ZIOSpecDefault {
           _ <- fiber.join
         } yield assertCompletes
       }
-    ) @@ timeout(20.seconds) @@ diagnose(20.seconds)
+    )
 }
