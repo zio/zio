@@ -106,6 +106,20 @@ object TestSpec extends ZIOBaseSpec {
           test("another test in an effectual suite")(assertCompletes)
         )
       }
-    }
+    },
+    test("test does not interrupt fibers forked outside scope of test")(
+      for {
+        ref <- Ref.make[Option[Fiber[Any, Any]]](None)
+        fork = ZIO.never.forkDaemon.flatMap(fiber => ref.set(Some(fiber)))
+        spec = test("test") {
+                 for {
+                   _ <- fork
+                 } yield assertCompletes
+               }
+        _     <- execute(spec)
+        fiber <- ref.get.some
+        exit  <- fiber.poll
+      } yield assert(exit)(isNone)
+    )
   )
 }
