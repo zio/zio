@@ -509,6 +509,7 @@ module.exports = {
       collapsed: false,
       items: [
         "guides/migrate/zio-2.x-migration-guide",
+        "guides/migrate/from-akka",
         "guides/migrate/from-cats-effect",
         "guides/migrate/from-monix",
       ]
