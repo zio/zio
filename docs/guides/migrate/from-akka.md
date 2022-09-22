@@ -656,7 +656,181 @@ object ZIOStreamApp extends ZIOAppDefault {
 }
 ```
 
-## Modeling Actors Using ZIO
+## Entity Sharding
+
+Entity sharding is a technique for distributing a large number of entities across a cluster of nodes. It reduces resource contention by sharding the entities across the nodes. It also provides a way to scale out the system by adding more nodes to the system.
+
+### Entity Sharding in Akka
+
+Akka has a module called Akka Cluster Sharding that provides a way to distribute entities. Without further ado, in the following example, we are going to shard instances of the `Counter` entity type and then create a web service that can be used to increment or decrement each entity.
+
+```scala mdoc:compile-only
+object Counter {
+  sealed trait Message
+  case class Increase(replyTo: ActorRef[Int]) extends Message
+  case class Decrease(replyTo: ActorRef[Int]) extends Message
+
+  def apply(entityId: String): Behavior[Message] = {
+    def updated(value: Int): Behavior[Message] = {
+      Behaviors.receive { (context, command) =>
+        val log = context.log
+        val address = context.system.address
+        command match {
+          case Increase(replyTo) =>
+            log.info(s"executing inc msg for $entityId entity inside $address")
+            val state = value + 1
+            replyTo ! state
+            updated(state)
+          case Decrease(replyTo) =>
+            log.info(s"executing dec msg for $entityId entity inside $address")
+            val state = value - 1
+            replyTo ! state
+            updated(state)
+        }
+      }
+    }
+    updated(0)
+  }
+}
+```
+
+Now, it's time to create a simple web service that can be used to receive the `inc` and `dec` commands from clients:
+
+```scala mdoc:compile-only
+import akka.actor.typed.ActorSystem
+
+import scala.concurrent.duration.DurationInt
+import akka.actor.typed.scaladsl.AskPattern.*
+import akka.http.scaladsl.server.Directives.*
+import akka.http.scaladsl.server.Route
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.util.Timeout
+
+object CounterHttpApp {
+  implicit val timeout: Timeout = 1.seconds
+
+  def routes(implicit
+      system: ActorSystem[ShardingEnvelope[Counter.Message]]
+  ): Route = {
+    path(Segment / Segment) { case (entityId, command) =>
+      get {
+        val response = system.ask[Int](askReplyTo =>
+          ShardingEnvelope(
+            entityId,
+            command match {
+              case "inc" => Counter.Increase(askReplyTo)
+              case "dec" => Counter.Decrease(askReplyTo)
+            }
+          )
+        )
+        onComplete(response) { value =>
+          complete(value.toString)
+        }
+      }
+    }
+  }
+}
+```
+
+To be able to shard instances of the `Counter` entity, let's define the guardian behavior:
+
+```scala mdoc:compile-only
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.cluster.sharding.typed.scaladsl.*
+
+object Guardian {
+  def apply(): Behavior[ShardingEnvelope[Counter.Message]] =
+    Behaviors.setup { context =>
+      val TypeKey: EntityTypeKey[Counter.Message] =
+        EntityTypeKey[Counter.Message]("counter")
+      val clusterSharding = ClusterSharding(context.system)
+      val shardRegion =
+        clusterSharding.init(Entity(TypeKey)(c => Counter(c.entityId)))
+      Behaviors.receiveMessage { msg =>
+        shardRegion ! msg
+        Behaviors.same
+      }
+    }
+}
+```
+
+To be able to run multiple instances of the application, we need to define a seed node and also let the application read the port number from the environment. So, let's create the `application.conf` file in the `src/main/resources` directory:
+
+```hocon
+akka {
+  actor {
+    allow-java-serial ization =true 
+    provider = "cluster"
+  }
+  remote.artery.canonical {
+    hostname = "127.0.0.1" 
+    port = 2551
+    port=${?PORT}
+  }
+  cluster.seed-nodes= ["akka://system@127.0.0.1:2551"]
+}
+
+webservice {
+  host = "127.0.0.1"
+  port = 8082
+  port = ${?HTTP_PORT}
+}
+```
+
+The final step is to wire everything together to create the application:
+
+```scala mdoc:compile-only
+import akka.actor.typed.ActorSystem
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.http.scaladsl.Http
+import com.typesafe.config.ConfigFactory
+
+object AkkaClusterShardingExample extends App {
+  val config = ConfigFactory.load("application.conf")
+
+  implicit val system: ActorSystem[ShardingEnvelope[Counter.Message]] =
+    ActorSystem(Guardian(), "system", config)
+
+  Http()
+    .newServerAt(
+      config.getString("webservice.host"),
+      config.getInt("webservice.port")
+    )
+    .bind(CounterHttpApp.routes)
+}
+```
+
+To run the application, we need to start the seed node first:
+
+```bash
+sbt -DHTTP_PORT=8081 -DPORT=2551 "runMain AkkaClusterShardingExample"
+```
+
+Then, we can start some more nodes:
+
+```bash
+sbt -DHTTP_PORT=8082 -DPORT=2552 "runMain AkkaClusterShardingExample"
+sbt -DHTTP_PORT=8083 -DPORT=2553 "runMain AkkaClusterShardingExample"
+```
+
+Now, we can send some requests to any of theses nodes:
+
+```bash
+GET http://localhost:8081/foo/inc
+GET http://localhost:8082/foo/inc
+GET http://localhost:8083/foo/inc
+
+GET http://localhost:8081/bar/inc
+GET http://localhost:8082/bar/inc
+GET http://localhost:8083/bar/inc
+
+// ...
+```
+
+We can see that the each of `foo` and `bar` entities will be executed in a single node at a time, even if we are sending requests to different nodes.
+
 
 [1]: https://doc.akka.io/docs/akka/current/index.html
 [2]: https://zio.dev/reference/core/zio/
