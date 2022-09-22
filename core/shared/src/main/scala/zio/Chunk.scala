@@ -1888,7 +1888,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def |(x: Byte, y: Byte): Byte = (x | y).toByte
       def &(x: Byte, y: Byte): Byte = (x & y).toByte
       def ^(x: Byte, y: Byte): Byte = (x ^ y).toByte
-      def invert(x: Byte): Byte    = (~x).toByte
+      def invert(x: Byte): Byte     = (~x).toByte
       def classTag: ClassTag[Byte]  = ClassTag.Byte
     }
     implicit val IntOps: BitOps[Int] = new BitOps[Int] {
@@ -1900,7 +1900,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def |(x: Int, y: Int): Int  = x | y
       def &(x: Int, y: Int): Int  = x & y
       def ^(x: Int, y: Int): Int  = x ^ y
-      def invert(x: Int): Int    = ~x
+      def invert(x: Int): Int     = ~x
       def classTag: ClassTag[Int] = ClassTag.Int
     }
     implicit val LongOps: BitOps[Long] = new BitOps[Long] {
@@ -1912,7 +1912,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       def |(x: Long, y: Long): Long = x | y
       def &(x: Long, y: Long): Long = x & y
       def ^(x: Long, y: Long): Long = x ^ y
-      def invert(x: Long): Long    = ~x
+      def invert(x: Long): Long     = ~x
       def classTag: ClassTag[Long]  = ClassTag.Long
     }
   }
