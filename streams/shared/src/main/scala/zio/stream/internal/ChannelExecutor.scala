@@ -155,8 +155,11 @@ private[zio] class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, OutElem, 
 
                       case r @ ChannelState.Read(_, _, _, _) =>
                         ChannelExecutor
-                          .readUpstream(r.asInstanceOf[ChannelState.Read[Env, Any]], () => drainer)
-                          .catchAllCause(cause => bridgeInput.error(cause))
+                          .readUpstream(
+                            r.asInstanceOf[ChannelState.Read[Env, Any]],
+                            () => drainer,
+                            (cause: Cause[Any]) => bridgeInput.error(cause)
+                          )
                     }
                   }
 
@@ -914,14 +917,15 @@ private[zio] object ChannelExecutor {
   private def erase[R](channel: ZChannel[R, _, _, _, _, _, _]): Channel[R] =
     channel.asInstanceOf[Channel[R]]
 
-  private[stream] def readUpstream[R, E, A](
+  private[stream] def readUpstream[R, E, E2, A](
     r: ChannelExecutor.ChannelState.Read[R, E],
-    continue: () => ZIO[R, E, A]
-  )(implicit trace: Trace): ZIO[R, E, A] = {
+    onSuccess: () => ZIO[R, E2, A],
+    onFailure: Cause[E] => ZIO[R, E2, A]
+  )(implicit trace: Trace): ZIO[R, E2, A] = {
     val readStack = scala.collection.mutable.Stack
       .apply[ChannelState.Read[Any, Any]](r.asInstanceOf[ChannelState.Read[Any, Any]])
 
-    def read(): ZIO[R, E, A] = {
+    def read(): ZIO[R, E2, A] = {
       val current = readStack.pop()
       if (current.upstream eq null) {
         ZIO.dieMessage("Unexpected end of input for channel execution")
@@ -930,29 +934,35 @@ private[zio] object ChannelExecutor {
           case ChannelState.Emit =>
             val emitEffect = current.onEmit(current.upstream.getEmit)
             if (readStack.isEmpty) {
-              if (emitEffect eq null) ZIO.suspendSucceed(continue())
+              if (emitEffect eq null) ZIO.suspendSucceed(onSuccess())
               else
-                emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
+                emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
             } else {
-              if (emitEffect eq null) read() else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
+              if (emitEffect eq null) read()
+              else (emitEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => read()))
             }
           case ChannelState.Done =>
             val doneEffect = current.onDone(current.upstream.getDone)
             if (readStack.isEmpty) {
-              if (doneEffect eq null) ZIO.suspendSucceed(continue())
+              if (doneEffect eq null) ZIO.suspendSucceed(onSuccess())
               else
-                doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> continue()
+                doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => onSuccess())
             } else {
-              if (doneEffect eq null) read() else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]] *> read())
+              if (doneEffect eq null) read()
+              else (doneEffect.asInstanceOf[ZIO[R, Nothing, Unit]].foldCauseZIO(onFailure, _ => read()))
             }
           case ChannelState.Effect(zio) =>
             readStack.push(current)
-            current.onEffect(zio.asInstanceOf[ZIO[Any, Nothing, Unit]]).catchAllCause { cause =>
-              ZIO.suspendSucceed {
-                val doneEffect = current.onDone(Exit.failCause(cause))
-                if (doneEffect eq null) ZIO.unit else doneEffect
+            current
+              .onEffect(zio.asInstanceOf[ZIO[Any, Nothing, Unit]])
+              .catchAllCause { cause =>
+                ZIO.suspendSucceed {
+                  val doneEffect = current.onDone(Exit.failCause(cause))
+                  if (doneEffect eq null) ZIO.unit
+                  else doneEffect
+                }
               }
-            } *> read()
+              .foldCauseZIO(onFailure, _ => read())
           case r2 @ ChannelState.Read(upstream2, onEffect2, onEmit2, onDone2) =>
             readStack.push(current.asInstanceOf[ChannelState.Read[Any, Any]])
             readStack.push(r2.asInstanceOf[ChannelState.Read[Any, Any]])
