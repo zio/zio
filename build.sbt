@@ -904,7 +904,10 @@ lazy val docs = project.module
       "io.scalac"                     %% "zio-slick-interop"             % "0.4",
       "com.typesafe.slick"            %% "slick-hikaricp"                % "3.3.3",
       "info.senia"                    %% "zio-test-akka-http"            % "1.0.3",
-      "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0"
+      "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0",
+      "com.typesafe.akka"             %% "akka-http"                     % "10.2.10",
+      "com.typesafe.akka"             %% "akka-cluster-typed"            % "2.6.20",
+      "com.typesafe.akka"             %% "akka-cluster-sharding-typed"   % "2.6.20"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,

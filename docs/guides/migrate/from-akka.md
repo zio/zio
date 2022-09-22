@@ -664,7 +664,14 @@ Entity sharding is a technique for distributing a large number of entities acros
 
 Akka has a module called Akka Cluster Sharding that provides a way to distribute entities. Without further ado, in the following example, we are going to shard instances of the `Counter` entity type and then create a web service that can be used to increment or decrement each entity.
 
-```scala mdoc:compile-only
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
+
 object Counter {
   sealed trait Message
   case class Increase(replyTo: ActorRef[Int]) extends Message
@@ -696,12 +703,12 @@ object Counter {
 
 Now, it's time to create a simple web service that can be used to receive the `inc` and `dec` commands from clients:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import akka.actor.typed.ActorSystem
 
 import scala.concurrent.duration.DurationInt
-import akka.actor.typed.scaladsl.AskPattern.*
-import akka.http.scaladsl.server.Directives.*
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.cluster.sharding.typed.ShardingEnvelope
 import akka.util.Timeout
@@ -734,11 +741,11 @@ object CounterHttpApp {
 
 To be able to shard instances of the `Counter` entity, let's define the guardian behavior:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.Behaviors
 import akka.cluster.sharding.typed.ShardingEnvelope
-import akka.cluster.sharding.typed.scaladsl.*
+import akka.cluster.sharding.typed.scaladsl._
 
 object Guardian {
   def apply(): Behavior[ShardingEnvelope[Counter.Message]] =
