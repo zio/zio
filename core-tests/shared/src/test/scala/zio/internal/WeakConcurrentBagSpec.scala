@@ -1,7 +1,7 @@
 package zio.internal
 
 import zio.test._
-import zio.test.TestAspect.{ flaky, jvmOnly }
+import zio.test.TestAspect.{flaky, jvmOnly}
 import zio.ZIOBaseSpec
 
 object WeakConcurrentBagSpec extends ZIOBaseSpec {

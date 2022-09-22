@@ -43,6 +43,7 @@ trait ZIOCompanionVersionSpecific {
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.suspendSucceed {
+      given Unsafe = Unsafe.unsafe
       val cancelerRef = new java.util.concurrent.atomic.AtomicReference[URIO[R, Any]](ZIO.unit)
 
       ZIO
