@@ -57,7 +57,7 @@ private[zio] trait VersionSpecific {
   type LightTypeTag = izumi.reflect.macrortti.LightTypeTag
 
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
-    left <:< right
+    taggedSubtypes.getOrElseUpdate((left, right), left <:< right)
 
   private[zio] def taggedTagType[A](tagged: EnvironmentTag[A]): LightTypeTag =
     tagged.tag
@@ -70,4 +70,7 @@ private[zio] trait VersionSpecific {
    */
   private[zio] def taggedGetServices[A](t: LightTypeTag): Set[LightTypeTag] =
     t.decompose
+
+  private val taggedSubtypes: scala.collection.mutable.Map[(LightTypeTag, LightTypeTag), Boolean] =
+    scala.collection.mutable.Map.empty
 }
