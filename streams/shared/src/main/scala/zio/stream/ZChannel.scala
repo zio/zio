@@ -1035,9 +1035,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               case ChannelState.Done =>
                 ZIO.done(exec.getDone)
               case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
-                ChannelExecutor.readUpstream[Env, OutErr, OutDone](
+                ChannelExecutor.readUpstream[Env, OutErr, OutErr, OutDone](
                   r.asInstanceOf[ChannelState.Read[Env, OutErr]],
-                  () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                  () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]),
+                  ZIO.refailCause
                 )
             }
 
@@ -1127,9 +1128,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
             case ChannelState.Effect(zio) =>
               zio *> interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
             case r @ ChannelState.Read(upstream, onEffect, onEmit, onDone) =>
-              ChannelExecutor.readUpstream[Env, OutErr, Either[OutDone, OutElem]](
+              ChannelExecutor.readUpstream[Env, OutErr, OutErr, Either[OutDone, OutElem]](
                 r.asInstanceOf[ChannelState.Read[Env, OutErr]],
-                () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]])
+                () => interpret(exec.run().asInstanceOf[ChannelState[Env, OutErr]]),
+                ZIO.refailCause
               )
           }
 
