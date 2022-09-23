@@ -812,7 +812,7 @@ lazy val docs = project.module
   .settings(
     publish / skip := true,
     moduleName     := "zio-docs",
-    scalaVersion := Scala213,
+    scalaVersion   := Scala213,
     unusedCompileDependenciesFilter -= moduleFilter("org.scalameta", "mdoc"),
     scalacOptions -= "-Yno-imports",
     scalacOptions -= "-Xfatal-warnings",
@@ -820,7 +820,7 @@ lazy val docs = project.module
     Compile / fork := false,
     scalacOptions ~= { _ filterNot (_ startsWith "-Ywarn") },
     scalacOptions ~= { _ filterNot (_ startsWith "-Xlint") },
-    crossScalaVersions --= List(Scala211, Scala3),
+    crossScalaVersions --= List(Scala211, Scala212, Scala3),
     mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
     ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
