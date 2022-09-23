@@ -328,6 +328,10 @@ Akka stream is developed on top of Akka actors with backpressure support. There 
 
 Here is a simple example of how to have a streaming app in Akka:
 
+```scala mdoc:invisible:reset
+
+```
+
 ```scala mdoc:compile-only
 import akka.actor.ActorSystem
 import akka.stream.scaladsl._
