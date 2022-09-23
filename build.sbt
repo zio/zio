@@ -111,7 +111,6 @@ lazy val rootJVM213 = project
   .aggregate(
     List[ProjectReference](
       benchmarks,
-      docs,
       scalafixTests,
       testJunitRunner,
       testJunitRunnerTests,
