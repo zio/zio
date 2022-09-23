@@ -16,6 +16,7 @@ Here, we summarized alternative ZIO solutions for Akka Actor features. So before
 | Scheduling              | [Akka Scheduler][10]                        | [Schedule data type][11]              |
 | Cron-like Scheduling    | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]              |
 | Resiliency              | [Akka CircuitBreaker][13]                   | [Rezilience][14]                      |
+| Entity Sharding         | [Akka Cluster Sharding][74]                 | [Shardcake][73]                       |
 | Logging                 | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]      |
 | Testing                 | [Akka Testkit][17]                          | [ZIO Test][18]                        |
 | Testing Streams         | [Akka Stream Testkit][19]                   | [ZIO Test][18]                        |
@@ -1134,3 +1135,4 @@ At the same time, each entity is running only in one instance of `HttpApp`. So i
 [71]: https://doc.akka.io/docs/akka-http/current/common/caching.html
 [72]: ../../ecosystem/officials/zio-cache.md
 [73]: https://devsisters.github.io/shardcake/ 
+[74]: https://doc.akka.io/docs/akka/current/typed/cluster-sharding.html
