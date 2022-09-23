@@ -1010,12 +1010,11 @@ To manage sharding, we should run a separate application which is called `ShardM
 
 ```scala mdoc:silent
 import zio._
-import com.devsisters.shardcake._
 import com.devsisters.shardcake.interfaces._
 
 object ShardManagerApp extends ZIOAppDefault {
   def run: Task[Nothing] =
-    Server.run.provide(
+     com.devsisters.shardcake.Server.run.provide(
       ZLayer.succeed(ManagerConfig.default),
       ZLayer.succeed(GrpcConfig.default),
       ZLayer.succeed(RedisConfig.default),

@@ -907,7 +907,14 @@ lazy val docs = project.module
       "io.getquill"                   %% "quill-jdbc-zio"                % "3.10.0",
       "com.typesafe.akka"             %% "akka-http"                     % "10.2.10",
       "com.typesafe.akka"             %% "akka-cluster-typed"            % "2.6.20",
-      "com.typesafe.akka"             %% "akka-cluster-sharding-typed"   % "2.6.20"
+      "com.typesafe.akka"             %% "akka-cluster-sharding-typed"   % "2.6.20",
+      "com.devsisters"                %% "shardcake-core"                % "2.0.0",
+      "com.devsisters"                %% "shardcake-storage-redis"       % "2.0.0",
+      "com.devsisters"                %% "shardcake-protocol-grpc"       % "2.0.0",
+      "com.devsisters"                %% "shardcake-entities"            % "2.0.0",
+      "com.devsisters"                %% "shardcake-manager"             % "2.0.0",
+      "com.devsisters"                %% "shardcake-serialization-kryo"  % "2.0.0",
+      "com.thesamet.scalapb.zio-grpc" %% "zio-grpc-core"                 % "0.6.0-test4"
     ),
     resolvers += "Confluent" at "https://packages.confluent.io/maven",
     fork           := true,
