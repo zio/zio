@@ -8,21 +8,25 @@ sidebar_label: "Migration from Akka"
 
 Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding features in ZIO:
 
-| Concerns                | Akka                                        | ZIO                                   |
-|-------------------------|---------------------------------------------|---------------------------------------|
-| Concurrency             | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3] |
-| Streaming               | [Akka Streams][4]                           | [ZIO Streams][5]                      |
-| Event Sourcing and CQRS | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]         |
-| Scheduling              | [Akka Scheduler][10]                        | [Schedule data type][11]              |
-| Cron-like Scheduling    | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]              |
-| Resiliency              | [Akka CircuitBreaker][13]                   | [Rezilience][14]                      |
-| Entity Sharding         | [Akka Cluster Sharding][74]                 | [Shardcake][73]                       |
-| Logging                 | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]      |
-| Testing                 | [Akka Testkit][17]                          | [ZIO Test][18]                        |
-| Testing Streams         | [Akka Stream Testkit][19]                   | [ZIO Test][18]                        |
-| Metrics                 | [Cluster Metric Extension][20]              | [Metrics][21]                         |
-| Supervision             | [Yes][22]                                   | Yes                                   |
-| Monitoring              | [Yes][22]                                   | Yes                                   |
+| Topics                      | Akka                                        | ZIO                                     |
+|-----------------------------|---------------------------------------------|-----------------------------------------|
+| Parallelism                 | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3]   |
+| Concurrent State Management | [Akka Actor][1]                             | [Ref][75], [FiberRef][76], [ZState][77] |
+| Buffering Workloads         | [Akka Mailboxes][78]                        | [Queue][79]                             |
+| Streaming                   | [Akka Streams][4]                           | [ZIO Streams][5]                        |
+| HTTP Applications           | [Akka Http][55]                             | [ZIO HTTP][56]                          |
+| Event Sourcing              | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]           |
+| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
+| Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                |
+| Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                |
+| Resiliency                  | [Akka CircuitBreaker][13]                   | [Rezilience][14]                        |
+| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
+| Logging                     | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]        |
+| Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                          |
+| Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                          |
+| Metrics                     | [Cluster Metric Extension][20]              | [Metrics][21]                           |
+| Supervision                 | [Yes][22]                                   | Yes                                     |
+| Monitoring                  | [Yes][22]                                   | Yes                                     |
 
 There are also several integration libraries for Akka that cover a wide range of technologies. If you use any of these technologies, you have a chance to use the equivalent of them in the ZIO ecosystem:
 
@@ -46,7 +50,6 @@ There are also several integration libraries for Akka that cover a wide range of
 |                      |                                    | [ZIO MongoDB][51]                      |
 | Redis                |                                    | [ZIO Redis][52]                        |
 | Data Codecs          | [Alpakka Avro Parquet][53]         | [ZIO Schema][54]                       |
-| HTTP                 | [Akka Http][55]                    | [ZIO HTTP][56]                         |
 |                      |                                    | [ZIO NIO][57]                          |
 | Slick                | [Alpakka Slick][58]                | [ZIO Slick Interop][59]                |
 | Streaming TCP        | [Akka TCP][60]                     | [ZIO TCP][61]                          |
@@ -79,15 +82,15 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 
 1. [Parallelism](#parallelism)
 2. [Concurrent State Management](#concurrent-state-management)
-3. [Buffering Workflows](#buffering-in-highly-congestion-workloads)
-4. [HTTP Applications](#http-applications)
-5. [Event Sourcing](#event-sourcing)
-6. [Streaming](#streaming)
+3. [Buffering Workloads](#buffering-in-highly-congestion-workloads)
+4. [Streaming](#streaming)
+5. [HTTP Applications](#http-applications)
+6. [Event Sourcing](#event-sourcing)
 7. [Entity Sharding](#entity-sharding)
 
 Let's see an example of each use-case in a simple application using Akka.
 
-## Parallelism
+## 1. Parallelism
 
 ### Parallelism in Akka
 
@@ -156,7 +159,7 @@ ZIO.withParallelism(4) {
 } 
 ```
 
-## Concurrent State Management
+## 2. Concurrent State Management
 
 ### State Management in Akka
 
@@ -246,7 +249,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-## Buffering in Highly Congestion Workloads
+## 3. Buffering Workloads
 
 Sometimes we have to deal with a high volume of incoming requests. In spite of parallelism and concurrency, we may not be able to handle all incoming requests within a short period of time. In such cases, we can use a buffer to store incoming requests temporarily and process them later.
 
@@ -313,8 +316,74 @@ object MainApp extends ZIOAppDefault {
   }
 }
 ```
+## 4. Streaming
 
-## HTTP Applications
+### Streaming with Akka
+
+Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
+
+1. Source
+2. Sink
+3. Flow
+
+Here is a simple example of how to have a streaming app in Akka:
+
+```scala mdoc:compile-only
+import akka.actor.ActorSystem
+import akka.stream.scaladsl._
+import akka.util.ByteString
+
+import java.nio.file.Paths
+import scala.concurrent._
+
+object AkkaStreamApp extends App {
+  implicit val system: ActorSystem = ActorSystem("stream")
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+
+  val source = Source(1 to 100)
+  val factorial = Flow[Int].scan(BigInt(1))((acc, next) => acc * next)
+  val serialize = Flow[BigInt].map(num => ByteString(s"$num\n"))
+  val sink = FileIO.toPath(Paths.get("factorials.txt"))
+
+  source
+    .via(factorial)
+    .via(serialize)
+    .runWith(sink)
+    .onComplete(_ => system.terminate())
+}
+```
+
+### Streaming in ZIO
+
+ZIO Streams is a purely functional, composable, effectful, and resourceful streaming library. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and supports backpressure using a pull-based model.
+
+Like the Akka terminology, ZIO streams have three main components:
+
+1. [ZStream](../../reference/stream/zstream/index.md)
+2. [ZPipeline](../../reference/stream/zpipeline.md)
+3. [ZSink](../../reference/stream/zsink/index.md)
+
+Let's see how to implement the same example in ZIO:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+object ZIOStreamApp extends ZIOAppDefault {
+  val source    = ZStream.fromIterable(1 to 100)
+  val factorial = ZPipeline.scan(BigInt(1))((acc, next: Int) => acc * next)
+  val serialize = ZPipeline.map((num: BigInt) => Chunk.fromArray(s"$num".getBytes))
+  val sink      = ZSink.fromFileName("factorials.txt")
+
+  def run = 
+    source
+      .via(factorial)
+      .via(serialize).flattenChunks
+      .run(sink)
+}
+```
+
+## 5. HTTP Applications
 
 ### HTTP Applications in Akka
 
@@ -372,7 +441,7 @@ object ZIOHttpServer extends ZIOAppDefault {
 }
 ```
 
-## Event Sourcing
+## 6. Event Sourcing
 
 ### Event Sourcing in Akka
 
@@ -648,74 +717,7 @@ object ZIOStateAndHistory extends ZIOAppDefault {
 
 That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
 
-## Streaming
-
-### Streaming with Akka
-
-Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
-
-1. Source
-2. Sink
-3. Flow
-
-Here is a simple example of how to have a streaming app in Akka:
-
-```scala mdoc:compile-only
-import akka.actor.ActorSystem
-import akka.stream.scaladsl._
-import akka.util.ByteString
-
-import java.nio.file.Paths
-import scala.concurrent._
-
-object AkkaStreamApp extends App {
-  implicit val system: ActorSystem = ActorSystem("stream")
-  implicit val ec: ExecutionContextExecutor = system.dispatcher
-
-  val source = Source(1 to 100)
-  val factorial = Flow[Int].scan(BigInt(1))((acc, next) => acc * next)
-  val serialize = Flow[BigInt].map(num => ByteString(s"$num\n"))
-  val sink = FileIO.toPath(Paths.get("factorials.txt"))
-
-  source
-    .via(factorial)
-    .via(serialize)
-    .runWith(sink)
-    .onComplete(_ => system.terminate())
-}
-```
-
-### Streaming in ZIO
-
-ZIO Streams is a purely functional, composable, effectful, and resourceful streaming library. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and supports backpressure using a pull-based model.
-
-Like the Akka terminology, ZIO streams have three main components:
-
-1. [ZStream](../../reference/stream/zstream/index.md)
-2. [ZPipeline](../../reference/stream/zpipeline.md)
-3. [ZSink](../../reference/stream/zsink/index.md)
-
-Let's see how to implement the same example in ZIO:
-
-```scala mdoc:compile-only
-import zio._
-import zio.stream._
-
-object ZIOStreamApp extends ZIOAppDefault {
-  val source    = ZStream.fromIterable(1 to 100)
-  val factorial = ZPipeline.scan(BigInt(1))((acc, next: Int) => acc * next)
-  val serialize = ZPipeline.map((num: BigInt) => Chunk.fromArray(s"$num".getBytes))
-  val sink      = ZSink.fromFileName("factorials.txt")
-
-  def run = 
-    source
-      .via(factorial)
-      .via(serialize).flattenChunks
-      .run(sink)
-}
-```
-
-## Entity Sharding
+## 7. Entity Sharding
 
 Entity sharding is a technique for distributing a large number of entities across a cluster of nodes. It reduces resource contention by sharding the entities across the nodes. It also provides a way to scale out the system by adding more nodes to the system.
 
@@ -1194,3 +1196,8 @@ At the same time, each entity is running only in one instance of `HttpApp`. So i
 [72]: ../../ecosystem/officials/zio-cache.md
 [73]: https://devsisters.github.io/shardcake/ 
 [74]: https://doc.akka.io/docs/akka/current/typed/cluster-sharding.html
+[75]: ../../reference/state/global-shared-state.md
+[76]: ../../reference/state/fiberref.md
+[77]: ../../reference/state/zstate.md
+[78]: https://doc.akka.io/docs/akka/current/typed/mailboxes.html
+[79]: ../../reference/concurrency/queue.md
