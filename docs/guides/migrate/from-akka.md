@@ -80,13 +80,13 @@ Before starting the migration, we need to understand what types of use-cases dev
 
 Akka is a toolkit for building highly concurrent, distributed, and resilient message-driven applications. Here are the most common use-cases for Akka among developers:
 
-1. [Parallelism](#parallelism)
-2. [Concurrent State Management](#concurrent-state-management)
-3. [Buffering Workloads](#buffering-in-highly-congestion-workloads)
-4. [Streaming](#streaming)
-5. [HTTP Applications](#http-applications)
-6. [Event Sourcing](#event-sourcing)
-7. [Entity Sharding](#entity-sharding)
+1. [Parallelism](#1-parallelism)
+2. [Concurrent State Management](#2-concurrent-state-management)
+3. [Buffering Workloads](#3-buffering-workloads)
+4. [Streaming](#4-streaming)
+5. [HTTP Applications](#5-http-applications)
+6. [Event Sourcing](#6-event-sourcing)
+7. [Entity Sharding](#7-entity-sharding)
 
 Let's see an example of each use-case in a simple application using Akka.
 
