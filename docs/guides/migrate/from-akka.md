@@ -76,12 +76,12 @@ Before starting the migration, we need to understand what types of use-cases dev
 
 Akka is a toolkit for building highly concurrent, distributed, and resilient message-driven applications. Here are the most common use-cases for Akka among developers:
 
-1. Parallelism
-2. Concurrent State Management
-3. Managing Highly Congestion Workflows
-4. Event Sourcing
-5. Distributed Computing
-6. Streaming
+1. [Parallelism](#parallelism)
+2. [Concurrent State Management](#concurrent-state-management)
+3. [Buffering Workflows](#buffering-in-highly-congestion-workloads)
+4. [Event Sourcing](#event-sourcing)
+6. [Streaming](#streaming)
+7. [Entity Sharding](#entity-sharding)
 
 Let's see an example of each use-case in a simple application using Akka.
 
@@ -838,6 +838,229 @@ GET http://localhost:8083/bar/inc
 
 We can see that the each of `foo` and `bar` entities will be executed in a single node at a time, even if we are sending requests to different nodes.
 
+### Entity Sharding in ZIO
+
+In the ZIO community, there is a library called [Shardcake][73] that provides a purely functional API for entity sharding. It is highly configurable and customizable. Let's try to implement the same example as in the previous section using Shardcake.
+
+First, we are going to define the `Counter` entity:
+
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
+import com.devsisters.shardcake.Messenger.Replier
+import com.devsisters.shardcake._
+import zio._
+
+sealed trait CounterMessage
+object CounterMessage {
+  case class Increase(replier: Replier[Int]) extends CounterMessage
+  case class Decrease(replier: Replier[Int]) extends CounterMessage
+}
+
+object Counter extends EntityType[CounterMessage]("counter") {
+
+  def handleMessage(
+    entityId: String,
+    state: Ref[Int],
+    message: CounterMessage
+  ): ZIO[Sharding, Nothing, Unit] =
+    podPort.flatMap { port =>
+      message match {
+        case CounterMessage.Increase(replier) =>
+          state
+            .updateAndGet(_ + 1)
+            .debug(s"The $entityId counter increased inside localhost:$port pod")
+            .flatMap(replier.reply)
+        case CounterMessage.Decrease(replier) =>
+          state
+            .updateAndGet(_ - 1)
+            .debug(s"The $entityId counter decreased inside localhost:$port pod")
+            .flatMap(replier.reply)
+      }
+    }
+
+  def behavior(
+    entityId: String,
+    messages: Dequeue[CounterMessage]
+  ): ZIO[Sharding, Nothing, Nothing] =
+    Ref.make(0).flatMap { state =>
+      messages.take.flatMap(handleMessage(entityId, state, _)).forever
+    }
+
+  def podPort: UIO[String] =
+    System
+      .env("PORT")
+      .some
+      .orDieWith(_ => new Exception("Application started without any specified port!"))
+}
+```
+
+To be able to receive messages from the clients, let's define a web service:
+
+```scala mdoc:silent
+import com.devsisters.shardcake.{ Messenger, Sharding }
+import zhttp.http._
+import zio.Scope
+
+object WebService {
+  def apply(
+    counter: Messenger[CounterMessage]
+  ): Http[Sharding with Scope, Throwable, Request, Response] =
+    Http.collectZIO[Request] {
+      case Method.GET -> !! / entityId / "inc" =>
+        counter
+          .send(entityId)(CounterMessage.Increase)
+          .map(r => Response.text(r.toString))
+
+      case Method.GET -> !! / entityId / "dec" =>
+        counter
+          .send(entityId)(CounterMessage.Decrease)
+          .map(r => Response.text(r.toString))
+    }
+}
+```
+
+In this example, we are going to use Redis as the storage backend for the sharding. So, let's define a live layer for the sharding:
+
+```scala mdoc:silent
+import com.devsisters.shardcake.StorageRedis.Redis
+import dev.profunktor.redis4cats.Redis
+import dev.profunktor.redis4cats.connection.RedisClient
+import dev.profunktor.redis4cats.data.RedisCodec
+import dev.profunktor.redis4cats.effect.Log
+import dev.profunktor.redis4cats.pubsub.PubSub
+import zio.interop.catz._
+import zio._
+
+object RedisLive {
+  val layer: ZLayer[Any, Throwable, Redis] =
+    ZLayer.scopedEnvironment {
+      implicit val runtime: zio.Runtime[Any] = zio.Runtime.default
+      
+      implicit val logger: Log[Task] = new Log[Task] {
+        override def debug(msg: => String): Task[Unit] = ZIO.logDebug(msg)
+        override def error(msg: => String): Task[Unit] = ZIO.logError(msg)
+        override def info(msg: => String): Task[Unit]  = ZIO.logInfo(msg)
+      }
+
+      (for {
+        client   <- RedisClient[Task].from("redis://localhost")
+        commands <- Redis[Task].fromClient(client, RedisCodec.Utf8)
+        pubSub   <- PubSub.mkPubSubConnection[Task, String, String](client, RedisCodec.Utf8)
+      } yield ZEnvironment(commands, pubSub)).toScopedZIO
+    }
+}
+```
+
+We also need a configuration layer for the sharding:
+
+```scala mdoc:silent
+import zio._
+import com.devsisters.shardcake.Config
+
+object ShardConfig {
+  val layer: ZLayer[Any, SecurityException, Config] =
+    ZLayer(
+      System
+        .env("PORT")
+        .map(
+          _.flatMap(_.toIntOption)
+            .fold(Config.default)(port => Config.default.copy(shardingPort = port))
+        )
+    )
+}
+```
+
+Now we are ready to create our application:
+
+```scala mdoc:silent
+import com.devsisters.shardcake._
+import zio._
+import zhttp.service.Server
+
+object HttpApp extends ZIOAppDefault {
+
+  def run: Task[Unit] =
+    ZIO.scoped {
+      for {
+        port    <- System.env("HTTP_PORT").map(_.flatMap(_.toIntOption).getOrElse(8080))
+        _       <- Sharding.registerEntity(Counter, Counter.behavior)
+        _       <- Sharding.registerScoped
+        counter <- Sharding.messenger(Counter)
+        _       <- Server.start(port, WebService(counter))
+      } yield ()
+    }.provide(
+      ShardConfig.layer,
+      ZLayer.succeed(GrpcConfig.default),
+      ZLayer.succeed(RedisConfig.default),
+      RedisLive.layer,
+      StorageRedis.live,
+      KryoSerialization.live,
+      ShardManagerClient.liveWithSttp,
+      GrpcPods.live,
+      Sharding.live,
+      GrpcShardingService.live
+    )
+}
+```
+
+To manage sharding, we should run a separate application which is called `ShardManager`:
+
+```scala mdoc:silent
+import zio._
+import com.devsisters.shardcake._
+import com.devsisters.shardcake.interfaces._
+
+object ShardManagerApp extends ZIOAppDefault {
+  def run: Task[Nothing] =
+    Server.run.provide(
+      ZLayer.succeed(ManagerConfig.default),
+      ZLayer.succeed(GrpcConfig.default),
+      ZLayer.succeed(RedisConfig.default),
+      RedisLive.layer,
+      StorageRedis.live, // store data in Redis
+      PodsHealth.local,  // just ping a pod to see if it's alive
+      GrpcPods.live,     // use gRPC protocol
+      ShardManager.live  // Shard Manager logic
+    )
+}
+```
+
+That's it! Now it's time to run the application. First, let's run an instance of Redis using docker:
+
+```bash
+docker run -d -p 6379:6379 --name sampleredis redis
+```
+
+Then, we can run the `ShardManager` application:
+
+```bash
+sbt "runMain ShardManagerApp"
+```
+
+Now, we can run multiple instances of `HttpApp`:
+
+```
+sbt -DHTTP_PORT=8081 -DPORT=8091 "runMain HttpApp"
+sbt -DHTTP_PORT=8082 -DPORT=8092 "runMain HttpApp"
+sbt -DHTTP_PORT=8083 -DPORT=8093 "runMain HttpApp"
+```
+
+Finally, we can send requests to the `HttpApp` instances:
+
+```bash
+curl http://localhost:8081/foo/inc
+curl http://localhost:8082/foo/inc
+curl http://localhost:8083/foo/inc
+
+curl http://localhost:8081/bar/inc
+curl http://localhost:8082/bar/inc
+curl http://localhost:8083/bar/inc
+```
+
+At the same time, each entity is running only in one instance of `HttpApp`. So if we send a request for an entity to one of the instances of `HttpApp` where that entity doesn't belong, that request will be routed to the correct instance.
 
 [1]: https://doc.akka.io/docs/akka/current/index.html
 [2]: https://zio.dev/reference/core/zio/
@@ -911,3 +1134,4 @@ We can see that the each of `foo` and `bar` entities will be executed in a singl
 [70]: ../../ecosystem/officials/zio-logging.md
 [71]: https://doc.akka.io/docs/akka-http/current/common/caching.html
 [72]: ../../ecosystem/officials/zio-cache.md
+[73]: https://devsisters.github.io/shardcake/ 
