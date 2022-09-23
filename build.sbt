@@ -187,7 +187,6 @@ lazy val root213 = project
       ).flatMap(p => List[ProjectReference](p.jvm, p.js)) ++
       List[ProjectReference](
         benchmarks,
-        docs,
         scalafixTests,
         testJunitRunner,
         testJunitRunnerTests
