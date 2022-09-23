@@ -80,7 +80,8 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 1. [Parallelism](#parallelism)
 2. [Concurrent State Management](#concurrent-state-management)
 3. [Buffering Workflows](#buffering-in-highly-congestion-workloads)
-4. [Event Sourcing](#event-sourcing)
+4. [HTTP Applications](#http-applications)
+5. [Event Sourcing](#event-sourcing)
 6. [Streaming](#streaming)
 7. [Entity Sharding](#entity-sharding)
 
@@ -310,6 +311,64 @@ object MainApp extends ZIOAppDefault {
       _     <- ZIO.debug("All messages were sent to the actor!")
     } yield ()
   }
+}
+```
+
+## HTTP Applications
+
+### HTTP Applications in Akka
+
+Akka HTTP is a library for building HTTP applications on top of Akka actors and streams. It supports both server-side and client-side HTTP applications:
+
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:compile-only
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directives._
+
+object AkkHttpServer extends App {
+  implicit val system = ActorSystem(Behaviors.empty, "system")
+  implicit val executionContext = system.executionContext
+
+  Http().newServerAt("localhost", 8080).bind {
+    path("hello") {
+      get {
+        complete(
+          HttpEntity(
+            ContentTypes.`text/html(UTF-8)`,
+            "<h1>Say hello to akka-http</h1>"
+          )
+        )
+      }
+    }
+  }
+}
+```
+
+### HTTP Applications in ZIO
+
+On the other hand, ZIO has a library called [ZIO HTTP][56] which is a pure functional library for building HTTP applications. It is on top of ZIO, ZIO Streams.
+
+Let's see how the above Akka HTTP service can be written in ZIO:
+
+```scala mdoc:compile-only
+import zhttp.html.Html
+import zhttp.http._
+import zhttp.service.Server
+import zio.ZIOAppDefault
+
+object ZIOHttpServer extends ZIOAppDefault {
+  def run = Server.start(
+    port = 8080,
+    http = Http.collect[Request] { case Method.GET -> !! / "hello" =>
+      Response.html(Html.fromString("<h1>Say hello to zio-http</h1>"))
+    }
+  )
 }
 ```
 
@@ -588,7 +647,6 @@ object ZIOStateAndHistory extends ZIOAppDefault {
 ```
 
 That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
-
 
 ## Streaming
 
