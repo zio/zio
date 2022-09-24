@@ -774,6 +774,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     type ErasedSuccessK = Any => ZIO[Any, Any, Any]
     type ErasedFailureK = Cause[Any] => ZIO[Any, Any, Any]
 
+    // Note that assigning `cur` as the result of `try` causes scalac to box `runtimeFlags`.
     // Note that assigning `cur` as the result of the `try` causes scalac to box `lastTrace`.
     var cur          = effect
     var done         = null.asInstanceOf[AnyRef]
@@ -814,17 +815,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case effect0: OnSuccess[_, _, _, _] =>
               val effect = effect0.asInstanceOf[OnSuccess[Any, Any, Any, Any]]
 
-              cur =
-                try {
-                  effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
-                } catch {
-                  case zioError: ZIOError => Exit.Failure(zioError.cause)
+              try {
+                cur = effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+              } catch {
+                case zioError: ZIOError =>
+                  cur = Exit.Failure(zioError.cause)
 
-                  case reifyStack: ReifyStack =>
-                    self.reifiedStack += effect
+                case reifyStack: ReifyStack =>
+                  self.reifiedStack += effect
 
-                    throw reifyStack
-                }
+                  throw reifyStack
+              }
 
             case effect: Sync[_] =>
               try {
@@ -870,32 +871,32 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case effect0: OnFailure[_, _, _, _] =>
               val effect = effect0.asInstanceOf[OnFailure[Any, Any, Any, Any]]
 
-              cur =
-                try {
-                  Exit.Success(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
-                } catch {
-                  case zioError: ZIOError => effect.onFailure(zioError.cause)
+              try {
+                cur = Exit.Success(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+              } catch {
+                case zioError: ZIOError =>
+                  cur = effect.onFailure(zioError.cause)
 
-                  case reifyStack: ReifyStack =>
-                    self.reifiedStack += effect
+                case reifyStack: ReifyStack =>
+                  self.reifiedStack += effect
 
-                    throw reifyStack
-                }
+                  throw reifyStack
+              }
 
             case effect0: OnSuccessAndFailure[_, _, _, _, _] =>
               val effect = effect0.asInstanceOf[OnSuccessAndFailure[Any, Any, Any, Any, Any]]
 
-              cur =
-                try {
-                  effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
-                } catch {
-                  case zioError: ZIOError => effect.failureK(zioError.cause)
+              try {
+                cur = effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
+              } catch {
+                case zioError: ZIOError =>
+                  cur = effect.failureK(zioError.cause)
 
-                  case reifyStack: ReifyStack =>
-                    self.reifiedStack += effect
+                case reifyStack: ReifyStack =>
+                  self.reifiedStack += effect
 
-                    throw reifyStack
-                }
+                  throw reifyStack
+              }
 
             case effect: Async[_, _, _] =>
               self.reifiedStack.ensureCapacity(currentDepth)
@@ -912,15 +913,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               val oldRuntimeFlags = runtimeFlags
               val newRuntimeFlags = RuntimeFlags.patch(updateFlags)(oldRuntimeFlags)
 
-              cur = if (newRuntimeFlags == oldRuntimeFlags) {
+              if (newRuntimeFlags == oldRuntimeFlags) {
                 // No change, short circuit:
-                effect.scope(oldRuntimeFlags).asInstanceOf[ZIO[Any, Any, Any]]
+                cur = effect.scope(oldRuntimeFlags).asInstanceOf[ZIO[Any, Any, Any]]
               } else {
                 // One more chance to short circuit: if we're immediately going to interrupt.
                 // Interruption will cause immediate reversion of the flag, so as long as we
                 // "peek ahead", there's no need to set them to begin with.
                 if (RuntimeFlags.interruptible(newRuntimeFlags) && isInterrupted()) {
-                  Exit.Failure(getInterruptedCause())
+                  cur = Exit.Failure(getInterruptedCause())
                 } else {
                   // Impossible to short circuit, so record the changes:
                   runtimeFlags = patchRuntimeFlags(runtimeFlags, updateFlags)
@@ -940,12 +941,14 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                     runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
 
                     if (RuntimeFlags.interruptible(runtimeFlags) && isInterrupted())
-                      Exit.Failure(getInterruptedCause())
-                    else Exit.Success(value)
+                      cur = Exit.Failure(getInterruptedCause())
+                    else {
+                      cur = Exit.Success(value)
+                    }
                   } catch {
                     case zioError: ZIOError =>
                       runtimeFlags = patchRuntimeFlags(runtimeFlags, revertFlags)
-                      Exit.Failure(zioError.cause)
+                      cur = Exit.Failure(zioError.cause)
 
                     case reifyStack: ReifyStack =>
                       self.reifiedStack += EvaluationStep.UpdateRuntimeFlags(revertFlags) // Go backward, on the heap
