@@ -28,8 +28,7 @@ class ForkAllBenchmark {
   }
 
   @Benchmark
-  def run(): Chunk[Unit] = {
+  def run(): Chunk[Unit] =
     unsafeRun(z)
-  }
 
 }

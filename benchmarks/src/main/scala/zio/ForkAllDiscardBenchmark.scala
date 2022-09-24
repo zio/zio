@@ -28,8 +28,7 @@ class ForkAllDiscardBenchmark {
   }
 
   @Benchmark
-  def run(): Unit = {
+  def run(): Unit =
     unsafeRun(z)
-  }
 
 }
