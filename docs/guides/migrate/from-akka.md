@@ -8,20 +8,25 @@ sidebar_label: "Migration from Akka"
 
 Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding features in ZIO:
 
-| Concerns                | Akka                                        | ZIO                                   |
-|-------------------------|---------------------------------------------|---------------------------------------|
-| Concurrency             | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3] |
-| Streaming               | [Akka Streams][4]                           | [ZIO Streams][5]                      |
-| Event Sourcing and CQRS | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]         |
-| Scheduling              | [Akka Scheduler][10]                        | [Schedule data type][11]              |
-| Cron-like Scheduling    | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]              |
-| Resiliency              | [Akka CircuitBreaker][13]                   | [Rezilience][14]                      |
-| Logging                 | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]      |
-| Testing                 | [Akka Testkit][17]                          | [ZIO Test][18]                        |
-| Testing Streams         | [Akka Stream Testkit][19]                   | [ZIO Test][18]                        |
-| Metrics                 | [Cluster Metric Extension][20]              | [Metrics][21]                         |
-| Supervision             | [Yes][22]                                   | Yes                                   |
-| Monitoring              | [Yes][22]                                   | Yes                                   |
+| Topics                      | Akka                                        | ZIO                                     |
+|-----------------------------|---------------------------------------------|-----------------------------------------|
+| Parallelism                 | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3]   |
+| Concurrent State Management | [Akka Actor][1]                             | [Ref][75], [FiberRef][76], [ZState][77] |
+| Buffering Workloads         | [Akka Mailboxes][78]                        | [Queue][79]                             |
+| Streaming                   | [Akka Streams][4]                           | [ZIO Streams][5]                        |
+| HTTP Applications           | [Akka Http][55]                             | [ZIO HTTP][56]                          |
+| Event Sourcing              | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]           |
+| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
+| Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                |
+| Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                |
+| Resiliency                  | [Akka CircuitBreaker][13]                   | [Rezilience][14]                        |
+| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
+| Logging                     | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]        |
+| Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                          |
+| Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                          |
+| Metrics                     | [Cluster Metric Extension][20]              | [Metrics][21]                           |
+| Supervision                 | [Yes][22]                                   | Yes                                     |
+| Monitoring                  | [Yes][22]                                   | Yes                                     |
 
 There are also several integration libraries for Akka that cover a wide range of technologies. If you use any of these technologies, you have a chance to use the equivalent of them in the ZIO ecosystem:
 
@@ -45,7 +50,6 @@ There are also several integration libraries for Akka that cover a wide range of
 |                      |                                    | [ZIO MongoDB][51]                      |
 | Redis                |                                    | [ZIO Redis][52]                        |
 | Data Codecs          | [Alpakka Avro Parquet][53]         | [ZIO Schema][54]                       |
-| HTTP                 | [Akka Http][55]                    | [ZIO HTTP][56]                         |
 |                      |                                    | [ZIO NIO][57]                          |
 | Slick                | [Alpakka Slick][58]                | [ZIO Slick Interop][59]                |
 | Streaming TCP        | [Akka TCP][60]                     | [ZIO TCP][61]                          |
@@ -76,16 +80,17 @@ Before starting the migration, we need to understand what types of use-cases dev
 
 Akka is a toolkit for building highly concurrent, distributed, and resilient message-driven applications. Here are the most common use-cases for Akka among developers:
 
-1. Parallelism
-2. Concurrent State Management
-3. Managing Highly Congestion Workflows
-4. Event Sourcing
-5. Distributed Computing
-6. Streaming
+1. [Parallelism](#1-parallelism)
+2. [Concurrent State Management](#2-concurrent-state-management)
+3. [Buffering Workloads](#3-buffering-workloads)
+4. [Streaming](#4-streaming)
+5. [HTTP Applications](#5-http-applications)
+6. [Event Sourcing](#6-event-sourcing)
+7. [Entity Sharding](#7-entity-sharding)
 
 Let's see an example of each use-case in a simple application using Akka.
 
-## Parallelism
+## 1. Parallelism
 
 ### Parallelism in Akka
 
@@ -154,7 +159,7 @@ ZIO.withParallelism(4) {
 } 
 ```
 
-## Concurrent State Management
+## 2. Concurrent State Management
 
 ### State Management in Akka
 
@@ -244,7 +249,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-## Buffering in Highly Congestion Workloads
+## 3. Buffering Workloads
 
 Sometimes we have to deal with a high volume of incoming requests. In spite of parallelism and concurrency, we may not be able to handle all incoming requests within a short period of time. In such cases, we can use a buffer to store incoming requests temporarily and process them later.
 
@@ -311,8 +316,136 @@ object MainApp extends ZIOAppDefault {
   }
 }
 ```
+## 4. Streaming
 
-## Event Sourcing
+### Streaming with Akka
+
+Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
+
+1. Source
+2. Sink
+3. Flow
+
+Here is a simple example of how to have a streaming app in Akka:
+
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:compile-only
+import akka.actor.ActorSystem
+import akka.stream.scaladsl._
+import akka.util.ByteString
+
+import java.nio.file.Paths
+import scala.concurrent._
+
+object AkkaStreamApp extends App {
+  implicit val system: ActorSystem = ActorSystem("stream")
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
+
+  val source = Source(1 to 100)
+  val factorial = Flow[Int].scan(BigInt(1))((acc, next) => acc * next)
+  val serialize = Flow[BigInt].map(num => ByteString(s"$num\n"))
+  val sink = FileIO.toPath(Paths.get("factorials.txt"))
+
+  source
+    .via(factorial)
+    .via(serialize)
+    .runWith(sink)
+    .onComplete(_ => system.terminate())
+}
+```
+
+### Streaming in ZIO
+
+ZIO Streams is a purely functional, composable, effectful, and resourceful streaming library. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and supports backpressure using a pull-based model.
+
+Like the Akka terminology, ZIO streams have three main components:
+
+1. [ZStream](../../reference/stream/zstream/index.md)
+2. [ZPipeline](../../reference/stream/zpipeline.md)
+3. [ZSink](../../reference/stream/zsink/index.md)
+
+Let's see how to implement the same example in ZIO:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+object ZIOStreamApp extends ZIOAppDefault {
+  val source    = ZStream.fromIterable(1 to 100)
+  val factorial = ZPipeline.scan(BigInt(1))((acc, next: Int) => acc * next)
+  val serialize = ZPipeline.map((num: BigInt) => Chunk.fromArray(s"$num".getBytes))
+  val sink      = ZSink.fromFileName("factorials.txt")
+
+  def run = 
+    source
+      .via(factorial)
+      .via(serialize).flattenChunks
+      .run(sink)
+}
+```
+
+## 5. HTTP Applications
+
+### HTTP Applications in Akka
+
+Akka HTTP is a library for building HTTP applications on top of Akka actors and streams. It supports both server-side and client-side HTTP applications:
+
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:compile-only
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directives._
+
+object AkkHttpServer extends App {
+  implicit val system = ActorSystem(Behaviors.empty, "system")
+  implicit val executionContext = system.executionContext
+
+  Http().newServerAt("localhost", 8080).bind {
+    path("hello") {
+      get {
+        complete(
+          HttpEntity(
+            ContentTypes.`text/html(UTF-8)`,
+            "<h1>Say hello to akka-http</h1>"
+          )
+        )
+      }
+    }
+  }
+}
+```
+
+### HTTP Applications in ZIO
+
+On the other hand, ZIO has a library called [ZIO HTTP][56] which is a pure functional library for building HTTP applications. It is on top of ZIO, ZIO Streams.
+
+Let's see how the above Akka HTTP service can be written in ZIO:
+
+```scala mdoc:compile-only
+import zhttp.html.Html
+import zhttp.http._
+import zhttp.service.Server
+import zio.ZIOAppDefault
+
+object ZIOHttpServer extends ZIOAppDefault {
+  def run = Server.start(
+    port = 8080,
+    http = Http.collect[Request] { case Method.GET -> !! / "hello" =>
+      Response.html(Html.fromString("<h1>Say hello to zio-http</h1>"))
+    }
+  )
+}
+```
+
+## 6. Event Sourcing
 
 ### Event Sourcing in Akka
 
@@ -588,75 +721,410 @@ object ZIOStateAndHistory extends ZIOAppDefault {
 
 That's it! By using functional programming instead of Akka actors, we implemented a simple event sourced counter.
 
+## 7. Entity Sharding
 
-## Streaming
+Entity sharding is a technique for distributing a large number of entities across a cluster of nodes. It reduces resource contention by sharding the entities across the nodes. It also provides a way to scale out the system by adding more nodes to the system.
 
-### Streaming with Akka
+### Entity Sharding in Akka
 
-Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
+Akka has a module called Akka Cluster Sharding that provides a way to distribute entities. Without further ado, in the following example, we are going to shard instances of the `Counter` entity type and then create a web service that can be used to increment or decrement each entity.
 
-1. Source
-2. Sink
-3. Flow
+```scala mdoc:invisible:reset
 
-Here is a simple example of how to have a streaming app in Akka:
+```
 
-```scala mdoc:compile-only
-import akka.actor.ActorSystem
-import akka.stream.scaladsl._
-import akka.util.ByteString
+```scala mdoc:silent
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
 
-import java.nio.file.Paths
-import scala.concurrent._
+object Counter {
+  sealed trait Message
+  case class Increase(replyTo: ActorRef[Int]) extends Message
+  case class Decrease(replyTo: ActorRef[Int]) extends Message
 
-object AkkaStreamApp extends App {
-  implicit val system: ActorSystem = ActorSystem("stream")
-  implicit val ec: ExecutionContextExecutor = system.dispatcher
-
-  val source = Source(1 to 100)
-  val factorial = Flow[Int].scan(BigInt(1))((acc, next) => acc * next)
-  val serialize = Flow[BigInt].map(num => ByteString(s"$num\n"))
-  val sink = FileIO.toPath(Paths.get("factorials.txt"))
-
-  source
-    .via(factorial)
-    .via(serialize)
-    .runWith(sink)
-    .onComplete(_ => system.terminate())
+  def apply(entityId: String): Behavior[Message] = {
+    def updated(value: Int): Behavior[Message] = {
+      Behaviors.receive { (context, command) =>
+        val log = context.log
+        val address = context.system.address
+        command match {
+          case Increase(replyTo) =>
+            log.info(s"executing inc msg for $entityId entity inside $address")
+            val state = value + 1
+            replyTo ! state
+            updated(state)
+          case Decrease(replyTo) =>
+            log.info(s"executing dec msg for $entityId entity inside $address")
+            val state = value - 1
+            replyTo ! state
+            updated(state)
+        }
+      }
+    }
+    updated(0)
+  }
 }
 ```
 
-### Streaming in ZIO
+Now, it's time to create a simple web service that can be used to receive the `inc` and `dec` commands from clients:
 
-ZIO Streams is a purely functional, composable, effectful, and resourceful streaming library. It provides a way to model streaming data processing as a pure function. It is built on top of ZIO and supports backpressure using a pull-based model.
+```scala mdoc:silent
+import akka.actor.typed.ActorSystem
 
-Like the Akka terminology, ZIO streams have three main components:
+import scala.concurrent.duration.DurationInt
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.util.Timeout
 
-1. [ZStream](../../reference/stream/zstream/index.md)
-2. [ZPipeline](../../reference/stream/zpipeline.md)
-3. [ZSink](../../reference/stream/zsink/index.md)
+object CounterHttpApp {
+  implicit val timeout: Timeout = 1.seconds
 
-Let's see how to implement the same example in ZIO:
+  def routes(implicit
+      system: ActorSystem[ShardingEnvelope[Counter.Message]]
+  ): Route = {
+    path(Segment / Segment) { case (entityId, command) =>
+      get {
+        val response = system.ask[Int](askReplyTo =>
+          ShardingEnvelope(
+            entityId,
+            command match {
+              case "inc" => Counter.Increase(askReplyTo)
+              case "dec" => Counter.Decrease(askReplyTo)
+            }
+          )
+        )
+        onComplete(response) { value =>
+          complete(value.toString)
+        }
+      }
+    }
+  }
+}
+```
+
+To be able to shard instances of the `Counter` entity, let's define the guardian behavior:
+
+```scala mdoc:silent
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.cluster.sharding.typed.scaladsl._
+
+object Guardian {
+  def apply(): Behavior[ShardingEnvelope[Counter.Message]] =
+    Behaviors.setup { context =>
+      val TypeKey: EntityTypeKey[Counter.Message] =
+        EntityTypeKey[Counter.Message]("counter")
+      val clusterSharding = ClusterSharding(context.system)
+      val shardRegion =
+        clusterSharding.init(Entity(TypeKey)(c => Counter(c.entityId)))
+      Behaviors.receiveMessage { msg =>
+        shardRegion ! msg
+        Behaviors.same
+      }
+    }
+}
+```
+
+To be able to run multiple instances of the application, we need to define a seed node and also let the application read the port number from the environment. So, let's create the `application.conf` file in the `src/main/resources` directory:
+
+```hocon
+akka {
+  actor {
+    allow-java-serial ization =true 
+    provider = "cluster"
+  }
+  remote.artery.canonical {
+    hostname = "127.0.0.1" 
+    port = 2551
+    port=${?PORT}
+  }
+  cluster.seed-nodes= ["akka://system@127.0.0.1:2551"]
+}
+
+webservice {
+  host = "127.0.0.1"
+  port = 8082
+  port = ${?HTTP_PORT}
+}
+```
+
+The final step is to wire everything together to create the application:
 
 ```scala mdoc:compile-only
+import akka.actor.typed.ActorSystem
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.http.scaladsl.Http
+import com.typesafe.config.ConfigFactory
+
+object AkkaClusterShardingExample extends App {
+  val config = ConfigFactory.load("application.conf")
+
+  implicit val system: ActorSystem[ShardingEnvelope[Counter.Message]] =
+    ActorSystem(Guardian(), "system", config)
+
+  Http()
+    .newServerAt(
+      config.getString("webservice.host"),
+      config.getInt("webservice.port")
+    )
+    .bind(CounterHttpApp.routes)
+}
+```
+
+To run the application, we need to start the seed node first:
+
+```bash
+sbt -DHTTP_PORT=8081 -DPORT=2551 "runMain AkkaClusterShardingExample"
+```
+
+Then, we can start some more nodes:
+
+```bash
+sbt -DHTTP_PORT=8082 -DPORT=2552 "runMain AkkaClusterShardingExample"
+sbt -DHTTP_PORT=8083 -DPORT=2553 "runMain AkkaClusterShardingExample"
+```
+
+Now, we can send some requests to any of theses nodes:
+
+```bash
+GET http://localhost:8081/foo/inc
+GET http://localhost:8082/foo/inc
+GET http://localhost:8083/foo/inc
+
+GET http://localhost:8081/bar/inc
+GET http://localhost:8082/bar/inc
+GET http://localhost:8083/bar/inc
+
+// ...
+```
+
+We can see that the each of `foo` and `bar` entities will be executed in a single node at a time, even if we are sending requests to different nodes.
+
+### Entity Sharding in ZIO
+
+In the ZIO community, there is a library called [Shardcake][73] that provides a purely functional API for entity sharding. It is highly configurable and customizable. Let's try to implement the same example as in the previous section using Shardcake.
+
+First, we are going to define the `Counter` entity:
+
+```scala mdoc:invisible:reset
+
+```
+
+```scala mdoc:silent
+import com.devsisters.shardcake.Messenger.Replier
+import com.devsisters.shardcake._
 import zio._
-import zio.stream._
 
-object ZIOStreamApp extends ZIOAppDefault {
-  val source    = ZStream.fromIterable(1 to 100)
-  val factorial = ZPipeline.scan(BigInt(1))((acc, next: Int) => acc * next)
-  val serialize = ZPipeline.map((num: BigInt) => Chunk.fromArray(s"$num".getBytes))
-  val sink      = ZSink.fromFileName("factorials.txt")
+sealed trait CounterMessage
+object CounterMessage {
+  case class Increase(replier: Replier[Int]) extends CounterMessage
+  case class Decrease(replier: Replier[Int]) extends CounterMessage
+}
 
-  def run = 
-    source
-      .via(factorial)
-      .via(serialize).flattenChunks
-      .run(sink)
+object Counter extends EntityType[CounterMessage]("counter") {
+
+  def handleMessage(
+    entityId: String,
+    state: Ref[Int],
+    message: CounterMessage
+  ): ZIO[Sharding, Nothing, Unit] =
+    podPort.flatMap { port =>
+      message match {
+        case CounterMessage.Increase(replier) =>
+          state
+            .updateAndGet(_ + 1)
+            .debug(s"The $entityId counter increased inside localhost:$port pod")
+            .flatMap(replier.reply)
+        case CounterMessage.Decrease(replier) =>
+          state
+            .updateAndGet(_ - 1)
+            .debug(s"The $entityId counter decreased inside localhost:$port pod")
+            .flatMap(replier.reply)
+      }
+    }
+
+  def behavior(
+    entityId: String,
+    messages: Dequeue[CounterMessage]
+  ): ZIO[Sharding, Nothing, Nothing] =
+    Ref.make(0).flatMap { state =>
+      messages.take.flatMap(handleMessage(entityId, state, _)).forever
+    }
+
+  def podPort: UIO[String] =
+    System
+      .env("PORT")
+      .some
+      .orDieWith(_ => new Exception("Application started without any specified port!"))
 }
 ```
 
-## Modeling Actors Using ZIO
+To be able to receive messages from the clients, let's define a web service:
+
+```scala mdoc:silent
+import com.devsisters.shardcake.{ Messenger, Sharding }
+import zhttp.http._
+import zio.Scope
+
+object WebService {
+  def apply(
+    counter: Messenger[CounterMessage]
+  ): Http[Sharding with Scope, Throwable, Request, Response] =
+    Http.collectZIO[Request] {
+      case Method.GET -> !! / entityId / "inc" =>
+        counter
+          .send(entityId)(CounterMessage.Increase)
+          .map(r => Response.text(r.toString))
+
+      case Method.GET -> !! / entityId / "dec" =>
+        counter
+          .send(entityId)(CounterMessage.Decrease)
+          .map(r => Response.text(r.toString))
+    }
+}
+```
+
+In this example, we are going to use Redis as the storage backend for the sharding. So, let's define a live layer for the sharding:
+
+```scala mdoc:silent
+import com.devsisters.shardcake.StorageRedis.Redis
+import dev.profunktor.redis4cats.Redis
+import dev.profunktor.redis4cats.connection.RedisClient
+import dev.profunktor.redis4cats.data.RedisCodec
+import dev.profunktor.redis4cats.effect.Log
+import dev.profunktor.redis4cats.pubsub.PubSub
+import zio.interop.catz._
+import zio._
+
+object RedisLive {
+  val layer: ZLayer[Any, Throwable, Redis] =
+    ZLayer.scopedEnvironment {
+      implicit val runtime: zio.Runtime[Any] = zio.Runtime.default
+      
+      implicit val logger: Log[Task] = new Log[Task] {
+        override def debug(msg: => String): Task[Unit] = ZIO.logDebug(msg)
+        override def error(msg: => String): Task[Unit] = ZIO.logError(msg)
+        override def info(msg: => String): Task[Unit]  = ZIO.logInfo(msg)
+      }
+
+      (for {
+        client   <- RedisClient[Task].from("redis://localhost")
+        commands <- Redis[Task].fromClient(client, RedisCodec.Utf8)
+        pubSub   <- PubSub.mkPubSubConnection[Task, String, String](client, RedisCodec.Utf8)
+      } yield ZEnvironment(commands, pubSub)).toScopedZIO
+    }
+}
+```
+
+We also need a configuration layer for the sharding:
+
+```scala mdoc:silent
+import zio._
+import com.devsisters.shardcake.Config
+
+object ShardConfig {
+  val layer: ZLayer[Any, SecurityException, Config] =
+    ZLayer(
+      System
+        .env("PORT")
+        .map(
+          _.flatMap(_.toIntOption)
+            .fold(Config.default)(port => Config.default.copy(shardingPort = port))
+        )
+    )
+}
+```
+
+Now we are ready to create our application:
+
+```scala mdoc:silent
+import com.devsisters.shardcake._
+import zio._
+import zhttp.service.Server
+
+object HttpApp extends ZIOAppDefault {
+
+  def run: Task[Unit] =
+    ZIO.scoped {
+      for {
+        port    <- System.env("HTTP_PORT").map(_.flatMap(_.toIntOption).getOrElse(8080))
+        _       <- Sharding.registerEntity(Counter, Counter.behavior)
+        _       <- Sharding.registerScoped
+        counter <- Sharding.messenger(Counter)
+        _       <- Server.start(port, WebService(counter))
+      } yield ()
+    }.provide(
+      ShardConfig.layer,
+      ZLayer.succeed(GrpcConfig.default),
+      ZLayer.succeed(RedisConfig.default),
+      RedisLive.layer,
+      StorageRedis.live,
+      KryoSerialization.live,
+      ShardManagerClient.liveWithSttp,
+      GrpcPods.live,
+      Sharding.live,
+      GrpcShardingService.live
+    )
+}
+```
+
+To manage sharding, we should run a separate application which is called `ShardManager`:
+
+```scala mdoc:silent
+import zio._
+import com.devsisters.shardcake.interfaces._
+
+object ShardManagerApp extends ZIOAppDefault {
+  def run: Task[Nothing] =
+     com.devsisters.shardcake.Server.run.provide(
+      ZLayer.succeed(ManagerConfig.default),
+      ZLayer.succeed(GrpcConfig.default),
+      ZLayer.succeed(RedisConfig.default),
+      RedisLive.layer,
+      StorageRedis.live, // store data in Redis
+      PodsHealth.local,  // just ping a pod to see if it's alive
+      GrpcPods.live,     // use gRPC protocol
+      ShardManager.live  // Shard Manager logic
+    )
+}
+```
+
+That's it! Now it's time to run the application. First, let's run an instance of Redis using docker:
+
+```bash
+docker run -d -p 6379:6379 --name sampleredis redis
+```
+
+Then, we can run the `ShardManager` application:
+
+```bash
+sbt "runMain ShardManagerApp"
+```
+
+Now, we can run multiple instances of `HttpApp`:
+
+```
+sbt -DHTTP_PORT=8081 -DPORT=8091 "runMain HttpApp"
+sbt -DHTTP_PORT=8082 -DPORT=8092 "runMain HttpApp"
+sbt -DHTTP_PORT=8083 -DPORT=8093 "runMain HttpApp"
+```
+
+Finally, we can send requests to the `HttpApp` instances:
+
+```bash
+curl http://localhost:8081/foo/inc
+curl http://localhost:8082/foo/inc
+curl http://localhost:8083/foo/inc
+
+curl http://localhost:8081/bar/inc
+curl http://localhost:8082/bar/inc
+curl http://localhost:8083/bar/inc
+```
+
+At the same time, each entity is running only in one instance of `HttpApp`. So if we send a request for an entity to one of the instances of `HttpApp` where that entity doesn't belong, that request will be routed to the correct instance.
 
 [1]: https://doc.akka.io/docs/akka/current/index.html
 [2]: https://zio.dev/reference/core/zio/
@@ -730,3 +1198,10 @@ object ZIOStreamApp extends ZIOAppDefault {
 [70]: ../../ecosystem/officials/zio-logging.md
 [71]: https://doc.akka.io/docs/akka-http/current/common/caching.html
 [72]: ../../ecosystem/officials/zio-cache.md
+[73]: https://devsisters.github.io/shardcake/ 
+[74]: https://doc.akka.io/docs/akka/current/typed/cluster-sharding.html
+[75]: ../../reference/state/global-shared-state.md
+[76]: ../../reference/state/fiberref.md
+[77]: ../../reference/state/zstate.md
+[78]: https://doc.akka.io/docs/akka/current/typed/mailboxes.html
+[79]: ../../reference/concurrency/queue.md
