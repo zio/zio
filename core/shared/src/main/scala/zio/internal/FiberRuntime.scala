@@ -272,7 +272,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case FiberMessage.InterruptSignal(cause) =>
           processNewInterruptSignal(cause)
 
-          cur = if (RuntimeFlags.interruptible(runtimeFlags)) Exit.Failure(cause) else cur
+          if (RuntimeFlags.interruptible(runtimeFlags)) {
+            cur = Exit.Failure(cause)
+          }
 
         case FiberMessage.GenStackTrace(onTrace) =>
           val oldCur = cur
@@ -862,9 +864,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 case zioError: ZIOError =>
                   cur = zioError.toEffect(effect.trace)
                 case throwable: Throwable =>
-                  cur = if (isFatal(throwable)) {
-                    handleFatalError(throwable)
-                  } else ZIO.failCause(Cause.die(throwable))(effect.trace)
+                  if (isFatal(throwable)) {
+                    cur = handleFatalError(throwable)
+                  } else {
+                    cur = ZIO.failCause(Cause.die(throwable))(effect.trace)
+                  }
               }
 
             case effect0: OnFailure[_, _, _, _] =>
@@ -1049,13 +1053,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               // If we are nested inside another recursive call to `runLoop`,
               // then we need pop out to the very top in order to update
               // runtime flags globally:
-              cur = if (currentDepth > 0) {
+              if (currentDepth > 0) {
                 self.reifiedStack.ensureCapacity(currentDepth)
                 throw Trampoline(ZIO.unit, false)
               } else {
                 // We are at the top level, no need to update runtime flags
                 // globally:
-                ZIO.unit
+                cur = ZIO.unit
               }
 
             case iterate0: WhileLoop[_, _, _] =>
@@ -1106,9 +1110,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             cur = Exit.Failure(Cause.die(interruptedException) ++ Cause.interrupt(FiberId.None))
 
           case throwable: Throwable =>
-            cur = if (isFatal(throwable)) {
-              handleFatalError(throwable)
-            } else ZIO.failCause(Cause.die(throwable))(lastTrace)
+            if (isFatal(throwable)) {
+              cur = handleFatalError(throwable)
+            } else {
+              cur = ZIO.failCause(Cause.die(throwable))(lastTrace)
+            }
         }
       }
     }
