@@ -1056,11 +1056,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               if (currentDepth > 0) {
                 self.reifiedStack.ensureCapacity(currentDepth)
                 throw Trampoline(ZIO.unit, false)
-              } else {
-                // We are at the top level, no need to update runtime flags
-                // globally:
-                cur = ZIO.unit
               }
+
+              // We are at the top level, no need to update runtime flags
+              // globally:
+              cur = ZIO.unit
 
             case iterate0: WhileLoop[_, _, _] =>
               val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
