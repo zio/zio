@@ -1189,6 +1189,8 @@ ZIO has another project in development called [ZIO Flow][89]. It is a distribute
 - Membership: A membership layer for discovering nodes that are part of the same distributed system and also providing algorithms for joining and leaving the cluster. Currently, it uses SWIM and HyParView algorithms.
 - Consensus: A consensus layer provides a solution for this problem: "What if the leader becomes unavailable?". Which is not developed yet.
 
+There is also a work-in-progress implementation of the Raft protocol called [ZIO Raft][91] which is worth mentioning.
+
 [1]: https://doc.akka.io/docs/akka/current/index.html
 [2]: https://zio.dev/reference/core/zio/
 [3]: https://zio.dev/reference/concurrency/
@@ -1279,3 +1281,4 @@ ZIO has another project in development called [ZIO Flow][89]. It is a distribute
 [88]: ../../ecosystem/officials/zio-schema.md
 [89]: https://github.com/zio/zio-flow 
 [90]: https://zio.github.io/zio-keeper/
+[91]: https://github.com/ariskk/zio-raft
