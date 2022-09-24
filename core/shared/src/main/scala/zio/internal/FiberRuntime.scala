@@ -774,6 +774,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     type ErasedSuccessK = Any => ZIO[Any, Any, Any]
     type ErasedFailureK = Cause[Any] => ZIO[Any, Any, Any]
 
+    // Note that assigning `cur` as the result of the `try` causes scalac to box `lastTrace`.
     var cur          = effect
     var done         = null.asInstanceOf[AnyRef]
     var stackIndex   = 0
@@ -960,15 +961,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               throw GenerateTrace
 
             case stateful: Stateful[_, _, _] =>
-              cur =
-                try {
-                  stateful.erase.onState(
-                    self.asInstanceOf[FiberRuntime[Any, Any]],
-                    Fiber.Status.Running(runtimeFlags, lastTrace)
-                  )
-                } catch {
-                  case zioError: ZIOError => zioError.toEffect(stateful.trace)
-                }
+              try {
+                cur = stateful.erase.onState(
+                  self.asInstanceOf[FiberRuntime[Any, Any]],
+                  Fiber.Status.Running(runtimeFlags, lastTrace)
+                )
+              } catch {
+                case zioError: ZIOError =>
+                  cur = zioError.toEffect(stateful.trace)
+              }
 
             case success: Exit.Success[_] =>
               // Keep this in sync with Sync
