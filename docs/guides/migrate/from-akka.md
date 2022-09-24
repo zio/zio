@@ -1,7 +1,7 @@
 ---
 id: from-akka
-title: "How to Migrate from Akka to ZIO?"
-sidebar_label: "Migration from Akka"
+title: "How to Migrate From Akka to ZIO?"
+sidebar_label: "Migration From Akka"
 ---
 
 ## Overview
@@ -61,7 +61,9 @@ There are also several integration libraries for Akka that cover a wide range of
 
 We also have several other libraries that may not be covered by the Akka ecosystem, but you can still use them. So we encourage you to check the ecosystem section of the ZIO website; take a look at the libraries, and see if they are suitable for your requirements for the migration process.
 
-## Akka Actors Are Not Composable
+## Akka From the Perspective of a ZIO Developer
+
+### They Are Not Composable
 
 Akka actors are modeled as a partial function from `Any` to `Unit`:
 
@@ -69,9 +71,49 @@ Akka actors are modeled as a partial function from `Any` to `Unit`:
 type Actor = PartialFunction[Any, Unit]
 ```
 
-In other words, an actor accepts something and does something with it. Both its input and output are not well typed. It is just like a blackbox:
+In other words, an actor accepts something and does something with it. Both its input and output are not well typed. It is just like a blackbox. We know that having these types of functions is not composable. So it is hard to write small pieces of actors and compose them together to build large applications.
 
-We know that having these types of functions is not composable. So it is hard to write small pieces of actors and compose them together to build large applications.
+While in ZIO everything is composable. We can write composable computational abstractions and compose them together to build large applications. Due to the support for referential transparency, we can reason about small pieces of code and then make sure the whole application is correct.
+
+### When All We Have Is A Hammer
+
+The primary tool in object-oriented programming is object. Objects bundle the data and behavior. In OOP evertything is an object. So we have one tool to solve all problems.
+
+Akka actors are the same. Each actor is an object which has its own state and behavior. Except that Akka actors are not synchronous. We can send messages to them asynchronously. This is where the Akka actors are different from the traditional objects. But the philosophy is the same: everything is an actor. So we have one tool to solve all problems.
+
+But in reality, we don't need to use actors for everything. Many computations do not require any state. We just need to transform the input and produce the output. In ZIO We can use functions for them. Composing functions allows us to build large applications. Although if we need a state, we can use recursive functions or `Ref` to model the state without losing referential transparency and composability.
+
+Other than actors, there are many lightweight tools that can solve concurrency and parallelism problems:
+
+- [Fiber][80]
+- [Ref][82]
+- [Promise][84]
+- [Semaphore][86]
+- [Queue][79]
+- [Hub][85]
+- [Synchronization Primitives][81]
+
+So it doesn't make sense to use actors for everything. It is better to choose the right tool for the right problem.
+
+### Eager Evaluation
+
+The primary evaluation strategy in ZIO is lazy evaluation. In other words, our code isn't evaluated until it's actually needed. So when we write ZIO applications, we are defining a description of the program. This enables us to model the program as a data structure. We can then transform the data structure to build a new program. So this makes us more productive by having reusable and composable abstractions.
+
+So a ZIO application, is composed of series of ZIO values that are description of the whole workflow, finally when we provide the entire application to the `run` method, the ZIO runtime will execute the application.
+
+In contrast, in Akka, the primary evaluation strategy is eager evaluation, except for some part (e.g. Akka Typed). So when we writing Akka application, we are writing a sequence of instructions. This makes it hard to reuse and compose the pieces of code. We can't transform the instructions to build a new program.
+
+### Akka Actors And Futures
+
+Akka actors are modeled on top of Scala `Future`. Both `Future` and `Actor` are asynchronous. Futures are mainly used in Akka by the `Ask` and `PipeTo` methods.
+
+The `Future` is a data structure that represents a value that may not yet be available. It models the asynchronous computation, but the most problem with `Future` is that it is not referentially transparent. So even though we can compose `Future`s together, we can't reason about the whole program. As a result, we cannot ensure that the whole program is correct.
+
+Furthermore, Futures are already running asynchronous constructs, so we cannot control their execution. For example, assume we have two `Future`s; we want to run them concurrently and return the first one that finishes. It is possible to do it with `Future`, but we cannot cancel the already running loser `Future`.
+
+The `ZIO` data type is an alternative construct for `Future`. It is referentially transparent. We can compose `ZIO` values together and reason about the whole program. So we can make sure the entire program is correct.
+
+ZIO support a nice interruption mechanism. We can easily cancel any running `ZIO` workflow using `Fiber#interrupt`. Also, there are high-level APIs on top of interruption. For example, we have `race` operators, where we can run multiple ZIO workflows and get the first successful result: `ZIO.succeed("Hello!").delay(1.second).race(ZIO.succeed("Hi!").delay(2.second))`. ZIO automatically cancels the loser computation.
 
 ## Akka Use-cases
 
@@ -86,6 +128,7 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 5. [HTTP Applications](#5-http-applications)
 6. [Event Sourcing](#6-event-sourcing)
 7. [Entity Sharding](#7-entity-sharding)
+8. [Distributed Computing](#8-distributed-computing)
 
 Let's see an example of each use-case in a simple application using Akka.
 
@@ -1125,6 +1168,28 @@ curl http://localhost:8083/bar/inc
 
 At the same time, each entity is running only in one instance of `HttpApp`. So if we send a request for an entity to one of the instances of `HttpApp` where that entity doesn't belong, that request will be routed to the correct instance.
 
+## 8. Distributed Computing
+
+The most important feature of Akka is its distributed computing capabilities. It provides a set of well-established tools for building distributed systems, like Akka Cluster, Akka Distributed Data, Akka Remoting, Akka gRPC, etc.
+
+ZIO has started a couple of projects to support distributed computing and there are also some community projects. However, some of them are still in the early stages of development. Hence, if you are heavily relying on distributed Akka technologies, you may need to make a decision with more caution.
+
+In this section, we are going to iterate over the available options and what is the current progress:
+
+First of all, we have a production-ready project for gRPC called [ZIO gRPC][24]. It is a ZIO wrapper around [ScalaPB][87]. It also supports streaming RPC calls using ZIO Streams.
+
+The next fantastic project is [ZIO Schema][88]. Using ZIO Schema, you can define your data types as schemas and then generate codecs for them. It also supports distributed computing by providing a way to serialize and deserialize computations. So we can both move data and computations over the network and execute them remotely.
+
+ZIO has another project in development called [ZIO Flow][89]. It is a distributed workflow executor. We can think of `ZFlow` as a distributed version of `ZIO`. Using `ZFlow` we can describe a distributed workflow without worrying about the underlying concerns like transactional guarantees, fault tolerance, manual retries, etc. It is still in the early stages of development and it is not ready for production use.
+
+[ZIO Keeper][90] is another project in development. It aims to provide solutions for the following distributed computing problems:
+
+- Transport: A transport layer for sending and receiving messages between nodes. Currently, it supports unicast and broadcast messages.
+- Membership: A membership layer for discovering nodes that are part of the same distributed system and also providing algorithms for joining and leaving the cluster. Currently, it uses SWIM and HyParView algorithms.
+- Consensus: A consensus layer provides a solution for this problem: "What if the leader becomes unavailable?". Which is not developed yet.
+
+There is also a work-in-progress implementation of the Raft protocol called [ZIO Raft][91] which is worth mentioning.
+
 [1]: https://doc.akka.io/docs/akka/current/index.html
 [2]: https://zio.dev/reference/core/zio/
 [3]: https://zio.dev/reference/concurrency/
@@ -1204,3 +1269,15 @@ At the same time, each entity is running only in one instance of `HttpApp`. So i
 [77]: ../../reference/state/zstate.md
 [78]: https://doc.akka.io/docs/akka/current/typed/mailboxes.html
 [79]: ../../reference/concurrency/queue.md
+[80]: ../../reference/fiber/fiber.md
+[81]: ../../reference/sync/index.md
+[82]: ../../reference/concurrency/ref.md
+[83]: ../../reference/concurrency/refsynchronized.md
+[84]: ../../reference/concurrency/promise.md
+[85]: ../../reference/concurrency/hub.md
+[86]: ../../reference/concurrency/semaphore.md
+[87]: https://scalapb.github.io/ 
+[88]: ../../ecosystem/officials/zio-schema.md
+[89]: https://github.com/zio/zio-flow 
+[90]: https://zio.github.io/zio-keeper/
+[91]: https://github.com/ariskk/zio-raft
