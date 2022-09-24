@@ -129,6 +129,7 @@ Akka is a toolkit for building highly concurrent, distributed, and resilient mes
 5. [HTTP Applications](#5-http-applications)
 6. [Event Sourcing](#6-event-sourcing)
 7. [Entity Sharding](#7-entity-sharding)
+8. [Distributed Computing](#8-distributed-computing)
 
 Let's see an example of each use-case in a simple application using Akka.
 
@@ -1168,6 +1169,26 @@ curl http://localhost:8083/bar/inc
 
 At the same time, each entity is running only in one instance of `HttpApp`. So if we send a request for an entity to one of the instances of `HttpApp` where that entity doesn't belong, that request will be routed to the correct instance.
 
+## 8. Distributed Computing
+
+The most important feature of Akka is its distributed computing capabilities. It provides a set of well-established tools for building distributed systems, like Akka Cluster, Akka Distributed Data, Akka Remoting, Akka gRPC, etc.
+
+ZIO has started a couple of projects to support distributed computing and there are also some community projects. However, some of them are still in the early stages of development. Hence, if you are heavily relying on distributed Akka technologies, you may need to make a decision with more caution.
+
+In this section, we are going to iterate over the available options and what is the current progress:
+
+First of all, we have a production-ready project for gRPC called [ZIO gRPC][24]. It is a ZIO wrapper around [ScalaPB][87]. It also supports streaming RPC calls using ZIO Streams.
+
+The next fantastic project is [ZIO Schema][88]. Using ZIO Schema, you can define your data types as schemas and then generate codecs for them. It also supports distributed computing by providing a way to serialize and deserialize computations. So we can both move data and computations over the network and execute them remotely.
+
+ZIO has another project in development called [ZIO Flow][89]. It is a distributed workflow executor. We can think of `ZFlow` as a distributed version of `ZIO`. Using `ZFlow` we can describe a distributed workflow without worrying about the underlying concerns like transactional guarantees, fault tolerance, manual retries, etc. It is still in the early stages of development and it is not ready for production use.
+
+[ZIO Keeper][90] is another project in development. It aims to provide solutions for the following distributed computing problems:
+
+- Transport: A transport layer for sending and receiving messages between nodes. Currently, it supports unicast and broadcast messages.
+- Membership: A membership layer for discovering nodes that are part of the same distributed system and also providing algorithms for joining and leaving the cluster. Currently, it uses SWIM and HyParView algorithms.
+- Consensus: A consensus layer provides a solution for this problem: "What if the leader becomes unavailable?". Which is not developed yet.
+
 [1]: https://doc.akka.io/docs/akka/current/index.html
 [2]: https://zio.dev/reference/core/zio/
 [3]: https://zio.dev/reference/concurrency/
@@ -1254,3 +1275,7 @@ At the same time, each entity is running only in one instance of `HttpApp`. So i
 [84]: ../../reference/concurrency/promise.md
 [85]: ../../reference/concurrency/hub.md
 [86]: ../../reference/concurrency/semaphore.md
+[87]: https://scalapb.github.io/ 
+[88]: ../../ecosystem/officials/zio-schema.md
+[89]: https://github.com/zio/zio-flow 
+[90]: https://zio.github.io/zio-keeper/
