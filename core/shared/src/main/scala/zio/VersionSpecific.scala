@@ -16,9 +16,12 @@
 
 package zio
 
+import zio.internal.Platform
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import izumi.reflect.macrortti.LightTypeTagRef
+
+import java.util.{Map => JMap}
 
 private[zio] trait VersionSpecific {
 
@@ -57,7 +60,7 @@ private[zio] trait VersionSpecific {
   type LightTypeTag = izumi.reflect.macrortti.LightTypeTag
 
   private[zio] def taggedIsSubtype(left: LightTypeTag, right: LightTypeTag): Boolean =
-    taggedSubtypes.getOrElseUpdate((left, right), left <:< right)
+    taggedSubtypes.computeIfAbsent((left, right), _ => left <:< right)
 
   private[zio] def taggedTagType[A](tagged: EnvironmentTag[A]): LightTypeTag =
     tagged.tag
@@ -71,6 +74,6 @@ private[zio] trait VersionSpecific {
   private[zio] def taggedGetServices[A](t: LightTypeTag): Set[LightTypeTag] =
     t.decompose
 
-  private val taggedSubtypes: scala.collection.mutable.Map[(LightTypeTag, LightTypeTag), Boolean] =
-    scala.collection.mutable.Map.empty
+  private val taggedSubtypes: JMap[(LightTypeTag, LightTypeTag), Boolean] =
+    Platform.newConcurrentMap()(Unsafe.unsafe)
 }
