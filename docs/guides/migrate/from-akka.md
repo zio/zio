@@ -20,7 +20,6 @@ Here, we summarized alternative ZIO solutions for Akka Actor features. So before
 | Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                |
 | Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                |
 | Resiliency                  | [Akka CircuitBreaker][13]                   | [Rezilience][14]                        |
-| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
 | Logging                     | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]        |
 | Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                          |
 | Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                          |
