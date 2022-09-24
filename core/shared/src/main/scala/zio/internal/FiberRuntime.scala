@@ -774,7 +774,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     type ErasedSuccessK = Any => ZIO[Any, Any, Any]
     type ErasedFailureK = Cause[Any] => ZIO[Any, Any, Any]
 
-    // Note that assigning `cur` as the result of `try` can cause scalac to box `runtimeFlags` or `lastTrace`.
+    // Note that assigning `cur` as the result of `try` or `if` can cause scalac to box `runtimeFlags` or `lastTrace`.
     var cur          = effect
     var done         = null.asInstanceOf[AnyRef]
     var stackIndex   = 0
