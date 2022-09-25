@@ -2351,7 +2351,7 @@ sealed trait ZIO[-R, +E, +A]
    * the specified patch within the scope of this ZIO effect.
    */
   final def withRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.UpdateRuntimeFlagsWithin.Dynamic(trace, patch, _ => self)
+    ZIO.UpdateRuntimeFlagsWithin.WithRuntimeFlags(trace, patch, self)
 
   /**
    * Executes this workflow with the specified implementation of the system
@@ -4420,12 +4420,10 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   def uninterruptibleMask[R, E, A](
     f: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.UpdateRuntimeFlagsWithin.Dynamic(
+    ZIO.UpdateRuntimeFlagsWithin.InterruptibilityRestorer(
       trace,
       RuntimeFlags.disable(RuntimeFlag.Interruption),
-      oldFlags =>
-        if (RuntimeFlags.interruption(oldFlags)) f(InterruptibilityRestorer.MakeInterruptible)
-        else f(InterruptibilityRestorer.MakeUninterruptible)
+      f
     )
 
   /**
@@ -5471,9 +5469,20 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
-    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
+    final case class WithRuntimeFlags[R, E, A](trace: Trace, update: RuntimeFlags.Patch, effect: ZIO[R, E, A])
         extends UpdateRuntimeFlagsWithin[R, E, A] {
-      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
+    }
+
+    final case class InterruptibilityRestorer[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: ZIO.InterruptibilityRestorer => ZIO[R, E, A])
+      extends UpdateRuntimeFlagsWithin[R, E, A] {
+      def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = {
+        val restorer: ZIO.InterruptibilityRestorer =
+          if (RuntimeFlags.interruption(oldRuntimeFlags))
+            ZIO.InterruptibilityRestorer.MakeInterruptible
+          else ZIO.InterruptibilityRestorer.MakeUninterruptible
+        f(restorer)
+      }
     }
   }
   private[zio] final case class GenerateStackTrace(trace: Trace) extends ZIO[Any, Nothing, StackTrace]
