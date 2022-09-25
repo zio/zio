@@ -1752,7 +1752,7 @@ object ZChannel {
                                              .withPermit(latch.succeed(()) *> raceIOs)
                                              .ensuring(ZIO.fiberId.flatMap(id => childFibers.update(_ - id)))
                                              .fork
-                             _       <- childFibers.update(_ + (childFiber.id -> childFiber))
+                             _       <- childFibers.update(_.updated(childFiber.id, childFiber))
                              _       <- latch.await
                              errored <- errorSignal.isDone
                            } yield !errored
@@ -1773,7 +1773,7 @@ object ZChannel {
                                              .withPermit(latch.succeed(()) *> raceIOs)
                                              .ensuring(ZIO.fiberId.flatMap(id => childFibers.update(_ - id)))
                                              .fork
-                             _       <- childFibers.update(_ + (childFiber.id -> childFiber))
+                             _       <- childFibers.update(_.updated(childFiber.id, childFiber))
                              _       <- latch.await
                              errored <- errorSignal.isDone
                            } yield !errored

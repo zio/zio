@@ -46,13 +46,13 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
    * Offers the specified value to the queue.
    */
   def offer(a: A): USTM[Unit] =
-    ref.update(map => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _))))
+    ref.update(map => map.updated(a, map.get(a).fold(::(a, Nil))(::(a, _))))
 
   /**
    * Offers all of the elements in the specified collection to the queue.
    */
   def offerAll(values: Iterable[A]): USTM[Unit] =
-    ref.update(map => values.foldLeft(map)((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
+    ref.update(map => values.foldLeft(map)((map, a) => map.updated(a, map.get(a).fold(::(a, Nil))(::(a, _)))))
 
   /**
    * Peeks at the first value in the queue without removing it, retrying until a
@@ -86,7 +86,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.update { map =>
       map.keys.foldLeft(map) { case (map, a) =>
         map(a).filter(f) match {
-          case h :: t => map + (a -> ::(h, t))
+          case h :: t => map.updated(a, ::(h, t))
           case Nil    => map - a
         }
       }
@@ -110,7 +110,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
           ref.unsafeSet(
             journal,
             as.tail match {
-              case h :: t => map + (a -> ::(h, t))
+              case h :: t => map.updated(a, ::(h, t))
               case Nil    => map - a
             }
           )
@@ -163,7 +163,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
           ref.unsafeSet(
             journal,
             as.tail match {
-              case h :: t => map + (a -> ::(h, t))
+              case h :: t => map.updated(a, ::(h, t))
               case Nil    => map - a
             }
           )
@@ -207,7 +207,7 @@ object TPriorityQueue {
    */
   def fromIterable[A](data: => Iterable[A])(implicit ord: Ordering[A]): USTM[TPriorityQueue[A]] =
     TRef
-      .make(data.foldLeft(SortedMap.empty[A, ::[A]])((map, a) => map + (a -> map.get(a).fold(::(a, Nil))(::(a, _)))))
+      .make(data.foldLeft(SortedMap.empty[A, ::[A]])((map, a) => map.updated(a, map.get(a).fold(::(a, Nil))(::(a, _)))))
       .map(ref => new TPriorityQueue(ref))
 
   /**

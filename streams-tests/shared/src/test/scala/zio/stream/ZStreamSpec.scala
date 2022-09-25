@@ -4070,7 +4070,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val actual = left.zipAllSortedByKeyWith(right)(identity, identity)(_ + _)
             val expected = Chunk.fromIterable {
               as.flatten.toMap.foldLeft(bs.flatten.toMap) { case (map, (k, v)) =>
-                map.get(k).fold(map + (k -> v))(v1 => map + (k -> (v + v1)))
+                map.get(k).fold(map.updated(k -> v))(v1 => map + (k, (v + v1)))
               }
             }.sorted
             assertZIO(actual.runCollect)(equalTo(expected))

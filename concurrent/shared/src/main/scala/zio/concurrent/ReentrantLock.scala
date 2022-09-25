@@ -60,7 +60,7 @@ final class ReentrantLock private (fairness: Boolean, state: Ref[ReentrantLock.S
             ep + 1,
             holder,
             cnt,
-            waiters + (fiberId -> (ep -> p))
+            waiters.updated(fiberId -> (ep, p))
           )
       }.flatten
     }

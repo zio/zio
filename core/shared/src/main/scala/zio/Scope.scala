@@ -298,7 +298,7 @@ object Scope {
               case Exited(nextKey, exit, update) =>
                 finalizer(exit).as(None) -> Exited(next(nextKey), exit, update)
               case Running(nextKey, fins, update) =>
-                ZIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins + (nextKey -> finalizer), update)
+                ZIO.succeed(Some(nextKey)) -> Running(next(nextKey), fins.updated(nextKey, finalizer), update)
             }.flatten
 
           def get(key: Key)(implicit trace: Trace): UIO[Option[Finalizer]] =
@@ -366,7 +366,7 @@ object Scope {
             ref.modify {
               case Exited(nk, exit, update) => (finalizer(exit).as(None), Exited(nk, exit, update))
               case Running(nk, fins, update) =>
-                (ZIO.succeed(fins get key), Running(nk, fins + (key -> finalizer), update))
+                (ZIO.succeed(fins get key), Running(nk, fins.updated(key, finalizer), update))
             }.flatten
 
           def updateAll(f: Finalizer => Finalizer)(implicit trace: Trace): UIO[Unit] =

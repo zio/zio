@@ -28,7 +28,7 @@ final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any],
   def ++(that: TestAnnotationMap): TestAnnotationMap =
     new TestAnnotationMap((self.map.toVector ++ that.map.toVector).foldLeft[Map[TestAnnotation[Any], AnyRef]](Map()) {
       case (acc, (key, value)) =>
-        acc + (key -> acc.get(key).fold(value)(key.combine(_, value).asInstanceOf[AnyRef]))
+        acc.updated(key, acc.get(key).fold(value)(key.combine(_, value).asInstanceOf[AnyRef]))
     })
 
   /**
@@ -47,7 +47,7 @@ final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any],
     map.get(key.asInstanceOf[TestAnnotation[Any]]).fold(key.initial)(_.asInstanceOf[V])
 
   private def overwrite[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
-    new TestAnnotationMap(map + (key.asInstanceOf[TestAnnotation[Any]] -> value.asInstanceOf[AnyRef]))
+    new TestAnnotationMap(map.updated(key.asInstanceOf[TestAnnotation[Any]], value.asInstanceOf[AnyRef]))
 
   private def update[V](key: TestAnnotation[V], f: V => V): TestAnnotationMap =
     overwrite(key, f(get(key)))

@@ -1178,7 +1178,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                           for {
                             queue <- Queue.bounded[Exit[Option[E], A]](maximumLag)
                             id     = UniqueKey()
-                            _     <- queuesRef.update(_ + (id -> queue))
+                            _     <- queuesRef.update(_.updated(id, queue))
                           } yield (id, queue)
                         }
           finalize = (endTake: Exit[Option[E], Nothing]) =>
@@ -1191,7 +1191,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                                     queue <- Queue.bounded[Exit[Option[E], A]](1)
                                     _     <- queue.offer(endTake)
                                     id     = UniqueKey()
-                                    _     <- queuesRef.update(_ + (id -> queue))
+                                    _     <- queuesRef.update(_.updated(id, queue))
                                   } yield (id, queue)
                                 }
                            queues <- queuesRef.get.map(_.values)
@@ -1573,7 +1573,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                      case Some(idx) => ZIO.succeedNow(_ == idx)
                      case None =>
                        add.flatMap { case (idx, q) =>
-                         (ref.update(_ + (k -> idx)) *>
+                         (ref.update(_.updated(k, idx)) *>
                            out.offer(
                              Exit.succeed(
                                k -> ZStream.mapDequeue(q)(exit =>

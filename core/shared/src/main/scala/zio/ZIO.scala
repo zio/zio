@@ -3959,7 +3959,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                          for {
                            promise <- Promise.make[E, B]
                            _       <- f(a).intoPromise(promise).fork
-                         } yield (promise, map + (a -> promise))
+                         } yield (promise, map.updated(a, promise))
                      }
                    }
         b <- promise.await

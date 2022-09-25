@@ -133,7 +133,7 @@ import zio._
 case class Logging private (ref: FiberRef[Map[String, String]]) {
   def logAnnotate[R, E, A](key: String, value: String)(
       zio: ZIO[R, E, A]
-  ): ZIO[R, E, A] = ref.locallyWith(_ + (key -> value))(zio)
+  ): ZIO[R, E, A] = ref.locallyWith(_.updated(key, value))(zio)
 
   def log(message: String): UIO[Unit] = {
     ref.get.flatMap {
