@@ -51,7 +51,6 @@ There are also several integration libraries for Akka that cover a wide range of
 | Data Codecs          | [Alpakka Avro Parquet][53]         | [ZIO Schema][54]                       |
 |                      |                                    | [ZIO NIO][57]                          |
 | Slick                | [Alpakka Slick][58]                | [ZIO Slick Interop][59]                |
-| Streaming TCP        | [Akka TCP][60]                     | [ZIO TCP][61]                          |
 | Google Cloud Pub/Sub | [Alpakka Google Cloud Pub/Sub][62] | [ZIO GCP Pub/Sub][63]                  |
 | Google Cloud Storage | [Alpakka Google Cloud Storage][64] | [ZIO GCP Storage][63]                  |
 | Json                 | [Alpakka JSON Streaming][65]       | [ZIO JSON][66]                         |
@@ -1183,6 +1182,8 @@ In this section, we are going to iterate over the available options and what is 
 First of all, we have a production-ready project for gRPC called [ZIO gRPC][24]. It is a ZIO wrapper around [ScalaPB][87]. It also supports streaming RPC calls using ZIO Streams.
 
 The next fantastic project is [ZIO Schema][88]. Using ZIO Schema, you can define your data types as schemas and then generate codecs for them. It also supports distributed computing by providing a way to serialize and deserialize computations. So we can both move data and computations over the network and execute them remotely.
+
+Again, as we [mentioned](#entity-sharding-in-zio) in this article, if you need to scale out your application using Entity Sharding, you can use [ShardCake][73]. It provides location transparency for your entities, and you can run them in a distributed manner.
 
 ZIO has another project in development called [ZIO Flow][89]. It is a distributed workflow executor. We can think of `ZFlow` as a distributed version of `ZIO`. Using `ZFlow` we can describe a distributed workflow without worrying about the underlying concerns like transactional guarantees, fault tolerance, manual retries, etc. It is still in the early stages of development and it is not ready for production use.
 
