@@ -359,7 +359,7 @@ object MainApp extends ZIOAppDefault {
 ```
 ## 4. Streaming
 
-### Streaming with Akka
+### Streaming in Akka
 
 Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
 
