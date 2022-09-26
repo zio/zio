@@ -5,7 +5,7 @@ sidebar_label: "RESTful Web Service"
 ---
 
 This quickstart shows how to build a RESTful web service using ZIO. It uses
-- [ZIO HTTP](https://dream11.github.io/zio-http/) for the HTTP server
+- [ZIO HTTP](https://github.com/zio/zio-http) for the HTTP server
 - [ZIO JSON](https://zio.github.io/zio-json/) for the JSON serialization
 - [ZIO Quill](https://zio.github.io/zio-quill/) for type-safe queries on the JDBC database
 
