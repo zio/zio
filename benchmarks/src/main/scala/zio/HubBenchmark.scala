@@ -297,7 +297,8 @@ class HubBenchmarks {
               for {
                 key   <- Resource.eval(cstm.commit(key.get.flatMap(n => key.modify(_ + 1).as(n))))
                 queue <- Resource.eval(cstm.commit(CatsTQueue.empty[A]))
-                _     <- Resource.make(cstm.commit(ref.modify(_.updated(key, queue))))(_ => cstm.commit(ref.modify(_ - key)))
+                _ <-
+                  Resource.make(cstm.commit(ref.modify(_.updated(key, queue))))(_ => cstm.commit(ref.modify(_ - key)))
               } yield n => catsRepeat(n)(cstm.commit(queue.read))
           }
         }
