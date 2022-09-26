@@ -32,7 +32,7 @@ Some key features of ZIO Cache:
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-cache" % "0.2.0-RC6"
+libraryDependencies += "dev.zio" %% "zio-cache" % "0.2.0"
 ```
 
 ## Example
