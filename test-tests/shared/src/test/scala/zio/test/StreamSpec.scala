@@ -130,8 +130,8 @@ object StreamSpec extends ZIOBaseSpec {
           ::(Map.empty[A, Int], list)
         case (head :: tail, Some(a)) =>
           head.get(a) match {
-            case None    => ::(head + (a -> 1), tail)
-            case Some(n) => ::(head + (a -> (n + 1)), tail)
+            case None    => ::(head.updated(a, 1), tail)
+            case Some(n) => ::(head.updated(a, (n + 1)), tail)
           }
       }
       .tail

@@ -1545,13 +1545,13 @@ object ZManagedSpec extends ZIOBaseSpec {
           acquire = (n: Int) =>
                       ref.update { map =>
                         map.getOrElse(n, (0, 0)) match {
-                          case (acquired, released) => map + (n -> ((acquired + 1, released)))
+                          case (acquired, released) => map.updated(n, ((acquired + 1, released)))
                         }
                       }
           release = (n: Int) =>
                       ref.update { map =>
                         map.getOrElse(n, (0, 0)) match {
-                          case (acquired, released) => map + (n -> ((acquired, released + 1)))
+                          case (acquired, released) => map.updated(n, ((acquired, released + 1)))
                         }
                       }
           managed = (n: Int) => ZManaged.acquireRelease(acquire(n))(release(n))
@@ -1569,13 +1569,13 @@ object ZManagedSpec extends ZIOBaseSpec {
           acquire = (n: Int) =>
                       ref.update { map =>
                         map.getOrElse(n, (0, 0)) match {
-                          case (acquired, released) => map + (n -> ((acquired + 1, released)))
+                          case (acquired, released) => map.updated(n, ((acquired + 1, released)))
                         }
                       }
           release = (n: Int) =>
                       ref.update { map =>
                         map.getOrElse(n, (0, 0)) match {
-                          case (acquired, released) => map + (n -> ((acquired, released + 1)))
+                          case (acquired, released) => map.updated(n, ((acquired, released + 1)))
                         }
                       }
           managed = (n: Int) => ZManaged.acquireRelease(acquire(n))(release(n))

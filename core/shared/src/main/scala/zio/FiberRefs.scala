@@ -92,7 +92,7 @@ final class FiberRefs private (
           .get(ref)
           .fold {
             if (childValue == ref.initial) parentFiberRefs
-            else parentFiberRefs + (ref -> ::((fiberId, ref.join(ref.initial, childValue)), Nil))
+            else parentFiberRefs.updated(ref, ::((fiberId, ref.join(ref.initial, childValue)), Nil))
           } { parentStack =>
             def compareFiberId(left: FiberId.Runtime, right: FiberId.Runtime): Int = {
               val compare = left.startTimeMillis.compare(right.startTimeMillis)
@@ -131,7 +131,7 @@ final class FiberRefs private (
                     if (parentFiberId == fiberId) ::((parentFiberId, newValue), tail)
                     else ::((fiberId, newValue), parentStack)
                 }
-                parentFiberRefs + (ref -> newStack)
+                parentFiberRefs.updated(ref, newStack)
               }
             }
           }
@@ -155,7 +155,7 @@ final class FiberRefs private (
       else if (oldStack.head._1 == fiberId) ::((fiberId, value.asInstanceOf[Any]), oldStack.tail)
       else ::((fiberId, value), oldStack)
 
-    FiberRefs(fiberRefLocals + (fiberRef -> newStack))
+    FiberRefs(fiberRefLocals.updated(fiberRef, newStack))
   }
 
   private[zio] def updatedAsAll(fiberId: FiberId.Runtime)(fiberRefs: Map[FiberRef[_], Any]): FiberRefs =
@@ -163,8 +163,8 @@ final class FiberRefs private (
       fiberRefs.foldLeft(fiberRefLocals) { case (fiberRefLocals, (fiberRef, newValue)) =>
         fiberRefLocals.get(fiberRef) match {
           case Some(stack @ ((_, oldValue) :: tail)) if oldValue != newValue =>
-            fiberRefLocals + (fiberRef -> ::((fiberId, newValue), stack))
-          case None => fiberRefLocals + (fiberRef -> ::((fiberId, newValue), Nil))
+            fiberRefLocals.updated(fiberRef, ::((fiberId, newValue), stack))
+          case None => fiberRefLocals.updated(fiberRef, ::((fiberId, newValue), Nil))
           case _    => fiberRefLocals
         }
       }

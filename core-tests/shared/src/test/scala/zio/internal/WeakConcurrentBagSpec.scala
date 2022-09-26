@@ -42,7 +42,7 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
 
             val ref = bag.add(str)
 
-            hard = hard + (int -> ref)
+            hard = hard.updated(int, ref)
           }
 
           (1 to 100).foreach { i =>

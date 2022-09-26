@@ -1769,7 +1769,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
                                    },
                                    (exit: Exit[Any, Any]) => finalizerRef.get.flatMap(_(exit))
                                  )
-                    } yield (resource, if (layer.isFresh) map else map + (layer -> memoized))
+                    } yield (resource, if (layer.isFresh) map else map.updated(layer, memoized))
 
                 }
               }.flatten

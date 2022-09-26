@@ -184,7 +184,7 @@ class HubBenchmarks {
             for {
               key   <- key.getAndUpdate(_ + 1)
               queue <- Queue.bounded[A](capacity)
-              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)))(_ => ref.update(_ - key))
+              _     <- ZIO.acquireRelease(ref.update(_.updated(key, queue)))(_ => ref.update(_ - key))
             } yield n => zioRepeat(n)(queue.take)
         }
       }
@@ -198,7 +198,7 @@ class HubBenchmarks {
             for {
               key   <- key.getAndUpdate(_ + 1)
               queue <- Queue.unbounded[A]
-              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)))(_ => ref.update(_ - key))
+              _     <- ZIO.acquireRelease(ref.update(_.updated(key, queue)))(_ => ref.update(_ - key))
             } yield n => zioRepeat(n)(queue.take)
         }
       }
@@ -232,7 +232,7 @@ class HubBenchmarks {
             for {
               key   <- key.getAndUpdate(_ + 1).commit
               queue <- TQueue.bounded[A](capacity).commit
-              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)).commit)(_ => ref.update(_ - key).commit)
+              _     <- ZIO.acquireRelease(ref.update(_.updated(key, queue)).commit)(_ => ref.update(_ - key).commit)
             } yield n => zioRepeat(n)(queue.take.commit)
         }
       }
@@ -246,7 +246,7 @@ class HubBenchmarks {
             for {
               key   <- key.getAndUpdate(_ + 1).commit
               queue <- TQueue.unbounded[A].commit
-              _     <- ZIO.acquireRelease(ref.update(_ + (key -> queue)).commit)(_ => ref.update(_ - key).commit)
+              _     <- ZIO.acquireRelease(ref.update(_.updated(key, queue)).commit)(_ => ref.update(_ - key).commit)
             } yield n => zioRepeat(n)(queue.take.commit)
         }
       }
@@ -268,7 +268,7 @@ class HubBenchmarks {
             for {
               key   <- Resource.eval(key.modify(n => (n + 1, n)))
               queue <- Resource.eval(CatsQueue.bounded[CIO, A](capacity))
-              _     <- Resource.make(ref.update(_ + (key -> queue)))(_ => ref.update(_ - key))
+              _     <- Resource.make(ref.update(_.updated(key, queue)))(_ => ref.update(_ - key))
             } yield n => catsRepeat(n)(queue.take)
         }
       }
@@ -282,7 +282,7 @@ class HubBenchmarks {
             for {
               key   <- Resource.eval(key.modify(n => (n + 1, n)))
               queue <- Resource.eval(CatsQueue.unbounded[CIO, A])
-              _     <- Resource.make(ref.update(_ + (key -> queue)))(_ => ref.update(_ - key))
+              _     <- Resource.make(ref.update(_.updated(key, queue)))(_ => ref.update(_ - key))
             } yield n => catsRepeat(n)(queue.take)
         }
       }
@@ -297,7 +297,8 @@ class HubBenchmarks {
               for {
                 key   <- Resource.eval(cstm.commit(key.get.flatMap(n => key.modify(_ + 1).as(n))))
                 queue <- Resource.eval(cstm.commit(CatsTQueue.empty[A]))
-                _     <- Resource.make(cstm.commit(ref.modify(_ + (key -> queue))))(_ => cstm.commit(ref.modify(_ - key)))
+                _ <-
+                  Resource.make(cstm.commit(ref.modify(_.updated(key, queue))))(_ => cstm.commit(ref.modify(_ - key)))
               } yield n => catsRepeat(n)(cstm.commit(queue.read))
           }
         }

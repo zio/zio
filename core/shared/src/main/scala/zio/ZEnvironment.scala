@@ -124,13 +124,13 @@ final class ZEnvironment[+R] private (
    */
   private def filterKeys[K, V](map: Map[K, V])(f: K => Boolean): Map[K, V] =
     map.foldLeft[Map[K, V]](Map.empty) { case (acc, (key, value)) =>
-      if (f(key)) acc + (key -> value) else acc
+      if (f(key)) acc.updated(key, value) else acc
     }
 
   private def clean: ZEnvironment[R] = {
     val (map, index) = self.map.toList.sortBy(_._2._2).foldLeft[(Map[LightTypeTag, (Any, Int)], Int)]((Map.empty, 0)) {
       case ((map, index), (tag, (service, _))) =>
-        map + (tag -> (service -> index)) -> (index + 1)
+        map.updated(tag, (service -> index)) -> (index + 1)
     }
     new ZEnvironment(map, index)
   }
@@ -147,7 +147,7 @@ final class ZEnvironment[+R] private (
     new UnsafeAPI {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] = {
         val self0 = if (index == Int.MaxValue) self.clean else self
-        new ZEnvironment(self0.map + (tag -> (a -> self0.index)), self0.index + 1)
+        new ZEnvironment(self0.map.updated(tag, a -> self0.index), self0.index + 1)
       }
 
       def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A =
@@ -166,7 +166,7 @@ final class ZEnvironment[+R] private (
             }
             if (service == null) throw new Error(s"Defect in zio.ZEnvironment: Could not find ${tag} inside ${self}")
             else {
-              self.cache = self.cache + (tag -> service)
+              self.cache = self.cache.updated(tag, service)
               service
             }
         }
