@@ -8,24 +8,24 @@ sidebar_label: "Migration From Akka"
 
 Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding features in ZIO:
 
-| Topics                      | Akka                                        | ZIO                                     |
-|-----------------------------|---------------------------------------------|-----------------------------------------|
-| Parallelism                 | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3]   |
-| Concurrent State Management | [Akka Actor][1]                             | [Ref][75], [FiberRef][76], [ZState][77] |
-| Buffering Workloads         | [Akka Mailboxes][78]                        | [Queue][79]                             |
-| Streaming                   | [Akka Streams][4]                           | [ZIO Streams][5]                        |
-| HTTP Applications           | [Akka Http][55]                             | [ZIO HTTP][56]                          |
-| Event Sourcing              | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]           |
-| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
-| Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                |
-| Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                |
-| Resiliency                  | [Akka CircuitBreaker][13]                   | [Rezilience][14]                        |
-| Logging                     | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]        |
-| Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                          |
-| Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                          |
-| Metrics                     | [Cluster Metric Extension][20]              | [Metrics][21]                           |
-| Supervision                 | [Yes][22]                                   | Yes                                     |
-| Monitoring                  | [Yes][22]                                   | Yes                                     |
+| Topics                      | Akka                                        | ZIO                                        |
+|-----------------------------|---------------------------------------------|--------------------------------------------|
+| Parallelism                 | [Akka Actor][1]                             | [ZIO][2], [Concurrent Data Types][3]       |
+| Concurrent State Management | [Akka Actor][1]                             | [Ref][75], [FiberRef][76], [ZState][77]    |
+| Buffering Workloads         | [Akka Mailboxes][78]                        | [Queue][79]                                |
+| Streaming                   | [Akka Streams][4]                           | [ZIO Streams][5]                           |
+| HTTP Applications           | [Akka Http][55]                             | [ZIO HTTP][56]                             |
+| Event Sourcing              | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]              |
+| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                            |
+| Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                   |
+| Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                   |
+| Resiliency                  | [Akka CircuitBreaker][13]                   | [Schedule data type][11], [Rezilience][14] |
+| Logging                     | [Built-in Support][15]                      | [Built-in Support][16], [ZIO Logging][92]  |
+| Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                             |
+| Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                             |
+| Metrics                     | [Cluster Metric Extension][20]              | [Metrics][21], [ZIO Metrics][93]           |
+| Supervision                 | [Yes][22]                                   | Yes                                        |
+| Monitoring                  | [Yes][22]                                   | Yes                                        |
 
 There are also several integration libraries for Akka that cover a wide range of technologies. If you use any of these technologies, you have a chance to use the equivalent of them in the ZIO ecosystem:
 
@@ -51,7 +51,6 @@ There are also several integration libraries for Akka that cover a wide range of
 | Data Codecs          | [Alpakka Avro Parquet][53]         | [ZIO Schema][54]                       |
 |                      |                                    | [ZIO NIO][57]                          |
 | Slick                | [Alpakka Slick][58]                | [ZIO Slick Interop][59]                |
-| Streaming TCP        | [Akka TCP][60]                     | [ZIO TCP][61]                          |
 | Google Cloud Pub/Sub | [Alpakka Google Cloud Pub/Sub][62] | [ZIO GCP Pub/Sub][63]                  |
 | Google Cloud Storage | [Alpakka Google Cloud Storage][64] | [ZIO GCP Storage][63]                  |
 | Json                 | [Alpakka JSON Streaming][65]       | [ZIO JSON][66]                         |
@@ -360,7 +359,7 @@ object MainApp extends ZIOAppDefault {
 ```
 ## 4. Streaming
 
-### Streaming with Akka
+### Streaming in Akka
 
 Akka stream is developed on top of Akka actors with backpressure support. There are three main components in Akka streams:
 
@@ -626,42 +625,50 @@ object CounterService extends Counter.Service[Command, Notification] {
 So far, we have defined an edomaton called `CounterService`. To run it, we need a backend:
 
 ```scala
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.effect.std.Console
 import cats.effect.{Async, Concurrent, Resource}
+import cats.data.EitherNec
 import edomata.core.{CommandMessage, DomainService}
 import edomata.skunk.{BackendCodec, CirceCodec, SkunkBackend}
 import edomata.backend.Backend
+import edomata.skunk.SkunkBackend.PartialBuilder
 import edomata.syntax.all.liftTo
 import fs2.io.net.Network
 import skunk.Session
 import io.circe.generic.auto.*
 import natchez.Trace
 import natchez.Trace.Implicits.noop
+import zio.*
+import zio.interop.catz.*
 
 object BackendService {
   given BackendCodec[Event] = CirceCodec.jsonb // or .json
   given BackendCodec[Notification] = CirceCodec.jsonb
   given BackendCodec[Counter] = CirceCodec.jsonb
+  given Network[Task] = Network.forAsync[Task]
+  given Trace[Task] = Trace.Implicits.noop
+  given Console[Task] = Console.make[Task]
 
-  def backend[F[_]: Async: Concurrent: Trace: Console] =
+  def backend =
     SkunkBackend(
       Session
-        .single[F]("localhost", 5432, "postgres", "postgres", Some("postgres"))
+        .single("localhost", 5432, "postgres", "postgres", Some("postgres"))
     )
 
-  def buildBackend[F[_]: Async: Concurrent: Network: Console]
-      : Resource[F, Backend[F, Counter, Event, String, Notification]] =
+  def buildBackend =
     backend
       .builder(CounterService, "counter")
       .withRetryConfig(retryInitialDelay = 2.seconds)
       .persistedSnapshot(200)
       .build
+      .toScopedZIO
 
-  def service[F[_]: Async: Concurrent: Network: Console]
-      : Resource[F, DomainService[F, CommandMessage[Command], String]] =
+  type Service = CommandMessage[Command] => RIO[Scope, EitherNec[String, Unit]]
+
+  def service: ZIO[Scope, Throwable, Service] =
     buildBackend
-      .map(_.compile(CounterService().liftTo[F]))
+      .map(_.compile(CounterService().liftTo[Task]))
 }
 ```
 
@@ -670,13 +677,9 @@ To demonstrate how the backend works, we can write a simple web service that acc
 ```scala
 import zio.*
 import zhttp.http.*
-
-import cats.data.EitherNec
 import edomata.core.CommandMessage
-
+import BackendService.Service
 import java.time.Instant
-
-type Service = CommandMessage[Command] => RIO[Scope, EitherNec[String, Unit]]
 
 object ZIOCounterHttpApp {
 
@@ -712,7 +715,7 @@ object MainApp extends ZIOAppDefault {
   def run =
     ZIO.scoped {
       for {
-        backendService <- BackendService.service.toScopedZIO
+        backendService <- BackendService.service
         _ <- Server.start(8090, ZIOCounterHttpApp(backendService))
       } yield ()
     }
@@ -744,7 +747,7 @@ object ZIOStateAndHistory extends ZIOAppDefault {
   def run =
     ZIO.scoped {
       for {
-        backendService <- BackendService.buildBackend.toScopedZIO.orDie
+        backendService <- BackendService.buildBackend.orDie
         history <- backendService.repository
           .history("FooCounter")
           .toZStream()
@@ -1180,6 +1183,8 @@ First of all, we have a production-ready project for gRPC called [ZIO gRPC][24].
 
 The next fantastic project is [ZIO Schema][88]. Using ZIO Schema, you can define your data types as schemas and then generate codecs for them. It also supports distributed computing by providing a way to serialize and deserialize computations. So we can both move data and computations over the network and execute them remotely.
 
+Again, as we [mentioned](#entity-sharding-in-zio) in this article, if you need to scale out your application using Entity Sharding, you can use [ShardCake][73]. It provides location transparency for your entities, and you can run them in a distributed manner.
+
 ZIO has another project in development called [ZIO Flow][89]. It is a distributed workflow executor. We can think of `ZFlow` as a distributed version of `ZIO`. Using `ZFlow` we can describe a distributed workflow without worrying about the underlying concerns like transactional guarantees, fault tolerance, manual retries, etc. It is still in the early stages of development and it is not ready for production use.
 
 [ZIO Keeper][90] is another project in development. It aims to provide solutions for the following distributed computing problems:
@@ -1281,3 +1286,5 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [89]: https://github.com/zio/zio-flow 
 [90]: https://zio.github.io/zio-keeper/
 [91]: https://github.com/ariskk/zio-raft
+[92]: ../../ecosystem/officials/zio-logging.md
+[93]: ../../ecosystem/officials/zio-metrics.md
