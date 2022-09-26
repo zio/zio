@@ -8,24 +8,24 @@ sidebar_label: "Migration From Akka"
 
 Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding features in ZIO:
 
-| Topics                      | Akka                                        | ZIO                                     |
-|-----------------------------|---------------------------------------------|-----------------------------------------|
-| Parallelism                 | [Akka Actor][1]                             | [ZIO][2] + [Concurrent Data Types][3]   |
-| Concurrent State Management | [Akka Actor][1]                             | [Ref][75], [FiberRef][76], [ZState][77] |
-| Buffering Workloads         | [Akka Mailboxes][78]                        | [Queue][79]                             |
-| Streaming                   | [Akka Streams][4]                           | [ZIO Streams][5]                        |
-| HTTP Applications           | [Akka Http][55]                             | [ZIO HTTP][56]                          |
-| Event Sourcing              | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]           |
-| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                         |
-| Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                |
-| Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                |
-| Resiliency                  | [Akka CircuitBreaker][13]                   | [Rezilience][14]                        |
-| Logging                     | [Built-in Support][15]                      | [Built-in Support (ZLogger)][16]        |
-| Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                          |
-| Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                          |
-| Metrics                     | [Cluster Metric Extension][20]              | [Metrics][21]                           |
-| Supervision                 | [Yes][22]                                   | Yes                                     |
-| Monitoring                  | [Yes][22]                                   | Yes                                     |
+| Topics                      | Akka                                        | ZIO                                        |
+|-----------------------------|---------------------------------------------|--------------------------------------------|
+| Parallelism                 | [Akka Actor][1]                             | [ZIO][2], [Concurrent Data Types][3]       |
+| Concurrent State Management | [Akka Actor][1]                             | [Ref][75], [FiberRef][76], [ZState][77]    |
+| Buffering Workloads         | [Akka Mailboxes][78]                        | [Queue][79]                                |
+| Streaming                   | [Akka Streams][4]                           | [ZIO Streams][5]                           |
+| HTTP Applications           | [Akka Http][55]                             | [ZIO HTTP][56]                             |
+| Event Sourcing              | [Lagom Framework][6], [Akka Persistence][8] | [ZIO Entity][7], [Edomata][9]              |
+| Entity Sharding             | [Akka Cluster Sharding][74]                 | [Shardcake][73]                            |
+| Scheduling                  | [Akka Scheduler][10]                        | [Schedule data type][11]                   |
+| Cron-like Scheduling        | [Akka Quartz Scheduler][12]                 | [Schedule data type][11]                   |
+| Resiliency                  | [Akka CircuitBreaker][13]                   | [Schedule data type][11], [Rezilience][14] |
+| Logging                     | [Built-in Support][15]                      | [Built-in Support][16], [ZIO Logging][92]  |
+| Testing                     | [Akka Testkit][17]                          | [ZIO Test][18]                             |
+| Testing Streams             | [Akka Stream Testkit][19]                   | [ZIO Test][18]                             |
+| Metrics                     | [Cluster Metric Extension][20]              | [Metrics][21], [ZIO Metrics][93]           |
+| Supervision                 | [Yes][22]                                   | Yes                                        |
+| Monitoring                  | [Yes][22]                                   | Yes                                        |
 
 There are also several integration libraries for Akka that cover a wide range of technologies. If you use any of these technologies, you have a chance to use the equivalent of them in the ZIO ecosystem:
 
@@ -1286,3 +1286,5 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [89]: https://github.com/zio/zio-flow 
 [90]: https://zio.github.io/zio-keeper/
 [91]: https://github.com/ariskk/zio-raft
+[92]: ../../ecosystem/officials/zio-logging.md
+[93]: ../../ecosystem/officials/zio-metrics.md
