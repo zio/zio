@@ -626,42 +626,50 @@ object CounterService extends Counter.Service[Command, Notification] {
 So far, we have defined an edomaton called `CounterService`. To run it, we need a backend:
 
 ```scala
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 import cats.effect.std.Console
 import cats.effect.{Async, Concurrent, Resource}
+import cats.data.EitherNec
 import edomata.core.{CommandMessage, DomainService}
 import edomata.skunk.{BackendCodec, CirceCodec, SkunkBackend}
 import edomata.backend.Backend
+import edomata.skunk.SkunkBackend.PartialBuilder
 import edomata.syntax.all.liftTo
 import fs2.io.net.Network
 import skunk.Session
 import io.circe.generic.auto.*
 import natchez.Trace
 import natchez.Trace.Implicits.noop
+import zio.*
+import zio.interop.catz.*
 
 object BackendService {
   given BackendCodec[Event] = CirceCodec.jsonb // or .json
   given BackendCodec[Notification] = CirceCodec.jsonb
   given BackendCodec[Counter] = CirceCodec.jsonb
+  given Network[Task] = Network.forAsync[Task]
+  given Trace[Task] = Trace.Implicits.noop
+  given Console[Task] = Console.make[Task]
 
-  def backend[F[_]: Async: Concurrent: Trace: Console] =
+  def backend =
     SkunkBackend(
       Session
-        .single[F]("localhost", 5432, "postgres", "postgres", Some("postgres"))
+        .single("localhost", 5432, "postgres", "postgres", Some("postgres"))
     )
 
-  def buildBackend[F[_]: Async: Concurrent: Network: Console]
-      : Resource[F, Backend[F, Counter, Event, String, Notification]] =
+  def buildBackend =
     backend
       .builder(CounterService, "counter")
       .withRetryConfig(retryInitialDelay = 2.seconds)
       .persistedSnapshot(200)
       .build
+      .toScopedZIO
 
-  def service[F[_]: Async: Concurrent: Network: Console]
-      : Resource[F, DomainService[F, CommandMessage[Command], String]] =
+  type Service = CommandMessage[Command] => RIO[Scope, EitherNec[String, Unit]]
+
+  def service: ZIO[Scope, Throwable, Service] =
     buildBackend
-      .map(_.compile(CounterService().liftTo[F]))
+      .map(_.compile(CounterService().liftTo[Task]))
 }
 ```
 
@@ -670,13 +678,9 @@ To demonstrate how the backend works, we can write a simple web service that acc
 ```scala
 import zio.*
 import zhttp.http.*
-
-import cats.data.EitherNec
 import edomata.core.CommandMessage
-
+import BackendService.Service
 import java.time.Instant
-
-type Service = CommandMessage[Command] => RIO[Scope, EitherNec[String, Unit]]
 
 object ZIOCounterHttpApp {
 
@@ -712,7 +716,7 @@ object MainApp extends ZIOAppDefault {
   def run =
     ZIO.scoped {
       for {
-        backendService <- BackendService.service.toScopedZIO
+        backendService <- BackendService.service
         _ <- Server.start(8090, ZIOCounterHttpApp(backendService))
       } yield ()
     }
@@ -744,7 +748,7 @@ object ZIOStateAndHistory extends ZIOAppDefault {
   def run =
     ZIO.scoped {
       for {
-        backendService <- BackendService.buildBackend.toScopedZIO.orDie
+        backendService <- BackendService.buildBackend.orDie
         history <- backendService.repository
           .history("FooCounter")
           .toZStream()
