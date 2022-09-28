@@ -81,3 +81,11 @@ We use FP to achieve **code maintainability** and OOP to achieve **code organiza
     - **Modules** which allows us to bundle together related operations into a single unit
 
 So, we leverage the power of both FP and OOP to build a better software system in ZIO.
+
+## Imperative and Declarative Programming
+
+Another important aspect of programming paradigms is the difference between imperative and declarative programming.
+
+In imperative programming, we describe the steps ("How") the computer should take to solve a problem. In declarative programming, we describe the problem itself ("What") and let the computer figure out the steps to solve it.
+
+Although Scala supports both imperative and declarative programming styles, ZIO uses a declarative programming style. The ZIO runtime interprets the program as a set of effects and decides what steps to take to execute it.
