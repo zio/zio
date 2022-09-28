@@ -89,3 +89,17 @@ Another important aspect of programming paradigms is the difference between impe
 In imperative programming, we describe the steps ("How") the computer should take to solve a problem. In declarative programming, we describe the problem itself ("What") and let the computer figure out the steps to solve it.
 
 Although Scala supports both imperative and declarative programming styles, ZIO uses a declarative programming style. The ZIO runtime interprets the program as a set of effects and decides what steps to take to execute it.
+
+## Structured Programming
+
+The idea of structured concurrency is based on the structured programming paradigm. So, let's talk about structured programming first.
+
+In the early days of programming, we used to write programs in a linear manner. Program were composed of a series of instructions that executed one by one. Using goto statements, we could jump to any part of the program and change its execution flow. This was the first programming paradigm called procedural programming. Writing programs in such a linear fashion was error-prone and hard to maintain. Such a program was also complicated to read, understand, and reason about.
+
+Structured programming paradigms were introduced to solve this problem. Structured programming uses control structures like "if-then-else" to make the program flow more logical. Without these control structures, we cannot jump to any part of the program.
+
+In structured programming, we use control structures to organize our code into blocks. These blocks are called "structured blocks" and are the building blocks of structured programming.
+
+A structured control flow makes nested blocks of code with clear boundaries. Each new block of code has its own scope where all objects defined in that block are only visible inside that block. As a result, objects are bound to their enclosing blocks for their lifetime. Having clear scopes and lifetimes of objects make it easier to understand the control flow of the program.
+
+ZIO embraces the structured programming into the next level by using this paradigm in other areas of programming such as [structured concurrency](../fiber/index.md#structured-concurrency), [scope based resource management](../resource/scope.md), and also regional interruption model.
