@@ -61,3 +61,23 @@ In FP, we have only two building blocks to model our programs:
 We describe our data (input and output) using constructs called "algebraic data types" which for Scala programmers means _sealed traits_ (or enums) and ـcase classesـ. So there is two building blocks for describing data in FP. To describe operations, we have functions.
 
 Separation of data and operations is the fundamental concept of functional programming. In contrast to object-oriented programming, we have no tools for abstraction, modularity, interfaces, and polymorphism.
+
+### Embracing Both Functional and Object-Oriented Programming
+
+ZIO is a functional programming library which also brings the power of object-oriented programming into the functional world. It tries to combine the best of both worlds.
+
+We use FP to achieve **code maintainability** and OOP to achieve **code organization**:
+
+1. Functional programming gives us the following tools in terms of **code maintainability**:
+
+    - **Data Modeling** using Algebraic Data Types
+    - **Functional Design** using functions to create Domain Specific Languages (DSLs)
+    - **Composability** using Pure and Referentially Transparent Functions
+
+2. Object-oriented programming gives us the following tools in terms of **code organization**:
+
+    - **Methods** which help us to operate on a specific data attached to an object
+    - **Constructors** which help us to create a new instance of a data type
+    - **Modules** which allows us to bundle together related operations into a single unit
+
+So, we leverage the power of both FP and OOP to build a better software system in ZIO.
