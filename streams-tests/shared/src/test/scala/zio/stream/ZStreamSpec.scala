@@ -154,7 +154,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           test("simple example") {
             assertZIO(
               ZStream('1', '2', ',', '3', '4')
-                .transduce(ZSink.collectAllWhile((_: Char).isDigit))
+                .transduce(ZSink.collectAllWhile((_: Char).isDigit) <* ZSink.collectAllWhile(!(_: Char).isDigit))
                 .map(_.mkString.toInt)
                 .runCollect
             )(equalTo(Chunk(12, 34)))
