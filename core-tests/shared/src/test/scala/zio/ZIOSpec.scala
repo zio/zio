@@ -2764,7 +2764,7 @@ object ZIOSpec extends ZIOBaseSpec {
             _      <- started.await *> fiber.interruptFork *> latch.succeed(()) *> fiber.await
             result <- finalized.get
           } yield assertTrue(result == false)
-        } +
+        } @@ nonFlaky +
         test("interruption can be caught at the beginning of uninterruptible regions") {
           for {
             started   <- Promise.make[Nothing, Unit]
