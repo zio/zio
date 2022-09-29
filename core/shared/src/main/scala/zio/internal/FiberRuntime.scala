@@ -340,16 +340,18 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (supervisor ne Supervisor.none) supervisor.onResume(self)
 
     try {
-      // Possible the fiber has been interrupted before it begins. Check here:
-      var effect =
-        if (RuntimeFlags.interruptible(_runtimeFlags) && isInterrupted())
-          Exit.Failure(getInterruptedCause())
-        else effect0
+      var effect      = effect0
       var trampolines = 0
       var finalExit   = null.asInstanceOf[Exit[E, A]]
 
       while (effect ne null) {
         try {
+          // Possible the fiber has been interrupted at a start or trampoline
+          // boundary. Check here or else we'll miss the opportunity to cancel:
+          if (RuntimeFlags.interruptible(_runtimeFlags) && isInterrupted()) {
+            effect = Exit.Failure(getInterruptedCause())
+          }
+
           val localStack = self.reifiedStack.pinch()
 
           val exit =
@@ -389,7 +391,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               (trampolines >= FiberRuntime.MaxTrampolinesBeforeYield || trampoline.forceYield) && RuntimeFlags
                 .cooperativeYielding(_runtimeFlags)
             ) {
-              tell(FiberMessage.YieldNow)
+              tell(FiberMessage.YieldNow) // Signal to the outer loop to give us a break!
               tell(FiberMessage.Resume(trampoline.effect))
 
               effect = null
@@ -527,7 +529,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     self.reifiedStack.foreach(k => builder += k.trace)
 
-    builder += id.location
+    builder += id.location // TODO: Allow parent traces?
 
     StackTrace(self.fiberId, builder.result())
   }
@@ -971,7 +973,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = Exit.Success(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
               } catch {
                 case zioError: ZIOError =>
-                  cur = effect.onFailure(zioError.cause)
+                  if (!(RuntimeFlags.interruptible(runtimeFlags) && isInterrupted())) {
+                    cur = effect.failureK(zioError.cause)
+                  } else {
+                    cur = Exit.failCause(zioError.cause.stripFailures)
+                  }
 
                 case reifyStack: ReifyStack =>
                   self.reifiedStack += effect
@@ -986,7 +992,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 cur = effect.successK(runLoop(effect.first, currentDepth + 1, Chunk.empty, runtimeFlags))
               } catch {
                 case zioError: ZIOError =>
-                  cur = effect.failureK(zioError.cause)
+                  if (!(RuntimeFlags.interruptible(runtimeFlags) && isInterrupted())) {
+                    cur = effect.failureK(zioError.cause)
+                  } else {
+                    cur = Exit.failCause(zioError.cause.stripFailures)
+                  }
 
                 case reifyStack: ReifyStack =>
                   self.reifiedStack += effect
@@ -1157,9 +1167,13 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                 throw Trampoline(ZIO.unit, false)
               }
 
-              // We are at the top level, no need to update runtime flags
-              // globally:
-              cur = ZIO.unit
+              if (RuntimeFlags.interruptible(runtimeFlags) && isInterrupted()) {
+                cur = Exit.Failure(getInterruptedCause())
+              } else {
+                // We are at the top level, no need to update runtime flags
+                // globally:
+                cur = ZIO.unit
+              }
 
             case iterate0: WhileLoop[_, _, _] =>
               val iterate = iterate0.asInstanceOf[WhileLoop[Any, Any, Any]]
@@ -1368,7 +1382,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def stealWork(depth: Int, flags: RuntimeFlags)(implicit unsafe: Unsafe): Boolean = {
     val stolen =
       RuntimeFlags.workStealing(flags) && depth < FiberRuntime.MaxWorkStealingDepth && getCurrentExecutor().stealWork(
-        depth
+        depth + FiberRuntime.WorkStealingSafetyMargin
       )
 
     if (stolen) {
@@ -1419,7 +1433,8 @@ object FiberRuntime {
   private[zio] final val MaxTrampolinesBeforeYield = 5
   private[zio] final val MaxOperationsBeforeYield  = 1024 * 10
   private[zio] final val MaxDepthBeforeTrampoline  = 500
-  private[zio] final val MaxWorkStealingDepth      = 100
+  private[zio] final val MaxWorkStealingDepth      = 200
+  private[zio] final val WorkStealingSafetyMargin  = 100
 
   private[zio] sealed trait EvaluationSignal
   private[zio] object EvaluationSignal {

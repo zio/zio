@@ -4520,7 +4520,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * higher-performance variant, see `ZIO#withRuntimeFlags`.
    */
   def updateRuntimeFlags(patch: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Any, Nothing, Unit] =
-    ZIO.UpdateRuntimeFlags(trace, patch)
+    if (patch == RuntimeFlags.Patch.empty) ZIO.unit
+    else ZIO.UpdateRuntimeFlags(trace, patch)
 
   /**
    * Updates a state in the environment with the specified function.
@@ -5488,28 +5489,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     successK: A => ZIO[R, E2, B],
     failureK: Cause[E1] => ZIO[R, E2, B]
   ) extends ZIO[R, E2, B]
-      with EvaluationStep {
-    def onFailure(c: Cause[E1]): ZIO[R, E2, B] = failureK(c)
-
-    def onSuccess(a: A): ZIO[R, E2, B] = successK(a.asInstanceOf[A])
-  }
+      with EvaluationStep
   private[zio] final case class OnSuccess[R, A, E, B](trace: Trace, first: ZIO[R, E, A], successK: A => ZIO[R, E, B])
       extends ZIO[R, E, B]
-      with EvaluationStep {
-    def onFailure(c: Cause[E]): ZIO[R, E, B] = Exit.Failure(c)
-
-    def onSuccess(a: A): ZIO[R, E, B] = successK(a.asInstanceOf[A])
-  }
+      with EvaluationStep
   private[zio] final case class OnFailure[R, E1, E2, A](
     trace: Trace,
     first: ZIO[R, E1, A],
     failureK: Cause[E1] => ZIO[R, E2, A]
   ) extends ZIO[R, E2, A]
-      with EvaluationStep {
-    def onFailure(c: Cause[E1]): ZIO[R, E2, A] = failureK(c)
-
-    def onSuccess(a: A): ZIO[R, E2, A] = Exit.Success(a)
-  }
+      with EvaluationStep
   private[zio] final case class UpdateRuntimeFlags(trace: Trace, update: RuntimeFlags.Patch)
       extends ZIO[Any, Nothing, Unit]
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
