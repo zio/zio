@@ -764,7 +764,7 @@ lazy val scalafixRules = project.module
   .settings(
     scalafixSettings,
     semanticdbEnabled                      := true, // enable SemanticDB
-    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.1"
+    libraryDependencies += "ch.epfl.scala" %% "scalafix-core" % "0.10.3"
   )
 
 val zio1Version = "1.0.12"

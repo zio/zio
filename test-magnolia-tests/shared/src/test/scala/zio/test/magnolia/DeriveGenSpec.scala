@@ -39,13 +39,13 @@ object DeriveGenSpec extends ZIOSpecDefault {
     final case class Cons[+A](head: A, tail: NonEmptyList[A]) extends NonEmptyList[A]
     final case class Single[+A](value: A)                     extends NonEmptyList[A]
 
-    implicit def deriveGen[A: DeriveGen]: DeriveGen[NonEmptyList[A]] = DeriveGen.gen
+    implicit def deriveGen[A](implicit ev: DeriveGen[A]): DeriveGen[NonEmptyList[A]] = DeriveGen.gen
   }
 
   def genNonEmptyList[A](implicit ev: DeriveGen[A]): Gen[Any, NonEmptyList[A]] =
     DeriveGen[NonEmptyList[A]]
 
-  def assertDeriveGen[A: DeriveGen]: TestResult = assertCompletes
+  def assertDeriveGen[A](implicit ev: DeriveGen[A]): TestResult = assertCompletes
 
   def spec = suite("DeriveGenSpec")(
     suite("derivation")(

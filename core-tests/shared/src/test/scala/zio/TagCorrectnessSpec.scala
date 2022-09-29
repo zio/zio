@@ -17,7 +17,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
       },
       // https://github.com/zio/zio/issues/5421
       test("Issue #5421") {
-        def combine[A: Tag, B: Tag](
+        def combine[A, B: Tag](
           za: UIO[ZEnvironment[A]],
           zb: UIO[ZEnvironment[B]]
         ): UIO[ZEnvironment[A with B]] =
@@ -48,7 +48,7 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
             }
         }
 
-        def foo[T: Tag](t: T): URIO[Service[T], T] =
+        def foo[T](t: T)(implicit tag: Tag[T]): URIO[Service[T], T] =
           ZIO.serviceWithZIO(_.foo(t))
 
         foo(12).provide(Service.live).map { result =>
@@ -58,9 +58,9 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
       // https://github.com/zio/zio/issues/4564
       test("Issue #4564") {
         trait Svc[A]
-        def testBaseLayer[R, A: Tag]: ZLayer[R, Nothing, Svc[A]] =
+        def testBaseLayer[R, A](implicit tag: Tag[A]): ZLayer[R, Nothing, Svc[A]] =
           ZLayer(ZIO.environmentWith[R](_ => new Svc[A] {}))
-        def testSecondLayer[A: Tag]: ZLayer[Svc[A], Nothing, Svc[A]] =
+        def testSecondLayer[A](implicit tag: Tag[A]): ZLayer[Svc[A], Nothing, Svc[A]] =
           ZLayer.environment[Svc[A]]
 
         val layer                                  = testBaseLayer[Any, String] >>> testSecondLayer[String]
@@ -78,16 +78,19 @@ object TagCorrectnessSpec extends ZIOSpecDefault {
             def provide: IO[Throwable, D]
           }
 
-          def layer[A: Tag, D <: Container[A]: Tag](
+          def layer[A, D <: Container[A]](
             container: D
-          ): ULayer[ContainerProvider[A, D]] =
+          )(implicit tagA: Tag[A], tagD: Tag[D]): ULayer[ContainerProvider[A, D]] =
             ZLayer.succeed {
               new Service[A, D] {
                 def provide: IO[Throwable, D] = ZIO.succeed(container)
               }
             }
 
-          def provide[A: Tag, D <: Container[A]: Tag]: ZIO[ContainerProvider[A, D], Throwable, D] =
+          def provide[A, D <: Container[A]](implicit
+            tagA: Tag[A],
+            tagD: Tag[D]
+          ): ZIO[ContainerProvider[A, D], Throwable, D] =
             ZIO.serviceWithZIO(_.provide)
         }
 
