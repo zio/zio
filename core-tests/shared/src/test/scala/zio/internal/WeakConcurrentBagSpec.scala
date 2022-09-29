@@ -64,11 +64,11 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
             bag.add(str)
           }
 
-          bag.graduate()
-
           System.gc()
 
-          assertTrue(bag.size < 100)
+          bag.graduate()
+
+          assertTrue(bag.size <= 100)
         } @@ flaky
     } @@ jvmOnly
 }

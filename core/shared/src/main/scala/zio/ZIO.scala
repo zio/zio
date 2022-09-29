@@ -507,7 +507,7 @@ sealed trait ZIO[-R, +E, +A]
    * logic built on `ensuring`, see `ZIO#acquireReleaseWith`.
    */
   final def ensuring[R1 <: R](finalizer: => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.Ensuring[R1, E, A](trace, self, (_, _) => finalizer)
+    onExit(_ => finalizer)
 
   /**
    * Acts on the children of this fiber (collected into a single fiber),
@@ -1060,7 +1060,23 @@ sealed trait ZIO[-R, +E, +A]
    * or is interrupted.
    */
   final def onExit[R1 <: R](cleanup: Exit[E, A] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
-    ZIO.Ensuring[R1, E, A](trace, self, (exit, _) => cleanup(exit))
+    ZIO.uninterruptibleMask { restore =>
+      restore(self).foldCauseZIO(
+        failure1 => {
+          val result = Exit.failCause(failure1)
+          cleanup(result).foldCauseZIO(
+            failure2 => Exit.failCause(failure1 ++ failure2),
+            _ => result
+          )
+        },
+        success => {
+          val result = Exit.succeed(success)
+
+          cleanup(result) *> result
+        }
+      )
+    }
+  //ZIO.Ensuring[R1, E, A](trace, self, (exit, _) => cleanup(exit))
 
   /**
    * Runs the specified effect if this effect is interrupted.
@@ -4782,7 +4798,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * stack. Manual use of this method can improve fairness, at the cost of
    * overhead.
    */
-  def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace)
+  def yieldNow(implicit trace: Trace): UIO[Unit] = ZIO.YieldNow(trace, false)
 
   private[zio] def withFiberRuntime[R, E, A](
     onState: (internal.FiberRuntime[E, A], Fiber.Status.Running) => ZIO[R, E, A]
@@ -5533,7 +5549,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     body: () => ZIO[R, E, A],
     process: A => Any
   ) extends ZIO[R, E, Unit]
-  private[zio] final case class YieldNow(trace: Trace) extends ZIO[Any, Nothing, Unit]
+  private[zio] final case class YieldNow(trace: Trace, forceAsync: Boolean) extends ZIO[Any, Nothing, Unit]
   private[zio] final case class Ensuring[R, E, A](
     trace: Trace,
     effect: ZIO[R, E, A],
