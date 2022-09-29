@@ -1395,7 +1395,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
     val stolen =
       RuntimeFlags.workStealing(flags) && depth < FiberRuntime.MaxWorkStealingDepth && getCurrentExecutor().stealWork(
-        depth
+        depth + FiberRuntime.WorkStealingSafetyMargin
       )
 
     if (stolen) {
