@@ -1076,7 +1076,6 @@ sealed trait ZIO[-R, +E, +A]
         }
       )
     }
-  //ZIO.Ensuring[R1, E, A](trace, self, (exit, _) => cleanup(exit))
 
   /**
    * Runs the specified effect if this effect is interrupted.
@@ -5550,11 +5549,6 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     process: A => Any
   ) extends ZIO[R, E, Unit]
   private[zio] final case class YieldNow(trace: Trace, forceAsync: Boolean) extends ZIO[Any, Nothing, Unit]
-  private[zio] final case class Ensuring[R, E, A](
-    trace: Trace,
-    effect: ZIO[R, E, A],
-    finalizer: (Exit[E, A], Fiber.Runtime[Any, A]) => URIO[R, Any]
-  ) extends ZIO[R, E, A]
 
   sealed trait InterruptibilityRestorer {
     def apply[R, E, A](effect: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
