@@ -11,7 +11,7 @@ import scala.concurrent.Await
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
 class NarrowFlatMapBenchmark {
-  @Param(Array("10000"))
+  @Param(Array("1000"))
   var size: Int = _
 
   @Benchmark
