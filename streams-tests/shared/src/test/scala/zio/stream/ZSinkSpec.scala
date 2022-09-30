@@ -950,7 +950,24 @@ object ZSinkSpec extends ZIOBaseSpec {
             r <- f.join
           } yield assert(r)(isGreaterThanEqualTo(100.millis))
         }
-      )
+      ),
+      test("error propagation") {
+        case object ErrorStream
+        case object ErrorMapped
+        case object ErrorSink
+
+        for {
+          exit <- ZStream
+                    .fail(ErrorStream)
+                    .mapError(_ => ErrorMapped)
+                    .run(
+                      ZSink.drain
+                        .contramapZIO((in: Any) => ZIO.attempt(in))
+                        .mapError(_ => ErrorSink)
+                    )
+                    .exit
+        } yield assert(exit)(fails(equalTo(ErrorMapped)))
+      }
     )
   }
 }
