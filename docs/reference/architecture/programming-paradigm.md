@@ -6,7 +6,7 @@ title: "Programming Paradigms in ZIO"
 It is important to realize that the programming paradigm used to write a software system has a significant impact on its design and architecture. In this section, we are going to talk the foundation of ZIO from the programming paradigm perspective:
 
 - Functional and object-oriented programming
-- Declarative and imperative programming
+- Declarative Programming
 - Structured Programming
 - Aspect-oriented Programming
 
@@ -82,7 +82,7 @@ We use FP to achieve **code maintainability** and OOP to achieve **code organiza
 
 So, we leverage the power of both FP and OOP to build a better software system in ZIO.
 
-## Imperative and Declarative Programming
+## Declarative Programming
 
 Another important aspect of programming paradigms is the difference between imperative and declarative programming.
 
@@ -103,3 +103,9 @@ In structured programming, we use control structures to organize our code into b
 A structured control flow makes nested blocks of code with clear boundaries. Each new block of code has its own scope where all objects defined in that block are only visible inside that block. As a result, objects are bound to their enclosing blocks for their lifetime. Having clear scopes and lifetimes of objects make it easier to understand the control flow of the program.
 
 ZIO embraces the structured programming into the next level by using this paradigm in other areas of programming such as [structured concurrency](../fiber/index.md#structured-concurrency), [scope based resource management](../resource/scope.md), and also regional interruption model.
+
+## Aspect Oriented Programming
+
+Aspect Oriented Programming (AOP) is a programming paradigm that allows us to separate cross-cutting concerns from the main program logic. Cross-cutting concerns are those that are not directly related to the main program logic but are still important to the program. Examples of cross-cutting concerns are logging, tracing, metrics, and security.
+
+ZIO embraces AOP by providing `ZIOAspect` in the "core" and `TestAspect` in the "test" module. Using these two data types, we can write aspects that can be applied to any ZIO effect or test.
