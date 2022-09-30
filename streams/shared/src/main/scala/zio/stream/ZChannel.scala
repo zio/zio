@@ -933,12 +933,14 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2] = {
 
-    case class ChannelFailure(err: OutErr1) extends Throwable
+    case class ChannelFailure(err: OutErr1, token: Long) extends Throwable
+
+    val token = scala.util.Random.nextLong()
 
     lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
       ZChannel.readWith(
         elem => ZChannel.write(elem) *> reader,
-        err => ZChannel.failCause(Cause.die(ChannelFailure(err))),
+        err => ZChannel.failCause(Cause.die(ChannelFailure(err, token))),
         done => ZChannel.succeedNow(done)
       )
 
@@ -946,8 +948,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       ZChannel.readWithCause(
         elem => ZChannel.write(elem) *> writer,
         {
-          case Cause.Die(ChannelFailure(err), _) => ZChannel.fail(err)
-          case cause                             => ZChannel.failCause(cause)
+          case Cause.Die(ChannelFailure(err, t), _) if t == token => ZChannel.fail(err)
+          case cause                                              => ZChannel.failCause(cause)
         },
         done => ZChannel.succeedNow(done)
       )
