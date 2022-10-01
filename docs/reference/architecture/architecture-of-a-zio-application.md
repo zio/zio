@@ -11,12 +11,12 @@ The functional requirements are the features of the system which are directly re
 
 Non-functional requirements are characteristics of the system that are used to qualify it in terms of "what should the system be" rather than "what should the system do," e.g.:
 
-  1. Maintainability
-  2. Low Latency
-  3. High Throughput
-  4. Robustness
-  5. Resiliency
-  6. Correctness
+  1. Correctness
+  2. Maintainability
+  3. Low Latency
+  4. High Throughput
+  5. Robustness
+  6. Resiliency
   7. Efficiency
   8. Developer Productivity
   9. Scalability
@@ -26,9 +26,17 @@ Non-functional requirements are characteristics of the system that are used to q
 
 In this article, from the perspective of application architecture, we are going to look at some design elements that we can apply to our ZIO applications to make them more ergonomic and maintainable.
 
+## Correctness
 
+Correctness is the ability of a system to do what it is supposed to do. ZIO provides us correctness property through local reasoning because of referential transparency and its type-safety.
 
+When we have referential transparency, we do not need to look at the whole program to understand the behavior of a piece of code. We can reason about the application behavior locally and then make sure that all components work together correctly, from button to top.
 
+The type system of ZIO also prevents us to introduce common bugs at runtime. Here are two examples:
+
+  1. **Resource Management**— When we have a ZIO effect that has a type of `ZIO[Scope, IOException, FileInputStream]`, we can be sure that this effect will open a resource, and we should care about closing it. So then by using `ZIO.scoped(effect)` we can be sure that the resource will be closed after the effect is executed and the type of effect will be changed to `ZIO[Any, IOException, FileInputStream]`. To learn more about `ZIO.scoped` and resource management using `Scope`, please refer to the [Scope](../resource/scope.md) of the [resource management](../resource/index.md).
+
+  2. **Error Management**— In ZIO errors are typed, so we can describe all possible errors that can happen in our effect. And from the correctness perspective, the type system helps us to be sure we have handled all errors or not. For example, if we have an effect of type `ZIO[Any, IOException, FileInputStream]`, by looking at the effect type, we can be sure the effect is exceptional, and we should handle its error. To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
 
 ----------
 
