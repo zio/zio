@@ -53,6 +53,16 @@ ZIO has a strong focus on testability which supports:
 
 To learn more about testing in ZIO, please refer to the [testing](../test/index.md) section.
 
+## Maintainability
+
+When we use ZIO, we take advantage of both functional and object-oriented programming paradigms to make our code maintainable:
+
+- By using functional programming we can make sure that our code is correct, readable, testable, and reusable.
+
+- The object-oriented programming paradigm helps us to make our code well-organized and highly cohesive by using objects, packages, and modules.
+
+The ZIO's support for type safety is another factor that makes our code maintainable, especially when we refactor our codes we can be sure that we are not breaking anything.
+
 ----------
 
 1. API Design Patterns
