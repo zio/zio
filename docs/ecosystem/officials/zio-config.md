@@ -33,7 +33,7 @@ libraryDependencies += "dev.zio" %% "zio-config" % "3.0.1"
 ```
 
 There are also some optional dependencies:
-- **zio-config-mangolia** — Auto Derivation
+- **zio-config-magnolia** — Auto Derivation
 - **zio-config-refined** — Integration with Refined Library
 - **zio-config-typesafe** — HOCON/Json Support
 - **zio-config-yaml** — Yaml Support
