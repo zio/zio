@@ -63,6 +63,10 @@ When we use ZIO, we take advantage of both functional and object-oriented progra
 
 The ZIO's support for type safety is another factor that makes our code maintainable, especially when we refactor our codes we can be sure that we are not breaking anything.
 
+## Low Latency
+
+Latency is the time it takes for a request to be processed and a response to be returned. ZIO is designed to support low latency applications by providing various concurrency and parallelism tools such as `ZIO.foreachPar`, `Fiber`, `Promise`, `Ref`, `Queue`, etc. To learn more about concurrency and parallelism in ZIO, please refer to the [concurrency](../concurrency/index.md) section.
+
 ----------
 
 1. API Design Patterns
