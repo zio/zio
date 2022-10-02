@@ -67,6 +67,46 @@ The ZIO's support for type safety is another factor that makes our code maintain
 
 Latency is the time it takes for a request to be processed and a response to be returned. ZIO is designed to support low latency applications by providing various concurrency and parallelism tools such as `ZIO.foreachPar`, `Fiber`, `Promise`, `Ref`, `Queue`, etc. To learn more about concurrency and parallelism in ZIO, please refer to the [concurrency](../concurrency/index.md) section.
 
+## High Throughput
+
+ZIO fibers are lightweight threads (green threads). They are very cheap to create and destroy. So we can potentially have thousands of fibers running in parallel on a single machine, which helps us to achieve high throughput:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def doWork(n: Int): ZIO[Any, Nothing, Unit] =  ??? 
+  
+  def run =
+    ZIO
+      .foreach(1 to 100000)(n => doWork(n).fork)
+      .flatMap(f => Fiber.collectAll(f).join)
+}
+```
+
+Other than low-level concurrency tools like `Fiber`, `Promise`, `Ref`, etc., ZIO Streams is a high-level abstraction for processing high-throughput data streams:
+
+```scala mdoc:compile-only
+import zio._
+import zio.stream._
+
+object MainApp extends ZIOAppDefault {
+  def doWork(n: Int): ZIO[Any, Nothing, Unit] =  ??? 
+
+  def run =
+    ZStream
+      .fromIterable(1 to 100000)
+      .mapZIOParUnordered(Int.MaxValue)(doWork)
+      .runDrain
+}
+```
+
+:::note
+The above examples are just for demonstration purposes. In real-world applications, depending on the nature of the problem to reach a better performance it may be better to control the level of parallelism instead of using unbounded parallelism.
+:::
+
+To learn more about ZIO Streams, please refer to the [ZIO Streams](../stream/index.md) section.
+
 ----------
 
 1. API Design Patterns
