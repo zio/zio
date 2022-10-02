@@ -105,6 +105,8 @@ object MainApp extends ZIOAppDefault {
 The above examples are just for demonstration purposes. In real-world applications, depending on the nature of the problem to reach a better performance it may be better to control the level of parallelism instead of using unbounded parallelism.
 :::
 
+Another factor that helps us to achieve high throughput is the fact that we may have high workloads for some periods. In such cases, we can benefit from buffering the incoming requests instead of rejecting them and trying to process them later. We can use [`Queue`](../concurrency/queue.md) for this purpose or the [`ZStream#buffer` operator](../stream/zstream/operations.md#buffering).
+
 To learn more about ZIO Streams, please refer to the [ZIO Streams](../stream/index.md) section.
 
 ----------
