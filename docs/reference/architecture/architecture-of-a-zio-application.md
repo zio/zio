@@ -26,7 +26,7 @@ Non-functional requirements are characteristics of the system that are used to q
 
 In this article, from the perspective of application architecture, we are going to look at some design elements that we can apply to our ZIO applications to make them more ergonomic and maintainable.
 
-## Correctness
+## 1. Correctness
 
 Correctness is the ability of a system to do what it is supposed to do. ZIO provides us correctness property through local reasoning because of referential transparency and its type-safety.
 
@@ -38,7 +38,7 @@ The type system of ZIO also prevents us to introduce common bugs at runtime. Her
 
   2. **Error Management**— In ZIO errors are typed, so we can describe all possible errors that can happen in our effect. And from the correctness perspective, the type system helps us to be sure we have handled all errors or not. For example, if we have an effect of type `ZIO[Any, IOException, FileInputStream]`, by looking at the effect type, we can be sure the effect is exceptional, and we should handle its error. To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
 
-## Testability
+## 2. Testability
 
 ZIO has a strong focus on testability which supports:
 
@@ -53,7 +53,7 @@ ZIO has a strong focus on testability which supports:
 
 To learn more about testing in ZIO, please refer to the [testing](../test/index.md) section.
 
-## Maintainability
+## 3. Maintainability
 
 When we use ZIO, we take advantage of both functional and object-oriented programming paradigms to make our code maintainable:
 
@@ -63,11 +63,11 @@ When we use ZIO, we take advantage of both functional and object-oriented progra
 
 The ZIO's support for type safety is another factor that makes our code maintainable, especially when we refactor our codes we can be sure that we are not breaking anything.
 
-## Low Latency
+## 4. Low Latency
 
 Latency is the time it takes for a request to be processed and a response to be returned. ZIO is designed to support low latency applications by providing various concurrency and parallelism tools such as `ZIO.foreachPar`, `Fiber`, `Promise`, `Ref`, `Queue`, etc. To learn more about concurrency and parallelism in ZIO, please refer to the [concurrency](../concurrency/index.md) section.
 
-## High Throughput
+## 5. High Throughput
 
 ZIO fibers are lightweight threads (green threads). They are very cheap to create and destroy. So we can potentially have thousands of fibers running in parallel on a single machine, which helps us to achieve high throughput:
 
@@ -108,6 +108,15 @@ The above examples are just for demonstration purposes. In real-world applicatio
 Another factor that helps us to achieve high throughput is the fact that we may have high workloads for some periods. In such cases, we can benefit from buffering the incoming requests instead of rejecting them and trying to process them later. We can use [`Queue`](../concurrency/queue.md) for this purpose or the [`ZStream#buffer` operator](../stream/zstream/operations.md#buffering).
 
 To learn more about ZIO Streams, please refer to the [ZIO Streams](../stream/index.md) section.
+
+## 6. Robustness
+
+With the help of ZIO's error channel, we can write applications whose errors are fully specified and handled at the compile time. Having this feature helps us to make our applications more robust.
+
+It also gives us the ability to lossless translation of errors from one domain to another. For example, when writing a web application, we can reliably translate errors inside the application to HTTP response codes. ZIO uses the compile to ensure that we have mapped all possible errors to HTTP response codes.
+
+To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
+
 
 ----------
 
