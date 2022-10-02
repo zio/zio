@@ -117,6 +117,37 @@ It also gives us the ability to lossless translation of errors from one domain t
 
 To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
 
+## 7. Resiliency
+
+For resiliency, we can use ZIO's retry operator along with the retry policy to make our application resilient to failures. `Schedule` is a powerful composable data type that helps us to compose multiple policies together and make a complex retry policy:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  sealed trait DownloadError    extends Throwable
+  case object BandwidthExceeded extends DownloadError
+  case object NetworkError      extends DownloadError
+
+  // flaky api
+  def download(id: String): ZIO[Any, DownloadError, Array[Byte]] = ???
+
+  def isRecoverable(e: DownloadError): Boolean =
+    e match {
+      case BandwidthExceeded => false
+      case NetworkError      => true
+    }
+
+  val policy =
+    (Schedule.recurs(20) &&
+      Schedule.exponential(100.millis))
+      .whileInput(isRecoverable)
+
+  def run = download("123").retry(policy)
+}
+```
+
+To learn more about resiliency and scheduling in ZIO, please refer to the [resiliency](../schedule/index.md) section.
 
 ----------
 
