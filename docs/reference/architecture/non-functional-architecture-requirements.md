@@ -32,9 +32,9 @@ When we have referential transparency, we do not need to look at the whole progr
 
 The type system of ZIO also prevents us to introduce common bugs at runtime. Here are two examples:
 
-  1. **Resource Management**— When we have a ZIO effect that has a type of `ZIO[Scope, IOException, FileInputStream]`, we can be sure that this effect will open a resource, and we should care about closing it. So then by using `ZIO.scoped(effect)` we can be sure that the resource will be closed after the effect is executed and the type of effect will be changed to `ZIO[Any, IOException, FileInputStream`. To learn more about `ZIO.scoped` and resource management using `Scope`, please refer to the [Scope](../resource/scope.md) of the [resource management](../resource/index.md).
+  1. **Resource Management**— When we have a ZIO effect that has a type of `ZIO[Scope, IOException, FileInputStream]`, we can be sure that this effect will open a resource, and we should care about closing it. So then by using `ZIO.scoped(effect)` we can be sure that the resource will be closed after the effect is executed and the type of effect will be changed to `ZIO[Any, IOException, FileInputStream`. To learn more about `ZIO.scoped` and resource management using `Scope`, please refer to the [Scope][11] of the [resource management][12].
 
-  2. **Error Management**— In ZIO errors are typed, so we can describe all possible errors that can happen in our effect. And from the correctness perspective, the type system helps us to be sure we have handled all errors or not. For example, if we have an effect of type `ZIO[Any, IOException, FileInputStream]`, by looking at the effect type, we can be sure the effect is exceptional, and we should handle its error. To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
+  2. **Error Management**— In ZIO errors are typed, so we can describe all possible errors that can happen in our effect. And from the correctness perspective, the type system helps us to be sure we have handled all errors or not. For example, if we have an effect of type `ZIO[Any, IOException, FileInputStream]`, by looking at the effect type, we can be sure the effect is exceptional, and we should handle its error. To learn more about error management in ZIO, please refer to the [error management][13] section.
 
 ## 2. Testability
 
@@ -49,7 +49,7 @@ ZIO has a strong focus on testability which supports:
   7. Test Aspects (AOP)
   8. Non-flaky Tests
 
-To learn more about testing in ZIO, please refer to the [testing](../test/index.md) section.
+To learn more about testing in ZIO, please refer to the [testing][14] section.
 
 ## 3. Maintainability
 
@@ -63,7 +63,7 @@ The ZIO's support for type safety is another factor that makes our code maintain
 
 ## 4. Low Latency
 
-Latency is the time it takes for a request to be processed and a response to be returned. ZIO is designed to support low latency applications by providing various concurrency and parallelism tools such as `ZIO.foreachPar`, `Fiber`, `Promise`, `Ref`, `Queue`, etc. To learn more about concurrency and parallelism in ZIO, please refer to the [concurrency](../concurrency/index.md) section.
+Latency is the time it takes for a request to be processed and a response to be returned. ZIO is designed to support low latency applications by providing various concurrency and parallelism tools such as `ZIO.foreachPar`, `Fiber`, `Promise`, `Ref`, `Queue`, etc. To learn more about concurrency and parallelism in ZIO, please refer to the [concurrency][15] section.
 
 ## 5. High Throughput
 
@@ -103,9 +103,9 @@ object MainApp extends ZIOAppDefault {
 The above examples are just for demonstration purposes. In real-world applications, depending on the nature of the problem to reach a better performance it may be better to control the level of parallelism instead of using unbounded parallelism.
 :::
 
-Another factor that helps us to achieve high throughput is the fact that we may have high workloads for some periods. In such cases, we can benefit from buffering the incoming requests instead of rejecting them and trying to process them later. We can use [`Queue`](../concurrency/queue.md) for this purpose or the [`ZStream#buffer` operator](../stream/zstream/operations.md#buffering).
+Another factor that helps us to achieve high throughput is the fact that we may have high workloads for some periods. In such cases, we can benefit from buffering the incoming requests instead of rejecting them and trying to process them later. We can use [`Queue`][16] for this purpose or the [`ZStream#buffer` operator][17].
 
-To learn more about ZIO Streams, please refer to the [ZIO Streams](../stream/index.md) section.
+To learn more about ZIO Streams, please refer to the [ZIO Streams][18] section.
 
 ## 6. Robustness
 
@@ -113,7 +113,7 @@ With the help of ZIO's error channel, we can write applications whose errors are
 
 It also gives us the ability to lossless translation of errors from one domain to another. For example, when writing a web application, we can reliably translate errors inside the application to HTTP response codes. ZIO uses the compile to ensure that we have mapped all possible errors to HTTP response codes.
 
-To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
+To learn more about error management in ZIO, please refer to the [error management][13] section.
 
 ## 7. Resiliency
 
@@ -145,7 +145,7 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
-To learn more about resiliency and scheduling in ZIO, please refer to the [resiliency](../schedule/index.md) section.
+To learn more about resiliency and scheduling in ZIO, please refer to the [resiliency][19] section.
 
 ## 8. Efficiency
 
@@ -204,7 +204,7 @@ val fileContent: ZIO[Any, Throwable, String] =
 
 In the above example, if we use the `fileContent` effect, we can be sure that the file handler will be released regardless of whether the effect is completed or interrupted.
 
-To learn more about resource management in ZIO, please refer to the [resource management](../resource/scope.md) section.
+To learn more about resource management in ZIO, please refer to the [resource management][11] section.
 
 ## 9. Developer Productivity
 
@@ -245,3 +245,12 @@ Developer experience and productivity are very important for choosing a technolo
 [8]: https://www.youtube.com/watch?v=QDleESXlZJw
 [9]: ../../ecosystem/officials/index.md
 [10]: ../../ecosystem/community/index.md
+[11]: ../resource/scope.md
+[12]: ../resource/index.md
+[13]: ../error-management/index.md
+[14]: ../test/index.md
+[15]: ../concurrency/index.md
+[16]: ../concurrency/queue.md
+[17]: ../stream/zstream/operations.md#buffering
+[18]: ../stream/index.md
+[19]: ../schedule/index.md
