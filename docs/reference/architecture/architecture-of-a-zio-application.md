@@ -149,6 +149,65 @@ object MainApp extends ZIOAppDefault {
 
 To learn more about resiliency and scheduling in ZIO, please refer to the [resiliency](../schedule/index.md) section.
 
+## 8. Efficiency
+
+ZIO is designed to be extraordinarily efficient. Let's take a look at some of the features that make ZIO efficient:
+
+1. ZIO Streams are pull-based, so the source of the stream starts producing elements only when the stream is consumed. This lazy semantic helps us to avoid unnecessary work and save resources:
+
+```scala
+def downloadAsCsv(id: String): ZStream[Db, IOException, Byte] =
+  jdbc
+    .selectMany(sql"SELECT * FROM events WHERE userId = $id")
+    .map(toCSV)
+    .via(ZPipeline.utf8Encode)
+    .via(ZPipeline.gzip)
+```
+
+In the above example, tries to consume a minimum amount of computation that is necessary. So if we use this workflow in a web application, when the client downloads half of the CSV file, only half of the data will be pulled from the database. So we can save resources and infrastructure costs.
+
+2. ZIO is designed to be interruptible (unlike the `Future` in Scala). So we can cancel any running effect at any time. This feature enables us to have efficient high-level operators such as `ZIO#race` on top of the ZIO interruption model. With `race` we can run two different workflows in parallel and the loser of the workflow will be canceled:
+
+```scala
+val loaded = loadFromCache(productId).race(loadFromDb(productId))
+```
+
+Or if we do a bunch of things in parallel and one of those things fails, all the other ones which are currently running in parallel will be canceled automatically:
+
+```scala
+val aggregated =
+  ZIO.foreach(account.statements) { statement =>
+    downloadStatement(statement.s3Bucket) 
+  }.map(aggregateStatements(_))
+```
+
+If we timeout a workflow in ZIO, once the timeout is reached, the workflow will be canceled automatically:
+
+```scala
+val timedOut = aggregated.timeout(10.seconds)
+```
+
+So in the above example, all running workflows will be simultaneously canceled once the timeout is reached and all resources will be released.
+
+3. Another ZIO feature that helps us to have efficient workflows is its resource management. ZIO provides a great model for resource management with the help of the `Scope` data type. `Scope` is a contextual data type that whenever appears in the environment of an effect, denotes this effect will open one or more resources. Using `ZIO.scoped` we can ensure that all resources enclosed in this operator will be automatically released once the effect is completed or interrupted:
+
+```scala mdoc:compile-only
+import zio._
+import scala.io.BufferedSource
+
+def source(name: String): ZIO[Scope, Throwable, BufferedSource] =
+  ZIO.acquireRelease(ZIO.attemptBlocking(scala.io.Source.fromFile(name)))(s => ZIO.succeedBlocking(s.close()))
+
+val fileContent: ZIO[Any, Throwable, String] =
+  ZIO.scoped {
+    source("file.txt").map(_.getLines()).map(_.mkString("\n"))
+  }
+```
+
+In the above example, if we use the `fileContent` effect, we can be sure that the file handler will be released regardless of whether the effect is completed or interrupted.
+
+To learn more about resource management in ZIO, please refer to the [resource management](../resource/scope.md) section.
+
 ----------
 
 1. API Design Patterns
