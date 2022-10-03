@@ -208,6 +208,35 @@ In the above example, if we use the `fileContent` effect, we can be sure that th
 
 To learn more about resource management in ZIO, please refer to the [resource management](../resource/scope.md) section.
 
+## 9. Developer Productivity
+
+Developer experience and productivity are very important for choosing a technology for any large-scala and long-running project. Let's take a look at some features that make ZIO a great fit for developer productivity:
+
+  1. Referential Transparency and Purity
+  2. Composable Data Types
+  3. Type-safety and Compile time Error Checking
+  4. Easy to Refactor
+  5. Discoverability
+      1. Dot completion (useful for IDE developers)
+      2. Consistent naming conventions
+  6. Concise and Expressive API with Minimal Boilerplate
+  7. Expressive Compiler Errors
+  8. Empowering Meta-programming and Macros
+  9. [Maintainability](#3-maintainability)
+  10. Observability
+      - [Logging][1]
+      - [Tracing][2]
+      - [Metrics][3]
+  11. [Debugging Facilities][4]
+  12. [Compile-time Execution Tracing][5]
+  13. [Automatic Dependency Graph Generation][6]
+  14. [Testability][7]
+  15. [Programming Without Type Classes][8]
+  16. Rich Ecosystem
+      - Massive Amount of Libraries and Tools on JVM
+      - [ZIO Official libraries][9]
+      - [ZIO community libraries][10]
+
 ----------
 
 1. API Design Patterns
@@ -230,3 +259,14 @@ To learn more about resource management in ZIO, please refer to the [resource ma
    5. Composable ZIO Applications
    6. Mixed Applications
    7. Streaming Architecture
+
+[1]: ../../ecosystem/officials/zio-logging.md
+[2]: ../../ecosystem/officials/zio-telemetry.md
+[3]: ../metrics/index.md
+[4]: ../../guides/migrate/migration-guide.md#debugging
+[5]: ../../guides/migrate/migration-guide.md#compile-time-execution-tracing
+[6]: ../di/automatic-layer-construction.md
+[7]: ../test/index.md
+[8]: https://www.youtube.com/watch?v=QDleESXlZJw
+[9]: ../../ecosystem/officials/index.md
+[10]: ../../ecosystem/community/index.md
