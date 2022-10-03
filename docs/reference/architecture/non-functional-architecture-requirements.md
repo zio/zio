@@ -1,6 +1,7 @@
 ---
-id: architecture-of-a-zio-application
-title: "Architecture of a ZIO Application"
+id: non-functional-architecture-requirements
+title: "Non-functional Architecture Requirements"
+sidebar_label: "Non-functional Requirements"
 ---
 
 ## Introduction
@@ -20,9 +21,6 @@ Non-functional requirements are characteristics of the system that are used to q
   7. Resiliency
   8. Efficiency
   9. Developer Productivity
-  10. Scalability
-  11. Monitoring
-  12. Configurability
 
 In this article, from the perspective of application architecture, we are going to look at some design elements that we can apply to our ZIO applications to make them more ergonomic and maintainable.
 
@@ -34,7 +32,7 @@ When we have referential transparency, we do not need to look at the whole progr
 
 The type system of ZIO also prevents us to introduce common bugs at runtime. Here are two examples:
 
-  1. **Resource Management**— When we have a ZIO effect that has a type of `ZIO[Scope, IOException, FileInputStream]`, we can be sure that this effect will open a resource, and we should care about closing it. So then by using `ZIO.scoped(effect)` we can be sure that the resource will be closed after the effect is executed and the type of effect will be changed to `ZIO[Any, IOException, FileInputStream]`. To learn more about `ZIO.scoped` and resource management using `Scope`, please refer to the [Scope](../resource/scope.md) of the [resource management](../resource/index.md).
+  1. **Resource Management**— When we have a ZIO effect that has a type of `ZIO[Scope, IOException, FileInputStream]`, we can be sure that this effect will open a resource, and we should care about closing it. So then by using `ZIO.scoped(effect)` we can be sure that the resource will be closed after the effect is executed and the type of effect will be changed to `ZIO[Any, IOException, FileInputStream`. To learn more about `ZIO.scoped` and resource management using `Scope`, please refer to the [Scope](../resource/scope.md) of the [resource management](../resource/index.md).
 
   2. **Error Management**— In ZIO errors are typed, so we can describe all possible errors that can happen in our effect. And from the correctness perspective, the type system helps us to be sure we have handled all errors or not. For example, if we have an effect of type `ZIO[Any, IOException, FileInputStream]`, by looking at the effect type, we can be sure the effect is exceptional, and we should handle its error. To learn more about error management in ZIO, please refer to the [error management](../error-management/index.md) section.
 
@@ -236,29 +234,6 @@ Developer experience and productivity are very important for choosing a technolo
       - Massive Amount of Libraries and Tools on JVM
       - [ZIO Official libraries][9]
       - [ZIO community libraries][10]
-
-----------
-
-1. API Design Patterns
-
-   1. Data Modeling
-   2. Contextual Eliminator
-   3. Implicit Traces
-   4. Unsafe Marker
-   5. Descriptive Errors Using Implicit Evidence
-   6. Partial Application of Type Parameters
-   7. Double Evaluation Prevention
-   8. Smart Constructors
-
-2. Architectural Patterns
-
-   1. Dependency Injection
-   2. Service Pattern
-   3. Onion Architecture
-   4. Sidecar Pattern
-   5. Composable ZIO Applications
-   6. Mixed Applications
-   7. Streaming Architecture
 
 [1]: ../../ecosystem/officials/zio-logging.md
 [2]: ../../ecosystem/officials/zio-telemetry.md
