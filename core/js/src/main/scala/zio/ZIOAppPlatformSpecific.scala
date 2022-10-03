@@ -13,14 +13,14 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
     implicit val unsafe = Unsafe.unsafe
 
     val newLayer =
-      Scope.default +!+ ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
-        bootstrap +!+ ZLayer.environment[ZIOAppArgs with Scope]
+      ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
+        bootstrap +!+ ZLayer.environment[ZIOAppArgs]
 
     runtime.unsafe.fork {
       (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs with Scope]
+        runtime <- ZIO.runtime[Environment with ZIOAppArgs]
         _       <- installSignalHandlers(runtime)
-        _       <- runtime.run(run).tapErrorCause(ZIO.logErrorCause(_))
+        _       <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause(ZIO.logErrorCause(_))
       } yield ()).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_))).exitCode.tap(exit)
     }
   }
