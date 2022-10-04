@@ -23,7 +23,7 @@ The sidecar pattern is a microservice architecture pattern that is used to separ
 
 In ZIO, we can implement the sidecar pattern by using compositional apps, or by using the `bootstrap` layer.
 
-### Compositional Apps
+### Composable ZIO Applications
 
 In the following example, as we have multiple applications (`UserApp` and `DocumentApp`), we use compositional apps to implement this pattern:
 
