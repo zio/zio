@@ -387,10 +387,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   override final def equals(that: Any): Boolean =
-    that match {
+    (self eq that.asInstanceOf[AnyRef]) || (that match {
       case that: Seq[_] => self.corresponds(that)(_ == _)
       case _            => false
-    }
+    })
 
   /**
    * Determines whether a predicate is satisfied for at least one element of
