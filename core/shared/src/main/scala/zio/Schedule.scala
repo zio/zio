@@ -133,7 +133,7 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
               ((lState, state._2), Left(out), decision)
             }
           case Right(in2) =>
-            that.step(now, in2, initial._2).map { case (rState, out2, decision) =>
+            that.step(now, in2, state._2).map { case (rState, out2, decision) =>
               ((state._1, rState), Right(out2), decision)
             }
         }
