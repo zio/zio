@@ -124,7 +124,7 @@ module.exports = {
       label: "Application Architecture",
       items: [
         "reference/architecture/programming-paradigms-in-zio",
-        "reference/architecture/non-functional-architecture-requirements",
+        "reference/architecture/non-functional-requirements",
         "reference/architecture/architectural-patterns",
       ]
     },
