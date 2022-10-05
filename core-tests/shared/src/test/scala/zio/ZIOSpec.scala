@@ -4106,11 +4106,11 @@ object ZIOSpec extends ZIOBaseSpec {
           promise1 <- Promise.make[Nothing, Unit]
           promise2 <- Promise.make[Nothing, Unit]
           left      = promise2.await
-          right1    = promise1.await *> ZIO.fail("fail")
+          right1    = (promise1.await *> ZIO.fail("fail")).uninterruptible
           right2    = (promise1.succeed(()) *> ZIO.never).ensuring(promise2.interrupt *> ZIO.never.interruptible)
           exit     <- left.zipPar(right1.zipPar(right2)).exit
         } yield assert(exit)(failsCause(containsCause(Cause.fail("fail"))))
-      } @@ nonFlaky,
+      } @@ nonFlaky(1000),
       test("is interruptible") {
         for {
           promise1 <- Promise.make[Nothing, Unit]
