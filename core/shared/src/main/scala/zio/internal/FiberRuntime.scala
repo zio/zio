@@ -1352,8 +1352,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private[zio] def start[R](effect: ZIO[R, E, A])(implicit unsafe: Unsafe): Exit[E, A] =
     if (running.compareAndSet(false, true)) {
       try {
+        if (RuntimeFlags.currentFiber(_runtimeFlags)) {
+          Fiber._currentFiber.set(self)
+        }
+
         evaluateEffect(0, effect.asInstanceOf[ZIO[Any, Any, Any]])
       } finally {
+        if (RuntimeFlags.currentFiber(_runtimeFlags)) {
+          Fiber._currentFiber.set(null)
+        }
+
         running.set(false)
 
         // Because we're special casing `start`, we have to be responsible
