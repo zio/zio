@@ -8,7 +8,7 @@ title: "TRandom"
 The `TRandom` service is the same as the `Random` service. There are no differences in operations, but all return types are in the `STM` world rather than the `ZIO` world:
 
 | Function      | Input Type    | Output Type                   |
-|---------------+---------------+-------------------------------|
+| --------------| ------------- | ----------------------------- |
 | `nextBoolean` |               | `URSTM[TRandom, Boolean]`     |
 | `nextBytes`   | `length: Int` | `URSTM[TRandom, Chunk[Byte]]` |
 | `nextDouble`  |               | `URSTM[TRandom, Double]`      |
