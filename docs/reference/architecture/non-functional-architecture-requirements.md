@@ -215,7 +215,7 @@ Developer experience and productivity are very important for choosing a technolo
   3. Type-safety and Compile time Error Checking
   4. Easy to Refactor
   5. Discoverability
-      1. Dot completion (useful for IDE developers)
+      1. Dot completion when developing with IDEs
       2. Consistent naming conventions
   6. Concise and Expressive API with Minimal Boilerplate
   7. Expressive Compiler Errors
