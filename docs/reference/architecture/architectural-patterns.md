@@ -1,6 +1,6 @@
 ---
-id: zio-architectural-patterns
-title: "ZIO Architectural Patterns"
+id: architectural-patterns
+title: "Architectural Patterns"
 ---
 
 In this section, we are going to talk about the design elements of a ZIO application and the ZIO idiomatic way of structuring codes to write ZIO applications.
