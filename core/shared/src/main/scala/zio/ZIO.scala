@@ -4717,12 +4717,16 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     DefaultServices.currentServices.locallyScopedWith(_.add(random))
 
   def withRuntimeFlagsScoped(update: RuntimeFlags.Patch)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-    ZIO.uninterruptible {
-      ZIO.runtimeFlags.flatMap { runtimeFlags =>
-        val updatedRuntimeFlags = RuntimeFlags.Patch.patch(update)(runtimeFlags)
-        val revertRuntimeFlags  = RuntimeFlags.diff(updatedRuntimeFlags, runtimeFlags)
-        ZIO.updateRuntimeFlags(update) *>
-          ZIO.addFinalizer(ZIO.updateRuntimeFlags(revertRuntimeFlags)).unit
+    if (update == RuntimeFlags.Patch.empty) {
+      ZIO.unit
+    } else {
+      ZIO.uninterruptible {
+        ZIO.runtimeFlags.flatMap { runtimeFlags =>
+          val updatedRuntimeFlags = RuntimeFlags.Patch.patch(update)(runtimeFlags)
+          val revertRuntimeFlags  = RuntimeFlags.diff(updatedRuntimeFlags, runtimeFlags)
+          ZIO.updateRuntimeFlags(update) *>
+            ZIO.addFinalizer(ZIO.updateRuntimeFlags(revertRuntimeFlags)).unit
+        }
       }
     }
 
