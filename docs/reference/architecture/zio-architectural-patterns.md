@@ -22,7 +22,7 @@ In ZIO by taking advantage of both functional and object-oriented programming, w
 Many reasons make streaming architecture a good choice for building applications:
 
 - From the technical perspective when we are dealing with files, sockets, HTTP requests, databases, etc we are working with streams of data.
-- In addition, from a business standpoint, the area of data processing is growing rapidly and the need for processing continuous streams of data is increasing, such as real-time analytics, fraud detection, monitoring, social media platforms, financial trading, etc.
+- In addition from a business standpoint, the area of data processing is growing rapidly and the need for processing continuous streams of data is increasing, such as real-time analytics, fraud detection, monitoring, social media platforms, financial trading, etc.
 
 In such cases, we may decide to use streaming architecture. ZIO Streams is a library that provides a purely functional, composable, and type-safe way to work with streams of data. We can use ZIO Streams to model both stateful and stateless streaming data processing pipelines.
 
