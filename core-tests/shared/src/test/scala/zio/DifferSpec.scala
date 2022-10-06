@@ -16,9 +16,6 @@ object DifferSpec extends ZIOSpecDefault {
     suite("map") {
       diffLaws(Differ.map[Int, Int, Int => Int](Differ.update[Int]))(Gen.mapOf(smallInt, smallInt))(_ == _)
     },
-    suite("runtimeFlags") {
-      diffLaws(Differ.runtimeFlags)(Gen.runtimeFlags)(_ == _)
-    },
     suite("set") {
       diffLaws(Differ.set[Int])(Gen.setOf(smallInt))(_ == _)
     },

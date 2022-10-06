@@ -382,7 +382,7 @@ object FiberRefSpec extends ZIOBaseSpec {
           value2   <- ZIO.succeed(handle.get())
         } yield assert((value1, value2))(equalTo((initial, initial)))
       }
-    ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber),
+    ),
     test("makeEnvironment") {
       for {
         testClock   <- testClock
@@ -440,19 +440,8 @@ object FiberRefSpec extends ZIOBaseSpec {
              }
         value <- promise.await
       } yield assertTrue(value)
-    },
-    test("runtimeFlags") {
-      val enableCurrentFiber = RuntimeFlags.diff(RuntimeFlags.none, RuntimeFlags(RuntimeFlag.CurrentFiber))
-      val enableOpLog        = RuntimeFlags.diff(RuntimeFlags.none, RuntimeFlags(RuntimeFlag.OpLog))
-      val left               = ZIO.updateRuntimeFlags(enableCurrentFiber)
-      val right              = ZIO.updateRuntimeFlags(enableOpLog)
-      for {
-        _            <- left.zipPar(right)
-        runtimeFlags <- ZIO.runtimeFlags
-      } yield assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.CurrentFiber)) &&
-        assertTrue(RuntimeFlags.isEnabled(runtimeFlags)(RuntimeFlag.OpLog))
-    } @@ TestAspect.nonFlaky
-  )
+    }
+  ) @@ TestAspect.fromLayer(Runtime.enableCurrentFiber)
 }
 
 object FiberRefSpecUtil {
