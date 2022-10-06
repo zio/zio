@@ -1340,7 +1340,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: AppendN[A]     => x.classTag
       case x: Arr[A]         => x.classTag
       case x: Concat[A]      => x.classTag
-      case Empty             => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case x: Empty.type     => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
       case x: PrependN[A]    => x.classTag
       case x: Singleton[A]   => x.classTag
       case x: Slice[A]       => x.classTag
@@ -1621,8 +1621,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     implicit val classTag: ClassTag[A] =
       left match {
-        case Empty => classTagOf(right)
-        case _     => classTagOf(left)
+        case _: Empty.type => classTagOf(right)
+        case _             => classTagOf(left)
       }
 
     override val depth: Int =
