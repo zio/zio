@@ -6,11 +6,11 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
   import RuntimeFlag._
 
   val genFlags: Seq[Gen[Any, RuntimeFlag]] =
-     RuntimeFlag.all.toSeq.map(Gen.const(_))
+    RuntimeFlag.all.toSeq.map(Gen.const(_))
 
-   val genRuntimeFlag = Gen.oneOf(genFlags: _*)
+  val genRuntimeFlag = Gen.oneOf(genFlags: _*)
 
-   val genRuntimeFlags = Gen.setOf(genRuntimeFlag).map(set => RuntimeFlags(set.toSeq: _*))
+  val genRuntimeFlags = Gen.setOf(genRuntimeFlag).map(set => RuntimeFlags(set.toSeq: _*))
 
   def spec =
     suite("RuntimeFlagsSpec") {
