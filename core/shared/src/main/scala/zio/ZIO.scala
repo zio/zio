@@ -5471,7 +5471,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     }
 
     final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
-      extends UpdateRuntimeFlagsWithin[R, E, A] {
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
 
@@ -5480,8 +5480,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
 
-    final case class InterruptibilityRestorer[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: ZIO.InterruptibilityRestorer => ZIO[R, E, A])
-      extends UpdateRuntimeFlagsWithin[R, E, A] {
+    final case class InterruptibilityRestorer[R, E, A](
+      trace: Trace,
+      update: RuntimeFlags.Patch,
+      f: ZIO.InterruptibilityRestorer => ZIO[R, E, A]
+    ) extends UpdateRuntimeFlagsWithin[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = {
         val restorer: ZIO.InterruptibilityRestorer =
           if (RuntimeFlags.interruption(oldRuntimeFlags))
