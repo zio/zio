@@ -110,18 +110,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       parentFiber.setFiberRefs(updatedFiberRefs)
 
-      self.runtimeFlags.flatMap { childRuntimeFlags =>
-        // Do not inherit WindDown or Interruption!
+      val updatedRuntimeFlags = parentFiber.getFiberRef(FiberRef.currentRuntimeFlags)
+      // Do not inherit WindDown or Interruption!
 
-        val patch =
+      val patch =
+        RuntimeFlags.Patch.exclude(
           RuntimeFlags.Patch.exclude(
-            RuntimeFlags.Patch.exclude(
-              RuntimeFlags.diff(parentRuntimeFlags, childRuntimeFlags)
-            )(RuntimeFlag.WindDown)
-          )(RuntimeFlag.Interruption)
+            RuntimeFlags.diff(parentRuntimeFlags, updatedRuntimeFlags)
+          )(RuntimeFlag.WindDown)
+        )(RuntimeFlag.Interruption)
 
-        ZIO.updateRuntimeFlags(patch)
-      }
+      ZIO.updateRuntimeFlags(patch)
     }
 
   def interruptAsFork(fiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
@@ -534,7 +533,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * on this fiber, then values derived from the fiber's state (including the
    * log annotations and log level) may not be up-to-date.
    */
-  private[zio] def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs = _fiberRefs
+  private[zio] def getFiberRefs()(implicit unsafe: Unsafe): FiberRefs = {
+    setFiberRef(FiberRef.currentRuntimeFlags, _runtimeFlags)
+    _fiberRefs
+  }
 
   /**
    * Retrieves the interrupted cause of the fiber, which will be `Cause.empty`

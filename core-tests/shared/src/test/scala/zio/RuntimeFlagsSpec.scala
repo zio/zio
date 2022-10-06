@@ -5,13 +5,6 @@ import zio.test._
 object RuntimeFlagsSpec extends ZIOBaseSpec {
   import RuntimeFlag._
 
-  val genFlags: Seq[Gen[Any, RuntimeFlag]] =
-    RuntimeFlag.all.toSeq.map(Gen.const(_))
-
-  val genRuntimeFlag = Gen.oneOf(genFlags: _*)
-
-  val genRuntimeFlags = Gen.setOf(genRuntimeFlag).map(set => RuntimeFlags(set.toSeq: _*))
-
   def spec =
     suite("RuntimeFlagsSpec") {
       suite("unit") {
@@ -56,19 +49,19 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
       } +
         suite("gen") {
           test("enabled") {
-            checkN(100)(genRuntimeFlags) { flags =>
+            checkN(100)(Gen.runtimeFlags) { flags =>
               assertTrue(RuntimeFlags.toSet(flags).forall(flag => RuntimeFlags.isEnabled(flags)(flag)))
             }
           } +
             test("diff") {
-              checkN(100)(genRuntimeFlags) { flags =>
+              checkN(100)(Gen.runtimeFlags) { flags =>
                 val diff = RuntimeFlags.diff(RuntimeFlags.none, flags)
 
                 assertTrue(RuntimeFlags.Patch.patch(diff)(RuntimeFlags.none) == flags)
               }
             } +
             test("inverse") {
-              checkN(100)(genRuntimeFlags) { flags =>
+              checkN(100)(Gen.runtimeFlags) { flags =>
                 val d = RuntimeFlags.diff(RuntimeFlags.none, flags)
 
                 assertTrue(

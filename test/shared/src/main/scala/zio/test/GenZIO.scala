@@ -108,6 +108,18 @@ trait GenZIO {
     successes(Gen.unit).map(_.zipParRight(zio))
 
   /**
+   * A generator of a runtime flags
+   */
+  final def runtimeFlag(implicit trace: Trace): Gen[Any, RuntimeFlag] =
+    Gen.elements(RuntimeFlag.all.toSeq: _*)
+
+  /**
+   * A generator of sets of runtime flags.
+   */
+  final def runtimeFlags(implicit trace: Trace): Gen[Any, RuntimeFlags] =
+    Gen.setOf(runtimeFlag).map(set => RuntimeFlags(set.toSeq: _*))
+
+  /**
    * A generator of successful effects.
    */
   final def successes[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, UIO[A]] =
