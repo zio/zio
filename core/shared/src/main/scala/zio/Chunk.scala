@@ -1340,7 +1340,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case x: AppendN[A]     => x.classTag
       case x: Arr[A]         => x.classTag
       case x: Concat[A]      => x.classTag
-      case x: Empty.type     => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case _: Empty.type     => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
       case x: PrependN[A]    => x.classTag
       case x: Singleton[A]   => x.classTag
       case x: Slice[A]       => x.classTag
