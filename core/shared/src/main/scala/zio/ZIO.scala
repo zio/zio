@@ -5472,8 +5472,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = effect
     }
-    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: Int => ZIO[R, E, A])
-      extends UpdateRuntimeFlagsWithin[R, E, A] {
+    final case class Dynamic[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: RuntimeFlags => ZIO[R, E, A])
+        extends UpdateRuntimeFlagsWithin[R, E, A] {
       def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A] = f(oldRuntimeFlags)
     }
     final case class DynamicNoBox[R, E, A](trace: Trace, update: RuntimeFlags.Patch, f: IntFunction[ZIO[R, E, A]])
