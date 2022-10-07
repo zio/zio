@@ -7,11 +7,12 @@ When designing an API, there are patterns that are commonly used. In this sectio
 
 ## Functional Design Patterns
 
-  1. Data Modeling
-  2. Declarative Encoding
-  3. Executable Encoding
+  1. Functional Data Modeling
+  2. Functional Domain Modeling
+     1. Declarative Encoding
+     2. Executable Encoding
 
-### Data Modeling
+### Functional Data Modeling
 
 Before we start talking about functional data modeling, let's first recap the object-oriented way of modeling data.
 
@@ -59,6 +60,32 @@ The product and sum types are called "Algebraic Data Types" (ADT). They are the 
 
 - **Product types** are the cartesian product of the types they contain. For example, `Event` is the product of `String`, `Long`, and `EventType`. In scala, we use `case class` to model product types.
 - **Sum types** are the disjoint union of the types they represent. For example, `EventType` is the either `ClickEvent` or `ViewEvent`. In scala 2, we use `sealed trait`s and In Scala 3, we use `enum`s to model sum types.
+
+### Functional Domain Modeling
+
+Functional domain modeling is the process of modeling solutions to problems in a specific domain using functional programming. It is a very broad topic, and we are not going to cover all the details here. However, we are going to talk about the general patterns that are commonly used in functional domain modeling, in a nutshell.
+
+In functional programming, we have two primary tools:
+
+1. Nouns (Data)
+2. Verbs (Operators)
+
+So to provide a solution to every domain problem, we should follow these steps:
+
+1. **Extracting the Core Model**— First, we need to focus on extracting the "minimum" information required to describe the "solution" to the "fundamental problem" in that domain. So we should ask ourselves, "what is the most fundamental problem we have in this domain?".
+
+2. **Providing Operators**— Once we find out what is the core model of our domain, we should provide a set of "orthogonal operators" that are going to provide a "solution" to the "complex problems" by combining sub-problems.
+
+3. **Packaging the Data Type**— To achieve great modularity, we package both the "core model" and "operators" in one place which is called "data type".
+
+4. **Defining Constructors**— Also to have a better ergonomic API, we put all solutions to the "basic and simple problems" in that domain in the companion object of the "data type".
+
+The ZIO ecosystem defines all data types in such a way, including ZIO, Fiber, Reference, Stream, etc.
+
+There are two main encoding styles in functional domain modeling:
+
+1. Executable Encoding
+2. Declarative Encoding
 
 ## Design Techniques
 
