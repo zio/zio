@@ -189,6 +189,21 @@ object Differ {
     }
 
   /**
+   * Constructs a differ that knows how to diff `RuntimeFlags` values.
+   */
+  val runtimeFlags: Differ[RuntimeFlags, RuntimeFlags.Patch] =
+    new Differ[RuntimeFlags, RuntimeFlags.Patch] {
+      def combine(first: RuntimeFlags.Patch, second: RuntimeFlags.Patch): RuntimeFlags.Patch =
+        RuntimeFlags.Patch.andThen(first, second)
+      def diff(oldValue: RuntimeFlags, newValue: RuntimeFlags): RuntimeFlags.Patch =
+        RuntimeFlags.diff(oldValue, newValue)
+      def empty: RuntimeFlags.Patch =
+        RuntimeFlags.Patch.empty
+      def patch(patch: RuntimeFlags.Patch)(oldValue: RuntimeFlags): RuntimeFlags =
+        RuntimeFlags.patch(patch)(oldValue)
+    }
+
+  /**
    * Constructs a differ that knows how to diff a `Set` of values.
    */
   def set[A]: Differ[Set[A], SetPatch[A]] =
