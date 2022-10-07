@@ -1786,7 +1786,7 @@ object ZChannel {
                    }
                  )
                  .repeatWhileEquals(true)
-                 .forkScoped
+                 .forkDaemon
         } yield (queue, input)
       }.map { case (queue, input) =>
         lazy val consumer: ZChannel[Env, Any, Any, Any, OutErr, OutElem, OutDone] =
