@@ -2403,7 +2403,11 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
 
     override def equals(that: Any): Boolean =
-      self eq that.asInstanceOf[AnyRef]
+      that match {
+        case chunk: Chunk[_] => self eq chunk
+        case seq: Seq[_]     => seq.isEmpty
+        case _               => false
+      }
 
     override def foreach[B](f: Nothing => B): Unit = {
       val _ = f
