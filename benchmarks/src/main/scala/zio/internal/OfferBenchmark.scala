@@ -1,7 +1,7 @@
 package zio.internal
 
 import org.openjdk.jmh.annotations._
-import zio.internal.BenchUtils._
+import zio.internal.BenchQueueType._
 
 import java.util.concurrent.TimeUnit
 
