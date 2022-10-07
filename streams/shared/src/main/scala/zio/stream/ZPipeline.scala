@@ -212,6 +212,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
+   * Creates a pipeline that exposes the chunk structure of the stream.
+   */
+  def chunks[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
+    mapChunks(Chunk.single)
+
+  /**
    * Creates a pipeline that collects elements with the specified partial
    * function.
    *
@@ -490,6 +496,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def filter[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.filter(f)))
+
+  /**
+   * Creates a pipeline that submerges chunks into the structure of the stream.
+   */
+  def flattenChunks[In](implicit trace: Trace): ZPipeline[Any, Nothing, Chunk[In], In] =
+    ZPipeline.mapChunks(_.flatten)
 
   /**
    * Creates a pipeline that groups on adjacent keys, calculated by function f.
