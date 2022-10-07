@@ -996,6 +996,20 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
+   * Creates a pipeline produced from an effect.
+   */
+  def unwrap[Env, Err, In, Out](zio: ZIO[Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
+    trace: Trace
+  ): ZPipeline[Env, Err, In, Out] =
+    new ZPipeline(ZChannel.unwrap(zio.map(_.channel)))
+
+  /**
+   * Created a pipeline produced from a scoped effect.
+   */
+  def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
+    new UnwrapScopedPartiallyApplied[Env]
+
+  /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
    * using the US ASCII charset
    */
@@ -1260,4 +1274,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   private def utf8DecodeNoBom(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_8)
+
+  final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+    def apply[Err, In, Out](scoped: => ZIO[Scope with Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
+      trace: Trace
+    ): ZPipeline[Env, Err, In, Out] =
+      new ZPipeline(ZChannel.unwrapScoped[Env](scoped.map(_.channel)))
+  }
 }
