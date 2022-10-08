@@ -17,6 +17,10 @@ In imperative programming, one common way to store the state is using a variable
 From the aspect of concurrency, we have two general approaches to maintaining the state in functional programming:
 1. **[Recursion](state-management-using-recursion.md)**— In this approach, we can update the state by passing the new state to the next component. This is a very easy way to maintain the state, but it can't be used in a concurrent environment, because we can't share the state between multiple fibers.
 
-2. **[Concurrent](concurrent-state-management.md)**— ZIO has a powerful data type called `Ref`, which is the description of a mutable reference. We can use `Ref` to share the state between multiple fibers, e.g. producer and consumer components.
+2. Concurrent— The concurrent state management is also has two variant, global and fiber-local state management:
 
-In this section, we will talk about these two approaches.
+   1. **[Global Shared State](global-shared-state.md)**- ZIO has a powerful data type called `Ref`, which is the description of a mutable reference. We can use `Ref` to share the state between multiple fibers, e.g. producer and consumer components.
+
+   2. **[Fiber-local State](fiber-local-state.md)**— ZIO provides two data types called `FiberRef` and `ZState` that can be used to maintain the state in a concurrent environment, but each fiber has its own state. Their states are not shared between other fibers. This prevents them from clobbering each other's state.
+
+In this section, we will talk about these approaches.
