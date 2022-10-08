@@ -16,7 +16,7 @@ Before we start talking about functional data modeling, let's first recap the ob
 
 The essence of object-oriented data modeling is inheritance. We have classes, traits, abstract classes, and subtyping. The core idea is to describe the commonalities between different types of data in a base interface or abstract class, and then extend it to describe the differences in the subclasses; so each subclass has its type-specific details while sharing the commonalities with the base type:
 
-```scala mdoc:compile-only
+```scala mdoc:silent
 abstract class Event {
   def id: String
   def timestamp: Long
@@ -114,7 +114,7 @@ For example, when we implement `map`,  should execute the `thunk` of the current
 ```scala mdoc:compile-only
 final case class IO[+A](private val thunk: () => A) {
   def map[B](f: A => B): IO[B]         = IO.succeed(f(thunk()))
-  def flatMap[B](f: A => IO[B]): IO[B] = IO.succeed(f(thunk()).unsafeRun())
+  def flatMap[B](f: A => IO[B]): IO[B] = IO.succeed(f(thunk()).unsafeRunSync())
   def unsafeRunSync(): A               = thunk()
 }
 
