@@ -201,22 +201,22 @@ module.exports = {
       link: { type: "doc", id: "reference/state/index" },
       items:
         [
-          "reference/state/sequential",
+          "reference/state-management/recursion",
           {
             type: "category",
             label: "Concurrent",
-            link: { type: "doc", id: "reference/state/concurrent" },
+            link: { type: "doc", id: "reference/state-management/concurrent" },
             items:
               [
-                "reference/state/global-shared-state",
+                "reference/state-management/global-shared-state",
                 {
                   type: "category",
                   label: "Fiber-local State",
-                  link: { type: "doc", id: "reference/state/fiber-local-state" },
+                  link: { type: "doc", id: "reference/state-management/fiber-local-state" },
                   items:
                     [
-                      "reference/state/fiberref",
-                      "reference/state/zstate",
+                      "reference/state-management/fiberref",
+                      "reference/state-management/zstate",
                     ]
                 }
               ]

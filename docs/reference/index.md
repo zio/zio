@@ -43,9 +43,9 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## State Management
 
-- **[ZState](state/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
-- **[Ref](state/global-shared-state.md)**— `Ref[A]` models a mutable reference to a value of type `A`.
-- **[FiberRef](state/fiberref.md)**— `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+- **[ZState](state-management/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
+- **[Ref](state-management/global-shared-state.md)**— `Ref[A]` models a mutable reference to a value of type `A`.
+- **[FiberRef](state-management/fiberref.md)**— `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
 
 ## Concurrency
 
